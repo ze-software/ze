@@ -416,7 +416,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// block exists, whatever supplied the address. Gating these on `enabled`
 	// silently discarded the operator's authentication instruction when the
 	// listener came from `--mcp <port>` or ze.mcp.listen, leaving an accept-all
-	// server (ai/rules/exact-or-reject.md).
+	// server (ai/rules/protocol.md).
 	mcpCfg, mcpCfgOK := zeconfig.ExtractMCPSettings(loadResult.Tree)
 	if mcpCfgOK && mcpToken == "" && mcpCfg.Token != "" {
 		mcpToken = mcpCfg.Token

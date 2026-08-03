@@ -72,7 +72,7 @@ T1-3 frame was invisible).
 ## Two open items that are nobody's yet
 
 - `TestFwdPool_BackpressureBehavior` fails under `make ze-race-reactor`
-  (`-count=20`), passes 5/5 isolated, 0 data races. Per `ai/rules/fix-dont-record.md`
+  (`-count=20`), passes 5/5 isolated, 0 data races. Per `ai/rules/completion.md`
   that is a BROKEN TEST waiting on a duration instead of a condition. It must be
   fixed, not recorded in `plan/known-failures/`.
 - Tier 1 closure: the Review Gate artifact, the audit tables, A-1..A-6, the

@@ -37,8 +37,8 @@ of the RFC scope.
 
 ### Key source files
 
-- `internal/component/bgp/plugins/rib/rib_bestchange.go:716-721` - SAFI gate
-- `internal/component/bgp/plugins/rib/rib_bestchange.go:887-889` - needsTransposition
+- `internal/component/bgp/plugins/rib/rib_bestchange.go` - SAFI gate
+- `internal/component/bgp/plugins/rib/rib_bestchange.go` - needsTransposition
 - `internal/component/bgp/plugins/rib/pool/srv6sid.go` - extraction and transposition
 
 ## Required Reading
@@ -84,8 +84,8 @@ of the RFC scope.
 | RIB best-path -> sysrib | bestChangeEntry.SRv6SID via EventBus | [ ] |
 
 ### Integration Points
-- `checkBestPathChange` SAFI gate (`internal/component/bgp/plugins/rib/rib_bestchange.go:716-721`) - the exclusion to lift; where `lookupSRv6SIDForBest` would be called for SAFIMPLSLabel
-- `needsTransposition` (`internal/component/bgp/plugins/rib/rib_bestchange.go:887-889`) - decides whether transposition applies for the family
+- `checkBestPathChange` SAFI gate (`internal/component/bgp/plugins/rib/rib_bestchange.go`) - the exclusion to lift; where `lookupSRv6SIDForBest` would be called for SAFIMPLSLabel
+- `needsTransposition` (`internal/component/bgp/plugins/rib/rib_bestchange.go`) - decides whether transposition applies for the family
 - SID extraction and transposition (`internal/component/bgp/plugins/rib/pool/srv6sid.go`) - existing mechanism reused unchanged (design question 3)
 - `bestChangeEntry.SRv6SID` via EventBus - existing hand-off to sysrib for FIB installation
 

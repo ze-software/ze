@@ -39,7 +39,7 @@ const (
 	// Proposal Num field of RFC 7296 Section 3.3.1 is one octet. An offer numbers
 	// its proposals one upward, so 255 is the last number a conforming offer can
 	// carry. A larger group has no exact encoding. Ze refuses it here, rather than
-	// wrap the number on the wire (ai/rules/exact-or-reject.md).
+	// wrap the number on the wire (ai/rules/protocol.md).
 	MaxProposalsPerGroup = 255
 )
 
@@ -233,7 +233,7 @@ func parseESPProposal(groupName, numStr string, t *config.Tree) (ESPProposal, er
 		// proposal offers the integrity transform NONE and a hash names nothing. ESP has
 		// no PRF transform either, so the hash is not read as one. Ze once accepted the
 		// spelling and derived integrity keys from it. That moved the responder
-		// encryption key past the offset the peer reads (ai/rules/exact-or-reject.md).
+		// encryption key past the offset the peer reads (ai/rules/protocol.md).
 		return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash %q is not allowed beside the AEAD encryption algorithm %q; remove the hash",
 			groupName, num, hashStr, encStr)
 	case hasHash:
@@ -644,7 +644,7 @@ func parsePreSharedSecret(peerName string, t *config.Tree) (string, error) {
 	// Fail closed on a malformed value: never fall back to treating it as ASCII. A
 	// silent fallback would turn a typo in a hex secret into a working-looking config
 	// that authenticates against nothing. The operator would then debug the peer
-	// (ai/rules/exact-or-reject.md).
+	// (ai/rules/protocol.md).
 	raw, err := hex.DecodeString(v)
 	if err != nil {
 		return "", fmt.Errorf(

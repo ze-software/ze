@@ -266,7 +266,7 @@ func TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure(t *testing.T) {
 // Without the parked cause, Process falls through to the reassembly checks, the
 // first one that trips wins, and the certificate failure is replaced by "peer
 // ended a TLS message after 0 of 10 declared bytes" -- which names the peer's last
-// packet instead of the reason the exchange died (ai/rules/error-messages.md).
+// packet instead of the reason the exchange died (ai/rules/cli.md).
 func TestEAPTLSRejectedPeerCannotSteerTheReportedCause(t *testing.T) {
 	impostor := newImpostorPKI(t)
 

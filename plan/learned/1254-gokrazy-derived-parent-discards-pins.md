@@ -56,7 +56,7 @@ unpinned Linux kernel.
 - `gokrazy/modcache` stops growing by ~140 MB per pushed commit.
 - Cache growth regains diagnostic value: a `github.com/ze-software/ze@...`
   directory, or an off-pin copy of a pinned module, now means some path is
-  preparing an instance without the builddir. `ai/rules/appliance-dep-bumps.md`
+  preparing an instance without the builddir. `ai/rules/platform-linux.md`
   records how to read the cache and why `rm -rf gokrazy/modcache` is never the
   answer (60 tracked files live inside it).
 
@@ -147,6 +147,6 @@ missing argument named). R-2 in the spec is closed.
   builddir; new `copyBuildDir` and `absolutizeReplaces`
 - `internal/appliance/kernelargs_test.go` -- rewritten derived-parent test plus
   fail-closed, isolation, and version-replace tests
-- `ai/rules/appliance-dep-bumps.md` -- module cache hygiene section
+- `ai/rules/platform-linux.md` -- module cache hygiene section
 - `plan/learned/1262-gokrazy-builddir-tmp.md` -- A-1b confirmed, landed work recorded
 - `go.mod` -- `golang.org/x/mod` promoted to a direct dependency

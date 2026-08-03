@@ -14,7 +14,7 @@ obligation tags itself:
 
 The link is two-way, but only ONE side is authored. The tag lives in the test, so it
 dies with the test; `ai/RFC-REQUIREMENTS.md` renders the reverse direction and is
-GENERATED (ai/rules/derive-not-hardcode.md). A hand-written back-link would outlive the
+GENERATED (ai/rules/evidence.md). A hand-written back-link would outlive the
 test it names -- exactly the silent rot this gate exists to catch.
 
 For an ENROLLED RFC (rfc/enrolled.txt), every MUST-level requirement must have BOTH a
@@ -41,7 +41,7 @@ editing it or one greppable command (spec-rfcgate-3-audit-teeth.md, A-7).
 Exit 0 = a comparison ran and found nothing wrong.
 Exit 2 = violations found, or the gate could not run (unparseable input, nothing
          enrolled, enrolled RFC with no summary). "Clean" must mean "I compared things
-         and found nothing", never "I compared nothing" (ai/rules/fail-closed-guards.md).
+         and found nothing", never "I compared nothing" (ai/rules/evidence.md).
 """
 
 import calendar
@@ -88,9 +88,9 @@ AUDIT_DIR = os.path.join(PROJECT_DIR, "rfc", "audit")
 # Where a RELOCATED obligation's destination spec lives (see EXCLUSION_KINDS,
 # `relocated-to-spec`). The directory name has ONE spelling: _SPEC_PATH_RE:5150 builds its
 # prefix from it, so the validator and the resolver can never disagree about where a spec
-# is (ai/rules/derive-not-hardcode.md). Named as a constant for the same reason
+# is (ai/rules/evidence.md). Named as a constant for the same reason
 # EXTRACTION_DIR is: the tests point it at a fixture tree, because a real plan/spec-*.md is
-# DELETED the day its work closes (ai/rules/spec-preservation.md).
+# DELETED the day its work closes (ai/rules/planning.md).
 _SPEC_DIR_NAME = "plan"
 SPEC_DIR = os.path.join(PROJECT_DIR, _SPEC_DIR_NAME)
 
@@ -205,7 +205,7 @@ _TERMINATOR_RE = re.compile(r"terminator=(?P<name>[A-Za-z0-9_]+)")
 # tells "this file certainly holds no tag" from "this file might", so the expensive answer
 # is only computed where it can change the verdict: scan_tree tests it before handing a
 # file to a reader, and _read_git_baseline_tags hands it to `git grep -F`. Both call sites
-# read the constant; neither re-spells the string (ai/rules/derive-not-hardcode.md).
+# read the constant; neither re-spells the string (ai/rules/evidence.md).
 TAG_MARKER = "RFC requirement:"
 
 # Rows the status ledger uses to say "nothing missing here". A `{gap}` requirement whose
@@ -217,7 +217,7 @@ _NO_GAP_RE = re.compile(
 
 class ParseError(Exception):
     """Input is malformed. Always raised, never swallowed: a silently skipped MUST is a
-    false green (ai/rules/fail-closed-guards.md)."""
+    false green (ai/rules/evidence.md)."""
 
 
 class Annotation(NamedTuple):
@@ -378,7 +378,7 @@ def parse_checklist_line(
             # has an unrecognised first bracket, so it was dismissed as an ad-hoc category
             # line and silently dropped -- taking a live MUST out of the ledger with it.
             # A silently skipped obligation is precisely what this gate exists to prevent
-            # (ai/rules/fail-closed-guards.md).
+            # (ai/rules/evidence.md).
             if _LEVEL_BRACKET_RE.search(line):
                 raise ParseError(
                     f"{where}: checklist line carries an RFC 2119 keyword but does not "
@@ -586,7 +586,7 @@ def scan_python_tags(src: str, path: str) -> List[Tag]:
 
     Fails closed on a file the tokenizer cannot read (AC-9). That is exactly the condition
     under which comment extraction is untrustworthy, so reporting "no tags" would be a
-    zero that looks like an answer (ai/rules/fail-closed-guards.md).
+    zero that looks like an answer (ai/rules/evidence.md).
     """
     out: List[Tag] = []
     try:
@@ -654,7 +654,7 @@ def scan_ci_tags(src: str, path: str) -> List[Tag]:
 #
 # This table is the ONE place either axis is spelled. scan_tree, the HEAD baseline filter,
 # the tolerant baseline scanner, the ledger render and the evidence ratchet all read it
-# (ai/rules/derive-not-hardcode.md). The two extension filters used to be independent
+# (ai/rules/evidence.md). The two extension filters used to be independent
 # literal `endswith` chains in scan_tree and _git_baseline_tag_polarities; extending one
 # and not the other desynchronizes the ratchet baseline and manufactures phantom polarity
 # losses, silently and in the green direction.
@@ -672,7 +672,7 @@ DRAFT_PREFIX = "test/draft/"
 # `ze-functional-test` names the suites it runs in ONE place, and a suite name is also the
 # test/<suite>/ directory the runner walks (internal/test/runner/draft_dir.go:40). Reading
 # that line is what keeps a `.ci`'s tier tied to whether anything executes it, instead of
-# to its extension (ai/rules/derive-not-hardcode.md).
+# to its extension (ai/rules/evidence.md).
 FUNCTIONAL_MK = os.path.join(PROJECT_DIR, "mk", "test-functional.mk")
 _ALL_SUITES_RE = re.compile(r'all_suites="(?P<names>[^"]*)"')
 # The dispatch half of the same recipe. `run_suite() {` (the shell function definition) has
@@ -686,7 +686,7 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
 
     Fails closed. An unreadable or unrecognizable recipe means we do not know what runs,
     and a gate that answers "everything runs" in that state is the exact zero-that-looks-
-    like-an-answer this module refuses elsewhere (ai/rules/fail-closed-guards.md).
+    like-an-answer this module refuses elsewhere (ai/rules/evidence.md).
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -708,7 +708,7 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
         # this file (a `ze-functional-list`, a `-quick` subset) would decide the tier of
         # every `.ci` in the repo without touching ze-functional-test, upgrading suites
         # nothing runs to merge-gate evidence. Two answers is not an answer: refuse and
-        # make a human say which line is the definition (ai/rules/fail-closed-guards.md).
+        # make a human say which line is the definition (ai/rules/evidence.md).
         raise ParseError(
             f'{path}: {len(found)} `all_suites="..."` assignments found, so which one '
             f"ze-functional-test runs is ambiguous. The .ci/.et evidence tier is derived "
@@ -725,7 +725,7 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
     # it counted toward the progress denominator, ran nothing, and still earned every
     # test/ipsec/*.ci a verify tier here. Only a comment tied the two lists together, which
     # is the same failure this module's compile check exists to close on the Go side: a
-    # tier credited from a claim nobody measured (ai/rules/fail-closed-guards.md).
+    # tier credited from a claim nobody measured (ai/rules/evidence.md).
     dispatched = set(_RUN_SUITE_RE.findall(src))
     undispatched = [n for n in names if n not in dispatched]
     if undispatched:
@@ -743,7 +743,7 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
 # that claim was four literals: deleting the `interop` job from evidence-nightly.yml
 # changed NOTHING here, so `interop-bgp` would have kept advertising `interop/nightly` for
 # a pipeline that no longer existed. Reading the workflows is what turns a job deletion
-# into a tier DOWNGRADE instead of a wash (ai/rules/derive-not-hardcode.md).
+# into a tier DOWNGRADE instead of a wash (ai/rules/evidence.md).
 WORKFLOWS_DIR = os.path.join(PROJECT_DIR, ".github", "workflows")
 _WORKFLOW_SUFFIXES = (".yml", ".yaml")
 
@@ -838,7 +838,7 @@ def _is_scheduled(src: str) -> bool:
     Answers NO for anything it cannot classify (no `on:` block, an inline form it does not
     recognize). That direction is the safe one: an unclassified workflow grants no tier,
     which refuses tags rather than crediting evidence to a pipeline nobody confirmed
-    (ai/rules/fail-closed-guards.md).
+    (ai/rules/evidence.md).
     """
     block = _top_level_block(src, "on:")
     if block is not None:
@@ -893,7 +893,7 @@ def scheduled_workflow_targets(path: str = WORKFLOWS_DIR) -> Dict[str, str]:
 
     Fails closed. An unreadable or empty workflow directory means we do not know what CI
     runs, and answering "everything" there is the exact zero-that-looks-like-an-answer this
-    module refuses elsewhere (ai/rules/fail-closed-guards.md).
+    module refuses elsewhere (ai/rules/evidence.md).
     """
     return _scheduled_targets_from(_read_workflow_sources(path))
 
@@ -1070,12 +1070,12 @@ CARRIERS: Tuple[Carrier, ...] = (
     # grants it `interop/nightly` and DELETING that job takes the tier away again. As four
     # literals this table asserted `interop-bgp` was nightly and the other three were unrun;
     # both halves of that claim were unchecked, and removing the job would have changed
-    # neither (ai/rules/derive-not-hardcode.md).
+    # neither (ai/rules/evidence.md).
     *_interop_carriers("/check.py", scheduled_workflow_targets()),
     # Catch-all. test/stress/scenarios/ and test/l2tp-scale/ also hold check.py files, and
     # any future tree will too. Refusing a tag there by DEFAULT is the fail-closed shape:
     # a carrier whose pipeline nobody has declared is exactly the case where silence would
-    # be indistinguishable from proof (ai/rules/fail-closed-guards.md).
+    # be indistinguishable from proof (ai/rules/evidence.md).
     Carrier(
         "scenario-check",
         "unknown",
@@ -1184,7 +1184,7 @@ def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
 # undefined symbol in a tagged _test.go. `go vet` could not type-check that package, `go
 # test` could not run one single test in it, and this gate still reported all six of its
 # requirements proven. A guard that answers a question it never measured is the shape
-# ai/rules/fail-closed-guards.md refuses.
+# ai/rules/evidence.md refuses.
 #
 # _refuse_unrun covers the sibling case, a tag nothing EXECUTES. This covers the other half,
 # a tag nothing can COMPILE. Both are ADMISSIBILITY rather than coverage, and neither is a
@@ -1230,11 +1230,11 @@ def feature_tags(path: str = FEATURE_GATES) -> Tuple[str, ...]:
 
     Makefile:56 is `awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u`, and the same
     predicate is applied here. A gate added to the manifest therefore reaches this check
-    with no second edit (ai/rules/feature-gate-registration.md, derive-not-hardcode.md).
+    with no second edit (ai/rules/plugins.md, evidence.md).
 
     Fails closed. Without these tags every gated file is excluded from the build, so the
     type-check would report clean over code it never read -- the bare-`go test` failure
-    ai/rules/bash-output.md names, in the green direction.
+    ai/rules/commands.md names, in the green direction.
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -1329,7 +1329,7 @@ def go_tag_packages(tags: Sequence[Tag], root: str = PROJECT_DIR) -> List[str]:
     """`./dir` for every Go-carrier tag whose file is on disk, deduplicated and sorted.
 
     The CARRIER decides, never the extension. CARRIERS is the one place a reader is named,
-    and only the "go" reader has a compile step (ai/rules/derive-not-hardcode.md). A `.ci`
+    and only the "go" reader has a compile step (ai/rules/evidence.md). A `.ci`
     and a `.et` are data the functional runner interprets. A `check.py` is tokenized by
     scan_python_tags, which already fails closed on a file Python cannot parse.
 
@@ -1391,7 +1391,7 @@ def _vet_failures(text: str, module: str) -> Dict[str, List[str]]:
 
 # A package with a broken import produces one type error per use site, and the whole list
 # in one message helps nobody. The first few name the file and the symbol, which is what a
-# reader acts on (ai/rules/error-messages.md, "Truncate large blobs").
+# reader acts on (ai/rules/cli.md, "Truncate large blobs").
 _QUOTED_MESSAGES = 5
 
 
@@ -1582,7 +1582,7 @@ def check_enrolment(
     if not current:
         errs.append(
             "nothing is enrolled: rfc/enrolled.txt is empty or missing. The gate refuses "
-            "to report clean while enforcing nothing (ai/rules/fail-closed-guards.md)"
+            "to report clean while enforcing nothing (ai/rules/evidence.md)"
         )
     for rfc in sorted(baseline - current):
         errs.append(
@@ -1642,7 +1642,7 @@ def parse_dispositions(text: str) -> Dict[str, Disposition]:
     stem, so one reader serves both files. Everything after that is REJECTED rather than
     skipped: a malformed line here would silently un-declare a summary, and an
     un-declared summary is exactly the absence this file exists to abolish
-    (`ai/rules/fail-closed-guards.md`). A typo must cost a red gate, not a quiet hole.
+    (`ai/rules/evidence.md`). A typo must cost a red gate, not a quiet hole.
     """
     out: Dict[str, Disposition] = {}
     for n, raw in enumerate(text.split("\n"), 1):
@@ -1822,7 +1822,7 @@ def _git_baseline_summary_stems() -> Optional[Set[str]]:
     baseline accuses nobody. This one is consumed as `stems - baseline_stems`, where an
     empty baseline accuses EVERY summary in the repository of being new. Same word,
     opposite polarity: "I could not look" must not render as "nothing was there"
-    (ai/rules/fail-closed-guards.md -- and note that failing CLOSED here would mean a wall
+    (ai/rules/evidence.md -- and note that failing CLOSED here would mean a wall
     of false violations no developer can act on, which teaches people to bypass the gate).
     """
     try:
@@ -1907,7 +1907,7 @@ def _head_workflow_sources() -> Optional[Dict[str, str]]:
     One `git ls-tree` plus one `git show` per workflow file -- a handful of processes, run
     once and cached in _HEAD_CARRIERS_CACHE. There is no single-command way to get both the
     names and the contents, and `git cat-file --batch` would trade that for parsing a binary
-    framing (ai/rules/no-fork-loops.md is about per-file forks in an unbounded loop).
+    framing (ai/rules/commands.md is about per-file forks in an unbounded loop).
     """
     rel = os.path.relpath(WORKFLOWS_DIR, PROJECT_DIR)
     try:
@@ -2313,7 +2313,7 @@ def check_evidence_ratchet(
     is blind to what KIND of test supplied them: replacing a `.ci` binding with a unit tag
     of the same polarity is invisible to it. That is the exact regression this gate exists
     to stop, because a unit test proves the algorithm and only a functional or interop test
-    proves the daemon or a peer (`ai/rules/integration-completeness.md`).
+    proves the daemon or a peer (`ai/rules/completion.md`).
 
     Keyed by carrier LABEL (`kind/tier`), so the two counters R-1 asks for fall out of one
     comparison rather than being maintained as two: converting a verify-tier `.ci` binding
@@ -2496,7 +2496,7 @@ def parse_status_ledger(text: str) -> Dict[str, Dict[str, str]]:
             # number to key on), so their status row leads with the draft name and is
             # keyed by that stem -- matching Requirement.rfc for a draft-stem summary.
             # Without this a {gap} on an enrolled draft could never find its disclosure
-            # row and would fail check_status_agreement (ai/rules/fail-closed-guards.md).
+            # row and would fail check_status_agreement (ai/rules/evidence.md).
             key = cells[0]
         elif re.match(r"^[a-z][a-z0-9]*(-[a-z0-9.]+)+$", cells[0]):
             # Non-RFC, non-draft summaries (e.g. sflow-v5) enroll under their file
@@ -2524,7 +2524,7 @@ def row_discloses_a_gap(row: Dict[str, str]) -> bool:
     Under a clean 'Supported' claim, ONLY an explicit non-empty gap note in the Remaining
     column discloses. An empty/whitespace/neutral Remaining does NOT -- that was the
     fail-open: `_NO_GAP_RE.search("")` is None, so a blank Remaining read as "disclosed" and a
-    {gap} MUST hid behind clean support (`ai/rules/fail-closed-guards.md`: absence of a claim is
+    {gap} MUST hid behind clean support (`ai/rules/evidence.md`: absence of a claim is
     not a disclosure). A non-'Supported' status (Partial, Not supported, ...) itself discloses
     that the RFC is not fully met, so the row is not advertising clean support.
     """
@@ -2590,7 +2590,7 @@ def check_status_agreement(
 # check_new_summaries records: the existing backlog (32 rowless enrolments) predates the
 # guard, and failing on it would block every unrelated commit until 32 product judgements
 # were made. Derived from git, never from a checked-in allowlist
-# (ai/rules/derive-not-hardcode.md).
+# (ai/rules/evidence.md).
 
 # A Status cell that is not a support claim. Exactly two values, and the test is EXACT
 # rather than a prefix: "Supported" must never be read as "Unsupported" reversed, and
@@ -2605,7 +2605,7 @@ def status_is_a_support_claim(status: str) -> bool:
     cell. An empty Status is the fail-open case: `row["status"]` is present, so an `ok`-style
     test passes, and a blank cell under an empty checklist would then read as "no claim
     made" when the row's own existence on a page titled "RFC support" is the claim
-    (`ai/rules/fail-closed-guards.md`, the zero-value trap). `Experimental` is a claim too:
+    (`ai/rules/evidence.md`, the zero-value trap). `Experimental` is a claim too:
     it says the code exists, which is precisely what an empty checklist cannot support.
     """
     return status.strip() not in NON_CLAIM_STATUSES
@@ -2623,7 +2623,7 @@ def status_is_a_support_claim(status: str) -> bool:
 # us here", "This RFC is irrelevant for our implementation", and four more). The rule AC-14
 # states is carried by non_normative_reason_cites_the_document below, which is POSITIVE and
 # therefore fails closed on the wordings this list cannot enumerate
-# (ai/rules/fail-closed-guards.md).
+# (ai/rules/evidence.md).
 _NON_APPLICABILITY_RE = re.compile(
     r"\b(?:not\s+applicable\s+to\s+ze"
     r"|does\s+not\s+apply\s+to\s+ze"
@@ -2665,7 +2665,7 @@ def non_normative_reason_cites_the_document(reason: str) -> bool:
 
     The keyword arm reuses _SITE_KEYWORD_RE -- the same capitalised set the site inventory is
     derived from, so "the keywords the corpus is read in" has one spelling
-    (ai/rules/derive-not-hardcode.md). It is CASE SENSITIVE on purpose: the arm exists for a
+    (ai/rules/evidence.md). It is CASE SENSITIVE on purpose: the arm exists for a
     claim about the register the document is written in, and a lowercase "must" in ordinary
     prose ("this must be out of scope") is not that claim.
 
@@ -2906,7 +2906,7 @@ def check_unproven_support(
             # The escape is REACHED. Whether it is EARNED is the derived grade's answer, and a
             # refusal here gets its own message: telling an author who already wrote a
             # manual-walk sign-off to write one is a dead end
-            # (ai/rules/error-messages.md leg 3, a remediation must be TRUE).
+            # (ai/rules/cli.md leg 3, a remediation must be TRUE).
             grade = derived.get(stem)
             if grade is not None and grade != REGISTER_RFC2119:
                 continue
@@ -3063,7 +3063,7 @@ def _normalize(src: str) -> str:
 # The width of every fingerprint this module records, in hex characters. ONE constant, consumed
 # by both producers below and by the schema check that validates a recorded value, so the shape
 # the gate accepts is derived from the shape it emits and the two cannot drift
-# (`ai/rules/derive-not-hardcode.md`).
+# (`ai/rules/evidence.md`).
 SHA_HEX_LEN = 16
 # Matched with `fullmatch`, not `match`. Python's `$` also matches immediately BEFORE a final
 # newline, so `match` accepts a 17-character `"a"*16 + "\n"` -- an "invalid above" value waved
@@ -3102,9 +3102,9 @@ def recorded_map(verdict: Dict, key: str) -> Dict[str, str]:
     the field, and the omitted spelling then read STALE_UNIT forever with a message that was
     false in all three of its clauses: no tagged test was ever gone (OR-1 FORBIDS citing one),
     it is not a line shift, and re-running `/ze-rfc-audit` reproduces the identical record.
-    `--reseal` refused it too, so nothing cleared it (`ai/rules/fail-closed-guards.md`, the
+    `--reseal` refused it too, so nothing cleared it (`ai/rules/evidence.md`, the
     zero-value trap: a present-but-empty value must not diverge from an absent one;
-    `ai/rules/error-messages.md` leg 3: a remediation must be TRUE, not merely present).
+    `ai/rules/cli.md` leg 3: a remediation must be TRUE, not merely present).
 
     A wrong TYPE reads as empty here rather than raising: `_validate_verdict` already refused it
     at load time, and this is on the LEDGER RENDER path where raising would take down a report
@@ -3203,10 +3203,10 @@ def _sha_value(sha: object, where: str) -> str:
     A recorded sha is agent-authored input, and the previous check accepted any non-empty string.
     A malformed one is not inert but it is not silent either: it compares unequal to the computed
     value and resolves to STALE_UNIT, which degrades toward MORE checking, so this was never an
-    unsound-green defect (`ai/rules/fail-closed-guards.md`). It is the wrong DIAGNOSIS, though --
+    unsound-green defect (`ai/rules/evidence.md`). It is the wrong DIAGNOSIS, though --
     it sends a reader to re-audit a requirement whose judgement never moved, and the remediation
     STALE prints ("re-run /ze-rfc-audit") does not name the actual fault, which leaves leg 3 of
-    `ai/rules/error-messages.md` present but untrue.
+    `ai/rules/cli.md` present but untrue.
 
     Length alone is not the check. A value truncated and then padded to 16 characters has the
     right length and is still not a fingerprint, so the charset is validated too -- and that is
@@ -3233,7 +3233,7 @@ def _sha_map(verdict: Dict, key: str, where: str) -> Dict[str, str]:
     The zero-value trap this closes: `verdict.get("tests")` returning a string, a list, or a
     map of maps used to flow straight into an equality comparison, where any of them compares
     unequal to the computed shas and reported as STALE -- a real defect wearing the costume of
-    a routine re-read (`ai/rules/fail-closed-guards.md`).
+    a routine re-read (`ai/rules/evidence.md`).
     """
     val = verdict.get(key)
     if val is None:
@@ -3289,7 +3289,7 @@ def _validate_verdict(rfc: str, rid: str, verdict: object, where: str) -> None:
         _str_field(verdict, "upgrade_reason", f"{where}: {rid}", required=False)
     # `no_code_path` means exactly one thing, so it may only appear where it means it. A field
     # that sits unread on the other four verdicts is a field an author can believe they filled
-    # in (ai/rules/fail-closed-guards.md: a guard that cannot deny must at least say something).
+    # in (ai/rules/evidence.md: a guard that cannot deny must at least say something).
     if "no_code_path" in verdict:
         if value != VERDICT_NOT_APPLICABLE:
             raise ParseError(
@@ -3567,7 +3567,7 @@ def unit_shas(
     unreadable file the same fingerprint, so a deleted test would read as "unchanged" -- a
     false FRESH, the one catastrophic outcome. `tagged_unit_shas` above stores "" for an
     unreadable file, which is safe only because it compares unequal to what was recorded; here
-    the same value would be a legitimate-looking answer (`ai/rules/fail-closed-guards.md`).
+    the same value would be a legitimate-looking answer (`ai/rules/evidence.md`).
     """
     out: Dict[str, str] = {}
     cache: Dict[str, str] = {}
@@ -3748,7 +3748,7 @@ def audit_freshness(
         # An unresolvable fingerprint degrades to STALE_UNIT rather than propagating. A file the
         # gate cannot read is NOT "unchanged": naming the keys it could not resolve sends the
         # verdict for a re-read, which is more checking, never less
-        # (`ai/rules/fail-closed-guards.md`). Raising here instead would take the LEDGER RENDER
+        # (`ai/rules/evidence.md`). Raising here instead would take the LEDGER RENDER
         # down with it -- a report is not a gate, and a cited producer that has been deleted
         # must still be reportable rather than crashing every consumer of the ledger.
         try:
@@ -4406,7 +4406,7 @@ def rfc_coverage(
     """Per-RFC coverage. This is the backlog, derived rather than maintained.
 
     A hand-kept TODO list of missing tests would rot the moment someone wrote one and
-    forgot the list (ai/rules/derive-not-hardcode.md). Counting the tags is the only
+    forgot the list (ai/rules/evidence.md). Counting the tags is the only
     version that cannot lie.
     """
     by_rid: Dict[str, List[Tag]] = {}
@@ -4769,7 +4769,7 @@ def _verdict_meaning(reason: str) -> str:
     Fails closed on a vocabulary that grows: a verdict added to `UNPROVEN_VERDICTS`, or a state
     added to the four, without a published meaning SAYS so in the ledger rather than rendering an
     empty cell or a wrong one, because an unexplained verdict in a worklist is a row a reader
-    silently skips (`ai/rules/fail-closed-guards.md` -- a guard that cannot answer must speak).
+    silently skips (`ai/rules/evidence.md` -- a guard that cannot answer must speak).
     """
     value, _, rest = reason.partition(" ")
     if rest:
@@ -4791,7 +4791,7 @@ def _render_evidence_legend() -> List[str]:
 
     Without this the ledger prints a vocabulary it never defines, and a reader has to open
     the scanner to learn whether `interop/nightly` is stronger or weaker than
-    `functional/verify` (ai/rules/derive-not-hardcode.md).
+    `functional/verify` (ai/rules/evidence.md).
     """
     out: List[str] = []
     out.append("## Evidence kinds")
@@ -4847,7 +4847,7 @@ def _render_evidence_legend() -> List[str]:
         + ", ".join(f"`{r}`" for r in unrun)
         + ". A tag in one of them would be an absence of evidence wearing evidence's "
         "clothes, so the scanner denies it and names the fix "
-        "(`ai/rules/fail-closed-guards.md`)."
+        "(`ai/rules/evidence.md`)."
     )
     out.append("")
     return out
@@ -4864,7 +4864,7 @@ def _render_status_backlog(
     `check_summary_disposition` lets a declared summary through, so both would otherwise be
     invisible until someone re-ran the census by hand. Deriving them here keeps them
     countable in review without a second hand-maintained list, which is the shape
-    `ai/rules/derive-not-hardcode.md` requires and the shape `unconverted_summaries` already
+    `ai/rules/evidence.md` requires and the shape `unconverted_summaries` already
     uses. Sorted, because `check_ledger_fresh` compares bytes.
     """
     out: List[str] = []
@@ -4948,7 +4948,7 @@ def render_ledger(
     out.append(
         "GENERATED by `make ze-rfc-index` -- do not edit. Requirement text is authored in "
         "`rfc/short/*.md`; the test links are derived from `RFC requirement:` tags in the "
-        "tests themselves (`ai/rules/derive-not-hardcode.md`)."
+        "tests themselves (`ai/rules/evidence.md`)."
     )
     out.append("")
     out.append(
@@ -5091,7 +5091,7 @@ def render_ledger(
 #
 # Only DISPOSITIONS are authored. Sites, sections, quotes, the register and every
 # published count are derived at check time, so an unclassified site cannot be hidden and
-# a hand-typed "seen" count cannot exist (ai/rules/derive-not-hardcode.md).
+# a hand-typed "seen" count cannot exist (ai/rules/evidence.md).
 EXTRACTION_DIR = os.path.join(PROJECT_DIR, "rfc", "extraction")
 DRAIN_BUDGET_FILE = os.path.join(PROJECT_DIR, "rfc", "drain-budget.txt")
 
@@ -5103,7 +5103,7 @@ EXTRACTION_SCHEMA_VERSION = 1
 # Named rather than spelled at each site: check_unproven_support reads the strongest grade by
 # name to refuse OR-A's escape over a source that quotes capitalised keywords, and a second
 # spelling of "rfc2119" is a second place for that condition to drift from the derivation that
-# produces it (ai/rules/derive-not-hardcode.md).
+# produces it (ai/rules/evidence.md).
 REGISTER_RFC2119 = "rfc2119"
 REGISTER_PROSE = "prose"
 REGISTER_MANUAL_WALK = "manual-walk"
@@ -5403,7 +5403,7 @@ def derive_inventory(stem: str, gated: int) -> Optional[Inventory]:
 
     None is NOT an empty inventory. An empty inventory says "the source states no
     obligations"; None says "I could not look", and the two must never render alike
-    (ai/rules/fail-closed-guards.md, the zero-value trap).
+    (ai/rules/evidence.md, the zero-value trap).
     """
     raw = source_text(stem)
     if raw is None:
@@ -5487,7 +5487,7 @@ def derived_registers(
 
     A stem with no source text is ABSENT from the result, never defaulted. None is not a
     register: "I could not look" and "the source states nothing" must not render alike
-    (ai/rules/fail-closed-guards.md, the zero-value trap), and the consumer refuses the escape
+    (ai/rules/evidence.md, the zero-value trap), and the consumer refuses the escape
     on an absent grade. Every VALID sign-off has derivable source in practice --
     evaluate_extractions drops one that does not -- so the absent case is a degraded tree, which
     is precisely when a permissive default would be wrong.
@@ -6101,7 +6101,7 @@ def _relocation_errors(
     The kind's whole claim is that a named spec owes the obligation under a reserved id.
     Nothing about that claim is checkable a year later unless the gate re-reads it, so it
     does: delete the spec, or edit the row out of it, and this reds naming the site. When
-    the spec CLOSES the file is removed (ai/rules/spec-preservation.md) and this reds too,
+    the spec CLOSES the file is removed (ai/rules/planning.md) and this reds too,
     which is correct rather than unfortunate: the obligation has landed in the summary by
     then, so the site is a mapping now and must be re-classified as one.
     """
@@ -6153,7 +6153,7 @@ def _relocation_errors(
 # unbalanced marker strips MORE rather than less. That direction is deliberate:
 # finding the id is what PASSES this check, so stripping too little fails OPEN and
 # leaves an obligation owed by nobody, while stripping too much reddens a gate that
-# names the file and the id for a human to look at (ai/rules/fail-closed-guards.md).
+# names the file and the id for a human to look at (ai/rules/evidence.md).
 _MD_COMMENT_RE = re.compile(r"<!--.*?-->|<!--.*", re.S)
 # Fenced code, both syntaxes. CommonMark accepts ``` or ~~~, three or more, indented
 # up to three spaces. Covering only backticks left `~~~` blocks live, and the strike
@@ -6608,7 +6608,7 @@ def extraction_status(
 
     Every figure is DERIVED from rfc/extraction/ plus the live summaries. There is no
     second hand-kept list of who has been signed off: that is the rotting registry
-    ai/rules/derive-not-hardcode.md forbids, and the 2026-07-20 ruling in
+    ai/rules/evidence.md forbids, and the 2026-07-20 ruling in
     plan/deferrals/rfc-gate-regression-ratchets.md already refused that artifact shape.
     """
     signed = credited(signed_extractions(requirements), enrolled)
@@ -6765,7 +6765,7 @@ def parse_drain_budget(path: str) -> DrainBudget:
         raise ParseError(
             f"{rel}: cannot read the drain policy: {exc}. An absent budget does NOT mean "
             f"'nothing owed' -- a zero value must never be a valid-looking answer "
-            f"(ai/rules/fail-closed-guards.md). Create it with a 'start' date and a "
+            f"(ai/rules/evidence.md). Create it with a 'start' date and a "
             f"'rate' in entries per calendar month"
         ) from exc
 
@@ -6938,7 +6938,7 @@ def check_ledger_fresh(
     tags; a test can be re-tagged, moved, or deleted without touching the ledger, and
     then the committed ledger lies about which tests enforce which requirement. This is
     the same staleness `docs_to_code.py --check` guards for `ai/DOCS-TO-CODE.md`
-    (`ai/rules/derive-not-hardcode.md`). It runs inside `ze-rfc-check`, which is in both
+    (`ai/rules/evidence.md`). It runs inside `ze-rfc-check`, which is in both
     verify branches, so a stale ledger fails the build rather than rotting silently.
 
     `rows` and `dispositions` are forwarded to `render_ledger` so `run_check`'s single parse
@@ -6974,7 +6974,7 @@ def _collect_for_check() -> Tuple[
     failures were expected. The migration is complete -- zero of the 175 summaries fail to
     parse -- so the filter suppressed nothing and only shielded a FUTURE un-enrolled summary
     from a parse error it should report (plan/spec-rfcgate-4-ledger.md D4,
-    ai/rules/stale-comments.md, ai/rules/fail-closed-guards.md). A summary the gate cannot
+    ai/rules/stale-comments.md, ai/rules/evidence.md). A summary the gate cannot
     read is a summary whose obligations nobody can see, enrolled or not.
     """
     enrolled = load_enrolled()
@@ -7169,7 +7169,7 @@ def run_check() -> int:
     except (ParseError, OSError) as exc:
         # OSError too: an unreadable rfc/enrolled.txt or a missing docs/features/rfc-status.md
         # must fail closed with a clean exit-2 message, not surface as an uncaught traceback
-        # (ai/rules/fail-closed-guards.md). scan_tree/load_audit already wrap their OSErrors
+        # (ai/rules/evidence.md). scan_tree/load_audit already wrap their OSErrors
         # in ParseError; this covers the two direct read sites (load_enrolled, STATUS_FILE).
         print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
         return 2

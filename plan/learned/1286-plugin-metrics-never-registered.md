@@ -66,7 +66,7 @@ exist at runtime: no internal plugin's metrics were registered at all.
   metric was reachable.
 - **`go test` without the feature tags fakes reds.** Running the plugin packages
   bare reported `TestGetInternalPluginRunner` and `TestGetPluginForFamily`
-  failures that vanish under `-tags "$ZE_FEATURES"` (`ai/rules/bash-output.md`).
+  failures that vanish under `-tags "$ZE_FEATURES"` (`ai/rules/commands.md`).
 - **A verify run concurrent with other suites fakes reds too.** A backgrounded
   `ze-verify-changed` overlapping functional runs reported failures in
   `rib-inject-rfc5549`, `ospf-interface-runtime` and `ospf-ldp-sync-show`; all

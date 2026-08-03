@@ -195,7 +195,7 @@ Two traps this closes:
   break the retired `show ip` grouping caused.
 
 The rule and its automated check (R9, sibling-collision) live in
-[`ai/rules/cli-grammar.md`](../../../ai/rules/cli-grammar.md) ("Compound Token vs
+[`ai/rules/cli.md`](../../../ai/rules/cli.md) ("Compound Token vs
 Namespace Split").
 
 ## Filters are keyword grammar, never `--flags`
@@ -206,7 +206,7 @@ qualifier is a **keyword in the command language** (`vrf RED`, `family ipv6`,
 
 In Ze that grammar is defined in YANG. A filter is therefore a YANG keyword
 selector (a leaf or container consumed as a keyword, per
-[`ai/rules/cli-grammar.md`](../../../ai/rules/cli-grammar.md)). For example, the
+[`ai/rules/cli.md`](../../../ai/rules/cli.md)). For example, the
 address-family filter on the neighbor table is `show neighbor ipv6`, modelled as a
 `family` enum leaf surfaced as a positional keyword in the YANG tree.
 
@@ -240,6 +240,6 @@ Why this separation matters:
 grep -rnE '\-\-[a-z]' internal --include='*.yang' | grep -vE 'urn:|http|xml'
 ```
 
-The rule and this check live in [`ai/rules/cli-grammar.md`](../../../ai/rules/cli-grammar.md)
+The rule and this check live in [`ai/rules/cli.md`](../../../ai/rules/cli.md)
 ("No Flag Syntax in YANG"). `--flags` are legitimate only in the offline
-`cmd/ze/` flag tooling described in [`ai/rules/cli-patterns.md`](../../../ai/rules/cli-patterns.md).
+`cmd/ze/` flag tooling described in [`ai/rules/cli.md`](../../../ai/rules/cli.md).

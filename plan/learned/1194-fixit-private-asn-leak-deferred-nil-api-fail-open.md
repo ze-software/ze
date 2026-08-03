@@ -3,8 +3,8 @@
 **Date:** 2026-07-19
 **Spec:** plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md
 **Scope of THIS work:** the `egress_inject_filter.go` slice only (originated/injected
-egress path). The spec's other sites (`filter_ordered.go:196,222,139`,
-`reactor.go:576` SetPluginServerAny) were assigned to sibling agents on the shared
+egress path). The spec's other sites (`filter_ordered.go,222,139`,
+`reactor.go` SetPluginServerAny) were assigned to sibling agents on the shared
 tree and are NOT touched here.
 
 ## The bug (this slice)
@@ -20,7 +20,7 @@ if facts == nil || len(facts.exportFilters) == 0 || r.api == nil { return false,
 `r.api == nil` while the peer HAS export filters is a guard MISS. Returning
 `(false, nil)` = accept = the route goes to the wire UNFILTERED and SILENTLY. This is
 the classic fail-open the package already rejects in two siblings
-(`filter_chain.go:368-371` policyFilterFunc: Warn + PolicyReject;
+(`filter_chain.go` policyFilterFunc: Warn + PolicyReject;
 `peer_initial_sync.go` default-originate: Warn + fail-closed).
 
 ## The fix
@@ -29,19 +29,19 @@ Split the fused condition. `facts == nil || len(facts.exportFilters) == 0` keeps
 zero-cost accept. A separate `if r.api == nil` (reached only when facts present AND
 filters configured) now `slog.Warn`s and returns `(true, nil)` = suppress. The early
 return happens BEFORE `runEgressPolicyChainASN4`, so this function is self-contained
-and does not lean on the (out-of-scope) downstream guard at `filter_ordered.go:222`.
+and does not lean on the (out-of-scope) downstream guard at `filter_ordered.go`.
 
 ## Non-obvious decision: slog.Warn, not reactorLogger().Warn
 
 The spec's test-feasibility note said to mirror `filter_chain.go`'s
 `reactorLogger().Warn` and capture it via `slog.SetDefault(warnRecorder)`. That does
 NOT work: `reactorLogger` is `slogutil.LazyLogger("bgp.reactor")`
-(internal/core/slogutil/slogutil.go:397), a `sync.Once`-cached logger bound to its own
+(internal/core/slogutil/slogutil.go), a `sync.Once`-cached logger bound to its own
 handler built from env/config — NOT the slog default. A WARN through it escapes to
 stderr and the recorder captures nothing (observed empirically). The package's ACTUAL
-tested fail-closed-miss precedent is `slog.Warn` (api_sync.go:202, asserted by
+tested fail-closed-miss precedent is `slog.Warn` (api_sync.go, asserted by
 `TestSignalPeerAPIReadyUnknownPeerWarns`). So the guard uses `slog.Warn`, which is
-production-established in this same package (api_sync.go:107,110,169,171,202) and makes
+production-established in this same package (api_sync.go,110,169,171,202) and makes
 the "or say something" assertion real. Behavior matches the sibling (WARN naming the
 peer + suppress); only the emit mechanism differs.
 

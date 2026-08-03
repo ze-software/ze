@@ -44,7 +44,7 @@ ISO, or Ventoy scenarios. This session built that infrastructure.
   looked like "exit 0". This masked a red `ze-unit-test` for a full round.
   **Always grep the log for `FAIL`, or put `$?` inside the redirect / check make
   directly** -- never trust a trailing-echo exit code from a background job.
-- **The initrd cache key ignores build tags** (`internal/appliance/cache.go:121`
+- **The initrd cache key ignores build tags** (`internal/appliance/cache.go`
   `initrdCacheVariant` keys on version+arch+a 4-file source hash only). A fault
   build and a normal build collide on the same cache path, so a fault initrd can
   be served a cached normal one. The harness isolates them with a per-variant

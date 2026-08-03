@@ -163,7 +163,7 @@ conformance row become true as written.
 - `externalScopeV6` gains the deterministic ordering, zero-address upgrade and active-
   interface filter its OSPFv2 counterpart `externalScopeFor` already has.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 Two entry points, one per direction.
@@ -221,7 +221,7 @@ Two entry points, one per direction.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -467,7 +467,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 | Test discrimination | Each new interop scenario and each new `.ci` was run with the corresponding production change reverted, and the revert used is recorded |
 | Lost invariant | The old `applyNSSADefaults` comment required a non-zero forwarding address for the ABR default. Either restate why a P-clear default may carry a zero FA, or assert the FA |
 | Rule: `ai/rules/rfc-compliance.md` | Every MUST enforced carries `// RFC NNNN Section X.Y: "<quote>"` directly above the enforcing code, and each tag sits above the code that ACTUALLY enforces it |
-| Rule: `ai/rules/fail-closed-guards.md` | The `ComputeExternalWith` gates fail closed: confirm a zero-value `ExternalInput` (nil `NSSAPolicies`, false `NSSABorderRouter`) cannot silently disable both MUSTs on any real caller |
+| Rule: `ai/rules/evidence.md` | The `ComputeExternalWith` gates fail closed: confirm a zero-value `ExternalInput` (nil `NSSAPolicies`, false `NSSABorderRouter`) cannot silently disable both MUSTs on any real caller |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -513,7 +513,7 @@ tested -- the annotation is stale", because tested and gap are modelled as mutua
 exclusive. The disclosure therefore has to live in the `docs/features/rfc-status.md`
 Remaining prose, which no machine checks for family coverage.
 
-This is worth routing at closure, per `ai/rules/friction-reporting.md`. Ze implements
+This is worth routing at closure, per `ai/rules/repo-maintenance.md`. Ze implements
 several protocols in one engine across two address families (OSPF here, and the same
 shape exists wherever a codec seam serves two families), so any RFC whose obligations
 are family-sensitive can be green on a gate while unimplemented for one family. Two

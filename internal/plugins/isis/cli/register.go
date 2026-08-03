@@ -7,7 +7,7 @@
 // (internal/plugins/isis/yang/ze-isis-conf.yang, ze-isis-cmd.yang) and the
 // `show isis` / `clear isis` command tree both live under it, so a hyphenated
 // `isis-decode` root was a namespace member masquerading as an indivisible
-// compound (R9, ai/rules/cli-grammar.md). No collision is avoided by the hyphen:
+// compound (R9, ai/rules/cli.md). No collision is avoided by the hyphen:
 // the `isis` config root sits under the set/delete verbs and the command tree
 // under show/clear; the bare root token `isis` was simply unregistered until
 // now. The sibling that supposedly collided is exactly what makes `isis` a
@@ -41,7 +41,7 @@ func init() {
 
 // isisMembers is the closed set of `ze isis` sub-tokens. Matching args[0] against
 // it before doing anything with the token keeps an unknown sub-command from ever
-// reaching the codec (ai/rules/cli-grammar.md, closed keyword set).
+// reaching the codec (ai/rules/cli.md, closed keyword set).
 var isisMembers = map[string]bool{"decode": true}
 
 // dispatchISIS routes `ze isis <member> ...` to the owning tool. A bare

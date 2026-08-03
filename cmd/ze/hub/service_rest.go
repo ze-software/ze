@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 // Related: api_infra.go -- the always-on seam (restBuild hook / apiShared) this installs
 //
 // ze_rest-gated REST/HTTP API server construction. This file (with

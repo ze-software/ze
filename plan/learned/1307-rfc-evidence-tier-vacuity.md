@@ -7,7 +7,7 @@ exercises, and TIER says whether anything executes it. A `.ci` test earns
 `functional/verify` only when its suite is one `make ze-functional-test` actually runs.
 
 The tier is derived from the `all_suites="..."` string in `mk/test-functional.mk`
-(`functional_suites`, `scripts/dev/rfc_requirements.py:668-693`). That function's own
+(`functional_suites`, `scripts/dev/rfc_requirements.py`). That function's own
 docstring says it fails closed, because a gate that answers "everything runs" without
 evidence is the zero that looks like a number.
 
@@ -45,7 +45,7 @@ was sufficient.
   `.ci` in the future gets a tier the suite now earns.
 - The shape generalises past this suite. A declaration consumed by a gate, and a recipe
   consumed by a runner, CAN disagree in silence whenever they are two separate lists.
-  `ai/rules/derive-not-hardcode.md` is the standing answer. It is not applied here, so
+  `ai/rules/evidence.md` is the standing answer. It is not applied here, so
   this record is the compensating control.
 
 ## Gotchas

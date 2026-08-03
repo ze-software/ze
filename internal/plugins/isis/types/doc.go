@@ -10,10 +10,10 @@
 // Each type provides:
 //   - parse from a printable string (Parse*)
 //   - parse from wire bytes (*FromBytes)
-//   - format for display (String, allocation-light per ai/rules/no-sprintf-alloc.md)
+//   - format for display (String, allocation-light per ai/rules/performance.md)
 //   - equality and, where semantically meaningful (LSPID, AreaID), ordering
 //   - buffer-first byte serialization (WriteTo(buf, off) int) per
-//     ai/rules/buffer-first.md
+//     ai/rules/performance.md
 //
 // LEAF PACKAGE CONSTRAINT: this package is the bottom layer of the IS-IS
 // component (types <- packet codec <- server runtime). It MUST import only the

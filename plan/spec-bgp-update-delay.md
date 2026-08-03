@@ -60,12 +60,12 @@ This is a local-process startup feature. It is distinct from graceful restart
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugin/register.go` - `coord.OnPostStartup` calls `bgpReactor.StartPeers()` with no convergence timer and no advertisement/best-path suppression (register.go:172-178). Peers are started unconditionally once plugin startup completes.
+- [ ] `internal/component/bgp/plugin/register.go` - `coord.OnPostStartup` calls `bgpReactor.StartPeers()` with no convergence timer and no advertisement/best-path suppression (register.go). Peers are started unconditionally once plugin startup completes.
 - [ ] `internal/component/bgp/plugins/gr/gr_state.go` - graceful restart is per-remote-peer only (stale marking, restart timer, EOR-driven purge); no local-process startup deferral of best-path or UPDATE.
 - [ ] `internal/component/bgp/reactor/` - outbound advertisement / best-path path (exact function to be located during design; `internal/component/bgp/rib/` holds the outbound side).
 
 **Behavior to preserve:**
-- Peer startup remains gated behind `coord.OnPostStartup` (register.go:172); the hold is additive.
+- Peer startup remains gated behind `coord.OnPostStartup` (register.go); the hold is additive.
 - When no `update-delay` is configured, behaviour is byte-for-byte unchanged: peers start and advertise immediately.
 - Inbound UPDATE processing and RIB population are unaffected while held.
 - Graceful restart semantics (gr plugin) are untouched.
@@ -81,7 +81,7 @@ This is a local-process startup feature. It is distinct from graceful restart
 
 ### Transformation Path
 1. YANG leaves parsed into reactor/global BGP settings (a new `UpdateDelay` settings struct: `MaxDelay`, `EstablishWait`).
-2. On `StartPeers()` (register.go:172), if `MaxDelay > 0`, the reactor enters read-only mode and arms the hold timer.
+2. On `StartPeers()` (register.go), if `MaxDelay > 0`, the reactor enters read-only mode and arms the hold timer.
 3. Sessions negotiate and reach Established normally; inbound UPDATEs populate Adj-RIB-In / RIB, but best-path scheduling and outbound Adj-RIB-Out generation are suppressed.
 4. Hold-release condition evaluated on each peer Established transition and on timer expiry: release when expected peers are all Established or `max-delay` elapses.
 5. On release: run best-path once, then generate and send the initial outbound UPDATE set to all peers; resume normal steady-state advertisement.
@@ -94,7 +94,7 @@ This is a local-process startup feature. It is distinct from graceful restart
 | FSM ↔ Reactor | Established transitions drive hold-release evaluation | [ ] |
 
 ### Integration Points
-- `bgpReactor.StartPeers()` (register.go:173) - arm the hold here.
+- `bgpReactor.StartPeers()` (register.go) - arm the hold here.
 - Outbound advertisement / best-path scheduler in `internal/component/bgp/rib/` - honour the read-only flag.
 - Per-peer FSM Established callback - notify the hold evaluator.
 
@@ -183,9 +183,9 @@ This is a local-process startup feature. It is distinct from graceful restart
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | BGP component/plugin `yang/` - `update-delay { max-delay, establish-wait }`; read `ai/rules/config-surface.md`, `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | BGP component/plugin `yang/` - `update-delay { max-delay, establish-wait }`; read `ai/rules/config.md`, `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | `range 0..3600` / `1..3600`; custom validator for establish-wait ≤ max-delay |
-| CLI grammar | [ ] yes | `ai/rules/cli-grammar.md` |
+| CLI grammar | [ ] yes | `ai/rules/cli.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/bgp-update-delay.ci` |
 | Prometheus counters/metrics | [ ] maybe | a gauge for "read-only active" and a counter for release-reason (converged/timeout) |
 

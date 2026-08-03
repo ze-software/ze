@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- "Registration over hardcoding (the CLI client too)"
+// Design: ai/rules/plugins.md -- "Registration over hardcoding (the CLI client too)"
 // Pattern: ai/patterns/registration.md -- init() + registry + longest-prefix match
 // Mirror:  internal/component/plugin/server/handler.go -- RegisterMonitorProvider / matchesPrefix
 //

@@ -17,9 +17,9 @@ import (
 // return the zero transform for a name the registry does not hold, and a zero
 // EncryptionTransform carries Transform ID 0, which RFC 7296 Section 3.3.2 reserves. A
 // zero IntegrityTransform carries AUTH_NONE, which reads as a valid "no integrity"
-// answer. Both are the zero-value trap of ai/rules/fail-closed-guards.md, and both
+// answer. Both are the zero-value trap of ai/rules/evidence.md, and both
 // reach the wire and the kernel without an error. The guard therefore belongs at the
-// producer, which is config parse (ai/rules/exact-or-reject.md).
+// producer, which is config parse (ai/rules/protocol.md).
 
 // EncryptionImplemented reports whether this build carries a transform for the
 // algorithm. ParseIPsecConfig refuses a proposal that names one it does not.
@@ -47,7 +47,7 @@ func HashImplemented(h HashAlgo) bool {
 // three groups. A proposal naming group 5 therefore passed parse and reached the
 // negotiator, where LookupDHGroup returns the ZERO DHGroupTransform -- Transform ID 0,
 // which RFC 7296 Section 3.3.2 reserves. That is the zero-value trap of
-// ai/rules/fail-closed-guards.md reaching the wire, and it is the same failure the
+// ai/rules/evidence.md reaching the wire, and it is the same failure the
 // encryption and hash gates above already close.
 func DHGroupImplemented(g DHGroup) bool {
 	_, err := crypto.LookupDHGroup(uint8(g))
@@ -64,7 +64,7 @@ func integrityTransformFor(h HashAlgo) (crypto.IntegrityTransform, error) {
 
 // SupportedEncryptionNames and SupportedHashNames name the implemented sets for an
 // error message. Both derive from the crypto registry, so neither can drift from what
-// the daemon can actually key (ai/rules/derive-not-hardcode.md).
+// the daemon can actually key (ai/rules/evidence.md).
 func SupportedEncryptionNames() []string { return crypto.SupportedEncryptionNames() }
 
 // SupportedDHGroupIDs lists the Diffie-Hellman groups this build implements, for the
@@ -74,7 +74,7 @@ func SupportedDHGroupIDs() []uint8 { return crypto.SupportedDHGroupIDs() }
 // joinDHGroupIDs renders the implemented group numbers as "14, 19, 20" for an error
 // message. The sibling predicates name a []string set, so they can use textbuf.Join.
 // A group is a number instead, so joinDHGroupIDs builds the list in one buffer rather
-// than through an intermediate []string (ai/rules/no-sprintf-alloc.md).
+// than through an intermediate []string (ai/rules/performance.md).
 func joinDHGroupIDs(ids []uint8) string {
 	var b textbuf.Buffer
 	for i, id := range ids {

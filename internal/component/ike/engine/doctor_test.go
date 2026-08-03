@@ -163,7 +163,7 @@ func TestIPsecInterfaceDoctorCheckAllowsLegalDottedName(t *testing.T) {
 // actually runs it.
 // PREVENTS: the whole check existing as dead code. ValidateInterfaceRef spent its
 // life in exactly that state -- implemented, tested, and called by nothing
-// (ai/rules/wiring-completeness.md).
+// (ai/rules/completion.md).
 func TestIPsecInterfaceDoctorCheckRegistered(t *testing.T) {
 	for _, check := range registry.PluginDoctorChecks() {
 		if check.PluginName != "ike" || check.Name != "ipsec-interface" {
@@ -200,7 +200,7 @@ func TestIPsecInterfaceDoctorCheckRegistered(t *testing.T) {
 // layer reported it: ike's ipsec validation hangs off the SDK OnConfigVerify,
 // which VerifyPluginConfig deliberately does not run for a live plugin, and the
 // Registration declares no InProcessConfigVerifier. A guard that can neither
-// evaluate nor speak does not exist (ai/rules/fail-closed-guards.md).
+// evaluate nor speak does not exist (ai/rules/evidence.md).
 func TestIPsecInterfaceDoctorCheckSpeaksWhenItCannotEvaluate(t *testing.T) {
 	withInterfaceOracle(t, map[string]bool{"eth0": true})
 

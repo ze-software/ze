@@ -13,7 +13,7 @@ import (
 
 // VALIDATES: wasCreated answers "did this handler create the resource" only when the
 // handler actually said so, and returns an error for every unreportable shape.
-// PREVENTS: the zero-value trap (ai/rules/fail-closed-guards.md) -- a missing or
+// PREVENTS: the zero-value trap (ai/rules/evidence.md) -- a missing or
 // non-bool "created" key silently reading as "not created", which disarms rollback
 // and strands a half-built resource stack after a failed compound create.
 //

@@ -28,7 +28,7 @@ whose lines cannot be acted on teaches the reader to skip the lines that can.
 - **The `^`/`$` anchors on the path regex are load-bearing.** CORE.md cites other rules inline throughout its directive text, so dropping the anchors nearly doubles the muted set and swallows rules every session must read. The first fixture had no inline citation, so the deletion stayed green. It carries one now.
 - **A test named "says so" that never captures stderr proves half a fail-closed guard.** Two of them asserted only the behaviour, leaving a deleted `print()` green.
 - **A sandbox fixture is the test's own idea of a shape, not the generator's.** Nothing bound the reader to `rules_condensed.rule_block` until a test called it directly.
-- **Never pin a count from this corpus in prose.** The rule total moved 97 to 98, and the core moved 12 to 11 when a `plan/` task description began surfacing `no-fabrication.md`, both inside one session. Two rounds of review found stale counts, including one added by the commit that removed the others.
+- **Never pin a count from this corpus in prose.** The rule total moved 97 to 98, and the core moved 12 to 11 when a `plan/` task description began surfacing `evidence.md`, both inside one session. Two rounds of review found stale counts, including one added by the commit that removed the others.
 
 ## Files
 

@@ -45,7 +45,7 @@ option was being parsed and then discarded.
   expect the derived budget to be wrong by orders of magnitude, and prefer an
   explicit declaration over waiting for the baseline to catch up.
 - Suite wall-clock rises on hosts where a previously-skipping QEMU proof now runs.
-  That is the intended trade: `ai/rules/qemu-testing.md` is explicit that a SKIP
+  That is the intended trade: `ai/rules/platform-linux.md` is explicit that a SKIP
   is not evidence.
 
 ## Gotchas
@@ -54,7 +54,7 @@ option was being parsed and then discarded.
   rejected.** The `.ci` file reads as though the budget were set, the parser
   accepts the line without complaint, and the only symptom is a test dying at a
   number that appears in no file. A rejected option would have named itself in
-  one run. This is the `fail-closed-guards.md` principle applied to configuration:
+  one run. This is the `evidence.md` principle applied to configuration:
   a knob that neither takes effect nor says anything does not exist.
 - Two mechanisms with the same name existed (`option=timeout:value=` on the
   record, `timeout=` on the `cmd=` directive) and only the narrower one worked on

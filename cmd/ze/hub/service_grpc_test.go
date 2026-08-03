@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_grpc-gated gRPC seam test
+// Design: ai/rules/plugins.md -- ze_grpc-gated gRPC seam test
 //
 //go:build ze_grpc
 

@@ -365,7 +365,7 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 	//
 	// A refusal here means the authenticator kept sending while this side's TLS
 	// engine had stopped reading. The exchange cannot recover, so it ends with
-	// that error rather than queueing more (ai/rules/fail-closed-guards.md).
+	// that error rather than queueing more (ai/rules/evidence.md).
 	if data := ps.drainReassembled(); len(data) > 0 {
 		if err := ps.tlsTransport.feedPeerData(data); err != nil {
 			ps.state = peerStateFailed

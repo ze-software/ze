@@ -63,7 +63,7 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 def _feature_gate_tags():
     """Sorted ze_<feature> build tags from feature-gates.txt (the single source of
     truth). Derived, not hardcoded, so a race build tracks ZE_FEATURES automatically
-    when a gate is added -- see ai/rules/feature-gate-registration.md."""
+    when a gate is added -- see ai/rules/plugins.md."""
     tags = set()
     with open(os.path.join(REPO, "feature-gates.txt"), encoding="utf-8") as fh:
         for line in fh:
@@ -137,7 +137,7 @@ def _bin_from_env(key, default):
     an isolated pair under tmp/ (mk/test-functional.mk), exporting ZE_BIN/ZE_TEST_BIN
     to point at it. Hardcoding bin/ze made this tool silently stress a STALE binary:
     a fix under test looked "still reproducing" because the run never contained it,
-    which is the same false-red class ai/rules/bash-output.md documents for bare
+    which is the same false-red class ai/rules/commands.md documents for bare
     `go test` and for launching the runner binary directly.
     """
     for name in (key, key.replace(".", "_").upper()):

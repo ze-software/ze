@@ -10,7 +10,7 @@ Automated enforcement of `ai/rules/` requirements.
 > shell scripts that no longer exist: they were folded into the three Python
 > dispatchers (`pretool-bash.py`, `pretool-writeedit.py`,
 > `posttool-writeedit.py`). Several registered hooks are missing from the table.
-> **`ai/rules/hook-mapping.md` is the real inventory, and `.claude/settings.json`
+> **`ai/rules/repo-maintenance.md` is the real inventory, and `.claude/settings.json`
 > is the authority on what actually runs.** Check registration there before you
 > trust any row here.
 
@@ -21,43 +21,43 @@ Automated enforcement of `ai/rules/` requirements.
 | `session-start.sh` | SessionStart | - | Advisory |
 | `block-until-lsp.sh` | PreToolUse:.* | session-start.md | **Blocking** |
 | `compaction-reminder.sh` | UserPromptSubmit | post-compaction.md | Advisory (stderr, which by convention does not reach the model) |
-| `verify-claim-reminder.sh` | UserPromptSubmit | no-fabrication.md | Advisory (stdout, which by convention reaches the model) |
-| `delegation-reminder.sh` | UserPromptSubmit | spec-delegation.md | Advisory (stdout, which by convention reaches the model) |
+| `verify-claim-reminder.sh` | UserPromptSubmit | evidence.md | Advisory (stdout, which by convention reaches the model) |
+| `delegation-reminder.sh` | UserPromptSubmit | planning.md | Advisory (stdout, which by convention reaches the model) |
 | `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
-| `block-premature-stop.sh` | Stop (first) | no-asking.md, planning.md, spec-delegation.md, session-start.md | **Blocking**. Re-registered 2026-07-31, after no event from 2026-06-29 (`41e5fa44f`). Phrase scan has two tiers, and the completion tier is state-gated. `stop_hook_active` skips the phrase scan alone, and the other three gates still run |
+| `block-premature-stop.sh` | Stop (first) | completion.md, planning.md, planning.md, session-start.md | **Blocking**. Re-registered 2026-07-31, after no event from 2026-06-29 (`41e5fa44f`). Phrase scan has two tiers, and the completion tier is state-gated. `stop_hook_active` skips the phrase scan alone, and the other three gates still run |
 | `session-end-summary.sh` | Stop | - | Advisory |
-| `session-end-scratch.sh` | SessionEnd | bash-output.md | Advisory |
+| `session-end-scratch.sh` | SessionEnd | commands.md | Advisory |
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
-| `block-claude-plans.sh` | PreToolUse:Write | documentation.md | **Blocking** |
+| `block-claude-plans.sh` | PreToolUse:Write | writing.md | **Blocking** |
 | `pre-write-go.sh` | PreToolUse:Write\|Edit | post-compaction.md | **Blocking** |
-| `check-existing-patterns.sh` | PreToolUse:Write | before-writing-code.md | **Blocking** |
+| `check-existing-patterns.sh` | PreToolUse:Write | architecture.md | **Blocking** |
 | `block-legacy-log.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
 | `block-panic-error.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
 | `block-ignored-errors.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
 | `block-nolint-abuse.sh` | PreToolUse:Write\|Edit | quality.md | **Blocking** |
-| `require-test-first.sh` | PreToolUse:Write\|Edit | tdd.md | **Blocking** |
+| `require-test-first.sh` | PreToolUse:Write\|Edit | testing.md | **Blocking** |
 | `block-layering.sh` | PreToolUse:Write\|Edit | no-layering.md | **Blocking** |
-| `check-existing-tests.sh` | PreToolUse:Write | before-writing-code.md | Advisory |
-| `enforce-naming.sh` | PreToolUse:Write | documentation.md | **Blocking** |
+| `check-existing-tests.sh` | PreToolUse:Write | architecture.md | Advisory |
+| `enforce-naming.sh` | PreToolUse:Write | writing.md | **Blocking** |
 | `block-throwaway-tests.sh` | PreToolUse:Write | testing.md | **Blocking** |
 | `require-docs-read.sh` | PreToolUse:Write | planning.md | **Blocking** |
-| `block-version-config.sh` | PreToolUse:Write\|Edit | config-design.md | **Blocking** |
+| `block-version-config.sh` | PreToolUse:Write\|Edit | config.md | **Blocking** |
 | `block-lint-exclusions.sh` | PreToolUse:Write\|Edit | quality.md | **Blocking** |
-| `block-exabgp-in-engine.sh` | PreToolUse:Write\|Edit | compatibility.md | **Blocking** |
-| `block-silent-ignore.sh` | PreToolUse:Write\|Edit | config-design.md | **Blocking** |
-| `block-yagni-violations.sh` | PreToolUse:Write\|Edit | design-principles.md | **Blocking** |
-| `block-and-functions.sh` | PreToolUse:Write\|Edit | design-principles.md | **Blocking** |
-| `block-init-register.sh` | PreToolUse:Write\|Edit | design-principles.md | **Blocking** |
-| `block-utils-package.sh` | PreToolUse:Write | design-principles.md | **Blocking** |
+| `block-exabgp-in-engine.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
+| `block-silent-ignore.sh` | PreToolUse:Write\|Edit | config.md | **Blocking** |
+| `block-yagni-violations.sh` | PreToolUse:Write\|Edit | architecture.md | **Blocking** |
+| `block-and-functions.sh` | PreToolUse:Write\|Edit | architecture.md | **Blocking** |
+| `block-init-register.sh` | PreToolUse:Write\|Edit | architecture.md | **Blocking** |
+| `block-utils-package.sh` | PreToolUse:Write | architecture.md | **Blocking** |
 | `block-temp-debug.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
-| `block-encoding-alloc.sh` | PreToolUse:Write\|Edit | buffer-first.md | **Blocking** |
+| `block-encoding-alloc.sh` | PreToolUse:Write\|Edit | performance.md | **Blocking** |
 | `auto_linter.sh` | PostToolUse:Write\|Edit | go-standards.md | Advisory |
 | `validate-spec.sh` | PostToolUse:Write\|Edit | planning.md | **Blocking** |
 | `require-rfc-reference.sh` | PostToolUse:Write\|Edit | rfc-compliance.md | Advisory |
-| `require-test-docs.sh` | PostToolUse:Write\|Edit | tdd.md | Advisory |
-| `require-fuzz-tests.sh` | PostToolUse:Write\|Edit | tdd.md | Advisory |
-| `block-vague-names.sh` | PostToolUse:Write\|Edit | design-principles.md | Advisory |
-| `require-boundary-tests.sh` | PostToolUse:Write\|Edit | tdd.md | Advisory |
+| `require-test-docs.sh` | PostToolUse:Write\|Edit | testing.md | Advisory |
+| `require-fuzz-tests.sh` | PostToolUse:Write\|Edit | testing.md | Advisory |
+| `block-vague-names.sh` | PostToolUse:Write\|Edit | architecture.md | Advisory |
+| `require-boundary-tests.sh` | PostToolUse:Write\|Edit | testing.md | Advisory |
 
 ## By Category
 
@@ -72,7 +72,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `block-silent-ignore.sh` | Silent ignore patterns |
 | `block-temp-debug.sh` | `fmt.Println("DEBUG")` → use slogutil |
 
-### TDD (tdd.md)
+### TDD (testing.md)
 | Hook | What it enforces |
 |------|------------------|
 | `require-test-first.sh` | Test file before impl |
@@ -80,7 +80,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `require-fuzz-tests.sh` | Fuzz tests for wire parsing |
 | `require-boundary-tests.sh` | Boundary tests for numeric validation |
 
-### Design Principles (design-principles.md)
+### Design Principles (architecture.md)
 | Hook | What it blocks/warns |
 |------|----------------------|
 | `block-yagni-violations.sh` | "in case we need", "might be useful", etc. |
@@ -89,7 +89,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `block-utils-package.sh` | `utils/`, `helpers/`, `common/` packages |
 | `block-vague-names.sh` | `Data`, `Info`, `Result`, `Item`, `Thing` names |
 
-### Architecture (no-layering.md, before-writing-code.md, compatibility.md, buffer-first.md)
+### Architecture (no-layering.md, architecture.md, go-standards.md, performance.md)
 | Hook | What it blocks |
 |------|----------------|
 | `block-layering.sh` | "backwards compat", "hybrid", "fallback" |
@@ -103,7 +103,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `session-start.sh` | Status summary at session start |
 | `block-until-lsp.sh` | Refuses every tool call until `ToolSearch select:LSP` loads the LSP tool |
 | `pre-compact-save.sh` | Auto-save session state before compaction |
-| `block-premature-stop.sh` | Blocks a stop on ownership-dodging, permission-seeking and premature handoff (exit 2). The phrase scan has two tiers. `PHRASES` always blocks. `COMPLETION_PHRASES` (`what next`, `what would you like`) blocks ONLY when a claimed spec is still in-progress, because `.claude/rules/session-start.md:72` requires that question once the task is done. A phrase inside a fenced block or inline backticks is NAMED rather than used, and does not block. Four guards keep that filter scanning MORE rather than less, and guard 4 strips inline spans only on a line whose backticks balance. When the harness sets `stop_hook_active` the hook skips the PHRASE SCAN alone. That bounds a refusal loop, and the other three gates stay armed. It exits 0 on input it cannot parse. Also refuses a stop while a CLAIMED spec is implemented but not closed, and warns (exit 1) when a claimed spec was worked with no subagent. The state checks need a claimed spec, and they need it on every turn rather than only the first. Runs first at `Stop`, and the claim release runs at `SessionEnd` (`session-end-scratch.sh:60`) so the marker survives the turn-by-turn `Stop`. It heartbeats TWO markers on the way past: the claim, and `tmp/session/.agent-spawned-<SID>`. Both calls use `touch -c`, so a missing marker is never created. Each marker ages out at 24h. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation` (35) |
+| `block-premature-stop.sh` | Blocks a stop on ownership-dodging, permission-seeking and premature handoff (exit 2). The phrase scan has two tiers. `PHRASES` always blocks. `COMPLETION_PHRASES` (`what next`, `what would you like`) blocks ONLY when a claimed spec is still in-progress, because `.claude/rules/session-start.md` requires that question once the task is done. A phrase inside a fenced block or inline backticks is NAMED rather than used, and does not block. Four guards keep that filter scanning MORE rather than less, and guard 4 strips inline spans only on a line whose backticks balance. When the harness sets `stop_hook_active` the hook skips the PHRASE SCAN alone. That bounds a refusal loop, and the other three gates stay armed. It exits 0 on input it cannot parse. Also refuses a stop while a CLAIMED spec is implemented but not closed, and warns (exit 1) when a claimed spec was worked with no subagent. The state checks need a claimed spec, and they need it on every turn rather than only the first. Runs first at `Stop`, and the claim release runs at `SessionEnd` (`session-end-scratch.sh`) so the marker survives the turn-by-turn `Stop`. It heartbeats TWO markers on the way past: the claim, and `tmp/session/.agent-spawned-<SID>`. Both calls use `touch -c`, so a missing marker is never created. Each marker ages out at 24h. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation` (35) |
 | `session-end-summary.sh` | Append git state summary at session end |
 | `compaction-reminder.sh` | Re-read reminder after compaction |
 | `verify-claim-reminder.sh` | One line per turn: cite the producing `file:line` before a behavioral claim |
@@ -116,19 +116,19 @@ Automated enforcement of `ai/rules/` requirements.
 | `require-docs-read.sh` | Arch docs before spec |
 | `validate-spec.sh` | Spec format + Current Behavior section |
 
-### Config (config-design.md)
+### Config (config.md)
 | Hook | What it blocks |
 |------|----------------|
 | `block-version-config.sh` | Version fields in config |
 | `block-silent-ignore.sh` | Must fail on unknown |
 
-### Testing (testing.md, before-writing-code.md)
+### Testing (testing.md, architecture.md)
 | Hook | What it enforces |
 |------|------------------|
 | `check-existing-tests.sh` | Warn duplicate tests |
 | `block-throwaway-tests.sh` | No /tmp test files |
 
-### Naming (documentation.md)
+### Naming (writing.md)
 | Hook | What it enforces |
 |------|------------------|
 | `enforce-naming.sh` | File naming conventions |

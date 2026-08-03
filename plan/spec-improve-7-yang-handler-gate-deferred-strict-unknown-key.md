@@ -18,7 +18,7 @@
 ## Task
 
 Deferred from `plan/spec-improve-7-yang-handler-gate.md` (Known Limitations, which
-records: "Unknown-key permissiveness at verify (`validator.go:527`) is out of scope
+records: "Unknown-key permissiveness at verify (`validator.go`) is out of scope
 (recorded as follow-up candidate in Design Insights)").
 
 Config verify accepts keys that do not exist in the YANG schema. A misspelled leaf
@@ -29,15 +29,15 @@ improve-7 asks "is every schema root claimed by a handler" (schema-not-in-handle
 this spec asks "is every config key present in the schema" (config-not-in-schema).
 
 **Correction to the deferral record (verified 2026-07-16).** The permissiveness is
-real and `validator.go:527` is still the exact line of the skip in
+real and `validator.go` is still the exact line of the skip in
 `validateContainerEntry`, but that function is NOT the producer for config verify:
 
 | Path | Permissive site | Reached from | Live? |
 |------|-----------------|--------------|-------|
-| `validateContainerEntry` | `validator.go:527` (`if child, ok := entry.Dir[key]; ok` with no else) | `ValidateContainer` (`validator.go:104`) <- `reader.go:329`, `reader.go:409` | NO. `config.NewReader` (`reader.go:236`) has zero non-test callers; only `reader_test.go` constructs it |
-| `walkTree` | `validator.go:634-635` (`if !ok { continue // unknown field }`) | `ValidateTreeAllModules` (`validator.go:599`) <- `cmd_validate.go:277`; `ValidateTree` (`validator.go:580`) <- `cli/validator.go:236`, `cli/validator.go:293` | YES. This is what `ze config validate` runs |
+| `validateContainerEntry` | `validator.go` (`if child, ok := entry.Dir[key]; ok` with no else) | `ValidateContainer` (`validator.go`) <- `reader.go`, `reader.go` | NO. `config.NewReader` (`reader.go`) has zero non-test callers; only `reader_test.go` constructs it |
+| `walkTree` | `validator.go` (`if !ok { continue // unknown field }`) | `ValidateTreeAllModules` (`validator.go`) <- `cmd_validate.go`; `ValidateTree` (`validator.go`) <- `cli/validator.go`, `cli/validator.go` | YES. This is what `ze config validate` runs |
 
-So the work to do is at `walkTree`, and `validator.go:527` is a second (currently
+So the work to do is at `walkTree`, and `validator.go` is a second (currently
 dead) copy of the same policy. Anyone picking this up must decide both sites
 together or the policy forks. The improve-7 Design Insights already flagged the
 `reader.go` block-dispatch machinery as a dead-code candidate that must be surfaced
@@ -48,7 +48,7 @@ to the user, never deleted unilaterally (`ai/rules/never-destroy-work.md`).
 1. Decide the policy: reject unknown keys, or report them as warnings. `walkTree`
    accumulates errors rather than stopping at the first, so an error type already
    fits the return shape.
-2. Handle the multi-module case. `ValidateTreeAllModules` (`validator.go:599-613`)
+2. Handle the multi-module case. `ValidateTreeAllModules` (`validator.go`)
    walks the SAME section data once per conf module and its own doc comment says
    "unknown fields from other modules are silently skipped". A per-module strict
    check would flag every other module's legitimate leaves. The check must be a
@@ -57,10 +57,10 @@ to the user, never deleted unilaterally (`ai/rules/never-destroy-work.md`).
 4. Decide the blast radius: an existing config with a stale or misspelled key
    starts failing verify after this lands.
 
-**Known constraint:** the comment on the skip at `validator.go:635` says the unknown
+**Known constraint:** the comment on the skip at `validator.go` says the unknown
 field is handled elsewhere, by the config reader. That claim is untrue on the live
 path (the reader is test-only per the table above).
-Treat the comment as a belief, not a decision record (`ai/rules/no-fabrication.md`),
+Treat the comment as a belief, not a decision record (`ai/rules/evidence.md`),
 and fix or remove it as part of this work.
 
 ## Required Reading
@@ -68,7 +68,7 @@ and fix or remove it as part of this work.
 ### Architecture Docs
 - [ ] `docs/architecture/config/yang-config-design.md` - module load/resolve semantics, module categories
   → Constraint: (fill during design) the strict check must walk the RESOLVED entry tree, the same producer the daemon uses
-- [ ] `ai/rules/fail-closed-guards.md` - a guard that silently accepts is the failure mode being fixed
+- [ ] `ai/rules/evidence.md` - a guard that silently accepts is the failure mode being fixed
   → Constraint: (fill during design)
 - [ ] `ai/rules/never-destroy-work.md` - governs the dead `reader.go` path
   → Constraint: surface the dead-code finding to the user; do not delete unilaterally
@@ -100,17 +100,17 @@ and fix or remove it as part of this work.
 **Behavior to change:**
 - Config keys with no schema node become a reported error or warning at verify, instead of being silently skipped.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `ze config validate` (`cmd_validate.go:110` `cmdValidate`, `:27` `ValidateContent`), operating on the parsed config tree.
-- The CLI editor's BGP validation (`internal/component/cli/validator.go:236`, `:293`).
+- `ze config validate` (`cmd_validate.go` `cmdValidate`, `:27` `ValidateContent`), operating on the parsed config tree.
+- The CLI editor's BGP validation (`internal/component/cli/validator.go`, `:293`).
 
 ### Transformation Path
-1. Config file is parsed into a tree; `config.PruneInactive` drops inactive nodes (`cmd_validate.go:266`).
-2. `cmd_validate.go:272-277` iterates `yangSectionsToValidate` and calls `ValidateTreeAllModules(section, container.ToMap())`.
-3. `ValidateTreeAllModules` (`validator.go:599`) resolves each conf module's entry, finds the section child, and calls `walkTree` once per module.
-4. `walkTree` (`validator.go:616`) checks mandatory children, then loops the provided data; keys absent from `entry.Dir` hit the `continue` at :634-635 and vanish.
+1. Config file is parsed into a tree; `config.PruneInactive` drops inactive nodes (`cmd_validate.go`).
+2. `cmd_validate.go` iterates `yangSectionsToValidate` and calls `ValidateTreeAllModules(section, container.ToMap())`.
+3. `ValidateTreeAllModules` (`validator.go`) resolves each conf module's entry, finds the section child, and calls `walkTree` once per module.
+4. `walkTree` (`validator.go`) checks mandatory children, then loops the provided data; keys absent from `entry.Dir` hit the `continue` at :634-635 and vanish.
 5. Accumulated `ValidationError` values return to `cmd_validate.go`, which redacts sensitive leaves and renders text or JSON output.
 
 ### Boundaries Crossed
@@ -123,7 +123,7 @@ and fix or remove it as part of this work.
 
 ### Integration Points
 - `Validator.walkTree` and `Validator.ValidateTreeAllModules` (`internal/component/config/yang/validator.go`).
-- `ValidationError` and `ErrorType` (`validator.go:32`, `:64`) for any new error kind.
+- `ValidationError` and `ErrorType` (`validator.go`, `:64`) for any new error kind.
 - `cmd_validate.go` output and redaction path.
 - `Validator.validateContainerEntry`, the dead second site.
 
@@ -200,7 +200,7 @@ and fix or remove it as part of this work.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
-| Fail-closed | An unknown key can never yield a clean verify (`ai/rules/fail-closed-guards.md`) |
+| Fail-closed | An unknown key can never yield a clean verify (`ai/rules/evidence.md`) |
 | Registration over hardcoding | No static key list added; the schema remains the only source of known keys |
 | No drift | Both permissive sites resolved, or the dead one explicitly retired with user approval |
 

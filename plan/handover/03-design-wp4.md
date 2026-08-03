@@ -4,7 +4,7 @@
 
 Rows: `RFC7296-1.2-5`, `RFC7296-1.2-6`, `RFC7296-2.6-3`, `RFC7296-2.6-4`, `RFC7296-2.6-5`,
 `RFC7296-2.6.1-1`.
-Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 9 (`:685-689`).
+Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 9.
 
 **Read-only design. No tracked file was modified.** Every `file:line` below was read in the
 working tree on 2026-07-31. Other agents are editing `internal/component/ike/engine/`
@@ -13,7 +13,7 @@ engine line numbers WILL move. Every citation names the FUNCTION as well as the 
 **Re-locate by function name, and re-read before quoting a line into a tag.**
 
 **A naming collision the implementer will meet.** The 2026-07-30 re-triage renumbered the
-work packages (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1566-1581`). "WP-4" now names "Notify
+work packages (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). "WP-4" now names "Notify
 vocabulary and the error-response path" (12 rows), and this package's work sits in the new
 "WP-7, COOKIE, DH-group retry, KE payload agreement" (10 rows). The brief and the phase list
 use the OLD numbering, and this document follows the brief. The new WP-7 carries 10 rows
@@ -65,7 +65,7 @@ that reading is not available here even though it was available for WP-5.
 
 `rfc/full/rfc7296.txt:662-668`. The MUST is on `:667-668`.
 
-Appendix A (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1040`) quotes from "If the initiator
+Appendix A (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`) quotes from "If the initiator
 guesses wrong" onward and drops the two setup sentences. The elision does not widen or
 narrow the obligation, so it is legitimate. Keep the row text as Appendix A has it.
 
@@ -98,12 +98,12 @@ up"). Section 4 turns that into the specific bounds.
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The initiator's notify switch handles four types, and `NotifyInvalidKEPayload` is not one of them | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go:414-447` (`NoProposalChosen` `:415`, `SignatureHashAlgorithms` `:420`, `NATDetectionSourceIP` `:426`, `NATDetectionDestIP` `:437`) |
-| An INVALID_KE_PAYLOAD response carries no SA, KE or Nonce, so it falls to the completeness gate and the SA dies | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go:450-454` |
-| `runInitiator`'s wait loop tests only for `StateEstablished`, never for `StateDead` | `runInitiator` | `internal/component/ike/engine/fsm.go:139-167` |
-| A dead SA therefore re-sends the SAME wrong-group request until the retransmit budget is spent | `runInitiator` | `internal/component/ike/engine/fsm.go:146-159` (`sa.LastSentMsg` re-sent at `:154`) |
-| The next cycle rebuilds the DH from the same config index, so it repeats forever | `newInitiatorSA` | `internal/component/ike/engine/initiator.go:30-34` (`ikeGroup.Proposals[0].DHGroup`) |
-| Ze as RESPONDER does send the notify | `handleSAInitRequest` | `internal/component/ike/engine/responder.go:150-159`, sending at `:156` |
+| The initiator's notify switch handles four types, and `NotifyInvalidKEPayload` is not one of them | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go` (`NoProposalChosen` `:415`, `SignatureHashAlgorithms` `:420`, `NATDetectionSourceIP` `:426`, `NATDetectionDestIP` `:437`) |
+| An INVALID_KE_PAYLOAD response carries no SA, KE or Nonce, so it falls to the completeness gate and the SA dies | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go` |
+| `runInitiator`'s wait loop tests only for `StateEstablished`, never for `StateDead` | `runInitiator` | `internal/component/ike/engine/fsm.go` |
+| A dead SA therefore re-sends the SAME wrong-group request until the retransmit budget is spent | `runInitiator` | `internal/component/ike/engine/fsm.go` (`sa.LastSentMsg` re-sent at `:154`) |
+| The next cycle rebuilds the DH from the same config index, so it repeats forever | `newInitiatorSA` | `internal/component/ike/engine/initiator.go` (`ikeGroup.Proposals[0].DHGroup`) |
+| Ze as RESPONDER does send the notify | `handleSAInitRequest` | `internal/component/ike/engine/responder.go`, sending at `:156` |
 
 **Verdict: absent.** This is defect D-1. Ze is a conforming SENDER of INVALID_KE_PAYLOAD and
 a non-conforming RECEIVER of it, and the receiving gap is unrecoverable rather than merely
@@ -111,10 +111,10 @@ slow.
 
 **One correction to the spec's own record.** the rfcgate-1b pilot spec at its line 1797 (the spec is closed; its record is `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`)
 says of the CREATE_CHILD_SA half that `respondIKERekey` "builds no Notify". That is now
-stale: `respondIKERekey` (`internal/component/ike/engine/rekey.go:501`) builds an
+stale: `respondIKERekey` (`internal/component/ike/engine/rekey.go`) builds an
 INVALID_KE_PAYLOAD at `:548`, and two tagged tests cover it
 (`TestNegRekeyRejectsMismatchedKEGroup` and `TestNegSharedSecretRefusesWrongLength`,
-`internal/component/ike/engine/rfc7296_negotiation_test.go:283` and `:336`). Fix the spec
+`internal/component/ike/engine/rfc7296_negotiation_test.go` and `:336`). Fix the spec
 line in the same commit. It does not change WP-4's scope: §1.3's rekey retry is phrased
 "the initiator will probably retry" (`rfc/full/rfc7296.txt:752-755`), which is not a MUST.
 
@@ -129,7 +129,7 @@ line in the same commit. It does not change WP-4's scope: §1.3's rekey retry is
 `rfc/full/rfc7296.txt:668-681` (the sentence is split by a page break at `:670-678`; the
 MUST is on `:668`, and the rationale resumes at `:679`).
 
-Appendix A (`:1041`) truncates at "was not authenticated". **Two problems with that.** The
+Appendix A truncates at "was not authenticated". **Two problems with that.** The
 source says "was unauthenticated", not "was not authenticated", and the dropped clause is
 the entire security rationale. Restore the full sentence; section 11 gives the row text.
 
@@ -137,9 +137,9 @@ the entire security rationale. Restore the full sentence; section 11 gives the r
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The one request builder always encodes the WHOLE configured proposal set | `buildSAInitRequest` | `internal/component/ike/engine/initiator.go:53` calling `buildWireIKEProposals` |
-| `buildWireIKEProposals` iterates every configured proposal | `buildWireIKEProposals` | `internal/component/ike/engine/initiator.go:128` |
-| There is no retry, so there is no message for the obligation to govern | `runInitiator` | `internal/component/ike/engine/fsm.go:123` is the only `buildSAInitRequest` call outside tests |
+| The one request builder always encodes the WHOLE configured proposal set | `buildSAInitRequest` | `internal/component/ike/engine/initiator.go` calling `buildWireIKEProposals` |
+| `buildWireIKEProposals` iterates every configured proposal | `buildWireIKEProposals` | `internal/component/ike/engine/initiator.go` |
+| There is no retry, so there is no message for the obligation to govern | `runInitiator` | `internal/component/ike/engine/fsm.go` is the only `buildSAInitRequest` call outside tests |
 
 **Verdict: absent, but cheap.** The obligation is vacuous today because no retry exists.
 The moment the retry reuses `buildSAInitRequest` rather than narrowing the offer to the
@@ -158,7 +158,7 @@ response it would get to choose the cipher too.
 > associated with this notification MUST be between 1 and 64 octets in length (inclusive),
 > and its generation is described later in this section."
 
-`rfc/full/rfc7296.txt:1799-1803`. The MUST is on `:1801-1802`. Appendix A (`:1092`) quotes
+`rfc/full/rfc7296.txt:1799-1803`. The MUST is on `:1801-1802`. Appendix A quotes
 only the MUST sentence, which is correct: the SHOULD in the preceding sentence is a separate
 obligation nobody extracted, and section 10 raises that.
 
@@ -166,16 +166,16 @@ obligation nobody extracted, and section 10 raises that.
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| `NotifyCookie` is declared and has NO non-test referent anywhere in the tree | the constant only | `internal/component/ike/wire/payload_notify.go:56` (`grep -rn 'NotifyCookie' internal/ --include=*.go` returns that one line) |
-| `PayloadNotify` enforces NO length rule on `NotificationData` at encode | `PayloadNotify.WriteTo` | `internal/component/ike/wire/payload_notify.go:86-107` (`copy(buf[off+n:], p.NotificationData)` at `:104`) |
-| Nor at parse | `PayloadNotify.ReadFrom` | `internal/component/ike/wire/payload_notify.go:142-145` |
-| The only length bound anywhere near this path is the 512-octet notify buffer | `sendSAInitNotify` | `internal/component/ike/engine/responder.go:344-351` |
+| `NotifyCookie` is declared and has NO non-test referent anywhere in the tree | the constant only | `internal/component/ike/wire/payload_notify.go` (`grep -rn 'NotifyCookie' internal/ --include=*.go` returns that one line) |
+| `PayloadNotify` enforces NO length rule on `NotificationData` at encode | `PayloadNotify.WriteTo` | `internal/component/ike/wire/payload_notify.go` (`copy(buf[off+n:], p.NotificationData)` at `:104`) |
+| Nor at parse | `PayloadNotify.ReadFrom` | `internal/component/ike/wire/payload_notify.go` |
+| The only length bound anywhere near this path is the 512-octet notify buffer | `sendSAInitNotify` | `internal/component/ike/engine/responder.go` |
 
 **Verdict: absent.** Note the asymmetry the row must cover: `2.6-3` binds Ze as a cookie
 GENERATOR, and `2.6-4` makes Ze ECHO a peer's cookie, so the 1..64 bound is needed on both
 the mint path and the echo path. A peer that sends a 600-octet COOKIE must not have Ze echo
 it back. The existing `sendSAInitNotify` guard would drop such a message rather than
-truncate it (`responder.go:345-351`), which fails safe but reports the wrong reason; the
+truncate it (`responder.go`), which fails safe but reports the wrong reason; the
 echo path needs its own explicit `2.6-3` check so the log names the real fault.
 
 ### 1.4 `RFC7296-2.6-4` -- the initiator MUST retry with COOKIE first and everything else unchanged
@@ -186,7 +186,7 @@ echo path needs its own explicit `2.6-3` check so the log names the real fault.
 > retry the IKE_SA_INIT request, and include the COOKIE notification containing the
 > received data as the first payload, and all other payloads unchanged."
 
-`rfc/full/rfc7296.txt:1803-1807`. Appendix A (`:1093`) quotes this exactly. No change needed.
+`rfc/full/rfc7296.txt:1803-1807`. Appendix A quotes this exactly. No change needed.
 
 The exchange diagram that fixes the shape:
 
@@ -219,14 +219,14 @@ This is three separate testable properties, and the design must hit all three:
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The initiator's notify switch has no `NotifyCookie` case | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go:414-447` |
-| A COOKIE-only response has no SA, KE or Nonce, so it dies at the completeness gate | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go:450-454` |
-| The request builder has no cookie parameter and no way to prepend a payload | `buildSAInitRequest` | `internal/component/ike/engine/initiator.go:52-92`, payload slice built at `:56-64` |
-| Payload order on the wire IS the slice order, so "first payload" is expressible | `Message.WriteTo` | `internal/component/ike/wire/message.go:30` writes `m.Payloads[i]` in order |
+| The initiator's notify switch has no `NotifyCookie` case | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go` |
+| A COOKIE-only response has no SA, KE or Nonce, so it dies at the completeness gate | `handleSAInitResponse` | `internal/component/ike/engine/fsm.go` |
+| The request builder has no cookie parameter and no way to prepend a payload | `buildSAInitRequest` | `internal/component/ike/engine/initiator.go`, payload slice built at `:56-64` |
+| Payload order on the wire IS the slice order, so "first payload" is expressible | `Message.WriteTo` | `internal/component/ike/wire/message.go` writes `m.Payloads[i]` in order |
 
 **Verdict: absent.** Property 2 is the one an implementation gets wrong: the obvious
 implementation calls `newInitiatorSA` again, which mints a fresh nonce
-(`internal/component/ike/engine/initiator.go:25-28`) and a fresh DH key (`:31-34`). Section
+(`internal/component/ike/engine/initiator.go`) and a fresh DH key. Section
 6.2 gives the mutation that catches it.
 
 ### 1.5 `RFC7296-2.6-5` -- a mismatched cookie MUST be ignored, not rejected
@@ -243,7 +243,7 @@ implementation calls `newInitiatorSA` again, which mints a fresh nonce
 > reject those cookies), and one response from responder to initiator that includes the
 > correct cookie."
 
-`rfc/full/rfc7296.txt:1880-1890`. Appendix A (`:1094`) quotes to "as if no cookie had been
+`rfc/full/rfc7296.txt:1880-1890`. Appendix A quotes to "as if no cookie had been
 included" and drops the rest. **Restore at least the "usually this means sending a response
 containing a new cookie" clause**, because that clause is what makes the fail-open reading
 safe (section 1.6), and drop the rest into the row's tag rather than the row text.
@@ -265,19 +265,19 @@ The secret-rotation permission the design relies on:
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The responder's payload loop reads exactly one notify type and ignores every other | `handleSAInitRequest` | `internal/component/ike/engine/responder.go:104-108` (only `NotifySignatureHashAlgorithms`) |
+| The responder's payload loop reads exactly one notify type and ignores every other | `handleSAInitRequest` | `internal/component/ike/engine/responder.go` (only `NotifySignatureHashAlgorithms`) |
 | Nothing expects a cookie, so nothing can mismatch one | none exists | -- |
 
 **Verdict: absent.** Vacuously "not violated" today, and section 1.7 says why that is not a
 verdict of conformant.
 
-### 1.6 The fail-open in `2.6-5` versus `ai/rules/fail-closed-guards.md`
+### 1.6 The fail-open in `2.6-5` versus `ai/rules/evidence.md`
 
-`ai/rules/fail-closed-guards.md` requires a guard to deny on a miss, an empty set or an
+`ai/rules/evidence.md` requires a guard to deny on a miss, an empty set or an
 error. `RFC7296-2.6-5` requires the opposite for the cookie COMPARISON: on a mismatch, do
 not reject, "process the message as if no cookie had been included". The spec anticipates
 this and warns the fail-open "must not be 'hardened' into a rejection"
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:338`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 **The two rules do not actually conflict, and the resolution is structural rather than a
 carve-out.** There are two guards, not one:
@@ -318,7 +318,7 @@ and the exchange proceeds. That is exactly what the RFC prescribes, and it is sa
 > Implementations SHOULD support this shorter exchange, but MUST NOT fail if other
 > implementations do not support this shorter exchange."
 
-`rfc/full/rfc7296.txt:1928-1941`. The MUST NOT is on `:1940-1941`. Appendix A (`:1095`)
+`rfc/full/rfc7296.txt:1928-1941`. The MUST NOT is on `:1940-1941`. Appendix A
 quotes the last sentence exactly and classes the row `MUST NOT`. Correct.
 
 The paragraph that names the failure mode the MUST NOT guards:
@@ -348,13 +348,13 @@ rows' tags.**
 
 #### What Ze does today
 
-No retry loop exists (`handleSAInitResponse`, `internal/component/ike/engine/fsm.go:414-454`),
+No retry loop exists (`handleSAInitResponse`, `internal/component/ike/engine/fsm.go`),
 so there is nothing that can absorb a second cookie. **Verdict: absent.**
 
 ### 1.8 Why no row here is "conformant by absence"
 
 WP-5 discharged four rows as conformant because the obligations' antecedents were
-unreachable by a property the code HAS (`plan/handover/02-design-wp5.md:92-107`). That move
+unreachable by a property the code HAS (`plan/handover/02-design-wp5.md`). That move
 is not available here, for three independent reasons.
 
 1. **`2.6-4` and `1.2-5` are unconditional receiver obligations.** They bind Ze whenever a
@@ -369,8 +369,8 @@ is not available here, for three independent reasons.
    that lowers what Ze owes, which only Thomas may take.
 
 The triage's "hold only by absence" list names `3.2-1`, `2.5-12` and `3.12-1`
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1607-1609`). None of WP-4's rows is on it, and the
-"genuinely unsited" table (`:1616-1624`) does not name one either. The triage agrees with
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). None of WP-4's rows is on it, and the
+"genuinely unsited" table does not name one either. The triage agrees with
 this section.
 
 ---
@@ -379,30 +379,30 @@ this section.
 
 ### 2.1 Where the retry lives, and why
 
-The retry belongs in `handleSAInitResponse` (`internal/component/ike/engine/fsm.go:386`),
+The retry belongs in `handleSAInitResponse` (`internal/component/ike/engine/fsm.go`),
 not in `runInitiator`.
 
 - It is where the notify is parsed and where the responder's chosen group is known.
 - It already runs on the dispatch goroutine, which the code documents as owning a
   pre-established SA: "(re)handshake packets are handled inline on the dispatch goroutine,
-  not routed to the owner loop" (`runOnce`, `internal/component/ike/engine/fsm.go:76-78`).
+  not routed to the owner loop" (`runOnce`, `internal/component/ike/engine/fsm.go`).
 - It already writes the retransmit fields that a retry must reset:
-  `sa.RetransmitTime` and `sa.RetransmitCount` at `internal/component/ike/engine/fsm.go:524-525`.
+  `sa.RetransmitTime` and `sa.RetransmitCount` at `internal/component/ike/engine/fsm.go`.
   The retry follows an established ownership pattern rather than inventing one.
 
 `runInitiator`'s loop needs no change at all. It waits for `StateEstablished`
-(`internal/component/ike/engine/fsm.go:139`) and retransmits `sa.LastSentMsg`
+(`internal/component/ike/engine/fsm.go`) and retransmits `sa.LastSentMsg`
 (`:154`); a retry that replaces `sa.LastSentMsg` and resets the timer is transparent to it.
 
 ### 2.2 New file: `internal/component/ike/engine/sa_init_retry.go`
 
-One file, one concern (`ai/rules/file-modularity.md`). `fsm.go` is already 31 KB.
+One file, one concern (`ai/rules/go-standards.md`). `fsm.go` is already 31 KB.
 
 | Symbol | Shape | What it does |
 |--------|-------|--------------|
 | `maxSAInitRetries` | const, 3 | Total IKE_SA_INIT retries per cycle, across BOTH causes. The RFC's "limit the number of cookie exchanges it tries before giving up" (`rfc/full/rfc7296.txt:1884-1885`) |
 | `retrySAInit(sa *SA, cause retryCause, data []byte, tr, remote, log) bool` | func | The single retry entry point. Returns false when the retry is refused, and the caller then dies as today |
-| `retryCause` | `uint8` enum, zero invalid | `retryCookie`, `retryInvalidKE`. Typed rather than a string (`ai/rules/enum-over-string.md`) |
+| `retryCause` | `uint8` enum, zero invalid | `retryCookie`, `retryInvalidKE`. Typed rather than a string (`ai/rules/go-standards.md`) |
 | `parseInvalidKEGroup(data []byte) (ipsec.DHGroup, bool)` | func | Fail-closed parse of the 2-octet group number |
 
 `retrySAInit` in order:
@@ -412,7 +412,7 @@ One file, one concern (`ai/rules/file-modularity.md`). `fsm.go` is already 31 KB
 2. **Reset the responder SPI.** `sa.ResponderSPI = [8]byte{}`, and
    `table.UpdateKey(sa.ResponderSPI, [8]byte{}, sa)` back to the zero key. **Required**:
    `handleSAInitResponse` copies the header's responder SPI into the SA at
-   `internal/component/ike/engine/fsm.go:395` BEFORE the notify switch runs, and RFC 7296
+   `internal/component/ike/engine/fsm.go` BEFORE the notify switch runs, and RFC 7296
    says a non-zero responder SPI in such a response "should not" be rejected
    (`rfc/full/rfc7296.txt:1768-1769`). Without the reset, a peer that sets a non-zero
    responder SPI on its COOKIE response makes Ze send a retry whose header claims an IKE SA
@@ -430,26 +430,26 @@ One file, one concern (`ai/rules/file-modularity.md`). `fsm.go` is already 31 KB
    `sa.InitiatorSAInitMsg = msg`; `sa.LastSentMsg = msg`.
    **`sa.InitiatorSAInitMsg` is not bookkeeping.** It is the octet string the AUTH payload is
    computed over: `computeAuth`-family code reads `realMsg = sa.InitiatorSAInitMsg`
-   (`internal/component/ike/engine/auth.go:54`) and `realMsg = sa.ResponderSAInitMsg`
+   (`internal/component/ike/engine/auth.go`) and `realMsg = sa.ResponderSAInitMsg`
    (`:58`). A retry that leaves the old bytes there makes every later IKE_AUTH fail
    authentication against a conforming peer, and the failure surfaces two messages later as
    an opaque AUTH mismatch. **This is the single easiest way to get WP-4 wrong.**
 5. **Reset the timer.** `sa.RetransmitCount = 0`;
    `sa.RetransmitTime = time.Now().Add(retransmitBase)`. State stays `StateSAInitSent`.
 6. **Send** via `sendWithNATT(sa, msg, tr, remote)`, matching
-   `internal/component/ike/engine/fsm.go:528`.
+   `internal/component/ike/engine/fsm.go`.
 
 ### 2.3 The DH-group acceptance guard (fail-closed, and the `1.2-6` companion)
 
 `parseInvalidKEGroup` and its caller must refuse, in this order:
 
-| Condition | Why | `ai/rules/fail-closed-guards.md` |
+| Condition | Why | `ai/rules/evidence.md` |
 |-----------|-----|----------------------------------|
 | `len(data) != 2` | §1.3 fixes the body: "two octets of data ... the accepted Diffie-Hellman group number in big endian order" (`rfc/full/rfc7296.txt:750-752`) | an empty or short body is a miss, so deny |
-| the 16-bit value exceeds 255 | `ipsec.DHGroup` is `uint8` (`internal/component/ike/ipsec/types.go:109`). A silent narrowing turns group 4096 into group 0 | deny, never truncate (`ai/rules/exact-or-reject.md`) |
-| `!ipsec.ValidDHGroup(g)` | `internal/component/ike/ipsec/types.go:112-114` bounds it to 1..31 | deny |
+| the 16-bit value exceeds 255 | `ipsec.DHGroup` is `uint8` (`internal/component/ike/ipsec/types.go`). A silent narrowing turns group 4096 into group 0 | deny, never truncate (`ai/rules/protocol.md`) |
+| `!ipsec.ValidDHGroup(g)` | `internal/component/ike/ipsec/types.go` bounds it to 1..31 | deny |
 | the group is not among `sa.IKEGroup.Proposals[*].DHGroup` | **the security guard.** The notify is unauthenticated. Without this, a forged notify steers Ze onto any group it can build | deny, and log at WARN with the offered group and the configured set |
-| `crypto.NewDHExchange(g)` errors | its switch covers a fixed set (`internal/component/ike/crypto/dh.go:57-59`) and returns an error otherwise | deny |
+| `crypto.NewDHExchange(g)` errors | its switch covers a fixed set (`internal/component/ike/crypto/dh.go`) and returns an error otherwise | deny |
 
 **The fourth row is what `1.2-6` is really about.** Re-proposing the full suite set stops an
 attacker downgrading the CIPHER; refusing an unproposed group stops the same attacker
@@ -466,8 +466,8 @@ Two changes, both inside the existing function, no signature change:
 
 | Today | Change | Why |
 |-------|--------|-----|
-| `dhGroupID := crypto.DHGroupID(ikeGroup.Proposals[0].DHGroup)` at `:54`, used for the KE payload at `:59` | read `sa.LocalDH.GroupID` instead | `DHExchange` carries its own group (`internal/component/ike/crypto/dh.go:58`). Today the KE group and the actual DH key are computed independently from the same config index and can silently diverge; after a retry they WOULD diverge. Making the payload follow the key is the correct invariant regardless of this package |
-| payload slice built at `:56-64` | when `len(sa.Cookie) > 0`, prepend `{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyCookie, NotificationData: sa.Cookie}}` as element 0 | `2.6-4` "as the first payload". `Message.WriteTo` emits slice order (`internal/component/ike/wire/message.go:30`) |
+| `dhGroupID := crypto.DHGroupID(ikeGroup.Proposals[0].DHGroup)` at `:54`, used for the KE payload at `:59` | read `sa.LocalDH.GroupID` instead | `DHExchange` carries its own group (`internal/component/ike/crypto/dh.go`). Today the KE group and the actual DH key are computed independently from the same config index and can silently diverge; after a retry they WOULD diverge. Making the payload follow the key is the correct invariant regardless of this package |
+| payload slice built at `:56-64` | when `len(sa.Cookie) > 0`, prepend `{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyCookie, NotificationData: sa.Cookie}}` as element 0 | `2.6-4` "as the first payload". `Message.WriteTo` emits slice order (`internal/component/ike/wire/message.go`) |
 | `buildWireIKEProposals(ikeGroup)` at `:53` | **unchanged** | this IS `1.2-6`. Do not narrow the offer to the responder's group |
 
 `buf := make([]byte, msg.Len())` at `:89` already sizes from the message, so a 64-octet
@@ -477,7 +477,7 @@ comment** -- it is a claim about attacker influence and it stops being true.
 
 ### 2.5 `internal/component/ike/engine/fsm.go` -- the two new notify cases
 
-Inside `handleSAInitResponse`'s payload loop (`:414-447`), beside the existing
+Inside `handleSAInitResponse`'s payload loop, beside the existing
 `NotifyNoProposalChosen` arm at `:415`:
 
 ```
@@ -504,7 +504,7 @@ has no SA, KE or Nonce by design.
 | `SAInitRetries` | `int` | the `maxSAInitRetries` bound |
 
 Both are written only on the dispatch goroutine, beside `sa.RetransmitCount`
-(`internal/component/ike/engine/fsm.go:525`), and read by `buildSAInitRequest` on the same
+(`internal/component/ike/engine/fsm.go`), and read by `buildSAInitRequest` on the same
 goroutine. No new lock. R-WP4-7 records the residual risk.
 
 ---
@@ -544,8 +544,8 @@ neither secret; a previous-secret match older than one rotate interval; a nil `i
 ### 3.2 `internal/component/ike/engine/register.go` -- where the check goes, and why it matters
 
 **Placement is the entire security value.** In `tryResponderSAInit`
-(`internal/component/ike/engine/register.go:582`) the check must sit AFTER
-`matchResponderPeer` (`:594`) and BEFORE `ps.responderBusy.CompareAndSwap(false, true)`
+(`internal/component/ike/engine/register.go`) the check must sit AFTER
+`matchResponderPeer` and BEFORE `ps.responderBusy.CompareAndSwap(false, true)`
 (`:606`).
 
 RFC 7296's rationale, which is what the placement implements:
@@ -558,22 +558,22 @@ RFC 7296's rationale, which is what the placement implements:
 
 `rfc/full/rfc7296.txt:1771-1776`.
 
-**Defect D-2, stated precisely.** Today the CAS at `internal/component/ike/engine/register.go:606`
+**Defect D-2, stated precisely.** Today the CAS at `internal/component/ike/engine/register.go`
 is the first thing a datagram from the configured peer address reaches. It commits that
 peer's ONLY half-open slot. The slot is released by `reapStaleHandshake`
-(`internal/component/ike/engine/fsm.go:315`) after `responderHandshakeTimeout = 30 * time.Second`
-(`internal/component/ike/engine/fsm.go:44`). So **one spoofed UDP datagram bearing the
+(`internal/component/ike/engine/fsm.go`) after `responderHandshakeTimeout = 30 * time.Second`
+(`internal/component/ike/engine/fsm.go`). So **one spoofed UDP datagram bearing the
 configured peer's source address denies that peer's IKE for 30 seconds, and a datagram every
 30 seconds denies it indefinitely.** The token bucket at `:638` does not help: it is global
 and generous (100/s, burst 200), and the attack needs one packet per 30 seconds.
 
-`matchResponderPeer` (`:556`) narrows the attack to an off-path attacker who knows the
+`matchResponderPeer` narrows the attack to an off-path attacker who knows the
 configured peer's address, which is not a high bar for a site-to-site VPN with published
 endpoints. COOKIE closes it: the CAS is reached only by a sender that echoed a cookie bound
 to its own address, which a blind spoofer cannot produce.
 
 **This is why the responder half is in scope.** It is not "extra credit for a SHOULD"; it
-repairs a reachable availability defect. `ai/rules/no-parking.md` applies: WP-4 is the entry
+repairs a reachable availability defect. `ai/rules/completion.md` applies: WP-4 is the entry
 point that reaches it.
 
 The inserted block:
@@ -595,7 +595,7 @@ Two inputs, OR-ed:
 
 | Input | Source | Meaning |
 |-------|--------|---------|
-| this peer's half-open slot is already taken | `ps.responderBusy.Load()` (`internal/component/ike/engine/register.go:606` is the writer) | a second concurrent initiation for this peer is exactly the contested case |
+| this peer's half-open slot is already taken | `ps.responderBusy.Load()` (`internal/component/ike/engine/register.go` is the writer) | a second concurrent initiation for this peer is exactly the contested case |
 | a global half-open count over a threshold | a new `atomic.Int64` incremented at the CAS and decremented where `responderBusy` is released | "When a responder detects a large number of half-open IKE SAs" (`rfc/full/rfc7296.txt:1799-1800`) |
 
 **Fails closed**: a nil `ps`, a nil remote address, or any read error returns `true` (demand a
@@ -603,14 +603,14 @@ cookie). Demanding a cookie costs a conforming peer one round trip and costs an 
 whole attack, so `true` is the safe default in every direction.
 
 **Configurable, and defaulting to on.** Add a YANG leaf under the IPsec container
-(`ai/rules/config-surface.md`: an operator would tune this during capacity planning, and it
+(`ai/rules/config.md`: an operator would tune this during capacity planning, and it
 must appear in `show configuration`). `cookie-threshold`, `type uint32`, `units` not needed
 (a count), `default 1`. Value 0 means never demand a cookie. Naming per
-`ai/rules/config-naming.md`; the env override follows the YANG path.
+`ai/rules/config.md`; the env override follows the YANG path.
 
 ### 3.4 `internal/component/ike/engine/responder.go` -- `sendCookieChallenge`
 
-`sendSAInitNotify` (`:329`) takes an `*SA`, and the whole point of a cookie challenge is
+`sendSAInitNotify` takes an `*SA`, and the whole point of a cookie challenge is
 that no SA exists. A sibling is needed:
 
 `sendCookieChallenge(tr *transport.UDPTransport, remote *net.UDPAddr, spiI [8]byte, cookie []byte, log *slog.Logger)`
@@ -630,14 +630,14 @@ that no SA exists. A sibling is needed:
 Refactor `sendSAInitNotify` to delegate to a shared `sendSAInitNotifyRaw(tr, remote, spiI,
 spiR, notifyType, data, peerName, log)`, so the existing INVALID_KE and NO_PROPOSAL paths and
 the cookie path share one encoder and one bound. `TestSendSAInitNotifyBytesUnchanged`
-(`internal/component/ike/engine/overflow_test.go:102`) already pins those bytes and will
+(`internal/component/ike/engine/overflow_test.go`) already pins those bytes and will
 catch a refactor that changes them.
 
 ### 3.5 Metrics
 
 `internal/component/ike/engine/metrics.go` holds only gauges refreshed by `Update()`
 (`:44-80`). Cookie activity is event-shaped, so use `metrics.CounterVec`
-(`internal/core/metrics/metrics.go:30`, `:60`):
+(`internal/core/metrics/metrics.go`, `:60`):
 
 | Metric | Labels | Incremented at |
 |--------|--------|----------------|
@@ -647,7 +647,7 @@ catch a refactor that changes them.
 
 The third is the operator's signal for a forged-notify flood against the initiator, which is
 the attack §2.6 describes at `rfc/full/rfc7296.txt:1886-1890`. Document all three in the
-subsystem telemetry page per `ai/rules/documentation.md` row 14.
+subsystem telemetry page per `ai/rules/writing.md` row 14.
 
 ---
 
@@ -660,16 +660,16 @@ are answered below by construction rather than by a limiter alone.
 
 | Property | Answer | Evidence |
 |----------|--------|----------|
-| **Amplification** | **Impossible. The response is strictly smaller than the request.** A cookie challenge is 28 (header) + 4 (generic) + 4 (notify) + 33 (cookie) = **69 octets**. It answers an IKE_SA_INIT carrying SA + KE + Nonce; with MODP-2048 the KE payload alone is 256 octets of public value, so the request exceeds 350 octets. The ratio is below 0.2 and can never exceed 1 | `mintCookie` returns 33; `PayloadNotify.Len` = `4 + spiLen + len(data)` (`internal/component/ike/wire/payload_notify.go:109-111`); `padBigInt(pub, modp2048Len)` (`internal/component/ike/crypto/dh.go:70`) |
-| **Reflection** | The challenge goes only to `pkt.RemoteAddr`, and only after `matchResponderPeer` matched that address against a CONFIGURED peer (`internal/component/ike/engine/register.go:594`, `:566-573`). An attacker cannot aim it at a third party, because the only reachable destination is an address the operator already configured | `matchResponderPeer`, `internal/component/ike/engine/register.go:556` |
-| **Rate** | Governed by the existing inbound token bucket, since a challenge is emitted at most once per accepted datagram: 100/s sustained, burst 200, per socket | `dispatchInbound`, `internal/component/ike/engine/register.go:638`, `:648`; `inboundRateLimiter.allow`, `:425` |
-| **CPU** | One HMAC-SHA256 over ~60 octets plus a bounded payload scan. No allocation of payload objects (section 4.3), no DH, no SA. Strictly less work than today's path, which builds an `SA`, a DH keypair and a table entry | `newResponderSA` (`internal/component/ike/engine/responder.go:25`) is what the check now skips |
+| **Amplification** | **Impossible. The response is strictly smaller than the request.** A cookie challenge is 28 (header) + 4 (generic) + 4 (notify) + 33 (cookie) = **69 octets**. It answers an IKE_SA_INIT carrying SA + KE + Nonce; with MODP-2048 the KE payload alone is 256 octets of public value, so the request exceeds 350 octets. The ratio is below 0.2 and can never exceed 1 | `mintCookie` returns 33; `PayloadNotify.Len` = `4 + spiLen + len(data)` (`internal/component/ike/wire/payload_notify.go`); `padBigInt(pub, modp2048Len)` (`internal/component/ike/crypto/dh.go`) |
+| **Reflection** | The challenge goes only to `pkt.RemoteAddr`, and only after `matchResponderPeer` matched that address against a CONFIGURED peer (`internal/component/ike/engine/register.go`, `:566-573`). An attacker cannot aim it at a third party, because the only reachable destination is an address the operator already configured | `matchResponderPeer`, `internal/component/ike/engine/register.go` |
+| **Rate** | Governed by the existing inbound token bucket, since a challenge is emitted at most once per accepted datagram: 100/s sustained, burst 200, per socket | `dispatchInbound`, `internal/component/ike/engine/register.go`, `:648`; `inboundRateLimiter.allow`, `:425` |
+| **CPU** | One HMAC-SHA256 over ~60 octets plus a bounded payload scan. No allocation of payload objects (section 4.3), no DH, no SA. Strictly less work than today's path, which builds an `SA`, a DH keypair and a table entry | `newResponderSA` (`internal/component/ike/engine/responder.go`) is what the check now skips |
 | **State** | **Zero.** No SA, no CAS, no table entry, no per-address table. The secret is one process-wide struct, and the cookie is recomputed rather than remembered | RFC's stateless design, `rfc/full/rfc7296.txt:1830-1832` |
 
 **A dedicated outbound limiter is deliberately NOT added.** The inbound bucket already
 bounds the emission one-for-one, and a second bucket would be a new failure mode with no new
 guarantee. If a reviewer disagrees, the cheap answer is to reuse `newInboundRateLimiter`
-(`internal/component/ike/engine/register.go:416`) with a tighter rate for challenges only;
+(`internal/component/ike/engine/register.go`) with a tighter rate for challenges only;
 say so at review rather than adding it speculatively.
 
 ### 4.2 The initiator's retry, and the two-Ze loop
@@ -681,8 +681,8 @@ Consider Ze-as-initiator against Ze-as-responder, or a forged-notify flood
 | Bound | Value | Where |
 |-------|-------|-------|
 | Retries per cycle, across BOTH causes | `maxSAInitRetries = 3` | `retrySAInit` step 1. **Shared counter, not per-cause**, so alternating COOKIE and INVALID_KE_PAYLOAD cannot pump it |
-| Cycles per peer | `maxRetransmissions`, then `errTimeout` | `runInitiator`, `internal/component/ike/engine/fsm.go:146-147` |
-| Delay between cycles | exponential, capped at `reconnectMaxDelay` | `reconnectDelay`, `internal/component/ike/engine/fsm.go:51-65` |
+| Cycles per peer | `maxRetransmissions`, then `errTimeout` | `runInitiator`, `internal/component/ike/engine/fsm.go` |
+| Delay between cycles | exponential, capped at `reconnectMaxDelay` | `reconnectDelay`, `internal/component/ike/engine/fsm.go` |
 
 A retry is sent only in DIRECT response to a received notify, never on a timer, so the
 initiator's send rate can never exceed the rate of notifies it receives, which the peer's own
@@ -700,7 +700,7 @@ sentence beside the constant.
 `scanSAInitPreState` runs on unauthenticated input before any state exists, so it must not
 be the DoS it prevents. `wire.Message.ReadFrom` is the wrong tool here: it allocates a
 payload object per payload, and `PayloadNotify.ReadFrom` allocates its data slice
-(`internal/component/ike/wire/payload_notify.go:132`, `:143`). The scan instead walks the
+(`internal/component/ike/wire/payload_notify.go`, `:143`). The scan instead walks the
 generic payload headers over the raw slice and copies only the cookie and the nonce, with
 four bounds, each denying rather than continuing:
 
@@ -711,7 +711,7 @@ four bounds, each denying rather than continuing:
 | offset must strictly advance | enforced | belt and braces on the previous row |
 | max cookie copied | 64 | `2.6-3` at the input boundary; a longer one is a mismatch, not a truncation |
 
-Fuzz it. `ai/rules/tdd.md` makes a fuzz target mandatory for wire-format parsing of external
+Fuzz it. `ai/rules/testing.md` makes a fuzz target mandatory for wire-format parsing of external
 input, and this is external input reaching a hand-rolled walker.
 
 ---
@@ -733,7 +733,7 @@ input, and this is external input reaching a hand-rolled walker.
 | `ai/RFC-REQUIREMENTS.md` | regenerated by `make ze-rfc-index` | no |
 
 **Nine production files, two of them new.** The spec's phase list estimated three
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:688`), written before the rows were mapped to
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`), written before the rows were mapped to
 producers. The extra six are `register.go` (which the estimate missed entirely, and which is
 where the security value lives), `initiator.go`, `sa.go`, `metrics.go` and the config pair.
 
@@ -751,11 +751,11 @@ registered `PeerSession`.
 
 | Harness | `file:line` | Use for |
 |---------|-------------|---------|
-| `autSAInitPair(t, auth)` | `internal/component/ike/engine/rfc7296_auth_test.go:42` | a pair stopped exactly after IKE_SA_INIT. The natural place to inject a notify |
-| `establishPSK(t)` | `internal/component/ike/engine/responder_test.go:226` | a full handshake, for the "retry still authenticates" assertion |
-| `parseMsg(t, raw)` | `internal/component/ike/engine/responder_test.go:189` | decode a built message for payload-order assertions |
-| `icyRunCycle(t, rekey)` / `icyFarEnd` | `internal/component/ike/engine/initiator_cycle_test.go:158`, `:20` | the goroutine-driven cycle with a stubbed `afterFunc`. **The only harness that exercises the retry against the real `runInitiator` loop** |
-| the two-socket UDP pattern | `internal/component/ike/engine/overflow_test.go:27-53` | `sendCookieChallenge` on a real socket |
+| `autSAInitPair(t, auth)` | `internal/component/ike/engine/rfc7296_auth_test.go` | a pair stopped exactly after IKE_SA_INIT. The natural place to inject a notify |
+| `establishPSK(t)` | `internal/component/ike/engine/responder_test.go` | a full handshake, for the "retry still authenticates" assertion |
+| `parseMsg(t, raw)` | `internal/component/ike/engine/responder_test.go` | decode a built message for payload-order assertions |
+| `icyRunCycle(t, rekey)` / `icyFarEnd` | `internal/component/ike/engine/initiator_cycle_test.go`, `:20` | the goroutine-driven cycle with a stubbed `afterFunc`. **The only harness that exercises the retry against the real `runInitiator` loop** |
+| the two-socket UDP pattern | `internal/component/ike/engine/overflow_test.go` | `sendCookieChallenge` on a real socket |
 
 ### 6.1 The pairs
 
@@ -763,7 +763,7 @@ registered `PeerSession`.
 |-----|----------|----------|
 | `1.2-5` | `TestKegInitiatorRetriesOnInvalidKEPayload`. Drive `autSAInitPair`, feed the initiator a hand-built INVALID_KE_PAYLOAD response naming a group the config offers. Assert: state is `StateSAInitSent` not `StateDead`; a NEW request was built; its KE payload names the responder's group; `sa.LocalDH.GroupID` matches it | `TestKegInitiatorRefusesUnofferedGroup`. Feed a group Ze never proposed, then a 1-octet body, then a 3-octet body, then group 0, then a 16-bit value above 255. **Each must leave the SA dead and send nothing.** This is the discriminating half: it proves the retry is a guarded decision rather than obedience to an unauthenticated packet |
 | `1.2-6` | `TestKegRetryReproposesEveryConfiguredSuite`. Configure three proposals with distinct ciphers and two distinct groups. Assert the RETRY's SA payload carries all three, with the same numbering as the first attempt | `TestKegRetryOfferIsNotNarrowedByTheNotify`. Assert the retry's proposal set is byte-identical to the first attempt's SA payload. Then assert the KE payload DID change. Together these say "the group moved and nothing else did", which no single assertion says |
-| `2.6-3` | `TestCkeMintedCookieIsWithinTheLengthBound`. Sweep 256 mints across varying SPIi, Ni and IP; assert every length is in 1..64. Then assert `sendCookieChallenge` refuses a 0-octet and a 65-octet cookie and sends nothing | `TestCkeEchoedCookieIsBoundedToo`. Feed the initiator a COOKIE response with a 65-octet body and assert NO retry is sent. Then feed a 64-octet body and assert a retry IS sent. The boundary pair proves the bound is `<= 64`, not `< 64` (`ai/rules/tdd.md`, boundary testing) |
+| `2.6-3` | `TestCkeMintedCookieIsWithinTheLengthBound`. Sweep 256 mints across varying SPIi, Ni and IP; assert every length is in 1..64. Then assert `sendCookieChallenge` refuses a 0-octet and a 65-octet cookie and sends nothing | `TestCkeEchoedCookieIsBoundedToo`. Feed the initiator a COOKIE response with a 65-octet body and assert NO retry is sent. Then feed a 64-octet body and assert a retry IS sent. The boundary pair proves the bound is `<= 64`, not `< 64` (`ai/rules/testing.md`, boundary testing) |
 | `2.6-4` | `TestCkeRetryCarriesCookieFirstAndNothingElseChanged`. Assert, on the retry: payload 0 is a `PayloadNotify` with `NotifyMsgType == wire.NotifyCookie` and data equal to the received bytes; the Nonce payload is byte-identical to the first attempt; the KE payload is byte-identical; the header's initiator SPI is unchanged; `MessageID == 0` | `TestCkeCookieIsAbsentWithoutAChallenge`. Assert the FIRST request carries no COOKIE payload at all. Without this, "payload 0 is a cookie" could pass over a builder that always emits one, and the peer would see a cookie it never issued |
 | `2.6-5` | `TestCkeMismatchedCookieIsIgnoredNotRejected`. With `cookieRequired` forced true, drive `tryResponderSAInit` with a wrong cookie. Assert: a NEW cookie challenge is sent (not a NO_PROPOSAL_CHOSEN, not silence); `ps.responderBusy` is still false; the SA table is empty; the function returned true | `TestCkeValidCookieReachesTheHandshake`. The same input with a cookie from `mintCookie` must take the CAS and create the SA. **This is what stops the positive being vacuous**: without it, a `tryResponderSAInit` that rejected everything would pass the positive |
 | `2.6.1-1` | `TestCkeSecondCookieReplacesTheFirstWithoutFailing`. Send COOKIE `X`; assert a retry carrying `X`. Send COOKIE `Y` in response to that retry; assert a second retry carrying `Y`, still `StateSAInitSent`, nonce and DH unchanged throughout | `TestCkeCookieAndInvalidKECombineWithoutFailing`. Reproduce `rfc/full/rfc7296.txt:1933-1938` exactly: COOKIE, then INVALID_KE_PAYLOAD. Assert the third request carries BOTH the retained cookie AND the corrected group, with the nonce still unchanged. Then assert the fourth notify is REFUSED by `maxSAInitRetries` and the SA dies, which proves the tolerance is bounded rather than unbounded |
@@ -773,7 +773,7 @@ registered `PeerSession`.
 answers the first IKE_SA_INIT with INVALID_KE_PAYLOAD, then completes normally. Assert the
 SA reaches `StateEstablished`. **This is the only test that catches the
 `sa.InitiatorSAInitMsg` bug of section 2.2 step 4**, because AUTH is computed over that field
-(`internal/component/ike/engine/auth.go:54`) and every payload-shape assertion above passes
+(`internal/component/ike/engine/auth.go`) and every payload-shape assertion above passes
 with the stale value.
 
 ### 6.2 Mutations -- each must redden its named test
@@ -790,7 +790,7 @@ with the stale value.
 | 8 | the retry calls `GenerateNonce` for a fresh `sa.LocalNonce` | `retrySAInit` | `2.6-4` positive. **Run this one explicitly.** It is the mutation a plausible wrong implementation actually contains |
 | 9 | the retry calls `crypto.NewDHExchange` on the COOKIE path too | `retrySAInit` | `2.6-4` positive (the KE-unchanged assertion) |
 | 10 | `buildSAInitRequest` always prepends a cookie, even when nil | `buildSAInitRequest` | `2.6-4` negative |
-| 11 | `verifyCookie` returns false and the caller sets `StateDead` instead of re-challenging | `tryResponderSAInit` | `2.6-5` positive. This is the "hardened into a rejection" error the spec warns about (`:338`) |
+| 11 | `verifyCookie` returns false and the caller sets `StateDead` instead of re-challenging | `tryResponderSAInit` | `2.6-5` positive. This is the "hardened into a rejection" error the spec warns about |
 | 12 | `verifyCookie` returns true unconditionally | `verifyCookie` | `2.6-5` positive |
 | 13 | `verifyCookie` returns false unconditionally | `verifyCookie` | `2.6-5` negative |
 | 14 | the cookie gate is moved AFTER the CAS | `tryResponderSAInit` | `2.6-5` positive (the `responderBusy` assertion). **The whole security value is in this line's position, so this mutation is mandatory** |
@@ -801,14 +801,14 @@ with the stale value.
 
 Mutations 8, 14 and 17 are the three the design most expects an implementer to introduce.
 **Run all three explicitly and paste the red output**, per
-`ai/rules/functional-test-gate.md` (mutation-verify).
+`ai/rules/testing.md` (mutation-verify).
 
 ### 6.3 Functional and interop
 
 | Test | Location | Proves |
 |------|----------|--------|
 | `ipsec-cookie-challenge.ci` | `test/ipsec/` (does not exist today) | Ze-to-Ze over loopback: with `cookie-threshold 1` the responder challenges and the exchange completes on retry. Follow the existing pattern exactly -- `cmd=background` responder plus `cmd=foreground` initiator, `option=env:var=ze_test_ike_dataplane:value=noop`, `option=env:var=ze_test_ike_port:value=$PORT2`. **No `option=needs-linux`**: no `test/ipsec/*.ci` uses it, because the noop dataplane avoids the privilege entirely. Assert on `show vpn ipsec sa` reaching an established state with a real negotiated cipher, as `test/ipsec/ipsec-sa-installed.ci` does |
-| `12-invalid-ke-retry` | `test/ipsec-interop/scenarios/` | Ze as initiator configured `dh-group 14` first against a strongSwan proposing only `modp3072`, so strongSwan sends INVALID_KE_PAYLOAD and Ze must retry and establish. **AC-14** (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:413`) |
+| `12-invalid-ke-retry` | `test/ipsec-interop/scenarios/` | Ze as initiator configured `dh-group 14` first against a strongSwan proposing only `modp3072`, so strongSwan sends INVALID_KE_PAYLOAD and Ze must retry and establish. **AC-14** (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`) |
 | `18-cookie-challenge` | `test/ipsec-interop/scenarios/` | strongSwan as initiator against a Ze responder with `cookie-threshold 1`, proving a real third-party initiator accepts Ze's cookie and completes |
 
 Scenario mechanics, confirmed: discovery is directory-based -- `test/ipsec-interop/run.py`
@@ -816,7 +816,7 @@ runs every subdirectory of `scenarios/` that contains a `check.py`, in sorted or
 is no list file to update. Each scenario is three files (`ze.conf`, `swanctl.conf`,
 `check.py`) and `check.py` exposes `def check():` importing helpers from
 `test/ipsec-interop/lab.py`. The make target is `make ze-ipsec-interop-test`, with
-`IPSEC_INTEROP_SCENARIO=<name>` to select one (`mk/test-integration.mk:39-43`).
+`IPSEC_INTEROP_SCENARIO=<name>` to select one (`mk/test-integration.mk`).
 
 **A caution on `12`'s discriminating power** (`ai/rules/interop-and-goal-validation.md`,
 vacuity traps). Assert on the tunnel establishing, and ALSO assert that strongSwan's log
@@ -833,9 +833,9 @@ deterministically and the assertion is on strongSwan completing anyway.
 
 ## 7. Id allocation
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py:477`, refusal at `:498-506`) refuses
+`check_id_allocation` (`scripts/dev/rfc_requirements.py`, refusal at `:498-506`) refuses
 a new id whose ordinal is at or below its SECTION's high-water mark, computed by
-`high_water` (`:459`) from the COMMITTED HEAD ids. `_head_of` (`:453`) keys on the section
+`high_water` from the COMMITTED HEAD ids. `_head_of` keys on the section
 STRING, so `RFC7296-2.6` and `RFC7296-2.6.1` are DISTINCT scopes. A section with no mark is
 skipped outright (`:497` `if mark is None: continue`).
 
@@ -852,7 +852,7 @@ and the working tree agree and no staged row can move a mark under this design.
 
 **WP-4's six Appendix A ordinals are all legal exactly as written. No renumbering is
 needed.** This is the first package in this spec for which that is true; WP-5 had to
-renumber three of four (`plan/handover/02-design-wp5.md:385-389`).
+renumber three of four (`plan/handover/02-design-wp5.md`).
 
 ### The contiguity warning still applies
 
@@ -862,7 +862,7 @@ through `2.6-5`, and `-1`, `-2` are already in HEAD. So WP-4 is the sole claiman
 three sections, and no landing order can strand an ordinal.
 
 **But that is a fact about today, and three renumberings have already cost this spec time**
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1363-1387`, `:1399-1414`, `:1416-1438`). The
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, `:1399-1414`, `:1416-1438`). The
 re-triage's new WP-7 carries 10 rows where this design covers 6, and the extra rows are very
 likely §1.3 and §3.4 (section 10). **A §1.2 row landing from another package before WP-4
 would push `1.2-5` and `1.2-6` up.** Recompute at the moment of landing, per section:
@@ -885,14 +885,14 @@ validates that the id's section segment agrees with the citation.
 
 | Invariant | Why it is at risk | The guard |
 |-----------|-------------------|-----------|
-| **`RFC7296-1.3-2`'s responder half** (`respondIKERekey` sends INVALID_KE_PAYLOAD on a rekey group mismatch, `internal/component/ike/engine/rekey.go:501`, emission at `:548`) | WP-4 touches the initiator's CONSUMPTION of the same notify. An implementer who routes the CREATE_CHILD_SA response through `retrySAInit` would retry an exchange the RFC does not require retrying | `TestNegRekeyRejectsMismatchedKEGroup` (`internal/component/ike/engine/rfc7296_negotiation_test.go:283`). **Scope `retrySAInit` to `ExchangeIKESAInit` only**, and say so in `1.2-5`'s tag |
-| **`RFC7296-3.4-1`** (MODP public values are padded to the modulus length; its negative was repaired to `TestRFC7296MODPShortPublicValueIsRefusedOnReceipt`, `internal/component/ike/crypto/rfc7296_dh_test.go:105`) | the retry builds a NEW `DHExchange` in a different group. If the retry ever hand-built a public value instead of calling `crypto.NewDHExchange`, the pad would be lost | `retrySAInit` calls `crypto.NewDHExchange` (`internal/component/ike/crypto/dh.go:57`) and nothing else. Both `3.4-1` tests stay green |
-| **`RFC7296-2.6-1` and `2.6-2`** (SPI pair identity and uniqueness) | the retry resets `sa.ResponderSPI` and calls `table.UpdateKey` | `TestSPIsAreUniqueIdentifiers` (`internal/component/ike/engine/rfc7296_header_test.go:291`) and `TestHeaderRoundtrip` (`internal/component/ike/wire/header_test.go:12`) |
-| **`sendSAInitNotify`'s exact bytes** | section 3.4 extracts a shared raw sender under it | `TestSendSAInitNotifyBytesUnchanged` (`internal/component/ike/engine/overflow_test.go:102`) pins them byte-for-byte, and `TestSendSAInitNotifyOversizedRejected` (`:27`) pins the drop |
+| **`RFC7296-1.3-2`'s responder half** (`respondIKERekey` sends INVALID_KE_PAYLOAD on a rekey group mismatch, `internal/component/ike/engine/rekey.go`, emission at `:548`) | WP-4 touches the initiator's CONSUMPTION of the same notify. An implementer who routes the CREATE_CHILD_SA response through `retrySAInit` would retry an exchange the RFC does not require retrying | `TestNegRekeyRejectsMismatchedKEGroup` (`internal/component/ike/engine/rfc7296_negotiation_test.go`). **Scope `retrySAInit` to `ExchangeIKESAInit` only**, and say so in `1.2-5`'s tag |
+| **`RFC7296-3.4-1`** (MODP public values are padded to the modulus length; its negative was repaired to `TestRFC7296MODPShortPublicValueIsRefusedOnReceipt`, `internal/component/ike/crypto/rfc7296_dh_test.go`) | the retry builds a NEW `DHExchange` in a different group. If the retry ever hand-built a public value instead of calling `crypto.NewDHExchange`, the pad would be lost | `retrySAInit` calls `crypto.NewDHExchange` (`internal/component/ike/crypto/dh.go`) and nothing else. Both `3.4-1` tests stay green |
+| **`RFC7296-2.6-1` and `2.6-2`** (SPI pair identity and uniqueness) | the retry resets `sa.ResponderSPI` and calls `table.UpdateKey` | `TestSPIsAreUniqueIdentifiers` (`internal/component/ike/engine/rfc7296_header_test.go`) and `TestHeaderRoundtrip` (`internal/component/ike/wire/header_test.go`) |
+| **`sendSAInitNotify`'s exact bytes** | section 3.4 extracts a shared raw sender under it | `TestSendSAInitNotifyBytesUnchanged` (`internal/component/ike/engine/overflow_test.go`) pins them byte-for-byte, and `TestSendSAInitNotifyOversizedRejected` pins the drop |
 | **AC-3 / AC-6 / AC-7 responder concurrency** (one half-open handshake per peer; a fresh IKE_SA_INIT beside an established SA is accepted in parallel; the established SA is untouched by an unauthenticated message) | the cookie gate is inserted into exactly that code path, before the CAS | `TestResponderKeepsOldSAOnUnauthenticatedInit`, `TestResponderSupersedesOnAuthenticatedInit`, `TestResponderAcceptsReinitAfterStaleSA`, `TestRunResponderAcceptsInboundAndBounds` (all `internal/component/ike/engine/responder_test.go`). **With `cookie-threshold` defaulting to 1, `ps.responderBusy.Load()` is one of `cookieRequired`'s inputs, so these tests now traverse the challenge path.** They must either set the threshold to 0 or supply a valid cookie. This is the largest test-compatibility surface in the package |
 | **The eight existing `test/ipsec/*.ci`** | they run two real daemons; if the responder demands a cookie the initiator cannot produce, every one hangs | the initiator half lands in the SAME commit as the responder half, so Ze-to-Ze converges. **Never land the responder half alone** |
 | **All eleven `test/ipsec-interop/scenarios/`** | `07-responder-psk`, `08-responder-eap-mschapv2`, `09-responder-ike-rekey`, `11-responder-accepts-reinit` drive strongSwan as initiator against a Ze responder | strongSwan implements COOKIE, so these should pass with `cookie-threshold 1`. **Verify, do not assume**: run `make ze-ipsec-interop-test` before and after |
-| **`RFC7296-1.2-1`** (the initial exchange is exactly four messages, first pair unencrypted) | a cookie exchange adds two messages before the four | RFC 7296 shows exactly that (`rfc/full/rfc7296.txt:1809-1821`) and says the extra pair "do not affect any initiator or responder state except for communicating the cookie" (`:1823-1824`). `TestInitialExchangeEncryptionBoundary` (`internal/component/ike/engine/rfc7296_test.go:38`) asserts the boundary, not the count. **Confirm it stays green**; if it counts messages, its tag needs the §2.6 citation |
+| **`RFC7296-1.2-1`** (the initial exchange is exactly four messages, first pair unencrypted) | a cookie exchange adds two messages before the four | RFC 7296 shows exactly that (`rfc/full/rfc7296.txt:1809-1821`) and says the extra pair "do not affect any initiator or responder state except for communicating the cookie" (`:1823-1824`). `TestInitialExchangeEncryptionBoundary` (`internal/component/ike/engine/rfc7296_test.go`) asserts the boundary, not the count. **Confirm it stays green**; if it counts messages, its tag needs the §2.6 citation |
 
 ---
 
@@ -904,14 +904,14 @@ validates that the id's section segment agrees with the citation.
 | R-WP4-2 | **The responder half is landed without the initiator half, and every Ze-to-Ze test hangs** | `test/ipsec/*.ci` time out | One commit for both halves. Section 8 |
 | R-WP4-3 | **`cookie-threshold` defaulting to 1 breaks four existing responder unit tests and four interop scenarios** | `responder_test.go` reds immediately | Expected and manageable, but budget for it. Each test either sets the threshold to 0 or mints a cookie. **Do not "fix" it by defaulting the threshold to 0**: that ships the feature disabled and leaves D-2 open |
 | R-WP4-4 | **`2.6-5` is "hardened" into a rejection by a later reviewer**, breaking conformance | `TestCkeMismatchedCookieIsIgnoredNotRejected` reddens | Mutation 11 is in the table for exactly this. Section 1.6's three-guard reading goes in `verifyCookie`'s doc comment, not only in this document |
-| R-WP4-5 | **The pre-state scan is a DoS.** A hand-rolled walker over unauthenticated input with a zero-length payload is an infinite loop | none until a flood | The four bounds in 4.3, the strict-advance check, and a fuzz target. `ai/rules/tdd.md` makes the fuzz target mandatory |
+| R-WP4-5 | **The pre-state scan is a DoS.** A hand-rolled walker over unauthenticated input with a zero-length payload is an infinite loop | none until a flood | The four bounds in 4.3, the strict-advance check, and a fuzz target. `ai/rules/testing.md` makes the fuzz target mandatory |
 | R-WP4-6 | **The interop scenario passes without the retry ever running**, because strongSwan's default proposal happens to include Ze's first group | `12-invalid-ke-retry` green with `retrySAInit` reverted | Assert on strongSwan's INVALID_KE_PAYLOAD log line as well as on establishment. Revert-and-confirm-red before claiming the scenario is evidence (`ai/rules/interop-and-goal-validation.md`) |
-| R-WP4-7 | **A data race on the new `SA` fields.** `sa.Cookie` and `sa.SAInitRetries` are written on the dispatch goroutine and `runInitiator`'s goroutine reads `sa.RetransmitCount` beside them | `go test -race` on the engine package | The pattern is pre-existing (`handleSAInitResponse` already writes `sa.RetransmitTime` at `internal/component/ike/engine/fsm.go:524`), so WP-4 does not introduce it. **Run the engine package under `-race` with `-count=20`** and, if it fires, fix it rather than record it (`ai/rules/no-parking.md`). `make ze-race-reactor` is BGP-only and will not cover this |
+| R-WP4-7 | **A data race on the new `SA` fields.** `sa.Cookie` and `sa.SAInitRetries` are written on the dispatch goroutine and `runInitiator`'s goroutine reads `sa.RetransmitCount` beside them | `go test -race` on the engine package | The pattern is pre-existing (`handleSAInitResponse` already writes `sa.RetransmitTime` at `internal/component/ike/engine/fsm.go`), so WP-4 does not introduce it. **Run the engine package under `-race` with `-count=20`** and, if it fires, fix it rather than record it (`ai/rules/completion.md`). `make ze-race-reactor` is BGP-only and will not cover this |
 | R-WP4-8 | **Engine line numbers move under a concurrent agent.** `msgid.go` and `responder.go` carry a 12:2x mtime today | a tag cites a line holding different code | Every citation here names its function. Re-read before quoting a line into a tag |
 | R-WP4-9 | **An implementer routes the CREATE_CHILD_SA INVALID_KE_PAYLOAD through `retrySAInit`**, inventing a retry the RFC does not require | `TestNegRekeyRejectsMismatchedKEGroup` behaviour changes | Scope `retrySAInit` to `ExchangeIKESAInit`. Section 8, row 1 |
 | R-WP4-10 | **`maxSAInitRetries` is made per-cause**, permitting an unbounded COOKIE/INVALID_KE oscillation between two Ze instances | none; the loop is slow and looks like flapping | One shared counter. Mutation 16, and the sentence beside the constant (4.2) |
 | R-WP4-11 | **The nonce is regenerated on the cookie retry**, so the responder sees a different Ni and the cookie it minted over the old Ni never verifies. Two conforming implementations then loop until the bound | `18-cookie-challenge` needs three round trips instead of two | Mutation 8, run explicitly. `2.6-4`'s positive asserts byte-identity, not equivalence |
-| R-WP4-12 | **`cookie-threshold` is added as an env var rather than a YANG leaf** | it never appears in `show configuration` or a config backup | `ai/rules/config-surface.md`: an operator tunes this during capacity planning, so the default answer is YANG. Section 3.3 |
+| R-WP4-12 | **`cookie-threshold` is added as an env var rather than a YANG leaf** | it never appears in `show configuration` or a config backup | `ai/rules/config.md`: an operator tunes this during capacity planning, so the default answer is YANG. Section 3.3 |
 
 ---
 
@@ -925,9 +925,9 @@ past the phase list's estimate.**
 ### 10.1 The responder half is in scope, and it costs more than the phase list assumed
 
 The phase list estimates three files and names `engine/fsm.go`, `engine/cookie.go` and
-`engine/responder.go` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:688`). This design needs nine,
+`engine/responder.go` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). This design needs nine,
 plus a YANG leaf, because the cookie CHECK belongs in `tryResponderSAInit`
-(`internal/component/ike/engine/register.go:582`) rather than in `responder.go`, and because
+(`internal/component/ike/engine/register.go`) rather than in `responder.go`, and because
 defect D-2 is only closed if it sits before the CAS at `:606`.
 
 **What is being asked:** confirmation that the responder half stays in, at that cost.
@@ -962,7 +962,7 @@ proven by `TestCkeMismatchedCookieIsIgnoredNotRejected`'s harness with the thres
 ### 10.3 The new WP-7 carries 10 rows and this design covers 6
 
 The re-triage's WP-7 is "COOKIE, DH-group retry, KE payload agreement", 10 rows
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1571`). The brief names 6. The four most likely
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). The brief names 6. The four most likely
 extras are `RFC7296-1.3-2` (already `impl-untested` and already gated), `3.4-1` (already
 gated), `3.4-2` ("This Diffie-Hellman Group Num MUST match a Diffie-Hellman group specified
 in a proposal in the SA payload that is sent in the same message", `:1202`) and `3.4-3` ("If
@@ -976,7 +976,7 @@ Folding `3.4-2` into WP-4 costs one more assertion on an existing test, not a ne
 
 **What is being asked:** whether to fold `3.4-2` (and, if cheap, `3.4-3`) into this package.
 §3.4's mark is 1, so `3.4-2` and `3.4-3` are legal as written. This is strictly MORE work in
-one package, so `ai/rules/no-asking.md` does not require permission; it is raised here only
+one package, so `ai/rules/completion.md` does not require permission; it is raised here only
 because it changes what the commit claims to close. Raise it together with 10.1.
 
 ---
@@ -984,7 +984,7 @@ because it changes what the commit claims to close. Raise it together with 10.1.
 ## 11. Summary rows to add to `rfc/short/rfc7296.md`
 
 Land them in section order: the two §1.2 rows after `RFC7296-1.2-4`
-(`rfc/short/rfc7296.md:481`), the three §2.6 rows after `RFC7296-2.6-2` (`:541`), and the
+(`rfc/short/rfc7296.md`), the three §2.6 rows after `RFC7296-2.6-2`, and the
 §2.6.1 row after them. Ordinals are the Appendix A ones, which section 7 proves legal;
 recompute the two marks at landing.
 
@@ -1037,7 +1037,7 @@ gates the public disclosure, and `check_gap_count_agreement` gates the Remaining
 | Unit, engine package | `make ze-test-bgp` does not cover it; use `go test -race -count=20 ./internal/component/ike/...` | R-WP4-7. The `-count=20` is the reactor-style stress, applied to the package that actually changed |
 | Functional | `make ze-functional-test` | the eight `test/ipsec/*.ci`, plus the new one |
 | Interop, before AND after | `make ze-ipsec-interop-test` | the eleven existing scenarios, four of which are responder-side. Section 8 |
-| One scenario while iterating | `make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=12-invalid-ke-retry` | `mk/test-integration.mk:39-43` |
+| One scenario while iterating | `make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=12-invalid-ke-retry` | `mk/test-integration.mk` |
 | Ledger | `make ze-rfc-index` then `make ze-rfc-check` | section 11 |
 | Full gate | `make ze-verify` | `ai/rules/git-safety.md` |
 

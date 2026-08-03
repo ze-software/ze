@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Count deferral shards whose source spec is gone, split by whether rows are live.
 
-Why this is a script and not a number somebody typed. `ai/rules/deferral-tracking.md`
+Why this is a script and not a number somebody typed. `ai/rules/planning.md`
 and the `deferral_shard_removal_problems` docstring both quote this measurement to
 justify a BLOCKING rule, and a quoted count is a claim. The first hand-count of it
 was wrong twice: 62 (summed from a printed list by eye) and then 40/71 (a shard whose

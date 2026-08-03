@@ -1,11 +1,11 @@
 // Design: docs/architecture/cli/command-namespacing.md -- CLI command grammar
 //
-// Package grammar mechanizes the CLI command-syntax rules of ai/rules/cli-grammar.md
+// Package grammar mechanizes the CLI command-syntax rules of ai/rules/cli.md
 // as pure functions, so the grammar gate (scripts/checks/cli_grammar.go), the plugin
 // registration check (validateCommandName), and the runtime audit all enforce the
 // SAME rules from one place.
 //
-// The authoritative prose is ai/rules/cli-grammar.md. Path-level rules (R1, R2, R3,
+// The authoritative prose is ai/rules/cli.md. Path-level rules (R1, R2, R3,
 // R7) need only the command name; structural rules (R5, R6, R8) need the command.Node
 // with its ArgDefs; the sibling rule (R9) needs the sibling token names at one tree
 // level, so only the static gate (which walks the tree) can run it.
@@ -27,7 +27,7 @@ type Finding struct {
 
 // mutationTokens are operational mutation words that must never appear as a command
 // token: mutating a config-tree object uses engine set/delete path form, not an
-// operational sub-action (ai/rules/cli-grammar.md "Engine-Owned Tree Mutation", R7).
+// operational sub-action (ai/rules/cli.md "Engine-Owned Tree Mutation", R7).
 // set/delete/create are legitimate verbs (command.Verbs) and are not here. `del` is
 // NOT here either: it is only the auto-completed prefix of `delete` (the full verb),
 // never a command in its own right. What remains are the genuine mutation words that
@@ -38,7 +38,7 @@ var mutationTokens = map[string]bool{
 }
 
 // selectorKinds are the typed selector keywords that address one member of a set
-// (ai/rules/cli-grammar.md "Typed Selectors"). A value captured on one of these
+// (ai/rules/cli.md "Typed Selectors"). A value captured on one of these
 // nodes is already keyword-typed, so it may legitimately precede a sub-action
 // (`... name <n> unit ...`), the correct `show interface name <name> detail` shape.
 var selectorKinds = map[string]bool{
@@ -141,7 +141,7 @@ func CheckNode(path string, node *command.Node) []Finding {
 // single tree level, a hyphenated token whose left segment is itself a sibling name is a
 // namespace member masquerading as a compound name. With a `traffic` sibling and a
 // `traffic-stat` sibling, `traffic-stat` should be the two-token path `traffic stat`, so
-// the object roots the tree and completion can enumerate members (ai/rules/cli-grammar.md
+// the object roots the tree and completion can enumerate members (ai/rules/cli.md
 // "Compound Token vs Namespace Split"; docs/architecture/cli/command-namespacing.md).
 //
 // R9 is the one grammar rule that needs sibling context, so only the static gate (which
@@ -196,7 +196,7 @@ func joinPath(parent, tok string) string {
 // CheckRootNamespace applies R9 to the ROOT command namespace across CLI
 // surfaces. CheckSiblings fires only when the colliding namespace is a sibling at
 // the same YANG-tree level; but root handlers never pass through the YANG tree
-// (ai/rules/cli-grammar.md), so their compound-vs-namespace collisions live on a
+// (ai/rules/cli.md), so their compound-vs-namespace collisions live on a
 // surface CheckSiblings cannot see. This is the feeder that governs them: a root
 // whose left hyphen-segment names a namespace that exists on ANOTHER surface -- a
 // YANG verb or a YANG object container -- is a namespace member masquerading as a
@@ -294,7 +294,7 @@ func looksLikeID(name string) bool {
 	return name == "id" || strings.HasSuffix(name, "-id")
 }
 
-// msg concatenates parts through a pooled text buffer (ai/rules/no-sprintf-alloc.md).
+// msg concatenates parts through a pooled text buffer (ai/rules/performance.md).
 func msg(parts ...string) string {
 	var tb textbuf.Buffer
 	for _, p := range parts {

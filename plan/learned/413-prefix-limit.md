@@ -25,7 +25,7 @@ BGP peers can send an unbounded number of prefixes, exhausting memory and maskin
 
 - YANG `family` was already a `list`, not a `leaf-list`. The spec incorrectly claimed a structural migration was needed.
 - Config parsing is in `reactor/config.go` (parsePeerFromTree), not `config/peers.go` (does not exist).
-- Test asserting "no NOTIFICATION returned" does not prove "routes rejected." AC-linked tests must assert the behavior stated in the AC text, not a mechanism proxy. New rule added to `tdd.md`.
+- Test asserting "no NOTIFICATION returned" does not prove "routes rejected." AC-linked tests must assert the behavior stated in the AC text, not a mechanism proxy. New rule added to `testing.md`.
 - Saying "tests pass" is not completion. Docs, audit, learned summary are part of the deliverable. New rule added to `quality.md`.
 
 ## Files

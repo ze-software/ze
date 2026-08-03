@@ -52,7 +52,7 @@ contract. This gap already affected l2tp/connected and blocked `spec-as112-bgp-r
   (spec-as112-bgp-redistribute) plugs in by adding the same subscription.
 - `EventBus` request/re-emit correlation must NOT assume subscribers answered by the
   time `Emit` returns -- only true when every subscriber is in-process. Documented in
-  `ai/rules/plugin-design.md` (EventBus Typed Payloads).
+  `ai/rules/plugins.md` (EventBus Typed Payloads).
 - Destination scoping is a behavior change: an import under one destination no longer
   leaks into another protocol. Existing configs that relied on the leak would change;
   none in the test suite did (18 redistribute `.ci` unchanged).
@@ -72,8 +72,8 @@ contract. This gap already affected l2tp/connected and blocked `spec-as112-bgp-r
   PASSES the reconnect, `-withdrawn`, and `-targeting` `.ci`, so the route reaches the
   peer by a path OTHER than the replay -- they never gated on the feature. The exact
   false-path was not traced, but the reactor does NOT itself persist routes across
-  reconnects (`internal/component/bgp/reactor/peer.go:143` delegates that to external
-  programs; `peer_initial_sync.go:295` clears the unsent `opQueue` on teardown), so a
+  reconnects (`internal/component/bgp/reactor/peer.go` delegates that to external
+  programs; `peer_initial_sync.go` clears the unsent `opQueue` on teardown), so a
   reconnecting session is a CONFIGURED peer, not a genuinely-new one. Isolate the replay
   with a CONFIG-ADD instead: start `bgp {}` with ZERO peers, inject the route, then add
   the peer via a config reload (write `config2.conf`, `kill -HUP`). The new peer is
@@ -127,4 +127,4 @@ contract. This gap already affected l2tp/connected and blocked `spec-as112-bgp-r
   first commit.
 - `test/interop/scenarios/redist-late-join-dynamic-frr/{ze.conf,frr.conf,check.py}` (new) --
   FRR as a genuinely-new dynamic/inbound peer over the wire receives a pre-connection route
-- docs: `docs/features.md`, `docs/architecture/core-design.md`, `docs/guide/{configuration,plugins}.md`, `docs/functional-tests.md`, `ai/rules/plugin-design.md`
+- docs: `docs/features.md`, `docs/architecture/core-design.md`, `docs/guide/{configuration,plugins}.md`, `docs/functional-tests.md`, `ai/rules/plugins.md`

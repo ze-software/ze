@@ -430,7 +430,7 @@ func groupUIResource(actions []action) *UIResourceInfo {
 // So a single `forbidden` action poisons the whole group. The cost of an error
 // in this direction is one genuinely long action that runs synchronously. The
 // cost in the other direction is an auto-tasked route injection
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // No group mixes levels today. The forbidden rib actions sit under the `clear`
 // and `request` roots, and the required one sits under `show`, so they land in
@@ -509,7 +509,7 @@ var reservedParams = map[string]bool{"action": true, "arguments": true, "peer": 
 // peerKeyword is the command token a peer selector value attaches to. The
 // grammar's peer exception spells the selector immediately after it
 // (`show bgp peer <selector> detail`, `request peer <selector> flush`) --
-// ai/rules/cli-grammar.md, "Peer Commands".
+// ai/rules/cli.md, "Peer Commands".
 const peerKeyword = "peer"
 
 // actionAcceptsPeer reports whether a `peer` argument is BOTH read by the

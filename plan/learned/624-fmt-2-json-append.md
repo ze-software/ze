@@ -68,7 +68,7 @@ sites and graduate the guard to a real PreToolUse hook.
 - `DecodedCapability.Value` / `ErrorSubcodeName` / `SubtypeName` / `Family`
   byte-level output unchanged. Both consumer paths verified:
   `formatMessageForSubscription` (events.go) and `notifyPeerEstablished`
-  (reactor_notify.go:106).
+  (reactor_notify.go).
 - Running `fmt.Sprintf("%d", u32)` through `strconv.AppendUint` eliminates
   `fmt`'s reflection overhead (~2-4x CPU cost per call) on these cold
   paths. Does NOT eliminate the `string` allocation itself (the struct
@@ -112,7 +112,7 @@ sites and graduate the guard to a real PreToolUse hook.
   `internal/component/bgp/format/message_receiver_test.go` (4 new tests),
   `internal/component/bgp/format/json_test.go` (1 new hex test),
   `docs/architecture/buffer-architecture.md` (Phase 3 row rewritten),
-  `ai/rules/buffer-first.md` (new hook noted),
+  `ai/rules/performance.md` (new hook noted),
   `.claude/settings.json` (hook registered),
   `plan/deferrals.md` (fmt-2-json-append entry closed).
 - Created: `.claude/hooks/block-format-alloc.sh`,

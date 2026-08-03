@@ -31,7 +31,33 @@ func logger() *slog.Logger {
 }
 
 type detector struct {
-	mu       sync.Mutex
+	mu sync.Mutex
+	// emitMu orders the event-bus fan-out. It is the ONLY lock held across an
+	// Emit, and d.mu is never held across one.
+	//
+	// Why a second lock exists: the fan-out is synchronous and sequential on the
+	// emitting goroutine (plugin/server engine_event.go invokeEngineHandler), and
+	// it reaches responders that reconcile the kernel inside their handler
+	// (ddos-local onDetected -> firewall.ApplyAll -> netlink). Holding d.mu
+	// across that parked the detector's whole state -- the rate tick, Stop, and
+	// the baseline save all take d.mu -- behind a netlink round trip.
+	//
+	// Why the generation guard survives the move: emitDetected and
+	// emitCharacterized compare attackGen and emit under emitMu, and the tick
+	// stages its Cleared under d.mu (advancing attackGen) but publishes it under
+	// emitMu too. So a Cleared can never interleave between a stale check and its
+	// emit -- it either wins the generation race (the check drops the emit) or
+	// waits for emitMu and lands after. Either way ddos-local never keeps a drop
+	// with no matching Cleared.
+	//
+	// What emitMu does NOT give back is the atomicity of a STATE WRITE with the
+	// generation it belongs to: attackGen moves under d.mu, which the emitters
+	// have released. Any state an emitter records after its fan-out must re-check
+	// the generation under d.mu (markDetectedEmitted does, and it is the only
+	// such write).
+	//
+	// LOCK ORDER: emitMu -> d.mu. Never take emitMu while holding d.mu.
+	emitMu   sync.Mutex
 	cfg      *Config
 	bus      ze.EventBus
 	dispatch dispatchFunc
@@ -58,8 +84,15 @@ type detector struct {
 	wg                   sync.WaitGroup
 	sourceAbsentOnce     sync.Once // trafficusage (fast target) absent, logged once
 	flowSourceAbsentOnce sync.Once // flowexport recent-flow (characterization) absent, logged once
-	detectedEmitted      atomic.Bool
-	attackGen            uint64 // bumped on each activate and clear; guards stale async emits
+	// detectedEmitted and attackGen are guarded by d.mu and MUST move together: a
+	// plain bool, not an atomic, precisely so no writer can set the flag outside
+	// the critical section that owns the generation. emitCleared advances the
+	// generation and clears the flag; markDetectedEmitted sets it only while the
+	// generation still matches. Setting it outside that pairing lets a Detected
+	// whose fan-out spans a clear put the flag back to true for an attack that has
+	// ended (see markDetectedEmitted).
+	detectedEmitted bool
+	attackGen       uint64 // bumped on each activate and clear; guards stale async emits
 
 	// ctx bounds every characterization goroutine to the detector's lifetime;
 	// Stop cancels it so in-flight source queries unwind promptly at shutdown or
@@ -69,6 +102,18 @@ type detector struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	stopped bool
+
+	// pending holds the events this tick decided to publish. Staged under d.mu,
+	// emitted by emitPending after the tick releases it.
+	pending pendingEmits
+}
+
+// pendingEmits carries the events a tick staged while holding d.mu. At most one
+// of each per tick: the Ongoing branch runs only while the state machine is
+// active, and the Cleared branch only on the transition out of it.
+type pendingEmits struct {
+	ongoing *ddosevent.AttackOngoing
+	cleared *ddosevent.AttackCleared
 }
 
 func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector {
@@ -149,7 +194,13 @@ func (d *detector) onRates(entries []trafficstat.InterfaceEntry) {
 	if !d.cfg.Enabled {
 		return
 	}
+	// The fan-out runs after tickRates has released d.mu (see the emitMu field
+	// doc). Splitting the locked part into its own function is what keeps the
+	// unlock on a defer, so a later edit cannot add an early return that leaks it.
+	d.emitPending(d.tickRates(entries))
+}
 
+func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -176,14 +227,18 @@ func (d *detector) onRates(entries []trafficstat.InterfaceEntry) {
 		}
 	}
 
-	d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
+	return d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
 func (d *detector) onRate(infos []iface.InterfaceInfo) {
 	if !d.cfg.Enabled {
 		return
 	}
+	// Fan out after tickInfos has released d.mu (see onRates).
+	d.emitPending(d.tickInfos(infos))
+}
 
+func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -226,15 +281,22 @@ func (d *detector) onRate(infos []iface.InterfaceInfo) {
 		}
 	}
 
-	d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
+	return d.applyTick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
-// applyTick runs the baseline, state machine, and event emission for a
-// single tick. Caller must hold d.mu.
-func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string) {
+// applyTick runs the baseline and the state machine for a single tick and
+// returns the events the tick decided to publish. Caller must hold d.mu
+// (tickRates / tickInfos do) and the result MUST reach emitPending after that
+// lock is released: nothing is emitted here, because a fan-out under d.mu parks
+// the detector behind the responders' kernel reconcile (see the emitMu field doc).
+func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string) pendingEmits {
 	if d.tickNum <= d.cfg.StartupGrace {
 		if maxPps < d.cfg.AbsoluteFloor*5 {
-			return
+			// Drain like every other exit: returning the zero value here would
+			// strand an event a previous tick staged. Inert today (nothing stages
+			// across ticks), and the exit that breaks the discipline is the one a
+			// later staging site will forget about.
+			return d.drainPending()
 		}
 	}
 
@@ -281,15 +343,13 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface st
 	d.justTriggered = false
 	d.sm.Tick(above)
 
-	if d.sm.State() == stateActive && !d.justTriggered && d.detectedEmitted.Load() {
-		if _, err := ddosevent.Ongoing.Emit(d.bus, &ddosevent.AttackOngoing{
+	if d.sm.State() == stateActive && !d.justTriggered && d.detectedEmitted {
+		d.pending.ongoing = &ddosevent.AttackOngoing{
 			Interface:  d.attackIface,
 			Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},
 			CurrentPps: maxPps,
 			CurrentBps: maxBps,
 			Observable: true,
-		}); err != nil {
-			logger().Warn("ddos-detect: emit ongoing failed", "error", err)
 		}
 	}
 
@@ -299,6 +359,38 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface st
 	// by d.stopped (mirrors onAttackStart) so it never races Stop's wg.Wait.
 	if d.tickNum%baselineSaveInterval == 0 && !d.stopped {
 		d.wg.Go(d.saveBaseline)
+	}
+
+	return d.drainPending()
+}
+
+// drainPending removes and returns the events this tick staged. Caller holds
+// d.mu. Every exit from applyTick goes through it, so no staged event is left
+// behind for a later tick to publish out of order.
+func (d *detector) drainPending() pendingEmits {
+	p := d.pending
+	d.pending = pendingEmits{}
+	return p
+}
+
+// emitPending publishes the events a tick staged. Caller must NOT hold d.mu:
+// this is the fan-out, and it runs under emitMu only (see the emitMu field doc
+// for why, and for how the generation guard survives).
+func (d *detector) emitPending(p pendingEmits) {
+	if p.ongoing == nil && p.cleared == nil {
+		return
+	}
+	d.emitMu.Lock()
+	defer d.emitMu.Unlock()
+	if p.ongoing != nil {
+		if _, err := ddosevent.Ongoing.Emit(d.bus, p.ongoing); err != nil {
+			logger().Warn("ddos-detect: emit ongoing failed", "error", err)
+		}
+	}
+	if p.cleared != nil {
+		if _, err := ddosevent.Cleared.Emit(d.bus, p.cleared); err != nil {
+			logger().Warn("ddos-detect: emit cleared failed", "error", err)
+		}
 	}
 }
 
@@ -332,15 +424,18 @@ func (d *detector) onAttackStart() {
 	})
 }
 
+// emitCleared advances the attack generation and STAGES the Cleared event. It
+// runs under d.mu (the state machine calls it from applyTick), so it must not
+// emit here: the tick publishes it through emitPending once d.mu is released.
+// Advancing attackGen under d.mu while publishing under emitMu is what keeps the
+// generation guard sound -- see the emitMu field doc.
 func (d *detector) emitCleared() {
 	d.attackGen++
-	d.detectedEmitted.Store(false)
-	if _, err := ddosevent.Cleared.Emit(d.bus, &ddosevent.AttackCleared{
+	d.detectedEmitted = false
+	d.pending.cleared = &ddosevent.AttackCleared{
 		Interface:  d.attackIface,
 		Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},
 		Observable: true,
-	}); err != nil {
-		logger().Warn("ddos-detect: emit cleared failed", "error", err)
 	}
 	d.peakRxPps = 0
 	d.peakRxBps = 0

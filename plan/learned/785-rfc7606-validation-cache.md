@@ -43,7 +43,7 @@ Do not implement. Cache hit rate passes (>30%) but CPU fraction fails
 
 - Research results: `docs/research/rfc7606-validation-cache.md`
 - Benchmarks: `internal/component/bgp/message/rfc7606_bench_test.go`
-- Domain facts added: `ai/rules/design-context.md` (BGP attribute reuse)
+- Domain facts added: `ai/rules/architecture.md` (BGP attribute reuse)
 
 ## Side Finding
 

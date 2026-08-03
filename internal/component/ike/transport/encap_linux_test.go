@@ -39,7 +39,7 @@ import (
 // antecedent holds, so the MUST binds.
 //
 // The assertion reads the option back off the socket. A test that only checked for a
-// nil error would pass for a helper that set nothing (ai/rules/tdd.md).
+// nil error would pass for a helper that set nothing (ai/rules/testing.md).
 //
 // SCOPE: this proves the socket half on Linux. The VPP dataplane cannot express
 // encapsulation at all, and that gap is owned by

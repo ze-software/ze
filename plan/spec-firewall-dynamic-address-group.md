@@ -9,9 +9,9 @@
 
 Anchor refresh (2026-07-22 plan review, design unchanged; the dead-knob claim
 re-verified -- `applySet` sets only `Interval`, misleading comment at
-`backend_linux.go:234`): citations below updated in-body -- `applySet`
-`backend_linux.go:212+`; `list set` `ze-firewall-conf.yang:630`,
-`flags-dynamic` `:663`. `lowerAction` (`lower_linux.go:321`) still exact.
+`backend_linux.go`): citations below updated in-body -- `applySet`
+`backend_linux.go+`; `list set` `ze-firewall-conf.yang`,
+`flags-dynamic` `:663`. `lowerAction` (`lower_linux.go`) still exact.
 
 ## Post-Compaction Recovery
 
@@ -40,9 +40,9 @@ target set actually holds runtime entries with expiry.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/plugin-self-containment.md` - firewall lowering is self-contained in the nft backend.
+- [ ] `ai/rules/plugins.md` - firewall lowering is self-contained in the nft backend.
   → Constraint: the new action registers as another `firewall.Action` case in `lowerAction`; no core change.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - the new rule-action leaf.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new rule-action leaf.
   → Constraint: the action names an existing `set`; validation must reject an unknown target set.
 
 **Key insights:**
@@ -53,9 +53,9 @@ target set actually holds runtime entries with expiry.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/firewall/nft/lower_linux.go` - `lowerAction` (lower_linux.go:321-362) switches over every action type (accept, drop, reject, jump, goto, masquerade, notrack, counter, log, limit, mark, connmark, dscp, tcp-mss, flow-offload, snat, dnat, redirect). There is no set-update / add-to-group action and no `expr.Dynset` anywhere in the package.
-- [ ] `internal/plugins/firewall/nft/backend_linux.go` - `applySet` (backend_linux.go:212+) builds the kernel `nftables.Set` but the struct literal (:217-222) sets only `Interval`; it never sets `Dynamic`/`HasTimeout`/`Constant`. The comment at :234 claims the timeout flag is applied "at set construction above", which the literal does not do.
-- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `list set` (ze-firewall-conf.yang:630) with `flags-timeout`/`flags-constant`/`flags-dynamic` containers (:653-663) that parse into model flags but are inert on apply.
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` - `lowerAction` (lower_linux.go) switches over every action type (accept, drop, reject, jump, goto, masquerade, notrack, counter, log, limit, mark, connmark, dscp, tcp-mss, flow-offload, snat, dnat, redirect). There is no set-update / add-to-group action and no `expr.Dynset` anywhere in the package.
+- [ ] `internal/plugins/firewall/nft/backend_linux.go` - `applySet` (backend_linux.go+) builds the kernel `nftables.Set` but the struct literal (:217-222) sets only `Interval`; it never sets `Dynamic`/`HasTimeout`/`Constant`. The comment at :234 claims the timeout flag is applied "at set construction above", which the literal does not do.
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `list set` (ze-firewall-conf.yang) with `flags-timeout`/`flags-constant`/`flags-dynamic` containers (:653-663) that parse into model flags but are inert on apply.
 
 **Behavior to preserve:**
 - Static named sets, `@set` matching, and per-element values/timeouts keep working unchanged.
@@ -106,7 +106,7 @@ target set actually holds runtime entries with expiry.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The vendored `google/nftables` exposes `expr.Dynset` | package already imports `expr` | need a raw-expr fallback | check the lib API during audit | unvalidated |
-| A-2 | `nftables.Set` exposes `Dynamic`/`HasTimeout` fields the readback already reads | readback_linux.go:105-136 maps them | apply cannot set the flags | audit the struct | unvalidated |
+| A-2 | `nftables.Set` exposes `Dynamic`/`HasTimeout` fields the readback already reads | readback_linux.go maps them | apply cannot set the flags | audit the struct | unvalidated |
 | A-3 | A dynamic set needs a default timeout to be useful | nftables semantics | entries never expire | require/derive a set timeout | unvalidated |
 
 ### Risks
@@ -179,7 +179,7 @@ target set actually holds runtime entries with expiry.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new action) | [ ] yes | `ze-firewall-conf.yang` then-block; `ai/rules/config-naming.md` |
+| YANG schema (new action) | [ ] yes | `ze-firewall-conf.yang` then-block; `ai/rules/config.md` |
 | Functional test | [ ] yes | `test/ci/firewall-dynamic-group.ci` |
 
 ### Documentation Update Checklist (BLOCKING)

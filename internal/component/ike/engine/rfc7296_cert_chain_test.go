@@ -192,7 +192,7 @@ func wpcFreshCache(t *testing.T) {
 
 // wpcAwaitCached blocks until the background worker has cached the object named by hash.
 //
-// It waits on the CONDITION, not on a duration (ai/rules/fix-dont-record.md). The lookup
+// It waits on the CONDITION, not on a duration (ai/rules/completion.md). The lookup
 // is real network I/O to an httptest server. A fixed sleep makes a load-sensitive test.
 func wpcAwaitCached(t *testing.T, hash []byte) {
 	t.Helper()
@@ -289,7 +289,7 @@ func TestCcnCertificateCountReachesFourInBothDirections(t *testing.T) {
 // limit it applies comes from certificate-count rather than from a constant.
 // PREVENTS: a truncating cap. Truncation passes every count-based assertion while hiding
 // from the operator that a limit was reached, and it makes WHICH certificates survive
-// depend on the order an unauthenticated peer chose (ai/rules/exact-or-reject.md).
+// depend on the order an unauthenticated peer chose (ai/rules/protocol.md).
 // RFC requirement: RFC7296-3.6-1 negative -- five payloads are refused at the default of
 // four, four are refused at certificate-count 2, and the same four pass at 4.
 func TestCcnCertificateCountIsBoundedAndConfigurable(t *testing.T) {
@@ -616,7 +616,7 @@ func TestChuHashURLLookupUsesHTTPAndVerifiesTheHash(t *testing.T) {
 // VALIDATES: RFC7296-3.6-3. Every control on the lookup holds, one row per control.
 // PREVENTS: a bounded-looking fetcher that is missing a control. A single "a bad URL is
 // refused" row passes while five of the seven controls are absent, so each is its own row
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 // RFC requirement: RFC7296-3.6-3 negative -- the scheme allowlist, the size cap, the
 // redirect refusal, the destination deny list and the hash comparison each refuse
 // independently, and the hash is compared BEFORE any parser sees the bytes.
@@ -804,7 +804,7 @@ func wpcRoleStates(t *testing.T, auth ipsec.AuthConfig, ders ...[]byte) (respond
 // PREVENTS: the second-producer failure. storeRemoteCerts is one function and its error is
 // handled at two call sites (fsm.go and responder.go). Dropping the error at either left
 // every test in this package green. The bound existed, and one role walked past it
-// (ai/rules/integration-completeness.md).
+// (ai/rules/completion.md).
 // RFC requirement: RFC7296-3.6-1 negative -- an over-long chain moves the SA to StateDead
 // through the real IKE_AUTH walk, on both roles, and the same chain within the bound does not.
 func TestCcnOverlongChainKillsTheSAOnBothRoles(t *testing.T) {

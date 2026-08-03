@@ -13,7 +13,7 @@
 //
 // This package holds only value types and an atomic registry; it imports
 // neither l2tp nor pppoe, so it introduces no cycle and sits in the core tier
-// (ai/rules/module-tiers.md: a library with no config-driven lifecycle).
+// (ai/rules/architecture.md: a library with no config-driven lifecycle).
 package callsink
 
 import "sync/atomic"

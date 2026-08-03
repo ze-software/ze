@@ -595,7 +595,7 @@ func TestAccumulatorResetClearsEverything(t *testing.T) {
 	// Fill the EDIT SET too, or the sweep below is vacuous: an edit set that was
 	// never planned into is already the zero value, so every field passes whether
 	// Reset clears it or not. Planning one attribute makes the sweep test what it
-	// claims to (ai/rules/functional-test-gate.md, mutation-verify).
+	// claims to (ai/rules/testing.md, mutation-verify).
 	srcAttr := []byte{0x40, 5, 4, 0, 0, 0, 100}
 	edit := mods.EditSet()
 	edit.Begin()
@@ -729,7 +729,7 @@ func TestAccumulatorResetClearsEverything(t *testing.T) {
 // The assertion is structural, not a timing measurement: Reset is O(1) exactly
 // when it writes nothing to the arena, so the test proves the arena bytes
 // survive it. A wall-clock comparison would be a flaky way to assert the same
-// property (ai/rules/fix-dont-record.md).
+// property (ai/rules/completion.md).
 func TestAccumulatorResetIsConstantTime(t *testing.T) {
 	var mods ModAccumulator
 

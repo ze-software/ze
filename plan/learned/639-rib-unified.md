@@ -42,14 +42,14 @@ to end -- the framing was wrong about how RS forwards.
   `locrib.OnChange` if the Change event carried `ContextID` + a buffer
   ref. Re-reading the production path proved it wrong on three
   counts. (a) RS in ze is forward-all
-  (`rs/server_forward.go:34-56`), not a per-peer best-path computer;
+  (`rs/server_forward.go`), not a per-peer best-path computer;
   there is no per-peer Change to subscribe to. (b) Per-peer egress
   (egress filters, RFC 4456 RR injection, next-hop, AS-override, EBGP
-  prepend) lives in `reactor_api_forward.go:380-540` and is keyed off
+  prepend) lives in `reactor_api_forward.go` and is keyed off
   the per-received-UPDATE trigger, not per-best-change. (c) The
   receive-path trigger is also where the inbound filter pipeline
-  runs (`reactor_notify.go:302-353` in-process ingress filters with
-  copy-on-modify; `reactor_notify.go:357+` external-plugin import
+  runs (`reactor_notify.go` in-process ingress filters with
+  copy-on-modify; `reactor_notify.go+` external-plugin import
   policy chain). Retiring it would re-home the filter pipeline for no
   benefit. Two triggers (StructuredEvent for forwarders, OnChange for
   state trackers) coexist by design.

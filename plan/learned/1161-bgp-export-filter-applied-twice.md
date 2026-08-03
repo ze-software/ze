@@ -4,7 +4,7 @@
 
 `aaefef8ce` made a check-mode ze-peer govern its own verdict, unmasking 69 `.ci`
 reds that had been passing on their exit code while their peer assertion never
-ran. `plan/spec-fixit-redistribute-establishment-stall.md:160` classified 6 of
+ran. `plan/spec-fixit-redistribute-establishment-stall.md` classified 6 of
 them as "possible PRODUCT BUGS, highest value" and fanned them out one agent per
 test. Five turned out to be bad tests. This one was real: a forwarded route ran
 its peer's export filter chain TWICE, and where the second pass did damage it
@@ -65,9 +65,9 @@ the RFC 6996 private range.
 - **UNVERIFIED, worth a look**: whether ze should propagate the optional-transitive
   ATTR_DISCARD marker onward to an eBGP peer with the Transitive bit set. Two agents
   independently flagged it and neither could resolve it from the draft.
-- **UNVERIFIED, and ze is self-inconsistent**: `message/attr_discard.go:22` uses code
+- **UNVERIFIED, and ze is self-inconsistent**: `message/attr_discard.go` uses code
   point 253 citing `draft-mangin-idr-attr-discard-00`, which does NOT exist in
-  `rfc/drafts/`; `core/bgp/attribute/attribute.go:66` + `wireu/tombstone.go:44` use
+  `rfc/drafts/`; `core/bgp/attribute/attribute.go` + `wireu/tombstone.go` use
   252 citing `draft-mangin-idr-attr-tombstone-00`, which does. Same mechanism, two
   code points. The draft marks it "TBD (IANA pending)" so neither is authoritative,
   but they must agree with each other.

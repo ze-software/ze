@@ -201,7 +201,7 @@ func NewDHExchange(groupID DHGroupID) (*DHExchange, error) {
 }
 
 func (ex *DHExchange) SharedSecret(remotePublic []byte) ([]byte, error) {
-	// Fail closed on an exchange whose private value is gone (ai/rules/fail-closed-guards.md).
+	// Fail closed on an exchange whose private value is gone (ai/rules/evidence.md).
 	// Clear sets privateBig to nil, and the MODP path below exponentiates with it
 	// directly, so without this guard a call after a close is a nil dereference rather
 	// than a refusal. The EC path would return a wrong answer instead of panicking,

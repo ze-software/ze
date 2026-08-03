@@ -18,29 +18,29 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 
 ## Flow
 1. **Registration & engine entry.** `init()` builds a `registry.Registration` for plugin name
-   "interface" (YANG root `interface`, dependency `sysctl`, `iface/register.go:134-153`) and calls
-   `registry.Register(reg)` (`iface/register.go:157`), wiring `runEngine` (`iface/register.go:277`) as
-   `RunEngine`. `runEngine` opens the SDK 5-stage protocol (`sdk.NewWithConn`, `iface/register.go:281`)
+   "interface" (YANG root `interface`, dependency `sysctl`, `iface/register.go`) and calls
+   `registry.Register(reg)` (`iface/register.go`), wiring `runEngine` (`iface/register.go`) as
+   `RunEngine`. `runEngine` opens the SDK 5-stage protocol (`sdk.NewWithConn`, `iface/register.go`)
    and starts three background workers before `p.Run`: the link-failover worker
-   (`iface/register.go:377-390`), the vpp-ready reconcile worker (`iface/register.go:337-342`), and the
-   registry-change reconcile worker (`iface/register.go:353-375`), the last wired to
-   `address_owner.go`'s trigger via `setAddressOwnerReconcileTrigger` (`iface/register.go:376`).
+   (`iface/register.go`), the vpp-ready reconcile worker (`iface/register.go`), and the
+   registry-change reconcile worker (`iface/register.go`), the last wired to
+   `address_owner.go`'s trigger via `setAddressOwnerReconcileTrigger` (`iface/register.go`).
 2. **Config parse.** `OnConfigure`/`OnConfigVerify` both call `parseIfaceSections`
-   (`config.go:274`) → `parseIfaceConfig` (`config.go:290`), decoding the wrapped
+   (`config.go`) → `parseIfaceConfig` (`config.go`), decoding the wrapped
    `{"interface": {...}}` JSON into an `*ifaceConfig` (ethernet/dummy/veth/bridge/tunnel/
    wireguard/xfrm/pppoe-client/loopback lists). `OnConfigVerify` additionally runs
-   `parseAndVerifyIfaceSections` (`iface/register.go:168`) → `validateBackendGate` (`iface/register.go:65`)
-   + `validateUniqueMatchMAC` (`config.go:961`) + `validateVPPQoSMaps` (`config.go:982`), and
-   stashes the result as `pendingCfg` (`iface/register.go:531`) for the next `OnConfigApply`.
-3. **First apply (`OnConfigure`).** `LoadBackend(cfg.Backend)` (`iface/register.go:409`,
-   `backend.go:245`) activates the named backend via the `backends` factory map
-   (`backend.go:229`). `applyConfig(cfg, nil, b)` (`iface/register.go:416`, `config_apply.go:333`)
-   runs with `previous == nil`. On success: `activeCfg.Store(cfg)` (`iface/register.go:419`),
-   `setResolverConfig(cfg)` (`iface/register.go:424`, `resolve.go:429`) publishes the os-name/mac-match
-   maps, `bindResolverEvents` (`iface/register.go:435`) wires the resolver to the bus, and
-   `b.StartMonitor(eb)` (`iface/register.go:437`) starts the netlink monitor -- a deferred (not fatal)
+   `parseAndVerifyIfaceSections` (`iface/register.go`) → `validateBackendGate` (`iface/register.go`)
+   + `validateUniqueMatchMAC` (`config.go`) + `validateVPPQoSMaps` (`config.go`), and
+   stashes the result as `pendingCfg` (`iface/register.go`) for the next `OnConfigApply`.
+3. **First apply (`OnConfigure`).** `LoadBackend(cfg.Backend)` (`iface/register.go`,
+   `backend.go`) activates the named backend via the `backends` factory map
+   (`backend.go`). `applyConfig(cfg, nil, b)` (`iface/register.go`, `config_apply.go`)
+   runs with `previous == nil`. On success: `activeCfg.Store(cfg)` (`iface/register.go`),
+   `setResolverConfig(cfg)` (`iface/register.go`, `resolve.go`) publishes the os-name/mac-match
+   maps, `bindResolverEvents` (`iface/register.go`) wires the resolver to the bus, and
+   `b.StartMonitor(eb)` (`iface/register.go`) starts the netlink monitor -- a deferred (not fatal)
    `ErrBackendNotReady` just skips it until the vpp-ready path retries.
-4. **Interface creation (Phase 1).** `applyConfig` (`config_apply.go:333`) creates missing
+4. **Interface creation (Phase 1).** `applyConfig` (`config_apply.go`) creates missing
    Ze-managed netdevs in a fixed order -- dummy (`357`), veth (`380`), tunnel (`407`), wireguard
    (`461`), xfrm (`519`), bridge (`568`) -- so a bridge can list a fresh tunnel as a member on
    first start. Tunnel/wireguard/xfrm entries are spec-diffed against the previous config
@@ -63,32 +63,32 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    `addDesiredAddresses` (`752`, `1044`) -- additive only, no prune -- until a later vpp-ready
    event re-runs the full reconcile.
 7. **Netlink backend execution.** Every `Backend` call above dispatches to
-   `internal/plugins/iface/netlink`'s `netlinkBackend` (`backend_linux.go:14`), which wraps
+   `internal/plugins/iface/netlink`'s `netlinkBackend` (`backend_linux.go`), which wraps
    `github.com/vishvananda/netlink`: `CreateDummy`/`CreateVeth`/`CreateBridge`/`CreateVLAN` issue
-   `netlink.LinkAdd` + `LinkSetUp` with delete-on-failure rollback (`manage_linux.go:50,65,95,110`);
+   `netlink.LinkAdd` + `LinkSetUp` with delete-on-failure rollback (`manage_linux.go,65,95,110`);
    `AddAddress`/`RemoveAddress`/`AddAddressP2P` call `netlink.AddrAdd`/`AddrDel`, the P2P variant
    setting `IFA_LOCAL`/`IFA_ADDRESS` separately (`204,222,244`); `SetMTU`/`SetAdminUp`/
    `SetAdminDown` wrap `LinkSetMTU`/`LinkSetUp`/`LinkSetDown` (`388,405`). The `vpp` backend
    implements the identical `Backend` interface over GoVPP behind the same `backend` config leaf.
-8. **Reload (`OnConfigApply`).** Reads `pendingCfg` (`iface/register.go:537`), hot-switches backend via
+8. **Reload (`OnConfigApply`).** Reads `pendingCfg` (`iface/register.go`), hot-switches backend via
    `LoadBackend` if `cfg.Backend` changed (`551-556`), then runs
    `applyConfig(cfg, previousCfg, b)` (`565`) inside a fresh `sdk.Journal` (`562`) whose rollback
    undo re-applies `applyConfig(rollbackCfg, cfg, b)` (`580`) and emits `ifaceevents.EventRollback`
    (`586`). On success `activeCfg`/`activeJournal` swap (`598-599`) and PPPoE (`604`) + DHCP
    (`611`) reconcile against the new config. `OnConfigRollback` (`619`) replays
    `activeJournal.Rollback()` if the transaction coordinator vetoes the commit later.
-9. **WireGuard sub-flow.** `parseWireguardEntry` (`config.go:652`) parses the mandatory
+9. **WireGuard sub-flow.** `parseWireguardEntry` (`config.go`) parses the mandatory
    `private-key` (`wgtypes.ParseKey`), `listen-port`, `fwmark`, and a peer map
-   (`parseWireguardPeer`, `719`) into a `WireguardSpec` (`wireguard.go:21`) /
-   `WireguardPeerSpec` (`36`). The Phase-1 wireguard block (`config_apply.go:461-518`) creates
-   the netdev once via `CreateWireguardDevice` (`wireguard_linux.go:31`; `LinkAdd` + `LinkSetUp`,
+   (`parseWireguardPeer`, `719`) into a `WireguardSpec` (`wireguard.go`) /
+   `WireguardPeerSpec` (`36`). The Phase-1 wireguard block (`config_apply.go`) creates
+   the netdev once via `CreateWireguardDevice` (`wireguard_linux.go`; `LinkAdd` + `LinkSetUp`,
    rollback-delete on failure) then always pushes the full spec via `ConfigureWireguardDevice`
    (`63`) -- `wgctrl.ConfigureDevice` with `ReplacePeers: true` (`buildWireguardConfig`, `108`) --
    so key rotation, endpoint changes, and peer add/remove are one genetlink message, and peers
-   matched by public key keep their handshake state. `wireguardSpecEqual` (`config_apply.go:235`,
+   matched by public key keep their handshake state. `wireguardSpecEqual` (`config_apply.go`,
    an unordered peer-set comparison) skips the whole call when nothing changed.
-10. **PPPoE client sub-flow.** `reconcilePPPoEClients` (`pppoe_client.go:305`, called from
-    `iface/register.go:450` and `:604`) diffs `cfg.PPPoEClient` against the active client map by name
+10. **PPPoE client sub-flow.** `reconcilePPPoEClients` (`pppoe_client.go`, called from
+    `iface/register.go` and `:604`) diffs `cfg.PPPoEClient` against the active client map by name
     and config fields (`pppoeClientConfigChanged`, `355`), stopping removed/changed clients and
     starting new ones via `NewPPPoEClient(...).Start()` (`104,118`). `PPPoEClient.run` (`183`)
     loops `runSession` (`226`) with exponential reconnect backoff (`ReconnectDelay`, `215`):
@@ -97,33 +97,33 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
     address as a point-to-point pair via `backend.AddAddressP2P` (`250-262`), and installs a
     default route via `backend.AddRoute` unless `no-default-route` is set (`265-269`).
 11. **Address-ownership registry.** `RegisterOwnedAddresses(ifaceName, owner, addrs)`
-    (`address_owner.go:80`) and `UnregisterOwnedAddresses(owner)` (`122`) let an in-process
+    (`address_owner.go`) and `UnregisterOwnedAddresses(owner)` (`122`) let an in-process
     plugin (as112 anycast is the first consumer) declare addresses that `desiredState()`
-    (`config_apply.go:119-127`) treats as desired without any YANG declaration. Both mutations
-    fire `addressOwnerTrigger` (`108,131`) → `registryReconcileCh` (`iface/register.go:353`) →
-    `reconcileOnRegistryChange` (`config_apply.go:1129`) → the same `reconcileOnReadyWithJournal`
+    (`config_apply.go`) treats as desired without any YANG declaration. Both mutations
+    fire `addressOwnerTrigger` (`108,131`) → `registryReconcileCh` (`iface/register.go`) →
+    `reconcileOnRegistryChange` (`config_apply.go`) → the same `reconcileOnReadyWithJournal`
     pass config commits use, serialized by `reconcileMu` (`812`) against vpp-ready and
-    config-commit reconciles racing the same `Backend`. `staleIfaces` (`address_owner.go:43`)
+    config-commit reconciles racing the same `Backend`. `staleIfaces` (`address_owner.go`)
     remembers an interface whose last owner just departed so one more reconcile prunes its
     kernel address even though no YANG config names it; `clearStaleIfaces` (`237`) only forgets
     the exact names a clean pass's own `ownedAddresses()` snapshot (`166`) returned, never the
     live map, so a concurrent `Unregister`'s new stale name is never dropped mid-pass.
-12. **Kernel → Ze direction (monitor + resolver).** The netlink monitor (`monitor_linux.go:38`)
+12. **Kernel → Ze direction (monitor + resolver).** The netlink monitor (`monitor_linux.go`)
     subscribes `netlink.LinkSubscribe`/`AddrSubscribe`/`NeighSubscribe`; its `run` loop (`99`)
     dispatches to `handleLinkUpdate`/`handleAddrUpdate`/`handleNeighUpdate` (`181,216,258`),
     emitting `ifaceevents.EventCreated`/`Up`/`Down`/`AddrAdded`/`AddrRemoved`/`RouterDiscovered`/
     `RouterLost` on the `EventBus` (`emit`, `308`). `resolve.go`'s `globalResolver` subscribes the
-    same events (`bindEvents`, `resolve.go:381`) to invalidate its logical-name cache and fan out
+    same events (`bindEvents`, `resolve.go`) to invalidate its logical-name cache and fan out
     to `Subscribe()` callers (`onLinkEvent`, `277`); `register.go`'s own subscriptions
     (`461-504`) drive DHCP gateway tracking, link-failover route deprioritization
     (`handleLinkDown`/`Up`, `995`/`1017`), and IPv6 RA-route install/remove on router
     discovery/loss (`handleRouterDiscovered`/`Lost`, `1038`/`1062`).
 13. **Fine-grained transactional path (alternate entry).** Beyond the coarse `OnConfigApply`,
-    `decomposeIfaceOperations` (`operation.go:114`) breaks an interface-root diff into
+    `decomposeIfaceOperations` (`operation.go`) breaks an interface-root diff into
     add/remove-interface and add/remove-address `tx.ConfigOperation` steps for dummy/veth/bridge
     only (`ifaceTypeSupportsOperations`, `287`), so the transaction coordinator can apply,
     settle, and roll back them independently of a whole-config commit;
-    `OnConfigOperationApply`/`Rollback` (`iface/register.go:637,652`) journal each op separately from
+    `OnConfigOperationApply`/`Rollback` (`iface/register.go,652`) journal each op separately from
     the whole-config journal built in step 8.
 
 ## Key files
@@ -150,29 +150,29 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 - **Phase order matters.** Tunnels are created before bridges (a bridge member block can name a
   fresh gretap tunnel) and bridges before Phase 2 property application; Phase 2c (admin-up) runs
   after every property is set but before Phase 3/4 addresses, since DHCP/PPP need the link up
-  first (`config_apply.go:352-356,721-724`).
+  first (`config_apply.go,721-724`).
 - **`reconcileMu` is a deliberate serialization point.** `applyConfig`'s Phase 3/4, the vpp-ready
   worker, and the registry-change worker all call `reconcileOnReadyWithJournal` against the same
   `Backend` and the same `desiredState()` (which unconditionally re-merges the full live address
   registry on every call). The design explicitly accepts "a commit occasionally blocks longer"
-  over "a commit occasionally rolls back for an unrelated reason" (`config_apply.go:777-812`).
+  over "a commit occasionally rolls back for an unrelated reason" (`config_apply.go`).
 - **Spec-unchanged means no kernel touch.** Tunnel/wireguard/xfrm entries whose `Spec` did not
   change across a reload keep their existing netdev (and, for wireguard, their handshake state)
   -- only Phase 2 (MTU/MAC) and Phase 3/4 (addresses) still run for them.
 - **`staleIfaces` is not a permanent "ever owned" set.** An earlier version tracked every
   interface a plugin ever registered, which permanently stripped kernel-native addresses (e.g.
   `lo`'s `127.0.0.1`) on later unrelated reconciles; the current version forgets an interface
-  once a clean pass proves its stale address was pruned (`address_owner.go:25-42`, full incident
+  once a clean pass proves its stale address was pruned (`address_owner.go`, full incident
   in `plan/learned/1028-as112-1-iface-address-registry.md`).
 - **`GetInterface`/`ListInterfaces` bypass `resolveOS`.** `resolve.go`'s resolver is built on top
   of these two calls, so routing them through `resolveOS` would recurse; every other by-name
-  dispatch function does translate the logical name first (`dispatch.go:33-45`).
+  dispatch function does translate the logical name first (`dispatch.go`).
 - **Backend-not-ready is a first-class deferral, not an error.** `ErrBackendNotReady`
-  (`backend.go:23`) from the vpp backend's `ListInterfaces`/`StartMonitor` short-circuits
+  (`backend.go`) from the vpp backend's `ListInterfaces`/`StartMonitor` short-circuits
   `reconcileOnReadyWithJournal` to `(nil, true)` rather than recording a failure; only the vpp
   backend ever returns it (netlink never does).
 - **PPPoE and DHCP reconcile after, not during, the interface journal.** Both run only once
-  `applyConfig`/the reload journal have committed (`iface/register.go:448-456,602-613`), so a rolled-
+  `applyConfig`/the reload journal have committed (`iface/register.go,602-613`), so a rolled-
   back interface config never leaves a PPPoE session or DHCP client running against a spec that
   was undone.
 
@@ -180,7 +180,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 - `docs/architecture/core-design.md`, section 14 (Interface Management) and 14a (commit-time backend capability gate)
 - `docs/features/interfaces.md`, full interface-management design doc, cited by nearly every file in this package
 - `docs/architecture/subsystem-wiring.md`, cross-component Bus event flow example using the interface plugin
-- `ai/rules/plugin-design.md`, cross-boundary value types (the pattern `Binding` in `resolve.go` follows)
+- `ai/rules/plugins.md`, cross-boundary value types (the pattern `Binding` in `resolve.go` follows)
 - `plan/learned/1028-as112-1-iface-address-registry.md`, address-ownership registry design and the staleIfaces incident history
 - `plan/learned/617-iface-vpp-ready-gate.md`, deferred-reconcile-on-vpp-ready design
 - `plan/learned/566-iface-wireguard.md`, WireGuard interface kind design (wgctrl, ReplacePeers)

@@ -125,7 +125,7 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 	// `counter drop` on a base hook in a guessed address family -- a blackhole for
 	// every packet that hook sees, not a mitigation. An attack whose victim never
 	// resolved must therefore install NOTHING and say so, leaving any drop a prior
-	// phase already installed untouched. See ai/rules/fail-closed-guards.md.
+	// phase already installed untouched. See ai/rules/evidence.md.
 	if !target.DstPrefix.IsValid() {
 		logger().Error("ddos-local: victim prefix unresolved, refusing to install a drop (an unscoped rule would blackhole the hook)",
 			"phase", phase, "direction", direction, "hook", hookChainName(hook), "family", family)

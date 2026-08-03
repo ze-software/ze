@@ -145,7 +145,7 @@ func macEqual(a, b string) bool {
 // across reboots is harmless because owned devices are runtime state recreated
 // each boot (see the spec's Key Design Decisions). A candidate that would
 // exceed the 15-char limit is REJECTED naming the limit and the candidate --
-// never truncated (ai/rules/exact-or-reject.md). parentIfindex must be
+// never truncated (ai/rules/protocol.md). parentIfindex must be
 // positive (0 = "no parent" in netlink) and id non-negative.
 func ComposeOwnedDeviceName(prefix string, parentIfindex, id int) (string, error) {
 	if prefix == "" {

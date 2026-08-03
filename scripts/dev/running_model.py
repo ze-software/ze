@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Which model is driving this session.
 
-`ai/rules/model-selection.md` puts planning and review on Opus 5 and
+`ai/rules/planning.md` puts planning and review on Opus 5 and
 implementation on Opus 4.8. Nothing could check that, because no tool is told
 which model it is running under. One thing does know: the session transcript,
 which records `message.model` on every assistant turn.

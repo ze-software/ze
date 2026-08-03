@@ -20,7 +20,7 @@ all five and removed the handoff. Three commits landed:
 
 The handoff recorded Section E as "closed by user decision: leave the
 dead `fsm.Event(EventUpdateMsg)` call, accept the ~15ns cost per UPDATE".
-The call at `reactor/session_handlers.go:206` fired on every received
+The call at `reactor/session_handlers.go` fired on every received
 UPDATE, landed in the `handleEstablished` case `EventUpdateMsg` arm, and
 did nothing (the arm was a documentation-only comment saying "handled
 externally"). The layering argument was that the `fsm` package is pure
@@ -49,7 +49,7 @@ observations that made the refactor trivial instead of a layering break:
    handler it now calls `f.timers.ResetHoldTimer()` which briefly takes
    `t.mu`. Ordering is `f.mu -> t.mu`. The reverse direction does not
    exist: the `AfterFunc` hold-timer-expiry callback releases `t.mu`
-   BEFORE invoking its callback (see `timer.go:205-214`), so the
+   BEFORE invoking its callback (see `timer.go`), so the
    session's `OnHoldTimerExpires` handler can take `s.mu` and `f.mu`
    without ever nesting under `t.mu`.
 

@@ -1,4 +1,4 @@
-// Design: ai/rules/no-sprintf-alloc.md — zero-allocation text formatting helpers
+// Design: ai/rules/performance.md — zero-allocation text formatting helpers
 
 package textbuf
 

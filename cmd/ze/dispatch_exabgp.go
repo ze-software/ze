@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_exabgp dispatch-root CLI gating
+// Design: ai/rules/plugins.md -- ze_exabgp dispatch-root CLI gating
 //
 // ExaBGP bridge CLI command registration (`ze exabgp ...`) for the ze dispatch
 // composition root, gated on ze_exabgp. The other root is the generated

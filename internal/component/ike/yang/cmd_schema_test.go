@@ -7,7 +7,7 @@ import (
 
 // TestIPsecCmdSchemaOwnsShowVPNIPsec is the owner half of the self-containment
 // invariant: the central show schema must NOT declare `show vpn ipsec ...`, and
-// this package MUST. See ai/rules/plugin-self-containment.md.
+// this package MUST. See ai/rules/plugins.md.
 func TestIPsecCmdSchemaOwnsShowVPNIPsec(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:vpn-ipsec-sa"`,

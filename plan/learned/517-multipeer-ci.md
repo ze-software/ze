@@ -9,7 +9,7 @@ peers, not just the first one.
 
 Two existing multi-peer tests (`role-otc-egress-stamp`, `community-strip`)
 used `--port $PORT2` for the second ze-peer on 127.0.0.2. But
-`applyPortOverride` (`peers.go:438`) sets ALL peer ports to the
+`applyPortOverride` (`peers.go`) sets ALL peer ports to the
 `ze_bgp_tcp_port` value (`$PORT`). Ze tried to connect to 127.0.0.2:$PORT
 but the sink peer was on 127.0.0.2:$PORT2. Connection never established.
 Tests passed because the Python plugin validated adj-rib-in (source peer),

@@ -1,6 +1,6 @@
 // Design: docs/architecture/cli/command-namespacing.md -- CLI command grammar gate
 //
-// Feeder 3 of the CLI grammar gate (ai/rules/cli-grammar.md, "Mechanical
+// Feeder 3 of the CLI grammar gate (ai/rules/cli.md, "Mechanical
 // Enforcement"). Feeders 1 (static YANG tree, scripts/checks/cli_grammar.go) and
 // 2 (plugin registration, validateCommandName) already enforce grammar on 100% of
 // the command surface. These two in-process tests lock that coverage against

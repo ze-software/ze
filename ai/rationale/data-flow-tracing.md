@@ -1,6 +1,6 @@
 # Data Flow Tracing Rationale
 
-Why: `ai/rules/data-flow-tracing.md`
+Why: `ai/rules/architecture.md`
 
 ## Why Tracing Matters
 

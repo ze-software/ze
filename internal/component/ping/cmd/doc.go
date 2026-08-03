@@ -1,5 +1,5 @@
 // Package cmd owns the entire ping feature surface as a dedicated feature
-// module (see ai/rules/plugin-self-containment.md "Dedicated feature modules").
+// module (see ai/rules/plugins.md "Dedicated feature modules").
 //
 // One feature, spread across several verbs, lives here instead of scattered
 // across the central verb packages:

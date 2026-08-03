@@ -16,7 +16,7 @@ import (
 // parseIdentityPolicy reads the accept-side identity policy: remote-id-type.
 //
 // Every value the config framework delivers is a STRING, whatever the YANG type says
-// (ai/rules/config-string-coercion.md). The enum is therefore looked up by name rather
+// (ai/rules/config.md). The enum is therefore looked up by name rather
 // than type-asserted.
 func parseIdentityPolicy(peerName string, t *config.Tree, auth *AuthConfig) error {
 	v, ok := t.Get("remote-id-type")
@@ -37,7 +37,7 @@ func parseIdentityPolicy(peerName string, t *config.Tree, auth *AuthConfig) erro
 // certificate-count, hash-and-url, certificate-url and certificate-url-allow.
 //
 // Each malformed value is REFUSED rather than defaulted. A silently defaulted bound is
-// the shape ai/rules/exact-or-reject.md forbids: the operator asked for something the
+// the shape ai/rules/protocol.md forbids: the operator asked for something the
 // daemon then did not do, and nothing said so.
 func parseCertificatePolicy(peerName string, t *config.Tree, auth *AuthConfig) error {
 	if v, ok := t.Get("certificate-count"); ok && v != "" {
@@ -86,7 +86,7 @@ func parseCertificatePolicy(peerName string, t *config.Tree, auth *AuthConfig) e
 	// hash-and-url without a certificate-url is a half-configured peer. Ze would
 	// advertise HTTP_CERT_LOOKUP_SUPPORTED and then have no URL to publish. It would
 	// fall back to sending the certificate inline, and the operator would never learn
-	// the leaf did nothing. Refuse it at commit instead (ai/rules/exact-or-reject.md).
+	// the leaf did nothing. Refuse it at commit instead (ai/rules/protocol.md).
 	if auth.HashAndURL && auth.CertificateURL == "" {
 		return fmt.Errorf(
 			"ipsec peer %q: hash-and-url is true and certificate-url is empty, so ze has no "+

@@ -165,7 +165,7 @@ wired into the FSM callback.
   default: return error }` as a switch without default plus an
   explicit post-switch check `if mode != "single-hop" && mode !=
   "multi-hop" { return error }`. Feels awkward but is consistent
-  with the project-wide pattern (config-design.md says "fail on
+  with the project-wide pattern (config.md says "fail on
   unknown keys, never silent ignore").
 
 - **`block-nolint-abuse.sh` regex does not accept hyphens in

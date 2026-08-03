@@ -13,8 +13,8 @@ engine and XFRM/VPP dataplane -- IS on disk
 (`internal/component/ike/{engine,dataplane,crypto,wire}`; ipsec children
 landed as learned 734/735/739/742/1069/1072/1141/1215). The real dependency
 is satisfied; this spec is implementable now. Anchors verified exact
-(`crypto/transform.go:15`, `wire/payload_sa.go:20`,
-`engine/initiator.go:299`); no `USE_ESN` yet.
+(`crypto/transform.go`, `wire/payload_sa.go`,
+`engine/initiator.go`); no `USE_ESN` yet.
 
 ## Post-Compaction Recovery
 
@@ -70,7 +70,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
      include TWO ESN transforms (0 and 1) in the same proposal; the responder selects exactly
      one. Order of same-type transforms is not significant.
   -> Constraint: ESN transform MUST NOT appear in an IKE SA proposal (Transform Type 5 is
-     valid only for AH and ESP). Existing code already omits it for IKE (`initiator.go:120`).
+     valid only for AH and ESP). Existing code already omits it for IKE (`initiator.go`).
 - [ ] `rfc/short/rfc4303.md` Section 3.3.3 -- ESP sequence numbers / anti-replay
   -> Constraint: With ESN, the high-order 32 bits of the 64-bit counter are maintained by
      each peer but not transmitted; both peers MUST agree on ESN use or anti-replay breaks.
@@ -79,10 +79,10 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
   -> Decision: do NOT block on creating a short RFC 4304 summary; cite 7296/4303 in code.
 
 **Key insights:**
-- Wire support for Transform Type 5 already exists (`transform.go:15`, `payload_sa.go:20`);
+- Wire support for Transform Type 5 already exists (`transform.go`, `payload_sa.go`);
   only the ESP proposal builder hardcodes value 0, and inbound ESN transforms are ignored.
 - The shared `buildChildSAPayloads` (used by both initiator SAi2 and responder SAr2 via
-  `auth.go:114`) calls `buildWireESPProposals`, so ESN emission is centralized in one builder.
+  `auth.go`) calls `buildWireESPProposals`, so ESN emission is centralized in one builder.
 - `payload_sa_test.go:TestProposalTransformNested` proves the wire encoder round-trips multiple
   transforms in a proposal -- the `optional` two-ESN-transform offer is wire-safe.
 - The Child SA uses `espGroup.Proposals[0]`; the agreed ESN value still depends on the peer's
@@ -124,7 +124,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
   -> Constraint: add `ESN bool` to `SAParams`; no interface signature change needed.
 - [ ] `internal/component/ike/dataplane/xfrm_linux.go` -- `InstallSA` (21-66) sets
   `state.ReplayWindow` when `ReplayWin > 0`; no ESN.
-  -> Constraint: vendored `netlink` v1.1.0 `XfrmState` has `ESN bool` (xfrm_state.go:103);
+  -> Constraint: vendored `netlink` v1.1.0 `XfrmState` has `ESN bool` (xfrm_state.go);
      set `state.ESN = p.ESN`.
 - [ ] `internal/component/ike/dataplane/vpp.go` -- `InstallSA` (34-68); `ipsecSAEntry`
   (155-169) has NO `Flags` field; current code sets `Salt:0, UDPSrcPort:0, UDPDstPort:0`.
@@ -148,7 +148,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 - IKE SA proposals MUST continue to contain NO ESN transform, regardless of config.
 - `peersEqual` / `IPsecConfig.Changed` semantics: an ESN change on a proposal MUST count as a
   peer change so the SA is reinstalled (proposals participate via the group reference).
-- Existing AEAD/non-AEAD ESP transform construction (`initiator.go:299-308`) unchanged.
+- Existing AEAD/non-AEAD ESP transform construction (`initiator.go`) unchanged.
 
 **Behavior to change:**
 - `buildWireESPProposals` emits ESN transforms per the proposal's `ESN` mode instead of a
@@ -203,9 +203,9 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `netlink` v1.1.0 sets the kernel ESN replay structure (XFRMA_REPLAY_ESN_VAL) when `XfrmState.ESN=true` and `ReplayWindow>0` | xfrm_state.go:103 has `ESN bool`; kernel requires ESN replay attr | XFRM SA add fails or anti-replay misbehaves | QEMU: `ip xfrm state` shows `flag esn` + replay-window; SA add returns nil | unvalidated |
+| A-1 | `netlink` v1.1.0 sets the kernel ESN replay structure (XFRMA_REPLAY_ESN_VAL) when `XfrmState.ESN=true` and `ReplayWindow>0` | xfrm_state.go has `ESN bool`; kernel requires ESN replay attr | XFRM SA add fails or anti-replay misbehaves | QEMU: `ip xfrm state` shows `flag esn` + replay-window; SA add returns nil | unvalidated |
 | A-2 | VPP `USE_ESN` flag = bit 0x01 and `flags` field position in `vl_api_ipsec_sad_entry_t` is known | VPP IPsec API `ipsec_sad_flags` | wrong offset corrupts ALL VPP SA installs | govpp binding / VPP `.api.json`; VPP interop SA add retval==0 | unvalidated |
-| A-3 | Child SA ESN intent can be taken from `espGroup.Proposals[0].ESN` (no real per-proposal ESP negotiation) | child.go:99, rekey.go:94; `NegotiateESP` dead | multi-proposal ESN policies misbehave | code read confirmed; documented as Known Limitation | confirmed |
+| A-3 | Child SA ESN intent can be taken from `espGroup.Proposals[0].ESN` (no real per-proposal ESP negotiation) | child.go, rekey.go; `NegotiateESP` dead | multi-proposal ESN policies misbehave | code read confirmed; documented as Known Limitation | confirmed |
 | A-4 | strongSwan (interop peer) includes an ESN transform and selects exactly one | RFC 7296 Section 3.3.2 | `optional` negotiation ambiguous | strongSwan interop: tunnel up with `esn=yes` both ends | unvalidated |
 | A-5 | The wire encoder emits multiple same-type (ESN) transforms in `Proposal.Transforms` order and a peer accepts the proposal | payload_sa.go; payload_sa_test.go:TestProposalTransformNested | `optional` offer rejected | unit roundtrip test + interop | unvalidated |
 | A-6 | An `esn` change on a proposal triggers SA reinstall via existing change detection | types.go `Changed`/`peersEqual` operate on peer refs to groups | stale SA keeps old ESN | unit test: changing esn marks peer changed | unvalidated |
@@ -289,7 +289,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | `NN-ipsec-esn-optional-fallback` | same | strongSwan `esn=no` | Ze `optional` falls back to No-ESN, tunnel still up (R-3) | |
 
 ### Future (if deferring any tests)
-- None planned. QEMU is mandatory for the XFRM (linux-only) path per `ai/rules/qemu-testing.md`.
+- None planned. QEMU is mandatory for the XFRM (linux-only) path per `ai/rules/platform-linux.md`.
 
 ## Files to Modify
 - `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` -- `typedef esn-mode`; `leaf esn` on
@@ -569,6 +569,6 @@ Add above enforcing code:
 NEW CONSTRAINT for the VPP dataplane phase (AC-8b): implement the ESN flag change via the vendored govpp binapi, not by expanding hand-rolled structs.
 
 - The followup-vpp-iface wave established the govpp binapi vendoring pattern under `vendor/go.fd.io/govpp/binapi/` (28 packages vendored: gre, ipip, vxlan, span, lcp, wireguard, sr, and others). `binapi/ipsec` is NOT yet vendored (verified 2026-07-10: absent from the vendor tree); vendoring it is now a mechanical step following the same pattern.
-- The hand-rolled types this spec planned to extend carry a comment anticipating exactly this migration, verified at `internal/component/ike/dataplane/vpp.go:161`: when govpp/binapi/ipsec is vendored, replace these with the generated types. The `ipsecSAEntry` struct that follows (:163 onward) has no Flags field, as the Current Behavior section records.
+- The hand-rolled types this spec planned to extend carry a comment anticipating exactly this migration, verified at `internal/component/ike/dataplane/vpp.go`: when govpp/binapi/ipsec is vendored, replace these with the generated types. The `ipsecSAEntry` struct that follows (:163 onward) has no Flags field, as the Current Behavior section records.
 - Consequences: the Dataplane phase should vendor `binapi/ipsec` and set the USE_ESN flag on the GENERATED SA-entry type. This retires the hand-layout hazard tracked as R-1 and assumption A-2 (the generated types carry the exact wire layout and CRC, so no manual field-order verification is needed); the corresponding row in Failure Routing ("re-check struct layout vs govpp binding") becomes "regenerate/re-vendor binapi/ipsec". The `TestVPPSAEntryESNFlag` unit test then asserts the flag on the generated type rather than a hand-encoded layout.
 - The Files to Modify bullet for vpp.go is struck above accordingly; the file is still modified, only the mechanism changes.

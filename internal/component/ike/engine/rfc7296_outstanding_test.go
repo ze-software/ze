@@ -374,7 +374,7 @@ func TestOsrOwnerLoopKeepsAForeignWindowHeld(t *testing.T) {
 // retireRequest only while a probe awaits its reply. And sendDPD refuses the window when
 // another request already holds it. The loop therefore cannot present retireRequest with a
 // foreign id itself. The comparison is a fail-closed guard on the function's own contract
-// (ai/rules/fail-closed-guards.md), and this is where that contract is proven.
+// (ai/rules/evidence.md), and this is where that contract is proven.
 //
 // RFC requirement: RFC7296-2.3-8 negative -- accepting and processing a peer request is bounded.
 // Section 2.3 lets the next request go out only once the outstanding one is settled. Nothing

@@ -9,7 +9,7 @@
 
 Awaiting closure (recorded 2026-07-22 during plan review): implemented and in
 the tree -- `ebgpWireSlot` + lock-free `atomic.Pointer` slots at
-`internal/component/bgp/reactor/received_update.go:20-24,89,93,203-209`, with
+`internal/component/bgp/reactor/received_update.go,89,93,203-209`, with
 the concurrent cache-hit test in `received_update_test.go`. The work is
 documented in `plan/learned/900-perf-next-round-3.md`; only the two-commit
 closure remains.
@@ -25,7 +25,7 @@ closure remains.
 
 ## Task
 
-`ReceivedUpdate.EBGPWire` (received_update.go:110-156) lazily generates and caches
+`ReceivedUpdate.EBGPWire` (received_update.go) lazily generates and caches
 the EBGP variant of an UPDATE (local ASN prepended to AS_PATH per RFC 4271 9.1.2),
 one cached variant per destination ASN width (`ebgpWireASN4`, `ebgpWireASN2`).
 Today **every call takes `ebgpMu`, including cache hits**, and cache hits are the
@@ -34,9 +34,9 @@ the wire is generated once per ASN-width variant and then re-read N-ish times.
 
 Measured shape (research dossier, 2026-06-11): three goroutine families call
 EBGPWire concurrently on the SAME ReceivedUpdate:
-1. Session read goroutine via the RS fast path (`forward_rs.go:169` inside `reactorForwardRS`, reached from `reactor_notify.go:559-568`).
-2. Per-peer delivery goroutine -> plugin dispatch -> `forwardUpdateCore` (`reactor_api_forward.go:331`).
-3. Per-destination-peer forward workers (`forward_pool.go:714-726` spawns `runWorker`).
+1. Session read goroutine via the RS fast path (`forward_rs.go` inside `reactorForwardRS`, reached from `reactor_notify.go`).
+2. Per-peer delivery goroutine -> plugin dispatch -> `forwardUpdateCore` (`reactor_api_forward.go`).
+3. Per-destination-peer forward workers (`forward_pool.go` spawns `runWorker`).
 
 At 100K UPDATE/s with ~150 EBGPWire calls per UPDATE (RS deployment, 100+ eBGP
 destinations), that is ~15M mutex lock/unlock pairs per second, ~30-50ns each
@@ -62,29 +62,29 @@ published atomically in one store:
 Call flow after the change:
 1. Fast path: atomic load of the slot for `dstASN4`; if non-nil return its wire. No lock.
 2. Miss: take `ebgpMu`, re-check the slot (double-checked locking), generate via `wireu.RewriteASPath` into a `getReadBuf` buffer, build the struct, atomic store, unlock.
-3. Eviction: atomic load of each slot; if non-nil, `ReturnReadBuffer` its handle. Runs under `cache.mu` as today. TWO sites return the variant buffers and BOTH must switch to atomic loads: `evictLocked` (`recent_cache.go:455-467`, lines 461-462) and `Delete` (`recent_cache.go:517-529`, lines 523-524).
+3. Eviction: atomic load of each slot; if non-nil, `ReturnReadBuffer` its handle. Runs under `cache.mu` as today. TWO sites return the variant buffers and BOTH must switch to atomic loads: `evictLocked` (`recent_cache.go`, lines 461-462) and `Delete` (`recent_cache.go`, lines 523-524).
 
 Why this is safe (must be restated in code comments):
 - Slots are fire-once: written at most once, never mutated after publication. Readers see nil or the complete struct (Go memory model: atomic store happens-before atomic load that observes it).
 - Generation failure does NOT publish: error paths return the buffer (`ReturnReadBuffer(dst)`) and leave the slot nil, exactly as today.
-- Eviction cannot race a reader holding the wire: the RecentUpdateCache retention contract guarantees an entry obtained via `Get()` is not evicted until all consumers ack (retainCount in `recent_cache.go:60-94`). This spec does not change that contract; it relies on it identically to the current code.
-- Eviction cannot race generation on the normal ack path: eviction only happens after consumers are done (`evictLocked` gated on `totalConsumers()<=0` at `recent_cache.go:450/498`), and a generator is a consumer holding the entry. The path to validate during the audit step (A-2) is NOT the ack path but the background safety valve: `gapScanLoop` (`recent_cache.go:197`) force-evicts "stalled" entries via `evictLocked` (`recent_cache.go:251`) when `isGapEvictable` (`recent_cache.go:126`) returns true, regardless of acks. Confirm a genuinely-running forward worker is never `isGapEvictable` (its 30s stall timer never elapses on a live reader). This is a PRE-EXISTING property: today `evictLocked` already returns `e.update.poolBuf` while a mid-flight generator reads `u.WireUpdate.Payload()` from that same buffer (`received_update.go:126`). Child 1 changes two field reads to atomic loads of the same already-published data and introduces NO new race class; it relies on this property identically to current code.
+- Eviction cannot race a reader holding the wire: the RecentUpdateCache retention contract guarantees an entry obtained via `Get()` is not evicted until all consumers ack (retainCount in `recent_cache.go`). This spec does not change that contract; it relies on it identically to the current code.
+- Eviction cannot race generation on the normal ack path: eviction only happens after consumers are done (`evictLocked` gated on `totalConsumers()<=0` at `recent_cache.go/498`), and a generator is a consumer holding the entry. The path to validate during the audit step (A-2) is NOT the ack path but the background safety valve: `gapScanLoop` (`recent_cache.go`) force-evicts "stalled" entries via `evictLocked` (`recent_cache.go`) when `isGapEvictable` (`recent_cache.go`) returns true, regardless of acks. Confirm a genuinely-running forward worker is never `isGapEvictable` (its 30s stall timer never elapses on a live reader). This is a PRE-EXISTING property: today `evictLocked` already returns `e.update.poolBuf` while a mid-flight generator reads `u.WireUpdate.Payload()` from that same buffer (`received_update.go`). Child 1 changes two field reads to atomic loads of the same already-published data and introduces NO new race class; it relies on this property identically to current code.
 
 Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
-`atomic.Pointer` for read-mostly fields (`peer.go:159-170`); campaign 771 used
+`atomic.Pointer` for read-mostly fields (`peer.go`); campaign 771 used
 `atomic.Int64` to replace an RLock on the zero-monitor fast path (commit f3c5c93cc).
 
 ### Out of scope
-- The dual/secondary-ASN prepend path (`RewriteASPathDual`, `reactor_api_forward.go:351` area) does not use this cache and is unchanged.
+- The dual/secondary-ASN prepend path (`RewriteASPathDual`, `reactor_api_forward.go` area) does not use this cache and is unchanged.
 - Any change to RewriteASPath itself, the cache retention protocol, or BufHandle.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/memory-architecture.md` - pool ownership rules
+- [ ] `ai/rules/performance.md` - pool ownership rules
   → Constraint: only pool-issued BufHandles; hook block-fake-bufhandle.sh enforces
 - [ ] `docs/architecture/encoding-context.md` - ContextID semantics the cached wire preserves
-  → Constraint: cached wire keeps the ORIGINAL SourceCtxID (received_update.go:142); do not alter
+  → Constraint: cached wire keeps the ORIGINAL SourceCtxID (received_update.go); do not alter
 - [ ] `docs/architecture/forward-congestion-pool.md` - forward worker goroutine model
   → Decision: one worker goroutine per destination peer; these are the concurrent readers
 - [ ] `ai/rules/goroutine-lifecycle.md`
@@ -113,14 +113,14 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 
 **Behavior to preserve:**
 - Return values and errors identical: same wire pointer for repeated same-variant calls; `errEbgpWireBufferExhaustedPoolAt` on pool exhaustion; wrapped RewriteASPath errors; buffer returned on error.
-- Cached wire carries the original SourceCtxID, MessageID, SourceID (received_update.go:141-144).
+- Cached wire carries the original SourceCtxID, MessageID, SourceID (received_update.go).
 - Eviction returns BOTH variant buffers exactly once (no double-return, no leak).
 - Fire-once semantics per variant; generation happens at most once per variant per ReceivedUpdate.
 
 **Behavior to change:**
 - None functional. Cache-hit calls stop acquiring `ebgpMu` (synchronization shape only).
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A forwarded UPDATE destined to an eBGP peer: callers obtain the ReceivedUpdate from RecentUpdateCache.Get(messageID), then call EBGPWire(localASN, srcASN4, dstASN4).
@@ -151,9 +151,9 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Multiple goroutines call EBGPWire concurrently on the same ReceivedUpdate | Caller trace: forward_rs.go:169, reactor_api_forward.go:331, forward_pool.go runWorker; test TestReceivedUpdate_EBGPWireConcurrent exists | Optimization pointless (but harmless) | Read the three call sites + the goroutine spawn sites during audit | unvalidated |
-| A-2 | Cache eviction cannot run while a generator holds the entry. Normal ack path is safe (`evictLocked` gated on `totalConsumers()<=0`, recent_cache.go:450/498). The path to scrutinise is the background safety valve `gapScanLoop` (recent_cache.go:197) -> `evictLocked` (recent_cache.go:251) for `isGapEvictable` entries (recent_cache.go:126), which fires regardless of acks. | recent_cache.go retention contract + gap-scan valve | Use-after-free of pool buffer | Confirm a genuinely-running forward worker is never `isGapEvictable` (30s stall timer never elapses on a live reader). PRE-EXISTING: `evictLocked` already returns `e.update.poolBuf` while a generator reads `u.WireUpdate.Payload()` from it (received_update.go:126); child 1 only swaps two field reads for atomic loads of the same published data and adds NO new race class. | unvalidated |
-| A-3 | EBGPWire callers never mutate the returned wire | WireUpdate is documented immutable (received_update.go:43-47) | Shared-read unsafe | grep for writes through the returned pointer at the three call sites | unvalidated |
+| A-1 | Multiple goroutines call EBGPWire concurrently on the same ReceivedUpdate | Caller trace: forward_rs.go, reactor_api_forward.go, forward_pool.go runWorker; test TestReceivedUpdate_EBGPWireConcurrent exists | Optimization pointless (but harmless) | Read the three call sites + the goroutine spawn sites during audit | unvalidated |
+| A-2 | Cache eviction cannot run while a generator holds the entry. Normal ack path is safe (`evictLocked` gated on `totalConsumers()<=0`, recent_cache.go/498). The path to scrutinise is the background safety valve `gapScanLoop` (recent_cache.go) -> `evictLocked` (recent_cache.go) for `isGapEvictable` entries (recent_cache.go), which fires regardless of acks. | recent_cache.go retention contract + gap-scan valve | Use-after-free of pool buffer | Confirm a genuinely-running forward worker is never `isGapEvictable` (30s stall timer never elapses on a live reader). PRE-EXISTING: `evictLocked` already returns `e.update.poolBuf` while a generator reads `u.WireUpdate.Payload()` from it (received_update.go); child 1 only swaps two field reads for atomic loads of the same published data and adds NO new race class. | unvalidated |
+| A-3 | EBGPWire callers never mutate the returned wire | WireUpdate is documented immutable (received_update.go) | Shared-read unsafe | grep for writes through the returned pointer at the three call sites | unvalidated |
 | A-4 | localASN is invariant for a given ReceivedUpdate's EBGP cache (same local AS prepended regardless of destination) | Both call sites pass the session-local AS; cache has no localASN key today | Cache key insufficient (pre-existing issue, not introduced here) | Confirm both call sites source localASN from the same per-router value during audit | unvalidated |
 
 ### Risks
@@ -167,8 +167,8 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| RS fast path forwarding an UPDATE to eBGP peer | → | reactorForwardRS -> EBGPWire fast path | TestReceivedUpdate_EBGPWireConcurrent (existing test, received_update_test.go:338) |
-| forwardUpdateCore export to eBGP peer | → | EBGPWire miss path (generation under ebgpMu) | TestReceivedUpdate_EBGPWireLazyASN4 (existing test, received_update_test.go:212) |
+| RS fast path forwarding an UPDATE to eBGP peer | → | reactorForwardRS -> EBGPWire fast path | TestReceivedUpdate_EBGPWireConcurrent (existing test, received_update_test.go) |
+| forwardUpdateCore export to eBGP peer | → | EBGPWire miss path (generation under ebgpMu) | TestReceivedUpdate_EBGPWireLazyASN4 (existing test, received_update_test.go) |
 | Cache eviction after final ack | → | evictLocked returns both variant buffers | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers (new; asserts buffer return for published slots) |
 
 ## Acceptance Criteria
@@ -329,11 +329,11 @@ protocol-enforcing code is added. Keep existing references intact.
 ## Implementation Summary
 
 ### What Was Implemented
-- `ebgpWireSlot` struct bundling `*WireUpdate` + `BufHandle` (received_update.go:24-27)
-- Replaced 4 fields (ebgpWireASN4/ASN2/PoolBuf4/PoolBuf2) with 2 `atomic.Pointer[ebgpWireSlot]` slots (received_update.go:84-88)
-- Lock-free fast path via atomic load (received_update.go:119-121)
-- Double-checked locking miss path (received_update.go:124-129)
-- `ebgpSlot` helper for variant dispatch (received_update.go:154-159)
+- `ebgpWireSlot` struct bundling `*WireUpdate` + `BufHandle` (received_update.go)
+- Replaced 4 fields (ebgpWireASN4/ASN2/PoolBuf4/PoolBuf2) with 2 `atomic.Pointer[ebgpWireSlot]` slots (received_update.go)
+- Lock-free fast path via atomic load (received_update.go)
+- Double-checked locking miss path (received_update.go)
+- `ebgpSlot` helper for variant dispatch (received_update.go)
 - Updated `evictLocked` and `Delete` in recent_cache.go to load slots atomically
 
 ### Bugs Found/Fixed
@@ -350,9 +350,9 @@ protocol-enforcing code is added. Keep existing references intact.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Lock-free cache hits | done | received_update.go:119-121 | atomic load, no mutex |
-| Single-flight generation | done | received_update.go:124-129 | ebgpMu + double-check |
-| Safe eviction | done | recent_cache.go:462-467 | atomic load + ReturnReadBuffer |
+| Lock-free cache hits | done | received_update.go | atomic load, no mutex |
+| Single-flight generation | done | received_update.go | ebgpMu + double-check |
+| Safe eviction | done | recent_cache.go | atomic load + ReturnReadBuffer |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -367,13 +367,13 @@ protocol-enforcing code is added. Keep existing references intact.
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestReceivedUpdate_EBGPWireLazyASN4 (existing) | pass | received_update_test.go:212 | updated assertions for atomic slots |
-| TestReceivedUpdate_EBGPWireCachedASN4 (existing) | pass | received_update_test.go:258 | unchanged |
-| TestReceivedUpdate_EBGPWireLazyASN2 (existing) | pass | received_update_test.go:292 | updated assertions |
-| TestReceivedUpdate_EBGPWireConcurrent (existing) | pass | received_update_test.go:338 | unchanged |
-| TestReceivedUpdate_EBGPWireEvictionReturnsBuffers (new) | pass | received_update_test.go:393 | 3 subtests |
-| TestReceivedUpdate_EBGPWireErrorDoesNotPublish (new) | pass | received_update_test.go:463 | truncated payload |
-| BenchmarkEBGPWireCacheHitParallel (new) | pass | received_update_bench_test.go:19 | before=128ns, after=0.36ns |
+| TestReceivedUpdate_EBGPWireLazyASN4 (existing) | pass | received_update_test.go | updated assertions for atomic slots |
+| TestReceivedUpdate_EBGPWireCachedASN4 (existing) | pass | received_update_test.go | unchanged |
+| TestReceivedUpdate_EBGPWireLazyASN2 (existing) | pass | received_update_test.go | updated assertions |
+| TestReceivedUpdate_EBGPWireConcurrent (existing) | pass | received_update_test.go | unchanged |
+| TestReceivedUpdate_EBGPWireEvictionReturnsBuffers (new) | pass | received_update_test.go | 3 subtests |
+| TestReceivedUpdate_EBGPWireErrorDoesNotPublish (new) | pass | received_update_test.go | truncated payload |
+| BenchmarkEBGPWireCacheHitParallel (new) | pass | received_update_bench_test.go | before=128ns, after=0.36ns |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -431,15 +431,15 @@ protocol-enforcing code is added. Keep existing references intact.
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | confirmed | forward_rs.go:169, reactor_api_forward.go:331, forward_pool.go runWorker; TestReceivedUpdate_EBGPWireConcurrent exists |
-| A-2 | confirmed | isGapEvictable gated on 5min stall timer (recent_cache.go:126-148); active readers never trigger; pre-existing safety property unchanged |
-| A-3 | confirmed | Callers assign returned wire to peerWire for TCP write (forward_rs.go:356); no mutation |
-| A-4 | confirmed | Both call sites guard with canUseUpdateCache/cachedLocal (reactor_api_forward.go:310-327, forward_rs.go:160-181) |
+| A-1 | confirmed | forward_rs.go, reactor_api_forward.go, forward_pool.go runWorker; TestReceivedUpdate_EBGPWireConcurrent exists |
+| A-2 | confirmed | isGapEvictable gated on 5min stall timer (recent_cache.go); active readers never trigger; pre-existing safety property unchanged |
+| A-3 | confirmed | Callers assign returned wire to peerWire for TCP write (forward_rs.go); no mutation |
+| A-4 | confirmed | Both call sites guard with canUseUpdateCache/cachedLocal (reactor_api_forward.go, forward_rs.go) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| buffer-architecture.md EBGP section | docs/architecture/buffer-architecture.md:430 source anchor | yes |
+| buffer-architecture.md EBGP section | docs/architecture/buffer-architecture.md source anchor | yes |
 | No source anchor stale | grep docs/ for received_update.go/recent_cache.go anchors; claims remain valid | yes |
 
 ## Checklist

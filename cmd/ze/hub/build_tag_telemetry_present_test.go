@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_telemetry present build validation
+// Design: ai/rules/plugins.md -- ze_telemetry present build validation
 //
 //go:build ze_telemetry
 

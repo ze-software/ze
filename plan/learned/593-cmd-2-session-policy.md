@@ -11,7 +11,7 @@ Ze's BGP peer configuration lacked four session-level knobs that every productio
 - `AttrModSuppress` action added to the attribute modifier registry for community stripping, over inline deletion in the forwarding loop. Last-action-wins semantics in `genericAttrSetHandler`.
 - Default-originate per-family (inside `session/family`) over per-peer, because IPv4 and IPv6 default routes are independent decisions.
 - Default-originate-filter uses `PolicyFilterChain` dry-run with fail-closed semantics: missing reactor, missing API, or malformed filter ref all suppress the default route.
-- Local-AS modifiers wired into the forwarding path's AS_PATH prepend logic (`reactor_api_forward.go:488-494`). OPEN message already uses `settings.LocalAS` (the override), so no OPEN changes were needed.
+- Local-AS modifiers wired into the forwarding path's AS_PATH prepend logic (`reactor_api_forward.go`). OPEN message already uses `settings.LocalAS` (the override), so no OPEN changes were needed.
 - AS-override implemented as `rewriteASPathOverride` two-pass (scan for match, copy+replace), respecting ASN4 negotiation state.
 
 ## Consequences

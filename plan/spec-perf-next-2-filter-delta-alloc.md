@@ -9,7 +9,7 @@
 
 Awaiting closure (recorded 2026-07-22 during plan review): Phase A landed --
 `filterAttrID`/`filterAttrs` (fixed struct + bitset replacing
-`map[string]string`) at `internal/component/bgp/reactor/filter_chain.go:28,79`,
+`map[string]string`) at `internal/component/bgp/reactor/filter_chain.go,79`,
 per `plan/learned/900-perf-next-round-3.md`. Phase B (pooled scratch for the 14
 encoder sites) was deliberately deferred in learned 900; at closure, home that
 deferral in a `plan/deferrals/` shard with a destination spec so it is not
@@ -31,14 +31,14 @@ filter's text delta into wire attribute operations. This path currently costs
 after spec filter-delta-parse-once reduced it from 34, see
 `plan/learned/875-filter-delta-parse-once.md`). It fires:
 
-- Import: per received UPDATE when `peer.settings.ImportFilters` is non-empty AND the filter changed the text (`reactor_notify.go:460-504`).
-- Export: per DESTINATION PEER per forwarded UPDATE when export filters are configured and modify the text (`reactor_api_forward.go:475-508`). The export path multiplies the cost by fan-out, making it the valuable half.
+- Import: per received UPDATE when `peer.settings.ImportFilters` is non-empty AND the filter changed the text (`reactor_notify.go`).
+- Export: per DESTINATION PEER per forwarded UPDATE when export filters are configured and modify the text (`reactor_api_forward.go`). The export path multiplies the cost by fan-out, making it the valuable half.
 
 The unmodified path is already 0 allocs/op (BenchmarkFilterDispatch_ZeroAlloc).
 This spec attacks the modified path's two allocation families:
 
-1. **Parse maps:** `parseFilterAttrs` (`filter_chain.go:118`) allocates a `map[string]string` plus a `strings.Fields` slice plus joined value strings, twice per modified UPDATE (original + modified text). The key set is CLOSED: 16 names defined by `isPolicyAttrName` (`filter_chain.go:167-178`) + `policySingleToken` (`filter_chain.go:103-108`).
-2. **Encoder buffers:** every `encode*Value` helper allocates its own `make` (filter_delta.go lines 80, 338, 356, 395, 414, 428, 446, 496, 505, 556, 629, 645, 651, 654), violating `ai/rules/buffer-first.md` (helpers must write into a caller-provided buffer).
+1. **Parse maps:** `parseFilterAttrs` (`filter_chain.go`) allocates a `map[string]string` plus a `strings.Fields` slice plus joined value strings, twice per modified UPDATE (original + modified text). The key set is CLOSED: 16 names defined by `isPolicyAttrName` (`filter_chain.go`) + `policySingleToken` (`filter_chain.go`).
+2. **Encoder buffers:** every `encode*Value` helper allocates its own `make` (filter_delta.go lines 80, 338, 356, 395, 414, 428, 446, 496, 505, 556, 629, 645, 651, 654), violating `ai/rules/performance.md` (helpers must write into a caller-provided buffer).
 
 **Goal:** cut the modified-UPDATE path to roughly 10 allocs/op or fewer without
 changing any produced wire bytes, op sequences, or filter text contracts.
@@ -55,17 +55,17 @@ so presence must be explicit, e.g. a bitset field). The three consumers
 (`textDeltaToModOps`, `ExtractRemovePrivateASOps`, `ExtractASPathPrependOps`)
 and `extractLegacyNLRIOverride` switch to struct field access. Saves the two map
 bucket allocations and all key hashing; field strings still alias `strings.Fields`
-output as today. This also satisfies `ai/rules/enum-over-string.md` for this path.
+output as today. This also satisfies `ai/rules/go-standards.md` for this path.
 
 **Phase B: encoder scratch.** Give the encode helpers a caller-provided scratch
 that lives exactly as long as the ops do. The ops' `Buf` slices
 (`filterapi.AttrOp.Buf`) are consumed synchronously by `buildModifiedPayload`
 and discarded with the `ModAccumulator` (stack-allocated at both call sites:
-`reactor_notify.go:480`, `reactor_api_forward.go:491`), so a single pooled
+`reactor_notify.go`, `reactor_api_forward.go`), so a single pooled
 scratch buffer per modify block can back ALL encoded values: each encoder
 carves its value bytes from the scratch (append-and-slice), and the scratch is
 released after `buildModifiedPayload` returns. Sized at 4096 with bounded grow,
-mirroring the existing `modBufPool` pattern in `forward_build.go:363-379`.
+mirroring the existing `modBufPool` pattern in `forward_build.go`.
 This removes ~6-10 makes per modified UPDATE and brings the helpers into
 buffer-first compliance.
 
@@ -85,24 +85,24 @@ scratch space within a block would corrupt the held prepend slices and is
 forbidden.
 
 Out of scope: `PolicyFilterChain` RPC cost (sanctioned external-plugin
-serialization boundary per `ai/rules/memory-architecture.md`), the unmodified
+serialization boundary per `ai/rules/performance.md`), the unmodified
 fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 (its slices move to the scratch arena but its logic is untouched).
 
 ### Why this is safe
 
 - Lifetime: ops never escape the synchronous modify block. `buildModifiedPayload` copies attribute bytes into the output payload buffer (per-peer pool or modBufPool); after it returns, no reference to the scratch remains. Validate during audit (A-1).
-- The dry-run path (`policy_dryrun.go:224`) uses the same extractors; it must adopt the same struct/scratch signatures (it is cold, correctness only).
+- The dry-run path (`policy_dryrun.go`) uses the same extractors; it must adopt the same struct/scratch signatures (it is cold, correctness only).
 - Golden-corpus equivalence already exists: `TestFilterDeltaParseOnceEquivalence` compares op multisets across refactors; it gates Phase A. `TestFilterDeltaParseCallCount` (atomic counter `parseFilterAttrsCalls`) keeps the 2-parses-per-modify invariant.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/buffer-first.md` - banned `make` in encoding helpers
+- [ ] `ai/rules/performance.md` - banned `make` in encoding helpers
   → Constraint: encoders must write into caller-provided buffers; this spec brings filter_delta.go into compliance
-- [ ] `ai/rules/memory-architecture.md` - sanctioned copies + sync.Pool guidance
+- [ ] `ai/rules/performance.md` - sanctioned copies + sync.Pool guidance
   → Constraint: filter modify IS a sanctioned copy boundary; the goal is fewer allocations, not zero copies
-- [ ] `ai/rules/enum-over-string.md` - string keys on hot paths
+- [ ] `ai/rules/go-standards.md` - string keys on hot paths
   → Decision: closed 16-name key set becomes struct fields (typed identity)
 - [ ] `plan/learned/875-filter-delta-parse-once.md` - prior round on this exact path
   → Decision: parse exactly twice per modify; extractors share read-only; preserve the call-count test
@@ -141,7 +141,7 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 **Behavior to change:**
 - None functional. Allocation count and internal signatures only.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A received (import) or about-to-forward (export) UPDATE whose configured external filter returned modified text (modifiedText != updateText).
@@ -176,14 +176,14 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | AttrOp.Buf slices never outlive buildModifiedPayload (no handler stores them in a struct/global/channel) | VERIFIED 2026-06-12: all 11 `.Buf` readers in filter_delta_handlers.go are `len()`, `copy(buf[...], Buf)` into the output, or accumulation into function-local `prependBufs`/`setBuf` (lines 44,58,69,115,126,142-145,246-247,384-385,405); none escape the synchronous call | Scratch reuse corrupts a retained slice | Done (grep). Remaining nuance: `prependBufs` (143/385) holds MULTIPLE carved slices live at once — guarded by the append-only scratch invariant + the new multi-prepend test case; audit confirms the `prependBufs`/`setBuf` locals do not escape their handler | likely |
 | A-2 | The filter attribute name set is closed at 16 (no dynamic names) | isPolicyAttrName switch + policySingleToken map are the only producers | Struct misses a key; directive silently dropped | grep producers of the filter text (AppendUpdateForFilter + plugin contract docs) for attribute names; cross-check list | unvalidated |
-| A-3 | Dry-run path tolerates the new signatures (cold, no perf constraint) | policy_dryrun.go:224 uses same extractors | Compile break or behavior drift in dry-run | Compile + existing dry-run tests | unvalidated |
+| A-3 | Dry-run path tolerates the new signatures (cold, no perf constraint) | policy_dryrun.go uses same extractors | Compile break or behavior drift in dry-run | Compile + existing dry-run tests | unvalidated |
 | A-4 | ~24 allocs/op current baseline still holds | learned/875 benchmark result | Improvement targets misstated | Re-run BenchmarkFilterModifyEgress before coding; paste numbers here | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Scratch sizing too small for pathological deltas (many large communities) | Grow path hit frequently in benchmark with adversarial input | Bounded grow mirroring modBufPool; worst case falls back to a fresh make for the oversized op only (documented pool-fallback) |
-| R-2 | Struct refactor changes op ORDER (map iteration order was previously non-deterministic; tests may have relied on sorting) | TestFilterDeltaParseOnceEquivalence or ordering-sensitive tests fail | Equivalence test compares sorted multisets (filter_delta_test.go:1097 comment notes map order was never guaranteed); keep that property |
+| R-2 | Struct refactor changes op ORDER (map iteration order was previously non-deterministic; tests may have relied on sorting) | TestFilterDeltaParseOnceEquivalence or ordering-sensitive tests fail | Equivalence test compares sorted multisets (filter_delta_test.go comment notes map order was never guaranteed); keep that property |
 | R-3 | Export-path gains are eaten by PolicyFilterChain RPC cost (~20% of path) | Benchmark improves allocs but not ns/op materially | Allocation reduction is the stated goal (GC pressure at fan-out); record ns/op honestly either way |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
@@ -220,7 +220,7 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| as-path-prepend count | 1..32 (existing cap at filter_delta.go:556 area) | 32 | 0 (no-op) | 33 rejected/capped per existing behavior (preserve exactly) |
+| as-path-prepend count | 1..32 (existing cap at filter_delta.go area) | 32 | 0 (no-op) | 33 rejected/capped per existing behavior (preserve exactly) |
 | scratch grow bound | initial 4096, grow bounded | bound value | N/A | oversized op falls back per R-1, asserted in TestEncodeValuesIntoScratch |
 
 ### Functional Tests

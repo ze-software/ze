@@ -24,7 +24,7 @@ is allowed; committing outside a script is not.
 another session left uncommitted in it. The fix is to SHARD the log so each
 session writes only files it owns and git merges disjoint creations without
 conflict. **Both cross-spec logs are now sharded.** Deferrals live one file
-per source under `plan/deferrals/` (`ai/rules/deferral-tracking.md`), so `git
+per source under `plan/deferrals/` (`ai/rules/planning.md`), so `git
 add plan/deferrals/<source>.md` stages only your row. Known failures live one
 file per failure under `plan/known-failures/` (a `<make-target>-<test-name>.md`
 shard, with `RESOLVED.md` archiving the history and `README.md` holding the
@@ -90,7 +90,7 @@ scripts/dev/commit_helper.py create \
   --subject "hook: allow tee pipe, per-session log paths" \
   --body "Explanation of why the change was made." \
   --file .claude/hooks/pretool-bash.py \
-  --file ai/rules/bash-output.md \
+  --file ai/rules/commands.md \
   --lesson-not-needed "hook fix, no novel pattern"
 
 # Second commit in the same script:
@@ -250,7 +250,7 @@ including one touching no compiled code -- which pushed sessions toward the real
 hole this gate was built to close: widening `--unverified`, or editing
 `STRUCTURAL_GATES` to drop the failing name. An override that is written down
 and shouted is safer than one that is improvised. It is never a substitute for
-fixing your own red (`ai/rules/no-parking.md`).
+fixing your own red (`ai/rules/completion.md`).
 
 `ze-regen-check-readonly` qualifies on the rule's own terms: a stale generated
 file is deterministic, reproducible, and fixed by `make ze-regen` (or the
@@ -445,7 +445,7 @@ so it rebuilds the world cold, shares nothing with `ze-verify`, and leaves the
 project cache no warmer than it found it. `Makefile` also defines the canonical
 invocation (`GO_TEST`, `GO_TEST_RACE`): the feature tags, the timeout, `GOMAXPROCS`
 and `CGO_ENABLED=1` for race. A bare `go test` drops all of it
-(`ai/rules/bash-output.md`, "Bare `go test` Lies").
+(`ai/rules/commands.md`, "Bare `go test` Lies").
 
 `make ze-test-pkg PKG=<pattern>` is the supported way to test ONE package while
 you develop it. It carries all of the above. Add `RUN=<regexp>` to narrow, and
@@ -459,10 +459,10 @@ make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
 
 | You changed | Run this |
 |-------------|----------|
-| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/lint-gate.md`) |
+| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
 | Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
 | A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
-| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/qemu-testing.md`) |
+| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
 | `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
 | `docs/**`, `ai/**`, `plan/**` | `make ze-doc-test`, and `make ze-verify-wiring-docs` for the changed-file gates |
 | `ai/rules/*.md` | `make ze-rules-condensed` then `make ze-rules-lint`, and commit all three digests with the rule |
@@ -473,7 +473,7 @@ make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
 | Several of the above, and you want breadth | `make ze-verify-changed` |
 
 **When the table has no row for what you touched, derive it.** `mk/*.mk` names every
-target and what it runs, `make help` lists them, and `ai/rules/hook-mapping.md` maps
+target and what it runs, `make help` lists them, and `ai/rules/repo-maintenance.md` maps
 each gate to the rule it enforces. A surface with no owning target is worth saying so
 in the report rather than reaching for the full gate.
 

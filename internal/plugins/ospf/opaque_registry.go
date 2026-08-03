@@ -4,7 +4,7 @@
 // The opaque framework is a registration API: a consumer module (the future ext-2 TE,
 // ext-3 Router-Information, ext-4 Extended-Link/Prefix, ext-9 Grace-LSA specs) claims an
 // Opaque Type from its own init() and supplies origination and reception hooks. The
-// carrier here names NO consumer and interprets NO opaque body (ai/rules/plugin-self-containment.md);
+// carrier here names NO consumer and interprets NO opaque body (ai/rules/plugins.md);
 // removing a consumer removes its registerOpaqueConsumer call and all its behavior,
 // leaving the carrier intact. The registry is process-global (populated at init) and the
 // engine discovers it at startup, exactly as the guide describes FRR's opaque framework.

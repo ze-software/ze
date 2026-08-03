@@ -20,7 +20,7 @@ extract the missing row."
 **Ze sends its Dead Peer Detection probe in cleartext, so configuring DPD breaks the tunnel
 it is meant to protect.**
 
-`sendDPD` (`internal/component/ike/engine/dpd.go:85-131`) builds a `wire.Message` that
+`sendDPD` (`internal/component/ike/engine/dpd.go`) builds a `wire.Message` that
 carries a `Header` and NOTHING else. No payload list, and no Encrypted payload. It writes
 those bytes with `msg.CheckedWriteTo(buf, 0)` and sends them. It never calls
 `buildEncryptedMessageEx`, which every other INFORMATIONAL request in the engine uses.
@@ -32,12 +32,12 @@ RFC 7296 section 1.4 describes the liveness check:
 
 Section 1.4 requires the Encrypted payload. Ze's probe has none, so it is not an
 INFORMATIONAL request. A conforming peer drops it. Ze would drop it too, because
-`decryptAndParse` (`internal/component/ike/engine/inbound.go:92`) needs an SK payload.
+`decryptAndParse` (`internal/component/ike/engine/inbound.go`) needs an SK payload.
 
 **The user-visible consequence.** DPD is a configuration surface
-(`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:131-156`, with `interval`, `timeout`
+(`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`, with `interval`, `timeout`
 and `action`). Any non-zero `interval` builds a live `dpdState`
-(`internal/component/ike/engine/dpd.go:34-37`), which `established.go:87` wires into the
+(`internal/component/ike/engine/dpd.go`), which `established.go` wires into the
 maintain loop. The probe then draws no answer, `timedOut` fires, and Ze declares a healthy
 peer dead every DPD timeout.
 
@@ -72,15 +72,15 @@ Source files read on 2026-07-30:
 `sendDPD` reserves the shared request window, builds the bare header, increments
 `sa.NextMsgID`, and sends. The response path already expects a real message.
 `handleOwnedInbound` authenticates an INFORMATIONAL response first, then credits liveness
-(`inbound.go:57-62`). `matchesProbe` (`dpd.go:30`) correlates it by message id.
+(`inbound.go`). `matchesProbe` (`dpd.go`) correlates it by message id.
 
 So the RECEIVE half is already correct. Only the SEND half is malformed.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
-The `maintainSA` tick, `internal/component/ike/engine/established.go:189-191`, when
+The `maintainSA` tick, `internal/component/ike/engine/established.go`, when
 `dpd.shouldSend(now)` is true.
 
 ### Transformation Path
@@ -125,8 +125,8 @@ dead.
 
 | Id | Statement | Basis | Validation |
 |----|-----------|-------|------------|
-| A-1 | `buildEncryptedMessageEx` accepts a nil inner chain | `handleInformationalOwned` passes nil at `inbound.go:293` | Read it, then assert the built probe decrypts to an empty chain |
-| A-2 | The receive half already works | `inbound.go:57-62` authenticates first, then credits liveness | A round-trip test: probe out, response in, liveness credited |
+| A-1 | `buildEncryptedMessageEx` accepts a nil inner chain | `handleInformationalOwned` passes nil at `inbound.go` | Read it, then assert the built probe decrypts to an empty chain |
+| A-2 | The receive half already works | `inbound.go` authenticates first, then credits liveness | A round-trip test: probe out, response in, liveness credited |
 | R-1 | An encrypted probe changes the message size, and some test asserts the old 28 bytes | The old probe is a bare header | Grep the suite for a 28-byte assertion first, then change the builder |
 
 ## Acceptance Criteria
@@ -145,7 +145,7 @@ dead.
 
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
-| `maintainSA` tick with DPD due (`established.go:189-191`) | -> | the encrypted probe builder | `TestDpdProbeIsEncrypted` |
+| `maintainSA` tick with DPD due (`established.go`) | -> | the encrypted probe builder | `TestDpdProbeIsEncrypted` |
 | The peer decrypting what Ze sent | -> | `decryptAndParse` | `TestDpdProbeDecryptsToEmptyChain` |
 
 ## 🧪 TDD Test Plan

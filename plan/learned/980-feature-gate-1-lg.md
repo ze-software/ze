@@ -95,4 +95,4 @@ ssh becomes child 2 (the real hardening target) on the proven pattern.
 - `scripts/dev/dep_audit.py` - DISABLEABLE map + disableable_gate + selftest fixture
 - `Makefile` (`ZE_FEATURES`), `.golangci.yml` (ze_lg build-tag),
   `internal/test/runner/runner.go` (`TestBuildTags` += ze_lg),
-  `ai/rules/module-tiers.md`, `docs/features.md`
+  `ai/rules/architecture.md`, `docs/features.md`

@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 //
 // Looking-glass (lg) service factory: the feature-gate pilot. This file (with
 // register_lg.go) is the ONLY place always-on-buildable code reaches the

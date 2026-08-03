@@ -49,7 +49,7 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 			created, cErr := wasCreated(resp)
 			if cErr != nil {
 				// Fail closed: the layer that knows the answer is missing is the
-				// only one that can say so (ai/rules/fail-closed-guards.md). Undo
+				// only one that can say so (ai/rules/evidence.md). Undo
 				// the steps that DID report truthfully, then refuse the leaf.
 				runRollbacks(rollbacks)
 				return nil, fmt.Errorf("%w: creation handler %q %w", ErrEnsureContract, step.WireMethod, cErr)
@@ -76,7 +76,7 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 // created. Creation handlers set Data["created"] = true when they create a new
 // resource and false when it already existed.
 //
-// It is a guard, so it fails closed and says something (ai/rules/fail-closed-guards.md).
+// It is a guard, so it fails closed and says something (ai/rules/evidence.md).
 // A missing or non-bool "created" key is NOT read as "not created": that zero value
 // is indistinguishable from a truthful false, and silently choosing it disarms
 // rollback, which is exactly how a failed compound create would strand a

@@ -86,8 +86,8 @@ documented.
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. Capture insights as -> Decision: / -> Constraint: annotations. -->
 - [ ] `docs/architecture/testing/ci-format.md` — `.ci` directive catalog; the engine-step executor is the Go-side extension target for a runner-level "wait for daemon stderr pattern" primitive (P2).
-- [ ] `ai/rules/qemu-testing.md` — QEMU integration is mandatory for linux-only code; the linux-only converted tests (firewall/traffic/policy/vpp/fib-kernel) are verified via `make ze-qemu-needs-linux-test`, not the darwin host.
-- [ ] `ai/rules/functional-test-gate.md` — every converted behavior keeps its required functional test.
+- [ ] `ai/rules/platform-linux.md` — QEMU integration is mandatory for linux-only code; the linux-only converted tests (firewall/traffic/policy/vpp/fib-kernel) are verified via `make ze-qemu-needs-linux-test`, not the darwin host.
+- [ ] `ai/rules/testing.md` — every converted behavior keeps its required functional test.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] N/A — test infrastructure; no wire-protocol behavior changes.
@@ -100,10 +100,10 @@ documented.
 
 **Source files read (this + prior session, agent + direct):**
 - [ ] `internal/component/bgp/reactor/reactor_api.go` — `FlushForwardPool` (:891) / `DrainPeerSync` (:922): the quiesce barrier is OUTBOUND-only and forward-pool-based.
-  -> Constraint: redistribute UPDATEs and control messages (KEEPALIVE/ROUTE-REFRESH) bypass the updates-sent counter via the forward-pool send path (`reactor_notify.go:268`), so `quiesce()` blocks ~10s on the forward-pool barrier for them (P6).
+  -> Constraint: redistribute UPDATEs and control messages (KEEPALIVE/ROUTE-REFRESH) bypass the updates-sent counter via the forward-pool send path (`reactor_notify.go`), so `quiesce()` blocks ~10s on the forward-pool barrier for them (P6).
 - [ ] `internal/component/bgp/reactor/peer.go` — `DefaultReconnectMin = 5s` (:81): the reconnect backoff that makes establishment slow/variable in bgp-redistribute-* (P6).
-- [ ] `internal/component/plugin/server/startup.go` — `WaitForStartupComplete` (:291), called before the `ze.ready.file` write (`cmd/ze/hub/main.go:1110-1127`): the daemon-readiness barrier a `wait_for_daemon_ready()` helper (P1) and the dataplane-programmed question (P3) build on.
-  -> Decision (2026-07-28): A-1 is RESOLVED, and the answer is "yes for the plugin's own apply, no for what the plugin programs afterwards". `daemon.ready` is written only after every plugin startup phase settled (`startup.go:194` -> `signalStartupComplete`), and the policy plugin's `OnConfigure` (`internal/plugins/policyroute/register.go:88-102`) calls `applyPolicies` SYNCHRONOUSLY. But `applyPolicies` programs nftables FIRST (`firewall.ApplyAll`, `:200`) and the ip rules/auto routes SECOND (`rm.applyAll`, `:204`), so a wait must gate on whichever object the test actually reads -- gating on the nft table proves nothing about an `ip rule show` assertion. P3 therefore did NOT delete the lead-ins; it replaced each with a bounded poll on that test's own readback (`ze_api.wait_for_output`).
+- [ ] `internal/component/plugin/server/startup.go` — `WaitForStartupComplete` (:291), called before the `ze.ready.file` write (`cmd/ze/hub/main.go`): the daemon-readiness barrier a `wait_for_daemon_ready()` helper (P1) and the dataplane-programmed question (P3) build on.
+  -> Decision (2026-07-28): A-1 is RESOLVED, and the answer is "yes for the plugin's own apply, no for what the plugin programs afterwards". `daemon.ready` is written only after every plugin startup phase settled (`startup.go` -> `signalStartupComplete`), and the policy plugin's `OnConfigure` (`internal/plugins/policyroute/register.go`) calls `applyPolicies` SYNCHRONOUSLY. But `applyPolicies` programs nftables FIRST (`firewall.ApplyAll`, `:200`) and the ip rules/auto routes SECOND (`rm.applyAll`, `:204`), so a wait must gate on whichever object the test actually reads -- gating on the nft table proves nothing about an `ip rule show` assertion. P3 therefore did NOT delete the lead-ins; it replaced each with a bounded poll on that test's own readback (`ze_api.wait_for_output`).
 - [ ] `internal/plugins/fib/kernel/fibkernel.go` — `installed` map (the authoritative programmed set), fire-and-forget sysrib->fib-kernel delivery: no end-to-end "FIB in sync" signal exists (P4).
 - [ ] `internal/plugins/traffic/netlink/ops_linux.go` / `backend_linux.go` — tc `Apply` is synchronous, run in-band in `OnConfigure`/`OnConfigApply`; `ListQdiscs` is a live readback (P3).
 - [ ] `test/scripts/ze_api.py` — existing primitives; the home for `wait_for_daemon_ready` (P1) and a reject-fence helper (P5).
@@ -155,7 +155,7 @@ documented.
 | ID | Risk | Early signal | Mitigation |
 |----|------|--------------|-----------|
 | R-1 | A reflecting-`show` or helper adds production surface area for test-only needs | review pushback | keep additive + test-scoped; reuse existing state (`installed`, `ListQdiscs`); gate behind existing commands where possible |
-| R-2 | Linux-only conversions unverifiable on the dev host give false confidence | — | MANDATORY QEMU run per `qemu-testing.md`; never mark a linux-only conversion done on darwin-skip alone |
+| R-2 | Linux-only conversions unverifiable on the dev host give false confidence | — | MANDATORY QEMU run per `platform-linux.md`; never mark a linux-only conversion done on darwin-skip alone |
 | R-3 | reject-fence / RS-anchor patterns are subtly vacuous | converted negative test passes when the route wrongly landed | require a positive transition (sentinel lands / inbound route lands) before the negative assertion; per-test 3x |
 | R-4 | FIB quiescer (P4 full form) is a large cross-process feature | scope creep | prefer the reflecting-`show` (A-2) first; escalate to the quiescer only if the show is insufficient; it may become its own sub-spec |
 
@@ -234,7 +234,7 @@ Infra (production/test-support) files, each additive:
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | Test infra docs | yes | `docs/architecture/testing/ci-format.md`, `ai/rules/testing.md` |
-| Discovery updates | yes (new primitives/gates) | `ai/INDEX.md` per `ai/rules/discovery-updates.md` |
+| Discovery updates | yes (new primitives/gates) | `ai/INDEX.md` per `ai/rules/repo-maintenance.md` |
 | QEMU verification | yes | `make ze-qemu-needs-linux-test` for linux-only conversions |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -300,13 +300,13 @@ Infra (production/test-support) files, each additive:
 ### Wrong Assumptions
 | Assumed | True | Discovered | Impact |
 |---------|------|------------|--------|
-| P6: redistribute UPDATEs bypass the updates-sent counter (per the deferral comment on bgp-redistribute-announce.ci) | `reactor_notify.go:265-268` calls `peer.IncrUpdatesSent()` for EVERY sent UPDATE incl. redistribute/forward-pool sends; `show bgp peer <n> detail` exposes `updates-sent`/`eor-sent`/`state` (`cmd/peer/peer.go:210-217`) | 2026-07-14 audit (read producer + `redistribute-as112-announce.ci` uses exactly this signal) | P6 needs NO new outbound signal; the counter already exists |
-| P4: a fib reflecting-`show` must be built | `show fib kernel` already exists and returns the `installed` map as `[{prefix,next-hop}]` JSON (`fib/kernel/register.go:162`, `backend.go:21`) | 2026-07-14 audit | P4 needs NO new production code; fib-kernel conversion is a `dispatch_until('show fib kernel', ...)` poll (still QEMU-gated) |
+| P6: redistribute UPDATEs bypass the updates-sent counter (per the deferral comment on bgp-redistribute-announce.ci) | `reactor_notify.go` calls `peer.IncrUpdatesSent()` for EVERY sent UPDATE incl. redistribute/forward-pool sends; `show bgp peer <n> detail` exposes `updates-sent`/`eor-sent`/`state` (`cmd/peer/peer.go`) | 2026-07-14 audit (read producer + `redistribute-as112-announce.ci` uses exactly this signal) | P6 needs NO new outbound signal; the counter already exists |
+| P4: a fib reflecting-`show` must be built | `show fib kernel` already exists and returns the `installed` map as `[{prefix,next-hop}]` JSON (`fib/kernel/register.go`, `backend.go`) | 2026-07-14 audit | P4 needs NO new production code; fib-kernel conversion is a `dispatch_until('show fib kernel', ...)` poll (still QEMU-gated) |
 | "Build the signal, then conversion is mechanical" (Core Insight) | The signals mostly already exist; the real blocker is an engine BEHAVIOR (below), so conversion is NOT mechanical | 2026-07-14 redistribute investigation | Spec framing (P1..P8 = build infra) is largely wrong; the work is per-test root-causing, not infra-building |
 ### Failed Approaches
 | Approach | Why | Replacement |
 |----------|-----|-------------|
-| Convert bgp-redistribute-announce with the proven `redistribute-as112-announce` poll (established -> eor-sent -> updates-sent) | The single-peer session NEVER establishes (`connections-established: 0`) when the observer is ACTIVE (dispatch/quiesce/show-poll OR even pure `wait_for_event` callback reads). Only the original blind `time.sleep` (observer fully idle, not reading its connection) lets it establish. `quiesce()` after emit blocks the full 10s ze-system bound ok=False (forward pool can't drain to an unestablished peer). Bisected: NOT peer-count (single-peer `redistribute-as112-announce` works), NOT peer-name, NOT explicit-vs-auto orchestrator, NOT plain-BGP (`nexthop-self.ci` polls + works). The differentiator is the `import fakeredist` redistribute config specifically vs `import as112` | **P0 CONCLUSION: redistribute bucket is BLOCKED, needs its own engine-investigation sub-spec.** The stall is a real, reproducible, config-specific interaction between observer activity and the redistribute late-join-replay-on-establish path (`redistribute_egress/replay.go:131` fires ReplayRequest on peer establishment). Root-causing it is an engine concurrency investigation, not a test conversion. Deferred to a dedicated sub-spec; other buckets proceed |
+| Convert bgp-redistribute-announce with the proven `redistribute-as112-announce` poll (established -> eor-sent -> updates-sent) | The single-peer session NEVER establishes (`connections-established: 0`) when the observer is ACTIVE (dispatch/quiesce/show-poll OR even pure `wait_for_event` callback reads). Only the original blind `time.sleep` (observer fully idle, not reading its connection) lets it establish. `quiesce()` after emit blocks the full 10s ze-system bound ok=False (forward pool can't drain to an unestablished peer). Bisected: NOT peer-count (single-peer `redistribute-as112-announce` works), NOT peer-name, NOT explicit-vs-auto orchestrator, NOT plain-BGP (`nexthop-self.ci` polls + works). The differentiator is the `import fakeredist` redistribute config specifically vs `import as112` | **P0 CONCLUSION: redistribute bucket is BLOCKED, needs its own engine-investigation sub-spec.** The stall is a real, reproducible, config-specific interaction between observer activity and the redistribute late-join-replay-on-establish path (`redistribute_egress/replay.go` fires ReplayRequest on peer establishment). Root-causing it is an engine concurrency investigation, not a test conversion. Deferred to a dedicated sub-spec; other buckets proceed |
 ### Escalation Candidates
 | Mistake | Frequency | Rule |
 |---------|-----------|------|
@@ -316,9 +316,9 @@ Infra (production/test-support) files, each additive:
 - The remaining sleeps are an infrastructure gap, not a per-test one. Grouping by infra piece (P1..P8) makes each independently shippable and lets host-verifiable pieces (P1/P5/P6/P7) land before the QEMU-gated ones (P2/P3/P4).
 - **AUDIT REVISION (2026-07-14):** The spec's core premise ("build the signal, conversion is mechanical") is largely wrong. The signals mostly ALREADY exist (`updates-sent` counter for P6, `show fib kernel` for P4). The real remaining difficulty is a reproducible engine BEHAVIOR: an external observer that issues engine RPCs (dispatch/quiesce/show-poll) during BGP establishment can prevent a single-peer session from coming up (`connections-established` stays 0), so deterministic waits that must observe establishment cannot be added without either (a) root-causing that behavior or (b) proving it absent per-config. `redistribute-as112-announce.ci` (2-peer) is unaffected, so it is config-dependent and subtle.
 - **Host/QEMU split (verified 2026-07-14):** Of 91 remaining `test/plugin` sleeps, 83 are NOT `option=needs-linux` (host-runnable on darwin); only 8 (ddos/flowexport/trafficusage external-warns) need linux. Of 155 non-plugin sleeps, most are linux-only (firewall 48, l2tp 24, static 17, traffic 16, vpp 14, policy 13) and can only be verified via `make ze-qemu-needs-linux-test`, which this darwin host does not run.
-- **Reject-fence via injected counted message (PROVEN 2026-07-14, rfc7606-withdraw):** to prove an UNCOUNTED engine action was processed (a malformed treat-as-withdraw UPDATE returns in `session_read.go` `processMessage` at 163-171 BEFORE the `onMessageReceived` callback that drives `IncrUpdatesReceived` at `reactor_notify.go:245`), inject a well-formed COUNTED message (an empty EOR) right after it in the SAME `seq` group on the peer connection. ze processes a connection in TCP order on one session-read goroutine, so the counted message's `updates-received` increment is a deterministic fence proving the uncounted action already ran. The observer waits on `updates-received` instead of sleeping. This realizes the "reject-fence sentinel" decision (Key Design Decisions) concretely, WITHOUT any production change. It applies to any shape where the peer sends the uncounted message on a connection the test drives.
+- **Reject-fence via injected counted message (PROVEN 2026-07-14, rfc7606-withdraw):** to prove an UNCOUNTED engine action was processed (a malformed treat-as-withdraw UPDATE returns in `session_read.go` `processMessage` at 163-171 BEFORE the `onMessageReceived` callback that drives `IncrUpdatesReceived` at `reactor_notify.go`), inject a well-formed COUNTED message (an empty EOR) right after it in the SAME `seq` group on the peer connection. ze processes a connection in TCP order on one session-read goroutine, so the counted message's `updates-received` increment is a deterministic fence proving the uncounted action already ran. The observer waits on `updates-received` instead of sleeping. This realizes the "reject-fence sentinel" decision (Key Design Decisions) concretely, WITHOUT any production change. It applies to any shape where the peer sends the uncounted message on a connection the test drives.
 - **Infra-gated shape (no pollable signal, injected-message technique does NOT apply):** reload-listener-rejected, as112-external-refuses, cos-external-warns prove a rejection/warning observable ONLY as a relayed-stderr line (checked runner-side via `expect=stderr:contains=`), driven by a standalone `wait.py` with no ze_api connection to poll and no peer connection to inject a fence on. Their correctness is ALREADY timing-independent (the runner's stderr expect waits up to the test timeout); only the secondary observer-side check keeps a sleep, and making it deterministic needs a NEW production signal (a plugin-visible reload-processed / external-plugin-exit event). These are the genuine P5 reject-fence INFRA cases.
-- **Session conversions landed 2026-07-14 (baseline 226 -> 204):** rfc7606-withdraw (EOR-fence, 9e2bb1821); remove-private-as x2 (receiver `updates-sent` over the RS fast path per `reactor_notify.go:268`, 16cd29d00); l2tp teardown/show x10 (raw-L2TP driver: pre-ICRQ `sleep(0.05)` -> ICRQ retransmit-until-ICRP(AVP 14) retry loop mirroring the file's SCCRQ loop, plus dropped redundant pre-SCCRQ settle sleeps; 15 sleeps; 8cf13f1c1); cli-commit x2 + rbac-web (hand-rolled readiness poll loops -> `ze_api.wait_until`, ratchet-exempt; 4 sleeps; de83367f0). 22 sleeps removed, each verified 3x+ standalone and concurrently against the prebuilt binary (the tree does not build: a concurrent session broke `internal/component/iface`, so commits used `--unverified`/`--stale-index-ok`).
+- **Session conversions landed 2026-07-14 (baseline 226 -> 204):** rfc7606-withdraw (EOR-fence, 9e2bb1821); remove-private-as x2 (receiver `updates-sent` over the RS fast path per `reactor_notify.go`, 16cd29d00); l2tp teardown/show x10 (raw-L2TP driver: pre-ICRQ `sleep(0.05)` -> ICRQ retransmit-until-ICRP(AVP 14) retry loop mirroring the file's SCCRQ loop, plus dropped redundant pre-SCCRQ settle sleeps; 15 sleeps; 8cf13f1c1); cli-commit x2 + rbac-web (hand-rolled readiness poll loops -> `ze_api.wait_until`, ratchet-exempt; 4 sleeps; de83367f0). 22 sleeps removed, each verified 3x+ standalone and concurrently against the prebuilt binary (the tree does not build: a concurrent session broke `internal/component/iface`, so commits used `--unverified`/`--stale-index-ok`).
 - **Remaining 204, by category + owner:** QEMU-gated needs-linux bulk (~150; requires `make ze-qemu-needs-linux-test`, unavailable on darwin); P0-blocked redistribute (7 tests + api-raw/route-refresh) -> `plan/spec-fixit-redistribute-establishment-stall.md`; infra-gated reject-fence cases (reload-listener-rejected, as112/cos-external) -> `plan/spec-fixit-reject-fence-observability.md`; a deliberate-window timer (concurrent-config-commit `sleep(3)` IS the concurrency race window, keep); raw-protocol pacing left as-is (bfd-* 0.05 BFD control loop, exabgp-bridge-sdk startup with no clear readiness signal). Blind-converting the QEMU bulk without a Linux env is explicitly NOT done: unverified sleep conversions would violate this spec's own verification principle.
 
 ## Core Insight
@@ -366,7 +366,7 @@ Baseline: 246 -> 223. Remaining 223 are categorized in Design Insights (QEMU-gat
 
 **The blocker was the HOST, and it is gone.** Every "cannot verify here" note above
 says *darwin*. This session ran on Linux with passwordless sudo, `nft`, `tc`,
-`setcap` and QEMU present, so `ZE_NETNS_SUITES` (`mk/test-integration.mk:136` --
+`setcap` and QEMU present, so `ZE_NETNS_SUITES` (`mk/test-integration.mk` --
 firewall, policy, ospf, ospfv3) runs NATIVELY, each test in its own netns, with a
 host-safety check on the nft table set. That is a real verification vehicle for
 exactly the buckets P1 and P3 name. Nothing in the analysis below rests on a skip.
@@ -387,10 +387,10 @@ per-phase assertion still produces the failure message.
 
 **A-1 is RESOLVED and the answer is subtler than the assumption.** `daemon.ready`
 IS a real barrier -- it is written only after every plugin startup phase settled
-(`startup.go:194`, `cmd/ze/hub/main.go:1110-1127`) and the policy plugin's
+(`startup.go`, `cmd/ze/hub/main.go`) and the policy plugin's
 `OnConfigure` applies synchronously. But `applyPolicies`
-(`internal/plugins/policyroute/register.go:181-218`) programs nftables FIRST
-(`:200`) and ip rules/auto routes SECOND (`:204`). So the lead-ins could NOT
+(`internal/plugins/policyroute/register.go`) programs nftables FIRST
+(`:200`) and ip rules/auto routes SECOND. So the lead-ins could NOT
 simply be deleted, and a wait on the nft table would not have covered an
 `ip rule show` assertion. Each converted driver waits on the object IT reads.
 
@@ -408,16 +408,16 @@ simply be deleted, and a wait on the nft table would not have covered an
 built and run:
 | Mutation | Expected | Observed |
 |----------|----------|----------|
-| skip `firewall.ApplyAll` (register.go:200) | every policy test fails | 6/6 fail |
-| skip `rm.applyAll` (register.go:204) -- ip rules only | ONLY the two reading `ip rule show` fail | exactly 002, 005 |
-| drop set elements (nft/lower_linux.go:191-192) | only the set-element test fails | exactly firewall 009 |
+| skip `firewall.ApplyAll` (register.go) | every policy test fails | 6/6 fail |
+| skip `rm.applyAll` (register.go) -- ip rules only | ONLY the two reading `ip rule show` fail | exactly 002, 005 |
+| drop set elements (nft/lower_linux.go) | only the set-element test fails | exactly firewall 009 |
 Plus three mutations of the helpers themselves against their new unit tests in
 `test/scripts/ze_api_test.py` (wired into `go test` via
 `scripts/dev/python_tests_test.go`), each red.
 
 **Found while verifying, deferred:** `make ze-netns-test` reports
 `ddos-local-withdraw` as failing, and that is the TARGET's defect. It depends on
-`$(ZEBIN_ZE)`, the production binary, which `mk/test-integration.mk:548` says has
+`$(ZEBIN_ZE)`, the production binary, which `mk/test-integration.mk` says has
 "neither zetest nor ze_test" -- so the `ddos/fake` node the test configures does
 not exist and the daemon dies with `unknown field in ddos: fake`. Against a
 zetest-tagged DUT the same test passes in 653ms. The target also cannot run

@@ -295,7 +295,7 @@ func checkFileSizes(root string) {
 		if isTestFile(path) {
 			return
 		}
-		// 1000 is the ONLY threshold (ai/rules/file-modularity.md, Thomas 2026-08-01).
+		// 1000 is the ONLY threshold (ai/rules/go-standards.md, Thomas 2026-08-01).
 		// A 600-line WARN used to sit below this. It fired on cohesive single-concern files.
 		lines := countLines(path)
 		if lines > 1000 {

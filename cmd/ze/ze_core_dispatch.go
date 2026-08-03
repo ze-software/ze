@@ -398,7 +398,7 @@ func zeDispatch(args []string) int {
 
 	// `-` is a closed position-1 sentinel: read the config from stdin (the
 	// universal Unix convention). It cannot collide with any command name, so it
-	// satisfies R1's keywords-before-values invariant (ai/rules/cli-grammar.md).
+	// satisfies R1's keywords-before-values invariant (ai/rules/cli.md).
 	// A free-form config PATH at position 1 was REMOVED by
 	// spec-fixit-config-file-positional-grammar: use `ze start <config-file>`.
 	if arg == "-" {

@@ -18,7 +18,7 @@
 // below therefore carries its own positive control: an assertion that the counter DOES
 // move for the case that must match. Without it a broken fixture would read as "the
 // policy was correctly absent" and every assertion here would pass vacuously
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 
 //go:build integration && linux
 

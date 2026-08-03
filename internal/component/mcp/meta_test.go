@@ -188,7 +188,7 @@ func TestParseRequestMeta(t *testing.T) {
 // VALIDATES: the zero clientCapabilities denies every gated capability, and a
 // client naming a SERVER capability declares nothing this server gates on.
 // PREVENTS: reintroducing a capability shape whose zero value reads as
-// "supported" (R-3, ai/rules/fail-closed-guards.md), and re-adding a
+// "supported" (R-3, ai/rules/evidence.md), and re-adding a
 // client-side gate on a server capability under a new name.
 func TestZeroClientCapabilitiesDenies(t *testing.T) {
 	var zero clientCapabilities

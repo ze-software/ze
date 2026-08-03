@@ -46,7 +46,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
   → Constraint: VRF enslavement mirrors bridge-port enslavement but binds a routing table; today `LinkSetMaster` is used only for bridge ports.
 - [ ] `internal/plugins/policyroute/` - existing ip-rule / fwmark machinery (independent mark range).
   → Constraint: VRF table selection must coordinate with, not collide with, policyroute's fwmark range.
-- [ ] `ai/rules/qemu-testing.md` - VRF is Linux-only; QEMU integration tests are mandatory.
+- [ ] `ai/rules/platform-linux.md` - VRF is Linux-only; QEMU integration tests are mandatory.
   → Constraint: never skip QEMU tests for "needs hardware".
 
 ### RFC Summaries (MUST for protocol work)
@@ -58,8 +58,8 @@ This skeleton tracks the gap; it is NOT ready to implement.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/iface/netlink/bridge_linux.go` - `LinkSetMaster` is used only for bridge ports (bridge_linux.go:40), never for VRF; there is no `netlink.Vrf` device creation anywhere in the netlink backend.
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - per-unit `leaf vrf { type string; }` (ze-iface-conf.yang:246-251); bare string, no validation, no completion. It is the only `vrf` reference in the iface component/plugin.
+- [ ] `internal/plugins/iface/netlink/bridge_linux.go` - `LinkSetMaster` is used only for bridge ports (bridge_linux.go), never for VRF; there is no `netlink.Vrf` device creation anywhere in the netlink backend.
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - per-unit `leaf vrf { type string; }` (ze-iface-conf.yang); bare string, no validation, no completion. It is the only `vrf` reference in the iface component/plugin.
 - [ ] `internal/plugins/policyroute/rules_linux.go` - the only ip-rule/fwmark machinery, with its own independent mark range; no VRF or table linkage.
 
 **Behavior to preserve:**
@@ -245,5 +245,5 @@ This skeleton tracks the gap; it is NOT ready to implement.
 
 The planned `internal/plugins/iface/netlink/vrf_linux.go` (Files to Create) now falls inside two gates the followup wave added or widened:
 
-- `ze-platform-vet` (`Makefile:337-341`; live stage at `scripts/status/verify_run.go:128`, `:141`) vets `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd. The `_linux.go` suffix excludes the file itself from those builds, but any VRF symbol referenced from non-suffixed backend code needs an `_other.go` counterpart (matching the existing `default_other.go`/`backend_other.go` pattern) or the vet fails.
-- `ze-iface-resolution-check` (`Makefile:310-311`; gate source `scripts/checks/iface_resolution.go`) forbids direct kernel name resolution (`LinkByName`, `net.InterfaceByName`, SIOCGIFINDEX) outside an allowlist. `internal/plugins/iface/netlink/` is allowlisted as "the single kernel owner" (`scripts/checks/iface_resolution.go:46`), so VRF device creation and enslavement code placed there is covered by the existing entry. However, any VRF-related resolution added OUTSIDE that tree (e.g. in the sysrib/policyroute table integration this spec plans) must go through the shared resolver (`internal/component/iface/resolve.go:65` Resolve, `:71` Addresses, `:80` Subscribe) or the gate fails.
+- `ze-platform-vet` (`Makefile:337-341`; live stage at `scripts/status/verify_run.go`, `:141`) vets `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd. The `_linux.go` suffix excludes the file itself from those builds, but any VRF symbol referenced from non-suffixed backend code needs an `_other.go` counterpart (matching the existing `default_other.go`/`backend_other.go` pattern) or the vet fails.
+- `ze-iface-resolution-check` (`Makefile:310-311`; gate source `scripts/checks/iface_resolution.go`) forbids direct kernel name resolution (`LinkByName`, `net.InterfaceByName`, SIOCGIFINDEX) outside an allowlist. `internal/plugins/iface/netlink/` is allowlisted as "the single kernel owner" (`scripts/checks/iface_resolution.go`), so VRF device creation and enslavement code placed there is covered by the existing entry. However, any VRF-related resolution added OUTSIDE that tree (e.g. in the sysrib/policyroute table integration this spec plans) must go through the shared resolver (`internal/component/iface/resolve.go` Resolve, `:71` Addresses, `:80` Subscribe) or the gate fails.

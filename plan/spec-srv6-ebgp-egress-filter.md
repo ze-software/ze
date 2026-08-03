@@ -9,9 +9,9 @@
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 all citations below updated in-body to the verified current lines --
-`AcceptSRv6PrefixSID` `peersettings.go:412`, egress insertion points
-`reactor_api_forward.go:524-525` and `forward_rs.go:365-366`,
-`ze-bgp-conf.yang:479`; `config.go:300` unchanged. These reactor files are
+`AcceptSRv6PrefixSID` `peersettings.go`, egress insertion points
+`reactor_api_forward.go` and `forward_rs.go`,
+`ze-bgp-conf.yang`; `config.go` unchanged. These reactor files are
 churny: re-verify by symbol at implementation start). (Re-verified
 2026-07-23 after the origin/main fast-forward to 822029463: `forward_rs.go`
 grew, moving its `applyFactsNextHop`/`applyFactsSendCommunity` pair
@@ -24,8 +24,8 @@ grew, moving its `applyFactsNextHop`/`applyFactsSendCommunity` pair
 2. `.claude/rules/planning.md` - workflow rules
 3. `rfc/short/rfc8669.md` - Section 4/5/8: EBGP propagation rules
 4. `internal/component/bgp/reactor/peer_forward_facts.go` - egress fact precomputation + apply
-5. `internal/component/bgp/reactor/reactor_api_forward.go:524-525` - egress pipeline insertion point
-6. `internal/component/bgp/reactor/forward_rs.go:365-366` - RS egress pipeline insertion point
+5. `internal/component/bgp/reactor/reactor_api_forward.go` - egress pipeline insertion point
+6. `internal/component/bgp/reactor/forward_rs.go` - RS egress pipeline insertion point
 
 ## Task
 
@@ -63,11 +63,11 @@ AS boundaries.
 ### Key source files
 
 - `internal/component/bgp/reactor/peer_forward_facts.go` - egress fact precomputation (pattern to follow)
-- `internal/component/bgp/reactor/reactor_api_forward.go:524-525` - egress pipeline insertion point
-- `internal/component/bgp/reactor/forward_rs.go:365-366` - RS egress pipeline insertion point
-- `internal/component/bgp/reactor/peersettings.go:412` - `AcceptSRv6PrefixSID` (ingress counterpart)
-- `internal/component/bgp/reactor/config.go:300` - config resolution for ingress counterpart
-- `internal/component/bgp/yang/ze-bgp-conf.yang:479` - YANG leaf for ingress counterpart
+- `internal/component/bgp/reactor/reactor_api_forward.go` - egress pipeline insertion point
+- `internal/component/bgp/reactor/forward_rs.go` - RS egress pipeline insertion point
+- `internal/component/bgp/reactor/peersettings.go` - `AcceptSRv6PrefixSID` (ingress counterpart)
+- `internal/component/bgp/reactor/config.go` - config resolution for ingress counterpart
+- `internal/component/bgp/yang/ze-bgp-conf.yang` - YANG leaf for ingress counterpart
 
 ## Required Reading
 
@@ -99,14 +99,14 @@ AS boundaries.
 **Source files read:**
 - [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - precomputes nhMode, scMask; applies via applyFactsNextHop, applyFactsSendCommunity. PrefixSID suppress only on NH change (line 233).
   -> Constraint: new fact must follow precompute + apply pattern
-- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:524-525` - calls applyFactsNextHop then applyFactsSendCommunity in ForwardUpdate per-peer loop
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - calls applyFactsNextHop then applyFactsSendCommunity in ForwardUpdate per-peer loop
   -> Constraint: insertion point for new applyFactsPrefixSID is after line 517
-- [ ] `internal/component/bgp/reactor/forward_rs.go:365-366` - same pattern in RS path
+- [ ] `internal/component/bgp/reactor/forward_rs.go` - same pattern in RS path
   -> Constraint: must add call in both paths
-- [ ] `internal/component/bgp/reactor/peersettings.go:412` - AcceptSRv6PrefixSID bool field
-- [ ] `internal/component/bgp/reactor/config.go:300` - mapBool(sessionMap, "accept-srv6-prefix-sid")
-- [ ] `internal/component/bgp/reactor/session_validation.go:81` - ingress EBGP filter via DiscardEntries
-- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang:479` - YANG leaf accept-srv6-prefix-sid
+- [ ] `internal/component/bgp/reactor/peersettings.go` - AcceptSRv6PrefixSID bool field
+- [ ] `internal/component/bgp/reactor/config.go` - mapBool(sessionMap, "accept-srv6-prefix-sid")
+- [ ] `internal/component/bgp/reactor/session_validation.go` - ingress EBGP filter via DiscardEntries
+- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - YANG leaf accept-srv6-prefix-sid
 
 **Behavior to preserve:**
 - Ingress filtering via `accept-srv6-prefix-sid` (unchanged)
@@ -214,12 +214,12 @@ AS boundaries.
 | N/A | | | Egress attribute suppression is a local policy decision; interop is validated by functional encode tests proving the wire format is correct | |
 
 ## Files to Modify
-- `internal/component/bgp/yang/ze-bgp-conf.yang:484` - add `leaf propagate-srv6-prefix-sid` after `accept-srv6-prefix-sid`
-- `internal/component/bgp/reactor/peersettings.go:412` - add `PropagateSRv6PrefixSID bool` after `AcceptSRv6PrefixSID`
-- `internal/component/bgp/reactor/config.go:300` - add `mapBool(sessionMap, "propagate-srv6-prefix-sid")` resolution
+- `internal/component/bgp/yang/ze-bgp-conf.yang` - add `leaf propagate-srv6-prefix-sid` after `accept-srv6-prefix-sid`
+- `internal/component/bgp/reactor/peersettings.go` - add `PropagateSRv6PrefixSID bool` after `AcceptSRv6PrefixSID`
+- `internal/component/bgp/reactor/config.go` - add `mapBool(sessionMap, "propagate-srv6-prefix-sid")` resolution
 - `internal/component/bgp/reactor/peer_forward_facts.go` - add `suppressPrefixSID bool` field, `precomputePrefixSIDSuppression()`, `applyFactsPrefixSID()`
-- `internal/component/bgp/reactor/reactor_api_forward.go:517` - call `applyFactsPrefixSID()` after `applyFactsSendCommunity()`
-- `internal/component/bgp/reactor/forward_rs.go:341` - call `applyFactsPrefixSID()` after `applyFactsSendCommunity()`
+- `internal/component/bgp/reactor/reactor_api_forward.go` - call `applyFactsPrefixSID()` after `applyFactsSendCommunity()`
+- `internal/component/bgp/reactor/forward_rs.go` - call `applyFactsPrefixSID()` after `applyFactsSendCommunity()`
 - `internal/component/bgp/reactor/peer_forward_facts_test.go` - add unit tests
 
 ### Integration Checklist

@@ -813,7 +813,7 @@ func TestStopPublishesTheDisconnect(t *testing.T) {
 	// PREVENTS: enqueueLocked's nil check passing on a socket stop() has already
 	// closed. The producer was told its message was queued, onto a queue whose
 	// drain has exited and will never write it -- a silent drop reported as
-	// success (ai/rules/fail-closed-guards.md).
+	// success (ai/rules/evidence.md).
 	conn := newRecordingConn()
 	ss := newTestSession(t, "stopped", conn)
 

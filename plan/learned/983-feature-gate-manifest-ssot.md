@@ -34,9 +34,9 @@ its trap were scheduled to repeat five times.
   `.golangci.yml` `build-tags` is static YAML (golangci-lint cannot read a file), so
   `dep_audit.py --check` adds `golangci_drift_gate`: the lint build-tags MUST equal
   `ze_core` + every manifest gate tag, and it names the missing tag on failure.
-- **A discoverable rule, not tribal knowledge.** `ai/rules/feature-gate-registration.md`
+- **A discoverable rule, not tribal knowledge.** `ai/rules/plugins.md`
   documents the manifest workflow + the two registration shapes (construction registry
-  vs ssh-style seam) + banned patterns; `module-tiers.md`'s stale "five places" text
+  vs ssh-style seam) + banned patterns; `architecture.md`'s stale "five places" text
   was corrected to point at the manifest.
 
 ## Reusable lesson
@@ -58,7 +58,7 @@ registry being dynamic does not mean the build-time wiring is: audit both halves
   `discoverSchemaPackages` emits no import for it so the entry never matches.
 - The pre-existing `// Design:` anchors on the feature-gate service files pointed at
   `docs/architecture/cli/plugin-modes.md` (BGP plugin CLI modes), not the construction
-  registry. Repointed to `ai/rules/feature-gate-registration.md` (anchors to `ai/rules/`
+  registry. Repointed to `ai/rules/plugins.md` (anchors to `ai/rules/`
   are an accepted convention, e.g. `bufpool.go`).
 
 ## Files

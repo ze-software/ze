@@ -112,7 +112,7 @@ func originatorIDHandler() filterapi.AttrModHandler {
 		// But it is refused OUT LOUD. Reading Set alone discarded the operation
 		// in silence, which is precisely how the community handler shipped a
 		// live fail-open: consumed, ignored, re-emitted, nothing said
-		// (ai/rules/fail-closed-guards.md). No producer suppresses code 9 today.
+		// (ai/rules/evidence.md). No producer suppresses code 9 today.
 		if p.Source() != nil {
 			if suppress {
 				fwdLogger().Warn("ORIGINATOR_ID suppression refused: RFC 4456 Section 8 requires the value to be preserved unchanged through the reflection chain",

@@ -13,7 +13,7 @@ one lint tag, `make generate`, three build-tag tests, and docs.
 ## Decisions
 
 - **VRRP is the simplest gated-plugin shape (ldp/rsvpte class), NOT the isis/ospf class.**
-  It registers its CLI through the plugin registry's `reg.CLIHandler` (register.go:81),
+  It registers its CLI through the plugin registry's `reg.CLIHandler` (register.go),
   not a programmatic `cli` dispatch package, so `grep vrrp cmd/ze/*.go` is empty and it
   needs NO `cmd/ze/dispatch_vrrp.go` companion. Only ONE composition root (generated
   `all.go`), so gating is purely blank-import partitioning.
@@ -45,7 +45,7 @@ one lint tag, `make generate`, three build-tag tests, and docs.
 
 - Proves the "routing-protocol" gating shape in 995 is not protocol-specific: it applies
   to any self-registering `internal/plugins/` engine + `transport` sidecar with
-  registry-based CLI. Documented as such in `ai/rules/feature-gate-registration.md`.
+  registry-based CLI. Documented as such in `ai/rules/plugins.md`.
 - A stripped binary drops the vrrp engine/FSM/packet/transport/schema and rejects a
   `vrrp {}` block under an interface unit as an unknown field (proven by nm + a parse test).
 - The `ze explain` catalogue keeps `doctor-vrrp-raw-socket` and the firewall `"vrrp": 112`
@@ -88,7 +88,7 @@ one lint tag, `make generate`, three build-tag tests, and docs.
 - Modified (feature-tag SSOT): `Makefile` (`generate` runs feature_tags; `ze-feature-tags-check`),
   `.golangci.yml`, `gokrazy/ze/config.json`, `docs/guide/quickstart.md` (now generated),
   `scripts/dev/stress-repro.py` (derives `race_tags`), `ai/CODE-TO-DOCS.md` (regenerated).
-- Modified: `feature-gates.txt` (+2), `docs/features.md` (VRRP row), `ai/rules/feature-gate-registration.md`
+- Modified: `feature-gates.txt` (+2), `docs/features.md` (VRRP row), `ai/rules/plugins.md`
   (inventory + single-plugin/no-dispatch note + consumers-are-generated rewrite),
   `internal/component/plugin/all/all.go` (generated, -3 imports), `ai/DOCS-TO-CODE.md`
   (generated), `cmd/ze/hub/build_tag_protocols_absent_test.go` (+vrrp nm coverage)

@@ -117,14 +117,14 @@ EOF_PEER
 // .ci file (here option=netns, the directive the orphaned test/pppoe/*.ci carried)
 // is rejected by parseOption's fail-closed default branch. The error must name
 // the offending type so the author sees what to fix; a zero value or silent skip
-// would be a false green (ai/rules/fail-closed-guards.md).
+// would be a false green (ai/rules/evidence.md).
 //
 // VALIDATES: AC-4 (spec-fixit-pppoe-orphaned-tests) — parseOption's fail-closed
 // default is not weakened; an unknown option type stays a hard error.
 // PREVENTS: relaxing the default to a warning/skip so stale .ci "parse" quietly.
 //
 // Driven from the parse entry point (parseAndAdd on a real .ci line), not the
-// parseOption helper alone, per ai/rules/fail-closed-guards.md.
+// parseOption helper alone, per ai/rules/evidence.md.
 func TestParseOptionUnknownStillErrors(t *testing.T) {
 	ResetNickCounter()
 

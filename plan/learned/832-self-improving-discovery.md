@@ -27,15 +27,15 @@ Ze had several discovery mechanisms already: generated command inventories, docu
 
 ## Files
 
-- `ai/rules/discovery-updates.md`
+- `ai/rules/repo-maintenance.md`
 - `ai/INSTRUCTIONS.md`
 - `ai/INDEX.md`
 - `ai/NAVIGATION.md`
 - `ai/LEARNED-INDEX.md`
-- `ai/rules/agent-tooling.md`
-- `ai/rules/before-writing-code.md`
-- `ai/rules/documentation.md`
-- `ai/rules/hook-mapping.md`
+- `ai/rules/cli.md`
+- `ai/rules/architecture.md`
+- `ai/rules/writing.md`
+- `ai/rules/repo-maintenance.md`
 - `ai/rules/testing.md`
 - `docs/contributing/documentation-testing.md`
 - `docs/features/ai-first.md`

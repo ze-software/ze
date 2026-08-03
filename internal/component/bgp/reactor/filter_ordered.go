@@ -213,7 +213,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 				// change we could not apply, so accepting the route installs
 				// exactly what the policy exists to reject -- the same
 				// fail-closed shape as the r.api == nil branch above
-				// (ai/rules/fail-closed-guards.md).
+				// (ai/rules/evidence.md).
 				return ingressStepResult{} // accept == false: drop the route
 			}
 			if modPayload != nil {

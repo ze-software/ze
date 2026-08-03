@@ -73,25 +73,25 @@ was pulled into scope rather than left as the only open corner of a small RFC.
 - **`parsePeersFromTree` had a second, non-validating parse of the peer `router-id`, and
   the claim that it was unreachable was wrong.** This summary first said the fallback
   "needs `reloadFunc == nil || ConfigPath == ""` and both are always set". They are not:
-  `internal/component/bgp/config/loader.go:93` gates BOTH `SetConfigPath` and
+  `internal/component/bgp/config/loader.go` gates BOTH `SetConfigPath` and
   `SetReloadFunc` on `configPath != "" && configPath != "-"`, so a stdin config (`ze -`, a
   supported form) leaves both unset and `loadPeersFullOrTree`
-  (`internal/component/bgp/reactor/reactor_api.go:454`) takes the fallback. Fixed
+  (`internal/component/bgp/reactor/reactor_api.go`) takes the fallback. Fixed
   2026-07-27: the fallback now calls the same `parseRouterID` helper as the full pipeline
   and rejects `0.0.0.0`, tested by `TestParsePeersFromTreeRejectsBadRouterID`.
   Do not reason about a fallback's reachability from what its callers "always" do without
-  reading the setter's own guard (`ai/rules/no-fabrication.md`).
+  reading the setter's own guard (`ai/rules/evidence.md`).
 - **Separate, still open: `parsePeersFromTree` reads a peer shape the YANG no longer
   produces.** It expects `remote`, `local`, `receive-hold-time` and `router-id` directly
-  under the peer (`reactor_api.go:701-782`), while `grouping peer-fields` nests them as
+  under the peer (`reactor_api.go`), while `grouping peer-fields` nests them as
   `connection > remote`, `session > router-id` and `timer > receive-hold-time`
-  (`internal/component/bgp/yang/ze-bgp-conf.yang:290-805`) -- which is what the full
-  pipeline `configToPeer` reads (`internal/component/bgp/reactor/config.go:50-51,144`).
+  (`internal/component/bgp/yang/ze-bgp-conf.yang`) -- which is what the full
+  pipeline `configToPeer` reads (`internal/component/bgp/reactor/config.go,144`).
   So on a real YANG tree the fallback fails at `missing required remote container`
-  (`reactor_api.go:703`) before reaching any other leaf, and its `router-id` branch is
+  (`reactor_api.go`) before reaching any other leaf, and its `router-id` branch is
   dead for YANG-shaped trees; only the hand-built trees in the reactor's own tests carry
   the flat shape. The live entry point is the config transaction
-  (`internal/component/bgp/plugin/register.go:208,227` -> `PeerDiffCount` /
+  (`internal/component/bgp/plugin/register.go,227` -> `PeerDiffCount` /
   `ReconcilePeersWithJournal`). Not fixed here: realigning the shape rewrites a function
   whose entire existing test surface encodes the flat form, which needs its own spec.
 

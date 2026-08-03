@@ -23,7 +23,7 @@ Found on 2026-08-02 by the independent review of
 
 A guard that fails open in the test harness is worse than no guard. It converts a
 run that proved nothing into a green bar, and a green bar is what everyone reads.
-`ai/rules/fail-closed-guards.md` states the rule these two break: fail closed or say
+`ai/rules/evidence.md` states the rule these two break: fail closed or say
 something, and a zero value must never be a valid looking answer.
 
 ### Guard 1: a cancelled accept reports success
@@ -56,7 +56,7 @@ spec must survey them rather than fix the one instance found.
 
 | Document | Why |
 |----------|-----|
-| `ai/rules/fail-closed-guards.md` | The rule both guards break, and the shape of the repair |
+| `ai/rules/evidence.md` | The rule both guards break, and the shape of the repair |
 | `ai/rules/testing.md` | Observer-exit antipattern, and how a harness hides a broken production path |
 | `internal/test/peer/peer_connmap.go` | Guard 1's producing function |
 | `test/scripts/ze_api.py` | Guard 2's producing function and its timeout contract |
@@ -65,7 +65,7 @@ spec must survey them rather than fix the one instance found.
 
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `internal/test/peer/peer_connmap.go` - `acceptConnMapBatch` returns `Result{Success: true}` on a context-cancelled accept
-- [ ] `test/scripts/ze_api.py:1766` - `eor_timeout: float = 30.0`, with the fail-closed contract documented at `:1786`
+- [ ] `test/scripts/ze_api.py` - `eor_timeout: float = 30.0`, with the fail-closed contract documented at `:1786`
 - [ ] `test/plugin/bgp-rs-relay-aspath-transparency.ci` - foreground timeout of 20 seconds
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
@@ -77,7 +77,7 @@ spec must survey them rather than fix the one instance found.
 - A cancelled accept must not report success unless the checker completed.
 - A harness timeout must be reachable, or the harness must not advertise it.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A `.ci` file's `timeout=` directive, and the test runner's context deadline.
@@ -112,7 +112,7 @@ branch is unreachable.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -124,7 +124,7 @@ branch is unreachable.
 
 | ID | Risk | Mitigation |
 |----|------|-----------|
-| R-1 | Tightening guard 1 turns load-sensitive tests red | Run the suite under parallelism before and after, and read `ai/rules/flaky-under-load.md` |
+| R-1 | Tightening guard 1 turns load-sensitive tests red | Run the suite under parallelism before and after, and read `ai/rules/testing.md` |
 | R-2 | Lowering `eor_timeout` makes a slow but correct replay fail | Derive the observer timeout from the `.ci` timeout rather than picking a second constant |
 
 ## Blast Radius
@@ -228,7 +228,7 @@ into a green bar, so the harness is exactly where this work belongs.
 
 Two timeouts that must be ordered, chosen independently in two files, will drift. The
 repair is to derive one from the other, not to pick better constants
-(`ai/rules/derive-not-hardcode.md`).
+(`ai/rules/evidence.md`).
 
 ## Key Design Decisions
 

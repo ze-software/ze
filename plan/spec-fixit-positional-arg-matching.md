@@ -18,7 +18,7 @@
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/deferral-tracking.md)
+     Deferral shard: every deferred item lands there (ai/rules/planning.md)
      and closure must resolve its rows, so name the file from the start. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -28,20 +28,20 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **`validateCommandArgs` cannot accept the documented positional form of several
 commands.**
 
-Phase 2 positional matching (`internal/component/plugin/server/command.go:716-750`)
+Phase 2 positional matching (`internal/component/plugin/server/command.go`)
 only matches `ArgEnum`, `ArgUnion` and `ArgString` defs, so a mandatory non-string
 leaf can never be filled positionally. Separately, where the command's own noun is
 the **last** key token, `matchCommandTokens` has no interior slot, so no selector is
-extracted and the `RequiresSelector` guard (`command.go:570`) rejects the command
+extracted and the `RequiresSelector` guard (`command.go`) rejects the command
 outright.
 
 Three failing invocations, all verified live against a running daemon:
 
 | Invocation | Result | Producer |
 |------------|--------|----------|
-| `show tcp-check 127.0.0.1 1 timeout 2s` | `required argument missing: port` | `port` is `uint16 mandatory`, `internal/plugins/diag/yang/ze-diag-cmd.yang:24` |
+| `show tcp-check 127.0.0.1 1 timeout 2s` | `required argument missing: port` | `port` is `uint16 mandatory`, `internal/plugins/diag/yang/ze-diag-cmd.yang` |
 | `delete bgp peer 127.0.0.1` | `delete bgp peer requires a selector` | `peer` is the terminal key token, so no interior selector slot exists |
-| `show interface rate nonexistent-iface` | the `show interface` usage text | `show interface`'s implicit selector swallows `rate` before the handler's arg switch sees it, `internal/component/iface/cmd/show_interface.go:52` |
+| `show interface rate nonexistent-iface` | the `show interface` usage text | `show interface`'s implicit selector swallows `rate` before the handler's arg switch sees it, `internal/component/iface/cmd/show_interface.go` |
 
 **Goal.** One dispatcher that accepts every command's documented form. A fix has to
 make Phase 2 positionally match numeric/typed ArgDefs **and** let `RequiresSelector`
@@ -86,7 +86,7 @@ is red on the same root cause.
 **Behavior to change:** (only what the user asked for)
 - [list, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - [Where data enters: wire bytes, API command, config, plugin message]
@@ -111,7 +111,7 @@ is red on the same root cause.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -212,16 +212,16 @@ is red on the same root cause.
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
 | CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli-grammar.md` |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
 | Editor autocomplete | | Automatic for YANG enum/type leaves; dynamic values need `CompleteFn` |
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/pipe-completeness.md` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 
@@ -238,7 +238,7 @@ is red on the same root cause.
 | 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
 | 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | | `docs/comparison.md` |

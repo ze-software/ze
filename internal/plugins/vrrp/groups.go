@@ -163,7 +163,7 @@ func (g GroupSpec) Key() string {
 }
 
 // describe names the group for diagnostics: every error message must locate the
-// offending config node for the operator (ai/rules/error-messages.md). The name
+// offending config node for the operator (ai/rules/cli.md). The name
 // is what the operator typed, so it leads; the vrid follows because it is what
 // the peers see, and is omitted while it is still unknown (the error that
 // reports a MISSING vrid must not claim the group has vrid 0).

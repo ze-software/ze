@@ -11,6 +11,7 @@ package shape
 import (
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -58,15 +59,26 @@ type responder struct {
 	gen        int // responder-level monotonic timer generation (globally unique)
 	afterFunc  func(time.Duration, func()) stopper
 	m          *shapeMetrics
+	// published mirrors the armed set and the kill-switch for readers that must
+	// not wait on mu. mu is held across reinstall/revertAll, and those reconcile
+	// the kernel: a reader taking mu waited out a netlink round trip. show
+	// anomaly-shape is such a reader (show.go handleShowAnomalyShape ->
+	// statusSnapshot()). Written under mu by publishStatus, read lock-free by
+	// statusSnapshot. Design: plan/spec-fixit-firewall-concurrency-deadlock.md D-4.
+	published atomic.Pointer[shapeStatus]
 }
 
 func newResponder(cfg *Config) *responder {
-	return &responder{
+	r := &responder{
 		cfg:       cfg,
 		armed:     make(map[netip.Prefix]*armedRecord),
 		afterFunc: func(d time.Duration, f func()) stopper { return time.AfterFunc(d, f) },
 		m:         loadMetrics(),
 	}
+	// Publish the idle snapshot before the responder is reachable, so
+	// statusSnapshot never has to interpret a nil pointer.
+	r.publishStatus()
+	return r
 }
 
 func (r *responder) ttl() time.Duration {
@@ -172,6 +184,7 @@ func (r *responder) killSwitch() {
 	defer r.mu.Unlock()
 	r.revertAll()
 	r.killed = true
+	r.publishStatus()
 	if r.m != nil {
 		r.m.killswitch.Inc()
 	}
@@ -203,11 +216,28 @@ func (r *responder) revertAll() {
 	r.gauge()
 }
 
-// gauge publishes the current armed count. Caller holds mu.
+// gauge publishes the current armed count to the metric and republishes the
+// status snapshot. Caller holds mu. Both readers want the same fact, and every
+// path that changes the armed set (reinstall, revertAll) already calls this, so
+// keeping them together is what makes a missed republish impossible. killSwitch
+// republishes again for the kill-switch flag, which it sets after revertAll.
 func (r *responder) gauge() {
 	if r.m != nil {
 		r.m.armed.Set(float64(r.armedCount))
 	}
+	r.publishStatus()
+}
+
+// publishStatus republishes the lock-free snapshot statusSnapshot reads. Caller
+// holds mu.
+func (r *responder) publishStatus() {
+	armed := make([]string, 0, len(r.armed))
+	for p := range r.armed {
+		armed = append(armed, p.String())
+	}
+	r.published.Store(&shapeStatus{
+		Mode: r.cfg.Mode, Killed: r.killed, Action: r.cfg.Action, ArmedList: armed,
+	})
 }
 
 // reinstall re-registers the owner's whole table set from the current armed map.
@@ -224,7 +254,12 @@ func (r *responder) reinstall() {
 	r.gauge()
 }
 
-// shapeStatus is the read-only view surfaced by show anomaly-shape.
+// shapeStatus is one immutable snapshot of the responder's mode, kill-switch and
+// armed set. Never mutated after Store; publishStatus builds a new value on every
+// change. ArmedList makes that a two-sided property, unlike the pointer-only
+// snapshots of ddos/local and ddos/flowspec: the slice header is copied by value
+// but the backing array is not, so statusSnapshot hands out a copy of the list
+// rather than let a reader reach it.
 type shapeStatus struct {
 	Mode      string
 	Killed    bool
@@ -232,12 +267,22 @@ type shapeStatus struct {
 	ArmedList []string
 }
 
+// statusSnapshot returns the published view for the show handler. It takes NO
+// lock on purpose -- mu is held across the firewall reconcile, so reading
+// through it would make show anomaly-shape wait out a netlink round trip.
+//
+// The returned view owns its ArmedList: returning *s alone would share the
+// backing array with the published snapshot and with every other concurrent
+// reader, so one reader sorting or truncating in place would rewrite what all of
+// them report. The copy is one allocation on a management-plane read.
 func (r *responder) statusSnapshot() shapeStatus {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	armed := make([]string, 0, len(r.armed))
-	for p := range r.armed {
-		armed = append(armed, p.String())
+	if s := r.published.Load(); s != nil {
+		out := *s
+		out.ArmedList = slices.Clone(s.ArmedList)
+		return out
 	}
-	return shapeStatus{Mode: r.cfg.Mode, Killed: r.killed, Action: r.cfg.Action, ArmedList: armed}
+	// Unreachable: newResponder publishes the idle snapshot before the responder
+	// is shared. An empty view claims no armed source, which is the fail-closed
+	// reading for a responder that has installed nothing.
+	return shapeStatus{ArmedList: []string{}}
 }

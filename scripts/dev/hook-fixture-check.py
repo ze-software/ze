@@ -21,7 +21,7 @@ dir. That harness cannot exercise the three hooks this runner covers:
 
 Sections come from the SECTIONS registry at the bottom of this file, and --help
 derives the list from it. A hardcoded copy here drifted twice and missed half the
-sections, so this file keeps no second list (ai/rules/derive-not-hardcode.md).
+sections, so this file keeps no second list (ai/rules/evidence.md).
 
     python3 scripts/dev/hook-fixture-check.py                 # all sections
     python3 scripts/dev/hook-fixture-check.py --help          # list the sections
@@ -279,7 +279,7 @@ def run_validate_spec(results: Results) -> None:
     # different one. Called via argv the hook gets no stdin, so TOOL_NAME is
     # empty and the pre-fix script exited 0 -- reporting "valid" for a spec it
     # had not read. Drive a spec that is structurally INVALID: a pass here can
-    # only mean no check ran. See ai/rules/fail-closed-guards.md.
+    # only mean no check ran. See ai/rules/evidence.md.
     rc, err = _run_validate_spec(script, malformed, argv=["@SPEC@"])
     results.check(
         "validate-spec-argv-no-stdin-refuses",
@@ -309,7 +309,7 @@ def run_validate_spec(results: Results) -> None:
     base = _VALID_SPEC.replace("@ARROW@", "->")
     _CB = "## Current Behavior\n\n- [ ] `internal/x/y.go`"
 
-    # T-1 (AC-1): a citation carrying a line number is the form no-fabrication.md
+    # T-1 (AC-1): a citation carrying a line number is the form evidence.md
     # mandates; the old regex required the backtick to END in the extension, so a
     # trailing :line defeated the match. Must now be ACCEPTED.
     rc, err = _run_validate_spec(
@@ -419,7 +419,7 @@ def run_validate_spec(results: Results) -> None:
 
     # T-1 MUST-NOT-FIRE (AC-7, review ISSUE-1): an empty-basename citation `.go`
     # is garbage, not a real source path, and must be REJECTED. The basename `+`
-    # (not `*`) closes the zero-value-looks-valid hole (fail-closed-guards.md).
+    # (not `*`) closes the zero-value-looks-valid hole (evidence.md).
     rc, err = _run_validate_spec(
         script, base.replace(_CB, "## Current Behavior\n\n- [ ] `.go`")
     )
@@ -467,7 +467,7 @@ def run_validate_spec(results: Results) -> None:
 
     # --- placeholder guards are status-aware --------------------------------
     # A `skeleton` spec is the documented shape of a deferral holder: fill Task,
-    # leave the rest (ai/rules/deferral-tracking.md). Blocking its placeholders
+    # leave the rest (ai/rules/planning.md). Blocking its placeholders
     # made a correctly-authored skeleton un-editable. From `design` onward the
     # author IS claiming the section is written, so the same text must block.
     _placeholder = base.replace(
@@ -614,7 +614,7 @@ def run_commit_gate(results: Results) -> None:
         shutil.rmtree(repo, ignore_errors=True)
 
     # An assigned destination passes only when the spec it names EXISTS. Both
-    # spellings resolve to the same file, across shards (ai/rules/deferral-tracking.md).
+    # spellings resolve to the same file, across shards (ai/rules/planning.md).
     repo = _init_repo()
     try:
         _write(repo, "plan/spec-foo.md", "# Spec: foo\n")
@@ -959,7 +959,7 @@ def run_commit_gate(results: Results) -> None:
     # --- discovery-index: the ENTRY POINT passes remove_paths through ---
     # E1/E2 above call discovery_index_problems directly, so dropping the argument
     # at create()'s call site leaves them green. Drive the guard from where a user
-    # reaches it (ai/rules/fail-closed-guards.md).
+    # reaches it (ai/rules/evidence.md).
     repo = _init_repo()
     try:
         _seed_learned_repo(repo)
@@ -1379,7 +1379,7 @@ def run_rfc_test_guard(results: Results) -> None:
     # An edit made ONLY of Go import lines passes. New tests need new imports, the import
     # block sits outside every function so the scope widens to the whole file, and the
     # guard used to charge an operator approval for GROWING a tagged file -- which is the
-    # route ai/rules/no-test-deletion.md prescribes (HOOK-FRICTION.md, 2026-08-01).
+    # route ai/rules/testing.md prescribes (HOOK-FRICTION.md, 2026-08-01).
     # These cases need the WIDENED scope, which is the whole file when the edited lines
     # sit outside every function -- exactly where an import block lives. `edit` above
     # cannot produce that: its `fp` does not exist, so _enclosing_tagged_scope gets an
@@ -1843,7 +1843,7 @@ def _run_stop_hook(work: str, message: str | None = None) -> tuple[int, str]:
 
 
 def run_delegation(results: Results) -> None:
-    """ai/rules/spec-delegation.md: a session that claimed a spec and never
+    """ai/rules/planning.md: a session that claimed a spec and never
     spawned an agent ran the phase inline instead of supervising it. The nudge
     must fire on exactly that, WARN rather than block, and stay silent once a
     subagent was spawned or when no spec is claimed."""
@@ -1916,7 +1916,7 @@ def run_delegation(results: Results) -> None:
         )
         results.check(
             "delegation-context-carries-contract",
-            "spec-delegation.md" in r.stdout and "no-fabrication.md" in r.stdout,
+            "planning.md" in r.stdout and "evidence.md" in r.stdout,
             r.stdout,
         )
     finally:
@@ -2350,7 +2350,7 @@ def run_delegation(results: Results) -> None:
 
 
 def run_delegation_reminder(results: Results) -> None:
-    """ai/rules/spec-delegation.md: the harness guard "Do not call the AgentTool
+    """ai/rules/planning.md: the harness guard "Do not call the AgentTool
     unless the user requested it" arrives LAST in the system prompt and wins on
     position. UserPromptSubmit stdout is the only harness position that lands
     after the whole system prompt, so the counter-reminder must reach STDOUT.
@@ -2382,7 +2382,7 @@ def run_delegation_reminder(results: Results) -> None:
     )
     results.check(
         "delegation-reminder-cites-rule",
-        "spec-delegation.md" in r.stdout,
+        "planning.md" in r.stdout,
         repr(r.stdout),
     )
 
@@ -2557,7 +2557,7 @@ def run_phase_gates(results: Results) -> None:
         )
         results.check(
             "review-model-spawn-names-the-rule",
-            "model-selection.md" in r.stderr,
+            "planning.md" in r.stderr,
             repr(r.stderr),
         )
 
@@ -2787,7 +2787,7 @@ def run_phase_gates(results: Results) -> None:
         results.check(
             "review-model-unknown-stands-down", r.returncode == 0, repr(r.stderr)
         )
-        # A guard that cannot deny must SPEAK (ai/rules/fail-closed-guards.md).
+        # A guard that cannot deny must SPEAK (ai/rules/evidence.md).
         results.check(
             "review-model-unknown-says-so",
             "UNCHECKED" in r.stderr,
@@ -2829,7 +2829,7 @@ def run_phase_gates(results: Results) -> None:
         )
         results.check(
             "model-phase-names-the-rule",
-            verdict is not None and "model-selection.md" in verdict[1],
+            verdict is not None and "planning.md" in verdict[1],
             repr(verdict),
         )
         # Markdown is planning and review work. Blocking it would break /ze-spec.

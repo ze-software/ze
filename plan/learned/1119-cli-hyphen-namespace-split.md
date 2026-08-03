@@ -12,7 +12,7 @@ When the left part is an **object/namespace** with members, it is two tokens and
 the left becomes a container node (object-rooted; the tree mirrors the plugin
 tree). `show traffic stat`, not `show traffic-stat`.
 
-Rule prose: `ai/rules/cli-grammar.md` "Compound Token vs Namespace Split".
+Rule prose: `ai/rules/cli.md` "Compound Token vs Namespace Split".
 Check: `grammar.CheckSiblings` (R9) in `internal/component/command/grammar/checker.go`,
 wired into the static gate `scripts/checks/cli_grammar.go`. R9 is the one rule
 that needs sibling context, so it runs ONLY in the static gate (per-command
@@ -115,7 +115,7 @@ dispatch. The command needs a native Linux CI host; its dispatch is otherwise
 covered by `cmd_show_test.go` + the grammar gate.
 
 Harness gotcha found while doing this: the ze-test verbose flag must come BEFORE
-the index (`bgp plugin -v 441`), because Go's `flag.Parse` (`cmd_bgp.go:541`
+the index (`bgp plugin -v 441`), because Go's `flag.Parse` (`cmd_bgp.go`
 `fs.Parse(args[1:])`) stops at the first positional. The `ze-qemu-debug` help
 example `... 79 -v` in `mk/test-integration.mk` is stale and errors with
 `test "-v" not found`.

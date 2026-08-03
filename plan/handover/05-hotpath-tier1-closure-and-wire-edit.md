@@ -7,7 +7,7 @@ follow `.claude/rules/session-start.md`, then read this in full before planning.
 
 `plan/spec-hotpath-alloc-round-4.md` is CODE-COMPLETE and committed, but NOT
 closed. Closure needs an independent review, and the session that wrote the code
-cannot give one (`ai/rules/critical-review.md`). Thomas chose a fresh session
+cannot give one (`ai/rules/planning.md`). Thomas chose a fresh session
 over an in-session review pass for exactly that reason.
 
 That session also ran its implementation on Opus 5 by explicit operator override
@@ -68,7 +68,7 @@ should confirm rather than trust:
    methodology. This is the most reusable finding in the whole effort.
 4. **`wireu.TranscodeASPath` has no destination bounds check.** `copy` truncates
    silently, `PutUint32` panics. The caller carries an undocumented obligation
-   (`ai/rules/api-contracts.md`). Documenting it belongs to wire-edit child 3,
+   (`ai/rules/go-standards.md`). Documenting it belongs to wire-edit child 3,
    which rewrites that function.
 5. **The Deliverables row `grep -n "make(\[\]byte" forward_body.go returns
    nothing`** now contradicts the Boundary Tests row that sanctions the

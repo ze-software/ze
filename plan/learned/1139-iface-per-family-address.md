@@ -13,7 +13,7 @@ following the Junos/Nokia model.
 
 - **No backward compatibility.** The flat `address` leaf-list at unit level was
   removed from YANG and the Go parser. No legacy parsing, no deprecation warning,
-  no migration path. Per `ai/rules/compatibility.md`.
+  no migration path. Per `ai/rules/go-standards.md`.
 - **Renamed structs.** `ipv4Sysctl`/`ipv6Sysctl` became `ipv4Settings`/`ipv6Settings`
   since they now hold addresses alongside sysctl knobs.
 - **Merged flat list preserved.** `unitEntry.Addresses` is still populated as the
@@ -33,7 +33,7 @@ following the Junos/Nokia model.
 - Initially implemented legacy migration (split flat addresses by family) before
   the user clarified no backward compatibility was wanted. Removed cleanly.
 - Created a memory entry for "no backward compat" without checking that
-  `ai/rules/compatibility.md` already covers it. Rule: always grep rules before
+  `ai/rules/go-standards.md` already covers it. Rule: always grep rules before
   creating memories.
 - Left 7 `.ci` parse tests using the old flat `address` in `unit`. Tests that
   reference the changed schema must be updated in the same commit as the schema

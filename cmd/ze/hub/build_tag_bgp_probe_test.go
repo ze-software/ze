@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- shared ze_bgp present/absent probe config
+// Design: ai/rules/plugins.md -- shared ze_bgp present/absent probe config
 
 package hub
 

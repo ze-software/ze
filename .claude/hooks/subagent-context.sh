@@ -2,7 +2,7 @@
 # SubagentStart hook: inject compact project context into every spawned agent.
 # Output is automatically prepended to the agent's context.
 #
-# This exists to make delegation CHEAP. ai/rules/spec-delegation.md requires the
+# This exists to make delegation CHEAP. ai/rules/planning.md requires the
 # main thread to hand every subagent its spec, its phase, and the rules that
 # govern it; when that is manual per-spawn work, delegating costs more than
 # working inline and the rule loses. So the harness supplies it instead.
@@ -45,7 +45,7 @@ Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:
 - JSON keys: kebab-case (exception: lg/handler_api.go for birdwatcher compat)
 - Config pipeline: File -> Tree -> ResolveBGPTree() -> map[string]any -> PeersFromTree()
 - Goroutines: long-lived workers on channels, never per-event
-- Rules: ai/rules/ (buffer-first.md, design-principles.md, plugin-design.md)
+- Rules: ai/rules/ (performance.md, architecture.md, plugins.md)
 - Branch: $BRANCH
 EOF
 
@@ -59,9 +59,9 @@ fi
 
 cat <<'EOF'
 
-You are a subagent under ai/rules/spec-delegation.md. Your contract:
+You are a subagent under ai/rules/planning.md. Your contract:
 - Report FACTS, each cited as file:line, and read the function that PRODUCES a
-  behavior rather than one that consumes it (ai/rules/no-fabrication.md). Your
+  behavior rather than one that consumes it (ai/rules/evidence.md). Your
   report is a claim the main thread will verify, not evidence on its own.
 - You have NO LSP tool and you CANNOT ask the user. If the task genuinely needs
   either, say so in your report and stop rather than guessing.
@@ -69,9 +69,7 @@ You are a subagent under ai/rules/spec-delegation.md. Your contract:
   line each, with its severity and the situation that makes it apply. When a
   trigger matches your task, READ ai/rules/<name>.md before acting on its topic.
   That read is the only way you get the rule: the trigger line is all you hold.
-  ai/rules/CORE.md is already loaded in full and needs no read. When several
-  triggers match at once, ai/rules/CONDENSED.md holds every rule's directives in
-  one file.
-- Never claim done with work remaining (ai/rules/no-partial-completion.md), and
-  never park a blocker or weaken a test to reach green (ai/rules/no-parking.md).
+  ai/rules/CORE.md is already loaded in full and needs no read.
+- Never claim done with work remaining (ai/rules/completion.md), and
+  never park a blocker or weaken a test to reach green (ai/rules/completion.md).
 EOF

@@ -116,7 +116,7 @@ const (
 // deliberately not optional. The compiler forces each handler to receive an
 // identity and a capability set. No nil case is therefore left for a handler
 // to forget, and no "maybe absent" context is left to dereference. Its zero value
-// denies every gated capability (ai/rules/fail-closed-guards.md).
+// denies every gated capability (ai/rules/evidence.md).
 type requestScope struct {
 	// Identity is the authenticated principal. A zero Identity means
 	// "anonymous under auth-mode none". It never means "not authenticated",
@@ -386,7 +386,7 @@ func parseTaskID(raw json.RawMessage) (string, error) {
 //
 // This method is implemented rather than stubbed on purpose. A server that
 // advertises the extension in server/discover and refuses one of its methods
-// claims a shape it does not speak (ai/rules/no-parking.md).
+// claims a shape it does not speak (ai/rules/completion.md).
 func (s *Streamable) tasksUpdate(scope requestScope, req *request) *response {
 	if !scope.Capabilities.Tasks {
 		return s.failMissingTasksCapability(req.ID)
@@ -465,7 +465,7 @@ func (s *Streamable) tasksCancel(scope requestScope, req *request) *response {
 // This is the function that mints a task handle, so it is the last place the
 // guard can sit and still be the guard. A future second call site that forgot
 // the check would otherwise give a task to a client that cannot read one
-// (R-2, ai/rules/fail-closed-guards.md).
+// (R-2, ai/rules/evidence.md).
 func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr string, params callParams) *response {
 	if !scope.Capabilities.Tasks {
 		return s.failMissingTasksCapability(req.ID)

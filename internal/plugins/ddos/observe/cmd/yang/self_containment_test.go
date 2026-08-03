@@ -2,7 +2,7 @@
 // plugin's own YANG, not a central schema.
 // PREVENTS: the command outliving the plugin -- removing internal/plugins/ddos/
 // observe/ must remove the command nodes, their handlers, and this schema
-// together (ai/rules/plugin-self-containment.md).
+// together (ai/rules/plugins.md).
 
 package yang
 

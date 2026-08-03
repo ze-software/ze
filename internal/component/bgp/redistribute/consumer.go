@@ -73,7 +73,7 @@ func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, pref
 // byte-for-byte unchanged. A non-empty community list adds `community [ ... ]`.
 func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []uint32) string {
 	// textbuf.Buffer (128B inline, no heap alloc for the common case) per
-	// ai/rules/no-sprintf-alloc.md; grows automatically when a long community
+	// ai/rules/performance.md; grows automatically when a long community
 	// list overruns the inline array, so no under-provisioned Grow hint.
 	var b textbuf.Buffer
 	b.Reset().Str("update text origin ")

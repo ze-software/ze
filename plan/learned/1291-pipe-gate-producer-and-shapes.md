@@ -2,7 +2,7 @@
 
 ## Context
 
-`ai/rules/bash-output.md` forbids piping an expensive command's output through a
+`ai/rules/commands.md` forbids piping an expensive command's output through a
 lossy filter, because the truncated stream is what you then judge the run by.
 Commit `afb617952` (summary 1287) rescoped the enforcing check from "every
 `| tail`" to "a lossy filter after an expensive producer". Two independent
@@ -40,7 +40,7 @@ to be wrong in ways the author had tested for and missed.
   `scripts/evidence/`, and role-named scripts (check/verify/test/audit/lint/
   stress/repro) under `scripts/{dev,checks,docvalid,status}`. Cheap neighbours in
   those directories (`spec-session.sh`, `session-scratch.sh`) stay usable.
-- `ai/rules/hook-mapping.md` now states the shapes the check deliberately cannot
+- `ai/rules/repo-maintenance.md` now states the shapes the check deliberately cannot
   see -- quotes, `$( )`, `bash -c "..."` -- rather than implying full coverage.
 
 ## Gotchas
@@ -63,4 +63,4 @@ to be wrong in ways the author had tested for and missed.
 - `.claude/hooks/pretool-bash.py` -- `EXPENSIVE_COMMAND`, `EXPENSIVE_SUBCOMMAND`, `LAUNCHERS`, `_is_expensive`, `check_pipe_tail`
 - `.claude/hooks/pretool-writeedit.py` -- `c_generated_files` matches the project root's generated files by path, and resolves a relative `file_path` against the project dir rather than the CWD
 - `scripts/dev/hook-parity-check.py` -- golden cases for the bypass shapes, the producer set, and the negative
-- `ai/rules/hook-mapping.md` -- the pipe-tail and discovery-index rows
+- `ai/rules/repo-maintenance.md` -- the pipe-tail and discovery-index rows

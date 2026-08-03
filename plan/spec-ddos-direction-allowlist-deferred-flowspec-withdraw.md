@@ -43,9 +43,9 @@ max-mitigation-duration", making this a delayed withdraw rather than a permanent
 
 | Claimed clearing path | Reality | Producer |
 |-----------------------|---------|----------|
-| Attack-end clears it | `onCleared` **explicitly ignores** the detector's clear while active, logging "ignoring detector clear while mitigating (leak-probe decides)" | `flowspec/responder.go:203-211` |
-| The leak-probe clears it | `withdraw()` has exactly one caller, `probeTick` (`:221`), and **`probeTick` has no production caller**: its only callers are `responder_test.go:149` and `:223`. `register.go:105-107` subscribes `onDetected`/`onCharacterized`/`onCleared` and nothing else, so there is no ticker and no traffic feed | `flowspec/responder.go:213-238`, `flowspec/register.go:105-107` |
-| `max-mitigation-duration` clears it | Parsed (`:117-119`), defaulted to 3600 (`:57`), range-checked (`:172-173`), and **read nowhere else** | `flowspec/config.go:37,57,117-119,172-173` |
+| Attack-end clears it | `onCleared` **explicitly ignores** the detector's clear while active, logging "ignoring detector clear while mitigating (leak-probe decides)" | `flowspec/responder.go` |
+| The leak-probe clears it | `withdraw()` has exactly one caller, `probeTick`, and **`probeTick` has no production caller**: its only callers are `responder_test.go` and `:223`. `register.go` subscribes `onDetected`/`onCharacterized`/`onCleared` and nothing else, so there is no ticker and no traffic feed | `flowspec/responder.go`, `flowspec/register.go` |
+| `max-mitigation-duration` clears it | Parsed, defaulted to 3600, range-checked, and **read nowhere else** | `flowspec/config.go,57,117-119,172-173` |
 
 So a flowspec announce, once made, is **never withdrawn in production by any path**. The
 withdraw asymmetry this spec was opened for is a symptom of that larger gap, not an
@@ -59,9 +59,9 @@ Three questions therefore precede the two-line fix:
 
 | # | Point | Known constraint |
 |---|-------|------------------|
-| 1 | Decide whether `SuppressMitigation` should withdraw an active announce | The local responder's answer is yes (`local/responder.go:99-109`), and its comment states the reason: "the characterized decision is authoritative" |
-| 2 | Establish whether the leak-probe is meant to be driven, and by what | `probe.Tick` (`probe.go:78-128`) is a complete state machine with no production driver. Either wire its input or record why it is inert |
-| 3 | Decide whether `max-mitigation-duration` is enforced or removed | A validated config leaf that does nothing is a promise the box does not keep. `detect/characterize.go:136` already notes it "is not enforced" for ddos-local |
+| 1 | Decide whether `SuppressMitigation` should withdraw an active announce | The local responder's answer is yes (`local/responder.go`), and its comment states the reason: "the characterized decision is authoritative" |
+| 2 | Establish whether the leak-probe is meant to be driven, and by what | `probe.Tick` (`probe.go`) is a complete state machine with no production driver. Either wire its input or record why it is inert |
+| 3 | Decide whether `max-mitigation-duration` is enforced or removed | A validated config leaf that does nothing is a promise the box does not keep. `detect/characterize.go` already notes it "is not enforced" for ddos-local |
 
 **Provenance.** Recorded as a Review Gate NOTE on `spec-ddos-direction-allowlist`
 2026-07-12; the spec was closed in `0814dc93f` and `git rm`'d, so that NOTE now exists
@@ -79,7 +79,7 @@ the inconsistency rather than remove it.
 ### Architecture Docs
 - [ ] `docs/guide/ddos.md` - blackhole fallback and flowspec response levels
   → Constraint: an operator-visible announce must not outlive the policy that justifies it
-- [ ] `ai/rules/fail-closed-guards.md` - a guard that neither denies nor speaks does not exist
+- [ ] `ai/rules/evidence.md` - a guard that neither denies nor speaks does not exist
   → Constraint: the exemption branch currently logs but leaves state installed; logging is not withdrawing
 - [ ] `plan/learned/1110-ddos-direction-allowlist.md` - the direction/allowlist design
   → Decision: `SuppressMitigation` (not `Mitigate`) so the bool zero value means mitigate, fail-safe
@@ -89,15 +89,15 @@ the inconsistency rather than remove it.
   → Constraint: a flowspec rule is withdrawn by withdrawing its NLRI; there is no implicit expiry on the peer
 
 **Key insights:**
-- `onDetected`'s blackhole fallback is intentionally ungated (`:175-177`), which is exactly why a later characterization must be able to undo it.
+- `onDetected`'s blackhole fallback is intentionally ungated, which is exactly why a later characterization must be able to undo it.
 - The `SuppressMitigation` return at `:163-166` sits **before** the `if r.active` check at `:171`, so an active announce is never even considered. The fix is not only "call withdraw" but "reach the state check at all".
-- `withdraw()` (`:228-238`) already exists and is correct. It is simply unreachable in production. This spec is mostly about reachability, not about writing a withdraw.
-- `probe.Tick` (`probe.go:78-128`) has no internal timer: it advances only when called, which is why an unwired `probeTick` leaves the whole probe state machine inert rather than merely slow.
+- `withdraw()` already exists and is correct. It is simply unreachable in production. This spec is mostly about reachability, not about writing a withdraw.
+- `probe.Tick` (`probe.go`) has no internal timer: it advances only when called, which is why an unwired `probeTick` leaves the whole probe state machine inert rather than merely slow.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/ddos/flowspec/responder.go` - `onCharacterized` (`:154`) returns bare at `:164` on `SuppressMitigation`, at `:161` in alert mode, and at `:169` for local victims; `announce` is called only at the end (`:182`); `onDetected` installs the ungated blackhole fallback
+- [ ] `internal/plugins/ddos/flowspec/responder.go` - `onCharacterized` returns bare at `:164` on `SuppressMitigation`, at `:161` in alert mode, and at `:169` for local victims; `announce` is called only at the end; `onDetected` installs the ungated blackhole fallback
 - [ ] `internal/plugins/ddos/local/responder.go` - the local responder DOES withdraw in the same situation; this is the reference behavior
 - [ ] `internal/core/ddosevent/event.go` - `SuppressMitigation` / `Direction` / `Confidence` carried on the event
 
@@ -105,10 +105,10 @@ the inconsistency rather than remove it.
 - `SuppressMitigation` polarity: the zero value means mitigate (`plan/learned/1110`). A withdraw must never be triggered by a default-constructed event.
 - Alert mode (`ResponseLevel != responseEnforce`) must continue to announce nothing.
 - Non-exempt characterizations must announce exactly as they do today.
-- The withdraw's wire form: `withdraw()` re-renders with mode "del", and `renderFlowspecCommand` omits the traffic-action community for "del" so the withdraw byte-matches the announced NLRI (`responder.go:53-57`, `:229`).
-- `onDetected`'s "await characterization" default: flowspec announces only on the blackhole fallback fast path, never on a normal detect (`responder.go:124-127`, AC-8 of the parent).
-- The local-victim skip: flowspec leaves box-owned victims to on-host mitigation (`:167-170`).
-- The confidence gate on the characterized path only (`:174-181`).
+- The withdraw's wire form: `withdraw()` re-renders with mode "del", and `renderFlowspecCommand` omits the traffic-action community for "del" so the withdraw byte-matches the announced NLRI (`responder.go`, `:229`).
+- `onDetected`'s "await characterization" default: flowspec announces only on the blackhole fallback fast path, never on a normal detect (`responder.go`, AC-8 of the parent).
+- The local-victim skip: flowspec leaves box-owned victims to on-host mitigation.
+- The confidence gate on the characterized path only.
 
 <!-- An earlier draft of this section required that "attack-end and max-mitigation-duration
      withdraw paths must keep working". Do not reinstate it: no such paths exist. See the
@@ -126,7 +126,7 @@ the inconsistency rather than remove it.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `ddosevent.AttackDetected` reaches `onDetected` (may install the blackhole fallback), then `ddosevent.AttackCharacterized` reaches `onCharacterized` (`responder.go:154`).
+- `ddosevent.AttackDetected` reaches `onDetected` (may install the blackhole fallback), then `ddosevent.AttackCharacterized` reaches `onCharacterized` (`responder.go`).
 
 ### Transformation Path
 1. Detector emits `AttackDetected`; policy outcome is already encoded on the event (1110's decision).
@@ -145,15 +145,15 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 | flowspec responder ↔ local responder | independent responders that must agree on exemption semantics | [ ] |
 
 ### Integration Points
-- `internal/plugins/ddos/flowspec/responder.go` `announce` (`:182`) and its withdraw counterpart - the pair that must be symmetric.
+- `internal/plugins/ddos/flowspec/responder.go` `announce` and its withdraw counterpart - the pair that must be symmetric.
 - `internal/plugins/ddos/local/responder.go` - the reference implementation that already withdraws.
-- `r.active` (`:171`) - the responder's installed-state flag the withdraw must respect.
+- `r.active` - the responder's installed-state flag the withdraw must respect.
 
 ### Architectural Verification
 - [ ] No bypassed layers (withdraw goes through the responder's existing announce/withdraw path)
 - [ ] No unintended coupling (flowspec and local responders stay independent)
 - [ ] No duplicated functionality (reuse the existing withdraw, do not add a second one)
-- [ ] Registration over hardcoding — no new per-feature switch in shared ddos code (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — no new per-feature switch in shared ddos code (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -163,8 +163,8 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 | A-1 | An installed blackhole announce SHOULD be withdrawn when a late exemption arrives | The local responder does this; the deferral row calls flowspec's behavior the odd one out | The current behavior is correct and the local responder is the bug; the fix inverts | Confirm intended semantics with Thomas before coding | unvalidated |
 | A-2 | `r.active` accurately reflects whether an announce is installed | `:171` reads it as a guard | The withdraw may fire with nothing installed, or miss one that is | Read the `onDetected` path and every `r.active` write | unvalidated |
 | A-3 | The other two bare returns (`:161` alert mode, `:169` local victim) do not need the same withdraw | Only the `SuppressMitigation` branch was reported | The same defect exists three times and a one-line fix leaves two | Trace each branch against an installed blackhole announce | unvalidated |
-| A-4 | The leak-probe is MEANT to be driven in production and its missing driver is a bug | `probe.Tick` is a complete state machine (`probe.go:78-128`) that nothing calls; `register.go:105-107` wires no ticker or traffic feed | The probe is deliberately inert and the real withdraw design is something else entirely; this spec's scope changes shape | Ask Thomas; check whether a driver was ever specced | unvalidated |
-| A-5 | `max-mitigation-duration` is meant to be enforced for flowspec | It is parsed, defaulted and range-validated (`config.go:37,57,117-119,172-173`) but never read; `detect/characterize.go:136` notes it is unenforced for ddos-local too | The leaf should be removed rather than honored, and the YANG surface changes | Ask Thomas whether the leaf is a promise or a leftover | unvalidated |
+| A-4 | The leak-probe is MEANT to be driven in production and its missing driver is a bug | `probe.Tick` is a complete state machine (`probe.go`) that nothing calls; `register.go` wires no ticker or traffic feed | The probe is deliberately inert and the real withdraw design is something else entirely; this spec's scope changes shape | Ask Thomas; check whether a driver was ever specced | unvalidated |
+| A-5 | `max-mitigation-duration` is meant to be enforced for flowspec | It is parsed, defaulted and range-validated (`config.go,57,117-119,172-173`) but never read; `detect/characterize.go` notes it is unenforced for ddos-local too | The leaf should be removed rather than honored, and the YANG surface changes | Ask Thomas whether the leaf is a promise or a leftover | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -226,7 +226,7 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 - None planned.
 
 ## Files to Modify
-- `internal/plugins/ddos/flowspec/responder.go` - withdraw at the `SuppressMitigation` branch (`:163-166`), which must first reach the `r.active` check now sitting below it at `:171`; address A-3's sibling branches
+- `internal/plugins/ddos/flowspec/responder.go` - withdraw at the `SuppressMitigation` branch, which must first reach the `r.active` check now sitting below it at `:171`; address A-3's sibling branches
 - `internal/plugins/ddos/flowspec/register.go` - a probe driver, if A-4 lands here (`:105-107` is where the three handlers are wired and where a fourth input would go)
 - `internal/plugins/ddos/flowspec/config.go` - `max-mitigation-duration`, if A-5 enforces rather than removes it
 - `plan/learned/1110-ddos-direction-allowlist.md` - record this finding, which the closed spec's Review Gate NOTE carried and the learned summary omitted
@@ -281,7 +281,7 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 | Correctness | flowspec and local responders now agree on exemption semantics |
 | Data flow | The withdraw uses the existing announce/withdraw pair, not a new path |
 | Rule: no-workarounds | Fix the branch, do not paper over it at attack-end |
-| Registration over hardcoding | No new per-feature switch in shared ddos code (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | No new per-feature switch in shared ddos code (`ai/rules/plugins.md`) |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
@@ -307,7 +307,7 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | The finding survived in `plan/learned/1110` | It lived only in the closed spec's Review Gate NOTE and a deferral row; 1110 never recorded it | Grep during the 2026-07-16 deferral sweep | A closed spec's Review NOTE is not a durable home; this spec is |
-| The stranded announce "clears normally on attack-end / max-mitigation-duration", making this minor (asserted by deferral row L63 AND by this spec's own first draft) | No production path withdraws a flowspec announce at all: `onCleared` ignores the clear while active (`:203-211`), `probeTick` has no production caller, and `max-mitigation-duration` is never read | Re-verified at the producers 2026-07-16 while reconciling two drafts of this spec | Severity is understated in the row. The fix's real scope is the responder's missing withdraw reachability, not one branch |
+| The stranded announce "clears normally on attack-end / max-mitigation-duration", making this minor (asserted by deferral row L63 AND by this spec's own first draft) | No production path withdraws a flowspec announce at all: `onCleared` ignores the clear while active, `probeTick` has no production caller, and `max-mitigation-duration` is never read | Re-verified at the producers 2026-07-16 while reconciling two drafts of this spec | Severity is understated in the row. The fix's real scope is the responder's missing withdraw reachability, not one branch |
 | The two drafts of this spec were equivalent, so either could be deleted | They were not: one carried the stale "clears normally" severity, the other carried the producer-verified refutation. Deleting the wrong one would have shipped an implementer a spec instructing them to preserve withdraw paths that do not exist | Diffing the pair before deletion, then verifying each claim at the producer | Never resolve duplicate specs by name alone; diff the content and verify the claims first |
 
 ### Failed Approaches

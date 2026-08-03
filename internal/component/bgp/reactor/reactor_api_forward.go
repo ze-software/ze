@@ -46,7 +46,7 @@ var errAllDestinationsSuppressed = errors.New("all destinations suppressed by eg
 //
 // Every fact that decides the egress transform comes from the SOURCE peer, and a
 // missing source leaves each of them at a zero that downstream reads as a
-// legitimate answer rather than as "unknown" (ai/rules/fail-closed-guards.md):
+// legitimate answer rather than as "unknown" (ai/rules/evidence.md):
 //
 //   - isIBGP=false disables BOTH halves of RFC 4456 Section 8 at once: the
 //     non-client-to-non-client suppression that stops the route being reflected at
@@ -108,7 +108,7 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		//
 		// The suppression is logged because it is otherwise invisible: the caller
 		// is told the EoR was handled, so a plugin author whose EoR never reached
-		// the wire has nothing to grep for (ai/rules/fail-closed-guards.md -- a
+		// the wire has nothing to grep for (ai/rules/evidence.md -- a
 		// guard that neither denies nor speaks does not exist). Cold path: once
 		// per EoR command per peer, never per UPDATE. No counter is added -- the
 		// package's only EoR counters are eorSent/eorReceived, whose documented
@@ -159,7 +159,7 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 // them: sendInitialRoutes iterates nc.Families() only, so a family that is not
 // negotiated never gets a marker at all; and when ShouldQueue is true merely
 // because route operations are still queued after the sync finished, the marker
-// was already sent rather than pending. ai/rules/error-messages.md requires the
+// was already sent rather than pending. ai/rules/cli.md requires the
 // "what to do next" leg to be TRUE, not merely present.
 func logEORSuppressed(peer *Peer, fam family.Family) {
 	addr := peer.Settings().Address
@@ -621,7 +621,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			if aspErr != nil {
 				// Fail closed: an EBGP peer receiving an unprepended path is a
 				// routing-loop risk, and a two-octet peer reads a four-octet path as
-				// garbage (ai/rules/fail-closed-guards.md).
+				// garbage (ai/rules/evidence.md).
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
 					"id", updateID, "peer", facts.addr, "localAS", facts.localAS,
 					"secondaryAS", facts.secondaryAS, "asn4", facts.sendASN4, "err", aspErr)
@@ -686,7 +686,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				if modFail.failed() {
 					// Fail closed. The policy asked for a change we could not make,
 					// so forwarding this route sends exactly what the policy exists
-					// to prevent (ai/rules/fail-closed-guards.md). This is a step
+					// to prevent (ai/rules/evidence.md). This is a step
 					// that COULD NOT RUN, not a policy decision, so it is not
 					// counted as a policy suppression -- same distinction the
 					// egress chain draws with egressStepResult.failed.

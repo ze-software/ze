@@ -15,7 +15,7 @@ import (
 
 // withVLANQoSNetNS runs fn inside a fresh named network namespace so VLAN
 // creation cannot collide with host links. Skips (not fails) without
-// CAP_NET_ADMIN per ai/rules/qemu-testing.md.
+// CAP_NET_ADMIN per ai/rules/platform-linux.md.
 func withVLANQoSNetNS(t *testing.T, fn func()) {
 	t.Helper()
 

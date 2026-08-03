@@ -8,7 +8,7 @@ import "github.com/ze-software/ze/internal/core/health"
 
 // checkHealth reports degraded while the l2tp subsystem is not running.
 // Registered from register.go so deleting this component removes its
-// health row (ai/rules/plugin-self-containment.md).
+// health row (ai/rules/plugins.md).
 func checkHealth() (health.Status, string) {
 	if LookupService() == nil {
 		return health.StatusDegraded, "subsystem not running"

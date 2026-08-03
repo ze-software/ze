@@ -65,7 +65,7 @@ writes one hollow gotcha to satisfy it has satisfied nothing.
 
 This governs records of COMPLETED WORK. It says nothing about records of
 DEFECTS. A `plan/known-failures/` shard and a `plan/deferrals/` row are
-governed by `ai/rules/no-parking.md` and `ai/rules/fix-dont-record.md`, and
+governed by `ai/rules/completion.md` and `ai/rules/completion.md`, and
 nothing here permits deleting one.
 
 ## What Counts as Knowledge

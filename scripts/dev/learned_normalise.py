@@ -119,7 +119,7 @@ def normalise(text: str) -> str:
     # Exactly one, and no `## Context` to collide with. Two headings would both
     # be rewritten and leave the duplicate this guard exists to prevent, so the
     # count is part of the condition rather than something `problems()` alone
-    # reports (`ai/rules/fail-closed-guards.md`).
+    # reports (`ai/rules/evidence.md`).
     objectives = objective_lines(text)
     if len(objectives) == 1 and not has_context(text):
         lines[objectives[0]] = CONTEXT

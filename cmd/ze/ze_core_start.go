@@ -94,7 +94,7 @@ const (
 // argument list, or "" when there is none. It skips the flags that consume a
 // following value (--web, --mcp, --mcp-token) so a port or token is never
 // mistaken for the config path, and it ignores value-less flags. Keyword-first
-// grammar (ai/rules/cli-grammar.md R1): the config path is the sole free-form
+// grammar (ai/rules/cli.md R1): the config path is the sole free-form
 // value cmdStart accepts, and it follows the `start` keyword.
 //
 // This helper mirrors the value-consuming flag set of cmdStart's arg loop; keep
@@ -189,7 +189,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	}
 
 	// An explicit config path (ze start <config-file>) launches the daemon from
-	// that file. Keyword-first grammar (ai/rules/cli-grammar.md R1) places the
+	// that file. Keyword-first grammar (ai/rules/cli.md R1) places the
 	// path behind the `start` keyword; this is the SUPPORTED (and only) form. The
 	// free-form positional path in zeDispatch (`ze <config-file>`) was REMOVED by
 	// spec-fixit-config-file-positional-grammar; only the `-` stdin sentinel

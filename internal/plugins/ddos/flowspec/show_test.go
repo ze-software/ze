@@ -32,8 +32,16 @@ func TestShowDdosFlowspecNoResponder(t *testing.T) {
 
 func TestShowDdosFlowspecActive(t *testing.T) {
 	r := newResponder(DefaultConfig(), &fakeDispatcher{})
-	r.active = true
-	r.target = ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("198.51.100.0/24"), Proto: 17, DstPort: 53}
+	// announce is the responder's writer of the announcement state: it keeps the
+	// mu-guarded fields and the lock-free snapshot the show handler reads in
+	// step. Poking the fields would leave the snapshot idle. It documents
+	// "Caller holds r.mu", so the fixture holds it -- a fixture that models the
+	// production writer wrongly stops being evidence about the production writer.
+	r.mu.Lock()
+	r.announce(ddosevent.VectorTuple{
+		DstPrefix: netip.MustParsePrefix("198.51.100.0/24"), Proto: 17, DstPort: 53,
+	}, r.cfg.Action, "test fixture")
+	r.mu.Unlock()
 	activeResponder.Store(r)
 	t.Cleanup(func() { activeResponder.Store(nil) })
 

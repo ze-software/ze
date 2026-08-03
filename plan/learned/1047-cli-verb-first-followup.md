@@ -38,7 +38,7 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
   no deprecation). First attempt reverted after review caught a wire break; second
   attempt did it right by fixing the sender. The programmatic plugin protocol uses
   structured RPC wiremethods (sdk_dispatch.go), inter-plugin dispatch is already
-  verb-first (`bmp.go:493` sends "show bgp rib protocol"), and the interactive editor
+  verb-first (`bmp.go` sends "show bgp rib protocol"), and the interactive editor
   completes from the local tree (completer_command.go), so the ONLY sender of the bare
   path was the `ze bgp plugin cli` debug session -- `plugin-cli-debug.ci`, updated to
   `show command list`. The dead `command` entry in `IsReadOnlyPath` removed.
@@ -51,7 +51,7 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
 
 - The offline-fallback is reachable ONLY because `cmdutil.RunCommand` was changed to
   not reject a command that has a registered offline fallback (see Gotchas).
-- Hard removal of the noun-first forms (user override of cli-grammar.md's deprecation
+- Hard removal of the noun-first forms (user override of cli.md's deprecation
   requirement); `ze host`, `ze crashes`, `ze debug <module>` now error.
 - `show host` is JSON-only, online and offline. The offline `RunShow` originally
   kept a `--text` flag, but the verb-first daemon grammar has no `--flag`, so
@@ -73,7 +73,7 @@ directive "follow docs.vyos.io" (VyOS models per-subsystem debug log level as
 - **Moving a YANG `ze:command` container changes its dispatch key.** The daemon
   dispatcher registers each builtin handler under its YANG *path*
   (`LoadBuiltins`: `d.RegisterWithOptions(wireToPath[wireMethod], ...)`,
-  command.go:59). So relocating `command list` under `show` deletes the bare
+  command.go). So relocating `command list` under `show` deletes the bare
   `command list` dispatch key that plugins send over the plugin CLI protocol
   (`plugin-cli-debug.ci`). Before moving any noun-first command that a plugin or
   script sends by its bare path, grep for programmatic senders -- a "verb-first

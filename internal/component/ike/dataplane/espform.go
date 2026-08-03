@@ -81,7 +81,7 @@ func (r *espFormRegistry) target(spi uint32) (espFormTarget, bool) {
 }
 
 // espFormLimiter is the token bucket behind espFormRate. The clock is a parameter so the
-// bound is testable without sleeping (ai/rules/fix-dont-record.md).
+// bound is testable without sleeping (ai/rules/completion.md).
 //
 // NOT safe for concurrent use; the caller serializes it.
 type espFormLimiter struct {
@@ -136,7 +136,7 @@ const (
 //
 // RFC 4303 Section 2.1 puts the SPI in the first four octets. It reports ok false for a
 // payload too short to carry one, so a truncated datagram can never be read as SPI zero
-// and matched against a watched SA (ai/rules/fail-closed-guards.md).
+// and matched against a watched SA (ai/rules/evidence.md).
 func espFormSPI(esp []byte) (uint32, bool) {
 	if len(esp) < espFormMinESPLen {
 		return 0, false
@@ -173,7 +173,7 @@ func espFormPacketLen(esp []byte) int {
 // because it is what the SA was installed with, and because the probes here stop at the
 // crypto check with unusable keys and therefore cannot observe any ingress check that
 // runs after a successful decryption. That an ingress check exists is NOT claimed here
-// (ai/rules/no-fabrication.md).
+// (ai/rules/evidence.md).
 //
 // Both checksum fields stay zero. The IPv4 header checksum is filled by the kernel for
 // an IP_HDRINCL socket, and a zero UDP checksum means "not computed" for IPv4

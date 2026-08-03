@@ -260,7 +260,7 @@ func acceptPRF(remote, local PRFTransform) error {
 // Every PRF prfOutputBits holds today is at or above the floor, so the allowlist is what
 // refuses a weak PRF in a running daemon. The floor is the guard on the allowlist itself.
 // It fires the moment an entry below 128 bits is added, which keeps that addition from
-// silently negotiating (ai/rules/fail-closed-guards.md).
+// silently negotiating (ai/rules/evidence.md).
 func prfOutputAcceptable(bits int, specified bool) error {
 	if !specified {
 		return ErrTransformUnspecified

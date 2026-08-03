@@ -13,7 +13,7 @@ INPUT=$(cat)
 # an absent tool name means NOTHING WAS CHECKED, so a silent exit 0 there is
 # read by the caller as "spec valid" -- a false green. Refuse loudly instead.
 # A tool name that is present but simply not ours is the legitimate no-op and
-# still exits 0 quietly, below. See ai/rules/fail-closed-guards.md.
+# still exits 0 quietly, below. See ai/rules/evidence.md.
 #
 # How it bit: invoked as `validate-spec.sh plan/spec-foo.md`, stdin is empty, jq
 # yields an empty TOOL_NAME, and the old "not Write/Edit" test exited 0. Specs
@@ -100,7 +100,7 @@ fi
 # A `skeleton` spec is ALLOWED to carry template placeholders: that is the
 # documented shape of a deferral holder, which fills only `## Task` and leaves
 # the rest for the session that picks the work up
-# (ai/rules/deferral-tracking.md, "Creating the Deferral Spec"). Blocking those
+# (ai/rules/planning.md, "Creating the Deferral Spec"). Blocking those
 # edits made a correctly-authored skeleton un-editable, so the placeholder
 # guards below warn at `skeleton` and block from `design` onward, where the
 # author IS claiming the section is written.
@@ -142,14 +142,14 @@ CURRENT_BEHAVIOR_SECTION=$(sed -n '/^## Current Behavior/,/^## /p' "$FILE_PATH")
 if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
     # A cited source is a backticked path ending in a known source extension OR
     # named `Makefile`, OPTIONALLY followed by `:<line>` -- the exact citation
-    # form ai/rules/no-fabrication.md mandates (path plus line number). `.sh`,
+    # form ai/rules/evidence.md mandates (path plus line number). `.sh`,
     # `.mk` and `Makefile` are included so a spec about shell/make tooling can
     # cite the file it is about. The `- [ ]`/`- [x]` checkbox anchor keeps prose
     # out: a sentence cannot match, so this accepts the mandated form without
-    # accepting everything (ai/rules/fail-closed-guards.md).
+    # accepting everything (ai/rules/evidence.md).
     # A basename is required before the extension (`+`, not `*`) so a bare
     # `` `.go` `` -- an empty path component -- is rejected, not accepted as a
-    # valid-looking zero (ai/rules/fail-closed-guards.md). The empty prefix is
+    # valid-looking zero (ai/rules/evidence.md). The empty prefix is
     # allowed ONLY for the literal Makefile (which has no basename+extension).
     _CB_SRC='`([^`]+\.(go|py|rs|ts|js|sh|mk)|[^`]*Makefile)(:[0-9]+)?`'
     # Check for "Source files read:" with actual file paths
@@ -192,7 +192,7 @@ if [[ -n "$DATA_FLOW_SECTION" ]]; then
     # the template's own placeholder is `[Where data enters: wire bytes, ...]`,
     # which the old `\[Where data enters\]` alternative never matched. The guard
     # only ever fired through `[Format at entry]`, so editing that ONE line while
-    # leaving the other let a placeholder through (ai/rules/fail-closed-guards.md).
+    # leaving the other let a placeholder through (ai/rules/evidence.md).
     ENTRY_CONTENT=$(echo "$DATA_FLOW_SECTION" | sed -n '/### Entry Point/,/### /p' | grep -v '^#' | head -5)
     if echo "$ENTRY_CONTENT" | grep -qE '\[Where data enters|\[Format at entry\]'; then
         placeholder_problem "Data Flow: Entry Point contains placeholder text. Document actual entry points!"
@@ -433,10 +433,10 @@ fi
 # Every spec should carry the registration-over-hardcoding review item: new
 # features register and the core discovers them, instead of adding a per-feature
 # field/switch/case/factory to a core or shared package (small-core/registration;
-# ai/rules/plugin-self-containment.md). WARNING only -- specs predating this rule
+# ai/rules/plugins.md). WARNING only -- specs predating this rule
 # are exempt; plan/TEMPLATE.md adds it to every newly authored spec.
 if ! grep -qi 'Registration over hardcoding' "$FILE_PATH"; then
-    WARNINGS+=("Missing 'Registration over hardcoding' review item (add to Critical Review Checklist + Architectural Verification). New commands/views/families/handlers must register and be core-discovered, not hardcoded into a core/shared package (ai/rules/plugin-self-containment.md)")
+    WARNINGS+=("Missing 'Registration over hardcoding' review item (add to Critical Review Checklist + Architectural Verification). New commands/views/families/handlers must register and be core-discovered, not hardcoded into a core/shared package (ai/rules/plugins.md)")
 fi
 
 # === OUTPUT RESULTS (compact) ===

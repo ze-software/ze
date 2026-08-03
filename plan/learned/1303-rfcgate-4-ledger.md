@@ -25,7 +25,7 @@ rather than merely self-consistent.
 - **Row completeness is a git-HEAD ratchet, not a hard gate.** Chosen over
   writing the 32 rows now, and over a checked-in baseline list. Writing them is
   32 product judgements. A baseline file is the hand-maintained second list
-  `ai/rules/derive-not-hardcode.md` forbids.
+  `ai/rules/evidence.md` forbids.
 - **The un-enrolled remainder became a sibling file with a KIND.** Chosen over a
   comment in `rfc/enrolled.txt`, which `parse_enrolled` cannot see, and over a
   bare stem list, which cannot separate "the RFC imposes nothing" from "nobody
@@ -33,7 +33,7 @@ rather than merely self-consistent.
   first claims anything about conformance.
 - **The gap count is cross-checked, never generated.** Deriving Remaining text
   from `{gap}` reasons would publish a compliance claim built from
-  classifications that `ai/rules/rfc-compliance.md:56` voided as authority. A
+  classifications that `ai/rules/rfc-compliance.md` voided as authority. A
   count is a fact about how many annotations exist. It is never a claim that
   they are right.
 - **AC-12 reads immediate adjacency only.** A tolerance window reds four honest

@@ -2,7 +2,7 @@
 //
 // cli_dash_stdio enforces the invariant that a command must NOT read or write a
 // USER-SUPPLIED path with a raw os call: it must route through internal/core/cliio
-// so the "-" token resolves to stdin/stdout (ai/rules/cli-patterns.md). The
+// so the "-" token resolves to stdin/stdout (ai/rules/cli.md). The
 // convention was stated twice and enforced nowhere, so ~34 command sites drifted;
 // this gate is the lasting deliverable.
 //

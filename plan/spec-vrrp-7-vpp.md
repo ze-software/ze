@@ -26,9 +26,9 @@ other ze features drive VPP (translate + apply + verify pattern).
 Until this spec is designed and implemented, the contract set by the umbrella
 holds: **vrrp config on a VPP-backed interface is REJECTED at verify time with
 an actionable error** (fail closed, per the exact-or-reject principle in
-`ai/rules/design-principles.md`). That rejection is implemented and tested by
+`ai/rules/architecture.md`). That rejection is implemented and tested by
 spec-vrrp-5 (`test/vrrp/vrrp-vpp-reject.ci`). This skeleton exists so the
-deferred VPP work has a concrete destination (`ai/rules/deferral-tracking.md`
+deferred VPP work has a concrete destination (`ai/rules/planning.md`
 "No deferral without a destination").
 
 Open research questions for the design phase (all currently unverified):
@@ -46,7 +46,7 @@ Open research questions for the design phase (all currently unverified):
 ### Architecture Docs
 - [ ] `ai/rules/testing.md` (VPP Backend Testing Is Mandatory) - fakeOps seam requirement
   → Constraint: Apply/Undo via scripted fakeOps tests; translate/verify as pure-function tests; no "needs a real VPP daemon" deferrals
-- [ ] `ai/rules/design-principles.md` (Exact or reject) - parity contract
+- [ ] `ai/rules/architecture.md` (Exact or reject) - parity contract
   → Constraint: any ze vrrp leaf the VPP plugin cannot apply exactly fails verify with a clear error, never silent approximation
 - [ ] `plan/spec-vrrp-0-umbrella.md` - decisions this child inherits
   → Decision: v3 default + v2 opt-in, ipv4/ipv6 containers, virtual MAC mandatory -- VPP native VRRP must honor all four or reject
@@ -78,7 +78,7 @@ Open research questions for the design phase (all currently unverified):
 - None until design: this is a skeleton. At implementation, vrrp on VPP-backed
   interfaces moves from verify-rejection to native VPP VRRP.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Same YANG config as spec-vrrp-5 (`interface ... unit ... ipv4|ipv6 vrrp group <vrid>`); the dataplane backend of the parent interface selects the path
@@ -194,7 +194,7 @@ Skeleton-level; the design phase expands these.
 | Functional test for new RPC/API | Yes | `test/vrrp/vrrp-vpp-native.ci` |
 | Pipe completeness | N/A | reuses spec-vrrp-5 handlers |
 | Env var registration | N/A | none |
-| Doctor check for runtime dependencies | Yes | VPP VRRP plugin availability probe (design phase; `ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | Yes | VPP VRRP plugin availability probe (design phase; `ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | Yes | VPP-path state mapped into ze_vrrp_* series (design phase) |
 
 ### Documentation Update Checklist (BLOCKING)

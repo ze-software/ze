@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — show static proxy handler.
 // Owned by the static plugin so that removing it removes the `show static`
 // command, its schema, and this handler together. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 
 package static
 

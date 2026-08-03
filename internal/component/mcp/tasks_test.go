@@ -412,7 +412,7 @@ func TestClampTTLBoundaries(t *testing.T) {
 	}
 
 	// The same table again, driven from the ENTRY POINT that the clamp now sits
-	// on rather than from the helper (ai/rules/fail-closed-guards.md: test a
+	// on rather than from the helper (ai/rules/evidence.md: test a
 	// guard where it fires, not the helper alone).
 	//
 	// A direct call to clampTaskTTL cannot see the regression that matters.
@@ -569,7 +569,7 @@ func TestStuckTaskForcedTerminalAtDeadline(t *testing.T) {
 
 	// An injected clock: the sweep is driven directly rather than waited on, so
 	// the test asserts on state transitions and never on elapsed time
-	// (ai/rules/fix-dont-record.md).
+	// (ai/rules/completion.md).
 	base := time.Now()
 	now := base
 	r.now = func() time.Time { return now }

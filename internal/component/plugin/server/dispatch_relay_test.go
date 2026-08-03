@@ -55,7 +55,7 @@ func TestRelayStoredRouteReachesCoordinator(t *testing.T) {
 
 // VALIDATES: an unparseable destination fails closed instead of relaying nothing.
 // PREVENTS: a silent no-op replay that is indistinguishable from a successful one
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestRelayStoredRouteRejectsBadDestination(t *testing.T) {
 	t.Parallel()
 

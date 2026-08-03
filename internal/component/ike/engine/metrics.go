@@ -98,7 +98,7 @@ func countSAInitRetry(peer string, cause retryCause) {
 //
 // It fails closed for the READER, not for a guard: an unrecorded peer reads zero, which
 // is the true count. A test that asserts a challenge fired must therefore assert a RISE
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func cookieChallengeCount(peer string) uint64 {
 	cookieStats.mu.Lock()
 	defer cookieStats.mu.Unlock()
@@ -132,7 +132,7 @@ func countErrorNotifySuppressed(reason string) {
 // It fails closed for the reader, not for a guard.
 // An unrecorded reason reads zero, which is the true count.
 // A test that asserts a guard fired must therefore assert a RISE.
-// It must not assert a non-zero absolute (ai/rules/fail-closed-guards.md).
+// It must not assert a non-zero absolute (ai/rules/evidence.md).
 func errorNotifySuppressedCount(reason string) uint64 {
 	errorNotifyStats.mu.Lock()
 	defer errorNotifyStats.mu.Unlock()
@@ -211,7 +211,7 @@ func (m *IPsecMetrics) publishCookieCounts() {
 // espInstalled reports whether this peer's current Child SA is in the dataplane.
 //
 // It fails closed. An unknown peer, a session without a Child SA, and a Child SA
-// whose install was refused all read false (ai/rules/fail-closed-guards.md).
+// whose install was refused all read false (ai/rules/evidence.md).
 func espInstalled(peers map[string]*PeerSession, name string) bool {
 	ps, ok := peers[name]
 	if !ok || ps == nil {

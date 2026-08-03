@@ -10,7 +10,7 @@ import (
 // policy-chain or policy-test, and this package MUST. Removing the BGP
 // policy command owner must remove the `show policy chain` and
 // `show policy test` surface with no dangling node.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestPolicyCmdSchemaOwnsPolicyChainTest(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:policy-chain"`,

@@ -9,7 +9,7 @@ import (
 // self-containment invariant: the central show schema must NOT declare the
 // kernel-table reads (show route, show neighbor, show arp), and this package
 // MUST. The commands are object-rooted, so there is no shared `ip` container.
-// See ai/rules/plugin-self-containment.md and
+// See ai/rules/plugins.md and
 // docs/architecture/cli/command-namespacing.md.
 func TestIfaceShowCmdSchemaOwnsKernelReads(t *testing.T) {
 	for _, want := range []string{
@@ -30,7 +30,7 @@ func TestIfaceShowCmdSchemaOwnsKernelReads(t *testing.T) {
 // TestIfaceMonitorCmdSchemaOwnsNetlink is the owner half of the
 // self-containment invariant for `monitor system netlink`: the central
 // monitor schema must NOT declare it, and this package MUST.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestIfaceMonitorCmdSchemaOwnsNetlink(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-monitor:system-netlink"`,
@@ -48,7 +48,7 @@ func TestIfaceMonitorCmdSchemaOwnsNetlink(t *testing.T) {
 // self-containment invariant for the `show interface` family,
 // `monitor interface rate`, and `clear interface counters`: the central show,
 // monitor, and clear schemas must NOT declare any of them, and this package
-// MUST. See ai/rules/plugin-self-containment.md.
+// MUST. See ai/rules/plugins.md.
 func TestIfaceInterfaceCmdSchemaOwnsInterface(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:interface"`,

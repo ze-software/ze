@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- IS-IS web routes self-registration
+// Design: ai/rules/plugins.md -- IS-IS web routes self-registration
 // Related: handler_isis.go -- the neighbor and database views these routes serve
 
 package web

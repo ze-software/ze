@@ -205,7 +205,7 @@ func TestLoadExpectFileSendBulkBoundaries(t *testing.T) {
 // zero-valued spec.
 // PREVENTS: the worst shape for this directive -- a spec that degrades to
 // count=0 sends NOTHING, so a test asserting a route was not forwarded passes
-// because no route was ever offered (ai/rules/fail-closed-guards.md).
+// because no route was ever offered (ai/rules/evidence.md).
 func TestLoadExpectFileSendBulkRejectsBadSpec(t *testing.T) {
 	base := map[string]string{
 		"prefix":    "10.0.0.0/24",

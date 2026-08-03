@@ -7,7 +7,7 @@
 // no warning. These tests drive the real entry points (runDensity,
 // runCountAttrs, runMRTDump) over a crafted damaged file, which is the only
 // thing that can fail when a `damaged.note(...)` call is dropped
-// (ai/rules/integration-completeness.md).
+// (ai/rules/completion.md).
 package analyze
 
 import (

@@ -16,7 +16,7 @@ Ze's `ze doctor` command validates system readiness before daemon startup, but o
 ## Consequences
 
 - `ze doctor` now covers all 3 tiers of runtime dependencies: kernel modules (L2TP, PPPoE, nftables), service listeners (BGP, BFD, IPsec, TFTP, image server, NTP), external service reachability (TACACS+, RADIUS), procfs access (telemetry, sysctl, conntrack), netlink availability (policy routing), and certificate validity (PKI).
-- The `ai/rules/doctor-checks.md` rule now covers UDP listeners, embedded certificates, procfs/sysctl, and netlink, with a test requirement section.
+- The `ai/rules/repo-maintenance.md` rule now covers UDP listeners, embedded certificates, procfs/sysctl, and netlink, with a test requirement section.
 - The spec template Integration Checklist now enumerates all runtime dependency categories.
 
 ## Gotchas

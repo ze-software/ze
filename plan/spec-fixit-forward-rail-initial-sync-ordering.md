@@ -21,10 +21,10 @@ premise holds. Line numbers below have drifted since 2026-07-22, so use these:
 
 | Spec said | Now | What it is |
 |-----------|-----|------------|
-| `peer.go:899-906` | `peer.go:1148` | `ShouldQueue` definition |
-| `reactor_api_batch.go:106` | `reactor_api_batch.go:111` | batch announce gate |
-| `reactor_api_batch.go:235` | `reactor_api_batch.go:241` | batch withdraw gate |
-| `reactor_api_forward.go:58` | `reactor_api_forward.go:103` | `AnnounceEOR` gate |
+| `peer.go` | `peer.go` | `ShouldQueue` definition |
+| `reactor_api_batch.go` | `reactor_api_batch.go` | batch announce gate |
+| `reactor_api_batch.go` | `reactor_api_batch.go` | batch withdraw gate |
+| `reactor_api_forward.go` | `reactor_api_forward.go` | `AnnounceEOR` gate |
 
 Still exactly three non-test callers, all on the route-INJECTION rail. A full
 `grep -rn ShouldQueue internal/component/bgp/reactor/` shows no call in
@@ -55,7 +55,7 @@ The second row is the reported bug reproduced by its own proposed fix, so
 because that peer gets a full RIB replay on establishment; a mid-sync peer does
 not get a second replay.
 
-**D-2. It cannot go on `opQueue` as-is.** `PeerOp` (`peer.go:111-118`, verified)
+**D-2. It cannot go on `opQueue` as-is.** `PeerOp` (`peer.go`, verified)
 carries `Route *rib.Route`, `NLRI nlri.NLRI`, `Subcode`, `Message` -- structured
 operations only, no wire-body member. A forwarded UPDATE here is wire bytes
 deliberately: not re-deriving structure per destination is the entire purpose of
@@ -74,7 +74,7 @@ read buffer, so deferring means pinning a pooled buffer for the whole
 initial-sync window. `opQueueMax` defaults to `DefaultOpQueueSize` = 10000
 (`peer.go`) and scales with prefix-maximum, so a COUNT-bounded queue of wire
 bodies is a BYTE-unbounded pin on the forward pools. Per
-`ai/rules/memory-architecture.md` the queue has to be byte-budgeted like the
+`ai/rules/performance.md` the queue has to be byte-budgeted like the
 global shared pool, and the overflow behaviour chosen deliberately: pool
 exhaustion is the backpressure signal, and the honest options are tearing the
 destination session down (it re-syncs) or ending the sync early -- never a silent
@@ -89,12 +89,12 @@ The BGP forwarding rail never consults `Peer.ShouldQueue()`, so a forwarded UPDA
 can overtake a route already queued for the same peer and leave that peer holding
 a stale route.
 
-`ShouldQueue()` (`internal/component/bgp/reactor/peer.go:899-906`) returns true
+`ShouldQueue()` (`internal/component/bgp/reactor/peer.go`) returns true
 while a peer is running initial route sync or still has a non-empty `opQueue`. It
 exists to preserve strict insertion order of route operations. It is called from
 exactly three non-test sites, all on the route-INJECTION rail:
-`reactor_api_batch.go:106` (batch announce), `:235` (batch withdraw), and
-`reactor_api_forward.go:58` (`AnnounceEOR`).
+`reactor_api_batch.go` (batch announce), `:235` (batch withdraw), and
+`reactor_api_forward.go` (`AnnounceEOR`).
 
 The FORWARDING rail consults it nowhere. Neither `reactorForwardRS`
 (`internal/component/bgp/reactor/forward_rs.go`) nor `forwardUpdateCore`
@@ -103,8 +103,8 @@ readiness: their per-destination loops filter on `forwardFacts() != nil`, export
 filters, community policy and RR rules only.
 
 `forwardFacts()` is not a readiness gate. It is a plain atomic load
-(`peer_forward_facts.go:78-80`) whose snapshot is stored by `setEncodingContexts`
-(`peer.go:563`) BEFORE `sendingInitialRoutes` is set and before the sync
+(`peer_forward_facts.go`) whose snapshot is stored by `setEncodingContexts`
+(`peer.go`) BEFORE `sendingInitialRoutes` is set and before the sync
 goroutine starts, so facts are non-nil for the whole initial-sync window.
 
 Consequence: an announce for prefix P sits in a peer's `opQueue` while a withdraw
@@ -114,7 +114,7 @@ believing P is live when it has been withdrawn.
 
 **This is NOT about End-of-RIB ordering.** RFC 4724 orders the EOR only against
 the speaker's own initial dump, never against routes learned later
-(`rfc/short/rfc4724.md:126`). Tests asserting EOR-vs-forwarded-route order were
+(`rfc/short/rfc4724.md`). Tests asserting EOR-vs-forwarded-route order were
 asserting something Ze never owed and were corrected separately; see
 `plan/learned/1252-masked-verdict-and-rfc-exemption.md`.
 
@@ -132,7 +132,7 @@ asserting something Ze never owed and were corrected separately; see
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/reactor/peer.go:891-918` - `ShouldQueue`/`PendingSync`
+- [ ] `internal/component/bgp/reactor/peer.go` - `ShouldQueue`/`PendingSync`
   → Constraint: `ShouldQueue` is true while `sendingInitialRoutes != 0` or the
     `opQueue` is non-empty; it also gates on state being Established.
 - [ ] `internal/component/bgp/reactor/forward_rs.go` - RS fast path
@@ -141,10 +141,10 @@ asserting something Ze never owed and were corrected separately; see
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - `forwardUpdateCore`
   → Constraint: per-destination gates are facts-nil, community policy, RR rules,
     export filters and wire-rewrite failure. No readiness check.
-- [ ] `internal/component/bgp/reactor/peer_forward_facts.go:78-80` - facts load
+- [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - facts load
   → Constraint: non-nil from `setEncodingContexts` until teardown, therefore
     non-nil throughout initial sync.
-- [ ] `internal/component/bgp/reactor/peer.go:111-118` - `PeerOp`
+- [ ] `internal/component/bgp/reactor/peer.go` - `PeerOp`
   → Constraint: `opQueue` holds STRUCTURED ops (`Route`, `NLRI`), not wire
     bodies, so a forwarded wire UPDATE cannot simply be queued there.
 
@@ -159,7 +159,7 @@ asserting something Ze never owed and were corrected separately; see
 **Behavior to change:**
 - Only the ordering hazard above.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 A peer is Established but still draining its initial sync when an UPDATE arrives

@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_gnmi compile-out seam
+// Design: ai/rules/plugins.md -- ze_gnmi compile-out seam
 //
 // Installs the gNMI build + reload implementations into the compile-out seam
 // (gnmi_infra.go). Compiled only under //go:build ze_gnmi; absent the tag this

@@ -18,7 +18,7 @@ exist (`internal/plugins/firewall/` has no flowspec origination;
 `internal/plugins/flowspec-firewall/` is the INBOUND direction), and learned
 1008 itself labels it "future D2 (flowspec-egress bridge)". The functional
 goal (attack -> outbound FlowSpec/RTBH announcement) shipped via a different
-trigger: the ddos responder (`internal/plugins/ddos/flowspec/responder.go:32,
+trigger: the ddos responder (`internal/plugins/ddos/flowspec/responder.go,
 60,151-188`, children 5, learned 1011/1015) originates from ddos-detect
 characterization events, not firewall config rules. At closure, record D2 as
 a homed deferral row (no spec owns "originate FlowSpec from firewall config")
@@ -54,10 +54,10 @@ operator-facing deployment-guidance doc.
 
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - component/plugin registration model these features plug into
-  → Constraint: features register via `init()` in `register.go`; core discovers via registries, never imports plugins directly. Each child must self-contain (`ai/rules/plugin-self-containment.md`).
-- [ ] `ai/rules/buffer-first.md` - wire encoding discipline
+  → Constraint: features register via `init()` in `register.go`; core discovers via registries, never imports plugins directly. Each child must self-contain (`ai/rules/plugins.md`).
+- [ ] `ai/rules/performance.md` - wire encoding discipline
   → Constraint: the FlowSpec/RTBH UPDATE must build via `WriteTo(buf, off) int` with pooled buffers so origination works under memory pressure (the whole point of gap D under DDoS).
-- [ ] `ai/rules/config-surface.md` - YANG-vs-env-var decision for new config
+- [ ] `ai/rules/config.md` - YANG-vs-env-var decision for new config
   → Decision: GTSM (gap A) and CoPP (gap B) toggles are per-peer/operational policy → YANG leaves, not env vars.
 
 ### RFC Summaries
@@ -74,7 +74,7 @@ operator-facing deployment-guidance doc.
   scrubber) so it never crosses the attacked link. Captured in the deployment doc (AC-5). The code
   gaps below matter for the case where the signaling session *must* cross the attacked path.
 - Ze already does the most important in-code thing: it marks BGP egress DSCP CS6
-  (`session_connection.go:251-253`). The gaps are about (A) keeping spoofed traffic off the control
+  (`session_connection.go`). The gaps are about (A) keeping spoofed traffic off the control
   path, (B) keeping the CPU alive, (C) making Ze's *own* egress honor that CS6 mark, and (D) being
   able to originate the signal on demand.
 
@@ -85,8 +85,8 @@ operator-facing deployment-guidance doc.
   → Constraint: this is the existing socket-tuning seam; gap A adds TTL setsockopt in the same Control callback.
 - [ ] `internal/core/network/network.go` - `RealDialer.DialContext` Control callback applies setsockopt (MD5) before connect; `RealListenerFactory.Listen` does the same per-peer for inbound.
   → Constraint: outbound socket options must be applied here (pre-connect), not only post-accept.
-- [ ] `internal/core/bgp/attribute/community.go:99` - `CommunityBlackhole = 0xFFFF029A` defined and named "blackhole".
-- [ ] `internal/component/bgp/reactor/reactor_api_batch.go:28` - `AnnounceNLRIBatch(sel, batch)` already exists; runtime announce works today via the text-protocol RPC.
+- [ ] `internal/core/bgp/attribute/community.go` - `CommunityBlackhole = 0xFFFF029A` defined and named "blackhole".
+- [ ] `internal/component/bgp/reactor/reactor_api_batch.go` - `AnnounceNLRIBatch(sel, batch)` already exists; runtime announce works today via the text-protocol RPC.
 
 **Existing protections (do NOT regress):**
 - DSCP CS6 marking on BGP sockets (RFC 4271 §5.1).
@@ -136,7 +136,7 @@ operator-facing deployment-guidance doc.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The four gaps are genuinely independent and can ship/commit separately | subsystem analysis (BGP socket / firewall / traffic / origination) | umbrella sequencing wrong; cross-spec coupling | each child compiles + tests green alone | unvalidated |
 | A-2 | Out-of-band signaling is a deployment pattern Ze already supports (multiple peers/sessions), needing only docs not code | Ze supports many peers per reactor | gap-0 grows a code AC | confirm a second peer over a distinct path configures today | unvalidated |
-| A-3 | CS6 marking already present means upstream-honored prioritisation is the common case; gap C only matters when Ze is the bottleneck | `session_connection.go:251-253` | C is higher priority than ranked | operator confirmation of topology | unvalidated |
+| A-3 | CS6 marking already present means upstream-honored prioritisation is the common case; gap C only matters when Ze is the bottleneck | `session_connection.go` | C is higher priority than ranked | operator confirmation of topology | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

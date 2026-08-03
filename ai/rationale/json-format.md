@@ -1,6 +1,6 @@
 # JSON Format Rationale
 
-Why: `ai/rules/json-format.md`
+Why: `ai/rules/cli.md`
 
 ## Full OPEN Message Example
 

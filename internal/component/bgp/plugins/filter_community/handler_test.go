@@ -429,7 +429,7 @@ func TestRemoveValuesSingleUnchanged(t *testing.T) {
 // not a whole multiple of the value width is REPORTED, not silently swallowed.
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity AC-5 and
-// ai/rules/fail-closed-guards.md -- a guard must fail closed or say something.
+// ai/rules/evidence.md -- a guard must fail closed or say something.
 // PREVENTS: the second half of this defect. The original guard returned the data
 // unchanged with the comment "caller bug, silently preserve data", so the
 // route-server contract violation was invisible from the day it was introduced.

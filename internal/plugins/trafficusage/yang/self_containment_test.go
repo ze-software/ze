@@ -3,7 +3,7 @@
 // schema.
 // PREVENTS: the command outliving the plugin -- removing internal/plugins/
 // trafficusage/ must remove the command node, its handler, and this schema
-// together (ai/rules/plugin-self-containment.md).
+// together (ai/rules/plugins.md).
 
 package yang
 

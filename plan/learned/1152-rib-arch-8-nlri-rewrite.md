@@ -15,7 +15,7 @@ filter can substitute the announced (and withdrawn) NLRI bytes for a destination
   scope, 2026-07-14). Chosen over building a full config/filter surface because no
   in-process filter needs NLRI rewrite today, and external filters already rewrite NLRI via
   the raw wire override (`runEgressPolicyChain` → `exportWireOverride`,
-  `reactor_api_forward.go:488,515`). The ModAccumulator primitive is the cleaner path for a
+  `reactor_api_forward.go,515`). The ModAccumulator primitive is the cleaner path for a
   future in-process consumer; it is inert until one calls it.
 - **Carry the rewrites on the existing `mods` argument, not a new `buildModifiedPayload`
   parameter.** Chosen to avoid churning the ~24 callers: `buildModifiedPayload` already

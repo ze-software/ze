@@ -398,7 +398,7 @@ type AttrOp struct {
 	// source can express the result, and building it into a scratch slice to hand
 	// over as Buf would copy it twice -- once into the scratch, once into the
 	// destination. A generator answers its exact size during the plan and writes
-	// its bytes straight into the destination buffer (ai/rules/buffer-first.md).
+	// its bytes straight into the destination buffer (ai/rules/performance.md).
 	//
 	// It is an INDEX rather than the interface value itself, and that is
 	// load-bearing rather than tidy. An interface field costs two words and grew
@@ -444,7 +444,7 @@ type AttrGenerator interface {
 // is answered before any buffer is acquired and cannot drift from what is then
 // written. That is what removes the slack sizing the rebuild used to need, and
 // with it the branch that abandoned every modification on overflow and forwarded
-// the route unchanged (ai/rules/fail-closed-guards.md).
+// the route unchanged (ai/rules/evidence.md).
 //
 // A handler that returns without finishing its plan is treated as a refusal:
 // silence is not consent when the outcome is a route on the wire.

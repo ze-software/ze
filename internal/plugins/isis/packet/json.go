@@ -3,7 +3,7 @@
 // This file produces a stable JSON view of a decoded PDU for the offline
 // `ze isis decode` CLI (the wiring proof) and future diagnostics (isis-13). It
 // is a COLD path (one PDU per CLI invocation), so encoding/json is acceptable
-// (ai/rules/buffer-first.md explicitly allows make([]byte)/JSON marshaling off
+// (ai/rules/performance.md explicitly allows make([]byte)/JSON marshaling off
 // the hot path). The runtime decode path does NOT use this; it consumes the
 // typed views directly.
 

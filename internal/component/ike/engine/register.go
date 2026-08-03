@@ -212,7 +212,7 @@ func init() {
 			// RFC 7296 Section 3.6's hash-and-url is an outbound network dependency:
 			// ze publishes its certificate at an operator-named http URL and the peer
 			// fetches it. A URL the peer cannot reach fails on the PEER's side, so
-			// nothing in ze's own logs explains it (ai/rules/doctor-checks.md).
+			// nothing in ze's own logs explains it (ai/rules/repo-maintenance.md).
 			Name:         "ipsec-cert-url",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        732,
@@ -402,7 +402,7 @@ func runEngine(conn net.Conn) int {
 				// The failure is reported rather than swallowed. It separates a working
 				// tunnel from one that carries no traffic. Doctor check ipsec-udp-encap
 				// reads the same state, so an operator sees it first
-				// (ai/rules/doctor-checks.md).
+				// (ai/rules/repo-maintenance.md).
 				if encErr := transport.EnableESPInUDP(trNATT.Conn()); encErr != nil {
 					setUDPEncapFailure(encErr)
 					log.Warn("ike: udp encapsulation not enabled on port 4500, encapsulated ESP will be dropped",

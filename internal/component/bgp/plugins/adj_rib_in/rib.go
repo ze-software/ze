@@ -161,7 +161,7 @@ type AdjRIBInManager struct {
 	// self-replay remains the only path. That is also the fail-closed answer
 	// when ownership cannot be determined at all: a duplicate BGP UPDATE is
 	// idempotent at the receiver, whereas standing down for an owner that never
-	// replays loses routes outright (ai/rules/fail-closed-guards.md).
+	// replays loses routes outright (ai/rules/evidence.md).
 	replayOwned atomic.Bool
 
 	// ingestedMsgID is the INGEST POSITION: the newest reactor MessageID taken

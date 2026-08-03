@@ -7,7 +7,7 @@
 // spec naming Segment Routing. It mirrors the ext-1 opaque consumer registry: the consumer
 // registers from its own init(), the RI originator discovers the builders at origination time,
 // and removing the consumer removes its registerRITLV call and all its TLVs
-// (ai/rules/plugin-self-containment.md). It is UNEXPORTED because the only consumer is
+// (ai/rules/plugins.md). It is UNEXPORTED because the only consumer is
 // in-package (the same wiring-completeness lesson as the ext-1 opaque registry).
 
 package ospf

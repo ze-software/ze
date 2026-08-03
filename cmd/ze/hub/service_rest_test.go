@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_rest-gated REST seam test
+// Design: ai/rules/plugins.md -- ze_rest-gated REST seam test
 //
 //go:build ze_rest
 

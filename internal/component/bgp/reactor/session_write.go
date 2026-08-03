@@ -34,7 +34,7 @@ func (s *Session) sendKeepalive(conn net.Conn) error {
 // spelling for Cease subcodes at session_handlers.go:294 and session_connection.go:441, so
 // this reads the same table rather than growing a second one. The header/OPEN/UPDATE/FSM/
 // ROUTE-REFRESH subcode tables are unexported in message, and copying them here is exactly
-// the duplicated enumeration ai/rules/derive-not-hardcode.md forbids -- those stay numeric
+// the duplicated enumeration ai/rules/evidence.md forbids -- those stay numeric
 // until message exports a lookup.
 //
 // Cold path: at most one call per session teardown.
@@ -66,8 +66,8 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 		// it: at most one per session teardown. The code/subcode are the two fields that
 		// say WHY, and `ze explain` has no entry for a raw BGP error code -- which is an
 		// argument for emitting the name that DOES exist, not for `code=3`. Both are
-		// logged as their RFC names (ai/rules/error-messages.md leg 2, the evidence;
-		// ai/rules/derive-not-hardcode.md, since message already owns the tables).
+		// logged as their RFC names (ai/rules/cli.md leg 2, the evidence;
+		// ai/rules/evidence.md, since message already owns the tables).
 		sessionLogger().Warn("notification sent",
 			"peer", s.settings.Address,
 			"code", code,

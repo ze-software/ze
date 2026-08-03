@@ -14,7 +14,7 @@ See also: `/ze-find-alloc` (find allocations to fix)
 1. Use ULTRATHINK for careful analysis
 2. `$ARGUMENTS` is REQUIRED and specifies the target: `file.go:line` or `file.go:functionName`
    - Example: `internal/core/bgp/attribute/simple.go:MED.Pack`
-   - Example: `internal/component/bgp/reactor/reactor.go:4926`
+   - Example: `internal/component/bgp/reactor/reactor.go`
    - If no argument: print "Usage: /ze-fix-alloc file.go:line-or-function" and stop
 3. Read the target file and understand the allocation context
 4. Read callers of the function to understand how the result is used
@@ -68,9 +68,9 @@ func (x Type) CheckedWriteTo(buf []byte, off int) (int, error) {
 ```
 
 **Reference implementations** (read these for patterns):
-- `MED.WriteTo` -- `internal/core/bgp/attribute/simple.go:99`
-- `LocalPref.WriteTo` -- `internal/core/bgp/attribute/simple.go:152`
-- `Origin.WriteTo` -- `internal/core/bgp/attribute/origin.go:76`
+- `MED.WriteTo` -- `internal/core/bgp/attribute/simple.go`
+- `LocalPref.WriteTo` -- `internal/core/bgp/attribute/simple.go`
+- `Origin.WriteTo` -- `internal/core/bgp/attribute/origin.go`
 - `ASPath.WriteTo` -- `internal/core/bgp/attribute/aspath.go`
 - `Communities.WriteTo` -- `internal/core/bgp/attribute/community.go`
 

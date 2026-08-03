@@ -73,7 +73,7 @@ next-hop in MP_REACH_NLRI, which `attrparse` routes to `otherAttrs` instead, so
   `bin/ze`.** Under an AI session the binary you just built is
   `bin/ze-<session-id>`, so the first stress run tested a five-hour-old binary and
   "reproduced" a bug that was already fixed. Export `ZE_BIN`/`ZE_TEST_BIN` before
-  invoking it. Documented in `ai/rules/flaky-under-load.md`; still caught me.
+  invoking it. Documented in `ai/rules/testing.md`; still caught me.
 - **Do not rebuild `bin/ze-<session>` while a test run is launching it.** One
   draft run failed with zero daemon output because `make ze` was rewriting the
   binary underneath it. It looks exactly like a startup hang.

@@ -7,7 +7,7 @@
 // (internal/plugins/ospf/yang/ze-ospf-conf.yang, ze-ospf-cmd.yang) and the
 // `show ospf` command tree live under it, so a hyphenated `ospf-decode` root was
 // a namespace member masquerading as an indivisible compound (R9,
-// ai/rules/cli-grammar.md).
+// ai/rules/cli.md).
 //
 // codegen:skip -- the `ospf` root is wired into the ze CLI by
 // cmd/ze/dispatch_ospf.go's direct blank import (ze_core && ze_ospf), so it must
@@ -37,7 +37,7 @@ func init() {
 
 // ospfMembers is the closed set of `ze ospf` sub-tokens. Matching args[0] against
 // it before doing anything with the token keeps an unknown sub-command from ever
-// reaching the codec (ai/rules/cli-grammar.md, closed keyword set).
+// reaching the codec (ai/rules/cli.md, closed keyword set).
 var ospfMembers = map[string]bool{"decode": true}
 
 // dispatchOSPF routes `ze ospf <member> ...` to the owning tool. A bare

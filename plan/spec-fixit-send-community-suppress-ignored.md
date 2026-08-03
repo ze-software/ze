@@ -297,7 +297,7 @@ config surfaces converging on one output is a stronger check than either alone.
 | Drop, not empty emit | A suppressed attribute plans a `Drop` slot; `ValueLen()==0` never reaches `Emit` |
 | Header class | `EmitExtended` still used for every community attribute that IS emitted |
 | RFC 9234 | The OTC path preserves a present OTC (RFC9234-5-6) and warns rather than silently discarding |
-| Fail-closed guard | The OTC refusal SPEAKS (`ai/rules/fail-closed-guards.md`): a guard that neither denies nor speaks does not exist |
+| Fail-closed guard | The OTC refusal SPEAKS (`ai/rules/evidence.md`): a guard that neither denies nor speaks does not exist |
 | Goldens | `TestGoldenBytesUnchangedTier1` and its PooledBuffer variants unmoved |
 
 ### Deliverables Checklist
@@ -337,7 +337,7 @@ config surfaces converging on one output is a stronger check than either alone.
   AttrModSuppress: the three community codes, OTC, CLUSTER_LIST and
   ORIGINATOR_ID. Only `genericAttrSetHandler` and `aspathHandler` had it. The
   rule belongs in the shared leaf package, once.
-- The sibling audit (`ai/rules/before-writing-code.md`) is what found the last
+- The sibling audit (`ai/rules/architecture.md`) is what found the last
   two. Grepping `RegisterAttrModHandler` finds only 4 production registrations;
   the other handlers are installed by `attrModHandlersWithDefaults` and are
   invisible to that grep. Audit the INSTALLER, not just the registrations.

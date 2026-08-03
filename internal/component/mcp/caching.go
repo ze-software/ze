@@ -75,7 +75,7 @@ const (
 // This is a security decision, not a formatting one. Ze expresses it as one
 // constant applied from one site, and not as a per-method field. No code path
 // can therefore choose another scope. And no future audit is owed when the
-// tool surface becomes principal-dependent (ai/rules/fail-closed-guards.md).
+// tool surface becomes principal-dependent (ai/rules/evidence.md).
 //
 // Note what is NOT in this file: there is no cacheScopePublic constant. To
 // emit "public", an author must type a bare string literal into a surface that
@@ -119,7 +119,7 @@ const cacheScopePrivate = "private"
 // An operator can set a YANG leaf or an env var to a value that contradicts
 // the server's real invalidation behavior. One example is a one-hour tool-list
 // TTL on a list that changes at every config reload. Ze has no way to find or
-// reject that contradiction, which is the failure ai/rules/exact-or-reject.md
+// reject that contradiction, which is the failure ai/rules/protocol.md
 // exists to prevent.
 const (
 	// ttlRegistryDerivedMs is the freshness of a surface assembled from the

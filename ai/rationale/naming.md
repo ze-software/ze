@@ -1,6 +1,6 @@
 # Naming Rationale
 
-Why: `ai/rules/naming.md`
+Why: `ai/rules/go-standards.md`
 
 ## The Pun
 "Ze" = "The" with a French accent. Use "ze" where "the" would work grammatically. "Start ze BGP daemon."

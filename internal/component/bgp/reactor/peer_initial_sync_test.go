@@ -137,7 +137,7 @@ func TestInitialSyncEORStopsAtFirstSendFailure(t *testing.T) {
 // PREVENTS: the barrier becoming dead code. Every other barrier test drives
 // waitPeerUpBarrier directly; delete the single call in peer_initial_sync.go and
 // they all stay green while the guarantee silently disappears
-// (ai/rules/fail-closed-guards.md, "drive the guard from the entry point").
+// (ai/rules/evidence.md, "drive the guard from the entry point").
 //
 // The oracle is triggerClock.waiting, which receives when waitPeerUpBarrier
 // evaluates its select operands, i.e. exactly when sendInitialRoutes is inside

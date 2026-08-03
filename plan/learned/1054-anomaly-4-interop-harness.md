@@ -14,7 +14,7 @@ injects synthetic traffic, gets a real incident, and arms the responder.
 - **In-process Go integration test, NOT a `.ci`.** The original plan (a test-only `fakeflow`
   plugin publishing to `observation.Feed`, driven by a `.ci`) was BUILT and then ABANDONED: a
   `.ci` cannot drive this chain. `observation.Feed` is a **process-local** bus
-  (`observation.go:86`); a config-`plugin{internal}` plugin runs isolated from the engine's
+  (`observation.go`); a config-`plugin{internal}` plugin runs isolated from the engine's
   in-engine `trafficfeature` in the functional-test DUT, so its `observation.Global().Publish`
   never reaches `trafficfeature` (proven by a `selfcheck` command: the injector's own publish is
   received in its process, `self_received=1`, while the engine's `trafficfeature` stayed
@@ -44,18 +44,18 @@ injects synthetic traffic, gets a real incident, and arms the responder.
 
 ## Gotchas
 
-- **`observation.Feed` is process-local (`observation.go:86`).** Publishers and subscribers must be
+- **`observation.Feed` is process-local (`observation.go`).** Publishers and subscribers must be
   in the SAME process. A config-loaded plugin cannot inject into the engine's feed. If you need to
   drive a feed-based chain from a test, compose the types in one process (a Go test), not via a `.ci`.
 - **Pure-outbound sources read as exfil.** Every source with zero inbound bytes has `+Inf` out/in
   ratio and trips the exfil signal, so a "normal" cohort injected outbound-only gets flagged too.
   Normals need BALANCED (in+out) traffic; only the outlier goes pure-outbound. This bit the first cut
   (armed all 6 sources) before the balanced-cohort fix (armed only the outlier).
-- **`internal` plugins are in-process by the code (`process.go:456 startInternal` goroutine), but the
+- **`internal` plugins are in-process by the code (`process.go startInternal` goroutine), but the
   functional-test DUT's process topology isolated the config-loaded plugin anyway.** Trust the
   runtime evidence (a `selfcheck`/PID probe) over a reading of the start path.
 - **Discovered, out of scope:** `deviation-threshold` (and any `decimal-2` YANG leaf with a `range`)
-  is currently unsettable -- "range validation not supported for type string" (`schema.go:890`)
+  is currently unsettable -- "range validation not supported for type string" (`schema.go`)
   against the in-flight anomaly YANG restructure. Flagged to the user; not fixed here.
 - Config restructure (2026-07-02): anomaly config is nested `anomaly { detect {} shape {} }`; show
   commands are `show anomaly detect` / `show anomaly shape` (wire methods `ze-show:anomaly*` unchanged).

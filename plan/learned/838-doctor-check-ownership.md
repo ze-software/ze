@@ -20,8 +20,8 @@ Doctor check registration was introduced in `cmd/ze/doctor` as a first migration
 
 ## Files
 
-- `ai/rules/doctor-checks.md`
+- `ai/rules/repo-maintenance.md`
 - `ai/patterns/registration.md`
-- `ai/rules/plugin-design.md`
+- `ai/rules/plugins.md`
 - `ai/LEARNED-INDEX.md`
 - `plan/learned/837-doctor-check-registry.md`

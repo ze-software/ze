@@ -1,7 +1,7 @@
 // Design: docs/guide/command-reference.md -- `show route` operational command.
 // Owned by the iface component: `show route` reads the kernel routing table
 // through the iface backend (iface.ListKernelRoutes). See
-// ai/rules/plugin-self-containment.md and
+// ai/rules/plugins.md and
 // docs/architecture/cli/command-namespacing.md (object-rooted commands).
 
 package cmd

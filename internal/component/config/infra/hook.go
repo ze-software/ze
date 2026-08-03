@@ -53,7 +53,7 @@ type LoginWarning struct {
 // operations daemon-startup infrastructure needs once the engine exists. The
 // BGP *reactor.Reactor satisfies it; always-on code never names the concrete
 // type, which is what lets internal/component/bgp be compiled out
-// (ai/rules/feature-gate-registration.md, "no feature type in an always-on
+// (ai/rules/plugins.md, "no feature type in an always-on
 // signature").
 type ReactorHandle interface {
 	// SetPostStartFunc registers a callback the reactor runs once it is up.

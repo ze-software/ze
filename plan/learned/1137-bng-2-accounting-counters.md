@@ -18,7 +18,7 @@
 - Reused `iface.GetStats()` instead of creating separate sysfs reader (metrics.go already uses it; avoids duplication)
 - Added PppInterface to SessionIPAssignedPayload rather than subscribing to a second event (simplest path, field already available)
 - Gigaword attributes emitted only when >0 (saves 12 bytes/packet for <4GB sessions, RFC does not mandate zeros)
-- Package-level `var acctGetStats = iface.GetStats` for test injection (follows metrics.go:126 pattern)
+- Package-level `var acctGetStats = iface.GetStats` for test injection (follows metrics.go pattern)
 
 **Deviations:**
 - Eliminated planned counters.go/counters_linux.go/counters_other.go files (iface.GetStats handles platform abstraction)

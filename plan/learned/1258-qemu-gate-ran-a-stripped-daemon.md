@@ -21,7 +21,7 @@ underneath, each of which invalidated the QEMU gate in a different way.
   lacking the capability. Chosen over leaving them red, and over deleting them.
 
 - **Marking them was not a coverage reduction, it was the opposite.**
-  `record_parse.go:236` skips every test NOT marked `needs-linux` when
+  `record_parse.go` skips every test NOT marked `needs-linux` when
   `ZE_QEMU_LINUX_ONLY=1`. So before this change the 27 failed on the host and were
   SKIPPED in the QEMU run: they executed successfully nowhere. The marker is what
   enrols them in `make ze-qemu-needs-linux-test`. Firewall went from 21 failing to
@@ -31,7 +31,7 @@ underneath, each of which invalidated the QEMU gate in a different way.
   `ze-qemu-all-test` and `ze-qemu-needs-linux-test` built `ZE_QEMU_BIN` with
   `-tags 'ze_core zetest ze_distro'` -- no `ze_setup`, no `$(ZE_FEATURES)` -- so the
   VM exercised a daemon with all 16 feature gates OFF: no ssh, no web, and no BGP.
-  `internal/test/runner/runner.go:43-49` had already solved this for the host
+  `internal/test/runner/runner.go` had already solved this for the host
   binary by deriving tags from `feature-gates.txt` "without a hand-maintained
   list"; the QEMU targets kept one anyway.
 

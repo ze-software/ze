@@ -39,5 +39,5 @@ re-opens the gate, so "review, then keep changing" cannot pass either.
 A reviewer can be wrong (over- or under-calling). The same session confirmed the
 dead-exit-code finding empirically (99 still passed; the inline `:exit=N` form
 caught it) before rewriting the tests. Findings are reproduced, not accepted or
-dismissed by argument — the same `no-fabrication.md` discipline applied to the
+dismissed by argument — the same `evidence.md` discipline applied to the
 review itself.

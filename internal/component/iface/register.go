@@ -795,7 +795,7 @@ func runEngine(conn net.Conn) int {
 
 // permissionRemediation is appended to an interface apply failure that the
 // kernel refused for want of privilege, so the returned error carries the
-// corrective action and not just the syscall text (ai/rules/error-messages.md:
+// corrective action and not just the syscall text (ai/rules/cli.md:
 // an error must say what failed, why, and what to do next).
 //
 // Interface work is netlink RTM_NEWLINK/RTM_NEWADDR, which the kernel gates on

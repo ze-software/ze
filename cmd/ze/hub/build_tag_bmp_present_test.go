@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_bmp present (compile-out) validation
+// Design: ai/rules/plugins.md -- ze_bmp present (compile-out) validation
 //
 //go:build ze_bmp && ze_bgp
 

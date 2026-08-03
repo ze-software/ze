@@ -247,7 +247,7 @@ func (s *Server) unbackedClaims() []string {
 // this case; removing it entirely is a worse outcome than the missing replay.
 //
 // So this is a guard that cannot deny and therefore must speak
-// (ai/rules/fail-closed-guards.md). The residual gap is real and narrow: the
+// (ai/rules/evidence.md). The residual gap is real and narrow: the
 // stood-down plugin stays stood down for the process lifetime. Closing it needs
 // a revocation the engine can deliver before StartPeers, which no current
 // engine->plugin channel provides -- the Stage-2 handshake is over by then, and

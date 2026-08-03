@@ -192,7 +192,7 @@ func (p *announceAttrs) nextHopFor(addr netip.Addr) *attribute.NextHop {
 
 // fail records the first reason the plan cannot be materialized. Every later call
 // is a no-op, so a caller checks once at the end rather than at every add
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func (p *announceAttrs) fail(reason string) {
 	if !p.failed {
 		p.failed = true

@@ -1,6 +1,6 @@
 #!/bin/bash
 # PostToolUse hook on Agent|Task: record that this session delegated at least
-# once (ai/rules/spec-delegation.md).
+# once (ai/rules/planning.md).
 #
 # The consumer is block-premature-stop.sh:213-217. It reads this marker at Stop
 # and warns (exit 1, never blocks) when the session claimed a spec and never

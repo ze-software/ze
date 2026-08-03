@@ -174,7 +174,7 @@ def assert_named(suite, ids):
     re-points to a different test the moment an alphabetically-earlier .ci file is
     added, renamed, or deleted. That is a gate reporting success for tests it
     never ran, so it fails the run here rather than shrinking or shifting the set
-    in silence (ai/rules/fail-closed-guards.md, ai/rules/testing.md).
+    in silence (ai/rules/evidence.md, ai/rules/testing.md).
 
     Checked before any test runs so the diagnosis is not buried under suite
     output. The suite directory is test/<suite>/ for all four (registerCIRoot,

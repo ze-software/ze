@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 Advertisement wire format (Section 5.1-5.2)
 // RFC: rfc/short/rfc3768.md -- VRRPv2 Advertisement wire format (Section 5.1-5.3)
-// Design: ai/rules/buffer-first.md -- WriteTo(buf, off) int contract
+// Design: ai/rules/performance.md -- WriteTo(buf, off) int contract
 //
 // Package packet implements the VRRP Advertisement codec for VRRPv3 (RFC 9568,
 // IPv4 + IPv6) and VRRPv2 (RFC 3768, IPv4 only). It has no sockets, no build
@@ -28,7 +28,7 @@ import (
 )
 
 // Protocol constants. These are defined locally in the vrrp-owned package and
-// are NOT added to any central registry (ai/rules/plugin-self-containment.md).
+// are NOT added to any central registry (ai/rules/plugins.md).
 const (
 	// ProtoNumber is the IP protocol / IPv6 Next Header value for VRRP.
 	// RFC 9568 Section 5.1: "Protocol / Next Header | 112".
@@ -241,7 +241,7 @@ func v2SecondsToMS(sec uint8) uint32 { return uint32(sec) * 1000 }
 
 // WriteTo serializes a into buf starting at off with the Checksum field ZERO,
 // and returns the number of bytes written. Call FillChecksum afterwards to
-// backfill the checksum (skip-and-backfill, ai/rules/buffer-first.md).
+// backfill the checksum (skip-and-backfill, ai/rules/performance.md).
 //
 // The caller MUST provide a buffer with at least the version-specific maximum
 // (MaxLenV2 / MaxLenV3v4 / MaxLenV3v6) bytes from off; WriteTo indexes directly

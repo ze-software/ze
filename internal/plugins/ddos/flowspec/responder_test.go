@@ -2,7 +2,9 @@ package flowspec
 
 import (
 	"net/netip"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
@@ -16,6 +18,107 @@ type fakeDispatcher struct {
 func (f *fakeDispatcher) Dispatch(cmd string) error {
 	f.cmds = append(f.cmds, cmd)
 	return f.err
+}
+
+// blockingDispatcher holds the caller inside Dispatch until released. It stands
+// in for the production sdkDispatcher (register.go), whose Dispatch is
+// p.UpdateRoute: an RPC round trip to the BGP engine.
+type blockingDispatcher struct {
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (d *blockingDispatcher) Dispatch(string) error {
+	close(d.entered)
+	<-d.release
+	return nil
+}
+
+// TestFlowspecStatusDuringSlowDispatch proves the show surface reads the
+// announcement state without waiting on a BGP-engine round trip.
+//
+// VALIDATES: status() takes no lock -- announce (and withdraw) hold r.mu across
+// dispatcher.Dispatch, and show.go handleShowDdosFlowspec reaches status()
+// through the plugin dispatch-command path.
+// PREVENTS: `show ddos flowspec` stalling for a full UpdateRoute RPC round trip,
+// unbounded while announce/withdraw churn under a flood. Same defect and same
+// fix shape as D-3 (ddos/local) and D-4 (anomaly/shape) of
+// plan/spec-fixit-firewall-concurrency-deadlock.md; this is the fourth instance.
+func TestFlowspecStatusDuringSlowDispatch(t *testing.T) {
+	disp := &blockingDispatcher{entered: make(chan struct{}), release: make(chan struct{})}
+	r := newResponder(&Config{
+		ResponseLevel: responseEnforce, BlackholeFallback: true,
+		HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		r.onDetected(&ddosevent.AttackDetected{
+			Interface: "xe0",
+			Target:    ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 17},
+			Family:    ddosevent.FamilyUDPFlood,
+			Severity:  ddosevent.SeverityCritical,
+			Direction: ddosevent.DirectionRemote,
+		})
+	})
+	<-disp.entered // the announce is in flight and r.mu is held
+
+	done := make(chan struct{})
+	go func() {
+		r.status()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		close(disp.release)
+		wg.Wait()
+		t.Fatal("status() blocked behind the in-flight announce: show ddos flowspec is hostage to BGP-engine RPC latency")
+	}
+
+	close(disp.release)
+	wg.Wait()
+
+	// The snapshot the show handler reads must still track the announcement.
+	if active, target, probing := r.status(); !active || target.Proto != 17 || !probing {
+		t.Fatalf("status() after a successful announce = (%v, %+v, probing=%v), want an active rule carrying the announced vector with the leak-probe running",
+			active, target, probing)
+	}
+}
+
+// TestFlowspecWithdrawRepublishesStatus covers the WITHDRAW half of the snapshot
+// contract. Announcing is proven by TestFlowspecStatusDuringSlowDispatch;
+// withdrawing was proven nowhere, so deleting publishStatus from withdraw left
+// every test in the package green.
+//
+// VALIDATES: withdraw republishes, so the lock-free snapshot stops claiming an
+// upstream rule once the leak-probe has withdrawn it.
+// PREVENTS: a permanently stale, fail-open report -- `show ddos flowspec`
+// naming an announced FlowSpec rule (and a running leak-probe) after the
+// withdraw reached the BGP engine, with no later event able to correct it.
+func TestFlowspecWithdrawRepublishesStatus(t *testing.T) {
+	r := newResponder(&Config{
+		ResponseLevel: responseEnforce,
+		HoldDown:      2, ProbeInterval: 3, ProbeWindow: 2, ProbeRate: 1000000, BackoffCap: 3600,
+	}, &fakeDispatcher{})
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 17},
+	})
+	if active, _, probing := r.status(); !active || !probing {
+		t.Fatalf("announce did not publish (active=%v probing=%v): the test proves nothing about the withdraw", active, probing)
+	}
+
+	for range 10 { // drive the leak-probe past hold-down into a withdraw
+		r.probeTick(0)
+	}
+	if r.active {
+		t.Fatal("the leak-probe did not withdraw: the test never reaches the path it covers")
+	}
+	if active, target, probing := r.status(); active || probing {
+		t.Fatalf("status() = (active=%v, %+v, probing=%v) after the withdraw: show ddos flowspec reports an upstream rule the BGP engine no longer holds",
+			active, target, probing)
+	}
 }
 
 func TestIgnoresDetectorClearWhileMitigating(t *testing.T) {

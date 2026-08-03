@@ -57,12 +57,12 @@ the loaded plugin set from the `.ci` file.**
 Both symptoms fall out of ONE unordered boundary: `bgp-rs` claims peer-up replay
 ownership from a callback that is not ordered against peer startup.
 
-`internal/component/plugin/server/startup.go:236-258` `sendPostStartupToAll` fans
+`internal/component/plugin/server/startup.go` `sendPostStartupToAll` fans
 the post-startup callback out on **detached goroutines** and returns without
 waiting (its own doc comment says so, and says that waiting deadlocks);
-`startup.go:210` then calls `SignalPluginStartupComplete` -> StartPeers. So
-`rs/server_handlers.go:169-182` `claimReplayOwnership` -> `request bgp adj-rib-in
-claim-replay` -> `adj_rib_in/rib_commands.go:332-338` (`replayOwned.Swap(true)`)
+`startup.go` then calls `SignalPluginStartupComplete` -> StartPeers. So
+`rs/server_handlers.go` `claimReplayOwnership` -> `request bgp adj-rib-in
+claim-replay` -> `adj_rib_in/rib_commands.go` (`replayOwned.Swap(true)`)
 races the first session establishment.
 
 **Measured margin on an idle darwin host: 1-2 ms.**
@@ -74,21 +74,21 @@ races the first session establishment.
 
 Under 20-way suite load that ordering inverts. When it does:
 
-- **254's duplicate.** `adj_rib_in/rib.go:579` (`if isUp && !r.replayOwned.Load()`)
-  self-replays on peer-up *in addition to* `rs/server_handlers.go:214`
+- **254's duplicate.** `adj_rib_in/rib.go` (`if isUp && !r.replayOwned.Load()`)
+  self-replays on peer-up *in addition to* `rs/server_handlers.go`
   `replayForPeer`. Both funnel into the same `RelayStoredRoute` ->
   `buildRelayUpdate` -> `forwardUpdateCore`, so the two copies are byte-identical
   and back to back -- exactly the recorded symptom.
-- **380's missing withdraw.** `rs/server_forward.go:106-128`
+- **380's missing withdraw.** `rs/server_forward.go`
   `selectForwardTargets` includes a peer iff `peer.Up`, and the only producer of
-  `Up` is `rs/server_handlers.go:70`, which runs when the RS plugin's event loop
+  `Up` is `rs/server_handlers.go`, which runs when the RS plugin's event loop
   processes the state event. That event is enqueued by the *receiver's* session
-  read goroutine (`fsm/fsm.go:220` -> `reactor/peer_run.go:387` ->
-  `reactor_api.go:59` -> `bgp/server/events.go:575`), while the source's UPDATE is
-  enqueued by the *source's* read goroutine (`events.go:345`). Two producers, one
+  read goroutine (`fsm/fsm.go` -> `reactor/peer_run.go` ->
+  `reactor_api.go` -> `bgp/server/events.go`), while the source's UPDATE is
+  enqueued by the *source's* read goroutine (`events.go`). Two producers, one
   queue: their order is scheduling-decided, not wire-decided, so the `.ci`
   handshaking both peers before the send does not close it. A receiver that loses
-  that race is not a forward target at all, and `adj_rib_in/rib.go:767-795`
+  that race is not a forward target at all, and `adj_rib_in/rib.go`
   `buildReplayRoutes` emits stored announcements only -- **the replay rail
   structurally cannot carry a withdraw** -- so the receiver gets the announce via
   replay and never the withdraw.
@@ -98,9 +98,9 @@ Under 20-way suite load that ordering inverts. When it does:
 `plan/learned/1271-fixit-bgp-egress-rail-divergence.md` (lines 40-41) states that
 "bgp-rs already marks a peer `Replaying` and withholds it from forward targets",
 and three in-tree comments said the same. **All four were wrong.**
-`selectForwardTargets` (`rs/server_forward.go:106-128`) never reads `Replaying`.
+`selectForwardTargets` (`rs/server_forward.go`) never reads `Replaying`.
 Including a replaying peer is deliberate, recorded in
-`plan/learned/630-rs-fastpath-3-passthrough.md:58-60` and pinned by
+`plan/learned/630-rs-fastpath-3-passthrough.md` and pinned by
 `TestReplayingPeerIncludedInForwardTargets`: BGP UPDATE duplicates are idempotent
 at the receiver, and excluding replaying peers loses routes when peers connect
 together. The comments were corrected 2026-07-25 (`rs/peer.go`,

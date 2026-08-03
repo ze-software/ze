@@ -22,44 +22,44 @@ stored in `/etc/ftagent.conf`.
 
 | Parameter | Value | Source |
 |-----------|-------|--------|
-| Failure threshold | 5 consecutive failures | `agent.py:351` |
-| Recovery timeout | 60 seconds | `agent.py:352` |
-| Half-open probes | 1 | `agent.py:353` |
-| Retry queue | bounded deque, maxlen=2000 | `agent.py:370` |
-| Retry backoff | exponential, capped at 10s (16s for 503) | `agent.py:428,448` |
-| 503 handling | honors `Retry-After` header | `agent.py:421-426` |
+| Failure threshold | 5 consecutive failures | `agent.py` |
+| Recovery timeout | 60 seconds | `agent.py` |
+| Half-open probes | 1 | `agent.py` |
+| Retry queue | bounded deque, maxlen=2000 | `agent.py` |
+| Retry backoff | exponential, capped at 10s (16s for 503) | `agent.py,448` |
+| 503 handling | honors `Retry-After` header | `agent.py` |
 
-When tripped, requests are queued. The queue is flushed after a successful heartbeat (`agent.py:598-599`).
+When tripped, requests are queued. The queue is flushed after a successful heartbeat (`agent.py`).
 
 ## Endpoints
 
 ### POST `/agent/heartbeat`
 
-Every 30 seconds (`agent.py:4822`). Flushes retry queue on success.
+Every 30 seconds (`agent.py`). Flushes retry queue on success.
 
 | Field | Type | Description | Source |
 |-------|------|-------------|--------|
-| `version` | string | Agent version (e.g. "1.2.3") | `agent.py:4827` |
-| `baseline_ready` | bool | Rolling baseline has enough samples | `agent.py:4828` |
-| `baseline_avg_pps` | float | Current baseline average PPS | `agent.py:4829` |
-| `baseline_p99_pps` | float | Current baseline p99 PPS | `agent.py:4830` |
-| `baseline_hourly_ready` | bool | Hourly baseline bucket populated | `agent.py:4831` |
-| `baseline_current_hour_p99` | float | Current hour's p99 PPS | `agent.py:4832` |
-| `circuit_breaker` | string | "closed", "open", or "half-open" | `agent.py:4833` |
-| `retry_queue_size` | int | Pending retries in queue | `agent.py:4834` |
-| `gre_dedup_enabled` | bool | GRE deduplication active | `agent.py:4836` |
-| `hypervisor_mode` | bool | Per-VM tracking active | `agent.py:4838` |
-| `pcap_active` | bool | PCAP capture enabled | `agent.py:4840` |
-| `flow_active` | bool | Flow collector running | `agent.py:4841` |
-| `src_ip_overflow` | int | Source IP tracking overflows | `agent.py:4845` |
-| `src_ip_count` | int | Tracked source IPs | `agent.py:4846` |
-| `pkt_samples_count` | int | Packet samples in analyser | `agent.py:4847` |
-| `vm_count` | int | Tracked VMs (hypervisor mode) | `agent.py:4849` |
-| `flow_collector` | object | Flow collector stats | `agent.py:4852` |
+| `version` | string | Agent version (e.g. "1.2.3") | `agent.py` |
+| `baseline_ready` | bool | Rolling baseline has enough samples | `agent.py` |
+| `baseline_avg_pps` | float | Current baseline average PPS | `agent.py` |
+| `baseline_p99_pps` | float | Current baseline p99 PPS | `agent.py` |
+| `baseline_hourly_ready` | bool | Hourly baseline bucket populated | `agent.py` |
+| `baseline_current_hour_p99` | float | Current hour's p99 PPS | `agent.py` |
+| `circuit_breaker` | string | "closed", "open", or "half-open" | `agent.py` |
+| `retry_queue_size` | int | Pending retries in queue | `agent.py` |
+| `gre_dedup_enabled` | bool | GRE deduplication active | `agent.py` |
+| `hypervisor_mode` | bool | Per-VM tracking active | `agent.py` |
+| `pcap_active` | bool | PCAP capture enabled | `agent.py` |
+| `flow_active` | bool | Flow collector running | `agent.py` |
+| `src_ip_overflow` | int | Source IP tracking overflows | `agent.py` |
+| `src_ip_count` | int | Tracked source IPs | `agent.py` |
+| `pkt_samples_count` | int | Packet samples in analyser | `agent.py` |
+| `vm_count` | int | Tracked VMs (hypervisor mode) | `agent.py` |
+| `flow_collector` | object | Flow collector stats | `agent.py` |
 
 ### POST `/agent/metrics`
 
-Aggregated traffic metrics, sent periodically (~30s window). `agent.py:4335-4347`.
+Aggregated traffic metrics, sent periodically (~30s window). `agent.py`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -75,7 +75,7 @@ Aggregated traffic metrics, sent periodically (~30s window). `agent.py:4335-4347
 
 ### POST `/agent/incidents` (Open Incident)
 
-Called at attack onset (`agent.py:4470-4501`). Returns the incident UUID.
+Called at attack onset (`agent.py`). Returns the incident UUID.
 
 **Request:**
 
@@ -111,7 +111,7 @@ to apply immediately (same format as the config poll).
 
 ### POST `/agent/incidents/{uuid}` (Update Incident)
 
-Called every ~5 seconds during an active attack (`agent.py:4697-4724`).
+Called every ~5 seconds during an active attack (`agent.py`).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -136,7 +136,7 @@ Called every ~5 seconds during an active attack (`agent.py:4697-4724`).
 
 ### POST `/agent/incidents/{uuid}/resolve` (Resolve Incident)
 
-Called when the attack ends (`agent.py:4778-4804`). Full forensic record.
+Called when the attack ends (`agent.py`). Full forensic record.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -166,7 +166,7 @@ Called when the attack ends (`agent.py:4778-4804`). Full forensic record.
 
 ### POST `/agent/incidents/{uuid}/pcap` (Upload PCAP)
 
-Forensic packet capture upload (`agent.py:523-594`).
+Forensic packet capture upload (`agent.py`).
 
 **Small files (<=2MB):** multipart form upload, field name `pcap`.
 
@@ -179,11 +179,11 @@ Forensic packet capture upload (`agent.py:523-594`).
 | `X-Chunk-Total` | total chunks |
 | `X-Upload-Id` | unique 16-char hex ID per upload |
 
-Maximum file size: 500MB (truncated if larger, `agent.py:507`).
+Maximum file size: 500MB (truncated if larger, `agent.py`).
 
 ### GET `/agent/config` (Fetch Config)
 
-Polled every 300s idle, 10s during attack (`agent.py:4962-4966`).
+Polled every 300s idle, 10s during attack (`agent.py`).
 
 **Response fields:**
 
@@ -205,7 +205,7 @@ Polled every 300s idle, 10s during attack (`agent.py:4962-4966`).
 
 ### POST `/agent/commands/ack` (Acknowledge Command)
 
-Sent after executing a server-pushed command (`agent.py:5554-5558`).
+Sent after executing a server-pushed command (`agent.py`).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -215,7 +215,7 @@ Sent after executing a server-pushed command (`agent.py:5554-5558`).
 
 ### POST `/agent/sp/metrics` (Service Port Metrics)
 
-Split service/non-service traffic metrics (`agent.py:5539-5546`).
+Split service/non-service traffic metrics (`agent.py`).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -228,11 +228,11 @@ Split service/non-service traffic metrics (`agent.py:5539-5546`).
 
 ### POST `/agent/sp/blocks` (Service Port Block Report)
 
-Reports per-source-IP block actions (`agent.py:5562`). Payload varies.
+Reports per-source-IP block actions (`agent.py`). Payload varies.
 
 ### POST `/agent/vm-stats` (VM Stats)
 
-Per-VM inner IP statistics (`agent.py:4354-4357`).
+Per-VM inner IP statistics (`agent.py`).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -241,7 +241,7 @@ Per-VM inner IP statistics (`agent.py:4354-4357`).
 
 ### POST `/agent/mirror-metrics` (Mirror Mode Metrics)
 
-SPAN/mirror port per-IP stats (`agent.py:6252-6259`).
+SPAN/mirror port per-IP stats (`agent.py`).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -254,11 +254,11 @@ SPAN/mirror port per-IP stats (`agent.py:6252-6259`).
 
 ### POST `/agent/gre-tunnels` (GRE Tunnel Report)
 
-Reports discovered GRE tunnel endpoints (`agent.py:5185`).
+Reports discovered GRE tunnel endpoints (`agent.py`).
 
 ### POST `/agent/l7/detect` (L7 Web Server Detection)
 
-Reports web server auto-detection results (`agent.py:5200-5237`).
+Reports web server auto-detection results (`agent.py`).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -269,12 +269,12 @@ Reports web server auto-detection results (`agent.py:5200-5237`).
 
 ### POST `/agent/l7/metrics` (L7 Metrics)
 
-HTTP request metrics (`agent.py:5263`). Payload varies by implementation.
+HTTP request metrics (`agent.py`). Payload varies by implementation.
 
 ## Pending Commands Format
 
 Commands arrive in `pending_commands` arrays in incident responses and config
-polls. Deduplicated by `id` (the agent tracks executed IDs, `agent.py:4976`).
+polls. Deduplicated by `id` (the agent tracks executed IDs, `agent.py`).
 
 ### Standard Commands (iptables/sysctl)
 
@@ -289,7 +289,7 @@ polls. Deduplicated by `id` (the agent tracks executed IDs, `agent.py:4976`).
 
 `command_text` may contain multiple newline-separated commands.
 
-Allowed prefixes (`agent.py:5457-5463`):
+Allowed prefixes (`agent.py`):
 `iptables`, `ip6tables`, `ipset`, `sysctl`, `nft`, `ufw`, `firewall-cmd`,
 `tc`, `ip route`, `fail2ban-client`, `nginx`, `apache2ctl`.
 
@@ -304,7 +304,7 @@ Allowed prefixes (`agent.py:5457-5463`):
 }
 ```
 
-XDP spec fields (`agent.py:5570-5578`):
+XDP spec fields (`agent.py`):
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -317,7 +317,7 @@ XDP spec fields (`agent.py:5570-5578`):
 
 ## Attack Families
 
-Classification values for `attack_family` (`agent.py:2960-2999`):
+Classification values for `attack_family` (`agent.py`):
 
 | Family | Condition |
 |--------|-----------|

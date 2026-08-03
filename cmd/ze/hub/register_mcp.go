@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 //
 // Build-tag-gated registration of the MCP service factory. Compiled only under
 // //go:build ze_mcp; absent the tag this init() does not exist, so the hub

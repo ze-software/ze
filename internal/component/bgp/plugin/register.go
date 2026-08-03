@@ -51,7 +51,7 @@ var (
 
 func init() {
 	// The reactor raises these codes (reactor/session_health.go); the BGP
-	// subsystem owns its health row (ai/rules/plugin-self-containment.md).
+	// subsystem owns its health row (ai/rules/plugins.md).
 	health.Register("bgp", report.HealthProbeDegraded(
 		"session-stuck", "session-flap", "eor-timeout"))
 
@@ -66,7 +66,7 @@ func init() {
 
 	// BGP owns the namespace for plugin-declared event types and
 	// namespace-less plugin RPC subscriptions; the plugin host stays
-	// protocol-neutral (ai/rules/plugin-self-containment.md).
+	// protocol-neutral (ai/rules/plugins.md).
 	zeplugin.RegisterDefaultEventNamespace(bgpevents.Namespace)
 
 	reg := registry.Registration{

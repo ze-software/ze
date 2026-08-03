@@ -22,7 +22,7 @@ import (
 // certificate at an operator-named http URL and expects the peer to fetch it. Ze fetches
 // the peer's certificate in turn.
 //
-// ai/rules/doctor-checks.md requires a readiness check for a dependency of that shape.
+// ai/rules/repo-maintenance.md requires a readiness check for a dependency of that shape.
 // The failure is otherwise invisible from ze's side. The peer refuses ze's certificate,
 // and the reason lives in the peer's log.
 //

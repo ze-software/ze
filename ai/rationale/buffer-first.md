@@ -1,7 +1,7 @@
 # Buffer-First Rationale
 
-Why: `ai/rules/buffer-first.md` (mechanical reference)
-Principle: `ai/rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding
+Why: `ai/rules/performance.md` (mechanical reference)
+Principle: `ai/rules/architecture.md` -- Encapsulation onion + Buffer-first encoding
 
 ## Why Pool Buffer = RFC Length
 

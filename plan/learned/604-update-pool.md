@@ -87,7 +87,7 @@ shape so chunks can share scratch safely.
 - `BuildGroupedUnicastWithLimit`, `BuildMVPNWithLimit`, `SplitUpdate`,
   `SplitUpdateWithAddPath` are GONE. Any external plugin code expecting these
   names will fail to compile (pre-release, no compat layer per
-  `compatibility.md`).
+  `go-standards.md`).
 - `Splitter` pool amortizes per-split scratch allocation. In the common
   fast-path (UPDATE fits maxSize), scratch is never touched -- zero
   additional alloc cost for already-fitting messages. The 4KB-64KB scratch
@@ -132,7 +132,7 @@ shape so chunks can share scratch safely.
   classifier would misattribute if SendUpdate's error surface ever wraps one.
   Flagged explicitly in the helper's godoc with the sentinel list and a
   "switch to `sentAny bool` flag if that changes" migration note. Matches
-  the precedent idiom at `peer_initial_sync.go:214,236,338,358`.
+  the precedent idiom at `peer_initial_sync.go,236,338,358`.
 - **`block-layering.sh` hook rejected the word "compatibility"** in comments
   (pre-existing text like "matches ExaBGP output for compatibility testing").
   Rewrote to "matches the wire-byte order used by ExaBGP fixture round-trip

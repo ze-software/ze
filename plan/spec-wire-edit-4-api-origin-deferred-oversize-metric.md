@@ -9,7 +9,7 @@
 | Updated | 2026-08-02 |
 
 Deferral holder created at the closure of `plan/learned/1320-wire-edit-4-api-origin.md` on 2026-08-02
-(`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
+(`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
@@ -24,7 +24,7 @@ an operator sees the drop as a counter rather than only as a log line. A drop
 visible only in a log is invisible to an alert.
 
 The counter name must carry the `ze_` prefix its siblings use
-(`ai/rules/config-naming.md`), and the label set must be closed so a caller
+(`ai/rules/config.md`), and the label set must be closed so a caller
 cannot drive cardinality.
 
 ## Required Reading
@@ -32,7 +32,7 @@ cannot drive cardinality.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 - [ ] `docs/plugin-development/metrics.md` - counter registration and documentation
-- [ ] `ai/rules/derive-not-hardcode.md` - label sets come from a closed enum
+- [ ] `ai/rules/evidence.md` - label sets come from a closed enum
 
 ## Current Behavior (MANDATORY)
 

@@ -18,7 +18,7 @@ Each digest declares the subtree(s) it anchors into with a machine-readable head
 `make ze-digest-check` (run inside `make ze-doc-test`, and by `verify_wiring_docs.py`
 when a digest or a `.go` under one of those bases changes) validates that every
 `file:line` anchor resolves to a real file and an in-range line. Anchors are written
-subsystem-relative (`peer.go:754`, not the full path); a bare name must be unique across
+subsystem-relative (`peer.go`, not the full path); a bare name must be unique across
 the declared bases, so qualify it with enough path (`storage/familyrib.go`, or the full
 repo-relative path) when the same basename exists under more than one base. The check
 fails closed on such ambiguity rather than guessing, so it will not silently validate an

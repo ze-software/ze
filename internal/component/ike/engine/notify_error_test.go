@@ -223,7 +223,7 @@ func TestNtfOutOfSASkipsSAInitAndRateLimits(t *testing.T) {
 	})
 
 	// A nil limiter denies. A caller that forgot to build one sends nothing rather
-	// than sending without a bound (ai/rules/fail-closed-guards.md).
+	// than sending without a bound (ai/rules/evidence.md).
 	t.Run("a nil limiter denies", func(t *testing.T) {
 		var nilLimiter *outboundNotifyLimiter
 		if nilLimiter.allow() {
@@ -480,7 +480,7 @@ func ntfScanNotifyUse(t *testing.T, root string) (map[string]bool, []string) {
 // ntfConstantValue resolves a wire notify constant name to its value.
 // It is the one place a name and a value are paired for this test.
 // An unresolvable name is a loud failure, not a silent skip
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func ntfConstantValue(name string) (uint16, bool) {
 	known := map[string]uint16{
 		"NotifyUnsupportedCriticalPayload": wire.NotifyUnsupportedCriticalPayload,

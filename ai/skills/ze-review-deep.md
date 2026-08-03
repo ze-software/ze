@@ -11,10 +11,10 @@ See also: `/ze-review` (quick single-pass), `/ze-review-spec` (spec completeness
 
 ## Delegation
 
-`ai/rules/spec-delegation.md`: this skill runs in the MAIN THREAD and does its
+`ai/rules/planning.md`: this skill runs in the MAIN THREAD and does its
 own fan-out. Do not wrap the whole skill in a single agent. That buries the
 parallel lenses one level down and costs exactly the independence they exist to
-provide (`ai/rules/critical-review.md`).
+provide (`ai/rules/planning.md`).
 
 Launch the agents this skill defines, all in ONE message, on `model: opus`.
 **Start every agent prompt with `Serving /ze-review-deep:`.** The gate in
@@ -22,7 +22,7 @@ Launch the agents this skill defines, all in ONE message, on `model: opus`.
 the ask, and these fan-out prompts ask for exactly that. The prefix says the
 routing already happened.
 Never trade their model down for cost; cut their NUMBER instead
-(`ai/rules/model-selection.md`). You do not need to ask permission to spawn them
+(`ai/rules/planning.md`). You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 
 The user may optionally specify a scope and/or agent selection:
@@ -36,7 +36,7 @@ When the argument contains agent names (e.g., "security", "logic", "concurrency"
 ## Model Selection
 
 Review is a review-phase workload, so it runs on the review model throughout
-(`ai/rules/model-selection.md`: planning and review on Opus 5, implementation on
+(`ai/rules/planning.md`: planning and review on Opus 5, implementation on
 Opus 4.8). The orchestrator (this skill) runs at the session's model.
 
 | Model | Agents | Why |
@@ -64,7 +64,7 @@ Then run the deterministic test-relaxation audit and keep its output for the Tes
 
 ### 2. Select agents
 
-Three lenses is this skill's floor on round 1. `ai/rules/critical-review.md`,
+Three lenses is this skill's floor on round 1. `ai/rules/planning.md`,
 "State the review effort before you spend it", sets two as the universal floor
 and three or more for an "audit this" ask. This skill is what that ask reaches.
 Round 1 is the only pass that ever sees the whole diff, so its lens count is the
@@ -240,7 +240,7 @@ Read every changed function. For each one:
 8. For slice operations: are indices bounds-checked before access?
 9. Does the code match its git history intent? (Use git blame/log to understand WHY old code existed -- flag if a guard or workaround is being removed)
 10. Removed-behavior audit: for every line the diff DELETES or replaces, name the invariant or behavior it enforced. Search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case.
-11. Test rewrite check: for every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression even when the assertion count stays the same. Ask: "what did the old assertion prove, and where is that proof now?" Report as CRITICAL if coverage is lost. Rule: `ai/rules/no-test-deletion.md` "Test Rewrite as Replacement."
+11. Test rewrite check: for every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression even when the assertion count stays the same. Ask: "what did the old assertion prove, and where is that proof now?" Report as CRITICAL if coverage is lost. Rule: `ai/rules/testing.md` "Test Rewrite as Replacement."
 
 Specifically check for:
 - Inverted conditions
@@ -320,17 +320,17 @@ SCOPE: Review these changed files: {file_list}
 
 Read the project's .claude/rules/ directory to understand all rules. Then check each changed file:
 
-1. **buffer-first.md**: Wire encoding uses WriteTo(buf, off), no append/make in encoding paths
+1. **performance.md**: Wire encoding uses WriteTo(buf, off), no append/make in encoding paths
 2. **goroutine-lifecycle.md**: No per-event goroutines in hot paths
-3. **design-principles.md**: No identity wrappers, abstract when you can (2+ use cases), lazy over eager
-4. **json-format.md**: kebab-case JSON keys, correct envelope format
-5. **naming.md**: ze- prefix conventions, correct YANG suffixes
-6. **plugin-design.md**: Proximity principle, YANG required for RPCs, import rules
-7. **cli-patterns.md**: flag.NewFlagSet, exit codes, stderr for errors, tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`)
-8. **config-design.md**: Fail on unknown keys, no version numbers
-9. **design-doc-references.md**: // Design: comment present in every .go file
-10. **related-refs.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional
-11. **file-modularity.md**: Files under 1000 lines, single concern per file
+3. **architecture.md**: No identity wrappers, abstract when you can (2+ use cases), lazy over eager
+4. **cli.md**: kebab-case JSON keys, correct envelope format
+5. **go-standards.md**: ze- prefix conventions, correct YANG suffixes
+6. **plugins.md**: Proximity principle, YANG required for RPCs, import rules
+7. **cli.md**: flag.NewFlagSet, exit codes, stderr for errors, tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`)
+8. **config.md**: Fail on unknown keys, no version numbers
+9. **go-standards.md**: // Design: comment present in every .go file
+10. **go-standards.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional
+11. **go-standards.md**: Files under 1000 lines, single concern per file
 12. **rfc-compliance.md**: If the diff touches protocol code (wire, message, capability, FSM, NLRI, attributes), read the relevant `rfc/short/` summaries and verify: (a) every MUST/MUST NOT is enforced, (b) every MUST enforcement has a `// RFC NNNN Section X.Y: "quoted requirement"` comment, (c) no SHOULD is ignored without justification. A MUST violation is critical severity.
 13. **Altitude check**: Is each change at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Flag bandaid fixes with the deeper alternative named.
 
@@ -383,11 +383,11 @@ You are a performance engineer reviewing Go code for a high-throughput daemon. E
 SCOPE: Review these changed files: {file_list}
 
 The project has strict allocation rules. Read these files for context:
-- ai/rules/no-sprintf-alloc.md (banned fmt patterns, textbuf.Buffer usage, hot path list)
-- ai/rules/memory-architecture.md (buffer ownership, pool lifecycle, data lifecycle)
-- ai/rules/buffer-first.md (WriteTo pattern for wire encoding)
+- ai/rules/performance.md (banned fmt patterns, textbuf.Buffer usage, hot path list)
+- ai/rules/performance.md (buffer ownership, pool lifecycle, data lifecycle)
+- ai/rules/performance.md (WriteTo pattern for wire encoding)
 
-Identify hot paths from no-sprintf-alloc.md "Hot Path Rule" table. Any code in those
+Identify hot paths from performance.md "Hot Path Rule" table. Any code in those
 directories is per-message, high-frequency code.
 
 For every changed function, check:
@@ -420,7 +420,7 @@ For every changed function, check:
 12. **Pool misuse:** sync.Pool Get without Put, or holding a pool buffer past its
     intended lifecycle (across goroutine boundaries without tracking).
 13. **Unnecessary copy:** Copying data that could be referenced. Check against the
-    project's "When Copies Happen" list in memory-architecture.md.
+    project's "When Copies Happen" list in performance.md.
 
 For each finding report:
 FILE:LINE | SEVERITY (critical/high/medium/low) | CATEGORY (fmt-hot-path/heap-escape/loop-alloc/redundant-compute/missing-precompute/complexity/pool-misuse/unnecessary-copy) | EVIDENCE (the specific allocation or pattern) | IMPACT (estimated allocs/op or complexity) | FIX (specific code change using project patterns)
@@ -567,7 +567,7 @@ they touched. Re-reading the whole diff every round never stops, because a
 diff of any size always yields something new, and the deep review is where that
 bites hardest. A finding outside the round's scope is still fixed when the goal
 depends on it, when you are unsure whether it does, or when it is one of the
-eight always-in-scope classes: `ai/rules/critical-review.md`, "Bounding the
+eight always-in-scope classes: `ai/rules/planning.md`, "Bounding the
 loop", governs, and it is the only place those tests are written.
 
 ## Rules
@@ -579,4 +579,4 @@ loop", governs, and it is the only place those tests are written.
 - Each agent runs in the background -- launch all selected agents simultaneously.
 - If an agent finds nothing, that's fine -- report "clean" for that category.
 - If an agent times out, report "timed out" -- do not block the review.
-- False positive filter: discard linter-catchable issues and intentional changes clearly visible in the diff. Discard a finding on unmodified lines ONLY when the goal does not depend on it, and it is not one of the eight always-in-scope classes (`ai/rules/critical-review.md`, "Bounding the loop"). Those classes are never NOTEs. An unqualified unmodified-lines filter deletes exactly what they are. An absence sits on no changed line, so it would discard this skill's own "what DOESN'T exist" lens in full.
+- False positive filter: discard linter-catchable issues and intentional changes clearly visible in the diff. Discard a finding on unmodified lines ONLY when the goal does not depend on it, and it is not one of the eight always-in-scope classes (`ai/rules/planning.md`, "Bounding the loop"). Those classes are never NOTEs. An unqualified unmodified-lines filter deletes exactly what they are. An absence sits on no changed line, so it would discard this skill's own "what DOESN'T exist" lens in full.

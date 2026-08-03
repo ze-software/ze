@@ -1,6 +1,6 @@
 # Implementation Audit Rationale
 
-Why: `ai/rules/implementation-audit.md`
+Why: `ai/rules/completion.md`
 
 ## Why Tests Passing ≠ Spec Complete
 

@@ -10,7 +10,7 @@ random load. They were not random.
 ## Root cause (two measurable patterns, both "test runs near its wall-clock cap")
 
 1. **doctor tests do real network probes with multi-second timeouts, run
-   sequentially.** `runChecks` (`internal/component/doctor/doctor.go:144,152,154`)
+   sequentially.** `runChecks` (`internal/component/doctor/doctor.go,152,154`)
    calls `checkClockSkew` (dials `pool.ntp.org`), `checkUpdateCheckURL`, and
    `checkArchiveDestinations` (each `httpHead(..., 5*time.Second)`) one after
    another. Against deliberately-unreachable fixtures (TEST-NET `198.51.100.99`)

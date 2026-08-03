@@ -435,7 +435,7 @@ func (r *taskRegistry) activeCount(identity string) int {
 //
 // A zero can therefore never be read as "unlimited". A zero-valued cap that
 // silently means "no cap" is the fail-open shape
-// ai/rules/fail-closed-guards.md exists to stop. There is deliberately no third
+// ai/rules/evidence.md exists to stop. There is deliberately no third
 // convention, and nothing in this registry spells "uncapped".
 func (r *taskRegistry) terminalCap() int {
 	if r.maxTerminal <= 0 {

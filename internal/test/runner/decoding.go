@@ -100,7 +100,7 @@ func (dt *DecodingTests) Discover(dir string) error {
 			// suite with no warning and no failure, so its coverage was silently
 			// lost. Warn and record it as a permanent failure instead -- a guard
 			// that neither denies nor speaks does not exist
-			// (ai/rules/fail-closed-guards.md). Mirrors EncodingTests.Discover.
+			// (ai/rules/evidence.md). Mirrors EncodingTests.Discover.
 			recordLogger().Warn("unparseable test file recorded as failure; continuing discovery",
 				"file", filepath.Base(testFile), "error", err)
 			base := filepath.Base(testFile)

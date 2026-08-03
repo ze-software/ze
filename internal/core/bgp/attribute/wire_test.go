@@ -107,7 +107,7 @@ func TestAttributesWireGetError(t *testing.T) {
 // duplicate attribute code as a hard error and never silently keeps one copy. The session
 // validator strips duplicates at the boundary so this guard never sees session-path
 // duplicates, but the guard itself MUST stay strict for locally built and injected wire
-// (ai/rules/fail-closed-guards.md). If this test ever goes green with a weaker guard, the
+// (ai/rules/evidence.md). If this test ever goes green with a weaker guard, the
 // duplicate-attribute defense has been removed from every other caller.
 //
 // VALIDATES: two attributes with the same code make the attribute index error.

@@ -194,7 +194,7 @@ if [ -n "$SID" ]; then
             fi
             # Delegation nudge: this session claimed a spec and worked it without
             # ever spawning an agent, so it ran the phase inline instead of
-            # supervising it (ai/rules/spec-delegation.md). mark-agent-spawned.sh
+            # supervising it (ai/rules/planning.md). mark-agent-spawned.sh
             # writes the marker on every Agent/Task call.
             #
             # Warn, never block. A session can legitimately claim a spec and do

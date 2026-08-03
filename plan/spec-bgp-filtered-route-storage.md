@@ -9,10 +9,10 @@
 
 Anchor refresh (2026-07-22 plan review, design unchanged; all citations below
 updated in-body to the verified current lines): reject gate
-`reactor_notify.go:468`, `recentUpdates.Add` `:528`, RS fast path `:553`,
+`reactor_notify.go`, `recentUpdates.Add` `:528`, RS fast path `:553`,
 `deliverChan` `:613`, ownership doc comment `:221`, per-peer counters `:247`,
 rebind block `:471+`, ingress pass `:405-468`. The LG anchors
-(`handler_api.go:238,254,521,540,555`) verified exact. (Re-verified
+(`handler_api.go,254,521,540,555`) verified exact. (Re-verified
 2026-07-23 after the origin/main fast-forward to 822029463: `deliverChan`
 moved `:588` -> `:613`, whole-body `Payload()` take `:415` -> `:432`; the
 rest held.)
@@ -54,8 +54,8 @@ no storage, config, or reload surface and can land independently of everything e
 |------|---------|--------|
 | BIRD `import keep filtered` | retain only the REJECTED copy, flagged `REF_FILTERED` in the MAIN table, hidden from best-path. **This spec.** | BIRD v2.19.0 `nest/config.Y:318`, `nest/route.h:274/280`, `doc/bird.sgml:1145-1150` |
 | BIRD `import table` | a SEPARATE, unrelated knob with its own `->in_table` channel field | BIRD v2.19.0 `nest/config.Y:718-720` |
-| BIRD "soft reconfig" (`bgp_reconfigure`) | reconfigure a LIVE session: compare configs, swap filter pointers atomically, session survives. **Not a store at all.** | `docs/research/bird-bgp-reference.md:1589-1608` (BIRD 3.x, second-hand) |
-| Cisco "soft-reconfiguration inbound" | STORE ALL received routes pre-policy, re-run policy locally | `rfc/short/rfc2918.md:164` ("use soft-reconfiguration (store all routes)") |
+| BIRD "soft reconfig" (`bgp_reconfigure`) | reconfigure a LIVE session: compare configs, swap filter pointers atomically, session survives. **Not a store at all.** | `docs/research/bird-bgp-reference.md` (BIRD 3.x, second-hand) |
+| Cisco "soft-reconfiguration inbound" | STORE ALL received routes pre-policy, re-run policy locally | `rfc/short/rfc2918.md` ("use soft-reconfiguration (store all routes)") |
 
 These are FOUR different mechanisms. An earlier draft of this spec asserted that "BIRD's
 `import keep filtered` and its soft reconfiguration are two views of ONE store", concluded this
@@ -114,13 +114,13 @@ are not verifiable locally.** Cite this section, not that doc.
 - [ ] `docs/architecture/core-design.md` lines 629-665 - "Ingress Filter Pipeline" (the doc the original skeleton should have cited)
   → Constraint: "inbound filtering runs in the reactor on every received UPDATE, **before** the bytes are cached and **before** the StructuredEvent is dispatched"; "`accept=false` drops the route (no caching, no dispatch)". Retention therefore cannot be added in the RIB plugin alone - the RIB never sees a rejected route.
   → Constraint: "After the pass, the cached `WireUpdate` is the **canonical post-filter representation** that every downstream consumer sees." Stored routes are POST-modification.
-  → Constraint: filter order is `Protocol < Policy (in-process) < Annotation/OTC < external per-peer chain` over `r.orderedIngressSteps`. A route may be rejected at ANY step, not only the external policy chain (`reactor_notify.go:468` is shared by both kinds). "Filtered" must mean "rejected by the ingress pass", and the spec should record WHICH step rejected it if that is cheap.
+  → Constraint: filter order is `Protocol < Policy (in-process) < Annotation/OTC < external per-peer chain` over `r.orderedIngressSteps`. A route may be rejected at ANY step, not only the external policy chain (`reactor_notify.go` is shared by both kinds). "Filtered" must mean "rejected by the ingress pass", and the spec should record WHICH step rejected it if that is cheap.
 - [ ] `docs/guide/looking-glass.md` lines 73-78 - the user-facing promise this spec changes
   → Constraint: it currently states `routes_filtered` is always 0 and `/routes/filtered/{name}` returns an empty list, with a source anchor to `summary.go`. Both claims become conditional; the doc MUST be updated (checklist #16).
-- [ ] `ai/rules/project-knowledge.md` line 15 - "No filtered/noexport route tracking"
+- [ ] `ai/rules/repo-maintenance.md` line 15 - "No filtered/noexport route tracking"
   → Constraint: "if filtered tracking ever lands, point them at the real store" - pre-authorizes wiring `/routes/filtered/{name}`. The entry must be rewritten when this lands.
   → Constraint: `/routes/noexport/{name}` is EXPORT filtering, a different feature. Out of scope.
-- [ ] `ai/rules/plugin-self-containment.md` - placement of the store and the config leaf
+- [ ] `ai/rules/plugins.md` - placement of the store and the config leaf
   → Constraint: "a new feature must not require editing a `switch`, `case`, field list, or factory in a core or shared package - it registers and is discovered."
 
 ### RFC Summaries
@@ -139,9 +139,9 @@ are not verifiable locally.** Cite this section, not that doc.
 <!-- NEVER tick [ ] to [x]. -->
 - [ ] `internal/component/bgp/reactor/reactor_notify.go` - the reject gate. At line 468 `if !res.accept { return false // Route rejected by filter; don't cache or dispatch. }`. Returns BEFORE `recentUpdates.Add` (:528), before the RS fast path (:553), and before `peer.deliverChan <-` (:613), so no plugin and no RIB ever sees the route.
   → Constraint: the `bool` returned by `notifyMessageReceiver` is **buffer ownership** (`kept`), NOT accept/reject - see its doc comment at :221 ("Returns true if buf ownership was taken"). `return false` at :468 means "pool buffer not retained"; the route is dropped as a side effect of skipping dispatch. Do not read this return value as a policy verdict.
-  → Constraint: the gate is per-UPDATE-MESSAGE. The filter takes `payload := wireUpdate.Payload()` (:432), the whole UPDATE body, and accepts/rejects it wholesale. NLRI splitting happens later, inside the RIB plugin (`rib_structured.go:184-256` via `nlrisplit.Split`). One rejected UPDATE can carry many prefixes.
+  → Constraint: the gate is per-UPDATE-MESSAGE. The filter takes `payload := wireUpdate.Payload()` (:432), the whole UPDATE body, and accepts/rejects it wholesale. NLRI splitting happens later, inside the RIB plugin (`rib_structured.go` via `nlrisplit.Split`). One rejected UPDATE can carry many prefixes.
 - [ ] `internal/component/bgp/reactor/reactor_notify.go` - modification. At :471-475+ a non-nil `modifiedPayload` rebinds `payload`, `wireUpdate`, `msg.RawBytes`, `msg.WireUpdate`, `msg.AttrsWire`.
-  → Constraint: **the ORIGINAL pre-filter payload is overwritten and retained nowhere.** No live reference survives past :455. Modifying filters exist and compose (`bgp-filter-community` `filter_community.go:142-150`; `bgp-role`/OTC `otc.go:344-356`; the external chain's raw override / text delta `filter_ordered.go:161-180`). The egress twin deliberately does the opposite (`filter_ordered.go:190-194`: "Unlike ingress, this reads the original payload ... the payload is never rewritten in the egress pass").
+  → Constraint: **the ORIGINAL pre-filter payload is overwritten and retained nowhere.** No live reference survives past :455. Modifying filters exist and compose (`bgp-filter-community` `filter_community.go`; `bgp-role`/OTC `otc.go`; the external chain's raw override / text delta `filter_ordered.go`). The egress twin deliberately does the opposite (`filter_ordered.go`: "Unlike ingress, this reads the original payload ... the payload is never rewritten in the egress pass").
 - [ ] `internal/component/bgp/reactor/reactor_notify.go` - existing per-peer counters at :247+ ("Increment per-peer counters (lock-free atomics)"): `peer.IncrUpdatesReceived()`, `IncrEORReceived()`, `IncrKeepalivesReceived()`.
   → Decision: Option B extends this established pattern at this exact site rather than inventing one.
   → Constraint: the comment at :240-241 says "NLRI-level counters (announce vs withdraw per prefix) belong in the RIB plugin". Option B's counter IS NLRI-level, so this comment argues against the engine. Resolve placement explicitly (see D-7); do not silently contradict a stated architectural boundary.
@@ -154,18 +154,18 @@ are not verifiable locally.** Cite this section, not that doc.
 - [ ] `internal/component/bgp/plugins/rib/rib_commands.go` - `status()` (:707-718) counts accepted routes via `peerRIB.Len()` / `FamilyLen(scopeFam)`. No filtered scope exists to count.
 - [ ] `internal/component/bgp/plugins/rib/rib_commands.go` - `gatherCandidatesLocked` (:1039-1056), the ONLY producer of best-path candidates.
   → Decision: it iterates `r.bgpPeers` alone and point-`Lookup`s per peer. Two isolation strategies are therefore available, and both are precedented (D-9).
-  → Constraint: `StaleLevel` is the WRONG model to copy. It does NOT isolate: it feeds `Candidate.StaleLevel` (`bestpath.go:115`) and only reorders preference (`comparePair` step 0, `bestpath.go:307-322`). Stale routes still compete.
-  → Precedent A (separate map): `ribInPool` (`rib.go:221-227`) holds whole `*storage.PeerRIB`s that `gatherCandidates` never visits; `rib_inject.go:28-30` states its purpose is holding monitored routes "without entering best-path selection".
-  → Precedent B (per-route skip): `isSRv6Ineligible` (`rib_bestchange.go:963-990`) is a `continue` inside the gather loop. This is the closest analogue to BIRD's `REF_FILTERED`.
+  → Constraint: `StaleLevel` is the WRONG model to copy. It does NOT isolate: it feeds `Candidate.StaleLevel` (`bestpath.go`) and only reorders preference (`comparePair` step 0, `bestpath.go`). Stale routes still compete.
+  → Precedent A (separate map): `ribInPool` (`rib.go`) holds whole `*storage.PeerRIB`s that `gatherCandidates` never visits; `rib_inject.go` states its purpose is holding monitored routes "without entering best-path selection".
+  → Precedent B (per-route skip): `isSRv6Ineligible` (`rib_bestchange.go`) is a `continue` inside the gather loop. This is the closest analogue to BIRD's `REF_FILTERED`.
 - [ ] `internal/component/bgp/plugins/rib/rib_structured.go` - the storage path: `handleReceivedStructured` lazily creates the `PeerRIB` (:138-160), parses attributes once via `storage.ParseRouteEntry` (:171), then splits NLRI and calls `peerRIB.InsertEntry` (:187/:189/:228/:230).
 - [ ] `internal/component/bgp/plugins/rib/storage/routeentry.go` - `RouteEntry` (:31-54) holds `StaleLevel uint8`, `AttrFingerprint uint64`, `AttrLen uint32`, `Bundle attrpool.Handle`, `ASPath attrpool.Handle`.
   → Constraint: there is **no rejection-reason field**. `docs/architecture/route-selection.md` describes a "unified rejection reason (uint8) on every non-best route" - that doc is ASPIRATIONAL and contradicted by this producer. Do not build on it.
-- [ ] `internal/component/bgp/plugins/rib/rib_inject.go` - `handleInjectWireRoute` (:35-135) inserts into `ribInPool`, but **explicitly rejects protocol `"bgp"`** at :46-52 ("must use the BGP UPDATE path, not protocol injection") and `ribInPool`'s inner map is string-keyed by design (`rib.go:221-226`).
+- [ ] `internal/component/bgp/plugins/rib/rib_inject.go` - `handleInjectWireRoute` (:35-135) inserts into `ribInPool`, but **explicitly rejects protocol `"bgp"`** at :46-52 ("must use the BGP UPDATE path, not protocol injection") and `ribInPool`'s inner map is string-keyed by design (`rib.go`).
   → Constraint: this mechanism cannot be reused as-is for BGP filtered routes.
 
 **Behavior to preserve:**
 - `routes_filtered` MUST stay 0 (honest) whenever retention is disabled. Never fabricate a number.
-- The reject gate's zero-cost drop stays the DEFAULT path. Retention is opt-in; operators who do not enable it pay nothing (`ai/rules/no-workarounds-for-missing-behavior.md`).
+- The reject gate's zero-cost drop stays the DEFAULT path. Retention is opt-in; operators who do not enable it pay nothing (`ai/rules/completion.md`).
 - Best-path selection MUST NOT see filtered routes.
 - BMP-monitored peers keep their honest hardcoded 0.
 - `/routes/noexport/{name}` stays an empty stub (export filtering is out of scope).
@@ -177,17 +177,17 @@ are not verifiable locally.** Cite this section, not that doc.
 - `handleAPIRoutesFiltered` returns the real filtered routes instead of an empty list.
 - Independently, Option B exposes a per-peer cumulative reject counter under a distinct `*-total` key.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A peer sends an UPDATE whose route the ingress pass rejects (`reactor_notify.go:468`).
+- A peer sends an UPDATE whose route the ingress pass rejects (`reactor_notify.go`).
 - Format at entry: the UPDATE body (`payload []byte`, aliasing a pooled read buffer) plus the pass's verdict.
 
 ### Transformation Path
-1. The stage-ordered ingress pass runs over `r.orderedIngressSteps` (`reactor_notify.go:405-468`).
+1. The stage-ordered ingress pass runs over `r.orderedIngressSteps` (`reactor_notify.go`).
 2. A step rejects (`res.accept == false`).
 3. **Option B**: count the NLRI carried by the rejected UPDATE and add to a per-peer cumulative counter. Always cheap; no retention.
-4. **Retention OFF (default)**: `return false` - unchanged fast drop. Buffer returns to the pool via `session_read.go:66-71`.
+4. **Retention OFF (default)**: `return false` - unchanged fast drop. Buffer returns to the pool via `session_read.go`.
 5. **Retention ON**: instead of dropping, the route continues to dispatch MARKED as filtered, so the RIB plugin receives it and stores it in the filtered state.
 6. The RIB plugin stores it isolated from selection and counts it per peer/family.
 7. `rib_commands.status()` reports the filtered count; the peer summary merges `routes-filtered`; `transformProtocols` (unchanged) maps it to the birdwatcher field.
@@ -195,19 +195,19 @@ are not verifiable locally.** Cite this section, not that doc.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Reject gate <-> RIB plugin | rejected routes must be DISPATCHED (marked) instead of dropped; today they are never dispatched | [x] verified: `reactor_notify.go:468` precedes `:613` dispatch (re-anchored 2026-07-23) |
-| Pooled buffer <-> retained route | retention needs an ownership contract | [x] verified: `WireUpdate.Snapshot()` (`wire_update.go:170-185`) or `ribForwardHandle` copy-on-AddRef (`rib/forward_handle.go:31-61`) |
+| Reject gate <-> RIB plugin | rejected routes must be DISPATCHED (marked) instead of dropped; today they are never dispatched | [x] verified: `reactor_notify.go` precedes `:613` dispatch (re-anchored 2026-07-23) |
+| Pooled buffer <-> retained route | retention needs an ownership contract | [x] verified: `WireUpdate.Snapshot()` (`wire_update.go`) or `ribForwardHandle` copy-on-AddRef (`rib/forward_handle.go`) |
 | RIB plugin <-> peer summary | `route-counts.filtered` merged into the row | [ ] |
 | Summary JSON <-> Looking Glass | kebab-case `routes-filtered` read by `transformProtocols:540` | [x] verified: mapping already exists |
 
 ### Integration Points
 - `internal/component/bgp/reactor/reactor_notify.go` - the gate: mark-and-dispatch when retention is on; count for Option B.
 - `internal/component/bgp/plugins/rib/` - the filtered state and its count (D-9 decides flag vs map).
-- `internal/component/bgp/plugins/cmd/peer/summary.go:140` - conditional `routes-filtered`.
-- `internal/component/lg/handler_api.go:254` - `handleAPIRoutesFiltered`.
-- Config: a `keep-filtered` per-peer leaf, **owned by the RIB plugin** via `augment`, following the `rs` plugin precedent (`plugins/rs/yang/ze-rs-conf.yang:39-69`), whose header states the intent: "removing this plugin removes the leaves from the schema" (`:9-14`).
-  → Constraint: an `augment` cannot target a grouping, so it needs THREE paths to match what core `peer-fields` gets free: `/bgp:bgp/bgp:peer/bgp:<container>`, `/bgp:bgp/bgp:group/bgp:peer/bgp:<container>`, `/bgp:bgp/bgp:group/bgp:<container>` (`ze-rs-conf.yang:63-69`). Miss one and group inheritance breaks.
-  → Decision: plugin owns the SCHEMA; the reactor owns the PARSE and the `PeerSettings` field. Established `rs-client` split (`ze-rs-conf.yang:36-38`).
+- `internal/component/bgp/plugins/cmd/peer/summary.go` - conditional `routes-filtered`.
+- `internal/component/lg/handler_api.go` - `handleAPIRoutesFiltered`.
+- Config: a `keep-filtered` per-peer leaf, **owned by the RIB plugin** via `augment`, following the `rs` plugin precedent (`plugins/rs/yang/ze-rs-conf.yang`), whose header states the intent: "removing this plugin removes the leaves from the schema" (`:9-14`).
+  → Constraint: an `augment` cannot target a grouping, so it needs THREE paths to match what core `peer-fields` gets free: `/bgp:bgp/bgp:peer/bgp:<container>`, `/bgp:bgp/bgp:group/bgp:peer/bgp:<container>`, `/bgp:bgp/bgp:group/bgp:<container>` (`ze-rs-conf.yang`). Miss one and group inheritance breaks.
+  → Decision: plugin owns the SCHEMA; the reactor owns the PARSE and the `PeerSettings` field. Established `rs-client` split (`ze-rs-conf.yang`).
 
 ### Architectural Verification
 - [ ] No bypassed layers (filtered routes reach storage through the normal dispatch path, not a side channel).
@@ -221,11 +221,11 @@ are not verifiable locally.** Cite this section, not that doc.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Rejects are dropped and never stored today | `reactor_notify.go:448` | The feature is smaller than assumed | re-read the producer | **confirmed** 2026-07-16: returns before cache (`:508`) and dispatch (`:568`). Corroborated by `core-design.md:631` ("`accept=false` drops the route (no caching, no dispatch)") |
-| A-2 | A filtered route can be isolated from best-path selection | `rib_commands.go:1039-1056` | Filtered routes leak into selection | RIB unit test | **confirmed** 2026-07-16: `gatherCandidatesLocked` iterates `r.bgpPeers` alone; two precedented isolation strategies exist (D-9) |
+| A-1 | Rejects are dropped and never stored today | `reactor_notify.go` | The feature is smaller than assumed | re-read the producer | **confirmed** 2026-07-16: returns before cache and dispatch. Corroborated by `core-design.md` ("`accept=false` drops the route (no caching, no dispatch)") |
+| A-2 | A filtered route can be isolated from best-path selection | `rib_commands.go` | Filtered routes leak into selection | RIB unit test | **confirmed** 2026-07-16: `gatherCandidatesLocked` iterates `r.bgpPeers` alone; two precedented isolation strategies exist (D-9) |
 | A-3 | Operators accept the memory cost only when they opt in | config-surface convention; BIRD makes `import keep filtered` opt-in (UNVERIFIED - see A-6) | Always-on retention bloats memory | benchmark retention on vs off | unvalidated |
-| A-4 | R-1's cap can reuse existing admission control | assumed by R-1 | The cap must be built from scratch | audit the RIB for limits | **broken** 2026-07-16: there is NO admission control. `PeerRIB.Insert`/`InsertEntry` (`storage/peerrib.go:49`, `:61`) return nothing and cannot refuse a route. Only display truncation (`rib_pipeline.go:706`, `:742`) and `graph.MaxNodes` (`rib_topology.go:60`) exist |
-| A-5 | A new per-peer leaf takes effect on reload | config-surface convention | The knob silently no-ops | read `peerSettingsEqual` | **broken** 2026-07-16: `peerSettingsEqual` (`reactor_api.go:780-825`) compared ~15 of ~50 fields. This is the sibling spec's subject; a new `KeepFiltered` field must be covered by whatever guard that spec lands |
+| A-4 | R-1's cap can reuse existing admission control | assumed by R-1 | The cap must be built from scratch | audit the RIB for limits | **broken** 2026-07-16: there is NO admission control. `PeerRIB.Insert`/`InsertEntry` (`storage/peerrib.go`, `:61`) return nothing and cannot refuse a route. Only display truncation (`rib_pipeline.go`, `:742`) and `graph.MaxNodes` (`rib_topology.go`) exist |
+| A-5 | A new per-peer leaf takes effect on reload | config-surface convention | The knob silently no-ops | read `peerSettingsEqual` | **broken** 2026-07-16: `peerSettingsEqual` (`reactor_api.go`) compared ~15 of ~50 fields. This is the sibling spec's subject; a new `KeepFiltered` field must be covered by whatever guard that spec lands |
 | A-6 | BIRD's `import keep filtered` is opt-in and retains ONLY rejected routes | BIRD v2.19.0 source + its own manual | The default-off argument loses its BIRD-parity justification | read BIRD source directly | **CONFIRMED 2026-07-16 against BIRD v2.19.0** (`~/Code/gitlab.nic.cz/labs/bird`, `v2.19.0-4-g02d082a7`). See "BIRD ground truth" below. Retains only the REJECTED copy; **Default: off** (`doc/bird.sgml:1150`); `import table` is a SEPARATE knob (`nest/config.Y:718-720`, distinct `->in_table`) |
 | A-7 | Only import-POLICY rejects are counted as filtered | assumed by AC-7 | AC-7 is wrong for BIRD parity | read BIRD source | **BROKEN 2026-07-16.** BIRD ALSO flags routes ignored by an import LIMIT as `REF_FILTERED` when keep-filtered is on (`nest/rt-table.c:1418-1421`), so they land in `filt_routes` too. BIRD separates them only in the CUMULATIVE stats (`imp_updates_filtered` vs `imp_updates_ignored`, `nest/proto.c:2078-2080`), not in the gauge. AC-7 is corrected accordingly |
 
@@ -235,9 +235,9 @@ are not verifiable locally.** Cite this section, not that doc.
 | R-1 | Memory blow-up from a peer sending many rejectable routes | RSS growth in a filtered-heavy scenario | cap the filtered state; document the cap; default off. NOTE A-4: the cap has no existing mechanism to build on |
 | R-2 | Option B's cumulative counter mistaken for current-state | operators see the number only ever grow | expose under a distinct `*-total` key, never as `routes_filtered` (D-2) |
 | R-3 | Retention changes the reject fast path for everyone | latency/alloc regression with retention OFF | the gate must branch on the per-peer flag BEFORE doing any work; benchmark the default path unchanged |
-| R-4 | Retaining a pooled buffer corrupts memory | garbage/overwritten routes under load; race detector | MUST take an existing ownership contract: `WireUpdate.Snapshot()` (`wire_update.go:170-185`, eager copy) or `ribForwardHandle`'s copy-on-AddRef (`forward_handle.go:31-61`). The recycle is refcount-driven (`recent_cache.go:460`, `:526`), so a retained alias is silently reused |
-| R-5 | "Filtered" conflated with other drops | operators see loop/RFC7606/prefix-limit drops counted as policy-filtered | the count MUST mean "rejected by the ingress pass". RFC 7606 (`session_read.go:158`) and prefix limits (`:201`) reject EARLIER and never reach the gate - verify they are excluded |
-| R-6 | Storing post-modification bytes misrepresents what the peer sent | `show routes filtered` shows a mutated route | a REJECTED route was never modified by a later step (rejection is terminal), but an EARLIER step may have modified it before a LATER step rejected it (`reactor_notify.go:424`/`:429` compose). Decide and document which bytes are retained |
+| R-4 | Retaining a pooled buffer corrupts memory | garbage/overwritten routes under load; race detector | MUST take an existing ownership contract: `WireUpdate.Snapshot()` (`wire_update.go`, eager copy) or `ribForwardHandle`'s copy-on-AddRef (`forward_handle.go`). The recycle is refcount-driven (`recent_cache.go`, `:526`), so a retained alias is silently reused |
+| R-5 | "Filtered" conflated with other drops | operators see loop/RFC7606/prefix-limit drops counted as policy-filtered | the count MUST mean "rejected by the ingress pass". RFC 7606 (`session_read.go`) and prefix limits reject EARLIER and never reach the gate - verify they are excluded |
+| R-6 | Storing post-modification bytes misrepresents what the peer sent | `show routes filtered` shows a mutated route | a REJECTED route was never modified by a later step (rejection is terminal), but an EARLIER step may have modified it before a LATER step rejected it (`reactor_notify.go`/`:429` compose). Decide and document which bytes are retained |
 
 ## Wiring Test (MANDATORY - NOT deferrable)
 
@@ -257,8 +257,8 @@ are not verifiable locally.** Cite this section, not that doc.
 | AC-4 | Option B enabled | a per-peer cumulative reject counter increments and is exposed under a distinct `*-total` key/metric, never as routes_filtered |
 | AC-5 | Filtered routes present | best-path selection never selects a filtered route |
 | AC-6 | keep-filtered enabled; `/routes/filtered/{name}` queried | returns the real filtered routes, not an empty list |
-| AC-7 | A route dropped by RFC 7606 malformed-attribute handling | NOT counted as filtered. It is rejected at `session_read.go:158`, BEFORE the ingress pass, and never reaches the gate. BIRD agrees: malformed routes count as `imp_updates_invalid` ("rejected"), a different bucket from "filtered" (`nest/proto.c:2078-2080`) |
-| AC-7b | A route dropped by a PREFIX LIMIT | **OPEN — decide at the Phase 1 gate (A-7).** BIRD DOES flag limit-ignored routes `REF_FILTERED` and counts them in `filt_routes` when keep-filtered is on (`nest/rt-table.c:1418-1421`), and even counts filtered routes against the limit itself (`:1383`). Strict parity therefore says "count them". Ze's prefix limits reject at `session_read.go:201`, before the gate, so parity here is a deliberate choice with real work attached, not a freebie. Whichever way it goes, DOCUMENT it — an operator comparing Ze's number to BIRD's will notice |
+| AC-7 | A route dropped by RFC 7606 malformed-attribute handling | NOT counted as filtered. It is rejected at `session_read.go`, BEFORE the ingress pass, and never reaches the gate. BIRD agrees: malformed routes count as `imp_updates_invalid` ("rejected"), a different bucket from "filtered" (`nest/proto.c:2078-2080`) |
+| AC-7b | A route dropped by a PREFIX LIMIT | **OPEN — decide at the Phase 1 gate (A-7).** BIRD DOES flag limit-ignored routes `REF_FILTERED` and counts them in `filt_routes` when keep-filtered is on (`nest/rt-table.c:1418-1421`), and even counts filtered routes against the limit itself. Strict parity therefore says "count them". Ze's prefix limits reject at `session_read.go`, before the gate, so parity here is a deliberate choice with real work attached, not a freebie. Whichever way it goes, DOCUMENT it — an operator comparing Ze's number to BIRD's will notice |
 | AC-8 | Retention enabled under sustained rejected-route load | no buffer-pool corruption; `-race` clean (R-4) |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -320,7 +320,7 @@ are not verifiable locally.** Cite this section, not that doc.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (keep-filtered leaf, + cap) | [x] | NEW `internal/component/bgp/plugins/rib/yang/`, modeled on `plugins/rs/yang/ze-rs-conf.yang`. Read `ai/rules/config-surface.md` |
+| YANG schema (keep-filtered leaf, + cap) | [x] | NEW `internal/component/bgp/plugins/rib/yang/`, modeled on `plugins/rs/yang/ze-rs-conf.yang`. Read `ai/rules/config.md` |
 | YANG validation constraints | [x] | `type boolean; default false;` for the knob; a `range` for any cap leaf (`ai/patterns/config-option.md`) |
 | Prometheus counters/metrics | [x] | Option B's cumulative reject counter as a distinct `*_total` metric; `docs/plugin-development/metrics.md` |
 | Functional test for new RPC/API | [x] | `test/plugin/*.ci` above |
@@ -332,13 +332,13 @@ are not verifiable locally.** Cite this section, not that doc.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | [x] | `docs/features.md` (currently zero hits for filtered routes) |
 | 2 | Config syntax changed? | [x] | `docs/guide/configuration.md` (keep-filtered + cap) |
-| 6 | Has a user guide page? | [x] | **`docs/guide/looking-glass.md:73-78`** - it currently promises `routes_filtered` is always 0 and `/routes/filtered/{name}` is empty. MUST become conditional |
+| 6 | Has a user guide page? | [x] | **`docs/guide/looking-glass.md`** - it currently promises `routes_filtered` is always 0 and `/routes/filtered/{name}` is empty. MUST become conditional |
 | 11 | Affects daemon comparison? | [x] | `docs/comparison.md` - verified 2026-07-16 to have NO row for filtered retention / keep-filtered (only RFC 2918/7313 capability rows at `:57-58`). Add one |
-| 13 | Route metadata keys added/changed? | [x] IF the mark uses the meta map | `docs/architecture/meta/README.md` - the Key Registry (`:10-12`); "Two plugins using the same key silently overwrite each other" (`:19`). NOTE: `routes-filtered` is a SUMMARY key, not a meta key - an earlier draft conflated these |
+| 13 | Route metadata keys added/changed? | [x] IF the mark uses the meta map | `docs/architecture/meta/README.md` - the Key Registry; "Two plugins using the same key silently overwrite each other" (`:19`). NOTE: `routes-filtered` is a SUMMARY key, not a meta key - an earlier draft conflated these |
 | 14 | Prometheus counters added/changed? | [x] | `docs/plugin-development/metrics.md` (Option B) |
-| 16 | Changed files referenced by doc source anchors? | [x] | `docs/guide/looking-glass.md:80` anchors `summary.go -- fetchRibRouteCounts, mergeRibRouteCounts`; `docs/architecture/core-design.md:629-665` anchors `reactor_notify.go`. Both change |
+| 16 | Changed files referenced by doc source anchors? | [x] | `docs/guide/looking-glass.md` anchors `summary.go -- fetchRibRouteCounts, mergeRibRouteCounts`; `docs/architecture/core-design.md` anchors `reactor_notify.go`. Both change |
 | 12 | Internal architecture changed? | [x] | `docs/architecture/core-design.md` "Ingress Filter Pipeline" - "`accept=false` drops the route (no caching, no dispatch)" becomes conditional |
-| - | Project knowledge stale | [x] | `ai/rules/project-knowledge.md:15` "No filtered/noexport route tracking" - rewrite the filtered half, keep the noexport half |
+| - | Project knowledge stale | [x] | `ai/rules/repo-maintenance.md` "No filtered/noexport route tracking" - rewrite the filtered half, keep the noexport half |
 
 ## Files to Create
 - `internal/component/bgp/plugins/rib/yang/` (module + embed + register) - the `keep-filtered` leaf.
@@ -379,7 +379,7 @@ are not verifiable locally.** Cite this section, not that doc.
    - Verify: AC-1, AC-5, AC-8. Take a buffer-ownership contract (R-4).
 5. **Phase: Looking Glass** - implement `handleAPIRoutesFiltered`.
    - Tests: `bgp-filtered-route-storage.ci` (AC-6)
-   - Files: `lg/handler_api.go:254`
+   - Files: `lg/handler_api.go`
    - Verify: AC-6. `transformProtocols` untouched (D-4).
 6. **Phase: Interop** - `NN-keep-filtered-bird`; the only way to validate A-6.
 7. **Full verification** -> `make ze-verify-changed` when other sessions hold uncommitted work.
@@ -396,7 +396,7 @@ are not verifiable locally.** Cite this section, not that doc.
 | Semantics | only ingress-pass rejects are "filtered"; RFC 7606 / prefix-limit / loop drops are not (R-5) |
 | Registration over hardcoding | the leaf registers via the owning plugin's `yang/`; no core switch/case |
 | Rule: no-workarounds | routes_filtered stays 0 when retention off; never faked |
-| Doc honesty | `looking-glass.md:73-78` and `project-knowledge.md:15` no longer claim a capability that changed |
+| Doc honesty | `looking-glass.md` and `repo-maintenance.md` no longer claim a capability that changed |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
@@ -412,8 +412,8 @@ are not verifiable locally.** Cite this section, not that doc.
 | Check | What to look for |
 |-------|-----------------|
 | Resource exhaustion | a peer must not exhaust memory by sending rejectable routes. The filtered state MUST be capped, and A-4 proves no admission control exists to reuse - the cap is new code. This is the primary security concern of this spec |
-| Memory safety | R-4: a retained pooled-buffer alias is silently reused by a later read (`recent_cache.go:460`, `:526`) |
-| Input validation | rejected routes are already parsed/validated upstream (RFC 7606 at `session_read.go:158` runs BEFORE the gate); retention must not bypass that ordering |
+| Memory safety | R-4: a retained pooled-buffer alias is silently reused by a later read (`recent_cache.go`, `:526`) |
+| Input validation | rejected routes are already parsed/validated upstream (RFC 7606 at `session_read.go` runs BEFORE the gate); retention must not bypass that ordering |
 | Information leakage | `/routes/filtered/` exposes routes policy rejected - same trust boundary as `/routes/`, no new exposure, but confirm the LG auth path is identical |
 
 ### Failure Routing
@@ -432,31 +432,31 @@ are not verifiable locally.** Cite this section, not that doc.
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | "BIRD's `import keep filtered` and its soft reconfiguration are two views of ONE store" | **Disproven at the primary source.** They are three different mechanisms: `import keep filtered` is a `REF_FILTERED` flag on the rejected copy in the MAIN table (`nest/route.h:274`, `nest/rt-table.c:1687-1697`); `import table` is a SEPARATE knob with its own `->in_table` field (`nest/config.Y:718-720`); BIRD's "soft reconfig" (`bgp_reconfigure`) is an atomic filter-pointer swap on a live session. **None is a pre-policy store.** | First by reading `docs/research/bird-bgp-reference.md` (which no spec had cited), then confirmed against BIRD v2.19.0 source once the user pointed out it is checked out locally | This spec was wrongly marked superseded and its design deleted; a large pre-policy-store design was proposed and a user decision taken on it. **The claim was invented — I wrote it in this spec with no citation, and a later agent then found it and reported it back as if it were repo evidence.** A fabrication laundered into a citation. Cost: one full redesign cycle and two reversed user decisions |
-| "Soft reconfiguration (BIRD parity)" describes retaining a pre-policy Adj-RIB-In | BIRD's `bgp_reconfigure` swaps filters atomically on a live session; "store all routes" is CISCO's `soft-reconfiguration inbound` (`rfc/short/rfc2918.md:164`). The user was offered an option under the wrong daemon's name | Reading `bird-bgp-reference.md:1589-1608` after the decision was already taken | A user decision was made on a mislabelled option and had to be revisited. **Lesson: never attach a daemon's name to a mechanism without a citation to that daemon.** |
-| "Soft reconfiguration" names one thing | The repo itself uses it in two senses: `rfc2918.md:164` = Cisco "store all routes"; `bird-bgp-reference.md:1589` = BIRD live-session reconfigure | Same read | An option was presented to the user under the wrong label, and the decision made on it had to be revisited |
-| `transformProtocols` hardcodes `routes_filtered: 0` (skeleton, line 61) | Line 238 is in `transformBMPProtocols`. `transformProtocols` (`:521`) already maps the field at `:540`/`:553`/`:560` | Reading the producer | The LG needs no change; the skeleton would have sent a session editing working code |
+| "Soft reconfiguration (BIRD parity)" describes retaining a pre-policy Adj-RIB-In | BIRD's `bgp_reconfigure` swaps filters atomically on a live session; "store all routes" is CISCO's `soft-reconfiguration inbound` (`rfc/short/rfc2918.md`). The user was offered an option under the wrong daemon's name | Reading `bird-bgp-reference.md` after the decision was already taken | A user decision was made on a mislabelled option and had to be revisited. **Lesson: never attach a daemon's name to a mechanism without a citation to that daemon.** |
+| "Soft reconfiguration" names one thing | The repo itself uses it in two senses: `rfc2918.md` = Cisco "store all routes"; `bird-bgp-reference.md` = BIRD live-session reconfigure | Same read | An option was presented to the user under the wrong label, and the decision made on it had to be revisited |
+| `transformProtocols` hardcodes `routes_filtered: 0` (skeleton, line 61) | Line 238 is in `transformBMPProtocols`. `transformProtocols` already maps the field at `:540`/`:553`/`:560` | Reading the producer | The LG needs no change; the skeleton would have sent a session editing working code |
 | `docs/architecture/bgp/rib.md` documents the storage model | The file does not exist; nor does `docs/architecture/bgp/` | `ls` | A `→ Constraint:` was invented and attributed to a non-existent doc |
-| `route-selection.md`'s "unified rejection reason" is implemented | `routeentry.go:31-54` has no reason field. The doc is aspirational | Reading the producer after an agent reported the fields | Nearly designed "store with reason=import-filtered" on a field that does not exist |
+| `route-selection.md`'s "unified rejection reason" is implemented | `routeentry.go` has no reason field. The doc is aspirational | Reading the producer after an agent reported the fields | Nearly designed "store with reason=import-filtered" on a field that does not exist |
 | `docs/architecture/meta/README.md` documents route-count key semantics | It documents per-UPDATE route METADATA (`src-role` etc.). `routes-filtered` is a summary key, not a meta key | Reading the doc | Doc-checklist item 13 was wrong |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
-| Pre-policy Adj-RIB-In (retain everything, re-run policy locally) | Not BIRD's design for either feature; far larger; doubles Adj-RIB-In memory; the original payload is not even retained today (`reactor_notify.go:451-466`) so it needs new copy semantics | BIRD's keep-filtered: retain only the REJECTED copy, marked, excluded from selection |
+| Pre-policy Adj-RIB-In (retain everything, re-run policy locally) | Not BIRD's design for either feature; far larger; doubles Adj-RIB-In memory; the original payload is not even retained today (`reactor_notify.go`) so it needs new copy semantics | BIRD's keep-filtered: retain only the REJECTED copy, marked, excluded from selection |
 | Per-route "rejection reason" on `RouteEntry` | No such field exists; the doc describing it is aspirational | D-9: a dedicated flag or a separate map, both precedented |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
-| Specs citing docs that do not exist, or asserting daemon behavior with no citation | 5+ instances across this spec and 2 siblings | `ai/rules/no-fabrication.md` already covers it; the gap is that NOTHING CHECKS spec citations. A `validate-spec.sh` check that every `` `path` `` in Required Reading resolves on disk would have caught 2 of them mechanically | Propose at closure (`ai/rules/discovery-updates.md`: adding an invariant means adding its gate) |
-| Docs asserting a capability the code lacks | 1 (`bird-bgp-reference.md:1614` claims "ze's filter reload path already handles the common case without bouncing sessions" - false) | source anchors exist but nothing verifies the CLAIM, only the path | Note in the sibling spec; that doc line is its subject |
+| Specs citing docs that do not exist, or asserting daemon behavior with no citation | 5+ instances across this spec and 2 siblings | `ai/rules/evidence.md` already covers it; the gap is that NOTHING CHECKS spec citations. A `validate-spec.sh` check that every `` `path` `` in Required Reading resolves on disk would have caught 2 of them mechanically | Propose at closure (`ai/rules/repo-maintenance.md`: adding an invariant means adding its gate) |
+| Docs asserting a capability the code lacks | 1 (`bird-bgp-reference.md` claims "ze's filter reload path already handles the common case without bouncing sessions" - false) | source anchors exist but nothing verifies the CLAIM, only the path | Note in the sibling spec; that doc line is its subject |
 
 ## Design Insights
 <!-- LIVE — write IMMEDIATELY when you learn something -->
-- **The Looking Glass is already finished.** `transformProtocols` maps `routes-filtered` -> `routes_filtered` (flat and nested) at `handler_api.go:540/553/560`. Every previous framing treated the LG as work; it is not. The whole feature is upstream of it.
+- **The Looking Glass is already finished.** `transformProtocols` maps `routes-filtered` -> `routes_filtered` (flat and nested) at `handler_api.go/553/560`. Every previous framing treated the LG as work; it is not. The whole feature is upstream of it.
 - **BIRD and Ze filter at different layers, and that is the entire difficulty.** BIRD filters inside the table write path (`rte_update`), so "keep the rejected copy" is a local decision at the point of insert. Ze filters in the reactor, before dispatch, so a rejected route must be deliberately CARRIED ACROSS a process/plugin boundary it currently never crosses. The semantics are copyable; the placement is not.
-- **The reject gate is per-message; storage is per-prefix.** The filter takes the whole UPDATE body (`reactor_notify.go:432`) and NLRI splitting happens later inside the RIB plugin (`rib_structured.go:184-256`). Every count in this spec must therefore enumerate NLRI. Counting reject EVENTS would silently under-report by the average NLRI-per-UPDATE factor.
-- **Ingress and egress have opposite payload discipline.** Ingress overwrites the payload on modify and keeps no original (`reactor_notify.go:471-486`); egress deliberately preserves it (`filter_ordered.go:190-194`). Any design that wants pre-modification bytes on ingress is fighting the existing architecture, which is a strong argument for keep-filtered (the rejected copy needs no un-modification) over a pre-policy store.
+- **The reject gate is per-message; storage is per-prefix.** The filter takes the whole UPDATE body (`reactor_notify.go`) and NLRI splitting happens later inside the RIB plugin (`rib_structured.go`). Every count in this spec must therefore enumerate NLRI. Counting reject EVENTS would silently under-report by the average NLRI-per-UPDATE factor.
+- **Ingress and egress have opposite payload discipline.** Ingress overwrites the payload on modify and keeps no original (`reactor_notify.go`); egress deliberately preserves it (`filter_ordered.go`). Any design that wants pre-modification bytes on ingress is fighting the existing architecture, which is a strong argument for keep-filtered (the rejected copy needs no un-modification) over a pre-policy store.
 
 ## Core Insight
 
@@ -472,28 +472,28 @@ the table, gets this feature almost for free.
 
 | ID | Decision | Alternatives considered | Rationale |
 |----|----------|------------------------|-----------|
-| D-1 | **Copy BIRD's `import keep filtered`**: retain only the REJECTED copy, marked, excluded from best-path | Pre-policy store (retain everything, re-run policy) | User sign-off 2026-07-16 (third gate, after two corrections). `bird-bgp-reference.md:1276-1281` is the model. A pre-policy store is Cisco's mechanism, is far larger, and is not needed for any AC here |
+| D-1 | **Copy BIRD's `import keep filtered`**: retain only the REJECTED copy, marked, excluded from best-path | Pre-policy store (retain everything, re-run policy) | User sign-off 2026-07-16 (third gate, after two corrections). `bird-bgp-reference.md` is the model. A pre-policy store is Cisco's mechanism, is far larger, and is not needed for any AC here |
 | D-2 | Option B is exposed under a distinct `*-total` key/metric, NEVER as `routes_filtered` | map it onto routes_filtered | The birdwatcher field is current-state. A monotonic counter mapped onto it fabricates a number (R-2). **BIRD parity confirmed:** BIRD keeps exactly this split — the gauge `filt_routes` (`nest/protocol.h:146`) and the cumulative `imp_updates_filtered` (`nest/rt-table.c:1689`) are different fields on different output lines (`nest/proto.c:2070-2080`). Option B IS Ze's `imp_updates_filtered` |
 | D-3 | Retention defaults OFF; the reject fast drop stays the default | always-on | **BIRD parity confirmed from primary source:** `doc/bird.sgml:1150` "Default: off.", and `nest/rt-table.c:1692-1693` `if (! c->in_keep_filtered) goto drop;` is the default fast path. Independently justified by memory cost (R-1) with no admission control (A-4). A-6's "unverified" caveat is now RESOLVED |
-| D-4 | `transformProtocols` is NOT modified | rewrite the LG mapping | It already maps the field (`handler_api.go:540/553/560`). Verified in code |
-| D-5 | The "routes-filtered never emitted" invariant becomes CONDITIONAL, not deleted: key ABSENT when retention off, PRESENT when on | emit 0 when off; delete the invariant | **BIRD parity confirmed from primary source** — this is exactly what BIRD does: `nest/proto.c:2070-2076` prints "%u imported, %u exported, %u preferred" when the knob is off and "%u imported, **%u filtered**, %u exported, %u preferred" only when on. **BIRD omits the field rather than printing 0.** So "absent when off" is parity, not a Ze invention, and emitting 0 would be the deviation. **No existing assertion weakens**: `summary_test.go:605-606` and `bgp-summary-route-counts.ci:88-90` both exercise the retention-OFF default, where "absent" stays correct. Only the stale rationale comments (`summary.go:137`, `.ci:87`) change, plus a NEW retention-ON case. Expect `scripts/dev/audit-test-relaxation.py` to inspect these edits |
+| D-4 | `transformProtocols` is NOT modified | rewrite the LG mapping | It already maps the field (`handler_api.go/553/560`). Verified in code |
+| D-5 | The "routes-filtered never emitted" invariant becomes CONDITIONAL, not deleted: key ABSENT when retention off, PRESENT when on | emit 0 when off; delete the invariant | **BIRD parity confirmed from primary source** — this is exactly what BIRD does: `nest/proto.c:2070-2076` prints "%u imported, %u exported, %u preferred" when the knob is off and "%u imported, **%u filtered**, %u exported, %u preferred" only when on. **BIRD omits the field rather than printing 0.** So "absent when off" is parity, not a Ze invention, and emitting 0 would be the deviation. **No existing assertion weakens**: `summary_test.go` and `bgp-summary-route-counts.ci` both exercise the retention-OFF default, where "absent" stays correct. Only the stale rationale comments (`summary.go`, `.ci`) change, plus a NEW retention-ON case. Expect `scripts/dev/audit-test-relaxation.py` to inspect these edits |
 | D-6 | BMP-monitored peers keep their hardcoded 0 (`transformBMPProtocols`) | make it real too | Their routes never traverse the reactor import gate, so 0 is permanently honest, not a stub |
-| D-7 | **OPEN**: Option B's counter placement - engine vs RIB plugin | - | `reactor_notify.go:247+` already does lock-free per-peer atomics HERE, but its comment at `:248-249` says "NLRI-level counters ... belong in the RIB plugin", and this counter IS NLRI-level. Rejected routes never reach the RIB plugin today, so the RIB placement would force mark-and-dispatch even when retention is off - defeating AC-2. Resolve at the Phase 1 design gate; if the engine wins, UPDATE the comment rather than silently contradict it |
-| D-8 | Both counts MUST enumerate NLRI, not reject events | count reject events | The gate is per-UPDATE-message (`reactor_notify.go:432`, `:468`); no split happens upstream (`notifyMessageReceiver` is wired straight to `peer.messageCallback`, `reactor_peers.go:121`, `reactor_dynamic.go:81`). Use `wireUpdate.NLRIIterator(addPath)` (`wireu/wire_update.go:223`) + `MPReach()` (`:125`). Withdrawals (`WithdrawnIterator` `:238`, `MPUnreach()` `:149`) must NOT inflate the count |
-| D-9 | **OPEN**: isolation model - per-route flag vs separate map | - | Flag (closest to BIRD's `REF_FILTERED`; precedent `isSRv6Ineligible`, `rib_bestchange.go:963-990`, the only per-route skip in the gather loop) costs a check per candidate on the hot path. Separate map (precedent `ribInPool`, `rib.go:221-227`, purpose stated `rib_inject.go:28-30`) gives structural isolation at ZERO hot-path cost but duplicates per-peer/per-family bookkeeping. Decide at the Phase 1 gate |
-| D-10 | Retention MUST take an existing buffer-ownership contract | invent new copy semantics | `WireUpdate.Snapshot()` (`wire_update.go:170-185`, eager copy) or `ribForwardHandle` copy-on-AddRef (`forward_handle.go:31-61`). The pool recycle is refcount-driven (`recent_cache.go:460`, `:526`); a retained alias is silently overwritten (R-4) |
-| D-11 | The config leaf is owned by the RIB plugin via `augment` | put it in core `ze-bgp-conf.yang` | `ai/rules/plugin-self-containment.md`; precedent `plugins/rs/yang/ze-rs-conf.yang:9-14` ("removing this plugin removes the leaves from the schema"). Plugin owns the schema; the reactor owns the parse and the `PeerSettings` field (`ze-rs-conf.yang:36-38`) |
+| D-7 | **OPEN**: Option B's counter placement - engine vs RIB plugin | - | `reactor_notify.go+` already does lock-free per-peer atomics HERE, but its comment at `:248-249` says "NLRI-level counters ... belong in the RIB plugin", and this counter IS NLRI-level. Rejected routes never reach the RIB plugin today, so the RIB placement would force mark-and-dispatch even when retention is off - defeating AC-2. Resolve at the Phase 1 design gate; if the engine wins, UPDATE the comment rather than silently contradict it |
+| D-8 | Both counts MUST enumerate NLRI, not reject events | count reject events | The gate is per-UPDATE-message (`reactor_notify.go`, `:468`); no split happens upstream (`notifyMessageReceiver` is wired straight to `peer.messageCallback`, `reactor_peers.go`, `reactor_dynamic.go`). Use `wireUpdate.NLRIIterator(addPath)` (`wireu/wire_update.go`) + `MPReach()`. Withdrawals (`WithdrawnIterator` `:238`, `MPUnreach()` `:149`) must NOT inflate the count |
+| D-9 | **OPEN**: isolation model - per-route flag vs separate map | - | Flag (closest to BIRD's `REF_FILTERED`; precedent `isSRv6Ineligible`, `rib_bestchange.go`, the only per-route skip in the gather loop) costs a check per candidate on the hot path. Separate map (precedent `ribInPool`, `rib.go`, purpose stated `rib_inject.go`) gives structural isolation at ZERO hot-path cost but duplicates per-peer/per-family bookkeeping. Decide at the Phase 1 gate |
+| D-10 | Retention MUST take an existing buffer-ownership contract | invent new copy semantics | `WireUpdate.Snapshot()` (`wire_update.go`, eager copy) or `ribForwardHandle` copy-on-AddRef (`forward_handle.go`). The pool recycle is refcount-driven (`recent_cache.go`, `:526`); a retained alias is silently overwritten (R-4) |
+| D-11 | The config leaf is owned by the RIB plugin via `augment` | put it in core `ze-bgp-conf.yang` | `ai/rules/plugins.md`; precedent `plugins/rs/yang/ze-rs-conf.yang` ("removing this plugin removes the leaves from the schema"). Plugin owns the schema; the reactor owns the parse and the `PeerSettings` field (`ze-rs-conf.yang`) |
 
 ## Known Limitations
-- **AC-3 depends on `spec-bgp-peer-settings-reload-ignored`.** A policy change does not reach a running peer at all today: `peerSettingsEqual` (`reactor_api.go:780-825`) ignored `ImportFilters`, and `peer.settings` is assigned once in `NewPeer` (`peer.go:318`) with no setter, so `runIngressPolicyChain` (`filter_ordered.go:138`) reads a stale chain forever. Until that spec lands, "loosen policy" does nothing, so routes_filtered cannot drop. AC-1/2/4/5/6/7/8 do NOT depend on it and can land first.
-- **Route refresh cannot substitute.** RFC 2918 re-advertises the **Adj-RIB-Out** (`rfc/short/rfc2918.md:88`); it cannot re-apply a local inbound policy without the peer re-sending.
+- **AC-3 depends on `spec-bgp-peer-settings-reload-ignored`.** A policy change does not reach a running peer at all today: `peerSettingsEqual` (`reactor_api.go`) ignored `ImportFilters`, and `peer.settings` is assigned once in `NewPeer` (`peer.go`) with no setter, so `runIngressPolicyChain` (`filter_ordered.go`) reads a stale chain forever. Until that spec lands, "loosen policy" does nothing, so routes_filtered cannot drop. AC-1/2/4/5/6/7/8 do NOT depend on it and can land first.
+- **Route refresh cannot substitute.** RFC 2918 re-advertises the **Adj-RIB-Out** (`rfc/short/rfc2918.md`); it cannot re-apply a local inbound policy without the peer re-sending.
 - Option B is a CUMULATIVE diagnostic with different semantics from `routes_filtered`; it never substitutes for retention and must stay under a distinct `*-total` key.
 - Retention has a real memory cost and MUST be capped; A-4 proves the cap is new code, since the Adj-RIB-In has no admission control at all.
-- `/routes/noexport/{name}` (`handler_api.go:294`) stays an empty stub. Export-filtered tracking is a different feature.
+- `/routes/noexport/{name}` (`handler_api.go`) stays an empty stub. Export-filtered tracking is a different feature.
 - BMP-monitored peers keep an honest hardcoded 0 permanently (D-6).
 - **AC-3 is not free even at full BIRD parity.** BIRD itself does not re-run policy when the knob or the filters change: `nest/proto.c:843` carries an open `/* FIXME: better handle these changes, also handle in_keep_filtered */`. So "BIRD parity" delivers AC-1/2/4/5/6 but NOT AC-3; AC-3 needs Ze's sibling spec (apply the changed policy) plus a re-import. Do not expect parity to supply it.
 - A-6 is **CONFIRMED** against BIRD v2.19.0 source (see "BIRD ground truth"). The interop scenario now validates the IMPLEMENTATION against a running BIRD rather than validating the assumption itself.
-- AC-7b (do prefix-limit drops count as filtered?) is deliberately left OPEN for the design gate. BIRD says yes (`nest/rt-table.c:1418-1421`); Ze rejects limits earlier (`session_read.go:201`), so parity costs real work.
+- AC-7b (do prefix-limit drops count as filtered?) is deliberately left OPEN for the design gate. BIRD says yes (`nest/rt-table.c:1418-1421`); Ze rejects limits earlier (`session_read.go`), so parity costs real work.
 - Line numbers in `docs/research/bird-bgp-reference.md` refer to BIRD 3.x and do not resolve against the local v2.19.0 or v1.3.8 checkouts. If BIRD 3 changed this mechanism (it moved to `ea_stored`/`EALS_FILTERED` per that doc's `:1059`), re-verify before claiming parity with BIRD 3.
 - Until retention lands, `routes_filtered` stays honestly 0 across the CLI and Looking Glass.
 

@@ -315,7 +315,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | Pool arithmetic overflow-safe (uint64); session dump handles VPP unavailable gracefully |
 | Naming | YANG leaves use kebab-case (inside-prefix, outside-pool, ports-per-user); Go types use CamelCase |
 | Data flow | Config -> model -> backend Apply; show -> ops dump -> format; no direct VPP calls outside ops seam |
-| CLI grammar | `show nat cgnat` follows action-before-identifier per cli-grammar.md |
+| CLI grammar | `show nat cgnat` follows action-before-identifier per cli.md |
 | Doctor checks | VPP running check covers CGNAT (existing); no new runtime deps beyond VPP/nft |
 | YANG validation | Every numeric leaf has range constraint; pool addresses validated as IPv4 |
 | Prometheus counters | cgnat_active_users, cgnat_active_sessions, cgnat_pool_utilization registered |

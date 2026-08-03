@@ -293,7 +293,7 @@ func TestParseMPReach_SalvagesPrefixesBeforeDamage(t *testing.T) {
 	// NLRI section returns the decoded prefixes AND the error.
 	// PREVENTS: the documented promise going unhonored. Every caller used to
 	// receive nil, so 500 good NLRIs followed by one truncated prefix lost all
-	// 500 (ai/rules/no-parking.md: honor the contract or delete it).
+	// 500 (ai/rules/completion.md: honor the contract or delete it).
 	nh := netip.MustParseAddr("2001:db8::1").As16()
 	value := fullMPReach(mrt.AFIIPv6, 1, nh[:], []byte{
 		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32

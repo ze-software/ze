@@ -2,7 +2,7 @@
 
 ## Context
 
-Two design rules added to `ai/rules/design-principles.md` ("No `make`
+Two design rules added to `ai/rules/architecture.md` ("No `make`
 where pools exist", "Pool strategy by goroutine shape") established that
 every variable-size `make([]byte, N)` on a wire-facing path must come
 from a bounded pool, and codified two pool shapes (single-backing ring
@@ -60,7 +60,7 @@ commits across this session and parallel sessions.
   RFC 9494 withdrawal conversion, BMP RouteMonitoring +
   PeerUp/PeerDown/StatisticsReport, BFD Verify (parallel session),
   L2TP reliable retransmit (parallel session).
-- Two design rules in `design-principles.md` formalise the policy.
+- Two design rules in `architecture.md` formalise the policy.
   Future code review and `/ze-review-deep` should flag any new
   variable-size `make([]byte, N)` on a wire-facing path.
 - Per-session scratch slices (BMP, BFD) trade ~64KB per session for
@@ -135,5 +135,5 @@ commits across this session and parallel sessions.
   buffers (parallel session, commit `b39b8eb4`)
 - `plan/audits/make-pool-2026-04-16.{csv,md}` -- the original audit
   artifact (preserved for reference)
-- `ai/rules/design-principles.md` -- two new rules: "No make
+- `ai/rules/architecture.md` -- two new rules: "No make
   where pools exist", "Pool strategy by goroutine shape"

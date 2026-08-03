@@ -26,7 +26,7 @@ The old `/ze-commit` and `/ze-commit-check` flows treated a user request for a c
 ## Files
 
 - `ai/rules/git-safety.md`
-- `ai/rules/agent-tooling.md`
+- `ai/rules/cli.md`
 - `ai/skills/ze-commit.md`
 - `ai/skills/ze-commit-check.md`
 - `ai/INSTRUCTIONS.md`

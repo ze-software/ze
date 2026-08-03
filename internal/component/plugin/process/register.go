@@ -10,6 +10,6 @@ import (
 
 func init() {
 	// manager.go raises plugin-down when a managed plugin process dies; the
-	// process manager owns its health row (ai/rules/plugin-self-containment.md).
+	// process manager owns its health row (ai/rules/plugins.md).
 	health.Register("plugins", report.HealthProbeDown("plugin-down"))
 }

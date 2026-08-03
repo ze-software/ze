@@ -23,7 +23,7 @@ var (
 // the directory `gokrazy/modcache/github.com/rtr7` was satisfied by the
 // unrelated `rtr7/dhcp4@...` entries that live beside the kernel module, so a
 // checkout without the kernel passed the gate and died on the same missing
-// vmlinuz the gate exists to prevent (ai/rules/fail-closed-guards.md). A glob
+// vmlinuz the gate exists to prevent (ai/rules/evidence.md). A glob
 // lets the test name the FILE it actually reads --
 // `gokrazy/modcache/github.com/rtr7/kernel@*/vmlinuz` -- without hardcoding the
 // pinned version string, which would then need updating on every dep bump.

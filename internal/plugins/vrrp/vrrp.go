@@ -73,7 +73,7 @@ func viewState(s fsm.State) string {
 
 // instanceView is one virtual router as the show commands render it. Value
 // types only: it crosses the plugin/CLI boundary as JSON
-// (ai/rules/plugin-design.md Cross-Boundary Value Types).
+// (ai/rules/plugins.md Cross-Boundary Value Types).
 type instanceView struct {
 	Interface string `json:"interface"`
 	Unit      string `json:"unit"`

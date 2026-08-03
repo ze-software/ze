@@ -9,7 +9,7 @@ A real Intel N150 appliance bricked silently: `injectZeFS` trusts `debugfs -R` e
 - Chose `bytes.Contains` for build-side verification over debugfs dump read-back, because it is pure Go with no shell-out and catches the exact failure mode (source bytes absent from perm image). Rejected debugfs dump (shells out, requires mock command-string parsing in tests).
 - Replaced `dd` with Go `ReadAt`/`WriteAt` (`extractPartition`/`writePartition`) over keeping dd via `runExternalFn`, because dd is trivially implementable in Go and eliminates a shell dependency.
 - Chose `ze.gokrazy.enabled` env var as the auto-init gate over a new config surface, because it is a bootstrap-time setting (needed before config loads) already registered and set on the appliance.
-- Fallback auth posture: connectivity-only (A1) over random printed password (A2), matching existing serial fail-open recovery philosophy (`appliance.md:185`). No SSH/web credential keys written.
+- Fallback auth posture: connectivity-only (A1) over random printed password (A2), matching existing serial fail-open recovery philosophy (`appliance.md`). No SSH/web credential keys written.
 - Go installer registers as `ze install disk` under the existing `cmd/ze/install` subdispatch over a new binary, reusing the established subcommand pattern.
 - Supersedes learned 813 ("no Go in initrd"): ze already ships a Go binary; the initrd calls `ze install disk` instead of reimplementing in shell.
 

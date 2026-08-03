@@ -19,157 +19,157 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
 ## Flow
 
 ### A. PPPoE discovery -> kernel session -> PPP handoff
-1. **Discovery read loop.** `Subsystem.discoveryReader` (`pppoe/subsystem.go:243`) blocks on
-   `readDiscoveryFrame` (`pppoe/subsystem.go:248`) on the shared raw discovery socket, looks
-   up the `InterfaceServer` by ifindex (`pppoe/subsystem.go:261`), `ParseDiscovery`
-   (`pppoe/discovery.go:102`), then `srv.HandleDiscovery` (`pppoe/subsystem.go:274`).
-2. **Dispatch by code.** `InterfaceServer.HandleDiscovery` (`pppoe/server.go:41`) switches on
-   `pkt.Code`: PADI -> `handlePADI` (`pppoe/server.go:52`), PADR -> `handlePADR`
-   (`pppoe/server.go:78`), PADT -> `handlePADT` (`pppoe/server.go:198`).
+1. **Discovery read loop.** `Subsystem.discoveryReader` (`pppoe/subsystem.go`) blocks on
+   `readDiscoveryFrame` (`pppoe/subsystem.go`) on the shared raw discovery socket, looks
+   up the `InterfaceServer` by ifindex (`pppoe/subsystem.go`), `ParseDiscovery`
+   (`pppoe/discovery.go`), then `srv.HandleDiscovery` (`pppoe/subsystem.go`).
+2. **Dispatch by code.** `InterfaceServer.HandleDiscovery` (`pppoe/server.go`) switches on
+   `pkt.Code`: PADI -> `handlePADI` (`pppoe/server.go`), PADR -> `handlePADR`
+   (`pppoe/server.go`), PADT -> `handlePADT` (`pppoe/server.go`).
 3. **PADI -> PADO.** `handlePADI` rate-limits per source MAC (`limiter.Check`,
-   `pppoe/server.go:57`, see `pppoe/ratelimit.go:37`), matches Service-Name
-   (`pppoe/server.go:61`), generates an HMAC cookie (`GenerateCookie`, `pppoe/cookie.go:46`),
-   builds and sends PADO (`BuildPADO`, `pppoe/discovery.go:335`; `sendFrame`,
-   `pppoe/server.go:75,243`).
-4. **PADR -> PADS + kernel session.** `handlePADR` (`pppoe/server.go:78`) verifies the cookie
-   (`VerifyCookie`, `pppoe/cookie.go:61`) and service name, dedups a retransmitted PADR by MAC
-   against an existing `StateDiscovery` session (`pppoe/server.go:107`), allocates a session ID
-   (`AllocSID`, `pppoe/session.go:84`), creates a `Session{State: StateDiscovery}`
-   (`pppoe/server.go:127`), opens the kernel PPPoX socket (`pppoeCreate`,
-   `pppoe/kernel_linux.go:94`), then `ppp.DevPPPSetup` (`pppoe/server.go:158`) to obtain the
+   `pppoe/server.go`, see `pppoe/ratelimit.go`), matches Service-Name
+   (`pppoe/server.go`), generates an HMAC cookie (`GenerateCookie`, `pppoe/cookie.go`),
+   builds and sends PADO (`BuildPADO`, `pppoe/discovery.go`; `sendFrame`,
+   `pppoe/server.go,243`).
+4. **PADR -> PADS + kernel session.** `handlePADR` (`pppoe/server.go`) verifies the cookie
+   (`VerifyCookie`, `pppoe/cookie.go`) and service name, dedups a retransmitted PADR by MAC
+   against an existing `StateDiscovery` session (`pppoe/server.go`), allocates a session ID
+   (`AllocSID`, `pppoe/session.go`), creates a `Session{State: StateDiscovery}`
+   (`pppoe/server.go`), opens the kernel PPPoX socket (`pppoeCreate`,
+   `pppoe/kernel_linux.go`), then `ppp.DevPPPSetup` (`pppoe/server.go`) to obtain the
    `/dev/ppp` chan/unit fds. **Only after both kernel calls succeed** does it send PADS
-   (`BuildPADS`, `pppoe/discovery.go:361`; `pppoe/server.go:170-177`): sending PADS earlier
+   (`BuildPADS`, `pppoe/discovery.go`; `pppoe/server.go`): sending PADS earlier
    and then failing kernel setup would strand the subscriber waiting for LCP that never comes.
 5. **Handoff to PPP.** `handlePADR` builds `ppp.StartSession{LNSMode: true, ...}`
-   (`pppoe/server.go:181`) and sends it on `s.pppDriver.SessionsIn() <- start`
-   (`pppoe/server.go:195`).
+   (`pppoe/server.go`) and sends it on `s.pppDriver.SessionsIn() <- start`
+   (`pppoe/server.go`).
 6. **PADT (peer- or PPP-initiated teardown).** Peer-initiated: `handlePADT`
-   (`pppoe/server.go:198`) validates the MAC, calls `pppDriver.StopSession`
-   (`pppoe/server.go:217`), removes the session and closes the PPPoX fd
-   (`closePPPoxFD`+`sessions.Remove`, `pppoe/server.go:220`). PPP-initiated (LCP/auth/NCP
+   (`pppoe/server.go`) validates the MAC, calls `pppDriver.StopSession`
+   (`pppoe/server.go`), removes the session and closes the PPPoX fd
+   (`closePPPoxFD`+`sessions.Remove`, `pppoe/server.go`). PPP-initiated (LCP/auth/NCP
    failure): the event consumer's `ppp.EventSessionDown` case
-   (`pppoe/subsystem.go:358`) calls `srv.handleSessionDown` (`pppoe/subsystem.go:381`), which
-   sends PADT to the subscriber (`BuildPADT`, `pppoe/discovery.go:386`;
-   `pppoe/server.go:225-241`) and frees the session.
+   (`pppoe/subsystem.go`) calls `srv.handleSessionDown` (`pppoe/subsystem.go`), which
+   sends PADT to the subscriber (`BuildPADT`, `pppoe/discovery.go`;
+   `pppoe/server.go`) and frees the session.
 
 ### B. L2TP tunnel/session control plane -> kernel session -> PPP handoff
-7. **Reactor read loop.** `L2TPReactor.run` (`reactor.go:247`) selects on the listener's RX
+7. **Reactor read loop.** `L2TPReactor.run` (`reactor.go`) selects on the listener's RX
    channel, timer ticks, kernel worker error/success channels, and the PPP driver's events
-   channel; datagrams go to `r.handle(pkt)` (`reactor.go:256`).
-8. **Header parse + tunnel lookup.** `handle` (`reactor.go:303`) parses the L2TP header
-   (`ParseMessageHeader`, `reactor.go:311`), pre-validates a `TunnelID==0` packet as a
-   well-formed SCCRQ before any tunnel is allocated (`parseSCCRQ`, `reactor.go:344`), then
+   channel; datagrams go to `r.handle(pkt)` (`reactor.go`).
+8. **Header parse + tunnel lookup.** `handle` (`reactor.go`) parses the L2TP header
+   (`ParseMessageHeader`, `reactor.go`), pre-validates a `TunnelID==0` packet as a
+   well-formed SCCRQ before any tunnel is allocated (`parseSCCRQ`, `reactor.go`), then
    `locateTunnelLocked` finds/creates the tunnel and runs RFC 2661 tie-breaking
-   (`reactor.go:363,719`).
-9. **Tunnel FSM.** `L2TPTunnel.Process` (`tunnel_fsm.go:58`) feeds the payload through the
-   reliable-delivery engine (`engine.OnReceive`, `tunnel_fsm.go:60`) and dispatches each
-   in-order message via `handleMessage` (`tunnel_fsm.go:101`): `MsgSCCRQ` ->
-   `handleSCCRQ` (`tunnel_fsm.go:104`), `MsgSCCCN` -> `handleSCCCN` (`tunnel_fsm.go:111`),
+   (`reactor.go,719`).
+9. **Tunnel FSM.** `L2TPTunnel.Process` (`tunnel_fsm.go`) feeds the payload through the
+   reliable-delivery engine (`engine.OnReceive`, `tunnel_fsm.go`) and dispatches each
+   in-order message via `handleMessage` (`tunnel_fsm.go`): `MsgSCCRQ` ->
+   `handleSCCRQ` (`tunnel_fsm.go`), `MsgSCCCN` -> `handleSCCCN` (`tunnel_fsm.go`),
    session-scoped types (ICRQ/ICRP/ICCN/OCRQ/OCRP/OCCN/CDN/WEN/SLI) -> `dispatchToSession`
-   (`tunnel_fsm.go:128`, defined `session_fsm.go:31`).
-10. **ICRQ -> ICRP -> ICCN (LNS side).** `handleICRQ` (`session_fsm.go:82`) allocates a local
+   (`tunnel_fsm.go`, defined `session_fsm.go`).
+10. **ICRQ -> ICRP -> ICCN (LNS side).** `handleICRQ` (`session_fsm.go`) allocates a local
     session ID, creates an `L2TPSession{state: L2TPSessionWaitConnect}`
-    (`session_fsm.go:124`), and replies ICRP. `handleICCN` (`session_fsm.go:165`) transitions
+    (`session_fsm.go`), and replies ICRP. `handleICCN` (`session_fsm.go`) transitions
     to `L2TPSessionEstablished` and sets `sess.kernelSetupNeeded = true` +
-    `sess.lnsMode = true` (`session_fsm.go:189-190`), capturing any proxy-LCP AVPs from the
+    `sess.lnsMode = true` (`session_fsm.go`), capturing any proxy-LCP AVPs from the
     LAC (RFC 2661 §18) for the PPP handoff.
-11. **Kernel setup handoff.** Back in `reactor.go:378-429`, after `Process` returns, the
-    reactor calls `collectKernelEventsLocked` (`reactor_kernel.go:18`) which turns every
+11. **Kernel setup handoff.** Back in `reactor.go`, after `Process` returns, the
+    reactor calls `collectKernelEventsLocked` (`reactor_kernel.go`) which turns every
     session with `kernelSetupNeeded` into a `kernelSetupEvent` and clears the flag, then
-    `enqueueKernelEvents` (`reactor_kernel.go:67`) hands it to `kernelWorker.Enqueue`
-    (`l2tp/kernel_linux.go:192`). The worker's `setupSession` (`l2tp/kernel_linux.go:241`) builds the
+    `enqueueKernelEvents` (`reactor_kernel.go`) hands it to `kernelWorker.Enqueue`
+    (`l2tp/kernel_linux.go`). The worker's `setupSession` (`l2tp/kernel_linux.go`) builds the
     kernel PPPoX/L2TP socket and reports success on `successCh`.
 12. **PPP handoff.** `run`'s select reads `kernelSuccessCh` -> `handleKernelSuccess`
-    (`reactor_kernel.go:89`), which builds `ppp.StartSession` (`reactor_kernel.go:107`,
+    (`reactor_kernel.go`), which builds `ppp.StartSession` (`reactor_kernel.go`,
     carrying `LNSMode`, proxy-LCP AVPs, and per-tunnel auth/NCP parameters from
-    `r.params`) and sends it on `r.pppDriver.SessionsIn() <- start` (`reactor_kernel.go:138`),
+    `r.params`) and sends it on `r.pppDriver.SessionsIn() <- start` (`reactor_kernel.go`),
     the same channel PPPoE's `handlePADR` writes to (step 5).
-13. **Teardown.** Peer StopCCN/CDN: `handleMessage` (`tunnel_fsm.go:113`) ->
-    `handleStopCCN`/`handleCDN` (`session_fsm.go:341`). Operator-initiated:
-    `TeardownTunnelByID`/`TeardownSessionByID` (`teardown.go:35,77`) send administrative
-    StopCCN/CDN and drain pending kernel teardowns (`teardown.go:53-54,100-101`), then
+13. **Teardown.** Peer StopCCN/CDN: `handleMessage` (`tunnel_fsm.go`) ->
+    `handleStopCCN`/`handleCDN` (`session_fsm.go`). Operator-initiated:
+    `TeardownTunnelByID`/`TeardownSessionByID` (`teardown.go,77`) send administrative
+    StopCCN/CDN and drain pending kernel teardowns (`teardown.go,100-101`), then
     `r.routeObserver.OnSessionDown` withdraws the subscriber's redistributed route
-    (`teardown.go:59,105`; observer at `route_observer.go:142`).
+    (`teardown.go,105`; observer at `route_observer.go`).
 
 ### C. Shared PPP negotiation (both transports converge here)
-14. **Dispatch + per-session goroutine.** `Driver.dispatch` (`manager.go:408`) reads
-    `StartSession` off `sessionsIn` and calls `spawnSession` (`manager.go:427`), which
+14. **Dispatch + per-session goroutine.** `Driver.dispatch` (`manager.go`) reads
+    `StartSession` off `sessionsIn` and calls `spawnSession` (`manager.go`), which
     rejects invalid fds or a duplicate `(tunnelID, sessionID)` key (emitting
-    `EventSessionRejected`, `manager.go:437-452,534`) and otherwise builds a `pppSession`
-    and starts `s.run(start)` on its own goroutine (`manager.go:465-520`).
-15. **LCP.** `pppSession.run` (`session_run.go:97`) starts one `readFrames` goroutine for the
-    session's lifetime (`session_run.go:135`), then either short-circuits via proxy LCP
-    (`EvaluateProxyLCP`, `session_run.go:143`) straight to `LCPStateOpened`, or drives the
+    `EventSessionRejected`, `manager.go,534`) and otherwise builds a `pppSession`
+    and starts `s.run(start)` on its own goroutine (`manager.go`).
+15. **LCP.** `pppSession.run` (`session_run.go`) starts one `readFrames` goroutine for the
+    session's lifetime (`session_run.go`), then either short-circuits via proxy LCP
+    (`EvaluateProxyLCP`, `session_run.go`) straight to `LCPStateOpened`, or drives the
     RFC 1661 FSM from `Initial` through `ReqSent`/`AckSent` (`LCPDoTransition`,
-    `session_run.go:182,188`). Every received frame is dispatched by `handleFrame`
-    (`session_run.go:628`) -> `handleLCPPacket` (`session_run.go:714`), which maps the LCP
-    code to an FSM event (`codeToEvent`, `session_run.go:688`) and drives `performAction`
-    (`session_run.go:877`) for each resulting wire action (SCR/SCA/SCN/STR/STA/SCJ/SER).
+    `session_run.go,188`). Every received frame is dispatched by `handleFrame`
+    (`session_run.go`) -> `handleLCPPacket` (`session_run.go`), which maps the LCP
+    code to an FSM event (`codeToEvent`, `session_run.go`) and drives `performAction`
+    (`session_run.go`) for each resulting wire action (SCR/SCA/SCN/STR/STA/SCJ/SER).
 16. **LCP Opened -> auth -> NCP.** On the transition into `LCPStateOpened`
-    (`session_run.go:798,820` for the normal path; `session_run.go:171` for the proxy path),
-    the session calls `afterLCPOpen` (`session_run.go:442`), which runs `runAuthPhase`
-    (`session_run.go:450,518`) then `runNCPPhase` (`session_run.go:454`; `ncp.go:39`) before
-    connecting the channel to the unit fd (`PPPIOCCONNECT`, `session_run.go:463`) and setting
-    MRU/MTU/admin-up on the `pppN` interface (`session_run.go:467-480`).
-17. **Authentication.** `runAuthPhase` (`session_run.go:518`) dispatches on
-    `negotiatedAuthMethod`: `AuthMethodNone` -> `runNoAuthPhase` (`session_run.go:558`,
+    (`session_run.go,820` for the normal path; `session_run.go` for the proxy path),
+    the session calls `afterLCPOpen` (`session_run.go`), which runs `runAuthPhase`
+    (`session_run.go,518`) then `runNCPPhase` (`session_run.go`; `ncp.go`) before
+    connecting the channel to the unit fd (`PPPIOCCONNECT`, `session_run.go`) and setting
+    MRU/MTU/admin-up on the `pppN` interface (`session_run.go`).
+17. **Authentication.** `runAuthPhase` (`session_run.go`) dispatches on
+    `negotiatedAuthMethod`: `AuthMethodNone` -> `runNoAuthPhase` (`session_run.go`,
     still emits one `EventAuthRequest` for accounting/policy), `AuthMethodPAP` ->
-    `runPAPAuthPhase` (`ppp/pap.go:160`), `AuthMethodCHAPMD5` -> `runCHAPAuthPhase`
-    (`ppp/chap.go:247`), `AuthMethodMSCHAPv2` -> `runMSCHAPv2AuthPhase` (`ppp/mschapv2.go`).
-    Each emits `EventAuthRequest` on `AuthEventsOut()` (`ppp/auth_events.go:74`) and blocks in
-    `awaitAuthDecision` (`ppp/auth.go:201`) for `Driver.AuthResponse` (`manager.go:337`).
+    `runPAPAuthPhase` (`ppp/pap.go`), `AuthMethodCHAPMD5` -> `runCHAPAuthPhase`
+    (`ppp/chap.go`), `AuthMethodMSCHAPv2` -> `runMSCHAPv2AuthPhase` (`ppp/mschapv2.go`).
+    Each emits `EventAuthRequest` on `AuthEventsOut()` (`ppp/auth_events.go`) and blocks in
+    `awaitAuthDecision` (`ppp/auth.go`) for `Driver.AuthResponse` (`manager.go`).
 18. **Auth handler wiring.** The transport's drain goroutine reads `AuthEventsOut()` and calls
-    the registered handler. PPPoE: `startPPPoEAuthDrain` (`pppoe/drain.go:16`) ->
-    `callPPPoEAuthHandler` (`pppoe/drain.go:59`, panic-recovered) ->
-    `subscriber.GetAuthHandler()` (`subscriber/handler_registry.go:47`). L2TP:
-    `startAuthDrain` (`l2tp/drain.go:67`) -> `l2tp.GetAuthHandler()` (`l2tp/handler_registry.go:56`),
-    which itself delegates to `subscriber.GetAuthHandler` (`l2tp/handler_registry.go:57`): **both
+    the registered handler. PPPoE: `startPPPoEAuthDrain` (`pppoe/drain.go`) ->
+    `callPPPoEAuthHandler` (`pppoe/drain.go`, panic-recovered) ->
+    `subscriber.GetAuthHandler()` (`subscriber/handler_registry.go`). L2TP:
+    `startAuthDrain` (`l2tp/drain.go`) -> `l2tp.GetAuthHandler()` (`l2tp/handler_registry.go`),
+    which itself delegates to `subscriber.GetAuthHandler` (`l2tp/handler_registry.go`): **both
     transports read the same registered handler**, e.g. the RADIUS plugin's
-    `radiusAuth.handle` (`plugins/authradius/handler.go:45`).
-19. **NCP (IPCP/IPv6CP).** `runNCPPhase` (`ncp.go:39`) emits `EventIPRequest` per enabled
-    family and awaits the handler's decision in `awaitIPDecision` (`ncp.go:215`,
-    `requestIPCPAddresses` at `ncp.go:145`), then drives each family's FSM via
-    `startNCP`/`handleNCPPacket` (`ncp.go:252,330`). On IPCP `Opened`, `onNCPOpened`
-    (`ncp.go:689`) programs the address on `pppN` (`AddAddressP2P`, `ncp.go:696`) and emits
-    `EventSessionIPAssigned` (`ncp.go:700`). The pool handler is wired the same
-    transport-parallel way as auth: PPPoE `startPPPoEPoolDrain` (`pppoe/drain.go:73`) /
-    L2TP `startPoolDrain` (`l2tp/drain.go:141`), both resolving through
-    `subscriber.GetPoolHandler()` (`subscriber/handler_registry.go:69`), e.g. the static-pool
-    plugin's `handle` (`plugins/pool/register.go:64` registers via `l2tp.RegisterPoolHandler`).
+    `radiusAuth.handle` (`plugins/authradius/handler.go`).
+19. **NCP (IPCP/IPv6CP).** `runNCPPhase` (`ncp.go`) emits `EventIPRequest` per enabled
+    family and awaits the handler's decision in `awaitIPDecision` (`ncp.go`,
+    `requestIPCPAddresses` at `ncp.go`), then drives each family's FSM via
+    `startNCP`/`handleNCPPacket` (`ncp.go,330`). On IPCP `Opened`, `onNCPOpened`
+    (`ncp.go`) programs the address on `pppN` (`AddAddressP2P`, `ncp.go`) and emits
+    `EventSessionIPAssigned` (`ncp.go`). The pool handler is wired the same
+    transport-parallel way as auth: PPPoE `startPPPoEPoolDrain` (`pppoe/drain.go`) /
+    L2TP `startPoolDrain` (`l2tp/drain.go`), both resolving through
+    `subscriber.GetPoolHandler()` (`subscriber/handler_registry.go`), e.g. the static-pool
+    plugin's `handle` (`plugins/pool/register.go` registers via `l2tp.RegisterPoolHandler`).
 20. **Session up.** After `runNCPPhase` succeeds, `afterLCPOpen` emits `EventSessionUp`
-    (`session_run.go:498`) on `EventsOut()`.
+    (`session_run.go`) on `EventsOut()`.
 
 ### D. Subscriber registry, events, accounting, CoA
 21. **Registration.** Each transport's own event-consumer goroutine turns PPP lifecycle
     events into `subscriber.Session` entries in the one process-wide
-    `subscriber.DefaultRegistry` (`subscriber/service.go:15`). PPPoE:
-    `Subsystem.eventConsumer` (`pppoe/subsystem.go:283`) handles `EventSessionUp`
-    (`pppoe/subsystem.go:290`, builds the session and calls `reg.Add`, `pppoe/subsystem.go:320`),
-    `EventSessionIPAssigned` (`pppoe/subsystem.go:335`), `EventSessionDown`
-    (`pppoe/subsystem.go:358`, calls `reg.Remove` then `srv.handleSessionDown`). L2TP:
-    `subscriberBridge` (`subscriber_bridge.go:18`) subscribes to L2TP's own EventBus
-    namespace (`l2tpevents.SessionUp/Down/IPAssigned`, `subscriber_bridge.go:37-39`) rather
+    `subscriber.DefaultRegistry` (`subscriber/service.go`). PPPoE:
+    `Subsystem.eventConsumer` (`pppoe/subsystem.go`) handles `EventSessionUp`
+    (`pppoe/subsystem.go`, builds the session and calls `reg.Add`, `pppoe/subsystem.go`),
+    `EventSessionIPAssigned` (`pppoe/subsystem.go`), `EventSessionDown`
+    (`pppoe/subsystem.go`, calls `reg.Remove` then `srv.handleSessionDown`). L2TP:
+    `subscriberBridge` (`subscriber_bridge.go`) subscribes to L2TP's own EventBus
+    namespace (`l2tpevents.SessionUp/Down/IPAssigned`, `subscriber_bridge.go`) rather
     than hooking the reactor directly, and re-emits on the `subscriber` namespace
-    (`onSessionUp`, `subscriber_bridge.go:56`).
+    (`onSessionUp`, `subscriber_bridge.go`).
 22. **Subscriber event namespace.** `internal/component/l2tp/subscriber/events/events.go`
     defines `SessionUp`/`SessionDown`/`SessionIPAssigned`/`SessionRateChange`/
-    `SessionAuthResult` (`subscriber/events/events.go:14-18`) as the cross-access-type
+    `SessionAuthResult` (`subscriber/events/events.go`) as the cross-access-type
     EventBus namespace (`"subscriber"`) both transports emit on
-    (e.g. `pppoe/subsystem.go:328,351,368`; `subscriber_bridge.go:74,99,131`).
-23. **RADIUS accounting.** `radiusAcct.SubscribeEventBus` (`plugins/authradius/acct.go:87`)
+    (e.g. `pppoe/subsystem.go,351,368`; `subscriber_bridge.go,99,131`).
+23. **RADIUS accounting.** `radiusAcct.SubscribeEventBus` (`plugins/authradius/acct.go`)
     subscribes **only** to `l2tpevents.SessionIPAssigned`/`SessionDown`
-    (`acct.go:92,96`), NOT the shared `subscriber` namespace: Accounting-Start/Interim/Stop
-    (`acct.go:164,173,183`) only fire for L2TP sessions today, even though the same RADIUS
+    (`acct.go,96`), NOT the shared `subscriber` namespace: Accounting-Start/Interim/Stop
+    (`acct.go,173,183`) only fire for L2TP sessions today, even though the same RADIUS
     auth handler authenticates PPPoE sessions too (see Gotchas).
-24. **CoA / Disconnect-Message.** `coaListener.handleCoA` (`plugins/authradius/coa.go:169`)
+24. **CoA / Disconnect-Message.** `coaListener.handleCoA` (`plugins/authradius/coa.go`)
     looks up the session in the shared registry first via `findSubscriberSession`
-    (`coa.go:295`, matches on `Acct-Session-Id` across both access types through
-    `Registry.LookupByAcctSessionID`, `subscriber/registry.go:88`), so CoA rate-changes
-    (`subevents.SessionRateChange`, `coa.go:181`) work for PPPoE and L2TP alike.
-    `handleDisconnect` (`coa.go:259`) also finds PPPoE sessions this way but is **not wired to
+    (`coa.go`, matches on `Acct-Session-Id` across both access types through
+    `Registry.LookupByAcctSessionID`, `subscriber/registry.go`), so CoA rate-changes
+    (`subevents.SessionRateChange`, `coa.go`) work for PPPoE and L2TP alike.
+    `handleDisconnect` (`coa.go`) also finds PPPoE sessions this way but is **not wired to
     PPPoE teardown**: it NAKs and logs `"disconnect-request for PPPoE session not yet wired to
-    PPPoE teardown"` (`coa.go:261-268`); only the L2TP fallback path actually tears a session
-    down (`svc.TeardownSession`, `coa.go:283`).
+    PPPoE teardown"` (`coa.go`); only the L2TP fallback path actually tears a session
+    down (`svc.TeardownSession`, `coa.go`).
 
 ## Key files
 | File | Role |
@@ -210,51 +210,51 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
 
 ## Invariants & gotchas
 - **One shared PPP package, two transports.** `ppp.Driver` is transport-agnostic
-  (`ppp.StartSession` is the only contract, `start_session.go:11-131`); PPPoE and L2TP each
-  own a **separate** `*ppp.Driver` instance (`pppoe/subsystem.go:114`,
-  `l2tp/subsystem.go:275`), not a shared one. Both write to their own driver's `SessionsIn()`.
+  (`ppp.StartSession` is the only contract, `start_session.go`); PPPoE and L2TP each
+  own a **separate** `*ppp.Driver` instance (`pppoe/subsystem.go`,
+  `l2tp/subsystem.go`), not a shared one. Both write to their own driver's `SessionsIn()`.
 - **PADS/ICRP only after kernel setup succeeds.** `handlePADR` sends PADS only after
-  `pppoeCreate` + `ppp.DevPPPSetup` both succeed (`pppoe/server.go:150-177`); a peer that
+  `pppoeCreate` + `ppp.DevPPPSetup` both succeed (`pppoe/server.go`); a peer that
   never gets PADS retries PADI, not PADR. The L2TP analog defers kernel resource creation to
-  the *next* dispatch after ICCN via `kernelSetupNeeded` (`session_fsm.go:189`): ICRP is
-  sent immediately in `handleICRQ` before any kernel state exists (`session_fsm.go:137-149`).
+  the *next* dispatch after ICCN via `kernelSetupNeeded` (`session_fsm.go`): ICRP is
+  sent immediately in `handleICRQ` before any kernel state exists (`session_fsm.go`).
 - **`subscriber.DefaultRegistry` is a package-level singleton**, not injected
-  (`subscriber/service.go:15`). Both `pppoe.Subsystem.eventConsumer` and L2TP's
+  (`subscriber/service.go`). Both `pppoe.Subsystem.eventConsumer` and L2TP's
   `subscriberBridge` write to it directly; tests that run both subsystems in the same
   process share one registry.
 - **`AuthHandler`/`PoolHandler`/`ShaperHandler` are also package-level singletons**
-  (`subscriber/handler_registry.go:31-36`), set once by whichever auth/pool/shaper plugin's
+  (`subscriber/handler_registry.go`), set once by whichever auth/pool/shaper plugin's
   `init()` runs; only one of each can be registered process-wide. L2TP's own
-  `RegisterAuthHandler`/`RegisterPoolHandler` (`l2tp/handler_registry.go:38,79`) are thin adapters
-  that delegate to the same subscriber-level singleton (`l2tp/handler_registry.go:42-51`): plugins
+  `RegisterAuthHandler`/`RegisterPoolHandler` (`l2tp/handler_registry.go,79`) are thin adapters
+  that delegate to the same subscriber-level singleton (`l2tp/handler_registry.go`): plugins
   written against the older L2TP-typed API still work unchanged.
 - **`subscriberBridge` requires a non-nil EventBus.** L2TP's subsystem only builds the bridge
-  `if bus != nil` (`l2tp/subsystem.go:361-363`); L2TP subsystem tests that pass a nil bus get no
+  `if bus != nil` (`l2tp/subsystem.go`); L2TP subsystem tests that pass a nil bus get no
   subscriber registration at all. PPPoE guards the same way per-emit (`if s.bus != nil`,
-  `pppoe/subsystem.go:327` etc.) rather than skipping the whole event consumer.
+  `pppoe/subsystem.go` etc.) rather than skipping the whole event consumer.
 - **RADIUS accounting is L2TP-only despite the shared auth handler.** `radiusAcct` subscribes
-  to `l2tpevents.SessionIPAssigned`/`SessionDown` (`plugins/authradius/acct.go:92,96`), which
+  to `l2tpevents.SessionIPAssigned`/`SessionDown` (`plugins/authradius/acct.go,96`), which
   only L2TP's reactor emits; PPPoE sessions authenticated by the same RADIUS handler never
   get an Accounting-Start/Stop. Adding PPPoE accounting means subscribing
   `subevents.SessionUp`/`SessionIPAssigned`/`SessionDown` instead (or in addition).
 - **PPPoE Disconnect-Message (RADIUS CoA) is not wired to teardown.** `handleDisconnect`
-  (`plugins/authradius/coa.go:259-269`) finds the PPPoE session via the subscriber registry
+  (`plugins/authradius/coa.go`) finds the PPPoE session via the subscriber registry
   but only logs and NAKs; there is no `pppoe.Subsystem.TeardownSession` equivalent to
-  `l2tp.Service.TeardownSession` (`coa.go:283`) yet. This matches the known gap recorded in
+  `l2tp.Service.TeardownSession` (`coa.go`) yet. This matches the known gap recorded in
   `plan/learned/760-subscriber-session-model.md`.
 - **Registry values are always copies.** `Registry.Add` copies `*Session` into the map
-  (`subscriber/registry.go:22-24`) and `Get`/`All` return value copies
-  (`subscriber/registry.go:34-41,44-51`); mutating a `Session` obtained from the registry
+  (`subscriber/registry.go`) and `Get`/`All` return value copies
+  (`subscriber/registry.go,44-51`); mutating a `Session` obtained from the registry
   never mutates the stored entry: callers must `Add` again to persist a change (see
-  `subscriber_bridge.go:118,129` doing exactly that after mutating a local copy).
+  `subscriber_bridge.go,129` doing exactly that after mutating a local copy).
 - **One reader per chan fd.** `pppSession.run` starts exactly one `readFrames` goroutine
-  before LCP begins (`ppp/session_run.go:135`) specifically so auth and NCP phases, which
+  before LCP begins (`ppp/session_run.go`) specifically so auth and NCP phases, which
   read from the same `framesIn` channel rather than the raw fd, cannot race a second reader
   against it; do not add a second direct `chanFile.Read` anywhere in the auth/NCP path.
 - **Proxy LCP short-circuits LCP entirely.** When an L2TP LAC supplies all three proxy-LCP
-  AVPs in ICCN, `EvaluateProxyLCP` (`ppp/session_run.go:143`) skips LCP negotiation and jumps
+  AVPs in ICCN, `EvaluateProxyLCP` (`ppp/session_run.go`) skips LCP negotiation and jumps
   straight to `LCPStateOpened` with the LAC's already-negotiated options
-  (`session_run.go:148-179`); PPPoE StartSessions never carry proxy-LCP bytes (all three
+  (`session_run.go`); PPPoE StartSessions never carry proxy-LCP bytes (all three
   fields are empty), so PPPoE sessions always run full LCP.
 - **`plan/learned/760` file paths are stale.** The design doc lists created files under
   `internal/component/subscriber/...` and `internal/component/pppoe/...`; the current tree has

@@ -2,14 +2,14 @@
 
 Interface config-apply now **gracefully skips a configured physical (Ethernet)
 interface that is absent from the deployment target** instead of aborting the
-whole apply. Producer: `internal/component/iface/config_apply.go:651-675` —
+whole apply. Producer: `internal/component/iface/config_apply.go` —
 pre-compute `absentPhysical` by probing each non-disabled `cfg.Ethernet` entry
-with `b.GetInterface` (`:657`), log `"iface config: configured interface not
-present, skipping"` (`:658`), then filter those names out of `allEntries`
+with `b.GetInterface`, log `"iface config: configured interface not
+present, skipping"`, then filter those names out of `allEntries`
 (`:667-674`) so the Phase-2 property loop and Phase-2c admin-up loop never touch
 them. Created types (dummy/veth/bridge/tunnel/wireguard/xfrm) are made in Phase 1
 and are NOT skipped; a genuine (non-absent) error still aborts and rolls back via
-`record()` → `rollbackPartial()` (`config_apply.go:346-350`).
+`record()` → `rollbackPartial()` (`config_apply.go`).
 
 Tests: `TestApplyConfigSkipsAbsentEthernet`, `TestApplyConfigRollsBackGenuineError`
 (`config_apply_test.go`) — both green. AC-3 (full L2TP appliance end-to-end proof)

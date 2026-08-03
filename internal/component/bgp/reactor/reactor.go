@@ -303,7 +303,7 @@ type Reactor struct {
 	// forwardDedupOff turns off sharing one UPDATE rebuild between forward
 	// destinations whose edit sets are equal (forward_dedup.go).
 	//
-	// Negative, against ai/rules/config-naming.md's positive-assertion rule,
+	// Negative, against ai/rules/config.md's positive-assertion rule,
 	// because the ZERO VALUE has to mean "on". Every Reactor a test builds is a
 	// struct literal, so a positive field would leave the feature silently off
 	// in exactly the places that must exercise it. The env var operators see is

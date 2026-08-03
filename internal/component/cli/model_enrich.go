@@ -1,4 +1,4 @@
-// Design: ai/rules/pipe-completeness.md -- data-transform pipes in custom render paths
+// Design: ai/rules/cli.md -- data-transform pipes in custom render paths
 // Related: model_traceroute.go -- | log legend enrichment for monitor traceroute
 // Related: model_ping.go -- | log target legend enrichment for monitor ping
 

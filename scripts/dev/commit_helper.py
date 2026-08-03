@@ -528,7 +528,7 @@ def lesson_comment(
             evidence = _lesson_new_content(scoped) or "new lines in " + ", ".join(scope)
             raise UsageError(
                 # "lesson-worthy paths changed" is the STABLE LEADING PHRASE for
-                # this failure kind (ai/rules/error-messages.md): it is what a
+                # this failure kind (ai/rules/cli.md): it is what a
                 # scanner greps for and what commit_helper_test.go pins. Rewording
                 # the message around it is fine; dropping it is not.
                 "lesson-worthy paths changed: no learned summary is staged, and "
@@ -600,7 +600,7 @@ def render_block(block: CommitBlock) -> str:
         f"# {block.lesson_comment}",
     ]
     if block.review_check:
-        lines.append("# critical-review gate re-check (ai/rules/critical-review.md)")
+        lines.append("# critical-review gate re-check (ai/rules/planning.md)")
         lines.append(block.review_check)
     if block.add_paths:
         lines.append(render_git_add(block.add_paths))
@@ -1239,7 +1239,7 @@ def discovery_index_head_status(repo: Path) -> tuple[str, list[str]]:
 # UsageError); deferral-unassigned, wiring, and doc-drift WARN (print to stderr,
 # commit proceeds -- an unhomed deferral row is harmless to software behaviour,
 # so it is surfaced, not used to hard-block an otherwise-valid commit). See
-# ai/rules/deferral-tracking.md, ai/rules/integration-completeness.md.
+# ai/rules/planning.md, ai/rules/completion.md.
 # --------------------------------------------------------------------------- #
 
 DEFERRAL_PLACEHOLDERS = frozenset({"", "-", "unassigned", "tbd", "none"})
@@ -1266,13 +1266,12 @@ DEFERRAL_PATTERNS = (
 
 
 # Directories whose markdown DISCUSSES deferral as policy rather than performing
-# it: the rule corpus (ai/rules/deferral-tracking.md, no-parking.md, planning.md,
-# handoff.md, ...) and the generated ai/rules/CONDENSED.md digest that flattens
-# their prose. A bare "future work" / "out of scope" phrase there is the subject
+# it: the rule corpus (ai/rules/planning.md, completion.md, planning.md,
+# planning.md, ...). A bare "future work" / "out of scope" phrase there is the subject
 # under discussion, not an act of parking work, so it is exempt from the
 # added-prose scan. Specs (plan/spec-*.md) and code stay in scope -- that is where
-# a real deferral gets written and must be homed. See ai/rules/deferral-tracking.md,
-# ai/rules/friction-reporting.md, plan/learned/HOOK-FRICTION.md.
+# a real deferral gets written and must be homed. See ai/rules/planning.md,
+# ai/rules/repo-maintenance.md, plan/learned/HOOK-FRICTION.md.
 DEFERRAL_SCAN_EXEMPT_DIRS = ("ai/rules/", ".claude/rules/")
 
 
@@ -1288,14 +1287,14 @@ DEFERRAL_DEST_PATH_RE = re.compile(r"(?<![\w/-])(plan/[\w./-]+\.md|[\w.-]+\.md)"
 # is live and gets checked -- including a status word nobody has invented yet.
 #
 # This is a denylist of terminal states, not an allowlist of live ones, and the
-# direction is the whole point (ai/rules/fail-closed-guards.md). The gate used to
-# test `status == "open"`, so `deferred` -- the word ai/rules/deferral-tracking.md
+# direction is the whole point (ai/rules/evidence.md). The gate used to
+# test `status == "open"`, so `deferred` -- the word ai/rules/planning.md
 # itself uses for this state -- was never looked at, and four rows written on
 # 2026-07-16 named no home and sailed through. An allowlist re-runs that bug the
 # next time the vocabulary drifts; a terminal denylist fails closed, because an
 # unrecognised status is treated as live and checked.
 #
-# The deferral shards' contract (ai/rules/deferral-tracking.md): "A row lives here
+# The deferral shards' contract (ai/rules/planning.md): "A row lives here
 # only while the work has no home. Once it is moved into a spec, it is resolved ...
 # and the spec becomes the tracker."
 DEFERRAL_TERMINAL_STATUSES = frozenset({"done", "cancelled", "resolved"})
@@ -1346,7 +1345,7 @@ def deferral_destination_paths(dest: str) -> list[str]:
 def deferral_destination_problem(repo: Path, dest: str) -> str | None:
     """Why this Destination cell fails the rule, or None when it is a valid home.
 
-    ai/rules/deferral-tracking.md: a live deferral ALWAYS names a destination
+    ai/rules/planning.md: a live deferral ALWAYS names a destination
     spec that exists on disk. Only a terminal Status may name no file. Prose
     ("later", "future work") is a deletion with a polite name, and a path to a
     spec nobody created loses the work just as completely -- both lose the work,
@@ -1382,7 +1381,7 @@ def deferral_shard_paths(repo: Path) -> list[Path]:
     Deferrals are sharded one file per source (plan/deferrals/<spec-stem>.md, plus
     plan/deferrals/ad-hoc-<date>-<sid>.md), so that a session stages only files it
     owns and git merges disjoint creations without conflict
-    (ai/rules/deferral-tracking.md, ai/rules/git-safety.md). The aggregate is a
+    (ai/rules/planning.md, ai/rules/git-safety.md). The aggregate is a
     fold over this directory, computed on read and never stored.
 
     The glob is RECURSIVE (rglob) to stay aligned with deferral_in_diff_problems,
@@ -1399,7 +1398,7 @@ def deferral_shard_paths(repo: Path) -> list[Path]:
 # `git show HEAD:<path>` stderr phrases that each mean "nothing committed is at
 # that path", so removing it destroys no committed row. Matched under LC_ALL=C.
 # Everything ELSE is a read the gate could not make, and unknown is reported
-# rather than waved through (ai/rules/fail-closed-guards.md). Verified against
+# rather than waved through (ai/rules/evidence.md). Verified against
 # git 2.43.0; a wording this list misses costs a false BLOCKER naming the exit
 # code and stderr, which is visible and recoverable -- a silent pass is not.
 _GIT_SHOW_NOTHING_COMMITTED = (
@@ -1442,7 +1441,7 @@ def deferral_shard_removal_problems(
     Spec closure removes the closing spec's own shard, and that is correct only
     when every row in it is terminal. A shard whose rows are homed at OTHER specs
     outlives its source spec: the row's home is its Destination cell, and the
-    shard is only where the row is written down (ai/rules/deferral-tracking.md,
+    shard is only where the row is written down (ai/rules/planning.md,
     "A shard that still holds a live row SURVIVES its source spec"). Measured on
     2026-08-03: 39 shards were in that state, holding 68 live rows (counted by
     scripts/dev/deferral_orphans.py, which is the citation this number carries so
@@ -1453,7 +1452,7 @@ def deferral_shard_removal_problems(
     DIRECTORY -- deferral_unassigned_problems above, the session-end banner --
     so deleting a live-bearing shard does not raise their count, it lowers it.
     The action the rule forbids is the action that silences every observer of the
-    rows it destroys, which is the fail-open shape ai/rules/fail-closed-guards.md
+    rows it destroys, which is the fail-open shape ai/rules/evidence.md
     exists to refuse. Prose telling a human to read the Status column first
     cannot be the only control over a delete that hides its own evidence.
 
@@ -1489,7 +1488,7 @@ def deferral_shard_removal_problems(
             # _GIT_SHOW_NOTHING_COMMITTED means there is provably nothing
             # committed to destroy. Everything else (a corrupt object, git
             # missing, a permission failure) means the gate cannot SEE the rows,
-            # and unknown is not innocent (ai/rules/fail-closed-guards.md).
+            # and unknown is not innocent (ai/rules/evidence.md).
             err = shown.stderr
             if any(phrase in err for phrase in _GIT_SHOW_NOTHING_COMMITTED):
                 continue
@@ -1526,7 +1525,7 @@ def deferral_shard_removal_problems(
         "removing a deferral shard that still holds live rows:\n"
         + "\n".join(offenders)
         + "\n  A shard is deleted at closure ONLY when every row in it is terminal"
-        "\n  (ai/rules/deferral-tracking.md). Each row above is live work homed at"
+        "\n  (ai/rules/planning.md). Each row above is live work homed at"
         "\n  another spec; deleting the shard deletes the record, and no other gate"
         "\n  would notice because every one of them folds over this directory."
         "\n  Resolve each row (done / cancelled / resolved), or drop the"
@@ -1547,7 +1546,7 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
 
     Routed through commit_gate_warnings, NOT commit_gate_problems: an unhomed
     deferral row is harmless to software behaviour, so it is surfaced rather than
-    used to block an otherwise-valid commit (ai/rules/deferral-tracking.md). The
+    used to block an otherwise-valid commit (ai/rules/planning.md). The
     returned strings are printed as warnings; homing is still required by the
     rule, but a missing home no longer blocks the commit.
     """
@@ -1578,7 +1577,7 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
         problems.append(
             "live deferrals without a destination spec (advisory, does not block):\n"
             + "\n".join(unassigned)
-            + "\n  Homing is still required by ai/rules/deferral-tracking.md -- each"
+            + "\n  Homing is still required by ai/rules/planning.md -- each"
             "\n  should name an existing plan/spec-*.md (add the work to a spec that"
             "\n  covers the topic, or create plan/spec-<source>-deferred-<subtask>.md"
             "\n  from plan/TEMPLATE.md), or be cancelled -- but an unhomed row no"
@@ -1759,7 +1758,7 @@ def deferral_in_diff_problems(
         "deferral language in staged changes without a plan/deferrals/ entry:\n"
         + "\n".join(hits)
         + "\n  Record each deferral in its plan/deferrals/<source>.md shard before"
-        " committing (ai/rules/deferral-tracking.md)."
+        " committing (ai/rules/planning.md)."
     ]
 
 
@@ -1780,13 +1779,13 @@ def wiring_warnings(add_paths: tuple[str, ...]) -> list[str]:
         "plugin code committed without a .ci functional test:\n"
         + "\n".join(f"    {f}" for f in plugin_go)
         + "\n  Is this reachable by a user via config/CLI/API?"
-        " (ai/rules/integration-completeness.md)."
+        " (ai/rules/completion.md)."
     ]
 
 
 def feature_gate_tags(repo: Path) -> list[str]:
     """Sorted ze_<feature> build tags from feature-gates.txt, the single source of
-    truth (ai/rules/feature-gate-registration.md). Derived, not hardcoded, so a new
+    truth (ai/rules/plugins.md). Derived, not hardcoded, so a new
     gate is picked up automatically -- mirrors ZE_FEATURES in the Makefile,
     featureGateTags() in internal/test/runner, and _feature_gate_tags() in
     stress-repro.py."""
@@ -1819,7 +1818,7 @@ def doc_drift_warnings(repo: Path) -> list[str]:
     registry holds only the four always-on families and EVERY address-family
     claim in docs/comparison.md and docs/DESIGN.md is reported as drift -- 11
     fabricated warnings on a tree whose `make ze-doc-test` is green. That is the
-    trap ai/rules/bash-output.md names: dropping the feature tags fakes reds.
+    trap ai/rules/commands.md names: dropping the feature tags fakes reds.
     """
     if not (repo / "scripts" / "docvalid" / "doc_drift.go").exists():
         return []
@@ -1847,7 +1846,7 @@ STE_HABIT_GREW = 3
 def ste_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     """REPORT, never block, when a commit's own prose grew an ASD-STE100 habit.
 
-    Simplified Technical English (ai/rules/simplified-technical-english.md) is a
+    Simplified Technical English (ai/rules/writing.md) is a
     GUIDELINE. It exists to make text clearer for a reader, and it is not a law.
     Owner directive, 2026-07-31: a prose gate that refuses a commit makes an
     author spend edits on wording that changes no meaning, which is the overhead
@@ -2038,7 +2037,7 @@ def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     wrote into the shared working tree -- held real work back for no software
     reason. It is still surfaced loudly (printed to stderr) so a genuine unhomed
     deferral stays visible; only the hard block is removed. Homing is still
-    required by ai/rules/deferral-tracking.md; this changes the gate's severity,
+    required by ai/rules/planning.md; this changes the gate's severity,
     not the rule.
     """
     return (
@@ -2130,7 +2129,7 @@ def review_gate_problems(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
 ) -> list[str]:
     """BLOCK a spec-closure commit whose code is not covered by a fresh, CLEAN,
-    INDEPENDENT review (ai/rules/critical-review.md).
+    INDEPENDENT review (ai/rules/planning.md).
 
     Runs scripts/dev/review_gate.py check over the code/test files in this commit.
     The artifact is written by INDEPENDENT reviewers (subagents / a fresh
@@ -2167,7 +2166,7 @@ def review_gate_problems(
     return [
         detail + "\n"
         "  A spec closes only after an INDEPENDENT critical review of its code\n"
-        "  (ai/rules/critical-review.md): spawn reviewer subagents over the diff,\n"
+        "  (ai/rules/planning.md): spawn reviewer subagents over the diff,\n"
         "  fix findings, loop to zero, and record with:\n"
         "    python3 scripts/dev/review_gate.py record --spec "
         + stem
@@ -2273,7 +2272,7 @@ def create(args: argparse.Namespace) -> int:
     # Critical-review gate: a spec cannot close without an INDEPENDENT review of
     # its code that is fresh (hash-pinned) and clean. This makes review the
     # central, unskippable step -- it cannot be satisfied by narrating "0 issues"
-    # into the spec. See ai/rules/critical-review.md.
+    # into the spec. See ai/rules/planning.md.
     if not args.review_override:
         review_problems = review_gate_problems(repo, add_paths, remove_paths)
         if review_problems:
@@ -2500,7 +2499,7 @@ def build_parser() -> argparse.ArgumentParser:
     create_cmd.add_argument(
         "--review-override",
         help="reason to allow a spec-closure commit when the independent "
-        "critical-review gate (ai/rules/critical-review.md) is missing/stale "
+        "critical-review gate (ai/rules/planning.md) is missing/stale "
         "(owner override; a review not performed is never a clean tree)",
     )
     create_cmd.add_argument(

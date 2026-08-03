@@ -1,6 +1,6 @@
 # TDD Rationale
 
-Why: `ai/rules/tdd.md`
+Why: `ai/rules/testing.md`
 
 ## Why Tests Must Fail First
 

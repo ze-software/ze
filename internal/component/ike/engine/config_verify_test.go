@@ -26,7 +26,7 @@ func vpnSection(body string) []sdk.ConfigSection {
 // PREVENTS: The check existing in ipsec.ValidatePKIRefs but never running. Before
 // this wiring, ValidatePKIRefs, ValidateGroupRefs and ValidateRemoteAccess had no
 // non-test caller anywhere in the repo, so every cross-reference they describe
-// was unenforced (ai/rules/wiring-completeness.md).
+// was unenforced (ai/rules/completion.md).
 func TestValidateIPsecSectionsRejectsEAPTLSWithoutCA(t *testing.T) {
 	sections := vpnSection(`{
 	  "vpn": {
@@ -84,7 +84,7 @@ func TestValidateIPsecSectionsRejectsUnknownGroupRef(t *testing.T) {
 // distinguished-name local-id is refused at commit.
 // PREVENTS: ValidateIdentities existing and never running. The value committed clean and
 // then produced an IKE_AUTH no peer expecting a distinguished name accepts, where only the
-// log saw it (ai/rules/wiring-completeness.md, ai/rules/exact-or-reject.md).
+// log saw it (ai/rules/completion.md, ai/rules/protocol.md).
 //
 // The trigger is local-id rather than remote-id because a distinguished-name REMOTE-id is
 // now a supported configuration. RFC 7296 Section 4 requires ze be configurable to accept

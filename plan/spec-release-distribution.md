@@ -11,11 +11,11 @@
 
 **Re-read these after context compaction:**
 1. This spec file.
-2. `.claude/rules/planning.md` and `ai/rules/no-partial-completion.md`.
+2. `.claude/rules/planning.md` and `ai/rules/completion.md`.
 3. `plan/spec-release-evidence-gate.md` and `plan/spec-release-audit-0-umbrella.md`.
-4. `Makefile:48-56,115-153`, `mk/test-release.mk:1-190`, and `internal/core/version/version.go:176-214`.
-5. `internal/plugins/init/main.go:47-85,158-340`, `internal/plugins/systemd/cmd_install.go:25-120`, `internal/plugins/systemd/unit.go:7-62`, and `internal/component/doctor/checks_platform.go:122-251`.
-6. `internal/component/config/system/selfupdate.go:46-54,672-719` and `cmd/ze/update_serve.go:27-145`.
+4. `Makefile:48-56,115-153`, `mk/test-release.mk`, and `internal/core/version/version.go`.
+5. `internal/plugins/init/main.go,158-340`, `internal/plugins/systemd/cmd_install.go`, `internal/plugins/systemd/unit.go`, and `internal/component/doctor/checks_platform.go`.
+6. `internal/component/config/system/selfupdate.go,672-719` and `cmd/ze/update_serve.go`.
 7. `.github/workflows/codeql.yml`, `.github/workflows/pages.yml`, and `.woodpecker/verify.yml`.
 8. `docs/guide/quickstart.md`, `docs/guide/ubuntu-build-install.md`, `docs/guide/ze-install.md`, and `docs/guide/self-update.md`.
 
@@ -48,23 +48,23 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 
 ### Architecture Docs and Rules
 
-- [ ] `ai/rules/design-principles.md` - explicit behavior, simple ownership, and no speculative surfaces.
+- [ ] `ai/rules/architecture.md` - explicit behavior, simple ownership, and no speculative surfaces.
   -> Decision: use checked-in deterministic release tooling around the existing Make/Go build instead of adding GoReleaser as a second build model.
   -> Constraint: nFPM is limited to native package assembly; it does not own version derivation, release policy, signing, or publication.
-- [ ] `ai/rules/data-flow-tracing.md` - trace source, build, attestation, signing, and publication boundaries.
+- [ ] `ai/rules/architecture.md` - trace source, build, attestation, signing, and publication boundaries.
   -> Decision: separate unprivileged build, attestation, and privileged signing/publication stages with digest-bound manifests between them.
-- [ ] `ai/rules/no-fabrication.md` - every behavioral claim needs producing-source evidence.
+- [ ] `ai/rules/evidence.md` - every behavioral claim needs producing-source evidence.
   -> Constraint: package and release documentation must cite build, init, service, update, and publication producers.
-- [ ] `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/integration-completeness.md` - test-first and user-entry coverage.
+- [ ] `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/completion.md` - test-first and user-entry coverage.
   -> Decision: package lifecycle is tested through real package managers and systemd, not only archive inspection.
   -> Constraint: `ze init --automatic` needs Go unit tests and an install-suite `.ci` test; repository installation needs distro integration evidence.
-- [ ] `ai/rules/qemu-testing.md` - Linux-only behavior needs Linux integration evidence.
+- [ ] `ai/rules/platform-linux.md` - Linux-only behavior needs Linux integration evidence.
   -> Decision: container tests cover the distro matrix and booted QEMU VMs prove one DEB and one RPM family systemd lifecycle end to end.
-- [ ] `ai/rules/discovery-updates.md` and `ai/rules/documentation.md` - release tooling and user install paths must be discoverable.
+- [ ] `ai/rules/repo-maintenance.md` and `ai/rules/writing.md` - release tooling and user install paths must be discoverable.
   -> Constraint: release targets, runbooks, package guide, architecture doc, indexes, and source anchors ship with the implementation.
-- [ ] `ai/rules/doctor-checks.md` - runtime dependency readiness belongs to the owning component.
+- [ ] `ai/rules/repo-maintenance.md` - runtime dependency readiness belongs to the owning component.
   -> Decision: extend the existing doctor systemd check to inspect systemd's effective `FragmentPath`, so vendor units and admin override units are both verified.
-- [ ] `ai/rules/wiring-completeness.md` and `ai/rules/no-partial-completion.md` - every public entry point must be reachable and tested.
+- [ ] `ai/rules/completion.md` and `ai/rules/completion.md` - every public entry point must be reachable and tested.
   -> Constraint: no release can be presented as complete until all stable/nightly, package, repository, signing, lifecycle, and recovery ACs pass.
 - [ ] `docs/architecture/cli/plugin-modes.md` - offline command ownership and systemd command placement.
   -> Decision: `ze init --automatic` remains in the existing init plugin; package service behavior remains aligned with the existing systemd plugin.
@@ -117,11 +117,11 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 
 **Key insights:**
 - GitHub Releases are the correct direct-download surface. GitHub Packages does not provide APT/RPM repositories, and GitHub Pages is unsuitable for package traffic.
-- The existing release build embeds wall-clock values (`Makefile:53-56`), while runtime release comparison accepts only the eight-character `YY.MM.DD` identity (`internal/core/version/version.go:176-214`). Release tooling must use the source commit timestamp and keep nightly channel identity outside the embedded release.
+- The existing release build embeds wall-clock values (`Makefile:53-56`), while runtime release comparison accepts only the eight-character `YY.MM.DD` identity (`internal/core/version/version.go`). Release tooling must use the source commit timestamp and keep nightly channel identity outside the embedded release.
 - The package-sized product is one statically linked `ze` distro binary plus service/account declarations, completion scripts, install-method marker, license, and metadata. Repository source/key trust is an external ordered bootstrap pair; appliance and host-tool outputs have separate producer contracts.
-- Fresh package installation cannot safely call the interactive init flow. The current init path requires a username and plaintext password (`internal/plugins/init/main.go:166-205`) and discovers host interfaces (`internal/plugins/init/main.go:265-290`). Package bootstrap needs an explicit noninteractive mode with username `admin`, at least 256 bits of CSPRNG entropy, and only loopback management config.
-- The current doctor service check reads only `/etc/systemd/system/ze.service` (`internal/component/doctor/checks_platform.go:128-160`), so it would miss a package-owned vendor unit. It must discover the effective unit through systemd with a bounded call.
-- The current self-updater replaces its running executable in place (`internal/component/config/system/selfupdate.go:774-814,875-886`). Package installs need a package-manager marker and backend guard so APT/RPM always owns `/usr/bin/ze`.
+- Fresh package installation cannot safely call the interactive init flow. The current init path requires a username and plaintext password (`internal/plugins/init/main.go`) and discovers host interfaces (`internal/plugins/init/main.go`). Package bootstrap needs an explicit noninteractive mode with username `admin`, at least 256 bits of CSPRNG entropy, and only loopback management config.
+- The current doctor service check reads only `/etc/systemd/system/ze.service` (`internal/component/doctor/checks_platform.go`), so it would miss a package-owned vendor unit. It must discover the effective unit through systemd with a bounded call.
+- The current self-updater replaces its running executable in place (`internal/component/config/system/selfupdate.go,875-886`). Package installs need a package-manager marker and backend guard so APT/RPM always owns `/usr/bin/ze`.
 - Static object storage can serve APT, RPM, signed release manifests, and audit archives. Only small channel pointers are mutable.
 - Signing keys and publication credentials must never enter candidate-executing jobs. A protected default-branch attestation workflow and an isolated VPS publisher verify a closed input bundle before final signing.
 
@@ -133,26 +133,26 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - [ ] `internal/component/doctor/checks_platform.go` - current systemd unit check (full line ranges below).
 - [ ] `internal/component/config/system/selfupdate.go` - current in-place self-update behavior (full line ranges below).
 - [ ] `Makefile:48-56,93-168` - derives feature tags from `feature-gates.txt`, uses wall-clock version/build date, and builds all local binaries.
-- [ ] `mk/test-release.mk:1-190` - composes the release evidence matrix but performs no packaging, signing, or publishing.
+- [ ] `mk/test-release.mk` - composes the release evidence matrix but performs no packaging, signing, or publishing.
 - [ ] `.woodpecker/verify.yml:1-19` - runs `make ze-verify` on pushes and pull requests.
 - [ ] `.github/workflows/codeql.yml` - GitHub security analysis only.
 - [ ] `.github/workflows/pages.yml` - GitHub Pages publication only.
-- [ ] `internal/core/version/version.go:176-235` - compares eight-character CalVer releases lexically and exposes build metadata.
-- [ ] `internal/plugins/init/main.go:47-85,158-340` - interactive/piped bootstrap, bcrypt storage, host-interface discovery, optional TLS, and atomic zefs rename.
-- [ ] `internal/plugins/systemd/cmd_install.go:25-183` - manual systemd install, account creation, state ownership, admin unit write, daemon-reload, enable, and optional start.
-- [ ] `internal/plugins/systemd/unit.go:7-62` - current service identity, capabilities, paths, security flags, and restart policy.
-- [ ] `internal/component/doctor/checks_platform.go:122-251` - validates only the hard-coded admin unit path and its executable/user/group.
-- [ ] `internal/core/ssh/client/client.go:240-317,385-423` - local super-admin uses the stored bcrypt hash as an opaque SSH token.
-- [ ] `internal/component/ssh/ssh.go:51-55,161-190` - default SSH listener is loopback `127.0.0.1:2222`.
-- [ ] `internal/component/config/system/selfupdate.go:46-54,672-719` - static-compatible update manifest fields and architecture-derived download fallback.
-- [ ] `internal/component/config/system/backend.go:15-32,71-115` and `backend_ze_distro.go:9-40,85-133` - platform-only backend selection and self-update operation dispatch.
-- [ ] `cmd/ze/hub/main_system.go:264-309` - platform/options producer and active backend startup.
-- [ ] `internal/plugins/update-cmd/cmd/firmware.go:15-127` - user check/download/apply/restart/rollback handlers all consume `system.ActiveBackend()`.
-- [ ] `internal/component/config/system/selfupdate.go:511-562,774-814,875-886` - manual download writes adjacent temporary state and apply/rollback rename executable bytes.
-- [ ] `cmd/ze/update_serve.go:27-145` - current single-binary update manifest and download endpoint contract.
-- [ ] `docs/guide/quickstart.md:5-26` and `README.md:76-86` - source build is the only published getting-started path.
-- [ ] `docs/guide/ubuntu-build-install.md:69-177` - build/install/init/systemd sequence and current source-supported service behavior.
-- [ ] `docs/guide/self-update.md:21-70` - standalone update-server and manifest contract.
+- [ ] `internal/core/version/version.go` - compares eight-character CalVer releases lexically and exposes build metadata.
+- [ ] `internal/plugins/init/main.go,158-340` - interactive/piped bootstrap, bcrypt storage, host-interface discovery, optional TLS, and atomic zefs rename.
+- [ ] `internal/plugins/systemd/cmd_install.go` - manual systemd install, account creation, state ownership, admin unit write, daemon-reload, enable, and optional start.
+- [ ] `internal/plugins/systemd/unit.go` - current service identity, capabilities, paths, security flags, and restart policy.
+- [ ] `internal/component/doctor/checks_platform.go` - validates only the hard-coded admin unit path and its executable/user/group.
+- [ ] `internal/core/ssh/client/client.go,385-423` - local super-admin uses the stored bcrypt hash as an opaque SSH token.
+- [ ] `internal/component/ssh/ssh.go,161-190` - default SSH listener is loopback `127.0.0.1:2222`.
+- [ ] `internal/component/config/system/selfupdate.go,672-719` - static-compatible update manifest fields and architecture-derived download fallback.
+- [ ] `internal/component/config/system/backend.go,71-115` and `backend_ze_distro.go,85-133` - platform-only backend selection and self-update operation dispatch.
+- [ ] `cmd/ze/hub/main_system.go` - platform/options producer and active backend startup.
+- [ ] `internal/plugins/update-cmd/cmd/firmware.go` - user check/download/apply/restart/rollback handlers all consume `system.ActiveBackend()`.
+- [ ] `internal/component/config/system/selfupdate.go,774-814,875-886` - manual download writes adjacent temporary state and apply/rollback rename executable bytes.
+- [ ] `cmd/ze/update_serve.go` - current single-binary update manifest and download endpoint contract.
+- [ ] `docs/guide/quickstart.md` and `README.md` - source build is the only published getting-started path.
+- [ ] `docs/guide/ubuntu-build-install.md` - build/install/init/systemd sequence and current source-supported service behavior.
+- [ ] `docs/guide/self-update.md` - standalone update-server and manifest contract.
 
 **Current outputs:**
 - No repository-defined release tag trigger, nightly build schedule, GitHub Release creation, native package definition, APT/RPM repository, artifact signing, SBOM publication, release retention, or automated Codeberg/GitHub mirroring exists.
@@ -160,7 +160,7 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - Local `make build` produces multiple binaries; only `bin/ze` is the normal distro daemon (`Makefile:115-153`).
 
 **Behavior to preserve:**
-- Codeberg remains the canonical development source and GitHub remains the official public repository/download surface (`README.md:129-136`).
+- Codeberg remains the canonical development source and GitHub remains the official public repository/download surface (`README.md`).
 - The normal release binary uses `ze_core`, `ze_distro`, and every gate derived from `feature-gates.txt` (`Makefile:48-51,118-120`).
 - Runtime embedded release remains exactly `YY.MM.DD`; no `v` prefix or nightly suffix reaches `main.version`.
 - The package service remains `ze.service`, runs as `ze:ze`, starts `/usr/bin/ze start`, uses `/etc/ze`, sets `/run/ze`, and retains the existing capability and hardening contract from `buildUnitFile`.
@@ -175,7 +175,7 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - Native packages, repositories, release manifests, signing, provenance, retention, and operations become first-class repository-defined behavior.
 - Quickstart and installation documentation lead release users to verified packages/downloads while retaining source-build instructions for developers.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 The channel-specific paths below carry the full detail; this overview maps the
 canonical stages first.
@@ -603,7 +603,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | A-4 | The selected R2 deployment supports three one-bucket custom domains, conditional writes, five bucket-scoped credentials, prefix bucket locks, and locally signed temporary credentials with explicit actions/object paths | R2 custom-domain, bucket-lock, API-token, and temporary-credential documentation | Atomic activation, routing, immutable retention, or delete authority would be unsafe | Five-bucket/three-domain staging, prefix-lock, broker-mint, credential-denial, CDN, and restore tests | unvalidated |
 | A-5 | nFPM 2.47.0, Syft 1.46.0, Aptly 1.6.3, and createrepo_c 1.2.4 satisfy deterministic and target-format contracts | Latest upstream releases observed 2026-07-10 | Tool lock or repository design changes | Pinned prototype, double-build, native package-manager, and clean-keyring tests | unvalidated |
 | A-6 | Current `ze` distro binary remains fully static under both target architectures | `CGO_ENABLED=0` global build contract | Package gains undeclared runtime libraries | `file`, `ldd` negative check, and booted distro tests | unvalidated |
-| A-7 | Existing zefs hash-as-token login makes discarded automatic plaintext usable for local administration | `internal/core/ssh/client/client.go:240-317` | Fresh package install would be inaccessible | VM install then root `ze status` and `ze cli` test | confirmed |
+| A-7 | Existing zefs hash-as-token login makes discarded automatic plaintext usable for local administration | `internal/core/ssh/client/client.go` | Fresh package install would be inaccessible | VM install then root `ze status` and `ze cli` test | confirmed |
 | A-8 | Vendor-unit, sysusers, tmpfiles, and preset paths work on the declared Debian/RPM families | systemd/FHS conventions | Package scripts fail on a supported distribution | Container matrix and booted QEMU VM tests | unvalidated |
 | A-9 | Exact release-evidence check runs can be bound to a source SHA through GitHub checks/artifacts | GitHub Actions model | Publisher cannot machine-verify stable readiness | Evidence workflow prototype and negative SHA/run-attempt mismatch tests | unvalidated |
 | A-10 | Separate mirror, publisher, and nightly-retention identities plus protected refs can contain forge authority despite coarse Contents write permission | GitHub App/Codeberg protection model | Credentials would exceed the documented trust boundary | Preflight intended/denied API probes, protected-main push denial, stable-release/tag deletion denial-by-policy, audit-log, and token-rotation exercises | unvalidated |
@@ -1436,7 +1436,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] Tests written before implementation.
 - [ ] Tests fail for the intended missing behavior.
 - [ ] Tests pass after implementation.
-- [ ] Tests FAIL first and Tests PASS after, with output pasted per phase (`ai/rules/tdd.md`).
+- [ ] Tests FAIL first and Tests PASS after, with output pasted per phase (`ai/rules/testing.md`).
 - [ ] `make ze-test` passes (lint + all ze tests) in addition to the release gates above.
 - [ ] Boundary tests cover syntax/trusted date/clock, entropy, doctor deadline/output, SHA, size, path/envelope, workflow artifact/evidence sets, cache/freshness, retention credentials/batches, key/monitor thresholds, scriptlet count, storage/architecture/generation, and one-per-day limits.
 - [ ] Functional tests cover every user/operator entry point and every AC maps to exact evidence.

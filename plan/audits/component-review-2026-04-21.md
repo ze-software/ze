@@ -41,16 +41,16 @@ repo:
 
 | Rule file | Review implication |
 |-----------|--------------------|
-| `architecture-summary.md` | Review data flow, not just local code style |
-| `data-flow-tracing.md` | Trace entry point -> transform -> boundary -> effect |
-| `exact-or-reject.md` | Silent approximation is a bug |
-| `buffer-first.md` | Wire paths must stay pooled, bounded, offset-based |
+| `architecture.md` | Review data flow, not just local code style |
+| `architecture.md` | Trace entry point -> transform -> boundary -> effect |
+| `protocol.md` | Silent approximation is a bug |
+| `performance.md` | Wire paths must stay pooled, bounded, offset-based |
 | `goroutine-lifecycle.md` | Per-event goroutines in hot paths are forbidden |
-| `plugin-design.md` | YANG, registry, dispatch, and plugin boundaries are structural requirements |
-| `config-design.md` | Unknown keys, env-var parity, and config exactness are mandatory |
-| `file-modularity.md` | Large multi-concern files are review targets, not just aesthetics |
+| `plugins.md` | YANG, registry, dispatch, and plugin boundaries are structural requirements |
+| `config.md` | Unknown keys, env-var parity, and config exactness are mandatory |
+| `go-standards.md` | Large multi-concern files are review targets, not just aesthetics |
 | `testing.md` | End-to-end evidence matters more than unit-only confidence |
-| `implementation-audit.md` | Specs and AC coverage cannot be hand-waved |
+| `completion.md` | Specs and AC coverage cannot be hand-waved |
 
 ## Review Strategy
 
@@ -102,7 +102,7 @@ These structural risks remain. Each needs a dedicated review session or spec.
 
 ## Large-File Audit Queue
 
-These files exceed the thresholds where `file-modularity.md` expects an
+These files exceed the thresholds where `go-standards.md` expects an
 explicit concern check. Line counts refreshed 2026-04-23.
 
 | File | Lines | Review question |

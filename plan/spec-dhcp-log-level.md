@@ -36,9 +36,9 @@ dhcp-server log-level debug|info|warning|error`.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/config-surface.md` - YANG leaf vs env var decision.
+- [ ] `ai/rules/config.md` - YANG leaf vs env var decision.
   → Constraint: a per-service runtime log verbosity is operator-facing config; YANG leaf, not env var.
-- [ ] `ai/rules/plugin-self-containment.md` - dhcpserver owns its config surface.
+- [ ] `ai/rules/plugins.md` - dhcpserver owns its config surface.
   → Constraint: the level maps to the plugin's own logger; no central logging switch.
 
 **Key insights:**
@@ -48,28 +48,28 @@ dhcp-server log-level debug|info|warning|error`.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/dhcpserver/register.go` - `ConfigureEngineLogger` stores an injected `slog.Logger` into `loggerPtr` (register.go:37-42); log call sites use fixed `Debug`/`Info`. ~~No level control.~~ (Superseded 2026-07-10: the injected logger carries an operator-controlled level; see Post-wave corrections.)
-- [ ] `internal/plugins/dhcpserver/config.go` - `parseConfig` (config.go:71) reads only `enabled` (:88), `listen-interface` (:92), `shared-network` (:111), `pxe` (:365); no `log`/`verbosity`/`log-level` leaf is parsed.
+- [ ] `internal/plugins/dhcpserver/register.go` - `ConfigureEngineLogger` stores an injected `slog.Logger` into `loggerPtr` (register.go); log call sites use fixed `Debug`/`Info`. ~~No level control.~~ (Superseded 2026-07-10: the injected logger carries an operator-controlled level; see Post-wave corrections.)
+- [ ] `internal/plugins/dhcpserver/config.go` - `parseConfig` (config.go) reads only `enabled` (:88), `listen-interface` (:92), `shared-network` (:111), `pxe` (:365); no `log`/`verbosity`/`log-level` leaf is parsed.
 - [ ] `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - service config schema; no logging leaf today.
 
 ### Post-wave corrections (2026-07-10)
 
-Citations re-verified: register.go:37-42, the parseConfig surface, and the YANG
+Citations re-verified: register.go, the parseConfig surface, and the YANG
 schema are all current (no drift). However, re-reading the PRODUCER of the
 injected logger contradicts the spec's premise:
 
 - `ConfigureEngineLogger` receives `CanonicalSubsystemName(name)` from the
-  plugin host (`internal/component/plugin/inprocess.go:99-105`) and calls
-  `slogutil.Logger(loggerName)` (register.go:38).
-- `slogutil.Logger` (`internal/core/slogutil/slogutil.go:183-207`) resolves the
+  plugin host (`internal/component/plugin/inprocess.go`) and calls
+  `slogutil.Logger(loggerName)` (register.go).
+- `slogutil.Logger` (`internal/core/slogutil/slogutil.go`) resolves the
   boot-time level via the hierarchical env lookup `ze.log.<subsystem>` ->
-  parents -> `ze.log` (`getLogEnv`, slogutil.go:149-169; default WARN) and
+  parents -> `ze.log` (`getLogEnv`, slogutil.go; default WARN) and
   registers a runtime-adjustable `slog.LevelVar` in `levelRegistry`
-  (slogutil.go:139-141, stores at :190 and :202).
-- `slogutil.SetLevel` (slogutil.go:510-518) changes a registered subsystem's
+  (slogutil.go, stores at :190 and :202).
+- `slogutil.SetLevel` (slogutil.go) changes a registered subsystem's
   level at RUNTIME, and the log plugin exposes it as an operator command:
   `ze-bgp:log-set` -> `handleLogSet` -> `slogutil.SetLevel`
-  (`internal/plugins/log/cmd/handlers.go:18`, SetLevel call at :112);
+  (`internal/plugins/log/cmd/handlers.go`, SetLevel call at :112);
   `ze-bgp:log-levels` (:17) lists current levels.
 
 Consequence: DHCP log verbosity is ALREADY operator-controllable (env var at
@@ -82,7 +82,7 @@ reconciliation decision before this spec can be promoted:
   path for the DHCP server (possibly none of the current design survives).
 - Option (b): keep a service-local YANG leaf and define precedence between the
   leaf, the `ze.log.*` env hierarchy, and runtime `SetLevel`
-  (`ai/rules/config-surface.md` governs this YANG-vs-env decision).
+  (`ai/rules/config.md` governs this YANG-vs-env decision).
 
 This is a scope/design decision that requires the user; the spec stays in
 `design` until it is made. A-1 is meanwhile effectively answered: the injected
@@ -114,7 +114,7 @@ logger IS levelable at runtime through its registered `LevelVar`.
 
 ### Integration Points
 - `parseConfig` (`config.go`) - read the new leaf.
-- `ConfigureEngineLogger` / `loggerPtr` (`register.go:37-42`) - apply the level to the logger.
+- `ConfigureEngineLogger` / `loggerPtr` (`register.go`) - apply the level to the logger.
 
 ### Architectural Verification
 - [ ] No bypassed layers (config via `parseConfig`)
@@ -127,7 +127,7 @@ logger IS levelable at runtime through its registered `LevelVar`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The injected `slog.Logger` level can be set/leveled at runtime | `loggerPtr.Store` holds a `*slog.Logger` (register.go:37-42) | may need a leveled handler wrapper | read `slogutil.Logger` during audit | unvalidated |
+| A-1 | The injected `slog.Logger` level can be set/leveled at runtime | `loggerPtr.Store` holds a `*slog.Logger` (register.go) | may need a leveled handler wrapper | read `slogutil.Logger` during audit | unvalidated |
 | A-2 | A bounded enum (debug/info/warning/error) covers operator needs | standard log levels | operator wants numeric levels | design confirmation with user | unvalidated |
 
 ### Risks
@@ -192,9 +192,9 @@ logger IS levelable at runtime through its registered `LevelVar`.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | `ze-dhcp-server-conf.yang` `log-level` enum; `ai/rules/config-surface.md`, `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | `ze-dhcp-server-conf.yang` `log-level` enum; `ai/rules/config.md`, `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | `enumeration` (debug/info/warning/error) |
-| CLI grammar | [ ] yes | `ai/rules/cli-grammar.md` |
+| CLI grammar | [ ] yes | `ai/rules/cli.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/dhcp-log-level.ci` |
 
 ### Documentation Update Checklist (BLOCKING)

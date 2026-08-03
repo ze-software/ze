@@ -29,7 +29,7 @@ import (
 // Three values, and none of them is a bare boolean. A nil pointer means the NAT-T
 // listener never started. A stored nil error means the option is set. A stored error
 // means it failed. A boolean would read "not attempted" as "failed"
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 var udpEncapState atomic.Pointer[udpEncapResult]
 
 // udpEncapFailures counts the attempts that failed. It rises on every reconfigure

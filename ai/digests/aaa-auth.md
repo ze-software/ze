@@ -19,129 +19,129 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 -> every dispatched command re-checked against `aaa.Bundle.Authorizer` -> accounting.
 
 ## Flow
-1. **Bootstrap credentials.** `ze init` (`internal/plugins/init/main.go:158` `runInit`)
+1. **Bootstrap credentials.** `ze init` (`internal/plugins/init/main.go` `runInit`)
    hashes the operator password with bcrypt and writes
    `meta/auth/local/username`/`meta/auth/local/password` into `database.zefs`
-   (`internal/plugins/init/main.go:248-249`), keys registered in
-   `pkg/zefs/keys.go:12-13`. `meta/instance/admin-disabled`
-   (`pkg/zefs/keys.go:19`) can disable this account on every surface. Appliance
+   (`internal/plugins/init/main.go`), keys registered in
+   `pkg/zefs/keys.go`. `meta/instance/admin-disabled`
+   (`pkg/zefs/keys.go`) can disable this account on every surface. Appliance
    image builds write the same keys via `internal/appliance/cmd_assemble.go` and
    `internal/plugins/imageserver/handler.go` (see `plan/learned/831-appliance-auth-hardening.md`).
 2. **Config load reaches the infra hook.** Parsing a config with a `bgp {}` block
    extracts the authz store and SSH config, then calls the hub-registered hook
-   (`internal/component/bgp/config/loader_create.go:216-237`,
-   `internal/component/config/infra/hook.go:69-107`). Without `bgp {}`
-   (ssh-only appliance), `cmd/ze/hub/main.go:639-691` builds the same pieces inline.
-3. **Hub composes the bundle.** `infraSetup` (`cmd/ze/hub/infra_setup.go:77`) loads
-   the zefs user (`loadZefsUsers`/`usersFromZefsDB`, `cmd/ze/hub/main_servers.go:88`,
+   (`internal/component/bgp/config/loader_create.go`,
+   `internal/component/config/infra/hook.go`). Without `bgp {}`
+   (ssh-only appliance), `cmd/ze/hub/main.go` builds the same pieces inline.
+3. **Hub composes the bundle.** `infraSetup` (`cmd/ze/hub/infra_setup.go`) loads
+   the zefs user (`loadZefsUsers`/`usersFromZefsDB`, `cmd/ze/hub/main_servers.go`,
    `:109-126`, fails closed on empty username/hash, `:128-138`), merges it with
-   YANG users (`mergeAuthUsers`, `cmd/ze/hub/main_servers.go:72-85`; a YANG user
+   YANG users (`mergeAuthUsers`, `cmd/ze/hub/main_servers.go`; a YANG user
    with the zefs admin's name overrides it), then calls `buildAAABundle`
-   (`cmd/ze/hub/infra_setup.go:30-43`) -> `aaa.Default.Build`
-   (`aaa/types.go:212-263`).
+   (`cmd/ze/hub/infra_setup.go`) -> `aaa.Default.Build`
+   (`aaa/types.go`).
 4. **Backend priority order.** `orderedBackends` sorts registered backends ascending
-   by `Priority()` (`aaa/types.go:198-208`): `radius` (50, `radius/aaa.go:8-11`),
-   `tacacs` (100, `tacacs/register.go:17-20`), local bcrypt (200,
-   `authz/register.go:43-45`). `radius.Build` always returns an empty
-   `Contribution` (`radius/aaa.go:18-24`): it reserves the name/priority slot but
+   by `Priority()` (`aaa/types.go`): `radius` (50, `radius/aaa.go`),
+   `tacacs` (100, `tacacs/register.go`), local bcrypt (200,
+   `authz/register.go`). `radius.Build` always returns an empty
+   `Contribution` (`radius/aaa.go`): it reserves the name/priority slot but
    contributes no `Authenticator`. RADIUS auth in this codebase is wired
    separately for L2TP subscriber sessions, not admin login (see Invariants).
 5. **Chaining.** Each non-empty `Authenticator` is collected; one backend ->
    used directly, more than one -> wrapped in `ChainAuthenticator`
-   (`aaa/types.go:257-262`). `LocalAuthenticator` is contributed unconditionally
+   (`aaa/types.go`). `LocalAuthenticator` is contributed unconditionally
    by the local backend (empty user list means every login is rejected, still
    timing-safe), so a `Bundle.Authenticator` always exists once Build succeeds
-   (`aaa/types.go:254-256`).
+   (`aaa/types.go`).
 6. **Bundle install + SSH build.** `swapAAABundle` installs the new bundle
-   atomically and closes the previous one (`cmd/ze/hub/aaa_lifecycle.go:29-36`).
+   atomically and closes the previous one (`cmd/ze/hub/aaa_lifecycle.go`).
    If SSH is configured and compiled in, `sshBuild` (set by
-   `cmd/ze/hub/register_ssh.go:12-14` -> `sshBuildImpl`,
-   `cmd/ze/hub/service_ssh.go:35-74`) constructs `ssh.Config{Authenticator:
+   `cmd/ze/hub/register_ssh.go` -> `sshBuildImpl`,
+   `cmd/ze/hub/service_ssh.go`) constructs `ssh.Config{Authenticator:
    bundle.Authenticator, Users: users, AuditRecorder: recorder, ...}`
-   (`cmd/ze/hub/infra_setup.go:138-149`) and starts `ssh.Server`.
+   (`cmd/ze/hub/infra_setup.go`) and starts `ssh.Server`.
 7. **Client connects.** `ssh.Server.Start` registers both auth callbacks
-   (`ssh/ssh.go:400-448`). Public key: `wish.WithPublicKeyAuth` calls
-   `matchPublicKey` against the configured user list (`ssh/ssh.go:413-426`,
-   `ssh/pubkey.go:21-41`); a typical SSH client offers a key first and falls
+   (`ssh/ssh.go`). Public key: `wish.WithPublicKeyAuth` calls
+   `matchPublicKey` against the configured user list (`ssh/ssh.go`,
+   `ssh/pubkey.go`); a typical SSH client offers a key first and falls
    back to password only if none matches. Password: `wish.WithPasswordAuth`
-   (`ssh/ssh.go:427-447`) builds an `authz.AuthRequest{Username, Password,
-   RemoteAddr, Service:"ssh"}` and calls `authenticator.Authenticate` (`:431`).
+   (`ssh/ssh.go`) builds an `authz.AuthRequest{Username, Password,
+   RemoteAddr, Service:"ssh"}` and calls `authenticator.Authenticate`.
 8. **Chain walk.** `ChainAuthenticator.Authenticate` tries backends in priority
-   order (`aaa/types.go:112-131`): a backend returning `ErrAuthRejected`
-   (`aaa/aaa.go:15`) stops the chain immediately (explicit reject); any other
+   order (`aaa/types.go`): a backend returning `ErrAuthRejected`
+   (`aaa/aaa.go`) stops the chain immediately (explicit reject); any other
    error tries the next backend (infra failure); the first `Authenticated:true`
    result wins.
 9. **TACACS+ authenticate (when `tacacs.HasServers()`,
-   `tacacs/config.go:29-31`).** `TacacsAuthenticator.Authenticate`
-   (`tacacs/authenticator.go:43-74`) sends a PAP AUTHEN request. PASS ->
+   `tacacs/config.go`).** `TacacsAuthenticator.Authenticate`
+   (`tacacs/authenticator.go`) sends a PAP AUTHEN request. PASS ->
    `handlePass` maps the returned priv-lvl through `privLvlMap` to ze profiles
-   (`tacacs/authenticator.go:77-103`); an unmapped priv-lvl is AC-18 and
+   (`tacacs/authenticator.go`); an unmapped priv-lvl is AC-18 and
    returns `ErrAuthRejected` even though the server said PASS. FAIL ->
    `ErrAuthRejected` (chain stops). ERROR or connection failure -> plain error
    (chain tries local next).
 10. **Local bcrypt authenticate (always present, priority 200).**
-    `LocalAuthenticator.Authenticate` (`authz/auth.go:46-71`) scans `Users` for
-    a name match and calls `CheckPassword` (`authz/auth.go:81-93`): either the
+    `LocalAuthenticator.Authenticate` (`authz/auth.go`) scans `Users` for
+    a name match and calls `CheckPassword` (`authz/auth.go`): either the
     caller sent the stored bcrypt hash itself (hash-as-token, constant-time
     compare) or a plaintext password (bcrypt compare). Unknown users still run
-    bcrypt against a `dummyHash` (`authz/auth.go:35`) for timing safety.
+    bcrypt against a `dummyHash` (`authz/auth.go`) for timing safety.
 11. **Outcome.** Success logs `"SSH auth success"` with the winning `Source` and
-    truncated profile list (`ssh/ssh.go:437-441`, `truncateProfiles`,
-    `ssh/ssh.go:149-159`); wish proceeds to the session. Failure logs a warning
+    truncated profile list (`ssh/ssh.go`, `truncateProfiles`,
+    `ssh/ssh.go`); wish proceeds to the session. Failure logs a warning
     and calls `recordAuthFailure`, which writes an `audit.Entry{Surface:SSH,
     Action:ActionAuthFail}` when an `AuditRecorder` is configured
-    (`ssh/ssh.go:193-206`, `:444-446`).
+    (`ssh/ssh.go`, `:444-446`).
 12. **Session creation.** `teaHandler` -> `createSessionModel`
-    (`ssh/session.go:11-21`) delegates to the hub's `SessionModelFactory`, which
+    (`ssh/session.go`) delegates to the hub's `SessionModelFactory`, which
     wires a per-session `CommandExecutor` via `Server.ExecutorForUser`
-    (`ssh/ssh.go:321-334`). The editor/session/TUI wiring itself is traced in
+    (`ssh/ssh.go`). The editor/session/TUI wiring itself is traced in
     `ai/digests/cli-editor.md`.
 13. **Command authorization wiring.** Once the reactor starts, its post-start
     callback sets the dispatcher's authorizer: `bundle.Authorizer` wins if
     present, else a bare `authz.StoreAuthorizer{Store: authzStore}`
-    (`cmd/ze/hub/infra_setup.go:185-191`); accounting hook likewise
+    (`cmd/ze/hub/infra_setup.go`); accounting hook likewise
     (`:193-196`). If TACACS+ authorization is enabled, `bundle.Authorizer` is a
     `TacacsAuthorizer` wrapping the local `StoreAuthorizer` as fallback
-    (`tacacs/register.go:46-47`, `tacacs/authorizer.go:55-67`); otherwise it is
-    the plain `StoreAuthorizer` (`authz/register.go:15-25`).
-14. **Per-command check.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go:538`)
+    (`tacacs/register.go`, `tacacs/authorizer.go`); otherwise it is
+    the plain `StoreAuthorizer` (`authz/register.go`).
+14. **Per-command check.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
     resolves the builtin command, then calls `isAuthorized(ctx, input,
-    matchedCmd.ReadOnly)` (`internal/component/plugin/server/command.go:503-513`,
+    matchedCmd.ReadOnly)` (`internal/component/plugin/server/command.go`,
     used at `:565` and `:599`) which delegates to
     `authorizer.Authorize(username, remoteAddr, command, isReadOnly)`. A nil
     authorizer allows everything. Typed inter-plugin dispatch (peer-scoped RPCs)
     goes through `isAuthorizedCommandArgs`
-    (`internal/component/plugin/server/command.go:519-532`, called from
-    `internal/component/plugin/server/dispatch.go:437`), which prefers
-    `aaa.CommandArgsAuthorizer` (`aaa/command_args.go:22-24`) over the
+    (`internal/component/plugin/server/command.go`, called from
+    `internal/component/plugin/server/dispatch.go`), which prefers
+    `aaa.CommandArgsAuthorizer` (`aaa/command_args.go`) over the
     reconstructed legacy string so selector scoping survives; see
     `ai/digests/plugin-transport.md` for the dispatch mechanics.
-15. **RBAC evaluation.** `authz.Store.Authorize` (`authz/authz.go:337-397`)
+15. **RBAC evaluation.** `authz.Store.Authorize` (`authz/authz.go`)
     resolves the user's assigned profiles (`system.authentication.user
     <name>.profile`), evaluates each profile's `Run` or `Edit` `Section` in
-    order (`Entry.matches`, `authz/authz.go:68-90`; first match wins,
+    order (`Entry.matches`, `authz/authz.go`; first match wins,
     `Section.evaluate`, `:197-206`); unassigned users are denied once any user
     has assignments (fail closed, `:343-357`); with no assignments at all,
     everything is allowed. `TacacsAuthorizer.Authorize`
-    (`tacacs/authorizer.go:76-90`) instead sends an RFC 8907 AUTHOR REQUEST
+    (`tacacs/authorizer.go`) instead sends an RFC 8907 AUTHOR REQUEST
     (`:92-145`) and only calls the local fallback on server error or
     unreachability (`strictFallback` flips that to deny, `:105-144`).
-16. **Accounting.** `BeginAccounting` (`internal/component/plugin/server/command.go:492-500`)
+16. **Accounting.** `BeginAccounting` (`internal/component/plugin/server/command.go`)
     calls `Accountant.CommandStart`/`CommandStop` around the handler
     (`:590`, `:593`). When TACACS+ accounting is enabled
-    (`tacacs/register.go:50-55`), `TacacsAccountant.CommandStart`/`CommandStop`
-    (`tacacs/accounting.go:163-215`) enqueue START/STOP records to a buffered
-    channel drained by one worker goroutine (`:94-111`); a full queue or a
+    (`tacacs/register.go`), `TacacsAccountant.CommandStart`/`CommandStop`
+    (`tacacs/accounting.go`) enqueue START/STOP records to a buffered
+    channel drained by one worker goroutine; a full queue or a
     stopped accountant drops the record and logs a warning, never blocking the
-    command (`:138-148`).
+    command.
 17. **Reload / shutdown.** Every config reload re-runs step 3-6 and
-    `swapAAABundle` closes the prior bundle (`cmd/ze/hub/aaa_lifecycle.go:29-36`);
+    `swapAAABundle` closes the prior bundle (`cmd/ze/hub/aaa_lifecycle.go`);
     `Bundle.Close` is idempotent via `sync.Once` and runs every backend's
-    `Close` (`aaa/types.go:133-159`), which for TACACS+ stops the accounting
+    `Close` (`aaa/types.go`), which for TACACS+ stops the accounting
     worker and drains the client's connection pool
-    (`tacacs/register.go:57-68`). On daemon exit, `closeAAABundle` is deferred
-    at the top of `runYANGConfig` (`cmd/ze/hub/aaa_lifecycle.go:41-48`,
-    `cmd/ze/hub/main.go:203-207`).
+    (`tacacs/register.go`). On daemon exit, `closeAAABundle` is deferred
+    at the top of `runYANGConfig` (`cmd/ze/hub/aaa_lifecycle.go`,
+    `cmd/ze/hub/main.go`).
 
 ## Key files
 | File | Role |
@@ -173,14 +173,14 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 
 ## Invariants & gotchas
 - **RADIUS is registered but not wired to admin login.** `radiusBackend.Build`
-  (`radius/aaa.go:18-24`) always returns an empty `Contribution` regardless of
+  (`radius/aaa.go`) always returns an empty `Contribution` regardless of
   config; it exists only to reserve the name and priority slot. The actual
   RADIUS client (`radius/client.go`) is consumed by
   `internal/component/l2tp/plugins/authradius` for L2TP subscriber
   authentication, a completely separate concern from SSH/CLI admin auth. A
   digest reader tracing "RADIUS backend" for admin login will find nothing to
-  chase past `radius/aaa.go:22-24`; the doc comment on `buildAAABundle`
-  (`cmd/ze/hub/infra_setup.go:21-25`) still calls RADIUS/LDAP "future," which
+  chase past `radius/aaa.go`; the doc comment on `buildAAABundle`
+  (`cmd/ze/hub/infra_setup.go`) still calls RADIUS/LDAP "future," which
   is stale relative to the registered-but-empty backend that already exists.
 - **`ErrAuthRejected` vs. any other error is the whole chain-fallthrough
   contract.** Explicit rejection (bad password, unmapped TACACS+ priv-lvl)
@@ -191,7 +191,7 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 - **Priority order is fixed at compile time via `init()`**: radius(50) <
   tacacs(100) < local(200). Local is deliberately last so it is the fallback
   when a remote AAA server is unreachable, not the primary check.
-- **`aaa.Default` freezes after the first `Build`** (`aaa/types.go:180-196`).
+- **`aaa.Default` freezes after the first `Build`** (`aaa/types.go`).
   Tests must construct their own `NewBackendRegistry`, never call
   `aaa.Default.Build` and expect to register more backends afterward.
 - **Two disjoint local-admin key namespaces.** `meta/auth/local/*` (bootstrap
@@ -201,39 +201,39 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
   reusing `meta/ssh/*` for local bootstrap auth was rejected; do not conflate
   the two when touching zefs auth keys.
 - **`usersFromZefsDB` fails closed.** Missing username or empty password hash
-  is an error, not an empty-but-valid user (`cmd/ze/hub/main_servers.go:128-138`);
+  is an error, not an empty-but-valid user (`cmd/ze/hub/main_servers.go`);
   `meta/instance/admin-disabled=true` is a distinct explicit-disable error
-  (`cmd/ze/hub/main_servers.go:110-112`), and both leave `zefsUsers` empty at
+  (`cmd/ze/hub/main_servers.go`), and both leave `zefsUsers` empty at
   the call site rather than silently allowing anything.
 - **Authorizer nil-safety is layered, not accidental.** Dispatcher `nil`
-  authorizer allows all (`internal/component/plugin/server/command.go:504-506`);
-  `StoreAuthorizer{Store:nil}` allows all (`authz/register.go:20-24`); the
+  authorizer allows all (`internal/component/plugin/server/command.go`);
+  `StoreAuthorizer{Store:nil}` allows all (`authz/register.go`); the
   local backend only contributes an `Authorizer` when `params.LocalAuthorizer`
   is non-nil, specifically so "no RBAC configured" is never silently promoted
-  to "allow all coming from a real backend" (`authz/register.go:52-63`).
+  to "allow all coming from a real backend" (`authz/register.go`).
 - **`liveAAABundleAuthorizer` fails open during startup.** Before `infraSetup`
   has swapped in the first live bundle, `Authorize` returns `true`
-  (`cmd/ze/hub/aaa_lifecycle.go:52-58`). This is a narrow bootstrap window:
+  (`cmd/ze/hub/aaa_lifecycle.go`). This is a narrow bootstrap window:
   authentication is still required, but a session established in that window
   would see RBAC as allow-all until the bundle is installed.
 - **`strictFallback` changes TACACS+ authorization's fail mode.** Default
   (`false`) falls back to local RBAC when the TACACS+ server errors or is
-  unreachable; `true` denies instead (`tacacs/authorizer.go:105-144`). This is
+  unreachable; `true` denies instead (`tacacs/authorizer.go`). This is
   a per-deployment security/availability trade-off, not a bug either way.
 - **Config-file users and the zefs super-admin share one `LocalAuthenticator`.**
-  `mergeAuthUsers` (`cmd/ze/hub/main_servers.go:72-85`) lets a YANG user with
+  `mergeAuthUsers` (`cmd/ze/hub/main_servers.go`) lets a YANG user with
   the same name override the zefs entry; there is no separate code path for
   "the bootstrap account" once the merge has run.
 - **Accounting never blocks command execution.** `TacacsAccountant` drops
   records on a full queue or after `Stop` rather than backpressuring the
-  command path (`tacacs/accounting.go:138-148`); `Dispatcher.BeginAccounting`
+  command path (`tacacs/accounting.go`); `Dispatcher.BeginAccounting`
   is a no-op closure when no accountant is wired
-  (`internal/component/plugin/server/command.go:492-496`).
+  (`internal/component/plugin/server/command.go`).
 - **Two authorization call shapes must stay consistent.** CLI-typed commands
   use the legacy string form (`isAuthorized`,
-  `internal/component/plugin/server/command.go:503`); peer-scoped plugin
+  `internal/component/plugin/server/command.go`); peer-scoped plugin
   dispatch uses the typed form (`isAuthorizedCommandArgs`, `:519`).
-  `aaa.CanonicalCommand` (`aaa/command_args.go:58-88`) is what keeps the two
+  `aaa.CanonicalCommand` (`aaa/command_args.go`) is what keeps the two
   RBAC/TACACS+ match strings equivalent; changing one without the other
   desyncs profile `match` patterns from typed dispatch.
 
@@ -246,4 +246,4 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 - `plan/learned/831-appliance-auth-hardening.md` - appliance bootstrap hardening this digest traces
 - `ai/digests/cli-editor.md` - what happens after SSH auth succeeds: session model, editor, dispatch
 - `ai/digests/plugin-transport.md` - typed inter-plugin dispatch that `isAuthorizedCommandArgs` guards
-- `ai/rules/architecture-summary.md` - one-page component map and boundaries
+- `ai/rules/architecture.md` - one-page component map and boundaries

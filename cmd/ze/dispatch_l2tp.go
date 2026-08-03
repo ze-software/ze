@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp dispatch-root CLI gating
+// Design: ai/rules/plugins.md -- ze_l2tp dispatch-root CLI gating
 //
 // L2TP CLI command registration (`ze l2tp ...`) for the ze dispatch
 // composition root, gated on ze_l2tp. The other roots are the generated

@@ -43,9 +43,9 @@ Ze says the opposite at every layer:
 | Layer | What it says | Where |
 |-------|--------------|-------|
 | The checklist row | "(lower nonce wins)" | `rfc/short/rfc7296.md`, row `RFC7296-2.8-1` |
-| The function doc | "the exchange with the lowest nonce wins" | `internal/component/ike/engine/rekey.go:437` |
-| The caller | logs "we win (lower nonce), ignoring peer request" and keeps our exchange | `internal/component/ike/engine/inbound.go:174` |
-| The tagged test | asserts that the lower local nonce wins | `internal/component/ike/engine/rekey_test.go:23` |
+| The function doc | "the exchange with the lowest nonce wins" | `internal/component/ike/engine/rekey.go` |
+| The caller | logs "we win (lower nonce), ignoring peer request" and keeps our exchange | `internal/component/ike/engine/inbound.go` |
+| The tagged test | asserts that the lower local nonce wins | `internal/component/ike/engine/rekey_test.go` |
 
 The comparison itself is correct. `bytes.Compare` is octet-by-octet, which is what the RFC
 demands ("Lowest" means an octet-by-octet comparison). Only the direction is wrong.
@@ -89,11 +89,11 @@ Source files read on 2026-07-30:
 
 `resolveRekeyCollision(localNonce, remoteNonce)` returns
 `bytes.Compare(localNonce, remoteNonce) < 0`, so it is true when OUR nonce is the lower.
-Both callers treat true as "we win": the child branch at `inbound.go:174` and the IKE
-branch at `inbound.go:216`, the second added the same day by
+Both callers treat true as "we win": the child branch at `inbound.go` and the IKE
+branch at `inbound.go`, the second added the same day by
 `plan/spec-fixit-ike-negotiation-conformance.md`.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
@@ -137,7 +137,7 @@ peer that is not Ze. Two Ze peers keep agreeing, because the rule stays symmetri
 
 | Id | Statement | Basis | Validation |
 |----|-----------|-------|------------|
-| A-1 | Both callers use the boolean the same way | Read on 2026-07-30 at `inbound.go:174` and `:216` | Re-read both, and prove each separately |
+| A-1 | Both callers use the boolean the same way | Read on 2026-07-30 at `inbound.go` and `:216` | Re-read both, and prove each separately |
 | R-1 | An interop suite pins the current direction | The ipsec suite drives real rekeys | Run `make ze-ipsec-interop-test` and read any failure as evidence about strongSwan's direction, not as a reason to revert |
 
 ## Acceptance Criteria
@@ -156,8 +156,8 @@ peer that is not Ze. Two Ze peers keep agreeing, because the rule stays symmetri
 
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
-| Inbound child rekey with our rekey in flight (`inbound.go:174`) | -> | the corrected decision | `TestRekeyCollisionLowestNonceAbandons` |
-| Inbound IKE rekey with our rekey in flight (`inbound.go:216`) | -> | the corrected decision | `TestRekeyCollisionIKEBranchLowestNonceAbandons` |
+| Inbound child rekey with our rekey in flight (`inbound.go`) | -> | the corrected decision | `TestRekeyCollisionLowestNonceAbandons` |
+| Inbound IKE rekey with our rekey in flight (`inbound.go`) | -> | the corrected decision | `TestRekeyCollisionIKEBranchLowestNonceAbandons` |
 
 ## 🧪 TDD Test Plan
 

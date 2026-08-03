@@ -130,7 +130,7 @@ the hub). On reconnect it compares its active config to that baseline: equal -> 
 apply any pending hub update; different -> it was locally edited, so the device holds (keeps
 running its config, never auto-applies) and is marked `diverged` for the operator to resolve. The
 baseline is required, not optional: `cfg.Version` is recomputed from the live config at startup
-(`ze_core_start.go:325`), so without a persisted baseline the device cannot tell a local edit
+(`ze_core_start.go`), so without a persisted baseline the device cannot tell a local edit
 from a pending hub update. Detection and the hold live in `fleet-6`; resolution (the commit-style
 diff and a new `config-push` up-verb on the existing TLS transport) is `fleet-7`. `config-push`
 is a bounded, operator-gated up-channel, NOT the continuous bidirectional sync that remains out
@@ -171,16 +171,16 @@ New obligation from the 2026-07 implementation wave (verified against current co
 
 | Item | Detail | Citation |
 |------|--------|----------|
-| Write robustness landed on the plugin RPC transport | `pkg/plugin/rpc/conn.go` now applies a default 30s write deadline when the context has none (`defaultWriteDeadline`, conn.go:44; applied in `writeAppended`, conn.go:292-294, :309), and arms a fail-fast write watchdog on transports without `SetWriteDeadline` (fields conn.go:91-93, armed via `NewConn` at conn.go:107, path chosen at conn.go:307-315). A stalled write past the window logs, fires the hook (`SetWriteWatchdogHook`, conn.go:139), and closes the connection (`fireWatchdog`, conn.go:191-200) | conn.go:44, :91-93, :107, :139, :191-200, :286-334 |
-| Metric wired hub-side | `ze_plugin_write_watchdog_total` (CounterVec, transport label) registered and hooked in `internal/component/plugin/server/server.go:188-196`; documented in `docs/plugin-development/metrics.md:198-208` | server.go:188-196 |
-| Managed connections take the deadline path | Both managed endpoints wrap TLS `net.Conn`s in `rpc.NewConn` (client: `internal/component/managed/client.go:158`; hub: `internal/component/plugin/server/managed_serve.go:224`), which support `SetWriteDeadline`, so fleet RPC writes get the 30s deadline; the watchdog timer itself never arms for them | client.go:158, managed_serve.go:224 |
+| Write robustness landed on the plugin RPC transport | `pkg/plugin/rpc/conn.go` now applies a default 30s write deadline when the context has none (`defaultWriteDeadline`, conn.go; applied in `writeAppended`, conn.go, :309), and arms a fail-fast write watchdog on transports without `SetWriteDeadline` (fields conn.go, armed via `NewConn` at conn.go, path chosen at conn.go). A stalled write past the window logs, fires the hook (`SetWriteWatchdogHook`, conn.go), and closes the connection (`fireWatchdog`, conn.go) | conn.go, :91-93, :107, :139, :191-200, :286-334 |
+| Metric wired hub-side | `ze_plugin_write_watchdog_total` (CounterVec, transport label) registered and hooked in `internal/component/plugin/server/server.go`; documented in `docs/plugin-development/metrics.md` | server.go |
+| Managed connections take the deadline path | Both managed endpoints wrap TLS `net.Conn`s in `rpc.NewConn` (client: `internal/component/managed/client.go`; hub: `internal/component/plugin/server/managed_serve.go`), which support `SetWriteDeadline`, so fleet RPC writes get the 30s deadline; the watchdog timer itself never arms for them | client.go, managed_serve.go |
 
 Implication for this umbrella: the "New RPC verbs on existing transport" design principle now
 inherits this behavior. Children fleet-4 and fleet-7 must integrate it: a peer that stalls a
 write for 30s now surfaces as a write error / closed connection instead of an indefinite
 block, so new verb flows must treat deadline-triggered write failure as a normal
 disconnect/reconnect path, and payloads must stay well within the 16 MB `MaxMessageSize`
-frame bound (`pkg/plugin/rpc/framing.go:66`, enforced at write time in conn.go:302-304).
+frame bound (`pkg/plugin/rpc/framing.go`, enforced at write time in conn.go).
 
 ## Required Reading
 

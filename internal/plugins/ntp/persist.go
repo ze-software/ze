@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md -- NTP time persistence.
-// The last-known time persists in the shared zefs store (ai/rules/zefs-persistence.md)
+// The last-known time persists in the shared zefs store (ai/rules/architecture.md)
 // via internal/core/statestore, not a loose file, so it lives inside the managed
 // database.zefs alongside other appliance state on the writable /perm partition.
 

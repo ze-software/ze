@@ -1015,7 +1015,7 @@ environment {
 
 // VALIDATES: an absent mcp block yields ok=false from both extractors, so the
 // split did not turn "no config at all" into a zero-value config that reads as
-// an instruction (ai/rules/fail-closed-guards.md).
+// an instruction (ai/rules/evidence.md).
 func TestExtractMCPSettings_AbsentBlockIsNotAnInstruction(t *testing.T) {
 	tree := parseTreeForTest(t, "environment {\n\tlog {\n\t\tlevel warn;\n\t}\n}\n")
 	_, ok := ExtractMCPSettings(tree)

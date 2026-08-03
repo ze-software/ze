@@ -21,29 +21,29 @@
 Ze's config path silently tolerates schema subtrees that no plugin claims.
 
 ~~Original framing (superseded): the reader routes config blocks to handlers by
-longest-prefix match (`findHandler`, `internal/component/config/reader.go:432-456`)
+longest-prefix match (`findHandler`, `internal/component/config/reader.go`)
 and recurses past handler-less blocks, dropping their flat leaves.~~
 **Corrected during research (2026-07-10):** that reader is test-only --
-`config.NewReader` (`reader.go:236`) has no non-test caller (grep verified this
+`config.NewReader` (`reader.go`) has no non-test caller (grep verified this
 session). The silent tolerance lives in the PRODUCTION config path:
 
 - Delivery is claimed per top-level root: `Server.reloadConfig` selects plugins by
   `reg.WantsConfigRoots` with `rootHasChanges`
-  (`internal/component/plugin/server/reload.go:214-248`). When no plugin claims any
-  changed root, the producer at `reload.go:251-256` logs Info ("config reload: no
+  (`internal/component/plugin/server/reload.go`). When no plugin claims any
+  changed root, the producer at `reload.go` logs Info ("config reload: no
   affected plugins, updating config") and stores the tree via `SetConfigTree` --
   accepted, never verified by a plugin, never delivered.
 - Validation is permissive where it does run: `validateContainerEntry` validates
   only data keys present in the schema dir
-  (`internal/component/config/yang/validator.go:509-542`; the `if child, ok :=
+  (`internal/component/config/yang/validator.go`; the `if child, ok :=
   entry.Dir[key]; ok` guard at `:527` has no else); unknown keys pass silently.
 - Three hand-maintained inventories exist with nothing tying them together:
   registered YANG modules (generated `configyang.RegisterModule` glue,
-  `scripts/codegen/yang_glue.go:210-227`), hub `Schema.Handlers` (hand-declared
+  `scripts/codegen/yang_glue.go`), hub `Schema.Handlers` (hand-declared
   lists, e.g. bgp -> ["bgp","bgp/peer"] at
-  `internal/component/config/schema/cli/main.go:603`, nil for most internal plugins
+  `internal/component/config/schema/cli/main.go`, nil for most internal plugins
   `:610`), and plugin `ConfigRoots`/`WantsConfigRoots`
-  (`internal/component/plugin/registry/registry.go:50`).
+  (`internal/component/plugin/registry/registry.go`).
 
 Net effect: an operator can configure a subtree that parses cleanly, validates
 nowhere that rejects it, and is delivered to no component. Config accepted but
@@ -60,7 +60,7 @@ stays honest without blocking legitimate structure-only containers. Wire into th
 existing `scripts/checks` family and verify stages. Design decides: static check vs
 startup enforcement (at the point where `SchemaRegistry`, registrations, and the
 resolved loader tree coexist, after `SubsystemManager.AllSchemas`,
-`internal/component/plugin/server/subsystem.go:450-483`) vs both; and the claim
+`internal/component/plugin/server/subsystem.go`) vs both; and the claim
 granularity (per-root vs deeper).
 
 **Scope boundary vs improve-6:** improve-6 is a *report* (per-module node counts,
@@ -74,15 +74,15 @@ improve-6's post-wave corrections.)
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x] -- checkboxes are template markers, not progress trackers. -->
-- [ ] `ai/rules/discovery-updates.md` - gate must be discoverable and wired into verify
+- [ ] `ai/rules/repo-maintenance.md` - gate must be discoverable and wired into verify
   → Constraint: new gate + doctor check + any make target must land WITH ai/INDEX.md row, hook/gate mapping row, named verification, and doc page in the same work; unlinked tooling is banned (Mechanical Checklist answered below in Design Insights)
-- [ ] `ai/rules/derive-not-hardcode.md` - node inventory and handler set both derive live
+- [ ] `ai/rules/evidence.md` - node inventory and handler set both derive live
   → Constraint: no second list of handlers or nodes; both sides derive from the same producers the daemon uses (registry via plugin/all import, modules via loader)
-- [ ] `ai/rules/hook-mapping.md` - where the check registers among existing gates
+- [ ] `ai/rules/repo-maintenance.md` - where the check registers among existing gates
   → Constraint: read (2026-07-10): changing/adding checks requires satisfying discovery-updates so agents find them; new gate gets its row in the mapping docs when implemented
 - [ ] `docs/architecture/config/yang-config-design.md` - module load/resolve semantics
   → Constraint: (via improve-6 digest) four module categories (type-lib/extensions/config-schema/API-schema) -- gate checks config-schema modules only; walk the RESOLVED Entry tree (GetEntry), never raw modules
-- [ ] `ai/rules/plugin-self-containment.md` - allowlist must not become central plugin knowledge
+- [ ] `ai/rules/plugins.md` - allowlist must not become central plugin knowledge
   → Constraint: allowlist is the gate's own fixture keyed by schema path + reason; it must never grow per-plugin fields, switches, or knowledge in core/shared packages
 
 ### RFC Summaries (MUST for protocol work)
@@ -90,7 +90,7 @@ improve-6's post-wave corrections.)
 
 **Key insights:** (summary of all checkpoint lines -- minimal context to resume after compaction)
 - PRODUCTION claim granularity is per top-level root (`reg.WantsConfigRoots` matched
-  by `rootHasChanges`, `reload.go:214-248`) -- coarser than Holo's per-node
+  by `rootHasChanges`, `reload.go`) -- coarser than Holo's per-node
   callbacks. The reader.go longest-prefix path is test-only (no non-test caller of
   `config.NewReader`, grep verified). Gate v1 models root-level claiming; per-leaf
   "does the plugin consume it" is improve-6 reporting territory.
@@ -99,9 +99,9 @@ improve-6's post-wave corrections.)
   no RPC handler and exits 1 (`:194-199`, `:112/:119`) -- same shape, different
   surface (research agent, verified citations).
 - Two delivery paths must both be modeled or one declared SSOT: server reload by
-  WantsConfigRoots (`reload.go:214-256`) and hub two-phase `Hub.ProcessConfig` ->
+  WantsConfigRoots (`reload.go`) and hub two-phase `Hub.ProcessConfig` ->
   RouteCommand/RouteCommit via registry.FindHandler
-  (`internal/component/plugin/server/hub.go:93-130`, research agent).
+  (`internal/component/plugin/server/hub.go`, research agent).
 - New-check wiring recipe: `scripts/checks/<name>.go` (`//go:build ignore`), make
   target near `Makefile:310-329` (selftest first), and both stage slices in
   `scripts/status/verify_run.go` stagesForMode (`:127-131`/`:141-145`) (research
@@ -123,7 +123,7 @@ improve-6's post-wave corrections.)
 - [ ] `internal/component/config/yang/validator.go` - `validateContainerEntry` (:509-542) checks mandatory children and validates only keys found in `entry.Dir` (:527, no else); unknown keys silently pass (read this session)
   → Constraint: validation cannot be relied on to catch unclaimed/unknown config; the gate is the only line of defense
 - [ ] `internal/component/plugin/server/hub.go` - `Hub.ProcessConfig` two-phase RouteCommand/RouteCommit via registry.FindHandler (:93-130) (research agent)
-  → Constraint: hub-routed subsystems claim via hand-declared `Schema.Handlers` (`schema/cli/main.go:547-555`, `:603`, nil for most at `:610`) -- second claiming surface the gate must model or exclude by decision
+  → Constraint: hub-routed subsystems claim via hand-declared `Schema.Handlers` (`schema/cli/main.go`, `:603`, nil for most at `:610`) -- second claiming surface the gate must model or exclude by decision
 - [ ] `internal/component/config/yang/loader.go` - `DefaultLoader` best-effort resolve (:20-28), `LoadEmbedded` bootstrap set (:48-52) (citations carried from improve-6, re-verified 2026-07-10 per its post-wave note); `GetEntry` resolved tree (:111-117), `ModuleNames` (:120-126) (improve-6 research agent)
 - [ ] `scripts/checks/command_ownership.go` + `port_defaults.go` - check-family structure, exit codes, make + verify wiring (research agent; digest in tmp/session/session-state-improve-6-yang-coverage-56997.md)
 - [ ] `scripts/docvalid/commands.go` - OrphanYANG precedent: YANG commands with no RPC handler gate with exit 1 (:194-199, :112/:119) (research agent)
@@ -137,7 +137,7 @@ improve-6's post-wave corrections.)
 - A config schema node claimed by no handler becomes a build/verify failure (today:
   silent). Startup enforcement is a design decision, not yet committed.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Check mode: `scripts/checks`-family binary run by make/verify.
@@ -162,9 +162,9 @@ improve-6's post-wave corrections.)
 | Gate ↔ verify | scripts/checks exit-code contract | [ ] |
 
 ### Integration Points
-- Plugin registry read APIs: `ConfigRootsMap()` (`registry.go:560-573`, only plugins with declared roots -- re-read this session), `All()` -- claim inventory.
-- Loader read APIs: `ModuleNames()`/`ConfModuleNames` (`loader.go:120-147`), `GetEntry()` resolved tree (`loader.go:111-117`) -- schema inventory.
-- `SchemaRegistry` handlers map (`schema.go:319-337` findHandlerIn) -- hub claim surface.
+- Plugin registry read APIs: `ConfigRootsMap()` (`registry.go`, only plugins with declared roots -- re-read this session), `All()` -- claim inventory.
+- Loader read APIs: `ModuleNames()`/`ConfModuleNames` (`loader.go`), `GetEntry()` resolved tree (`loader.go`) -- schema inventory.
+- `SchemaRegistry` handlers map (`schema.go` findHandlerIn) -- hub claim surface.
 - `feature-gates.txt` manifest -- gating cross-check (AC-6).
 - Doctor registration + `internal/core/diagnostic/codes.go` -- runtime surface (AC-7).
 
@@ -172,19 +172,19 @@ improve-6's post-wave corrections.)
 - [ ] No bypassed layers (gate reads via loader + handler producer, no private parsing)
 - [ ] No unintended coupling (gate depends on read APIs only)
 - [ ] No duplicated functionality (improve-6 reports; improve-7 gates; port-defaults owns port consistency)
-- [ ] Registration over hardcoding -- handler inventory derives from registration; no hardcoded lists (`ai/rules/plugin-self-containment.md`, `ai/rules/derive-not-hardcode.md`)
+- [ ] Registration over hardcoding -- handler inventory derives from registration; no hardcoded lists (`ai/rules/plugins.md`, `ai/rules/evidence.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Claiming surfaces are statically derivable (ConfigRoots from registration literals via AST or registry import; modules via generated register.go glue) | `command_ownership.go` already AST-parses registration calls (`:300-322`); `yang_glue.go` derives module inventory (`:137-176`) | Static check impossible; gate must run at daemon startup (after `AllSchemas`, `subsystem.go:450-483`) | Prototype enumeration during design | unvalidated |
+| A-1 | Claiming surfaces are statically derivable (ConfigRoots from registration literals via AST or registry import; modules via generated register.go glue) | `command_ownership.go` already AST-parses registration calls; `yang_glue.go` derives module inventory | Static check impossible; gate must run at daemon startup (after `AllSchemas`, `subsystem.go`) | Prototype enumeration during design | unvalidated |
 | A-2 | Current unclaimed-subtree count is small enough to burn down or allowlist | config-surface rules enforced for a while | Gate starts advisory with a dated allowlist burn-down | First full gate run during implementation | unvalidated |
-| A-3 | ~~Longest-prefix claiming is the only delivery path~~ BROKEN as originally stated: reader.go is test-only. Restated: server reload (`WantsConfigRoots`, `reload.go:214-256`) and hub `ProcessConfig` (`hub.go:93-130`) are the ONLY production delivery paths a claim can arrive through | Research agent end-to-end trace, spot-verified this session (reload.go read directly) | A third delivery path would produce false positives; gate blocks nodes that ARE consumed | Design-phase grep for other `WantsConfigRoots`/`FindHandler` consumers | unvalidated (restated) |
-| A-4 | Hub `Schema.Handlers` claiming can either be included accurately or excluded with a recorded reason without neutering the gate | hand-declared lists exist (`schema/cli/main.go:547-555,:603,:610`) | Gate has a blind spot on hub-routed subsystems; scope shrinks | Design-phase inventory of which subsystems are hub-routed | confirmed: BGP is the sole non-nil registrant (`getInternalYANG` returns ["bgp","bgp/peer"] at `main.go:603`, nil for all others `:607-610`; consumer `Hub.RouteCommand`->`SchemaRegistry.FindHandler` `hub.go:46-61`, `schema.go:319-337`) -- include both surfaces, cost is one prefix union |
+| A-3 | ~~Longest-prefix claiming is the only delivery path~~ BROKEN as originally stated: reader.go is test-only. Restated: server reload (`WantsConfigRoots`, `reload.go`) and hub `ProcessConfig` (`hub.go`) are the ONLY production delivery paths a claim can arrive through | Research agent end-to-end trace, spot-verified this session (reload.go read directly) | A third delivery path would produce false positives; gate blocks nodes that ARE consumed | Design-phase grep for other `WantsConfigRoots`/`FindHandler` consumers | unvalidated (restated) |
+| A-4 | Hub `Schema.Handlers` claiming can either be included accurately or excluded with a recorded reason without neutering the gate | hand-declared lists exist (`schema/cli/main.go,:603,:610`) | Gate has a blind spot on hub-routed subsystems; scope shrinks | Design-phase inventory of which subsystems are hub-routed | confirmed: BGP is the sole non-nil registrant (`getInternalYANG` returns ["bgp","bgp/peer"] at `main.go`, nil for all others `:607-610`; consumer `Hub.RouteCommand`->`SchemaRegistry.FindHandler` `hub.go`, `schema.go`) -- include both surfaces, cost is one prefix union |
 | A-5 | `ze-unit-test` runs the plugin/all package under the full feature-tag set (or the gate can arrange full-tag enumeration) | all_test snapshots cover the full registry today | Feature-gated modules escape the gate (R-5) | Read Makefile/mk tag wiring during phase 1; assert module count vs feature-gates manifest | unvalidated |
-| A-6 | Phase-2 "mention" heuristic (leaf-name string literal in owning plugin package) has acceptable signal on real plugins | hand-parse pattern uses literal map keys universally (decode research: `as112/config.go:89-185`, `isis/config.go:323-337`) | Phase 2 report is noise; drop to improve-6 follow-up | Prototype on 3 plugins during phase 4; measure false-positive rate | unvalidated |
+| A-6 | Phase-2 "mention" heuristic (leaf-name string literal in owning plugin package) has acceptable signal on real plugins | hand-parse pattern uses literal map keys universally (decode research: `as112/config.go`, `isis/config.go`) | Phase 2 report is noise; drop to improve-6 follow-up | Prototype on 3 plugins during phase 4; measure false-positive rate | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -193,7 +193,7 @@ improve-6's post-wave corrections.)
 | R-2 | Claim modeling diverges from the production matcher over time | gate passes but a root is silently unrouted (or inverse false positives) | gate models `rootHasChanges` root-granularity and hub `findHandlerIn` prefixes; where possible import the same helpers, never reimplement matching logic |
 | R-3 | Overlap creep with improve-6's orphan detection | both specs list the same AC | scope boundary paragraph in both specs; improve-6 carve-out row |
 | R-4 | Phase-2 mention-check heuristic noise (shared literals, dynamically built keys, leaf names matching unrelated strings) | report entries disputed in review | advisory only, never wired into blocking verify; allowlist with reasons; "mention" defined mechanically (kebab leaf-name string literal in the owning plugin package or its yang/ sibling, found via go/parser BasicLit scan) |
-| R-5 | Gate runs under a tag set that compiles feature-gated modules out, silently shrinking the checked surface | enumerated module count diverges from `feature-gates.txt`-derived expectation | AC-6 cross-check against the manifest + `internal/**/yang` dir discovery (`yang_glue.go:137-176` semantics); fail on unexplained absence |
+| R-5 | Gate runs under a tag set that compiles feature-gated modules out, silently shrinking the checked surface | enumerated module count diverges from `feature-gates.txt`-derived expectation | AC-6 cross-check against the manifest + `internal/**/yang` dir discovery (`yang_glue.go` semantics); fail on unexplained absence |
 | R-6 | Hosting the gate in `internal/component/plugin/all` couples it to composition-root regen | config_claims_test fails right after `make generate` | acceptable and intended -- the registry snapshot tests already live with this (`all_test.go`); regen keeps the claim inventory current |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -215,7 +215,7 @@ improve-6's post-wave corrections.)
 | AC-4 | Allowlist entry with reason | Skipped, listed as allowlisted in failure-free output |
 | AC-5 | Allowlist entry without reason | Test fails |
 | AC-6 | Module compiled out by a feature tag (per `feature-gates.txt`) when gate runs under the full tag set | Enumerated and checked; never silently absent |
-| AC-7 | Daemon runs with a config root no live plugin claims | `ze doctor` reports it with a registered diagnostic code (upgrades the `reload.go:251-256` Info silence) |
+| AC-7 | Daemon runs with a config root no live plugin claims | `ze doctor` reports it with a registered diagnostic code (upgrades the `reload.go` Info silence) |
 | AC-8 (phase 2, advisory) | YANG leaf under a claimed root whose kebab name appears nowhere in the owning plugin package source | Listed in the advisory mention-check report with module, leaf path, owning plugin |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -253,11 +253,11 @@ improve-6's post-wave corrections.)
 
 ## Files to Modify
 - `internal/core/diagnostic/codes.go` - register the unclaimed-config-root diagnostic code (AC-7)
-- doctor registration in the owning package (`internal/component/plugin/server`, exact registration site per `ai/rules/doctor-checks.md` at implementation)
+- doctor registration in the owning package (`internal/component/plugin/server`, exact registration site per `ai/rules/repo-maintenance.md` at implementation)
 - `Makefile`/`mk/` - `ze-yang-leaf-mentions` advisory target (phase 2; NOT added to verify stages)
 - `ai/INDEX.md` - keyword row (discovery checklist below)
 - `docs/comparison.md` - config-completeness parity note vs the reviewed daemon
-- gate-mapping/doc rows per `ai/rules/discovery-updates.md` (exact files at implementation)
+- gate-mapping/doc rows per `ai/rules/repo-maintenance.md` (exact files at implementation)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -277,7 +277,7 @@ improve-6's post-wave corrections.)
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | doctor check visible to operators -- doctor docs page (exact page per `ai/rules/doctor-checks.md` at implementation) |
+| 1 | New user-facing feature? | Yes | doctor check visible to operators -- doctor docs page (exact page per `ai/rules/repo-maintenance.md` at implementation) |
 | 2 | Config syntax changed? | No | gate adds no syntax |
 | 3 | CLI command added/changed? | No | none |
 | 4 | API/RPC added/changed? | No | none |
@@ -291,7 +291,7 @@ improve-6's post-wave corrections.)
 | 12 | Internal architecture changed? | No | additive gate |
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none (justified in Integration Checklist) |
-| 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | Yes | doctor-check inventory surfaces per `ai/rules/discovery-updates.md` |
+| 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | Yes | doctor-check inventory surfaces per `ai/rules/repo-maintenance.md` |
 | 16 | Any changed source file is referenced by existing doc source anchors? | Check at implementation | grep `docs/` for anchors on changed files |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | none exist for this gate |
 
@@ -339,9 +339,9 @@ improve-6's post-wave corrections.)
    false-positive measurement in this spec; NOT wired into verify stages.
    - Plugin-name -> source-dir mapping: resolve the package that registered the
      module via its generated `yang/register.go` location (the module's
-     `internal/**/yang/` dir per `yang_glue.go:137-176` discovery); the owning
+     `internal/**/yang/` dir per `yang_glue.go` discovery); the owning
      plugin package is that dir's parent. Never a hand-maintained name->dir table
-     (`ai/rules/derive-not-hardcode.md`).
+     (`ai/rules/evidence.md`).
    - Tests: TestYANGLeafMentionReport (AC-8)
 5. **Docs + discovery rows** -- comparison.md, ai/INDEX.md, gate-mapping rows.
 6. **Full verification** -- `make ze-verify`; learned summary; two-commit closure.
@@ -381,7 +381,7 @@ improve-6's post-wave corrections.)
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| `reader.go` walkMap/findHandler is the production config apply path (skeleton Task premised on it) | `config.NewReader` (:236) has no non-test caller; production claiming is `WantsConfigRoots` root-matching (`reload.go:214-256`) + hub `Schema.Handlers` (`hub.go:93-130`) | Research agent caller trace, grep-verified this session | Task rewritten before design; claim model changed from per-node prefix to per-root; reader.go flagged as dead-code candidate |
+| `reader.go` walkMap/findHandler is the production config apply path (skeleton Task premised on it) | `config.NewReader` (:236) has no non-test caller; production claiming is `WantsConfigRoots` root-matching (`reload.go`) + hub `Schema.Handlers` (`hub.go`) | Research agent caller trace, grep-verified this session | Task rewritten before design; claim model changed from per-node prefix to per-root; reader.go flagged as dead-code candidate |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -396,7 +396,7 @@ improve-6's post-wave corrections.)
   (SchemaInfo/BlockEntry/BlockChange/DiffBlocks/findHandler) is exercised only by
   `reader_test.go` -- dead-code candidate; surface to user, never delete
   unilaterally (`ai/rules/never-destroy-work.md`).
-- Unknown-key permissiveness in `validateContainerEntry` (`validator.go:527`) is a
+- Unknown-key permissiveness in `validateContainerEntry` (`validator.go`) is a
   SECOND silent-accept layer (misspelled leaf inside a claimed root). It is
   adjacent to but distinct from this gate (schema-vs-claim); candidate follow-up or
   improve-6 grading extension -- record at design gate.
@@ -404,10 +404,10 @@ improve-6's post-wave corrections.)
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Root-claim gate as a registry-driven unit test in `internal/component/plugin/all` | (A) new `scripts/checks` binary AST-parsing registrations; (C) hard startup enforcement | The `all` package imports every registration by construction (same mechanism as the registry snapshot tests, `all_test.go:47-162`), so the test enumerates `ConfigRoots` and registered modules live -- exact semantics, zero new infrastructure, runs on every `ze-unit-test`. AST parsing (A) reimplements what the registry already knows (violates derive-not-hardcode); boot-refusal (C) is operationally harsh on an appliance |
-| Complement with a `ze doctor` check for runtime-visible unclaimed roots | startup Warn log only; nothing | Externally-loaded plugins register at runtime and are invisible to the compile-time test; doctor is the discoverable runtime surface (`ai/rules/doctor-checks.md`), and the silent `reload.go:251-256` Info log is precisely what it upgrades |
-| Hub `Schema.Handlers` included in the claim union | exclude with reason | Only BGP registers non-nil handlers ("bgp","bgp/peer", `schema/cli/main.go:603`; all others nil `:607-610`), so inclusion costs one prefix-union step; consumer semantics verified at `Hub.RouteCommand` -> `SchemaRegistry.FindHandler` longest-prefix (`hub.go:46-61`, `schema.go:319-337`) |
-| Leaf-level check is a HEURISTIC mention-check, phase 2, advisory-first | (a) reflect YANG leaves vs config-struct json tags -- INFEASIBLE: config-input structs carry zero json tags (`as112/config.go:57-81`; tags live only on show/state output structs); (b) wait for spec-review-typed-config-decode -- that spec is schema-driven with explicitly no struct registry, BGP-only, status design; (c) strict unknown-key rejection at verify -- different direction (config-not-in-schema), recorded as follow-up | Plugins hand-parse `map[string]any` with string-literal keys, so an AST scan of the owning plugin package for leaf-name literals vs YANG leaves under its claimed roots is implementable today; precedent for literal-grep drift guards: `as112/redistribute_test.go:136` TestMaxCommunitiesMatchesYANG. Heuristic, so advisory + allowlist, never a hard gate |
+| Root-claim gate as a registry-driven unit test in `internal/component/plugin/all` | (A) new `scripts/checks` binary AST-parsing registrations; (C) hard startup enforcement | The `all` package imports every registration by construction (same mechanism as the registry snapshot tests, `all_test.go`), so the test enumerates `ConfigRoots` and registered modules live -- exact semantics, zero new infrastructure, runs on every `ze-unit-test`. AST parsing (A) reimplements what the registry already knows (violates derive-not-hardcode); boot-refusal (C) is operationally harsh on an appliance |
+| Complement with a `ze doctor` check for runtime-visible unclaimed roots | startup Warn log only; nothing | Externally-loaded plugins register at runtime and are invisible to the compile-time test; doctor is the discoverable runtime surface (`ai/rules/repo-maintenance.md`), and the silent `reload.go` Info log is precisely what it upgrades |
+| Hub `Schema.Handlers` included in the claim union | exclude with reason | Only BGP registers non-nil handlers ("bgp","bgp/peer", `schema/cli/main.go`; all others nil `:607-610`), so inclusion costs one prefix-union step; consumer semantics verified at `Hub.RouteCommand` -> `SchemaRegistry.FindHandler` longest-prefix (`hub.go`, `schema.go`) |
+| Leaf-level check is a HEURISTIC mention-check, phase 2, advisory-first | (a) reflect YANG leaves vs config-struct json tags -- INFEASIBLE: config-input structs carry zero json tags (`as112/config.go`; tags live only on show/state output structs); (b) wait for spec-review-typed-config-decode -- that spec is schema-driven with explicitly no struct registry, BGP-only, status design; (c) strict unknown-key rejection at verify -- different direction (config-not-in-schema), recorded as follow-up | Plugins hand-parse `map[string]any` with string-literal keys, so an AST scan of the owning plugin package for leaf-name literals vs YANG leaves under its claimed roots is implementable today; precedent for literal-grep drift guards: `as112/redistribute_test.go` TestMaxCommunitiesMatchesYANG. Heuristic, so advisory + allowlist, never a hard gate |
 
 ## Known Limitations
 - Root-granular guarantee only in the blocking gate: a leaf inside a claimed root
@@ -415,14 +415,14 @@ improve-6's post-wave corrections.)
   heuristic, not the hard gate. Exact leaf-consumption enforcement requires the
   schema-driven decode direction of `spec-review-typed-config-decode.md` (BGP-only,
   in design) to spread; revisit when it lands.
-- Unknown-key permissiveness at verify (`validator.go:527`) is out of scope
+- Unknown-key permissiveness at verify (`validator.go`) is out of scope
   (recorded as follow-up candidate in Design Insights).
 
-## Discovery (Mechanical Checklist, `ai/rules/discovery-updates.md`)
+## Discovery (Mechanical Checklist, `ai/rules/repo-maintenance.md`)
 1. Where would an agent look first? `ai/INDEX.md` keyword row: "config claims /
    unclaimed root / yang handler gate" -> this gate + doctor code.
 2. What rule prevents regression? Pointer row added to the narrowest owning rule
-   (`ai/rules/config-surface.md` or `ai/rules/wiring-completeness.md`, chosen at
+   (`ai/rules/config.md` or `ai/rules/completion.md`, chosen at
    implementation) -- no new rule file.
 3. What source of truth prevents drift? Plugin registry + yang loader +
    `feature-gates.txt`; zero static lists (allowlist is exceptions-with-reasons,

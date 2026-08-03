@@ -170,7 +170,7 @@ the iface component; nothing in core or in iface learns the string "vrrp".
 - `go test -update` on the plugin-name golden without the feature build tags
   silently deletes other plugins' methods from the snapshot; regenerate with the
   Makefile's `GO_TEST_TAGS`.
-- `docs/features/interfaces.md:113` "Gateway Redundancy | VRRP / keepalived |
+- `docs/features/interfaces.md` "Gateway Redundancy | VRRP / keepalived |
   missing" was never flipped to implemented (residual doc gap, recorded in the
   umbrella and spec-5).
 

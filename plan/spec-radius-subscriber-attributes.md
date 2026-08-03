@@ -50,9 +50,9 @@ are recorded as out of scope: `Calling-Station-Id` (31) and `Event-Timestamp`
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/research/l2tpv2-ze-integration.md` - RADIUS accounting design context (referenced by acct.go:1).
-  → Constraint: accounting failures MUST NOT tear down sessions (RFC 2866, enforced at acct.go:260).
-- [ ] `ai/rules/config-surface.md` - the NAS-Port-Id format template is operator config.
+- [ ] `docs/research/l2tpv2-ze-integration.md` - RADIUS accounting design context (referenced by acct.go).
+  → Constraint: accounting failures MUST NOT tear down sessions (RFC 2866, enforced at acct.go).
+- [ ] `ai/rules/config.md` - the NAS-Port-Id format template is operator config.
   → Constraint: decide YANG leaf placement in the authradius plugin schema.
 
 ### RFC Summaries (MUST for protocol work)

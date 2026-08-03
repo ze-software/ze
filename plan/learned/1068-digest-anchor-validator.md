@@ -17,7 +17,7 @@ major subsystem.
   range); full repo-relative links (`docs/...`, `plan/...`) must exist; bare no-line mentions
   (`register.go`, `176-topic.md`) are treated as informal and skipped. This mirrors the
   guarantee the per-file `// Design:` targets already get.
-- Anchors are subsystem-relative (`peer.go:754`, not the full path), so each digest declares
+- Anchors are subsystem-relative (`peer.go`, not the full path), so each digest declares
   its subtree(s) with a machine-readable `<!-- digest-base: dir1 dir2 -->` header. Resolution
   tries bases in declared order and the first base that holds the file wins; a basename that
   is ambiguous within one base must be qualified (`storage/familyrib.go`). Chose this over
@@ -44,7 +44,7 @@ major subsystem.
   side has zero production call sites; the IKE responder path and rekey wire messages are not
   implemented; the DDoS FlowSpec responder announce/withdraw are stubs; RADIUS is a no-op
   admin-auth backend; several `admin-distance` YANG leaves are dead.
-- `ai/INDEX.md` front door, `ai/rules/discovery-updates.md`, and
+- `ai/INDEX.md` front door, `ai/rules/repo-maintenance.md`, and
   `docs/contributing/documentation-testing.md` all point at the digest layer and its gate.
 
 ## Gotchas
@@ -54,9 +54,9 @@ major subsystem.
   could silently validate against the wrong same-named file). Qualify with enough path or a
   full repo-relative anchor; confirm with `digest_check.py --list`. An adversarial review
   caught the earlier first-base-wins behavior validating `config-pipeline.md`'s bare
-  `loader.go:128` against `bgp/config/loader.go` (LoadReactorFile) instead of the intended
+  `loader.go` against `bgp/config/loader.go` (LoadReactorFile) instead of the intended
   `config/loader.go` (PruneInactive).
-- Comma-joined line lists in one backtick (`` `x.go:14,49` ``, `` `x.go:14,20-24` ``) expand
+- Comma-joined line lists in one backtick (`` `x.go,49` ``, `` `x.go,20-24` ``) expand
   to one validated anchor per element. A bare `:14,49` continuation (no filename) is still
   skipped, since it cannot be tied to a file mechanically.
 - Character-only edits to a digest (for example the no-em-dash normalization) do not change
@@ -70,4 +70,4 @@ major subsystem.
   `verify_wiring_docs.py` now import it
 - `mk/inventory.mk` (`ze-digest-check`, folded into `ze-doc-test`)
 - `ai/digests/*.md` (6 existing gained `digest-base` headers; 17 new digests; `README.md` index)
-- `ai/INDEX.md`, `ai/rules/discovery-updates.md`, `docs/contributing/documentation-testing.md`
+- `ai/INDEX.md`, `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md`

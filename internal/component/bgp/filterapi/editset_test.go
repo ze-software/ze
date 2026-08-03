@@ -228,7 +228,7 @@ func TestResetIsConstantTime(t *testing.T) {
 	// once the lengths are zero, and zeroing them is exactly the cost that would
 	// scale with capacity. Asserting the old bytes survive is how this test tells
 	// a cheap reset from an expensive one without measuring elapsed time
-	// (ai/rules/fix-dont-record.md bans a timing assertion here).
+	// (ai/rules/completion.md bans a timing assertion here).
 	assert.Equal(t, byte(0xDE), e.arenaArr[0], "reset must not re-zero the arena array")
 	assert.Equal(t, uint8(9), e.slotsArr[0].code, "reset must not re-zero the slot array")
 }
@@ -237,7 +237,7 @@ func TestResetIsConstantTime(t *testing.T) {
 // the refusal is visible to the caller.
 // PREVENTS: a fragment resolved against peer-controlled bytes slicing out of
 // range at write time. The bound is checked once, where the fragment is named,
-// rather than trusted where it is used (ai/rules/fail-closed-guards.md).
+// rather than trusted where it is used (ai/rules/evidence.md).
 func TestFragmentBoundsAreRefused(t *testing.T) {
 	src := buildAttr(0x40, 5, []byte{1, 2, 3, 4})
 

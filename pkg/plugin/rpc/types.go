@@ -236,7 +236,7 @@ type ConfigureInput struct {
 	//
 	// An empty or absent list means "nothing is claimed": every plugin keeps
 	// its own default. That is the fail-closed direction (see
-	// ai/rules/fail-closed-guards.md) -- for peer-up replay, running both the
+	// ai/rules/evidence.md) -- for peer-up replay, running both the
 	// owner's replay and the default self-replay produces a duplicate BGP
 	// UPDATE, which is idempotent at the receiver, whereas standing down for an
 	// owner that never runs loses routes outright.

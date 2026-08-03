@@ -28,13 +28,13 @@ read, not inferred:
 
 | Producer | `file:line` | What it does |
 |----------|-------------|--------------|
-| egress stamping block | `role/otc.go:562-584` | gated only on `mods != nil` and `destRemoteRole ∈ {customer, peer, rs-client}`. No advertisement gate of any kind |
-| `isPayloadUnicast` | `role/otc.go:100-145` | scans for `mpReachAttrCode` (`= byte(14)`, `otc.go:93`) only, and its terminal `return true` at `:144` reads "no MP_REACH found, therefore IPv4 unicast" |
-| `extractAttrsFromPayload` | `role/otc.go:210-225` | returns `payload[attrStart : attrStart+attrLen]`, a non-nil EMPTY slice when `attrLen == 0`, so no `attrs == nil` guard can fire on a pure withdrawal |
+| egress stamping block | `role/otc.go` | gated only on `mods != nil` and `destRemoteRole ∈ {customer, peer, rs-client}`. No advertisement gate of any kind |
+| `isPayloadUnicast` | `role/otc.go` | scans for `mpReachAttrCode` (`= byte(14)`, `otc.go`) only, and its terminal `return true` at `:144` reads "no MP_REACH found, therefore IPv4 unicast" |
+| `extractAttrsFromPayload` | `role/otc.go` | returns `payload[attrStart : attrStart+attrLen]`, a non-nil EMPTY slice when `attrLen == 0`, so no `attrs == nil` guard can fire on a pure withdrawal |
 | MP_UNREACH awareness | (none) | `grep -rn -i 'unreach' internal/component/bgp/plugins/role/*.go` returns no code hit. Type 15 is not mentioned anywhere in the plugin |
 
 So a pure IPv4 withdrawal (`00 04 18 0a 00 00 00 00`) passes `isPayloadUnicast`, reaches
-`otc.go:563` with an empty attribute slice, `findOTC` reports `hasOTC == false`, and
+`otc.go` with an empty attribute slice, `findOTC` reports `hasOTC == false`, and
 `mods.Op(otcAttrCode, ...)` fires at `:573`. Same for a VPNv4 MP_UNREACH-only payload,
 which the family gate cannot see.
 
@@ -48,9 +48,9 @@ stamp on the payload actually advertising reachable NLRI, and teach `isPayloadUn
 about MP_UNREACH (type 15).
 
 **Also still open from round 4, re-checked 2026-07-27:**
-`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go:1120`) still
+`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`) still
 carries no `RFC requirement:` tag, so `ai/RFC-REQUIREMENTS.md` continues to credit
-`RFC9234-5-4` to the weaker test; and `TestOTCEgressUnicastOnly` (`otc_test.go:1358`)
+`RFC9234-5-4` to the weaker test; and `TestOTCEgressUnicastOnly` (`otc_test.go`)
 still proves `RFC9234-5-10` only through the MP_REACH branch, so the "unicast-only
 scoping" claim at `docs/features/rfc-status.md` is not backed for the withdrawal shape.
 
@@ -72,9 +72,9 @@ zero MP_UNREACH awareness anywhere in the role plugin.
 | VPNv4 MP_UNREACH `00 00 00 06 80 0f 03 00 01 80` (AFI 1 / SAFI 128) | `accept=true`, `mods.Len()==1` |
 
 **It reaches the wire.** `buildModifiedPayload` step 6
-(`internal/component/bgp/reactor/forward_build.go:241-259`) writes unconsumed ops as new
+(`internal/component/bgp/reactor/forward_build.go`) writes unconsumed ops as new
 attributes, and `otcAttrModHandler` emits the 7-byte attribute. Neither egress caller
-(`reactor_api_forward.go:605`, `forward_rs.go:349`) has a withdrawal guard.
+(`reactor_api_forward.go`, `forward_rs.go`) has a withdrawal guard.
 
 **Four violations**, the last one interop-fatal: RFC 4271 §4.3 (no path attributes on a
 withdraw-only UPDATE); RFC 7606 §3(d) (treat-as-withdraw); **RFC 7606 §5.2 -- a peer
@@ -93,7 +93,7 @@ peers, RR clients and locally originated routes -- in a typical deployment, esse
 every withdrawal forwarded to any Customer/Peer/RS-Client.
 
 **Also open from round 4:** `TestOTCEgressUnicastOnly` proves `RFC9234-5-10` only through
-the MP_REACH branch, so the "unicast-only scoping" claim at `docs/features/rfc-status.md:25`
+the MP_REACH branch, so the "unicast-only scoping" claim at `docs/features/rfc-status.md`
 ("No tracked gap") is not backed for the withdrawal shape; and
 `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` carries no `RFC requirement:` tag,
 so `ai/RFC-REQUIREMENTS.md` still credits `RFC9234-5-4` to the weaker test.
@@ -110,13 +110,13 @@ teach `isPayloadUnicast` about MP_UNREACH.
 
 Close the missing-metadata gap in `OTCEgressFilter`'s Gao-Rexford safety net.
 
-`internal/component/bgp/plugins/role/otc.go:396-403` reads `meta["src-role"]` and
+`internal/component/bgp/plugins/role/otc.go` reads `meta["src-role"]` and
 treats a MISSING key as "no restriction". That is the zero-value trap in
-`ai/rules/fail-closed-guards.md`: any caller without ingress metadata silently
+`ai/rules/evidence.md`: any caller without ingress metadata silently
 skips an RFC 9234 Section 5 leak guard. The Adj-RIB-In relay path
 (`RelayStoredRoute`) is one such caller today; it is not the only possible one.
 
-The value is recoverable EXACTLY, not guessable: `OTCIngressFilter` (otc.go:311-317)
+The value is recoverable EXACTLY, not guessable: `OTCIngressFilter` (otc.go)
 writes `meta["src-role"] = cfg.role` from `getFilterConfig(src.Address.String())`,
 the same lookup `OTCEgressFilter` already performs into `srcCfg`. So the fix is a
 config-derived fallback when meta lacks the key.
@@ -127,7 +127,7 @@ without it -- OTC suppression on the replay path already works through the
 wire-bytes rule -- and because landing it requires changing an RFC-tagged test.
 
 **BLOCKING precondition:** `TestOTCEgressNoStampProvider`
-(`internal/component/bgp/plugins/role/otc_test.go:995`) carries
+(`internal/component/bgp/plugins/role/otc_test.go`) carries
 `RFC requirement: RFC9234-5-4 negative`. Its fixture asserts `accept == true` for a
 Provider source to a Provider destination, which RFC 9234 Section 5 says must be
 SUPPRESSED; it only reads as accept because meta is nil. Changing it needs explicit
@@ -143,7 +143,7 @@ user approval and an `// rfc-test-change-approved:` marker
 - [ ] `docs/architecture/meta/role.md` - the route-metadata contract for `src-role`: who writes the key, who reads it, and what a missing key means
   → Decision: `src-role` is a CACHE of the source peer's `role { import ... }` config value, not an independent input. That is what makes a config-derived fallback an exact recovery rather than a guess.
   → Constraint: metadata keys are best-effort. No producer is guaranteed to have run before a consumer, so a consumer must not treat an absent key as a decision.
-- [ ] `ai/rules/fail-closed-guards.md` - the rule the original defect violates
+- [ ] `ai/rules/evidence.md` - the rule the original defect violates
   → Constraint: "On a miss, an unmapped input, an empty set, or an error, deny." A guard that neither denies nor speaks does not exist. The zero-value trap: an absent value must never select the permissive branch.
 
 ### RFC Summaries (MUST for protocol work)
@@ -161,11 +161,11 @@ user approval and an `// rfc-test-change-approved:` marker
 
 **Source files read:** (must read BEFORE writing this spec)
 <!-- Same rule: never tick [ ] to [x]. Write → Constraint: annotations instead. -->
-- [ ] `internal/component/bgp/plugins/role/otc.go:485` - `OTCEgressFilter`: the unicast gate, the two `getFilterConfig` lookups, the wire-bytes suppression, the Gao-Rexford safety net, the export-set match, and the stamping block
-  → Constraint: the stamping block (`:562-584`) has no advertisement gate. See OPEN BLOCKER.
-- [ ] `internal/component/bgp/plugins/role/otc.go:311` - `OTCIngressFilter`: writes `meta["src-role"] = cfg.role` at `:316` from `getFilterConfig(src.Address.String())` at `:312`, the same lookup the egress filter performs into `srcCfg` at `:491`
-- [ ] `internal/component/bgp/plugins/role/otc.go:404` - `resolveSrcRole`: meta first, config fallback, `""` when neither
-- [ ] `internal/component/bgp/plugins/role/otc.go:459` - `resolvePeerRole`: capability first, then the config complement via `peerRoleComplement` (`:426-432`)
+- [ ] `internal/component/bgp/plugins/role/otc.go` - `OTCEgressFilter`: the unicast gate, the two `getFilterConfig` lookups, the wire-bytes suppression, the Gao-Rexford safety net, the export-set match, and the stamping block
+  → Constraint: the stamping block has no advertisement gate. See OPEN BLOCKER.
+- [ ] `internal/component/bgp/plugins/role/otc.go` - `OTCIngressFilter`: writes `meta["src-role"] = cfg.role` at `:316` from `getFilterConfig(src.Address.String())` at `:312`, the same lookup the egress filter performs into `srcCfg` at `:491`
+- [ ] `internal/component/bgp/plugins/role/otc.go` - `resolveSrcRole`: meta first, config fallback, `""` when neither
+- [ ] `internal/component/bgp/plugins/role/otc.go` - `resolvePeerRole`: capability first, then the config complement via `peerRoleComplement`
 - [ ] `internal/component/bgp/plugins/role/config.go` - `getFilterConfig` keying and the unusable-key rejection added by `f5dd2f040`
 - [ ] `internal/component/bgp/plugins/role/role.go` - `setFilterRemoteRole` (the only writer of `filterRemoteRoles`) and the OPEN-time clear added by `f5dd2f040`
 - [ ] `internal/component/bgp/plugins/role/metrics.go` - `recordDrop` and the four drop reasons added by `f5dd2f040`
@@ -173,37 +173,37 @@ user approval and an `// rfc-test-change-approved:` marker
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - `OTCEgressFilter` / `OTCIngressFilter` signatures: they are `filterapi.EgressFilterFunc` / `IngressFilterFunc` and are registered, not called directly.
-- The wire-bytes egress rule (`checkOTCEgress`, `otc.go:201-206`) stays unconditional and independent of source config: it is the rule that already made suppression work on the replay path.
+- The wire-bytes egress rule (`checkOTCEgress`, `otc.go`) stays unconditional and independent of source config: it is the rule that already made suppression work on the replay path.
 - A peer with NO role config at all is not filtered. `""` means "unconfigured", never "unrestricted".
-- `roleUnknown` stays an operator-selected export target in the export-set match (`config.go:36`), NOT an unanswered question. Reclassifying it there would silently retarget an operator knob.
+- `roleUnknown` stays an operator-selected export target in the export-set match (`config.go`), NOT an unanswered question. Reclassifying it there would silently retarget an operator knob.
 - The RFC 9234 Section 5 unicast scoping.
 
 **Behavior to change:** (only if user explicitly requested)
 - The five defects enumerated in the Implementation Summary. Nothing else. The stamping-onto-withdrawals defect in the OPEN BLOCKER is IN scope and NOT yet fixed.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Ingress: a received BGP UPDATE's payload bytes, handed to `OTCIngressFilter` by the reactor's ingress filter chain before caching and dispatch, together with the shared `ingressMeta` map.
-- Egress: the same payload replayed per destination peer, handed to `OTCEgressFilter` by `safeEgressFilter` from `reactor_api_forward.go:655` (the forward rail) and `forward_rs.go:349` (the route-server rail), plus `reactor_api_batch.go:1253` for the readvertise rail. The relay rail (`reactor_api_relay.go`) reaches the same filter with `Meta: nil`.
+- Egress: the same payload replayed per destination peer, handed to `OTCEgressFilter` by `safeEgressFilter` from `reactor_api_forward.go` (the forward rail) and `forward_rs.go` (the route-server rail), plus `reactor_api_batch.go` for the readvertise rail. The relay rail (`reactor_api_relay.go`) reaches the same filter with `Meta: nil`.
 - Format at entry: raw RFC 4271 UPDATE payload -- `withdrawnLen(2) + withdrawn + attrLen(2) + attrs + nlri` -- plus a `filterapi.PeerFilterInfo` for source and destination and a `*filterapi.ModAccumulator` for egress attribute edits.
 
 ### Transformation Path
-1. Ingress: `getFilterConfig(src)` yields `(cfg, capRole)`; `cfg.role` is copied into `meta["src-role"]` (`otc.go:315-317`).
-2. Ingress: `resolvePeerRole(capRole, cfg)` decides what the source peer IS to us -- capability first, config complement second (`otc.go:327`, `:459-476`).
-3. Ingress: the unicast gate (`isPayloadUnicast`) and `extractAttrsFromPayload` run; `checkOTCIngress` applies the three Section 5 ingress MUSTs and may return a stamp ASN (`otc.go:344`).
+1. Ingress: `getFilterConfig(src)` yields `(cfg, capRole)`; `cfg.role` is copied into `meta["src-role"]` (`otc.go`).
+2. Ingress: `resolvePeerRole(capRole, cfg)` decides what the source peer IS to us -- capability first, config complement second (`otc.go`, `:459-476`).
+3. Ingress: the unicast gate (`isPayloadUnicast`) and `extractAttrsFromPayload` run; `checkOTCIngress` applies the three Section 5 ingress MUSTs and may return a stamp ASN (`otc.go`).
 4. Ingress: a leak or malformed OTC is counted through `recordDrop` and rejected / treated-as-withdraw; a stamp rewrites the payload via `insertOTCInPayload`, and that MODIFIED payload replaces the original for caching and dispatch.
 5. Egress: the unicast gate runs first, then `resolvePeerRole` for the destination, then the unconditional wire-bytes rule (`checkOTCEgress`).
 6. Egress: the Gao-Rexford safety net calls `resolveSrcRole(meta, srcCfg)` -- meta if usable, else `srcCfg.role`, else `""` -- and suppresses toward a Provider/Peer/RS destination.
 7. Egress: the operator export-set match runs (capability-only role), then the stamping block queues `mods.Op(otcAttrCode, AttrModSet, asn)`.
-8. Build: `buildModifiedPayload` (`reactor/forward_build.go`) walks the source attributes and, at step 6, writes unconsumed ops as NEW attributes; `otcAttrModHandler` (`otc.go:598`) emits the 7-byte attribute. This is the step that puts a queued stamp on the wire, and the step the OPEN BLOCKER's withdrawal defect rides.
+8. Build: `buildModifiedPayload` (`reactor/forward_build.go`) walks the source attributes and, at step 6, writes unconsumed ops as NEW attributes; `otcAttrModHandler` (`otc.go`) emits the 7-byte attribute. This is the step that puts a queued stamp on the wire, and the step the OPEN BLOCKER's withdrawal defect rides.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Reactor ↔ role plugin (ingress) | `filterapi.IngressFilterFunc`; the returned payload REPLACES the original for caching and dispatch | Yes -- `OTCIngressFilter` returns `(true, modified)` at `otc.go:368` |
+| Reactor ↔ role plugin (ingress) | `filterapi.IngressFilterFunc`; the returned payload REPLACES the original for caching and dispatch | Yes -- `OTCIngressFilter` returns `(true, modified)` at `otc.go` |
 | Reactor ↔ role plugin (egress) | `filterapi.EgressFilterFunc` returning a bare `bool` plus a `*ModAccumulator`; there is no failure channel, so "could not evaluate" is indistinguishable from "policy said no" | Yes -- signature at `filterapi/filterapi.go`; recorded as a live deferral on `plan/spec-fixit-stored-route-relay-hardening.md` |
-| Ingress filter ↔ egress filter | the shared `ingressMeta` map, key `src-role`. One map is shared by every in-process ingress filter, so any filter can clobber the key | Yes -- `resolveSrcRole` logs a WARN on an unusable value rather than failing silently (`otc.go:414`) |
+| Ingress filter ↔ egress filter | the shared `ingressMeta` map, key `src-role`. One map is shared by every in-process ingress filter, so any filter can clobber the key | Yes -- `resolveSrcRole` logs a WARN on an unusable value rather than failing silently (`otc.go`) |
 | Filter ↔ wire build | `ModAccumulator` ops consumed by `otcAttrModHandler` during `buildModifiedPayload` | Yes -- registration asserted by `TestOTCAttrModHandlerRegisteredInRegistry` |
 | Config ↔ filter | `getFilterConfig(addr.String())`: all three readers key by ADDRESS, so a name-keyed entry is unreachable | Yes -- rejection + WARN added by `f5dd2f040`, proven by `TestRoleConfigWithoutUsableRemoteIPIsRejected` |
 
@@ -218,7 +218,7 @@ user approval and an `// rfc-test-change-approved:` marker
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
-- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -231,7 +231,7 @@ user approval and an `// rfc-test-change-approved:` marker
 <!-- No assumption may still be `unvalidated` at Pre-Commit Verification. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `meta["src-role"]` is recoverable EXACTLY from config, not guessed | `OTCIngressFilter` writes `meta["src-role"] = cfg.role` (`otc.go:315-317`) from `getFilterConfig(src.Address.String())` (`:312`); `OTCEgressFilter` performs the same lookup into `srcCfg` (`:491`) | the fallback would be a heuristic, and a wrong suppression is a routing outage | read both producers | **confirmed, with a caveat** -- same map, same key, same field, but they agree at one INSTANT only: meta is captured at RECEIVE, config is read at FORWARD. A config reload between them makes them differ. The relay-time role is the safer one to gate on; recorded in the code comment at `otc.go:383-390` |
+| A-1 | `meta["src-role"]` is recoverable EXACTLY from config, not guessed | `OTCIngressFilter` writes `meta["src-role"] = cfg.role` (`otc.go`) from `getFilterConfig(src.Address.String())`; `OTCEgressFilter` performs the same lookup into `srcCfg` | the fallback would be a heuristic, and a wrong suppression is a routing outage | read both producers | **confirmed, with a caveat** -- same map, same key, same field, but they agree at one INSTANT only: meta is captured at RECEIVE, config is read at FORWARD. A config reload between them makes them differ. The relay-time role is the safer one to gate on; recorded in the code comment at `otc.go` |
 | A-2 | `RelayStoredRoute` is not the only caller that can lack meta | the fallback is at the READ, not at the caller | fixing the caller instead would leave the next one broken | design decision, not a grep | **confirmed by events** -- three further readers of the same zero-value shape were found by later review rounds (destination role, ingress role, `srcCfg == nil`), each in a different call path |
 | A-3 | Landing the fix requires changing an RFC-tagged test | `TestOTCEgressNoStampProvider` carries `RFC requirement: RFC9234-5-4 negative`, and its fixture only reads as `accept` because meta is nil | the change would be blocked, or would land without approval | the pre-write hook | **confirmed** -- the hook blocked the edit until `// rfc-test-change-approved:` was present; Thomas approved 2026-07-27 |
 | A-4 | An empty `filterRemoteRoles` value means "the peer advertised no role" | `setFilterRemoteRole` is the only writer (`role.go`) and its caller is guarded by `len(remoteRoles) > 0` | an unrecorded role would be read as a decision | read the writer and its guard | **broken, twice** -- it ALSO meant "we never recorded it" (validate-open RPC timeout, plugin conn not up, `setFilterState` nulling the map on `OnConfigure`), and it meant "a role recorded by a PREVIOUS session was never cleared" until `f5dd2f040` added the OPEN-time clear. The first half is homed on `plan/spec-fixit-stored-route-relay-hardening.md` |
@@ -245,8 +245,8 @@ user approval and an `// rfc-test-change-approved:` marker
 | R-1 | The fallback introduces a FALSE suppression, dropping routes that used to be advertised | a peer's prefix count drops after upgrade; `ze_role_route_suppressions_total{reason="source-role"}` climbs where the operator did not expect it | the fallback only ever returns the SAME config field the ingress filter would have written; `""` (no config) still means no filtering. Proven by `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` and the full `make ze-test-bgp` regression |
 | R-2 | Suppressions are invisible, so a config typo silently withdraws a peer's routes | none, by construction -- that WAS the risk | closed by `f5dd2f040`: four `recordDrop` reasons plus a one-shot WARN on the first drop (`metrics.go`), and the unreachable-key rejection now names the peer |
 | R-3 | **A stamped withdrawal reaches a peer and triggers a session reset** | a peer sends NOTIFICATION on a withdraw-only UPDATE; RFC 7606 Section 5.2 says a receiver seeing attributes other than MP_UNREACH with no reachable NLRI MUST use "session reset" | **OPEN. Not mitigated.** This is the blocker at the top of the spec. Nothing in the tree gates the stamp on the payload advertising reachable NLRI |
-| R-4 | Widening `resolvePeerRole` retargets the operator's `export unknown` knob | an operator's `role export unknown` set stops matching peers it used to match | deliberately scoped: `resolvePeerRole` feeds the RFC MUST gates only. The export-set match keeps the capability-only value, and the reason is recorded at `otc.go:453-458` |
-| R-5 | A config reload between receive and forward makes meta and config disagree | none observable | accepted, not fixed: the relay-time role describes the relationship the route is being forwarded under, and is the safer of the two to gate a leak check on. Recorded at `otc.go:383-390` |
+| R-4 | Widening `resolvePeerRole` retargets the operator's `export unknown` knob | an operator's `role export unknown` set stops matching peers it used to match | deliberately scoped: `resolvePeerRole` feeds the RFC MUST gates only. The export-set match keeps the capability-only value, and the reason is recorded at `otc.go` |
+| R-5 | A config reload between receive and forward makes meta and config disagree | none observable | accepted, not fixed: the relay-time role describes the relationship the route is being forwarded under, and is the safer of the two to gate a leak check on. Recorded at `otc.go` |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -255,13 +255,13 @@ user approval and an `// rfc-test-change-approved:` marker
 <!-- Every row MUST have a test name. "Deferred" / "TODO" / empty = spec cannot be marked done. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| An egress filter invocation carrying no ingress metadata (the `RelayStoredRoute` shape, `reactor_api_relay.go` builds the replay with `Meta: nil`) | → | `resolveSrcRole` config fallback (`otc.go:404-421`), reached from the `destRemoteRole` branch at `otc.go:518` | `TestOTCEgressSuppressProviderLearnedWithoutMeta` (`otc_test.go:1081`) |
-| A peer that sent no Role capability, on INGRESS | → | `resolvePeerRole` config complement (`otc.go:459-476`), reached from `otc.go:327` | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go:1167`) |
-| A peer that sent no Role capability, as the egress DESTINATION | → | `resolvePeerRole` from `otc.go:498` | `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go:1270`) |
-| A route from a source with no `role { import ... }` container, advertised to a Customer | → | the stamping block at `otc.go:562-584`, no longer gated on `srcCfg != nil` | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go:1120`) |
-| A `role` config block on a peer whose remote IP does not resolve | → | the unreachable-key rejection in `config.go` | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go:53`) |
-| A peer that reconnects WITHOUT the Role capability it once advertised | → | the OPEN-time clear of `filterRemoteRoles` in `role.go` | `TestReconnectWithoutRoleCapabilityClearsStaleRole` (`session_role_test.go:52`) |
-| Any suppression decision reaching an operator | → | `recordDrop` (`metrics.go`), called from all four suppression sites | `TestRoleDropsAreCounted` (`metrics_test.go:138`), `TestRoleFirstDropEmitsWarn` (`metrics_test.go:302`) |
+| An egress filter invocation carrying no ingress metadata (the `RelayStoredRoute` shape, `reactor_api_relay.go` builds the replay with `Meta: nil`) | → | `resolveSrcRole` config fallback (`otc.go`), reached from the `destRemoteRole` branch at `otc.go` | `TestOTCEgressSuppressProviderLearnedWithoutMeta` (`otc_test.go`) |
+| A peer that sent no Role capability, on INGRESS | → | `resolvePeerRole` config complement (`otc.go`), reached from `otc.go` | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go`) |
+| A peer that sent no Role capability, as the egress DESTINATION | → | `resolvePeerRole` from `otc.go` | `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go`) |
+| A route from a source with no `role { import ... }` container, advertised to a Customer | → | the stamping block at `otc.go`, no longer gated on `srcCfg != nil` | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`) |
+| A `role` config block on a peer whose remote IP does not resolve | → | the unreachable-key rejection in `config.go` | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go`) |
+| A peer that reconnects WITHOUT the Role capability it once advertised | → | the OPEN-time clear of `filterRemoteRoles` in `role.go` | `TestReconnectWithoutRoleCapabilityClearsStaleRole` (`session_role_test.go`) |
+| Any suppression decision reaching an operator | → | `recordDrop` (`metrics.go`), called from all four suppression sites | `TestRoleDropsAreCounted` (`metrics_test.go`), `TestRoleFirstDropEmitsWarn` (`metrics_test.go`) |
 | A daemon actually applying role policy end to end | → | the registered ingress/egress filter pair | `test/plugin/role-otc-*.ci` (existing suite, unchanged by this work) |
 
 ## Acceptance Criteria
@@ -288,7 +288,7 @@ each closing a different reader of the SAME zero-value shape, each found by an i
 review round rather than planned. Those commits are not covered by AC-1..AC-5 at all.
 Leaving the AC table at five rows would have made the audit report "all ACs Done" over a
 diff four times larger than the ACs describe, which is exactly the false-completion
-`ai/rules/no-partial-completion.md` forbids. The rows below state what those commits
+`ai/rules/completion.md` forbids. The rows below state what those commits
 actually assert, taken from the landed tests, not from the commit messages. The scope
 growth itself is recorded in Deviations.
 
@@ -306,7 +306,7 @@ outstanding, so this spec does not close on AC-11 alone.
 
 | AC ID | Input / Condition | Expected Behavior | Status |
 |-------|-------------------|-------------------|--------|
-| AC-11 | `OTCEgressFilter` reached with a payload that advertises NO reachable NLRI: a pure IPv4 withdrawal, or an MP_UNREACH-only payload of any family, toward a Customer/Peer/RS-Client destination | NO OTC attribute is queued. RFC 9234 Section 5 egress rule 1 applies to a route that "is to be advertised"; a withdrawal is not a route. `isPayloadUnicast` must also recognise MP_UNREACH (type 15) so the family scoping holds for the withdrawal shape | **MET in code** (`otc.go:250` `payloadAdvertisesNLRI`, gating egress at `otc.go:702` and ingress at `otc.go:494`; MP_UNREACH family read at `otc.go:187`). See the evidence table below. **Functional `.ci` + interop coverage NOT MET** -- still owed |
+| AC-11 | `OTCEgressFilter` reached with a payload that advertises NO reachable NLRI: a pure IPv4 withdrawal, or an MP_UNREACH-only payload of any family, toward a Customer/Peer/RS-Client destination | NO OTC attribute is queued. RFC 9234 Section 5 egress rule 1 applies to a route that "is to be advertised"; a withdrawal is not a route. `isPayloadUnicast` must also recognise MP_UNREACH (type 15) so the family scoping holds for the withdrawal shape | **MET in code** (`otc.go` `payloadAdvertisesNLRI`, gating egress at `otc.go` and ingress at `otc.go`; MP_UNREACH family read at `otc.go`). See the evidence table below. **Functional `.ci` + interop coverage NOT MET** -- still owed |
 
 **Why the gate is where it is, and why it must not be loosened.** Stamping a
 non-advertising UPDATE is wire-visible damage three times over, and the third
@@ -324,29 +324,29 @@ reason is the one a future reader is most likely to miss:
    message in the case of the legacy encoding". An added attribute stops either
    being an EoR at all, breaking graceful-restart convergence for the receiving
    peer. This is REACHABLE, not theoretical: the route-server fast path
-   (`internal/component/bgp/reactor/reactor_notify.go:576`) admits a received
+   (`internal/component/bgp/reactor/reactor_notify.go`) admits a received
    UPDATE to the forward rails on `msgType == TypeUPDATE` alone, and an EoR is
    an UPDATE. Locally originated EoRs are safe only by a different route --
    `AnnounceEOR` calls `peer.SendUpdate` directly
-   (`reactor_api_forward.go:137`), bypassing egress filters -- so this gate is
+   (`reactor_api_forward.go`), bypassing egress filters -- so this gate is
    the ONLY thing protecting a relayed one.
 
-**AC-11 evidence** (`ai/rules/implementation-audit.md` Evidence Standards -- each row
+**AC-11 evidence** (`ai/rules/completion.md` Evidence Standards -- each row
 names the assertion, not the suite):
 
 | Shape | Test | Assertion |
 |-------|------|-----------|
-| Pure IPv4 withdrawal, egress to Customer | `TestOTCEgressNoStampOnPureWithdrawal` (`otc_test.go:1803`) | `mods.Len() == 0` on a `withdrawnLen=4, attrLen=0` payload |
-| MP_UNREACH-only (IPv6 unicast), egress to Customer | `TestOTCEgressNoStampOnMPUnreachOnly` (`otc_test.go:1823`) | `mods.Len() == 0` |
-| RFC 4724 legacy End-of-RIB (empty UPDATE), egress to Customer | `TestOTCEgressNoStampOnLegacyEndOfRIB` (`otc_test.go:1842`) | `mods.Len() == 0` on `00 00 00 00` |
-| Mixed withdraw + announce, egress to Customer (the false-negative direction) | `TestOTCEgressStampsMixedWithdrawAndAnnounce` (`otc_test.go:1864`) | exactly one `AttrOp`, code 35, value `65000` -- the gate must NOT over-reach |
-| Pure IPv4 withdrawal, ingress from Provider | `TestOTCIngressNoStampOnPureWithdrawal` (`otc_test.go:1897`) | returned `modified` is `nil` (no `insertOTCInPayload` rewrite) |
-| MP_UNREACH-only, ingress from Provider | `TestOTCIngressNoStampOnMPUnreachOnly` (`otc_test.go:1925`) | returned `modified` is `nil` |
-| Family scoping via MP_UNREACH | `TestIsPayloadUnicastMPUnreachFamily` (`otc_test.go:1963`) | vpn/flow/evpn/multicast withdrawals -> `false`; v4/v6 unicast -> `true`; MP_REACH wins when both present |
-| Family scoping end-to-end (discriminating) | `TestOTCNonUnicastWithdrawalSkipsOTCProcedures` (`otc_test.go:2046`) | a VPNv4 withdrawal carrying OTC is NOT suppressed by egress rule 2, and an EVPN one is NOT rejected as a leak on ingress |
-| Attributes present, no reachable NLRI (the strict form) | `TestOTCNotStampedWithoutReachableNLRI` (`otc_test.go:2125`) | `payloadAdvertisesNLRI` is `false` for `(attrs, nil)` and `true` for `(attrs, nlri)`; egress queues no op and ingress returns `modified == nil` |
+| Pure IPv4 withdrawal, egress to Customer | `TestOTCEgressNoStampOnPureWithdrawal` (`otc_test.go`) | `mods.Len() == 0` on a `withdrawnLen=4, attrLen=0` payload |
+| MP_UNREACH-only (IPv6 unicast), egress to Customer | `TestOTCEgressNoStampOnMPUnreachOnly` (`otc_test.go`) | `mods.Len() == 0` |
+| RFC 4724 legacy End-of-RIB (empty UPDATE), egress to Customer | `TestOTCEgressNoStampOnLegacyEndOfRIB` (`otc_test.go`) | `mods.Len() == 0` on `00 00 00 00` |
+| Mixed withdraw + announce, egress to Customer (the false-negative direction) | `TestOTCEgressStampsMixedWithdrawAndAnnounce` (`otc_test.go`) | exactly one `AttrOp`, code 35, value `65000` -- the gate must NOT over-reach |
+| Pure IPv4 withdrawal, ingress from Provider | `TestOTCIngressNoStampOnPureWithdrawal` (`otc_test.go`) | returned `modified` is `nil` (no `insertOTCInPayload` rewrite) |
+| MP_UNREACH-only, ingress from Provider | `TestOTCIngressNoStampOnMPUnreachOnly` (`otc_test.go`) | returned `modified` is `nil` |
+| Family scoping via MP_UNREACH | `TestIsPayloadUnicastMPUnreachFamily` (`otc_test.go`) | vpn/flow/evpn/multicast withdrawals -> `false`; v4/v6 unicast -> `true`; MP_REACH wins when both present |
+| Family scoping end-to-end (discriminating) | `TestOTCNonUnicastWithdrawalSkipsOTCProcedures` (`otc_test.go`) | a VPNv4 withdrawal carrying OTC is NOT suppressed by egress rule 2, and an EVPN one is NOT rejected as a leak on ingress |
+| Attributes present, no reachable NLRI (the strict form) | `TestOTCNotStampedWithoutReachableNLRI` (`otc_test.go`) | `payloadAdvertisesNLRI` is `false` for `(attrs, nil)` and `true` for `(attrs, nlri)`; egress queues no op and ingress returns `modified == nil` |
 
-**Mutation verification** (`ai/rules/functional-test-gate.md`), each reverted and the
+**Mutation verification** (`ai/rules/testing.md`), each reverted and the
 package re-run green:
 
 | Mutation | Reds -- and only these |
@@ -365,10 +365,10 @@ records `// rfc-test-change-approved: 2026-07-27 ...` (auditable via
 
 | Test | Tag it carries |
 |------|----------------|
-| `TestOTCEgressStampMod` (`otc_test.go:970`) | RFC9234-5-4 positive, RFC9234-5-10 negative |
-| `TestOTCEgressStampLocalASN` (`otc_test.go:1336`) | RFC9234-5-9 positive |
-| `TestOTCIngressFilter/stamp_from_provider` (`otc_test.go:482`) | RFC9234-5-3 positive |
-| `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go:1130`) | RFC9234-5-4 positive -- tagged during this work, so it became hook-protected mid-flight; same correction, same rationale |
+| `TestOTCEgressStampMod` (`otc_test.go`) | RFC9234-5-4 positive, RFC9234-5-10 negative |
+| `TestOTCEgressStampLocalASN` (`otc_test.go`) | RFC9234-5-9 positive |
+| `TestOTCIngressFilter/stamp_from_provider` (`otc_test.go`) | RFC9234-5-3 positive |
+| `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`) | RFC9234-5-4 positive -- tagged during this work, so it became hook-protected mid-flight; same correction, same rationale |
 
 Three further stamp tests carry no RFC tag and took the same fixture correction with no
 authorisation needed: `TestOTCEgressStampRSClient`,
@@ -386,11 +386,11 @@ reaches it.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | configures `role import customer` on a Provider peer and expects that peer's routes never to reach another Provider, including after a session flap replays them from the Adj-RIB-In | peer-up -> `RelayStoredRoute` (`Meta: nil`) -> egress filter chain -> `OTCEgressFilter` -> `resolveSrcRole` config fallback -> suppress | `TestOTCEgressSuppressProviderLearnedWithoutMeta` (`otc_test.go:1081`); the OTC egress behaviour itself is covered end-to-end by `test/plugin/role-otc-egress-filter.ci` |
-| 2 | peers with an early-adopter neighbour that does not send the RFC 9234 Role capability, and expects role policy to work from local config | OPEN with no Role capability -> `resolvePeerRole` config complement -> Section 5 gates on both ingress and egress | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go:1167`), `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go:1270`) |
-| 3 | advertises an iBGP-learned or locally originated route to a Customer and expects it to carry OTC so a downstream leak is catchable | forward rail -> `OTCEgressFilter` stamping block -> `mods.Op` -> `buildModifiedPayload` step 6 -> `otcAttrModHandler` -> wire | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go:1120`); wire-level in `test/plugin/role-otc-egress-stamp.ci` |
-| 4 | mistypes a peer name in a `role` block and expects to be told, not to get silent no-op policy | config load -> `parseRoleContainer` -> keying check -> WARN + reject | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go:53`), `TestUnusableRoleConfigDoesNotShadowUsablePeers` (`config_keying_test.go:189`) |
-| 5 | asks why a peer stopped receiving routes | any suppression -> `recordDrop` -> `ze_bgp_role_drops_total` by reason + one-shot WARN | `TestRoleDropsAreCounted` (`metrics_test.go:138`), `TestRoleFirstDropEmitsWarn` (`metrics_test.go:302`) |
+| 1 | configures `role import customer` on a Provider peer and expects that peer's routes never to reach another Provider, including after a session flap replays them from the Adj-RIB-In | peer-up -> `RelayStoredRoute` (`Meta: nil`) -> egress filter chain -> `OTCEgressFilter` -> `resolveSrcRole` config fallback -> suppress | `TestOTCEgressSuppressProviderLearnedWithoutMeta` (`otc_test.go`); the OTC egress behaviour itself is covered end-to-end by `test/plugin/role-otc-egress-filter.ci` |
+| 2 | peers with an early-adopter neighbour that does not send the RFC 9234 Role capability, and expects role policy to work from local config | OPEN with no Role capability -> `resolvePeerRole` config complement -> Section 5 gates on both ingress and egress | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go`), `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go`) |
+| 3 | advertises an iBGP-learned or locally originated route to a Customer and expects it to carry OTC so a downstream leak is catchable | forward rail -> `OTCEgressFilter` stamping block -> `mods.Op` -> `buildModifiedPayload` step 6 -> `otcAttrModHandler` -> wire | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`); wire-level in `test/plugin/role-otc-egress-stamp.ci` |
+| 4 | mistypes a peer name in a `role` block and expects to be told, not to get silent no-op policy | config load -> `parseRoleContainer` -> keying check -> WARN + reject | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go`), `TestUnusableRoleConfigDoesNotShadowUsablePeers` (`config_keying_test.go`) |
+| 5 | asks why a peer stopped receiving routes | any suppression -> `recordDrop` -> `ze_bgp_role_drops_total` by reason + one-shot WARN | `TestRoleDropsAreCounted` (`metrics_test.go`), `TestRoleFirstDropEmitsWarn` (`metrics_test.go`) |
 | 6 | withdraws a prefix toward a Customer and expects a plain withdraw-only UPDATE on the wire | forward rail -> `OTCEgressFilter` -> **no advertisement gate** -> `mods.Op` -> a 7-byte OTC attribute on a withdraw-only UPDATE | **NONE. This path is BROKEN** -- see AC-11 and the OPEN BLOCKER |
 
 <!-- If a path has a broken link (no implementation at some step), that is a spec gap.
@@ -403,25 +403,25 @@ All paths below are `internal/component/bgp/plugins/role/`.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOTCEgressSuppressProviderLearnedWithoutMeta` | `otc_test.go:1081` | AC-1 -- the config fallback fires with `meta == nil`. Carries `RFC requirement: RFC9234-3.1-1 positive` | Done |
-| `TestOTCEgressMetaTakesPrecedenceOverConfig` | `otc_test.go:1232` | AC-2 -- a usable meta value wins over config | Done |
-| `TestOTCEgressMalformedMetaTakesConfigFallback` | `otc_test.go:1201` | AC-3 -- a PRESENT but non-string value takes the fallback, over a source that HAS config so the branch is distinguishable | Done |
-| `TestOTCEgressFilter/meta_wrong_type_not_suppressed` | `otc_test.go:633` | AC-3/AC-4 -- a non-string value over a source with NO config yields no suppression | Done |
-| `TestOTCEgressNoStampProvider` | `otc_test.go:1036` | AC-5 -- legitimate transit to a Provider is accepted and unstamped. Retains `RFC requirement: RFC9234-5-4 negative`; fixture changed under `// rfc-test-change-approved:` | Done |
-| `TestOTCEgressSuppressToProviderWithoutRoleCapability` | `otc_test.go:1270` | AC-6 -- destination-side config complement | Done |
-| `TestOTCIngressStampsWhenPeerSentNoRoleCapability` | `otc_test.go:1167` | AC-7 -- ingress-side config complement, asserting the stamp carries the REMOTE AS | Done |
-| `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` | `otc_test.go:1120` | AC-8 -- the stamp is destination-conditioned only | Done (untagged -- see OPEN BLOCKER) |
-| `TestRoleConfigWithoutUsableRemoteIPIsRejected`, `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept`, `TestRoleCapabilityNotDeclaredForUnusablePeer`, `TestRoleConfigWithUsableRemoteIPStillKeyedByAddress`, `TestUnusableRoleConfigDoesNotShadowUsablePeers` | `config_keying_test.go:53,118,142,157,189` | AC-9 -- both edges of the keying rejection | Done |
-| `TestReconnectWithoutRoleCapabilityClearsStaleRole`, `TestReconnectWithNewRoleCapabilityWinsOverPrevious`, `TestReconnectWithUnassignedRoleValueClearsStaleRole`, `TestClearedRoleIsKeyedLikeTheSetter`, `TestStaleRoleClearedEvenWhenOpenIsRejected`, `TestReconnectWithoutRoleIsObservable` | `session_role_test.go:52,91,125,151,179,206` | AC-10 (clearing half) | Done |
-| `TestRoleDropsAreCounted`, `TestRoleAcceptedRouteIsNotCounted`, `TestRoleFirstDropEmitsWarn`, `TestRoleMetricsSafeBeforeConfigure` | `metrics_test.go:138,255,302,346` | AC-10 (observability half) | Done |
+| `TestOTCEgressSuppressProviderLearnedWithoutMeta` | `otc_test.go` | AC-1 -- the config fallback fires with `meta == nil`. Carries `RFC requirement: RFC9234-3.1-1 positive` | Done |
+| `TestOTCEgressMetaTakesPrecedenceOverConfig` | `otc_test.go` | AC-2 -- a usable meta value wins over config | Done |
+| `TestOTCEgressMalformedMetaTakesConfigFallback` | `otc_test.go` | AC-3 -- a PRESENT but non-string value takes the fallback, over a source that HAS config so the branch is distinguishable | Done |
+| `TestOTCEgressFilter/meta_wrong_type_not_suppressed` | `otc_test.go` | AC-3/AC-4 -- a non-string value over a source with NO config yields no suppression | Done |
+| `TestOTCEgressNoStampProvider` | `otc_test.go` | AC-5 -- legitimate transit to a Provider is accepted and unstamped. Retains `RFC requirement: RFC9234-5-4 negative`; fixture changed under `// rfc-test-change-approved:` | Done |
+| `TestOTCEgressSuppressToProviderWithoutRoleCapability` | `otc_test.go` | AC-6 -- destination-side config complement | Done |
+| `TestOTCIngressStampsWhenPeerSentNoRoleCapability` | `otc_test.go` | AC-7 -- ingress-side config complement, asserting the stamp carries the REMOTE AS | Done |
+| `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` | `otc_test.go` | AC-8 -- the stamp is destination-conditioned only | Done (untagged -- see OPEN BLOCKER) |
+| `TestRoleConfigWithoutUsableRemoteIPIsRejected`, `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept`, `TestRoleCapabilityNotDeclaredForUnusablePeer`, `TestRoleConfigWithUsableRemoteIPStillKeyedByAddress`, `TestUnusableRoleConfigDoesNotShadowUsablePeers` | `config_keying_test.go,118,142,157,189` | AC-9 -- both edges of the keying rejection | Done |
+| `TestReconnectWithoutRoleCapabilityClearsStaleRole`, `TestReconnectWithNewRoleCapabilityWinsOverPrevious`, `TestReconnectWithUnassignedRoleValueClearsStaleRole`, `TestClearedRoleIsKeyedLikeTheSetter`, `TestStaleRoleClearedEvenWhenOpenIsRejected`, `TestReconnectWithoutRoleIsObservable` | `session_role_test.go,91,125,151,179,206` | AC-10 (clearing half) | Done |
+| `TestRoleDropsAreCounted`, `TestRoleAcceptedRouteIsNotCounted`, `TestRoleFirstDropEmitsWarn`, `TestRoleMetricsSafeBeforeConfigure` | `metrics_test.go,255,302,346` | AC-10 (observability half) | Done |
 | (none) | - | **AC-11 -- no test asserts that a withdraw-only payload is NOT stamped** | **MISSING** |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| OTC attribute value (4-byte ASN) | 0..4294967295 | 4294967295 | N/A (unsigned) | N/A (`uint32` by type) -- covered by `TestOTCBoundaryASN` (`otc_test.go:732`) |
-| OTC attribute length | MUST be exactly 4 (RFC 9234 Section 5) | 4 | 3 -> treat-as-withdraw | 5 -> treat-as-withdraw -- covered by `TestOTCBoundaryLength` (`otc_test.go:744`) |
-| rewritten `attrLen` after an ingress stamp | 0..65535 | 65535 | N/A | overflow returns nil and the route is accepted unmodified (`insertOTCInPayload`, `otc.go:249-251`) |
+| OTC attribute value (4-byte ASN) | 0..4294967295 | 4294967295 | N/A (unsigned) | N/A (`uint32` by type) -- covered by `TestOTCBoundaryASN` (`otc_test.go`) |
+| OTC attribute length | MUST be exactly 4 (RFC 9234 Section 5) | 4 | 3 -> treat-as-withdraw | 5 -> treat-as-withdraw -- covered by `TestOTCBoundaryLength` (`otc_test.go`) |
+| rewritten `attrLen` after an ingress stamp | 0..65535 | 65535 | N/A | overflow returns nil and the route is accepted unmodified (`insertOTCInPayload`, `otc.go`) |
 
 This spec adds no new numeric input; the rows above are the pre-existing coverage the
 change had to keep green.
@@ -453,7 +453,7 @@ new `.ci` (AC-11) is not implemented.
 
 ### Future (if deferring any tests)
 - Nothing is deferred. The missing AC-11 tests are not deferred work; they are part of an
-  unfixed defect that blocks closure (`ai/rules/no-parking.md`: a reproducible defect has
+  unfixed defect that blocks closure (`ai/rules/completion.md`: a reproducible defect has
   no recording path).
 
 ## Files to Modify
@@ -491,7 +491,7 @@ left as twenty unanswered checkboxes.
 | Pipe completeness | No | No new command output |
 | Env var registration | No | No `environment/` leaf added |
 | Doctor check for runtime dependencies | No | No file path, socket, port, module, binary or certificate introduced. The AC-9 rejection is a config-time WARN naming the peer, which is the right surface for a config mistake |
-| Prometheus counters/metrics | **Yes -- done** | `internal/component/bgp/plugins/role/metrics.go`. Two counters: `ze_role_route_rejects_total` (ingress, route made ineligible) and `ze_role_route_suppressions_total` (egress, advertisement withheld), each labeled `reason`. Five bounded reason values -- `leak`, `malformed-otc`, `otc-present`, `source-role`, `export-set` -- so cardinality is five series per metric and never per-peer; peer identity goes in the log line. Every child is pre-resolved at build time (`metrics.go:88-98`) because `CounterVec.With` allocates a `[]string` per call and this is the forward path (`ai/rules/no-sprintf-alloc.md`), and pre-creating each child means the series exists at 0 from startup so a rate alert does not wait for it to appear. Documented at `docs/plugin-development/metrics.md:341-342` |
+| Prometheus counters/metrics | **Yes -- done** | `internal/component/bgp/plugins/role/metrics.go`. Two counters: `ze_role_route_rejects_total` (ingress, route made ineligible) and `ze_role_route_suppressions_total` (egress, advertisement withheld), each labeled `reason`. Five bounded reason values -- `leak`, `malformed-otc`, `otc-present`, `source-role`, `export-set` -- so cardinality is five series per metric and never per-peer; peer identity goes in the log line. Every child is pre-resolved at build time (`metrics.go`) because `CounterVec.With` allocates a `[]string` per call and this is the forward path (`ai/rules/performance.md`), and pre-creating each child means the series exists at 0 from startup so a rate alert does not wait for it to appear. Documented at `docs/plugin-development/metrics.md` |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
@@ -506,17 +506,17 @@ left as twenty unanswered checkboxes.
 | 3 | CLI command added/changed? | No | None |
 | 4 | API/RPC added/changed? | No | None |
 | 5 | Plugin added/changed? | No | `bgp-role`'s registration, name, families and capability set are untouched |
-| 6 | Has a user guide page? | **Yes -- NOT updated. Gap.** | `docs/guide/bgp-role.md` exists and carries three source anchors into the role plugin (`:4`, `:63`, `:88`). It describes when OTC is stamped and when routes are suppressed -- the exact behaviour five commits changed. No commit in this set touched it. Flagged for the reviewer; it is not blocking on its own, but it is a real omission |
+| 6 | Has a user guide page? | **Yes -- NOT updated. Gap.** | `docs/guide/bgp-role.md` exists and carries three source anchors into the role plugin. It describes when OTC is stamped and when routes are suppressed -- the exact behaviour five commits changed. No commit in this set touched it. Flagged for the reviewer; it is not blocking on its own, but it is a real omission |
 | 7 | Wire format changed? | No | The OTC attribute encoding (`buildOTCAttr`, `otcAttrModHandler`) is byte-identical. WHEN it is emitted changed; HOW it is encoded did not |
 | 8 | Plugin SDK/protocol changed? | No | `filterapi.IngressFilterFunc` / `EgressFilterFunc` signatures unchanged |
-| 9 | RFC behavior implemented, changed, or newly proven? | **Yes -- partially, and one claim is now known-false** | `docs/features/rfc-status.md:25` still reads "No tracked gap in current source anchors" for RFC 9234 and credits "unicast-only (AFI 1/2, SAFI 1) OTC scoping". The OPEN BLOCKER shows that scoping does not hold for the withdrawal shape, so that row is not backed. It must be corrected as part of the AC-11 fix, not before it |
+| 9 | RFC behavior implemented, changed, or newly proven? | **Yes -- partially, and one claim is now known-false** | `docs/features/rfc-status.md` still reads "No tracked gap in current source anchors" for RFC 9234 and credits "unicast-only (AFI 1/2, SAFI 1) OTC scoping". The OPEN BLOCKER shows that scoping does not hold for the withdrawal shape, so that row is not backed. It must be corrected as part of the AC-11 fix, not before it |
 | 10 | Test infrastructure changed? | No | No new runner, format or fixture pattern; unit tests use the existing `setFilterState` / `setFilterRemoteRole` helpers |
 | 11 | Affects daemon comparison? | No | No capability gained or lost relative to other daemons |
 | 12 | Internal architecture changed? | No | No layer, boundary or registration mechanism moved |
-| 13 | Route metadata keys added/changed? | **Yes -- done** | `docs/architecture/meta/role.md` updated by `276096afb`, `d373d9f40`, `e0607d0f4` and `f5dd2f040`; it now carries anchors for `resolvePeerRole`/`peerRoleComplement` (`:59`), `resolveExport` (`:60`), `extractPeerRoleConfigs` (`:70`), `applyValidateOpen`/`clearFilterRemoteRole`/`filterKeyLocked` (`:82`) and `recordDrop`/`buildMetrics` (`:96`). No key was added or renamed; what changed is the documented meaning of an ABSENT `src-role` |
-| 14 | Prometheus counters added/changed? | **Yes -- done** | `docs/plugin-development/metrics.md:341-342`, anchored to `role/metrics.go` `recordDrop` and to both filters |
+| 13 | Route metadata keys added/changed? | **Yes -- done** | `docs/architecture/meta/role.md` updated by `276096afb`, `d373d9f40`, `e0607d0f4` and `f5dd2f040`; it now carries anchors for `resolvePeerRole`/`peerRoleComplement`, `resolveExport`, `extractPeerRoleConfigs`, `applyValidateOpen`/`clearFilterRemoteRole`/`filterKeyLocked` and `recordDrop`/`buildMetrics`. No key was added or renamed; what changed is the documented meaning of an ABSENT `src-role` |
+| 14 | Prometheus counters added/changed? | **Yes -- done** | `docs/plugin-development/metrics.md`, anchored to `role/metrics.go` `recordDrop` and to both filters |
 | 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | No | None |
-| 16 | Any changed source file is referenced by existing doc source anchors? | **Yes -- one stale, one gap** | `grep -rn 'source:.*plugins/role/' docs/` returns 18 anchors. `docs/architecture/route-selection.md:115` anchors `otc.go` for "RFC 9234 OTC validation" and was NOT revisited; `docs/guide/bgp-role.md` (row 6) likewise. The `meta/role.md` and `metrics.md` anchors were updated. Verified by grep, not assumed |
+| 16 | Any changed source file is referenced by existing doc source anchors? | **Yes -- one stale, one gap** | `grep -rn 'source:.*plugins/role/' docs/` returns 18 anchors. `docs/architecture/route-selection.md` anchors `otc.go` for "RFC 9234 OTC validation" and was NOT revisited; `docs/guide/bgp-role.md` (row 6) likewise. The `meta/role.md` and `metrics.md` anchors were updated. Verified by grep, not assumed |
 | 17 | Existing docs show config/CLI/API examples for this area? | **Yes -- unverified** | `docs/guide/bgp-role.md` shows `role { import ... }` / `role { export ... }` examples. The syntax is unchanged, so the examples still parse; whether their described EFFECT still matches after the `resolvePeerRole` widening was not re-checked. Part of the row-6 gap |
 
 ## Files to Create
@@ -587,7 +587,7 @@ driven with a NEW fixture that reaches the previously-unreachable branch.
    - Verify: the inert-config and stale-role defects are both invisible without a test that drives a RECONNECT or a name-keyed peer
 6. **Phase: the advertisement gate (AC-11)** — **NOT STARTED. This is the closure blocker**
    - Tests: a unit test asserting `mods.Len() == 0` for a pure IPv4 withdrawal and for an MP_UNREACH-only payload toward a Customer; a `test/plugin/*.ci` proving the withdraw-only UPDATE leaves the wire clean; an interop scenario against FRR or BIRD
-   - Files: `otc.go` (an advertisement gate before the stamping block at `:562`; MP_UNREACH awareness in `isPayloadUnicast`), `otc_test.go`, plus the `docs/features/rfc-status.md:25` correction and the missing `RFC requirement:` tag on `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`
+   - Files: `otc.go` (an advertisement gate before the stamping block at `:562`; MP_UNREACH awareness in `isPayloadUnicast`), `otc_test.go`, plus the `docs/features/rfc-status.md` correction and the missing `RFC requirement:` tag on `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`
    - Verify: the interop scenario is the non-vacuous one -- reverting the fix makes a conforming receiver session-reset per RFC 7606 Section 5.2
 7. **Functional tests** → the AC-11 `.ci` above. The existing `role-otc-*.ci` suite covers phases 1-5.
 5. **RFC refs** → Add `// RFC NNNN Section X.Y` comments (protocol work only)
@@ -605,13 +605,13 @@ driven with a NEW fixture that reaches the previously-unreachable branch.
 | Feature completeness | Every End-to-End User Story has a working path (no broken links in the chain). Reference feature comparison: new feature has everything the reference has |
 | Correctness | Every RFC 9234 Section 5 rule is gated on exactly the peer the RFC names -- ingress rules on the SOURCE, egress rule 1 on the DESTINATION, egress rule 2 on the destination and the wire bytes. Four of the five defects in this spec were an extra gate the RFC never stated |
 | Enumerate every reader, not the one that failed | This spec's whole history is a single zero-value shape found one reader at a time. Before claiming a fix, grep EVERY caller of `getFilterConfig` and every read of `meta["src-role"]` and `filterRemoteRoles`, and state what an empty value means at each |
-| Fail closed AND say something | Each empty-value branch either denies or logs. `resolveSrcRole` WARNs on an unusable meta value (`otc.go:414`); `resolvePeerRole` WARNs on a role with no complement (`otc.go:472`); the stamping block WARNs when `dest.LocalAS` is 0 (`otc.go:580`). A guard that neither denies nor speaks does not exist (`ai/rules/fail-closed-guards.md`) |
-| Naming | Metric names follow `ze_{scope}_{subject}_{event}_total` with scope `role`, not `bgprole` (`metrics.go:15-21`); label values are bounded lower-kebab strings |
+| Fail closed AND say something | Each empty-value branch either denies or logs. `resolveSrcRole` WARNs on an unusable meta value (`otc.go`); `resolvePeerRole` WARNs on a role with no complement (`otc.go`); the stamping block WARNs when `dest.LocalAS` is 0 (`otc.go`). A guard that neither denies nor speaks does not exist (`ai/rules/evidence.md`) |
+| Naming | Metric names follow `ze_{scope}_{subject}_{event}_total` with scope `role`, not `bgprole` (`metrics.go`); label values are bounded lower-kebab strings |
 | Data flow | The role decision stays entirely inside the role plugin. The reactor learns of a suppression only through the filter's `bool` and of a stamp only through the `ModAccumulator`; no role vocabulary leaks into `reactor/` |
-| No allocation on the forward path | `recordDrop` indexes a pre-resolved counter array; it must not call `CounterVec.With` per UPDATE (`ai/rules/no-sprintf-alloc.md`) |
-| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli-grammar.md` |
-| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugin-self-containment.md` |
-| Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/doctor-checks.md` |
+| No allocation on the forward path | `recordDrop` indexes a pre-resolved counter array; it must not call `CounterVec.With` per UPDATE (`ai/rules/performance.md`) |
+| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli.md` |
+| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugins.md` |
+| Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/repo-maintenance.md` |
 | YANG validation | If YANG leaves added: every leaf has max native constraints (`range`/`length`/`pattern`/`enum`). Bare `type string` is a red flag. Custom validator + `CompleteFn` where native is insufficient |
 | Prometheus counters | If observable state exists: counters defined, registered, metric names listed |
 | Rule: no-layering | The `srcCfg == nil` early return was DELETED, not bypassed. No compatibility branch preserves the old permissive behaviour |
@@ -626,11 +626,11 @@ driven with a NEW fixture that reaches the previously-unreachable branch.
 |-------------|---------------------|
 | `resolveSrcRole` exists and is CALLED from the egress Gao-Rexford branch | `grep -n 'resolveSrcRole' internal/component/bgp/plugins/role/otc.go` -> definition and call site, not definition alone |
 | `resolvePeerRole` is called at all THREE `getFilterConfig` readers | `grep -n 'resolvePeerRole\|getFilterConfig' internal/component/bgp/plugins/role/otc.go` |
-| No source-side gate sits between the export check and the stamping block | read `otc.go:527-584`; the removed `if srcCfg == nil { return true }` must not be back in any form |
+| No source-side gate sits between the export check and the stamping block | read `otc.go`; the removed `if srcCfg == nil { return true }` must not be back in any form |
 | Unreachable role config is rejected, not stored | `go test -run 'TestRoleConfig' ./internal/component/bgp/plugins/role/` |
 | Stale capability roles are cleared at the OPEN | `go test -run 'TestReconnect|TestStaleRole|TestClearedRole' ./internal/component/bgp/plugins/role/` |
 | Every suppression is counted | `grep -n 'recordDrop' internal/component/bgp/plugins/role/otc.go` -> one call per `return false` site |
-| **AC-11: no OTC on a withdraw-only payload** | **FAILS today.** `grep -n 'mpUnreach\|unreach' internal/component/bgp/plugins/role/otc.go` returns nothing, and `otc.go:562` has no advertisement gate |
+| **AC-11: no OTC on a withdraw-only payload** | **FAILS today.** `grep -n 'mpUnreach\|unreach' internal/component/bgp/plugins/role/otc.go` returns nothing, and `otc.go` has no advertisement gate |
 
 ### Security Review Checklist (/implement stage 11)
 
@@ -638,12 +638,12 @@ driven with a NEW fixture that reaches the previously-unreachable branch.
      Think about: untrusted input, injection, resource exhaustion, error leakage. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | Every offset arithmetic on the attacker-controlled payload is bounds-checked before indexing: `findOTC` (`otc.go:29-69`), `isPayloadUnicast` (`:100-145`), `extractAttrsFromPayload` (`:210-225`), `insertOTCInPayload` (`:229-266`), `payloadToWithdrawal` (`:272-301`). Each returns nil or breaks rather than slicing past the end |
-| Integer overflow | `insertOTCInPayload` rejects a rewritten `attrLen > 65535` (`:249-251`) and accepts the route unmodified rather than truncating |
+| Input validation | Every offset arithmetic on the attacker-controlled payload is bounds-checked before indexing: `findOTC` (`otc.go`), `isPayloadUnicast`, `extractAttrsFromPayload`, `insertOTCInPayload`, `payloadToWithdrawal`. Each returns nil or breaks rather than slicing past the end |
+| Integer overflow | `insertOTCInPayload` rejects a rewritten `attrLen > 65535` and accepts the route unmodified rather than truncating |
 | Trusting a peer's assertion over local config | `resolvePeerRole` prefers the peer's CAPABILITY over local config when both exist. That is RFC 9234 Section 4.2's own precedence and is validated against config by `validateOpenRolePair`, so a peer cannot claim an arbitrary role and have it accepted -- but it is the one place a remote value outranks a local one, and it must stay bounded by that validation |
 | Fail-open on a filter panic | `safeEgressFilter` recovers a panicking filter; a recovered panic must not be reported as "accept". Egress filters return a bare `bool` with no failure channel, which is a live gap homed on `plan/spec-fixit-stored-route-relay-hardening.md` |
 | **Wire output a peer can weaponise** | **OPEN.** The stamped withdrawal (AC-11) puts a non-MP_UNREACH attribute on a withdraw-only UPDATE, which RFC 7606 Section 5.2 makes a conforming receiver treat with "session reset". A neighbour withdrawing prefixes can therefore drop our session with it |
-| Metric cardinality | Labels are five compile-time constants; peer identity is deliberately kept out of the label set and put in the log line (`metrics.go:41-50`), so a peer cannot inflate the series count |
+| Metric cardinality | Labels are five compile-time constants; peer identity is deliberately kept out of the label set and put in the log line (`metrics.go`), so a peer cannot inflate the series count |
 
 ### Failure Routing
 
@@ -673,12 +673,12 @@ driven with a NEW fixture that reaches the previously-unreachable branch.
 |----------|---------------|-------------|
 | Fix the gap at the `RelayStoredRoute` caller by populating meta before the replay | The gap is at the READ. Any present or future egress caller without ingress metadata has it, and A-2 was confirmed by events: three more readers of the same shape turned up in different call paths | the fallback lives in `resolveSrcRole`, at the read |
 | Return `""` from `resolveSrcRole` when meta holds a non-string value | A malformed input would then be MORE permissive than a missing one, which inverts the failure ordering | present-but-unusable takes the config fallback AND logs a WARN |
-| Treat `roleUnknown` as the resolved destination role in the export-set match too, for consistency with the RFC gates | `unknown` is a documented operator token meaning "also send to peers with no role configured" (`config.go:36`). Reclassifying it there would silently retarget an operator knob -- policy, not conformance | `resolvePeerRole` feeds the RFC MUST gates only; the export match keeps the capability-only value, with the reason recorded at `otc.go:453-458` |
+| Treat `roleUnknown` as the resolved destination role in the export-set match too, for consistency with the RFC gates | `unknown` is a documented operator token meaning "also send to peers with no role configured" (`config.go`). Reclassifying it there would silently retarget an operator knob -- policy, not conformance | `resolvePeerRole` feeds the RFC MUST gates only; the export match keeps the capability-only value, with the reason recorded at `otc.go` |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
-| Fixing the reported reader of a zero-value trap instead of enumerating every reader | five times in this one spec | already covered by `ai/rules/fail-closed-guards.md` and the Sibling Call-Site Audit in `ai/rules/before-writing-code.md`. What is missing is not a rule but the habit of treating a fail-open finding as a CLASS: the first fix should grep every reader of the same producer and state what an empty value means at each | no new rule proposed. The Critical Review Checklist above carries an "Enumerate every reader, not the one that failed" row so the next reviewer of this area applies it |
+| Fixing the reported reader of a zero-value trap instead of enumerating every reader | five times in this one spec | already covered by `ai/rules/evidence.md` and the Sibling Call-Site Audit in `ai/rules/architecture.md`. What is missing is not a rule but the habit of treating a fail-open finding as a CLASS: the first fix should grep every reader of the same producer and state what an empty value means at each | no new rule proposed. The Critical Review Checklist above carries an "Enumerate every reader, not the one that failed" row so the next reviewer of this area applies it |
 | An RFC-tagged test that passes for the wrong reason | twice here (`TestOTCEgressNoStampProvider`, and `RFC9234-5-4` credited to a source-configured test) | `ai/rules/interop-and-goal-validation.md` already mandates proving the test discriminates. The gap is that `ze-rfc-check` counts a TAG, and a tag cannot be mutation-verified mechanically | flagged for the reviewer; no rule change proposed from a single spec |
 
 ## Design Insights
@@ -719,7 +719,7 @@ asked of the payload instead of the config.
 | `resolvePeerRole` is scoped to the RFC MUST gates and NOT the export-set match | apply it everywhere for consistency | `unknown` is an operator-selected export target, not a missing answer. Consistency would have retargeted a knob |
 | Reject an unreachable `role` config key with a WARN naming the peer | keep it and make the readers try both keys; or silently drop it | making readers try both keys spreads the keying question to three call sites and hides the operator's mistake. A peer NAMED for its address still works, because peers very often are |
 | Clear a stale capability role at the OPEN, not on session down | clear on the state-down event | the structured state event carries no session identity, and for an in-process plugin the down arrives on a different loop, so a late down could delete a role a NEWER session had already written |
-| Keep the spec OPEN rather than close it with AC-11 outstanding | close on AC-1..AC-10 and file AC-11 as a follow-up | AC-11 is a reproducible, wire-visible, interop-fatal defect in the code this spec is about. `ai/rules/no-parking.md`: a reproducible defect has no recording path, and "pre-existing in shape" says when it started, not whose it is |
+| Keep the spec OPEN rather than close it with AC-11 outstanding | close on AC-1..AC-10 and file AC-11 as a follow-up | AC-11 is a reproducible, wire-visible, interop-fatal defect in the code this spec is about. `ai/rules/completion.md`: a reproducible defect has no recording path, and "pre-existing in shape" says when it started, not whose it is |
 
 ## Known Limitations
 - **Peers created from a dynamic group receive no per-peer role config at all.** The
@@ -731,7 +731,7 @@ asked of the payload instead of the config.
   reactor. Closing it means changing a signature used by three plugins. Homed on
   `plan/spec-fixit-stored-route-relay-hardening.md`.
 - **`meta` and config can disagree across a config reload.** Accepted, not fixed; the
-  forward-time value is the safer one. Recorded at `otc.go:383-390`.
+  forward-time value is the safer one. Recorded at `otc.go`.
 - **AC-11 is not a limitation, it is an unfixed defect.** Listed here only so a reader
   scanning this section does not conclude the spec's scope is settled: see the OPEN
   BLOCKER.
@@ -739,12 +739,12 @@ asked of the payload instead of the config.
 ## RFC Documentation
 
 The enforcing sites carry their requirement text inline: RFC 9234 Section 5's three
-ingress rules above `checkOTCIngress` (`otc.go:173-191`), egress rule 2 above
-`checkOTCEgress` (`otc.go:200-205`) and at its call site (`otc.go:500-503`), egress rule 1
-above the stamping block (`otc.go:559-561`), the unicast scoping above both filters'
-family gates (`otc.go:96`, `:334`, `:486`), the preserve-unchanged rule above
-`otcAttrModHandler` (`otc.go:596`), and Section 4.2's "the locally configured BGP Role is
-used" in `resolvePeerRole`'s doc (`otc.go:448-451`). The AC-11 fix must add the "is to be
+ingress rules above `checkOTCIngress` (`otc.go`), egress rule 2 above
+`checkOTCEgress` (`otc.go`) and at its call site (`otc.go`), egress rule 1
+above the stamping block (`otc.go`), the unicast scoping above both filters'
+family gates (`otc.go`, `:334`, `:486`), the preserve-unchanged rule above
+`otcAttrModHandler` (`otc.go`), and Section 4.2's "the locally configured BGP Role is
+used" in `resolvePeerRole`'s doc (`otc.go`). The AC-11 fix must add the "is to be
 advertised" clause of egress rule 1 above the new gate, and an RFC 7606 Section 5.2 note
 explaining why a stamped withdrawal is interop-fatal rather than merely untidy.
 
@@ -754,16 +754,16 @@ explaining why a stamped withdrawal is interop-fatal rather than merely untidy.
 Five commits, each closing a different reader of one zero-value shape.
 
 - **`c398e97f0` -- the egress meta fallback (AC-1..AC-5).** `resolveSrcRole`
-  (`otc.go:404-421`) returns the meta value when it is a usable string, else
+  (`otc.go`) returns the meta value when it is a usable string, else
   `srcCfg.role`, else `""`; it WARNs on a present-but-unusable value. Called from the
-  `destRemoteRole` branch at `otc.go:518`. `reactor_api_relay.go`'s comment updated from
+  `destRemoteRole` branch at `otc.go`. `reactor_api_relay.go`'s comment updated from
   "this gap is open" to naming the proving test. `ai/RFC-REQUIREMENTS.md` regenerated.
 - **`276096afb` -- the destination-side hole (AC-6).** `resolvePeerRole`
-  (`otc.go:459-476`) plus the `peerRoleComplement` table (`:426-432`) resolve what a peer
+  (`otc.go`) plus the `peerRoleComplement` table resolve what a peer
   IS to us from the config complement when it sent no Role capability. Wired at the
-  destination reader (`otc.go:498`).
+  destination reader (`otc.go`).
 - **`d373d9f40` -- the ingress hole (AC-7).** The same resolution applied at the THIRD
-  `getFilterConfig` reader (`otc.go:327`), 155 lines above the other two. Without it an
+  `getFilterConfig` reader (`otc.go`), 155 lines above the other two. Without it an
   empty role returned early and skipped all three Section 5 ingress MUSTs.
 - **`e0607d0f4` -- the source gate on a destination-only rule (AC-8).** The
   `if srcCfg == nil { return true }` early return between the export check and the
@@ -812,11 +812,11 @@ was wire-visible.
 
 ### Documentation Updates
 - `docs/architecture/meta/role.md` -- updated by four of the five commits. Anchors now
-  cover `resolvePeerRole`/`peerRoleComplement` (`:59`), `resolveExport` (`:60`),
-  `extractPeerRoleConfigs` (`:70`), `applyValidateOpen`/`clearFilterRemoteRole`/`filterKeyLocked`
-  (`:82`) and `recordDrop`/`buildMetrics` (`:96`). No metadata KEY changed; what changed
+  cover `resolvePeerRole`/`peerRoleComplement`, `resolveExport`,
+  `extractPeerRoleConfigs`, `applyValidateOpen`/`clearFilterRemoteRole`/`filterKeyLocked`
+  (`:82`) and `recordDrop`/`buildMetrics`. No metadata KEY changed; what changed
   is the documented meaning of an ABSENT `src-role`.
-- `docs/plugin-development/metrics.md:341-342` -- the drop counters, anchored to
+- `docs/plugin-development/metrics.md` -- the drop counters, anchored to
   `role/metrics.go` `recordDrop` and to both filters.
 - `ai/RFC-REQUIREMENTS.md` -- regenerated in four of the five commits; a new or moved
   RFC-tagged test shifts the ledger's `file:line` records and `ze-rfc-check` fails on a
@@ -824,9 +824,9 @@ was wire-visible.
 - `ai/CODE-TO-DOCS.md` -- regenerated by `e0607d0f4`.
 - **Not updated, and it should have been:** `docs/guide/bgp-role.md` (three anchors into
   the role plugin, describing exactly the stamping and suppression behaviour these commits
-  changed) and `docs/architecture/route-selection.md:115` (anchors `otc.go` for "RFC 9234
+  changed) and `docs/architecture/route-selection.md` (anchors `otc.go` for "RFC 9234
   OTC validation"). Found by `grep -rn 'source:.*plugins/role/' docs/` on 2026-07-27.
-- **Known-false claim left standing:** `docs/features/rfc-status.md:25` reads "No tracked
+- **Known-false claim left standing:** `docs/features/rfc-status.md` reads "No tracked
   gap in current source anchors" and credits "unicast-only (AFI 1/2, SAFI 1) OTC scoping".
   The OPEN BLOCKER disproves the scoping claim for the withdrawal shape. It must be
   corrected as part of the AC-11 fix; correcting it first would be recording a defect
@@ -845,13 +845,13 @@ was wire-visible.
 - **"Recoverable EXACTLY" was qualified, not delivered as stated.** The Task section calls
   the config value an exact recovery of `meta["src-role"]`. It is the same FIELD of the
   same peer's config, but read at a different TIME, so a config reload between receive and
-  forward makes them differ. Recorded at `otc.go:383-390` rather than silently accepted.
+  forward makes them differ. Recorded at `otc.go` rather than silently accepted.
 - **An RFC-tagged test's fixture was changed under explicit approval.**
   `TestOTCEgressNoStampProvider` kept its `RFC9234-5-4 negative` tag; its fixture was
   corrected twice (source role, then `LocalAS`) because without `LocalAS` the stamp is
   refused by the `localASN > 0` guard and the test passes with the destination-role gate
   deleted. Both changes ADD failure modes; no assertion was weakened. Marker and date at
-  `otc_test.go:1051-1056`.
+  `otc_test.go`.
 - **The spec is NOT closed.** AC-11 is open, so this is an in-progress spec with a filled
   audit, not a completed one awaiting bookkeeping.
 
@@ -862,45 +862,45 @@ was wire-visible.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Close the missing-metadata gap in `OTCEgressFilter`'s Gao-Rexford safety net | Done | `role/otc.go:404` `resolveSrcRole`, CALLED at `otc.go:518` inside the `destRemoteRole` branch | Fixed at the READ, not at the `RelayStoredRoute` caller, because the gap fires for ANY caller lacking meta |
-| Recover the value EXACTLY from config rather than guessing | Done | `resolveSrcRole` returns `srcCfg.role`, the field `OTCIngressFilter` copies into `meta["src-role"]` at `otc.go:316` | Changed: qualified in the code comment (`otc.go:383-390`). The two agree only at one INSTANT (meta captured at receive, config read at forward), so a config reload between them makes them differ; the relay-time role is the safer one to gate on |
-| Requires changing an RFC-tagged test; ask before writing code | Done | Thomas approved 2026-07-27; `// rfc-test-change-approved:` marker at `otc_test.go:1051-1056` on `TestOTCEgressNoStampProvider` | Approval obtained BEFORE the change, per `ai/rules/testing.md`. Applied twice under the one approval (source role, then `LocalAS`); both ADD failure modes |
-| **RFC 9234 Section 5 procedures apply to a peer that sent no Role capability** | Done | `resolvePeerRole` (`otc.go:459`), called at all THREE `getFilterConfig` readers -- ingress `:327`, egress destination `:498`; the egress source reader `:491` feeds `resolveSrcRole` instead | Requirement NOT in the Task section. Added by commits 2 and 3 after review found the same shape at readers the original fix did not touch |
-| **The Section 5 stamping rule is conditioned on the DESTINATION only** | Done | the `srcCfg == nil` early return deleted; the stamping block at `otc.go:562-584` is now reached from every source | Requirement NOT in the Task section. Added by commit 4 |
+| Close the missing-metadata gap in `OTCEgressFilter`'s Gao-Rexford safety net | Done | `role/otc.go` `resolveSrcRole`, CALLED at `otc.go` inside the `destRemoteRole` branch | Fixed at the READ, not at the `RelayStoredRoute` caller, because the gap fires for ANY caller lacking meta |
+| Recover the value EXACTLY from config rather than guessing | Done | `resolveSrcRole` returns `srcCfg.role`, the field `OTCIngressFilter` copies into `meta["src-role"]` at `otc.go` | Changed: qualified in the code comment (`otc.go`). The two agree only at one INSTANT (meta captured at receive, config read at forward), so a config reload between them makes them differ; the relay-time role is the safer one to gate on |
+| Requires changing an RFC-tagged test; ask before writing code | Done | Thomas approved 2026-07-27; `// rfc-test-change-approved:` marker at `otc_test.go` on `TestOTCEgressNoStampProvider` | Approval obtained BEFORE the change, per `ai/rules/testing.md`. Applied twice under the one approval (source role, then `LocalAS`); both ADD failure modes |
+| **RFC 9234 Section 5 procedures apply to a peer that sent no Role capability** | Done | `resolvePeerRole` (`otc.go`), called at all THREE `getFilterConfig` readers -- ingress `:327`, egress destination `:498`; the egress source reader `:491` feeds `resolveSrcRole` instead | Requirement NOT in the Task section. Added by commits 2 and 3 after review found the same shape at readers the original fix did not touch |
+| **The Section 5 stamping rule is conditioned on the DESTINATION only** | Done | the `srcCfg == nil` early return deleted; the stamping block at `otc.go` is now reached from every source | Requirement NOT in the Task section. Added by commit 4 |
 | **Role config that no reader can look up is rejected, not silently stored** | Done | `role/config.go`, the unreachable-key rejection | Requirement NOT in the Task section. Added by commit 5 |
 | **A capability-learned role does not outlive the session that taught it** | Done | `role/role.go`, cleared at the OPEN | Requirement NOT in the Task section. Added by commit 5. Cleared at the OPEN, not on session down: the structured state event carries no session identity, and for an in-process plugin the down arrives on a different loop, so a late down could delete a role a NEWER session had written |
-| **No suppression is invisible to the operator** | Done | `role/metrics.go` `recordDrop`, one call per `return false` site (`otc.go:348,353,505,520,551`) | Requirement NOT in the Task section. Added by commit 5 |
-| **OTC is applied only to routes being ADVERTISED** | **NOT MET** | no gate exists; `otc.go:562` tests only `mods != nil` and the destination role | RFC 9234 Section 5 egress rule 1 opens with "If a route is to be advertised". This is AC-11 and the closure blocker |
+| **No suppression is invisible to the operator** | Done | `role/metrics.go` `recordDrop`, one call per `return false` site (`otc.go,353,505,520,551`) | Requirement NOT in the Task section. Added by commit 5 |
+| **OTC is applied only to routes being ADVERTISED** | **NOT MET** | no gate exists; `otc.go` tests only `mods != nil` and the destination role | RFC 9234 Section 5 egress rule 1 opens with "If a route is to be advertised". This is AC-11 and the closure blocker |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Done | `TestOTCEgressSuppressProviderLearnedWithoutMeta` (`otc_test.go:1081`), assertion: `assert.False(t, accept, ...)` with `meta == nil` | Mutation-verified: disabling the fallback turns it red |
-| AC-2 | Done | `TestOTCEgressMetaTakesPrecedenceOverConfig` (`otc_test.go:1232`), plus the `TestOTCEgressFilter/src_role_*` subtests (`otc_test.go:600-631`) | The subtests pass meta explicitly from a config-less source, so meta is the only signal there; the dedicated test is the one that discriminates meta from config when BOTH exist |
-| AC-3 | Done | `TestOTCEgressMalformedMetaTakesConfigFallback` (`otc_test.go:1201`) over a source that HAS config, and `TestOTCEgressFilter/meta_wrong_type_not_suppressed` (`otc_test.go:633`) over one that does not | The pair is deliberate. The subtest alone could not detect a `resolveSrcRole` that returned `""` on a malformed value, because its source has no config and the result is `""` either way; the test doc at `otc_test.go:1196-1200` records exactly that |
-| AC-4 | Done | `TestOTCEgressFilter/meta_wrong_type_not_suppressed`; `10.0.0.99` has no `peerRoleConfig` entry | `resolveSrcRole` returns `""` when `srcCfg == nil` (`otc.go:417-420`); `""` matches none of `roleCustomer`/`rolePeer`/`roleRSClient` at `otc.go:519` |
-| AC-5 | Done | `TestOTCEgressNoStampProvider` (`otc_test.go:1036`), assertions `assert.True(t, accept)` and `assert.Equal(t, 0, mods.Len(), ...)` | Keeps its `RFC9234-5-4 negative` tag; the FIXTURE changed twice so the route actually reaches the stamp block. The `LocalAS: 65000` addition is load-bearing: without it the `localASN > 0` guard refuses the stamp and the test passes even with the destination-role gate deleted |
-| AC-6 | Done | `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go:1270`) | Producing code: `resolvePeerRole` at `otc.go:459`, wired at `otc.go:498` |
-| AC-7 | Done | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go:1167`), assertions `require.NotNil(t, modified)` and `assert.Equal(t, uint32(65060), asn)` | Asserts the stamp carries the REMOTE AS, not merely that a stamp happened. Producing code: `otc.go:327` |
-| AC-8 | Done | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go:1120`), assertion `assert.Equal(t, 1, mods.Len(), ...)` from a source with NO config entry | Producing change: the deleted `srcCfg == nil` early return. **Untagged:** this test carries no `RFC requirement:` line, so `ai/RFC-REQUIREMENTS.md` still credits `RFC9234-5-4 positive` to `TestOTCEgressStampMod` (`otc_test.go:966`), whose source DOES have role config. Verified 2026-07-27 by `grep -n 'RFC requirement:' otc_test.go` -- the nearest tags are at `:1080` and `:1324`. Recorded in the OPEN BLOCKER |
-| AC-9 | Done | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go:53`) for the reject, `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept` (`:118`) for the accept, `TestUnusableRoleConfigDoesNotShadowUsablePeers` (`:189`) for the blast radius | Both edges are tested, which is what makes the rejection safe: a peer named for its address still works |
-| AC-10 | Done | Clearing: `TestReconnectWithoutRoleCapabilityClearsStaleRole` (`session_role_test.go:52`) and five siblings, including `TestStaleRoleClearedEvenWhenOpenIsRejected` (`:179`). Counting: `TestRoleDropsAreCounted` (`metrics_test.go:138`), `TestRoleAcceptedRouteIsNotCounted` (`:255`), `TestRoleFirstDropEmitsWarn` (`:302`), `TestRoleMetricsSafeBeforeConfigure` (`:346`) | `TestRoleAcceptedRouteIsNotCounted` is the discriminating half: a counter that increments on every route would pass "drops are counted" while proving nothing |
-| **AC-11** | **NOT MET -- no code, no test** | nothing | The closure blocker. `otc.go:562` has no advertisement gate and `isPayloadUnicast` (`otc.go:100-145`) has no MP_UNREACH awareness. Not Partial and not Skipped: those statuses mean the work was scoped down with approval. This is an unfixed defect on an open spec |
+| AC-1 | Done | `TestOTCEgressSuppressProviderLearnedWithoutMeta` (`otc_test.go`), assertion: `assert.False(t, accept, ...)` with `meta == nil` | Mutation-verified: disabling the fallback turns it red |
+| AC-2 | Done | `TestOTCEgressMetaTakesPrecedenceOverConfig` (`otc_test.go`), plus the `TestOTCEgressFilter/src_role_*` subtests (`otc_test.go`) | The subtests pass meta explicitly from a config-less source, so meta is the only signal there; the dedicated test is the one that discriminates meta from config when BOTH exist |
+| AC-3 | Done | `TestOTCEgressMalformedMetaTakesConfigFallback` (`otc_test.go`) over a source that HAS config, and `TestOTCEgressFilter/meta_wrong_type_not_suppressed` (`otc_test.go`) over one that does not | The pair is deliberate. The subtest alone could not detect a `resolveSrcRole` that returned `""` on a malformed value, because its source has no config and the result is `""` either way; the test doc at `otc_test.go` records exactly that |
+| AC-4 | Done | `TestOTCEgressFilter/meta_wrong_type_not_suppressed`; `10.0.0.99` has no `peerRoleConfig` entry | `resolveSrcRole` returns `""` when `srcCfg == nil` (`otc.go`); `""` matches none of `roleCustomer`/`rolePeer`/`roleRSClient` at `otc.go` |
+| AC-5 | Done | `TestOTCEgressNoStampProvider` (`otc_test.go`), assertions `assert.True(t, accept)` and `assert.Equal(t, 0, mods.Len(), ...)` | Keeps its `RFC9234-5-4 negative` tag; the FIXTURE changed twice so the route actually reaches the stamp block. The `LocalAS: 65000` addition is load-bearing: without it the `localASN > 0` guard refuses the stamp and the test passes even with the destination-role gate deleted |
+| AC-6 | Done | `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go`) | Producing code: `resolvePeerRole` at `otc.go`, wired at `otc.go` |
+| AC-7 | Done | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go`), assertions `require.NotNil(t, modified)` and `assert.Equal(t, uint32(65060), asn)` | Asserts the stamp carries the REMOTE AS, not merely that a stamp happened. Producing code: `otc.go` |
+| AC-8 | Done | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`), assertion `assert.Equal(t, 1, mods.Len(), ...)` from a source with NO config entry | Producing change: the deleted `srcCfg == nil` early return. **Untagged:** this test carries no `RFC requirement:` line, so `ai/RFC-REQUIREMENTS.md` still credits `RFC9234-5-4 positive` to `TestOTCEgressStampMod` (`otc_test.go`), whose source DOES have role config. Verified 2026-07-27 by `grep -n 'RFC requirement:' otc_test.go` -- the nearest tags are at `:1080` and `:1324`. Recorded in the OPEN BLOCKER |
+| AC-9 | Done | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go`) for the reject, `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept` for the accept, `TestUnusableRoleConfigDoesNotShadowUsablePeers` for the blast radius | Both edges are tested, which is what makes the rejection safe: a peer named for its address still works |
+| AC-10 | Done | Clearing: `TestReconnectWithoutRoleCapabilityClearsStaleRole` (`session_role_test.go`) and five siblings, including `TestStaleRoleClearedEvenWhenOpenIsRejected`. Counting: `TestRoleDropsAreCounted` (`metrics_test.go`), `TestRoleAcceptedRouteIsNotCounted`, `TestRoleFirstDropEmitsWarn`, `TestRoleMetricsSafeBeforeConfigure` | `TestRoleAcceptedRouteIsNotCounted` is the discriminating half: a counter that increments on every route would pass "drops are counted" while proving nothing |
+| **AC-11** | **NOT MET -- no code, no test** | nothing | The closure blocker. `otc.go` has no advertisement gate and `isPayloadUnicast` (`otc.go`) has no MP_UNREACH awareness. Not Partial and not Skipped: those statuses mean the work was scoped down with approval. This is an unfixed defect on an open spec |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| Suppression with no meta | Done | `otc_test.go:1081` `TestOTCEgressSuppressProviderLearnedWithoutMeta` | New test; carries `RFC9234-3.1-1 positive` |
-| Stamping scope preserved | Done | `otc_test.go:1036` `TestOTCEgressNoStampProvider` | Fixture changed twice, RFC tag retained, no assertion weakened |
-| Wrong-type meta ignored (no source config) | Done | `otc_test.go:633` `meta_wrong_type_not_suppressed` | Source changed to config-less |
-| Wrong-type meta takes the fallback (with source config) | Done | `otc_test.go:1201` `TestOTCEgressMalformedMetaTakesConfigFallback` | Added because the subtest above cannot distinguish the two implementations |
-| Meta precedence over config | Done | `otc_test.go:1232` `TestOTCEgressMetaTakesPrecedenceOverConfig` | |
-| Destination-side complement | Done | `otc_test.go:1270` | |
-| Ingress-side complement | Done | `otc_test.go:1167` | |
-| Source-independent stamping | Done | `otc_test.go:1120` | Untagged; see AC-8 |
-| Config keying (5 tests) | Done | `config_keying_test.go:53,118,142,157,189` | |
-| Stale-role clearing (6 tests) | Done | `session_role_test.go:52,91,125,151,179,206` | |
-| Drop counters (4 tests) | Done | `metrics_test.go:138,255,302,346` | |
+| Suppression with no meta | Done | `otc_test.go` `TestOTCEgressSuppressProviderLearnedWithoutMeta` | New test; carries `RFC9234-3.1-1 positive` |
+| Stamping scope preserved | Done | `otc_test.go` `TestOTCEgressNoStampProvider` | Fixture changed twice, RFC tag retained, no assertion weakened |
+| Wrong-type meta ignored (no source config) | Done | `otc_test.go` `meta_wrong_type_not_suppressed` | Source changed to config-less |
+| Wrong-type meta takes the fallback (with source config) | Done | `otc_test.go` `TestOTCEgressMalformedMetaTakesConfigFallback` | Added because the subtest above cannot distinguish the two implementations |
+| Meta precedence over config | Done | `otc_test.go` `TestOTCEgressMetaTakesPrecedenceOverConfig` | |
+| Destination-side complement | Done | `otc_test.go` | |
+| Ingress-side complement | Done | `otc_test.go` | |
+| Source-independent stamping | Done | `otc_test.go` | Untagged; see AC-8 |
+| Config keying (5 tests) | Done | `config_keying_test.go,118,142,157,189` | |
+| Stale-role clearing (6 tests) | Done | `session_role_test.go,91,125,151,179,206` | |
+| Drop counters (4 tests) | Done | `metrics_test.go,255,302,346` | |
 | **Withdraw-only payload is not stamped** | **MISSING** | - | AC-11. No unit test, no `.ci`, no interop scenario |
 
 ### Files from Plan
@@ -915,7 +915,7 @@ was wire-visible.
 | `internal/component/bgp/plugins/role/register.go` | Changed | Not in the original plan. Metric registration wiring |
 | `internal/component/bgp/reactor/reactor_api_relay.go` | Changed | Not in the original plan. Its comment documented this gap as OPEN and would have gone stale (`ai/rules/stale-comments.md`) |
 | `ai/RFC-REQUIREMENTS.md`, `ai/CODE-TO-DOCS.md` | Changed | Not in the original plan. Regenerated: a new or moved RFC-tagged test shifts the ledger and `ze-rfc-check` fails on a stale one |
-| `docs/architecture/meta/role.md`, `docs/plugin-development/metrics.md` | Changed | Not in the original plan; required by `ai/rules/documentation.md` once metadata semantics and counters changed |
+| `docs/architecture/meta/role.md`, `docs/plugin-development/metrics.md` | Changed | Not in the original plan; required by `ai/rules/writing.md` once metadata semantics and counters changed |
 | `docs/guide/bgp-role.md`, `docs/architecture/route-selection.md` | **NOT updated** | Both carry source anchors into the changed code and describe the changed behaviour. A real omission, found 2026-07-27 |
 
 ### Audit Summary
@@ -932,7 +932,7 @@ was wire-visible.
 
 **Audit verdict: this spec CANNOT be closed.** Ten of eleven ACs are met with code and
 tests, but AC-11 is an unfixed, reproducible, wire-visible defect in the exact function
-this spec exists to correct, and `ai/rules/no-partial-completion.md` makes "done with the
+this spec exists to correct, and `ai/rules/completion.md` makes "done with the
 following outstanding" a contradiction rather than a status.
 
 ## Goal Validation (BLOCKING)
@@ -947,11 +947,11 @@ following outstanding" a contradiction rather than a status.
 | No false suppression is introduced | Full-suite regression | `make ze-test-bgp` exit 0 (includes every `TestOTCEgress*` and the reactor forward/relay tests). Independently reviewed for wrongly-suppressing call sites -- see Review Gate |
 | The RFC 9234-5-4 obligation stays PROVEN, not just green | RFC ledger + non-vacuity argument | `ai/RFC-REQUIREMENTS.md` still lists `RFC9234-5-4` with `otc_test.go` as its negative proof, and the fixture was changed rather than the assertion precisely so the test still reaches the stamping block; flipping the assertion would have made the tag hold for the wrong reason |
 | The relay path specifically is covered | Code reading + comment | `reactor_api_relay.go` builds the replayed update with `Meta: nil`, which is exactly the shape the new test drives; its comment now records the gap as closed and names the proving test |
-| RFC 9234 Section 5 gates are not skipped for a peer that sent no Role capability | Unit tests at all three readers | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go:1167`) asserts the ingress stamp carries the remote AS `65060`; `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go:1270`) asserts the egress suppression. Both re-run 2026-07-27: PASS. Non-vacuity: each drives a fixture with NO `setFilterRemoteRole` call, so the capability-only code path returns `""` and the test can only pass through the config complement |
-| The Section 5 stamping MUST is not gated on the source | Unit test over a source with no config at all | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go:1120`): `mods.Len() == 1` with source `10.0.0.70` absent from `setFilterState`. Re-run 2026-07-27: PASS. **Evidence caveat, stated rather than glossed:** this test carries no `RFC requirement:` tag, so the ledger's `RFC9234-5-4 positive` claim still rests on `TestOTCEgressStampMod` (`otc_test.go:966`), whose source IS configured. The behaviour is proven; the LEDGER's proof of it is not the test that discriminates |
-| A `role` block an operator writes actually takes effect, or says why not | Unit tests on both edges | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go:53`) and `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept` (`:118`). Re-run 2026-07-27: PASS |
-| A role learned from a capability does not outlive its session | Unit tests over a reconnect | six tests in `session_role_test.go`, including `TestStaleRoleClearedEvenWhenOpenIsRejected` (`:179`). Re-run 2026-07-27: PASS |
-| No suppression is invisible | Unit tests, including the discriminating negative | `TestRoleDropsAreCounted` (`metrics_test.go:138`) plus `TestRoleAcceptedRouteIsNotCounted` (`:255`), which is what stops a counter that increments on every route from reading as proof. Re-run 2026-07-27: PASS |
+| RFC 9234 Section 5 gates are not skipped for a peer that sent no Role capability | Unit tests at all three readers | `TestOTCIngressStampsWhenPeerSentNoRoleCapability` (`otc_test.go`) asserts the ingress stamp carries the remote AS `65060`; `TestOTCEgressSuppressToProviderWithoutRoleCapability` (`otc_test.go`) asserts the egress suppression. Both re-run 2026-07-27: PASS. Non-vacuity: each drives a fixture with NO `setFilterRemoteRole` call, so the capability-only code path returns `""` and the test can only pass through the config complement |
+| The Section 5 stamping MUST is not gated on the source | Unit test over a source with no config at all | `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` (`otc_test.go`): `mods.Len() == 1` with source `10.0.0.70` absent from `setFilterState`. Re-run 2026-07-27: PASS. **Evidence caveat, stated rather than glossed:** this test carries no `RFC requirement:` tag, so the ledger's `RFC9234-5-4 positive` claim still rests on `TestOTCEgressStampMod` (`otc_test.go`), whose source IS configured. The behaviour is proven; the LEDGER's proof of it is not the test that discriminates |
+| A `role` block an operator writes actually takes effect, or says why not | Unit tests on both edges | `TestRoleConfigWithoutUsableRemoteIPIsRejected` (`config_keying_test.go`) and `TestRoleConfigNamedByAddressWithoutConnectionBlockIsKept`. Re-run 2026-07-27: PASS |
+| A role learned from a capability does not outlive its session | Unit tests over a reconnect | six tests in `session_role_test.go`, including `TestStaleRoleClearedEvenWhenOpenIsRejected`. Re-run 2026-07-27: PASS |
+| No suppression is invisible | Unit tests, including the discriminating negative | `TestRoleDropsAreCounted` (`metrics_test.go`) plus `TestRoleAcceptedRouteIsNotCounted`, which is what stops a counter that increments on every route from reading as proof. Re-run 2026-07-27: PASS |
 | **OTC is applied only to routes being advertised** | **NONE** | **This goal is NOT achieved.** No test, no `.ci`, no interop scenario asserts it, and the producing code has no gate. `ai/rules/interop-and-goal-validation.md` forbids marking a goal row "N/A" or "blocked" to avoid the work; the honest entry is that the goal fails. The interop scenario for it would be genuinely non-vacuous, which is rare for this spec: reverting the fix makes a conforming receiver session-reset per RFC 7606 Section 5.2, so the peer's observable behaviour changes |
 
 **Goal-validation verdict: incomplete.** Every goal the Task section states is achieved
@@ -991,7 +991,7 @@ last, and the last is the one with wire-visible, interop-fatal consequences.
 
 Re-verified 2026-07-27 by running the commands below, not by re-reading the audit. All
 `go test` runs use the full default-on feature tags
-(`ze_core` + every `ze_*` in `feature-gates.txt`), per `ai/rules/bash-output.md`: a bare
+(`ze_core` + every `ze_*` in `feature-gates.txt`), per `ai/rules/commands.md`: a bare
 `go test` drops the tags and fabricates reds. Line numbers below are from the CURRENT
 tree; the earlier version of this section cited pre-`f5dd2f040` numbers (`resolveSrcRole`
 at `:392`, called at `:435`) which no longer resolve.
@@ -1014,48 +1014,48 @@ at `:392`, called at `:435`) which no longer resolve.
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 | Suppression fires with `meta == nil` | `grep -n 'resolveSrcRole' otc.go` -> defined at `:404`, CALLED at `:518` inside the `destRemoteRole` branch (not defined-only). `go test -race -run TestOTCEgressSuppressProviderLearnedWithoutMeta` -> `--- PASS` |
-| AC-2 | Explicit meta still wins | `resolveSrcRole` (`:405-407`) returns the meta string before consulting `srcCfg` at `:417`. `go test -race -run TestOTCEgressMetaTakesPrecedenceOverConfig` -> `--- PASS` |
-| AC-3 | Non-string meta takes the fallback | The `ok && role != ""` guard at `otc.go:406` fails for a non-string, so control falls to the `srcCfg` branch at `:417`, and `:414` WARNs on the way. `go test -race -run TestOTCEgressMalformedMetaTakesConfigFallback` -> `--- PASS` |
-| AC-4 | No config -> no suppression | `resolveSrcRole` returns `""` at `otc.go:420` when `srcCfg == nil`; `""` matches none of `roleCustomer`/`rolePeer`/`roleRSClient` at `:519`. Covered by the `meta_wrong_type_not_suppressed` subtest |
-| AC-5 | Legit transit still accepted and unstamped | `go test -race -run TestOTCEgressNoStampProvider` -> `--- PASS`. Assertion re-read, not inferred: `assert.Equal(t, 0, mods.Len(), "no mod should be written for Provider destination")` at `otc_test.go:1065` |
+| AC-2 | Explicit meta still wins | `resolveSrcRole` returns the meta string before consulting `srcCfg` at `:417`. `go test -race -run TestOTCEgressMetaTakesPrecedenceOverConfig` -> `--- PASS` |
+| AC-3 | Non-string meta takes the fallback | The `ok && role != ""` guard at `otc.go` fails for a non-string, so control falls to the `srcCfg` branch at `:417`, and `:414` WARNs on the way. `go test -race -run TestOTCEgressMalformedMetaTakesConfigFallback` -> `--- PASS` |
+| AC-4 | No config -> no suppression | `resolveSrcRole` returns `""` at `otc.go` when `srcCfg == nil`; `""` matches none of `roleCustomer`/`rolePeer`/`roleRSClient` at `:519`. Covered by the `meta_wrong_type_not_suppressed` subtest |
+| AC-5 | Legit transit still accepted and unstamped | `go test -race -run TestOTCEgressNoStampProvider` -> `--- PASS`. Assertion re-read, not inferred: `assert.Equal(t, 0, mods.Len(), "no mod should be written for Provider destination")` at `otc_test.go` |
 | AC-6 | Destination role resolves from config when no capability | `grep -n 'resolvePeerRole' otc.go` -> defined `:459`, called `:327` and `:498`. `go test -race -run TestOTCEgressSuppressToProviderWithoutRoleCapability` -> `--- PASS` |
 | AC-7 | Ingress MUSTs run for a capability-less peer | `go test -race -run TestOTCIngressStampsWhenPeerSentNoRoleCapability` -> `--- PASS`; assertion is `assert.Equal(t, uint32(65060), asn)`, i.e. the REMOTE AS, not merely "a stamp happened" |
-| AC-8 | Stamping is destination-conditioned only | `go test -race -run TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` -> `--- PASS`. Read `otc.go:527-557` to confirm no `srcCfg == nil` early return remains between the export check and the stamping block: the only `srcCfg` test left is `if srcCfg != nil && len(srcCfg.resolvedExport) > 0` at `:538`, which guards the EXPORT match and falls through |
+| AC-8 | Stamping is destination-conditioned only | `go test -race -run TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` -> `--- PASS`. Read `otc.go` to confirm no `srcCfg == nil` early return remains between the export check and the stamping block: the only `srcCfg` test left is `if srcCfg != nil && len(srcCfg.resolvedExport) > 0` at `:538`, which guards the EXPORT match and falls through |
 | AC-9 | Unreachable role config rejected | `go test -race -run 'TestRoleConfig|TestRoleCapabilityNotDeclared|TestUnusableRoleConfig'` -> `ok ... 1.413s` |
 | AC-10 | Stale roles cleared; drops counted | `go test -race -run 'TestReconnect|TestClearedRole|TestStaleRole|TestRoleAccepted|TestRoleFirstDrop|TestRoleMetrics'` -> `ok ... 1.413s`. `grep -n 'recordDrop' otc.go` -> five call sites (`:348,353,505,520,551`), matching the five `return false` / reject paths |
-| **AC-11** | **no OTC on a withdraw-only payload** | **FAILS.** `grep -rn -i 'unreach' internal/component/bgp/plugins/role/*.go` returns no code hit (only the `treat-as-withdraw` comments in `otc.go`). `otc.go:562` reads `if mods != nil && (destRemoteRole == roleCustomer || ...)` with no advertisement test. `otc.go:144` returns `true` for any payload with no MP_REACH, which includes every MP_UNREACH-only payload |
+| **AC-11** | **no OTC on a withdraw-only payload** | **FAILS.** `grep -rn -i 'unreach' internal/component/bgp/plugins/role/*.go` returns no code hit (only the `treat-as-withdraw` comments in `otc.go`). `otc.go` reads `if mods != nil && (destRemoteRole == roleCustomer || ...)` with no advertisement test. `otc.go` returns `true` for any payload with no MP_REACH, which includes every MP_UNREACH-only payload |
 | Whole package | no regression | `go test -race -count=1 ./internal/component/bgp/plugins/role/` -> `ok github.com/ze-software/ze/internal/component/bgp/plugins/role 5.110s` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `RelayStoredRoute` -> `OTCEgressFilter` with `Meta: nil` | none | NO `.ci` for this path, stated rather than implied. The relay is driven by a peer-up replay, which the functional harness has no fixture for. Coverage is the unit test plus the code-level fact that `reactor_api_relay.go` sets `Meta: nil`. `ai/rules/functional-test-gate.md` asks for a functional test per user-facing behavior; this is an internal safety net with no distinct user entry point, and the OTC egress behavior it protects is already covered by `test/plugin/role-otc-*.ci` |
+| `RelayStoredRoute` -> `OTCEgressFilter` with `Meta: nil` | none | NO `.ci` for this path, stated rather than implied. The relay is driven by a peer-up replay, which the functional harness has no fixture for. Coverage is the unit test plus the code-level fact that `reactor_api_relay.go` sets `Meta: nil`. `ai/rules/testing.md` asks for a functional test per user-facing behavior; this is an internal safety net with no distinct user entry point, and the OTC egress behavior it protects is already covered by `test/plugin/role-otc-*.ci` |
 | Ingress/egress role gates for a capability-less peer | `test/plugin/role-otc-export-unknown.ci` | Partially. That `.ci` exists to prove `export unknown` still targets capability-less peers after the `resolvePeerRole` widening -- it is the regression guard for R-4, not a positive proof of the widening itself. The widening's proof is the two unit tests. Stated rather than claimed as end-to-end |
 | The egress stamp reaching the wire | `test/plugin/role-otc-egress-stamp.ci` | Yes -- byte-level: it asserts the OTC attribute in the UPDATE a Customer peer receives, which is the only thing that proves `mods.Op` -> `buildModifiedPayload` -> `otcAttrModHandler` actually emits bytes. The unit tests stop at `mods.Len()` |
-| The unicast family gate | `test/plugin/role-otc-unicast-scope.ci` | Yes for the MP_REACH branch. **No for the withdrawal shape** -- which is the AC-11 gap, and is why the `docs/features/rfc-status.md:25` "unicast-only scoping" claim is not fully backed |
+| The unicast family gate | `test/plugin/role-otc-unicast-scope.ci` | Yes for the MP_REACH branch. **No for the withdrawal shape** -- which is the AC-11 gap, and is why the `docs/features/rfc-status.md` "unicast-only scoping" claim is not fully backed |
 | **A withdraw-only UPDATE toward a Customer** | **none** | **MISSING.** AC-11 |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 "the value is recoverable EXACTLY" (Task) | **Confirmed, with a caveat** | Same config field on both sides: `OTCIngressFilter` writes `cfg.role` into `meta["src-role"]` at `otc.go:316` from the lookup at `:312`; `OTCEgressFilter` performs the same lookup at `:491` and `resolveSrcRole` returns `srcCfg.role` at `:418`. Caveat recorded in code (`otc.go:383-390`) and in the audit: they agree at one instant, not across a config reload |
+| A-1 "the value is recoverable EXACTLY" (Task) | **Confirmed, with a caveat** | Same config field on both sides: `OTCIngressFilter` writes `cfg.role` into `meta["src-role"]` at `otc.go` from the lookup at `:312`; `OTCEgressFilter` performs the same lookup at `:491` and `resolveSrcRole` returns `srcCfg.role` at `:418`. Caveat recorded in code (`otc.go`) and in the audit: they agree at one instant, not across a config reload |
 | A-2 "`RelayStoredRoute` is not the only caller that can lack meta" | **Confirmed by events** | Three further readers of the same shape were found in different call paths by review rounds 1-3, which is why the fix is at the read |
-| A-3 "landing it requires changing an RFC-tagged test" (Task) | **Confirmed** | The pre-write hook blocked the edit until `// rfc-test-change-approved:` was present; Thomas approved 2026-07-27. Marker at `otc_test.go:1051-1056` |
+| A-3 "landing it requires changing an RFC-tagged test" (Task) | **Confirmed** | The pre-write hook blocked the edit until `// rfc-test-change-approved:` was present; Thomas approved 2026-07-27. Marker at `otc_test.go` |
 | A-4 "an empty `filterRemoteRoles` value means the peer advertised no role" | **Broken** | It also meant "never recorded" and "recorded by a previous session and never cleared". The second half is fixed (`role.go`, cleared at the OPEN, proven by `session_role_test.go`); the first half is a live deferral homed on `plan/spec-fixit-stored-route-relay-hardening.md` |
-| A-5 "`role` config reaches the filters however the peer is named" | **Broken** | `grep -n 'getFilterConfig' otc.go` -> all three readers key by `Address.String()` (`:312`, `:491`, `:492`), so a name-keyed entry was unreachable. Fixed by rejecting unreachable keys; proven by `config_keying_test.go` |
+| A-5 "`role` config reaches the filters however the peer is named" | **Broken** | `grep -n 'getFilterConfig' otc.go` -> all three readers key by `Address.String()`, so a name-keyed entry was unreachable. Fixed by rejecting unreachable keys; proven by `config_keying_test.go` |
 
 No assumption is left `unvalidated`.
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| `docs/architecture/meta/role.md` reflects the changed `src-role` semantics and the new resolution helpers | `grep -rn 'source:.*plugins/role/' docs/` -> anchors at `meta/role.md:3,27,49,59,60,70,82,96`, covering `resolvePeerRole`/`peerRoleComplement`, `resolveExport`, `extractPeerRoleConfigs`, `applyValidateOpen`/`clearFilterRemoteRole`/`filterKeyLocked`, and `recordDrop`/`buildMetrics` -- i.e. every symbol the five commits added | Yes |
+| `docs/architecture/meta/role.md` reflects the changed `src-role` semantics and the new resolution helpers | `grep -rn 'source:.*plugins/role/' docs/` -> anchors at `meta/role.md,27,49,59,60,70,82,96`, covering `resolvePeerRole`/`peerRoleComplement`, `resolveExport`, `extractPeerRoleConfigs`, `applyValidateOpen`/`clearFilterRemoteRole`/`filterKeyLocked`, and `recordDrop`/`buildMetrics` -- i.e. every symbol the five commits added | Yes |
 | `docs/plugin-development/metrics.md` documents the drop counters | anchors at `:341-342` to `role/metrics.go` `recordDrop` and to both filters; the prose above them explains why a filtering plugin needs metrics even when it holds no state | Yes |
-| `ai/RFC-REQUIREMENTS.md` regenerated | `make ze-rfc-index` run in the implementing commits; the ledger gained `RFC9234-3.1-1` from `otc_test.go:1080` and absorbed the `file:line` shifts. `grep -c 'RFC requirement:' otc_test.go` -> 21 tags | Yes |
+| `ai/RFC-REQUIREMENTS.md` regenerated | `make ze-rfc-index` run in the implementing commits; the ledger gained `RFC9234-3.1-1` from `otc_test.go` and absorbed the `file:line` shifts. `grep -c 'RFC requirement:' otc_test.go` -> 21 tags | Yes |
 | `reactor_api_relay.go` comment no longer stale | It previously described this gap as open; now records it closed and names the proving test | Yes |
-| **`docs/guide/bgp-role.md` NOT updated** | It carries three anchors into the role plugin (`:4`, `:63`, `:88`) and describes when OTC is stamped and when routes are suppressed -- the exact behaviour five commits changed. No commit in this set touched it. Found by the grep above, not assumed | **No -- gap** |
-| **`docs/architecture/route-selection.md:115` NOT revisited** | Anchors `otc.go` for "RFC 9234 OTC validation". Whether its claim is still accurate after the `resolvePeerRole` widening was not checked | **No -- gap** |
-| **`docs/features/rfc-status.md:25` carries a claim now known to be false** | The row reads "No tracked gap in current source anchors" and credits "unicast-only (AFI 1/2, SAFI 1) OTC scoping". The OPEN BLOCKER shows the scoping does not hold for a withdraw-only payload | **No -- must be corrected WITH the AC-11 fix.** Correcting the doc first would be recording a defect instead of fixing it (`ai/rules/no-parking.md`) |
+| **`docs/guide/bgp-role.md` NOT updated** | It carries three anchors into the role plugin and describes when OTC is stamped and when routes are suppressed -- the exact behaviour five commits changed. No commit in this set touched it. Found by the grep above, not assumed | **No -- gap** |
+| **`docs/architecture/route-selection.md` NOT revisited** | Anchors `otc.go` for "RFC 9234 OTC validation". Whether its claim is still accurate after the `resolvePeerRole` widening was not checked | **No -- gap** |
+| **`docs/features/rfc-status.md` carries a claim now known to be false** | The row reads "No tracked gap in current source anchors" and credits "unicast-only (AFI 1/2, SAFI 1) OTC scoping". The OPEN BLOCKER shows the scoping does not hold for a withdraw-only payload | **No -- must be corrected WITH the AC-11 fix.** Correcting the doc first would be recording a defect instead of fixing it (`ai/rules/completion.md`) |
 | `make ze-doc-test` | Not run: this spec-fill pass edited no file under `docs/`. It was run by the implementing commits that did | n/a for this pass |
 
 ## Checklist

@@ -90,7 +90,7 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 	// as the original size guard did. The offending producer is identifiable from
 	// one line, which is the whole point: the route-server arity violation this
 	// replaced went unnoticed from the day it was introduced because the guard
-	// never spoke (ai/rules/fail-closed-guards.md).
+	// never spoke (ai/rules/evidence.md).
 	//
 	// The attribute's other operations still apply. Dropping them would turn one
 	// producer's bug into a second, wider behavior change.

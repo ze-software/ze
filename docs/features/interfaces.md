@@ -411,8 +411,8 @@ interface {
 
 `private-key` and peer `preshared-key` are marked `ze:sensitive` in YANG.
 The config parser auto-decodes `$9$`-prefixed values on load
-(`internal/component/config/parser.go:127`); `ze config show` / `ze config
-dump` always re-encodes them on output (`internal/component/config/cli/cmd_dump.go:132`),
+(`internal/component/config/parser.go`); `ze config show` / `ze config
+dump` always re-encodes them on output (`internal/component/config/cli/cmd_dump.go`),
 so the plaintext base64 form never reaches the config file on disk. Public
 keys are public and stored plaintext.
 

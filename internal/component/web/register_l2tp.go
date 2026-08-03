@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- L2TP web routes self-registration
+// Design: ai/rules/plugins.md -- L2TP web routes self-registration
 // Related: handler_l2tp.go -- the handlers these routes serve
 
 //go:build ze_l2tp

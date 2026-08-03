@@ -69,7 +69,7 @@ func stateChangedString(p *plugin.PeerInfo) string {
 // cmdRibStatus is the bgp-rib plugin's status command. Kept as a string
 // constant, not an import: cmd/peer reaches the RIB plugin's per-peer route
 // counts by runtime dispatch (ForwardToPlugin), preserving plugin
-// self-containment, exactly as cmd/rib does. See ai/rules/plugin-self-containment.md.
+// self-containment, exactly as cmd/rib does. See ai/rules/plugins.md.
 const cmdRibStatus = "show bgp rib status"
 
 // ribRouteCount is a peer's Adj-RIB-In (in) and Adj-RIB-Out (out) size.
@@ -135,7 +135,7 @@ func parseRibRouteCounts(raw []byte) map[string]ribRouteCount {
 // are both the Adj-RIB-In size: Ze retains only accepted routes (rejects are
 // dropped at the reactor gate and never stored), so there is no separate
 // pre-policy received count here. routes-filtered is deliberately never emitted
-// — Ze does not retain filtered routes (ai/rules/project-knowledge.md).
+// — Ze does not retain filtered routes (ai/rules/repo-maintenance.md).
 // When counts is nil (RIB absent) the keys are omitted rather than faked to 0.
 func mergeRibRouteCounts(row map[string]any, addr string, counts map[string]ribRouteCount) {
 	c, ok := counts[addr]

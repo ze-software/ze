@@ -21,8 +21,8 @@ transitive `mdlayher/genetlink` + `mdlayher/netlink` dependencies.
 
 - **`ze:sensitive` + `$9$` encoding for keys**, not file paths or env
   vars. The parser already auto-decodes `$9$` on load
-  (`internal/component/config/parser.go:127`) and dumps auto-encode on
-  output (`cmd/ze/config/cmd_dump.go:132`); wireguard joins this path
+  (`internal/component/config/parser.go`) and dumps auto-encode on
+  output (`cmd/ze/config/cmd_dump.go`); wireguard joins this path
   for free. JunOS-compatible obfuscation, same posture as BGP MD5
   passwords and other sensitive leaves -- config file permissions are
   the actual protection. File-path keys were rejected as a cross-cutting
@@ -145,7 +145,7 @@ transitive `mdlayher/genetlink` + `mdlayher/netlink` dependencies.
   `docs/features/interfaces.md` "Key material and $9$ encoding",
   same posture as BGP MD5.
 - **Config-parser tree auto-renames duplicate list keys** with `#N`
-  suffixes (`internal/component/config/tree.go:227`). Two `peer
+  suffixes (`internal/component/config/tree.go`). Two `peer
   site1 { ... }` blocks in the same wireguard become `site1` and
   `site1#1` in the tree map. The parser no longer sees a duplicate,
   so AC-9 ("reject duplicate peer names") cannot be enforced at

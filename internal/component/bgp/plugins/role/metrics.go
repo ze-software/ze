@@ -23,7 +23,7 @@ const (
 
 // dropReason identifies why the role plugin refused a route. It is a typed
 // numeric enum rather than a string because it indexes the pre-resolved counter
-// array on the forward path (ai/rules/enum-over-string.md); the string form
+// array on the forward path (ai/rules/go-standards.md); the string form
 // exists only at the metric-label and log boundaries.
 type dropReason uint8
 
@@ -70,7 +70,7 @@ type roleMetrics struct {
 	// drops[r] is the child counter for reason r, resolved once at build time.
 	// CounterVec.With allocates a []string for its variadic on every call, so
 	// resolving the label here keeps the forward path allocation-free
-	// (ai/rules/memory-architecture.md). Pre-creating every child also makes
+	// (ai/rules/performance.md). Pre-creating every child also makes
 	// each series present at 0 from startup, so an alert on a rate does not
 	// depend on the series having appeared.
 	drops [dropReasonCount]metrics.Counter
@@ -131,14 +131,14 @@ func resetDropWarnedForTest() {
 // refuses. It counts the drop, and the first time each reason occurs in this
 // process it also emits one WARN naming the peer.
 //
-// Why both, and why the latch (ai/rules/fail-closed-guards.md "or say
+// Why both, and why the latch (ai/rules/evidence.md "or say
 // something"): these paths previously logged at Debug and nothing else, so at
 // the default log level a peer's advertisements could be withheld with no
 // signal at all -- including because of a role typo that used to be inert. A
 // counter answers "how many and why" but only for an operator already scraping
 // and alerting; the first-occurrence WARN answers "did this start happening"
 // from the log alone, with zero setup. Neither may cost a per-UPDATE log or
-// allocation on the forward path (ai/rules/no-sprintf-alloc.md), so the counter
+// allocation on the forward path (ai/rules/performance.md), so the counter
 // is a pre-resolved Inc and the WARN is behind an atomic latch: at most one
 // line per reason per process, and the fast path is a single atomic load with
 // no closure and no boxed arguments. Per-route detail stays at Debug.

@@ -46,7 +46,7 @@ func TestResolveBGPTreeWithoutEngineIsEmptyNotNil(t *testing.T) {
 // PREVENTS: the drift case where the bgp{} YANG schema is linked but the engine
 // is not -- `ze config dump` would print a config with its whole BGP section
 // missing, and `ze config validate` would report it valid having checked none
-// of it (ai/rules/fail-closed-guards.md).
+// of it (ai/rules/evidence.md).
 func TestResolveBGPTreeWithoutEngineRejectsBGPConfig(t *testing.T) {
 	restore := swapResolver(nil)
 	defer restore()

@@ -83,7 +83,7 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 	// Probes dispatch "request bgp watchdog announce/withdraw" -- a command owned
 	// by the bgp-watchdog plugin -- so they may only run once the engine has
 	// finished every startup phase and frozen the dispatcher command registry
-	// (ai/rules/plugin-design.md, OnStarted vs OnAllPluginsReady). applyConfig
+	// (ai/rules/plugins.md, OnStarted vs OnAllPluginsReady). applyConfig
 	// still starts the goroutines at stage 2; markReady is what lets them act.
 	p.OnAllPluginsReady(func() error {
 		mgr.markReady()
@@ -168,7 +168,7 @@ func (m *probeManager) markReady() {
 // after which every later dispatch gets "mux conn read error: EOF" and the
 // plugin is dead for the process lifetime. Only load makes the window wide
 // enough to hit, which is why it surfaced under scripts/dev/stress-repro.py and
-// not in a quiet run. ai/rules/plugin-design.md states the rule this restores:
+// not in a quiet run. ai/rules/plugins.md states the rule this restores:
 // a DispatchCommand aimed at another plugin's command (here bgp-watchdog's
 // "request bgp watchdog announce") belongs after the dispatcher command
 // registry is frozen, which is what OnAllPluginsReady signals.

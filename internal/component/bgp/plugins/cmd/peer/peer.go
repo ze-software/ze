@@ -367,7 +367,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	// forms the YANG leaf advertises, so `request peer as65001 teardown` failed
 	// with "unknown peer" while `request peer as65001 pause` -- the same
 	// selector, the same peer, the adjacent verb -- succeeded. The wildcard and
-	// exclusion refusals come with it (ai/rules/derive-not-hardcode.md).
+	// exclusion refusals come with it (ai/rules/evidence.md).
 	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "teardown")
 	if err != nil {
 		return errResp, err
@@ -546,7 +546,7 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	// found no worker for it, returned immediately, and the handler reported
 	// StatusDone. A typo'd peer name therefore claimed to have drained a queue it
 	// never looked at -- a silent no-op reported as success, which is the one
-	// thing a barrier must never do (ai/rules/fail-closed-guards.md). It now
+	// thing a barrier must never do (ai/rules/evidence.md). It now
 	// errors with the selector quoted.
 	//
 	// An unmatched ADDRESS still passes through unchanged, which is

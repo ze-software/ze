@@ -177,7 +177,7 @@ creates is a concurrency the real suite ever has.
 
 - `plan/known-failures/bgp-plugin-rs-forward-duplicate-and-order.md` -- the
   destination-side half of Shape 1, still open
-- `ai/rules/flaky-under-load.md` -- the stress reproducer, and why "passes in
+- `ai/rules/testing.md` -- the stress reproducer, and why "passes in
   isolation" is a symptom rather than a conclusion
 - `ai/skills/ze-test.md` -- the draft-first test workflow this produced
 

@@ -51,5 +51,5 @@ inline instead of delegating, which is the one failure the delegation nudge repo
 - `.claude/hooks/pre-compact-save.sh`, `pretool-writeedit.py`, `mark-agent-spawned.sh` -- marker paths
 - `scripts/dev/hook-fixture-check.py` -- 35 fixtures in the `delegation` section
 - `scripts/dev/spec-closure-check.py`, `scripts/dev/spec_closure_check_test.go`
-- `ai/rules/hook-mapping.md`, `ai/rules/spec-delegation.md`, `ai/rules/planning.md`, `.claude/hooks/README.md`
+- `ai/rules/repo-maintenance.md`, `ai/rules/planning.md`, `ai/rules/planning.md`, `.claude/hooks/README.md`
 - `plan/learned/1306-delegation-reminder-position.md`, `plan/learned/1289-delegation-by-default.md` -- dated corrections

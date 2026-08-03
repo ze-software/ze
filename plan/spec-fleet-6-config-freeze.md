@@ -46,7 +46,7 @@ Three pieces:
    fleet). If it differs, the device **holds** -- it keeps running its current config and does NOT
    auto-apply the hub config -- and marks itself `diverged`. If it does not differ, the normal
    fetch/apply path runs unchanged. Without this, `ze fleet enable` would hit the existing
-   unconditional-apply path (`client.go:193`) and silently overwrite the emergency edit.
+   unconditional-apply path (`client.go`) and silently overwrite the emergency edit.
 
 Resolution of a `diverged` device (the commit-style diff, adopt/revert, the `config-push`
 up-verb) is `spec-fleet-7`. Until fleet-7 lands, a diverged device holds safely and the operator
@@ -75,9 +75,9 @@ Transport (TLS) and authentication (pre-declared per-client shared secret) are *
   -> Constraint: `ze fleet` commands register through the normal CLI command path
 
 **Key insights:**
-- `cfg.Version` is initialized at startup to `fleet.VersionHash(currentCachedConfig)` (`ze_core_start.go:325`), so it equals the live config and cannot serve as a baseline. A separate persisted baseline is required.
-- `fetchAndProcess` (`client.go:178-202`) applies hub config unconditionally when versions differ; the hold check must gate this.
-- The managed client runs as `go managed.RunManagedClient(managedCtx, ...)`; cancelling its context is the clean way to sever immediately (`notificationLoop` selects on `ctx.Done()` at `client.go:227`).
+- `cfg.Version` is initialized at startup to `fleet.VersionHash(currentCachedConfig)` (`ze_core_start.go`), so it equals the live config and cannot serve as a baseline. A separate persisted baseline is required.
+- `fetchAndProcess` (`client.go`) applies hub config unconditionally when versions differ; the hold check must gate this.
+- The managed client runs as `go managed.RunManagedClient(managedCtx, ...)`; cancelling its context is the clean way to sever immediately (`notificationLoop` selects on `ctx.Done()` at `client.go`).
 - `ClientConfig.OnCommit` (hub-apply) and the editor commit functions are different code paths; the freeze guard on the editor functions cannot affect hub-apply.
 
 ## Current Behavior (MANDATORY)
@@ -156,14 +156,14 @@ Transport (TLS) and authentication (pre-declared per-client shared secret) are *
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | `CommitSession`/`CommitSessionCandidate` are the only operator write paths for the active config (web/SSH delegate to them) | `editor_commit.go`, agent survey | A bypass path stomps the freeze | grep all callers of `WriteFile(e.originalPath)` and `WriteCandidateVersion` | unvalidated |
-| A-2 | `OnCommit` is the single point where hub config is applied, so baseline writes there cover all hub-applies | `cmd/ze/hub/managed.go`, `client.go:193` | Baseline goes stale; false divergence | trace all `OnCommit` invocations | unvalidated |
-| A-3 | Cancelling `managedCtx` cleanly drops a live connection | `client.go:227` selects on `ctx.Done()` | `disable` is not immediate | `TestManagedImmediateSever` | unvalidated |
+| A-2 | `OnCommit` is the single point where hub config is applied, so baseline writes there cover all hub-applies | `cmd/ze/hub/managed.go`, `client.go` | Baseline goes stale; false divergence | trace all `OnCommit` invocations | unvalidated |
+| A-3 | Cancelling `managedCtx` cleanly drops a live connection | `client.go` selects on `ctx.Done()` | `disable` is not immediate | `TestManagedImmediateSever` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Single-writer is editor-level only; raw `ze data write` to the blob bypasses both guards (device and hub side) | A diverged device whose hub config also changed offline | Document the soft enforcement; the persisted baseline still attributes divergence safely (hold, never stomp). A future spec may guard the blob write path |
-| R-2 | `ze fleet enable` runtime re-enable may not restart the client goroutine (started once at `main.go:877`) | `enable` has no effect until restart | Wire a restart, or have `status`/docs state enable takes effect on next `ze start` |
+| R-2 | `ze fleet enable` runtime re-enable may not restart the client goroutine (started once at `main.go`) | `enable` has no effect until restart | Wire a restart, or have `status`/docs state enable takes effect on next `ze start` |
 | R-3 | A diverged device cannot be resolved in-band until fleet-7 | Operator stuck with a held device | Document the out-of-band path (stay disabled, or reconcile to hub then enable); ship fleet-7 |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)

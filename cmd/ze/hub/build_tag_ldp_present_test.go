@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_ldp present build validation
+// Design: ai/rules/plugins.md -- ze_ldp present build validation
 //
 //go:build ze_ldp
 

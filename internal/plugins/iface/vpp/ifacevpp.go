@@ -298,7 +298,7 @@ func (b *vppBackendImpl) CreateBridge(name string) error {
 
 // CreateMacvlanDevice is rejected on the VPP backend: plugin-owned macvlan
 // devices are a netlink-backend mechanism, and VPP has its own dataplane model
-// for owned devices that is not yet wired. Per ai/rules/exact-or-reject.md this
+// for owned devices that is not yet wired. Per ai/rules/protocol.md this
 // fails closed with an actionable error rather than silently approximating the
 // device on netlink. (VPP-native support for this mechanism is tracked
 // separately, out of this pass.)

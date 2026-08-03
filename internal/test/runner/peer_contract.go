@@ -12,7 +12,7 @@
 // branch of ze-test peer). ze then dials a dead port, gets connection refused,
 // and backs off 5->10->20->40s, which reads as a BGP establishment stall. An
 // expect=exit:code=0 on the same test skipped every BGP-level assertion, so the
-// test passed while no BGP ever ran. Per ai/rules/fail-closed-guards.md the
+// test passed while no BGP ever ran. Per ai/rules/evidence.md the
 // harness must refuse a test it cannot run rather than run it vacuously.
 // See plan/spec-fixit-redistribute-establishment-stall.md (D1/D2).
 
@@ -103,7 +103,7 @@ func peerLabel(cmd RunCommand) string {
 // declared is the number of check-mode peers the .ci asked for. A shortfall is
 // itself a failure: a check peer that never produced a peerOutput cannot have
 // validated anything, and reporting "no failures" for it would fail open exactly
-// where ai/rules/fail-closed-guards.md requires a guard to deny or speak.
+// where ai/rules/evidence.md requires a guard to deny or speak.
 func failedCheckPeers(declared int, peers []peerOutput) []string {
 	var failed []string
 	var tb textbuf.Buffer

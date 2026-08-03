@@ -568,7 +568,7 @@ func TestHandlerTeardownByName(t *testing.T) {
 // shared ResolveSinglePeer: the message is now "teardown: no peer matches
 // selector \"nonexistent\"; ...". Asserting on the ACTION and the QUOTED VALUE
 // instead of one hand-rolled phrase is strictly stronger -- it pins the two legs
-// ai/rules/error-messages.md requires (what failed, on which value) rather than
+// ai/rules/cli.md requires (what failed, on which value) rather than
 // wording that changed for a good reason. The behavior under test is unchanged.
 func TestHandlerTeardownUnknownName(t *testing.T) {
 	reactor := &mockReactor{

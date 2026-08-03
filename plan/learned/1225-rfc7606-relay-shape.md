@@ -51,7 +51,7 @@ the package that owns the comparison.
 
 ## Test-harness knowledge (`test/plugin`)
 
-- `Checker.check` (`internal/test/peer/checker.go:400-418`) matches an arriving message against
+- `Checker.check` (`internal/test/peer/checker.go`) matches an arriving message against
   EVERY pending rule for the current connection, not just the head. Declaration order in a
   `.ci` is therefore not arrival order, and a `.ci` cannot assert message ordering.
 - An unmatched KEEPALIVE or EOR is silently accepted. **Declaring an EOR expectation opts INTO
@@ -72,7 +72,7 @@ duplicate-NEXT_HOP defect blocked the interop scenario, the first instinct was t
 scenario in `tmp/` and offer to drop the deliverable. The owner rejected that outright: "a BGP
 daemon that cannot interoperate is NOTHING." The defect was in scope the moment this work's
 interop depended on that path. It got fixed at source, and the scenario shipped. New standing
-rule: `ai/rules/no-parking.md` (+ a DANGER prohibition in `ai/INSTRUCTIONS.md`). "Pre-existing"
+rule: `ai/rules/completion.md` (+ a DANGER prohibition in `ai/INSTRUCTIONS.md`). "Pre-existing"
 is not an escape hatch; the entry point that first reaches a bug owns it.
 
 **A passing interop test proves nothing until you prove it discriminates.** The first
@@ -98,15 +98,15 @@ here. Reworded throughout.
 
 ## The duplicate-NEXT_HOP defect (found via interop, fixed)
 
-`buildWireModeUpdate` (reactor_api_batch.go:405) inserted a NEXT_HOP unconditionally, while
+`buildWireModeUpdate` (reactor_api_batch.go) inserted a NEXT_HOP unconditionally, while
 `writeMandatoryAttrs` had already copied the full stored attribute block -- NEXT_HOP included.
 The route server's replay-on-peer-up re-encodes every stored route through this path
-(`formatHexCommand`, adj_rib_in/rib.go:775, emits `attr set <attrs-incl-NH> nhop set <nh>`), so
+(`formatHexCommand`, adj_rib_in/rib.go, emits `attr set <attrs-incl-NH> nhop set <nh>`), so
 every replayed IPv4 route carried NEXT_HOP twice; same for MP families (a second MP_REACH).
 RFC 7606 Section 3(g) makes a duplicated attribute treat-as-withdraw, so FRR discarded the lot.
 Fix: `stripAttribute` removes any pre-existing NEXT_HOP/MP_REACH before writing the
 authoritative one, safe because an unset next-hop errors out before the builder
-(`resolveNextHop` -> `ErrNextHopUnset`; `NextHopUnset` is the zero value, nexthop.go:11). This
+(`resolveNextHop` -> `ErrNextHopUnset`; `NextHopUnset` is the zero value, nexthop.go). This
 is a distinct bug from the §5.1 relay-shape change and lives on the origination/re-advertise
 builder, not `buildFwdBody`.
 

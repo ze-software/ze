@@ -94,7 +94,7 @@ func newTransport(localAddr string, natT bool, logger *slog.Logger) (*UDPTranspo
 // IsNATT reports whether this socket is the NAT-T one.
 //
 // It fails closed. A nil transport reads false, so a caller with no socket adds no
-// marker and sends nothing (ai/rules/fail-closed-guards.md).
+// marker and sends nothing (ai/rules/evidence.md).
 func (t *UDPTransport) IsNATT() bool {
 	if t == nil {
 		return false

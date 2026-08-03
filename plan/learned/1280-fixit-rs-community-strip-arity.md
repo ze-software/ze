@@ -10,10 +10,10 @@ had no test and no user-facing documentation, so nothing could notice it.
 The two halves of the modification-accumulator contract disagreed about arity, and
 neither half was wrong on its own.
 
-`StripControlCommunities` (`internal/component/bgp/wireu/community.go:158`) walks the
+`StripControlCommunities` (`internal/component/bgp/wireu/community.go`) walks the
 COMMUNITY attribute and accumulates EVERY matching four-byte value into one slice.
 Both route-server rails hand that whole slice to the accumulator as a single Remove
-operation (`reactor/reactor_api_forward.go:642`, `reactor/forward_rs.go:347`).
+operation (`reactor/reactor_api_forward.go`, `reactor/forward_rs.go`).
 
 The consumer, `removeValues` (`filter_community/handler.go`), opened with
 `if len(toRemove) != valueSize { return data }`, carrying the comment
@@ -21,11 +21,11 @@ The consumer, `removeValues` (`filter_community/handler.go`), opened with
 bytes against a value width of four, so the guard tripped and removed NOTHING.
 
 Two defects, one site. The leak, and a guard that had already diagnosed the fault and
-then declined to report it (`ai/rules/fail-closed-guards.md`).
+then declined to report it (`ai/rules/evidence.md`).
 
 Every other producer already split into per-value operations -- the text-delta path at
-`reactor/filter_delta.go:221-224`, the community plugin's own egress filter at
-`filter_community/egress.go:28-30` -- so the one-value rule was a real contract that
+`reactor/filter_delta.go`, the community plugin's own egress filter at
+`filter_community/egress.go` -- so the one-value rule was a real contract that
 had simply never been written down, and the two route-server sites were its only
 violators.
 
@@ -38,7 +38,7 @@ violators.
   multiple, so every existing single-value producer is untouched.
 - **Return the refusal as a value, do not log it from the helper.** The spec called for
   the log line inside `removeValues`. `logger` in this package is
-  `slogutil.LazyLogger("bgp.filter.community")` (`filter_community.go:26`), memoised
+  `slogutil.LazyLogger("bgp.filter.community")` (`filter_community.go`), memoised
   behind a `sync.Once`, so a helper that logged directly could only be tested through
   logging configuration. `removeValues` returns `([]byte, bool)`; `genericCommunityHandler`
   emits the warning and `continue`s. That also satisfies "the attribute's remaining
@@ -73,7 +73,7 @@ violators.
 - First user-facing documentation of the convention:
   `docs/guide/bgp-policy.md` "Route-server control communities".
 - Behavior change for operators who had (unknowingly) come to rely on seeing the leaked
-  tags. It contradicts the stated intent at `wireu/community.go:138-140`, so the leak is
+  tags. It contradicts the stated intent at `wireu/community.go`, so the leak is
   the bug, not the behaviour being removed.
 
 ## Gotchas
@@ -82,23 +82,23 @@ violators.
   absence is invisible.** An early draft of both tests omitted it. The route forwarded,
   the test ran, and all five communities arrived intact -- byte-for-byte the symptom of
   the bug the test was written to catch, against a FIXED binary. The leaf defaults to
-  false (`reactor/config.go:266`) and gates both the RFC 7947 policy block
-  (`reactor_api_forward.go:611`) and the strip emission (`:642`). A `.ci` without it
+  false (`reactor/config.go`) and gates both the RFC 7947 policy block
+  (`reactor_api_forward.go`) and the strip emission. A `.ci` without it
   proves nothing while looking like it proves everything. The tell is AS_PATH: with
   `rs-client true` the route server does not prepend its own AS (RFC 7947 2.2.2), so
   `AS_PATH [65001]` rather than `[65000 65001]` confirms the leaf took effect.
 - **The functional-test runner resolves the DUT from `tmp/s/<session-id>/bin` BEFORE
-  `bin/`** (`internal/test/sessionpath/sessionpath.go:107-132`, `FindPrebuiltDir`). With
+  `bin/`** (`internal/test/sessionpath/sessionpath.go`, `FindPrebuiltDir`). With
   `ZE_TEST_NO_BUILD=1`, a stale session-scoped binary is used silently: rebuilds of
   `bin/ze` have no effect and debug probes never fire. This cost an hour and sent the
   investigation looking for a third forwarding rail that does not exist
   (`ForwardUpdatesDirect` delegates to `forwardUpdateCore` at
-  `reactor_api_forward_batch.go:148`). Run WITHOUT `ZE_TEST_NO_BUILD=1` and let the
+  `reactor_api_forward_batch.go`). Run WITHOUT `ZE_TEST_NO_BUILD=1` and let the
   runner build the DUT.
 - **A bare `go test ./internal/component/bgp/...` fabricates reds.** Without the feature
   tags from `feature-gates.txt` it reports `unsupported family` failures in `bgp/cli`
   and `bgp/config` that have nothing to do with the change under test.
-- **Whitelist beats blacklist.** `ShouldForwardTo` (`wireu/community.go:21-32`) returns
+- **Whitelist beats blacklist.** `ShouldForwardTo` (`wireu/community.go`) returns
   early on the whitelist, so a single `<rs-asn>:<asn>` tag makes every `0:<asn>` tag on
   the same route inert. When choosing control communities for a test, a `0:<asn>` naming
   the receiver suppresses the forward entirely and the test then proves nothing about

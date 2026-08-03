@@ -34,10 +34,10 @@ path byte-for-byte unchanged.
 ## Gotchas
 
 - **Doctor tests need build tags.** `TestCollectSchemaListeners_SSHDefault/Explicit` FAIL under a plain `go test ./internal/component/doctor/` because the SSH YANG module is behind `ze_ssh`; without it, `DiscoverListenerServices` still finds the always-on listeners (bmp, l2tp, as112, geodns, wireguard, plugin-hub) so it takes the schema path instead of the hardcoded fallback that extracts SSH. Run doctor tests with `-tags 'ze_core ze_ssh ze_web ze_mcp ...'`. This is a build-tag artifact, not a regression; the radius module has no `ze:listener` and cannot affect listener discovery.
-- **`ze:sensitive` redaction is schema-driven** by leaf (`yang_schema.go:445` `hasSensitiveExtension` → `node.Sensitive`), so a `key` leaf marked `ze:sensitive` is redacted in `show config`/DisplayStrip identically to tacacs. `ze config fmt` still prints the secret because it formats the operator's own on-disk file, not the running-config display; that is expected, not a leak (AC-8).
+- **`ze:sensitive` redaction is schema-driven** by leaf (`yang_schema.go` `hasSensitiveExtension` → `node.Sensitive`), so a `key` leaf marked `ze:sensitive` is redacted in `show config`/DisplayStrip identically to tacacs. `ze config fmt` still prints the secret because it formats the operator's own on-disk file, not the running-config display; that is expected, not a leak (AC-8).
 - **`SendToServers` mutates `pkt.Identifier` per call**, so each `Authenticate` MUST build its own `*Packet` (it does). Sharing one packet across concurrent logins would race on the identifier.
 - **The `retries` leaf is the client's attempt count**, and `NewClient` coerces 0→3, so `retries 0` behaves like the default 3 rather than "send once".
-- **Parallel-session churn:** a concurrent session was refactoring `bgp/filterapi` across the shared working tree during implementation. Verification was scoped to changed packages (`ai/rules/git-safety.md` Known-Red). A pre-existing `ze-doc-test` stale anchor (`docs/features/rfc-status.md:83`, an `nlri/*/register.go` glob the anchor checker does not expand) is unrelated to this work.
+- **Parallel-session churn:** a concurrent session was refactoring `bgp/filterapi` across the shared working tree during implementation. Verification was scoped to changed packages (`ai/rules/git-safety.md` Known-Red). A pre-existing `ze-doc-test` stale anchor (`docs/features/rfc-status.md`, an `nlri/*/register.go` glob the anchor checker does not expand) is unrelated to this work.
 
 ## Files
 

@@ -61,7 +61,7 @@ produced no diagnostic *"in this build"*. It was literally a different build.
 
 ## The rule
 
-`ai/rules/bash-output.md` now leads with it: prefer a `make` target; if you must
+`ai/rules/commands.md` now leads with it: prefer a `make` target; if you must
 scope to packages, pass the tags. Before logging any red in
 `plan/known-failures.md`, reproduce it with the Makefile tags.
 

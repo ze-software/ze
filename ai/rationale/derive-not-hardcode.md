@@ -1,6 +1,6 @@
 # Derive Not Hardcode Rationale
 
-Why: `ai/rules/derive-not-hardcode.md`
+Why: `ai/rules/evidence.md`
 
 ## Why This Rule Exists
 

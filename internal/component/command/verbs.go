@@ -6,7 +6,7 @@ import "sort"
 
 // VerbRole classifies what a command verb does. The role is load-bearing for the
 // grammar gate: only VerbMutation verbs (set, delete) may target objects that live
-// in the config YANG tree (ai/rules/cli-grammar.md "Engine-Owned Tree Mutation");
+// in the config YANG tree (ai/rules/cli.md "Engine-Owned Tree Mutation");
 // everything else is a runtime action or a read.
 type VerbRole uint8
 
@@ -24,7 +24,7 @@ const (
 // category-exempt (see the grammar gate exemptions). Both the grammar gate and the
 // plugin registration gate (validateCommandName in
 // internal/component/plugin/server/command_registry.go) derive their verb set from
-// this map -- there is no second hardcoded list (ai/rules/derive-not-hardcode.md).
+// this map -- there is no second hardcoded list (ai/rules/evidence.md).
 //
 // The vocabulary was agreed in plan/learned/829-command-verb-first.md (show, monitor,
 // clear, set, request, resolve, commit, update) plus the engine mutation verb delete,
@@ -54,7 +54,7 @@ var Verbs = map[string]VerbRole{
 	// (e.g. OSPF ext-14 crafted-LSA injection). Distinct from show/monitor, which
 	// only read state: a debug command changes what the router does. Double-gated by
 	// authz + an explicit enablement (see internal/plugins/ospf/debug_enable.go).
-	// When to pick debug vs show: ai/rules/cli-grammar.md "Choosing the Verb".
+	// When to pick debug vs show: ai/rules/cli.md "Choosing the Verb".
 	"debug": VerbAction,
 }
 

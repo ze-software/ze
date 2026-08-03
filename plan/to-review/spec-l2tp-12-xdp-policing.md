@@ -78,14 +78,14 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 - [ ] `ai/patterns/plugin.md` -- plugin file structure
   -> Constraint: register.go with init(), atomic logger, RunXxxPlugin(conn), CLIHandler closure
   -> Constraint: run `make generate` after creating plugin to update all.go
-- [ ] `ai/rules/plugin-design.md` -- plugin design rules
+- [ ] `ai/rules/plugins.md` -- plugin design rules
   -> Constraint: plugin name hyphen-form (l2tp-policing); YANG required for plugins with config
   -> Constraint: proximity principle: all code in `internal/plugins/l2tppolicing/`
 - [ ] `docs/architecture/core-design.md` -- subsystem and plugin patterns
   -> Constraint: plugins discovered via registry; event types registered in events.go
-- [ ] `ai/rules/design-context.md` -- design context loading
+- [ ] `ai/rules/architecture.md` -- design context loading
   -> Constraint: grep ze for existing patterns before proposing new ones
-- [ ] `ai/rules/naming.md` -- naming conventions
+- [ ] `ai/rules/go-standards.md` -- naming conventions
   -> Constraint: use kernel/standard names; "policing" is the standard term for ingress rate limiting
 
 ### RFC Summaries
@@ -309,7 +309,7 @@ unavailable.
 - `internal/plugins/l2tppolicing/yang/embed.go` -- `//go:embed` for YANG
 - `internal/plugins/l2tppolicing/yang/register.go` -- YANG module registration
 - `internal/plugins/l2tppolicing/program_test.go` -- `BPF_PROG_TEST_RUN` tests for the XDP program (Linux 5.10+); skips without CAP_BPF -- mirrors `trafficusage/program_test.go`
-- `internal/plugins/l2tppolicing/attach_integration_linux_test.go` -- real-attach integration test (veth + `link.AttachXDP` + map CRUD), runs under QEMU per `ai/rules/qemu-testing.md` -- mirrors `trafficusage/attach_integration_linux_test.go`
+- `internal/plugins/l2tppolicing/attach_integration_linux_test.go` -- real-attach integration test (veth + `link.AttachXDP` + map CRUD), runs under QEMU per `ai/rules/platform-linux.md` -- mirrors `trafficusage/attach_integration_linux_test.go`
 - `test/plugin/l2tp-policing-config.ci` -- functional test
 
 ## Implementation Steps

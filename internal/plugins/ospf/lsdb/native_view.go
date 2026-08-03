@@ -6,7 +6,7 @@
 // (the RFC 7770 Router Information LSA) is a native LSA identified by its 16-bit LS Type,
 // not an opaque payload, so a consumer that renders or counts it queries the LSDB for the
 // scope-typed LS Type. The LSDB interprets no body; this is a generic query
-// (ai/rules/plugin-self-containment.md).
+// (ai/rules/plugins.md).
 
 package lsdb
 
@@ -35,7 +35,7 @@ type NativeLSAView struct {
 // AS-wide store, and the per-interface link stores, each with a copy of its body. The
 // OSPFv3 debug database detail / per-scope views (spec-ospf-ext-14) call it once and then
 // filter/decode by native LS Type + RFC 5340 Section A.4.2.1 flooding scope in the engine;
-// the LSDB interprets no body (ai/rules/plugin-self-containment.md).
+// the LSDB interprets no body (ai/rules/plugins.md).
 func (d *LSDB) AllLSAViews() []NativeLSAView {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

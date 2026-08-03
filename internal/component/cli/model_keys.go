@@ -628,7 +628,7 @@ var validCLIFormats = map[string]bool{
 }
 
 // validCLIFormatNames returns the accepted format names, sorted, for error text.
-// Derived from validCLIFormats so the list is never duplicated (ai/rules/derive-not-hardcode.md).
+// Derived from validCLIFormats so the list is never duplicated (ai/rules/evidence.md).
 func validCLIFormatNames() string {
 	return textbuf.Join(slices.Sorted(maps.Keys(validCLIFormats)), ", ")
 }

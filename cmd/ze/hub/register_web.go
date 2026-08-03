@@ -1,6 +1,6 @@
 //go:build ze_web
 
-// Design: ai/rules/feature-gate-registration.md -- ze_web service registration
+// Design: ai/rules/plugins.md -- ze_web service registration
 package hub
 
 func init() {

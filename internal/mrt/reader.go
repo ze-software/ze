@@ -206,7 +206,7 @@ func readRecords(r io.Reader, handler *Handler) error {
 	// Record ordinal, 1-based, counting every record read from this stream.
 	// It is the only handle a user has on WHICH record failed: a decode error
 	// carries an offset inside the record's own fields, which on a multi-GB
-	// dump locates nothing (ai/rules/error-messages.md, "what to do next").
+	// dump locates nothing (ai/rules/cli.md, "what to do next").
 	var ordinal uint64
 	for {
 		_, err := io.ReadFull(r, hdrBuf[:])

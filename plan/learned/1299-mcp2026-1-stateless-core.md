@@ -23,7 +23,7 @@ pieces interlock, and the type system makes it so -- `(*session).Elicit`,
   is one that will outlive its reason.
 - **Absence and mismatch of a required header are the same verdict.** No header
   gets a default. The pre-cutover code defaulted a missing version to
-  `LegacyProtocolVersion`. That is the fail-open shape `fail-closed-guards.md`
+  `LegacyProtocolVersion`. That is the fail-open shape `evidence.md`
   bans. With no handshake, there is no value to use instead.
 - **Per-request identity and capabilities are passed by VALUE.** No pointer, no
   nil-able context, no capability struct whose zero value reads as "supported".

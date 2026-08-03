@@ -230,7 +230,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// ErrNoPeersAcceptedFamily means "every matching peer was SKIPPED because it
 	// does not carry this family", and DispatchNLRIGroups turns it into a warning
 	// on that basis. For a batch that could not be encoded the family WAS
-	// negotiated, so that cause is untrue (ai/rules/error-messages.md: leg 3 must
+	// negotiated, so that cause is untrue (ai/rules/cli.md: leg 3 must
 	// be TRUE) and the warning downgrade would hide a route that never went out.
 	//
 	// Deliberately narrow: every OTHER lastErr keeps the previous behavior. Widening
@@ -555,7 +555,7 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 //
 // Returns nil when the batch cannot be encoded into attrBuf, having written
 // nothing: the size query runs before the write, so a truncated or over-long block
-// is not a state this function can produce (ai/rules/fail-closed-guards.md). The
+// is not a state this function can produce (ai/rules/evidence.md). The
 // caller reports errAnnounceTooLarge rather than sending a short UPDATE.
 func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) *message.Update {
 	// Write NLRIs into caller-provided buffer
@@ -771,7 +771,7 @@ var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffe
 // errWithdrawTooLarge is the withdraw-rail sibling: buildBatchWithdrawUpdate could
 // not encode the batch's NLRIs (or the MP_UNREACH_NLRI carrying them) into its
 // pooled build buffer. Separate from errAnnounceTooLarge so the operator-facing
-// cause names the operation that actually failed (ai/rules/error-messages.md).
+// cause names the operation that actually failed (ai/rules/cli.md).
 var errWithdrawTooLarge = errors.New("withdraw NLRIs exceed the build buffer; split the batch into smaller withdrawals")
 
 // logAnnounceTooLarge records a rejected announce. This is the "or say something"
@@ -780,7 +780,7 @@ var errWithdrawTooLarge = errors.New("withdraw NLRIs exceed the build buffer; sp
 // not arrive. The plugin that issued the command also sees it -- AnnounceNLRIBatch
 // returns errAnnounceTooLarge, which DispatchNLRIGroups turns into a StatusError
 // response -- so the failure is observable from both ends
-// (ai/rules/fail-closed-guards.md, ai/rules/error-messages.md).
+// (ai/rules/evidence.md, ai/rules/cli.md).
 func logAnnounceTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 	routesLogger().Warn("announce rejected: attributes do not fit the build buffer",
 		"family", batch.Family, "nlri-count", len(batch.NLRIs),
@@ -863,7 +863,7 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 // logWithdrawTooLarge records a rejected withdraw: the "or say something" half of
 // buildBatchWithdrawUpdate's guard. WithdrawNLRIBatch also returns
 // errWithdrawTooLarge to the issuing plugin, so a withdrawal that never reached
-// the wire is visible from both ends (ai/rules/fail-closed-guards.md).
+// the wire is visible from both ends (ai/rules/evidence.md).
 func logWithdrawTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 	routesLogger().Warn("withdraw rejected: NLRIs do not fit the build buffer",
 		"family", batch.Family, "nlri-count", len(batch.NLRIs),
@@ -1074,7 +1074,7 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 		// reactor_notify.go); this readvertise rail was the one that did not,
 		// so a filter that looks a peer up by name read a silent empty string
 		// from here alone -- the zero-value trap of
-		// ai/rules/fail-closed-guards.md, and the same shape that let the OTC
+		// ai/rules/evidence.md, and the same shape that let the OTC
 		// gates go permissive on an unresolved lookup. Both are immutable
 		// after peer construction (see forward_rs.go), so no lock is needed.
 		Name:      peer.Settings().Name,

@@ -39,7 +39,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 ### Architecture Docs
 - [ ] `internal/plugins/ntp/` - the existing client (query loop, clock discipline) to reuse timing/state.
   → Constraint: the server side listens and answers; keep it separate from the client discipline loop.
-- [ ] `ai/rules/config-surface.md` - server enable + access-control config surface.
+- [ ] `ai/rules/config.md` - server enable + access-control config surface.
   → Constraint: serving time to a network is a deliberate operator action; default off.
 
 ### RFC Summaries (MUST for protocol work)
@@ -52,7 +52,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/ntp/ntp.go` - client-only: imports `github.com/beevik/ntp` (ntp.go:24), queries upstream via `ntp.Query(addr)` (ntp.go:158); on no reachable upstream it publishes unsynced and retries. No listener.
+- [ ] `internal/plugins/ntp/ntp.go` - client-only: imports `github.com/beevik/ntp` (ntp.go), queries upstream via `ntp.Query(addr)` (ntp.go); on no reachable upstream it publishes unsynced and retries. No listener.
 - [ ] `internal/plugins/ntp/clock_linux.go` - disciplines the local clock (`Settimeofday`/`Adjtimex`); purely the consumer side.
 - [ ] `internal/plugins/ntp/yang/ze-ntp-conf.yang` - config exposes upstream `server` list, `interval`, `max-step`, `slew-threshold`, `persist-path`; no `local`/`stratum`/`listen`/server-mode leaf.
 

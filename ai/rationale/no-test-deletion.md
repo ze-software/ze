@@ -1,6 +1,6 @@
 # No Test Deletion Rationale
 
-Why: `ai/rules/no-test-deletion.md`
+Why: `ai/rules/testing.md`
 
 ## Why This Rule Exists
 When tests fail, the temptation is to delete them and move on. This hides bugs instead of fixing them.

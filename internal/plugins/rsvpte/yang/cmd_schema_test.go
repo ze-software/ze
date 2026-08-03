@@ -7,7 +7,7 @@ import (
 
 // TestRSVPTECmdSchemaOwnsShowRSVPTE is the owner half of the self-containment
 // invariant: the central show schema must NOT declare `show rsvp-te ...`, and
-// this package MUST. See ai/rules/plugin-self-containment.md.
+// this package MUST. See ai/rules/plugins.md.
 func TestRSVPTECmdSchemaOwnsShowRSVPTE(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:rsvp-te-lsp"`,

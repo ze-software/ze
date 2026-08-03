@@ -1,4 +1,4 @@
-// Design: ai/rules/design-principles.md -- "Pool strategy by goroutine shape"
+// Design: ai/rules/architecture.md -- "Pool strategy by goroutine shape"
 // Overview: doc.go -- package overview and shape decision criteria
 
 package bufpool

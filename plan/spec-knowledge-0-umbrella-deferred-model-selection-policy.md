@@ -17,10 +17,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 2026-08-02, both homed at `spec-knowledge-0-umbrella` which closed
 (`plan/learned/1316-knowledge-0-umbrella.md`) without doing them. They were
 therefore homeless: a deferral whose destination is gone is a deletion with a
-polite name (`ai/rules/deferral-tracking.md`). This file is their home.
+polite name (`ai/rules/planning.md`). This file is their home.
 
 **The open question, which is the OWNER'S and not an implementer's.**
-`ai/rules/model-selection.md` puts planning and review on Opus 5 and
+`ai/rules/planning.md` puts planning and review on Opus 5 and
 implementation on Opus 4.8. Is that split still deliberate? It was written when
 those were the current models. Nothing in the rule records a review date, and
 three gates are keyed on it.
@@ -37,7 +37,7 @@ three gates are keyed on it.
    they classify as review-tier.
 3. Either way, the model-era JUSTIFICATION sentences come out of
    `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" and
-   `ai/rules/spec-delegation.md` Enforcement. Those paragraphs argue from a
+   `ai/rules/planning.md` Enforcement. Those paragraphs argue from a
    harness guard that existed in the Opus 4.6 and 4.7 era. **Keep the delegation
    counter-measures themselves** -- the standing request, the reminder hook, and
    the subagent-context hook are all still load-bearing. Only the reasoning that
@@ -81,7 +81,7 @@ plus three call sites, not a sweep.
 **Behavior to change:** (only what the user asked for)
 - [list, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - [Where data enters: wire bytes, API command, config, plugin message]
@@ -106,7 +106,7 @@ plus three call sites, not a sweep.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -207,16 +207,16 @@ plus three call sites, not a sweep.
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
 | CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli-grammar.md` |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
 | Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/pipe-completeness.md` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 
@@ -233,7 +233,7 @@ plus three call sites, not a sweep.
 | 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
 | 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | | `docs/comparison.md` |

@@ -1,6 +1,6 @@
 // Tests for the //go:build ignore checker inert_tests.go.
 //
-// The ratchet is a fail-closed guard, so ai/rules/fail-closed-guards.md requires
+// The ratchet is a fail-closed guard, so ai/rules/evidence.md requires
 // driving it from its ENTRY POINT, not from its helpers: every test here runs
 // `go run scripts/checks/inert_tests.go` as a subprocess against a fixture tree
 // supplied with --root. The live repository cannot be doctored to prove the
@@ -252,7 +252,7 @@ func TestTagOrphanDetection(t *testing.T) {
 // TestInertTestsFailsClosedOnEmptyScan pins the fail-closed contract: a scan
 // that finds nothing is a broken scan, never a clean tree.
 //
-// VALIDATES: ai/rules/fail-closed-guards.md -- no permissive value on a miss.
+// VALIDATES: ai/rules/evidence.md -- no permissive value on a miss.
 // PREVENTS: a path or glob regression turning the gate into a no-op that passes.
 func TestInertTestsFailsClosedOnEmptyScan(t *testing.T) {
 	root := fixtureTree(t, `{"assert-nothing": 0, "tag-orphan": 0}`, nil)
@@ -268,7 +268,7 @@ func TestInertTestsFailsClosedOnEmptyScan(t *testing.T) {
 // TestInertTestsMissingBaselineFailsClosed proves a deleted or unreadable
 // baseline stops the build rather than defaulting to an unlimited floor.
 //
-// VALIDATES: ai/rules/fail-closed-guards.md.
+// VALIDATES: ai/rules/evidence.md.
 // PREVENTS: deleting the baseline file as a way to silence the ratchet.
 func TestInertTestsMissingBaselineFailsClosed(t *testing.T) {
 	root := fixtureTree(t, "", map[string]string{
@@ -385,7 +385,7 @@ func TestInert(t *testing.T) {
 // TestUnknownArgumentIsRejected stops a typo from silently demoting the gate to
 // report-only, which exits 0 regardless of findings.
 //
-// VALIDATES: ai/rules/fail-closed-guards.md.
+// VALIDATES: ai/rules/evidence.md.
 // PREVENTS: a mistyped flag in a Makefile recipe disabling the ratchet forever.
 func TestUnknownArgumentIsRejected(t *testing.T) {
 	root := fixtureTree(t, `{"assert-nothing": 0, "tag-orphan": 0}`, map[string]string{
@@ -403,7 +403,7 @@ func TestUnknownArgumentIsRejected(t *testing.T) {
 // TestMissingTestRootFailsClosed stops a shrunken scan from being accepted, and
 // from being baked into the ratchet floor by the next `make ze-test-health`.
 //
-// VALIDATES: ai/rules/fail-closed-guards.md.
+// VALIDATES: ai/rules/evidence.md.
 // PREVENTS: an unreadable internal/ yielding a small, passing count.
 func TestMissingTestRootFailsClosed(t *testing.T) {
 	root := fixtureTree(t, `{"assert-nothing": 0, "tag-orphan": 0}`, map[string]string{
@@ -553,7 +553,7 @@ func gitInit(t *testing.T, root string) {
 // wiring rather than a hardcoded list, so a new gated feature cannot silently
 // orphan its own tests.
 //
-// VALIDATES: ai/rules/derive-not-hardcode.md.
+// VALIDATES: ai/rules/evidence.md.
 // PREVENTS: a stale built-in tag list drifting from feature-gates.txt.
 func TestInertTestsDerivesTagUniverse(t *testing.T) {
 	root := fixtureTree(t, "", map[string]string{

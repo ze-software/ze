@@ -16,7 +16,7 @@ import (
 
 // checkFlowSource warns when ddos-detect is enabled with characterization on but
 // neither traffic-usage nor flow-export is configured. ddos-detect owns the
-// characterization behavior, so it owns this readiness check (doctor-checks.md).
+// characterization behavior, so it owns this readiness check (repo-maintenance.md).
 func checkFlowSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {

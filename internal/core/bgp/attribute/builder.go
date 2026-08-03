@@ -247,7 +247,7 @@ func (b *Builder) Len() int {
 // writer in the tree uses -- so this function decides nothing about the header
 // size class and nothing about order beyond what AppendAttributes already says.
 // A caller on a per-route path plans the AppendAttributes list instead
-// (ai/rules/buffer-first.md: Build is not for the hot path).
+// (ai/rules/performance.md: Build is not for the hot path).
 func (b *Builder) Build() []byte {
 	if len(b.wire) > 0 {
 		return b.wire

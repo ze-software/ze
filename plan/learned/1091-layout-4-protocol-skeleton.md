@@ -48,6 +48,6 @@ without gating.
 
 ## Files
 
-- `ai/rules/protocol-skeleton.md` (skeleton + probe mapping + exceptions)
+- `ai/rules/protocol.md` (skeleton + probe mapping + exceptions)
 - `scripts/dev/protocol_skeleton_report.py` (classifier, manifest, --selftest)
 - `Makefile` (ze-tier-check advisory line), `ai/rules/INDEX.md` (row 78)

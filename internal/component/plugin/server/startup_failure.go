@@ -28,7 +28,7 @@ import (
 //
 // So a barrier abort yields to any non-abort cause. Order is otherwise
 // preserved: the first real diagnosis wins, and an all-aborts tier still reports
-// something rather than nothing (ai/rules/fail-closed-guards.md).
+// something rather than nothing (ai/rules/evidence.md).
 func preferDiagnosedError(current, candidate error) error {
 	if current == nil {
 		return candidate
@@ -55,11 +55,11 @@ func preferDiagnosedError(current, candidate error) error {
 // "zdiag0": operation not permitted (interface configuration needs
 // CAP_NET_ADMIN: ...)`) was logged at Debug level and discarded. Wrapping keeps
 // the chain intact for errors.Is/errors.As as well as for the text
-// (ai/rules/error-messages.md: wrap the cause and add context; never drop it).
+// (ai/rules/cli.md: wrap the cause and add context; never drop it).
 //
 // When no cause was recorded the failure is still reported, with the stage
 // alone: a missing cause is not evidence that startup succeeded
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func startupFailureError(proc *process.Process) error {
 	if cause := proc.StartupError(); cause != nil {
 		return fmt.Errorf("plugin %s failed during startup at stage %s: %w", proc.Name(), proc.Stage(), cause)

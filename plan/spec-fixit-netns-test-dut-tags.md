@@ -11,17 +11,17 @@
 
 `make ze-netns-test` is the only vehicle that runs the `firewall`, `policy`,
 `ospf` and `ospfv3` suites natively on a Linux dev host (`ZE_NETNS_SUITES`,
-`mk/test-integration.mk:136`). It has two independent defects that make it
+`mk/test-integration.mk`). It has two independent defects that make it
 report failures no test is responsible for.
 
 **Defect 1 — it runs a production DUT.** The target's prerequisites name
-`$(ZEBIN_ZE)` (`mk/test-integration.mk:138`), and the recipe hands the suites
-`ZE_TEST_NO_BUILD=1` (`mk/test-integration.mk:148`), so the daemon under test is
+`$(ZEBIN_ZE)` (`mk/test-integration.mk`), and the recipe hands the suites
+`ZE_TEST_NO_BUILD=1` (`mk/test-integration.mk`), so the daemon under test is
 the production binary. But
-`mk/test-integration.mk:548` states plainly that "the real `$(ZEBIN_ZE)` has
+`mk/test-integration.mk` states plainly that "the real `$(ZEBIN_ZE)` has
 neither zetest nor ze_test", while the functional-test DUT is built with
 `-tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)'`
-(`mk/test-functional.mk:140`). Any test whose config touches a `zetest`-only
+(`mk/test-functional.mk`). Any test whose config touches a `zetest`-only
 YANG augment therefore cannot start its daemon.
 
 Observed: `test/firewall/ddos-local-withdraw.ci` configures `ddos { fake { ... } }`,
@@ -31,9 +31,9 @@ a node contributed only by `internal/test/plugins/fakeddos/yang/ze-fakeddos-conf
 `parse config: line 5: unknown field in ddos: fake`, the driver's readiness poll
 burns its full 10s budget, and the runner reports a 15.1s TEST failure.
 
-**Defect 2 — it cannot run on-session at all.** `mk/session.mk:117` makes the
+**Defect 2 — it cannot run on-session at all.** `mk/session.mk` makes the
 built binary `bin/ze-<session-id>`, but the runner resolves the DUT by BARE name
-through `sessionpath.FindPrebuiltDir` (`internal/test/sessionpath/sessionpath.go:107-132`),
+through `sessionpath.FindPrebuiltDir` (`internal/test/sessionpath/sessionpath.go`),
 which probes only `tmp/s/<id>/bin` and `bin` for a file literally called `ze`.
 `.ci` tests also exec `ze` by bare name. Under any Claude session the target
 fails immediately with
@@ -43,9 +43,9 @@ fails immediately with
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. Capture insights as -> Decision: / -> Constraint: annotations. -->
-- [ ] `ai/rules/qemu-testing.md` — which vehicle is authoritative for linux-only tests, and why a skip is not evidence.
+- [ ] `ai/rules/platform-linux.md` — which vehicle is authoritative for linux-only tests, and why a skip is not evidence.
 - [ ] `docs/architecture/testing/ci-format.md` — `option=needs-linux:caps=` gating, which decides whether a suite is reachable at all.
-- [ ] `ai/rules/functional-test-gate.md` — every behavior keeps its required functional test; this spec must not "fix" the vehicle by dropping a test from it.
+- [ ] `ai/rules/testing.md` — every behavior keeps its required functional test; this spec must not "fix" the vehicle by dropping a test from it.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] N/A — build/test vehicle; no wire-protocol behavior changes.
@@ -87,9 +87,9 @@ fails immediately with
   then `sudo env ... ZE_TEST_NO_BUILD=1 ZE_TEST_NETNS=1 $(ZEBIN_TEST) $$suite`.
   -> Constraint: the `sudo env` allowlist does not forward `ZE_SESSION_ID`, so
   even a suffix-aware runner would not see the session under sudo.
-- [ ] `mk/test-functional.mk:140` — `ZE_ALT_BUILD`, the DUT tag set that
+- [ ] `mk/test-functional.mk` — `ZE_ALT_BUILD`, the DUT tag set that
   `ze-functional-test` uses. This is the reference spelling to converge on.
-- [ ] `internal/test/sessionpath/sessionpath.go:107-132` — `FindPrebuiltDir`
+- [ ] `internal/test/sessionpath/sessionpath.go` — `FindPrebuiltDir`
   resolves a DIRECTORY holding every bare name, deliberately (`.ci` tests exec
   `ze` and `ze-stripped` by bare name and the runner puts one directory on their
   PATH). A suffix cannot simply be taught to this function without breaking that.
@@ -100,7 +100,7 @@ fails immediately with
 - The host-safety check (nft table set compared before/after) and the
   `setcap -r` teardown.
 - One netns per test, `-p 1` (the `test/policy` suite shares global kernel
-  objects; `test/policy/001-boot-apply.ci:9-21` records why raising parallelism
+  objects; `test/policy/001-boot-apply.ci` records why raising parallelism
   broke all six on 2026-07-25).
 
 **Behavior to change:**
@@ -112,7 +112,7 @@ fails immediately with
 
 | AC ID | Piece | Expected Behavior |
 |-------|-------|-------------------|
-| AC-1 | DUT tags | `make ze-netns-test` runs the suites against a daemon built with the same tag set as `ZE_ALT_BUILD` (`mk/test-functional.mk:140`), so `zetest`-only YANG augments resolve |
+| AC-1 | DUT tags | `make ze-netns-test` runs the suites against a daemon built with the same tag set as `ZE_ALT_BUILD` (`mk/test-functional.mk`), so `zetest`-only YANG augments resolve |
 | AC-2 | ddos-local-withdraw | passes under `make ze-netns-test` with no change to the test; it already passes in 653ms against a correctly-tagged DUT |
 | AC-3 | On-session | `make ze-netns-test` works with `CLAUDE_CODE_SESSION_ID` set, OR fails fast with a message naming the off-session invocation; never the current opaque `bin/ze is missing` |
 | AC-4 | No new production surface | the fix is confined to the make graph and, if needed, the netns launch path; no `.ci` test and no production binary changes |
@@ -144,7 +144,7 @@ fails immediately with
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| DUT tag set matches the functional one | `internal/test/runner/*_test.go` (existing `TestBuildTags` is the precedent, `mk/test-integration.mk:550`) | the netns DUT carries `zetest` | |
+| DUT tag set matches the functional one | `internal/test/runner/*_test.go` (existing `TestBuildTags` is the precedent, `mk/test-integration.mk`) | the netns DUT carries `zetest` | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -173,7 +173,7 @@ fails immediately with
 ## Key Design Decisions
 | Decision | Alternatives | Rationale |
 |----------|-------------|-----------|
-| Reuse the functional-test DUT tag set verbatim | hand-pick tags for netns | one spelling of "the DUT", so it cannot drift; `mk/test-integration.mk:358` records that this exact list already drifted three times (learned 1258, 1269) |
+| Reuse the functional-test DUT tag set verbatim | hand-pick tags for netns | one spelling of "the DUT", so it cannot drift; `mk/test-integration.mk` records that this exact list already drifted three times (learned 1258, 1269) |
 
 ## Core Insight
 
@@ -184,7 +184,7 @@ field that a differently-tagged binary would have accepted. A vehicle that can
 report a failure no test can cause is worse than a vehicle that refuses to run.
 
 ## Known Limitations
-- Does not address QEMU targets; `ZE_QEMU_DUT_TAGS` (`mk/test-integration.mk:378`)
+- Does not address QEMU targets; `ZE_QEMU_DUT_TAGS` (`mk/test-integration.mk`)
   already includes `zetest` and is unaffected.
 
 ## Checklist

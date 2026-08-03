@@ -55,7 +55,7 @@ through -- committing an index with two foreign rows was allowed.
   not contain, and must be regenerated from HEAD plus your own files.
 - **Fail closed.** If the view cannot be built, every index stays stale and the
   commit blocks. A gate that cannot evaluate must deny, not wave through
-  (`ai/rules/fail-closed-guards.md`).
+  (`ai/rules/evidence.md`).
 - **Say something when downgrading.** When the working tree is stale but the
   commit view is coherent, the gate prints which index and why rather than
   passing silently, so the confounding is visible in the commit output.
@@ -84,7 +84,7 @@ through -- committing an index with two foreign rows was allowed.
 - **A passing new test proves nothing until it is mutated.** Disabling the
   commit-view check made `commit-gate-index-foreign-staleness-passes` fail with
   the exact old error text, which is what makes it evidence
-  (`ai/rules/functional-test-gate.md`).
+  (`ai/rules/testing.md`).
 - **`git archive` accepts `:(exclude)` pathspecs**, which is what keeps the view
   cheap. Excluding `vendor` is safe only because every generator already skips
   it; adding a generator that reads `vendor` would silently break the view.
@@ -101,8 +101,8 @@ through -- committing an index with two foreign rows was allowed.
   Conflating the two turns a gate into a wall in every minimal repo.
 - **`indexes_fed_by` under-approximates PACKAGE-MAP, so it must not gate what gets
   VERIFIED.** `package_map.build` keys its rows on DIRECTORY existence
-  (`scripts/dev/package_map.py:105-144`), while `indexes_fed_by`
-  (`scripts/dev/discovery_sources.py:92-102`) recognizes a PACKAGE-MAP source only
+  (`scripts/dev/package_map.py`), while `indexes_fed_by`
+  (`scripts/dev/discovery_sources.py`) recognizes a PACKAGE-MAP source only
   by a `// Package` header or a `register.go` filename. A new
   `internal/x/thing.go` carrying only `// Design:` therefore adds a PACKAGE-MAP row
   while feeding DOCS-TO-CODE alone. The first version of this fix narrowed the
@@ -130,7 +130,7 @@ through -- committing an index with two foreign rows was allowed.
   coverage and reverting it left all fixtures green. The discriminating case needs
   a SECOND generator and a commit that drifts an index it does not visibly feed.
 - **Documentation drifts from a gate faster than the gate drifts from its rule.**
-  The `hook-mapping.md` row asserted three properties the code had stopped having
+  The `repo-maintenance.md` row asserted three properties the code had stopped having
   within one session: a `<pid>` path (now random), "the view runs only when the
   working tree reports stale" (it runs whenever an index source is touched), and
   "fails CLOSED" (it now falls back to the working-tree verdict and says so). A
@@ -142,4 +142,4 @@ through -- committing an index with two foreign rows was allowed.
 - `scripts/dev/learned_index.py`, `package_map.py`, `docs_to_code.py` -- honour `--root`
 - `scripts/dev/commit_helper.py` -- `build_commit_view`, `stale_in_commit_view`, two-tier `discovery_index_problems`
 - `scripts/dev/hook-fixture-check.py` -- two commit-gate fixtures
-- `ai/rules/hook-mapping.md` -- the gate's row
+- `ai/rules/repo-maintenance.md` -- the gate's row

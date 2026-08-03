@@ -13,9 +13,9 @@
 1. This spec file
 2. `ai/rules/planning.md` - spec workflow and completion rules
 3. `ai/rules/testing.md` - release test hierarchy and verification ladder
-4. `ai/rules/functional-test-gate.md` - user-facing behavior coverage rule
+4. `ai/rules/testing.md` - user-facing behavior coverage rule
 5. `ai/rules/interop-and-goal-validation.md` - protocol interop and goal evidence rule
-6. `ai/rules/wiring-completeness.md` - exported symbol and entry-point reachability rule
+6. `ai/rules/completion.md` - exported symbol and entry-point reachability rule
 7. `docs/functional-tests.md` - current functional-test release gate coverage
 8. `docs/architecture/testing/interop.md` - current BGP interop coverage
 9. `plan/spec-release-evidence-gate.md` - separate work to make heavy release evidence a product gate
@@ -69,15 +69,15 @@ belong in separate future fix work approved after the audit finding is filed.
 
 ### Rules
 
-- [ ] `ai/rules/functional-test-gate.md` - every user-facing behavior needs end-to-end coverage
+- [ ] `ai/rules/testing.md` - every user-facing behavior needs end-to-end coverage
   -> Constraint: unit tests alone cannot close release audit findings for reachable behavior
 - [ ] `ai/rules/interop-and-goal-validation.md` - protocol features need interop and goal evidence
   -> Constraint: BGP behavior closes only with peer-daemon evidence or an explicit non-protocol justification
-- [ ] `ai/rules/wiring-completeness.md` - exported symbols and features must be reachable
+- [ ] `ai/rules/completion.md` - exported symbols and features must be reachable
   -> Constraint: library-only code and test-only call chains are release blockers when advertised as features
-- [ ] `ai/rules/no-partial-completion.md` - incomplete acceptance criteria cannot be called done
+- [ ] `ai/rules/completion.md` - incomplete acceptance criteria cannot be called done
   -> Constraint: every open release blocker remains open until separate fix work proves closure
-- [ ] `ai/rules/impact-analysis.md` - predictable ripple effects by file type
+- [ ] `ai/rules/architecture.md` - predictable ripple effects by file type
   -> Decision: each finding must name likely affected consumers and suggested fix direction
 - [ ] `ai/rules/quality.md` - adversarial self-review and proof requirements
   -> Constraint: every audit pass must include adversarial questions and concrete evidence
@@ -582,10 +582,10 @@ Re-verified against the current tree after the followup implementation wave (unp
 | Stale statement (location in this spec) | Current verified state (2026-07-10) |
 |------------------------------------------|--------------------------------------|
 | "35 component directories" (Current Behavior; Core components inventory row) | 43 directories under `internal/component/` |
-| "22 plugin directories" (Current Behavior; plugins inventory row) | 63 top-level directories under `internal/plugins/`; additionally the nested `internal/plugins/exabgp/bridgeplugin` registers the NEW plugin `exabgp-bridge` (`internal/plugins/exabgp/bridgeplugin/register.go:39`) |
+| "22 plugin directories" (Current Behavior; plugins inventory row) | 63 top-level directories under `internal/plugins/`; additionally the nested `internal/plugins/exabgp/bridgeplugin` registers the NEW plugin `exabgp-bridge` (`internal/plugins/exabgp/bridgeplugin/register.go`) |
 | "32 test directories" (Current Behavior; Release tests row) | 45 directories under `test/` |
-| Interop scenarios "through `35-srv6-frr`"; docs "list through 32" (Current Behavior; Interop tests row; finding RA-DOC-001) | 101 scenario directories under `test/interop/scenarios/`; `docs/DESIGN.md:796` states "101 interop scenarios"; `docs/architecture/testing/interop.md:142` lists `33-bfd-frr` in its core table (through 37). RA-DOC-001 as filed is superseded; the residual count drift across docs (96 vs 97 vs 101) is tracked in `spec-release-audit-8-docs-onboarding.md` Post-wave corrections |
-| "API and MCP" surface row (streaming via legacy handler implied) | MCP is Streamable-HTTP-only: legacy `internal/component/mcp/handler.go` was deleted; `internal/component/mcp/streamable.go` `handlePOST` (`:404`), `handleGET` (`:618`), `handleDELETE` (`:681`) are the sole transport |
-| Inventory seed omits wave-new surfaces | `internal/core/dnsserver` (shared DNS listener core: DoT `secure.go:307`, DoH `secure.go:335`, consumed by as112 + geodns) and `internal/plugins/exabgp/bridgeplugin` need owner-audit rows when child audits resume |
+| Interop scenarios "through `35-srv6-frr`"; docs "list through 32" (Current Behavior; Interop tests row; finding RA-DOC-001) | 101 scenario directories under `test/interop/scenarios/`; `docs/DESIGN.md` states "101 interop scenarios"; `docs/architecture/testing/interop.md` lists `33-bfd-frr` in its core table (through 37). RA-DOC-001 as filed is superseded; the residual count drift across docs (96 vs 97 vs 101) is tracked in `spec-release-audit-8-docs-onboarding.md` Post-wave corrections |
+| "API and MCP" surface row (streaming via legacy handler implied) | MCP is Streamable-HTTP-only: legacy `internal/component/mcp/handler.go` was deleted; `internal/component/mcp/streamable.go` `handlePOST`, `handleGET`, `handleDELETE` are the sole transport |
+| Inventory seed omits wave-new surfaces | `internal/core/dnsserver` (shared DNS listener core: DoT `secure.go`, DoH `secure.go`, consumed by as112 + geodns) and `internal/plugins/exabgp/bridgeplugin` need owner-audit rows when child audits resume |
 
 Also from this correction pass: the `## TDD Test Plan` heading was renamed to `## 🧪 TDD Test Plan` and this `## Checklist` section added, both to satisfy the blocking spec validator; no audit content was changed by those two edits.

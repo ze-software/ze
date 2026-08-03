@@ -35,11 +35,11 @@ against the code that produces it, linked from the README where quality is discu
   job than the spec proposed, and it is recorded below rather than built.
 - **Recorded the vocabulary rule in `ai/rules/`, not as a memory or a one-file fix**
   (`ai/rules/rule-placement.md`): a shared behavior rule belongs where every agent reads
-  it, which here means `ai/rules/simplified-technical-english.md` plus the digest.
+  it, which here means `ai/rules/writing.md` plus the digest.
 
 ## Consequences
 
-- `ai/rules/simplified-technical-english.md` now carries the general rule: use the plain
+- `ai/rules/writing.md` now carries the general rule: use the plain
   word unless the technical one earns its place, writing for a capable reader who knows
   computing but not this repository. It reaches every session through
   `ai/rules/CONDENSED.md`. `gated` is named as the standing example rather than as the
@@ -106,7 +106,7 @@ against the code that produces it, linked from the README where quality is discu
 
 - `spec-rfc-compliance-docs` -- the spec itself, removed at closure and replaced by this summary
 - `README.md` -- corrected figures, links the page from Testing and Documentation
-- `ai/rules/simplified-technical-english.md`, `ai/rules/CONDENSED.md` -- the vocabulary
+- `ai/rules/writing.md`, CONDENSED.md (deleted 2026-08-03) -- the vocabulary
   directive
 - `docs/contributing/writing-style.md` -- the build-vocabulary replacement table
 - `../wiki/rfc-implementation.md`, `../wiki/_Sidebar.md` -- separate repository, separate

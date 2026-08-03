@@ -18,7 +18,7 @@ Producers (all read/verified first-hand at implementation):
   is never mutated — `Description` is set only on a leaf this call creates, so a
   plugin command can never overwrite a builtin's `WireMethod`/description. The
   completer offers a node purely on name/prefix + `backendAllowed` — it never
-  reads `WireMethod` (`completer.go:262-273`), so completion-only nodes surface.
+  reads `WireMethod` (`completer.go`), so completion-only nodes surface.
 - **SSH:** `cmd/ze/hub/session_factory.go` `mergePluginCommands` merges eagerly
   into the per-session tree (`buildCommandTree()` is called inside the per-session
   factory closure), sourcing entries lazily via
@@ -35,7 +35,7 @@ Producers (all read/verified first-hand at implementation):
 
 ## GOTCHAS
 - **Web must source at request time, not build time.** `buildServices`
-  (main.go:729) runs BEFORE `apiServer.WaitForStartupComplete` (main.go:918), so
+  (main.go) runs BEFORE `apiServer.WaitForStartupComplete` (main.go), so
   plugins have not registered their commands when `startWebServer` builds the
   tree. A build-time snapshot would be empty, and a first-request `sync.Once`
   snapshot would then never reflect a later register/unregister (AC-3). The live
@@ -46,7 +46,7 @@ Producers (all read/verified first-hand at implementation):
   (this change); (2) `ze completion words` — a standalone CLI process with no
   daemon, so it stays YANG-only and cannot see live plugin commands; (3) the
   daemon's `system command complete` RPC — already completed plugin commands via
-  `Registry().Complete()` (`system.go:436`). Only (1) was missing plugin commands.
+  `Registry().Complete()` (`system.go`). Only (1) was missing plugin commands.
 - **Web is race-free by never mutating the shared tree.** The YANG `commandTree`
   is read-only after build (`AdminTreeFromYANG` snapshots it at setup); each
   request builds its OWN small overlay tree, so there is no shared mutable state.

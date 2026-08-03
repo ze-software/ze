@@ -14,7 +14,7 @@ import (
 // the matching warning's message when any active warning carries one of the
 // given codes. Owners register it with health.Register so the component that
 // raises a warning code also owns its health surface
-// (ai/rules/plugin-self-containment.md).
+// (ai/rules/plugins.md).
 func HealthProbeDegraded(codes ...string) func() (health.Status, string) {
 	return probe(health.StatusDegraded, codes)
 }

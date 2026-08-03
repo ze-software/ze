@@ -13,7 +13,7 @@ run:
   # is the ONE feature-gate consumer that does not self-derive. It MUST equal
   # ze_core + every gate tag in feature-gates.txt; `dep_audit.py --check` fails on
   # drift. When you add a gate to feature-gates.txt, add its tag here too.
-  # See ai/rules/feature-gate-registration.md.
+  # See ai/rules/plugins.md.
   build-tags:
     - ze_core
     - ze_lg

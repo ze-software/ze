@@ -41,18 +41,18 @@ capturing three gaps surfaced by that spec's `/ze-review`:
 New obligation from the 2026-07 implementation wave (verified against current code): the
 plugin RPC connection layer both managed endpoints use gained write-timeout behavior.
 `pkg/plugin/rpc/conn.go` applies a default 30s write deadline when the context carries none
-(`defaultWriteDeadline`, conn.go:44; applied in `writeAppended`, conn.go:292-294, :309) and
+(`defaultWriteDeadline`, conn.go; applied in `writeAppended`, conn.go, :309) and
 arms a fail-fast write watchdog on transports without `SetWriteDeadline` (armed in `NewConn`
-at conn.go:107; `fireWatchdog` closes the connection, conn.go:191-200), with the
+at conn.go; `fireWatchdog` closes the connection, conn.go), with the
 `ze_plugin_write_watchdog_total` counter wired in
-`internal/component/plugin/server/server.go:188-196` and documented in
-`docs/plugin-development/metrics.md:198-208`.
+`internal/component/plugin/server/server.go` and documented in
+`docs/plugin-development/metrics.md`.
 
 Relevance to this spec: the managed client wraps its TLS conn in `rpc.NewConn` at
-`internal/component/managed/client.go:158` and the hub's managed listener does the same at
-`internal/component/plugin/server/managed_serve.go:224`. Both are deadline-capable TLS
+`internal/component/managed/client.go` and the hub's managed listener does the same at
+`internal/component/plugin/server/managed_serve.go`. Both are deadline-capable TLS
 `net.Conn`s, so they take the 30s-deadline path and the watchdog timer never arms for them
-(transport selection at conn.go:307-315); the new counter therefore does not observe managed
+(transport selection at conn.go); the new counter therefore does not observe managed
 connections. Obligations: (1) the cert-verification rework (AC-1/AC-2) must keep wrapping the
 verified TLS conn in `rpc.NewConn` so the deadline behavior is preserved; (2) the
 two-instance daemon `.ci` (AC-4) will implicitly exercise the deadline write path end to end,

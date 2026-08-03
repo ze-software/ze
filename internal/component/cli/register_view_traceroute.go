@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- registration over hardcoding
+// Design: ai/rules/plugins.md -- registration over hardcoding
 // The monitor-traceroute live view's registry glue: the activeView instances,
 // the active-state accessors, and the init() registration (view_registry.go).
 // Kept here (not in model_traceroute.go) so that file stays under the size cap;

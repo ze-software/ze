@@ -224,7 +224,7 @@ func resultOf(t *testing.T, parsed map[string]any) map[string]any {
 // VALIDATES: the version constant is 2026-07-28 and the supported set holds
 // that and nothing else.
 // PREVENTS: a dropped revision surviving as an accepted or advertised version
-// (ai/rules/compatibility.md: no shim for a dropped revision).
+// (ai/rules/go-standards.md: no shim for a dropped revision).
 func TestProtocolVersionIsCurrentRevision(t *testing.T) {
 	if ProtocolVersion != "2026-07-28" {
 		t.Fatalf("ProtocolVersion = %q, want 2026-07-28", ProtocolVersion)
@@ -355,7 +355,7 @@ func createTestTask(t *testing.T, hs *httptest.Server) string {
 
 // waitTaskTerminal polls tasks/get over the transport until the task leaves the
 // working state. It waits on the CONDITION, not on a duration
-// (ai/rules/fix-dont-record.md).
+// (ai/rules/completion.md).
 func waitTaskTerminal(t *testing.T, hs *httptest.Server, taskID string) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)

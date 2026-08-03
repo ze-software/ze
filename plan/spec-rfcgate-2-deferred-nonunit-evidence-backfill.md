@@ -19,7 +19,7 @@ Deferred out of `plan/spec-rfcgate-2-evidence.md` (see
 **The problem.** `plan/spec-rfcgate-2-evidence.md` built the machinery for
 non-unit RFC evidence: four declared carriers, an execution tier per carrier, a
 `kind/tier` cell on every ledger link, and a per-tier monotonic ratchet. It did
-not re-bind the existing corpus. `ai/rules/integration-completeness.md` states
+not re-bind the existing corpus. `ai/rules/completion.md` states
 that a unit test proves the algorithm while only a functional test proves the
 feature is reachable. A wire obligation proven only by a Go table test is proven
 at the wrong altitude, which is the thesis the parent spec exists to act on.
@@ -30,7 +30,7 @@ a new evidence kind to name the applicable set and either back-fill it or record
 the remainder as tracked backlog. Umbrella decision D4 says "This spec set is
 MACHINERY ONLY", and Constraint(D4) adds "no child may open the backlog". A
 destination that disclaims the work is not a home
-(`ai/rules/deferral-tracking.md`), so the row moved here.
+(`ai/rules/planning.md`), so the row moved here.
 
 **Sizing input, and a hard constraint on how it may be used.** A keyword
 classifier over requirement text, hand-calibrated on a 40-item sample at ~97%
@@ -80,7 +80,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/integration-completeness.md` - the altitude argument this spec acts on
+- [ ] `ai/rules/completion.md` - the altitude argument this spec acts on
   → Constraint: a unit test proves the algorithm, a `.ci` proves the daemon exposes it. Both are required; neither substitutes.
 - [ ] `ai/rules/interop-and-goal-validation.md` - the vacuity traps
   → Constraint: a test asserting the ABSENCE of something passes when the mechanism is deleted. Every binding this spec lands must be a POSITIVE assertion.
@@ -113,7 +113,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 **Behavior to change:**
 - None. This spec adds test evidence only. No production Go file is modified.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A Python peer in `test/l2tp/rfc2661-emitted-control-shape.ci` sends an L2TPv2 SCCRQ as a UDP datagram to the port `ze -` is listening on. Format at entry: raw bytes, `struct.pack("!HHHHHH", 0xC802, ...)` plus hand-packed AVPs.
@@ -278,7 +278,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | Oracle independence | The landed test's expected values come from Python, not from a ze helper |
 | Tier honesty | The claimed tier is read from `carrier_for`, not asserted |
 | Rule: `ai/rules/rfc-compliance.md` | No `{gap}` written. The two conformance questions are raised, not annotated |
-| Rule: `ai/rules/no-fabrication.md` | A-1 was BROKEN by measurement and is recorded as broken rather than quietly dropped |
+| Rule: `ai/rules/evidence.md` | A-1 was BROKEN by measurement and is recorded as broken rather than quietly dropped |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -380,7 +380,7 @@ Every mutation was applied with `go build -overlay` against a copy under
 
 Read honestly: the landed test discriminates on all four mutations that touch it,
 and the unit suite also catches all four. The `.ci` therefore buys altitude
-(`ai/rules/integration-completeness.md`: the daemon really emits these bytes from
+(`ai/rules/completion.md`: the daemon really emits these bytes from
 a real socket) and oracle diversity (a non-Go parser cannot share a Go-level
 misreading), but for THIS cluster it did not buy discrimination the unit tests
 lacked.

@@ -10,7 +10,7 @@
 Phase note (cell corrected 2026-07-22; the old "fix proposed, not implemented"
 was stale): F1-F3 are implemented (`internal/test/runner/peer_contract.go` with
 `isSelfValidated`/`validatePeerBlocks`, shared `peer.ConsumesLine` in
-`expect.go:49`) and F4 is complete (converted `eor-sent`/`local-preference`
+`expect.go`) and F4 is complete (converted `eor-sent`/`local-preference`
 expectations in `bgp-redistribute-announce.ci` and
 `forward-mpreach-nexthop-self-two-peer.ci`). F5 and F6 remain open.
 
@@ -30,26 +30,26 @@ plugin engine is implicated. Both defects live in `internal/test/`.
 
 | # | Hop | Cite |
 |---|-----|------|
-| 1 | `LoadExpectFile` passes ONLY `expect=bgp:` / `action=` lines to ze-peer; `expect=json` is dropped ("Ignore json, stderr, syslog - handled by test runner") | `internal/test/peer/expect.go:60-65` |
-| 2 | a check-mode peer with `len(config.Expect) == 0` prints `no test data available to test against` and returns 1 | `internal/test/cli/cmd_peer.go:44-48` |
-| 3 | so `Run` is never reached: the listener at `lc.Listen` never binds and never prints `listening on` | `internal/test/peer/peer.go:211,215,217` |
-| 4 | the runner skips its peer-bind barrier for exit-code tests, so ze starts against a dead port and no error is raised | `internal/test/runner/runner_exec.go:766` (`if rec.ExpectExitCode == nil`), `:770` |
+| 1 | `LoadExpectFile` passes ONLY `expect=bgp:` / `action=` lines to ze-peer; `expect=json` is dropped ("Ignore json, stderr, syslog - handled by test runner") | `internal/test/peer/expect.go` |
+| 2 | a check-mode peer with `len(config.Expect) == 0` prints `no test data available to test against` and returns 1 | `internal/test/cli/cmd_peer.go` |
+| 3 | so `Run` is never reached: the listener at `lc.Listen` never binds and never prints `listening on` | `internal/test/peer/peer.go,215,217` |
+| 4 | the runner skips its peer-bind barrier for exit-code tests, so ze starts against a dead port and no error is raised | `internal/test/runner/runner_exec.go` (`if rec.ExpectExitCode == nil`), `:770` |
 
 `bgp-redistribute-announce.ci`'s peer block carries exactly one expectation, an
-`expect=json` (`:18`). Its ze-peer therefore never listens.
+`expect=json`. Its ze-peer therefore never listens.
 
 ### D2 -- `expect=exit:code=N` silently disables ALL BGP validation in a peer test
 
-`internal/test/runner/runner_exec.go:1116` computes `selfValidated` as
+`internal/test/runner/runner_exec.go` computes `selfValidated` as
 `rec.ExpectExitCode != nil || (!hasPeer && hasOutputAssertion)`, and the whole BGP peer
 path runs only under `if !selfValidated`. So a non-nil `ExpectExitCode` alone skips
 `:1121` (the peer `successful` check) and `:1142` (`validateJSON`). All 7
 `bgp-redistribute-*.ci` declare
 `expect=exit:code=0`, so the peer's wire expectations and `validateJSON`
-(`runner_validate.go:34`, whose `:114-116` no-match error is real and would have fired)
+(`runner_validate.go`, whose `:114-116` no-match error is real and would have fired)
 are never evaluated. The test passes on ze's exit code alone.
 
--> Constraint: D2 MASKS D1. The comment at `runner_exec.go:1104-1106` already worries
+-> Constraint: D2 MASKS D1. The comment at `runner_exec.go` already worries
 about this exact class ("a peer test may also declare file checks, and it must still fail
 when the BGP exchange mismatches rather than passing on the file checks alone"); the
 `rec.ExpectExitCode != nil` disjunct at `:1116` reintroduces it for exit-code tests.
@@ -84,7 +84,7 @@ cause). The differentiator is which directives the `.ci` uses:
 | Test | `expect=bgp:` in peer block? | `expect=exit:code=0`? | Consequence |
 |------|------------------------------|------------------------|-------------|
 | `redistribute-as112-announce.ci` (2-peer, "unaffected") | YES (`:29-30,43-44`) | NO | peer listens; runner enforces the exchange -> a REAL test |
-| `bgp-redistribute-announce.ci` (1-peer, "stalls") | NO -- json only (`:18`) | YES (`:126`) | peer never listens; nothing enforced -> a VACUOUS test |
+| `bgp-redistribute-announce.ci` (1-peer, "stalls") | NO -- json only | YES | peer never listens; nothing enforced -> a VACUOUS test |
 
 as112 was never "immune to a concurrency bug"; it is simply the only one of the pair that
 was ever actually running BGP.
@@ -107,17 +107,17 @@ positive evidence Thomas required rather than resting on "we found no bug".
 
 -> Constraint: the `connection refused` + 5->10->20->40s backoff in the 2026-07-15 log is
 the reactor behaving CORRECTLY against a port with no listener. `DefaultReconnectMin`
-(`peer.go:81`) and commit 44ad25d23 are unrelated to this symptom and neither caused nor
+(`peer.go`) and commit 44ad25d23 are unrelated to this symptom and neither caused nor
 masked it.
 
 ### Firewall head-of-line-blocking link: REFUTED
 
 -> Decision: `plan/spec-fixit-firewall-concurrency-deadlock.md` and this spec share NO
 root cause. That spec's mechanism is a real lock-discipline chain in production plugin
-code: ddos-local holds `r.mu` (`internal/plugins/ddos/local/responder.go:64,136`) across
-an unbounded netlink `Flush` (`internal/plugins/firewall/nft/backend_linux.go:74` ->
-`nftables conn.go:266-274`, no deadline set at `backend_linux.go:31`), while
-`handleShowDdosLocal` (`show.go:31` -> `responder.go:199`) needs the same lock on the
+code: ddos-local holds `r.mu` (`internal/plugins/ddos/local/responder.go,136`) across
+an unbounded netlink `Flush` (`internal/plugins/firewall/nft/backend_linux.go` ->
+`nftables conn.go`, no deadline set at `backend_linux.go`), while
+`handleShowDdosLocal` (`show.go` -> `responder.go`) needs the same lock on the
 dispatch path. This spec's mechanism involves no lock, no dispatch handler, no shared
 goroutine, and no production code at all: a test peer exits before binding. The
 resemblance was only the surface shape ("an observer's command does not get what it wants
@@ -144,7 +144,7 @@ and F2's guard. A copy in the runner would have re-opened the same defect.
 
 -> Constraint (found while measuring, corrects F1 as originally proposed): keying
 the peer-governs rule off `hasPeer` (ze-peer present) is WRONG. sink/echo/inject
-peers loop until killed and never print `successful` (`peer.go:265-267` continues
+peers loop until killed and never print `successful` (`peer.go` continues
 without checking completion), so requiring it of them asserts nothing and fails
 valid scaffolding tests -- `event-predicate-wait` (`--mode echo`) went red until the
 rule was scoped to `hasCheckPeer`. Only ModeCheck validates, exactly as
@@ -234,19 +234,19 @@ file: `--mode sink`, or reach Established before shutdown (stronger).~~
 agents disproved it independently.** These sessions do NOT die in the OPEN handshake:
 all 33 reach Established (peer logs show `open recv`/`open sent`, observers print their
 OK line and find routes in the RIB). The real cause is a **teardown race**. ze holds the
-EOR behind the initial-sync barrier -- `peer_initial_sync.go:174-178` sleeps 500ms then
+EOR behind the initial-sync barrier -- `peer_initial_sync.go` sleeps 500ms then
 `waitForAPISync(2 * time.Second)` when `apiSyncExpected > 0`, and the EOR is written at
 `:334` -- while the observer finishes in milliseconds and calls `request shutdown`,
 closing the session first. The peer then reports `connection closed before completion`.
 
 -> Constraint: **`state=established` is NOT a sufficient gate**, because the EOR is sent
 AFTER establishment. Gate on `eor-sent >= 1` read from `show bgp peer <sel> detail`
-(`peer.go:217`), which is the counter incremented at the EOR WRITE itself rather than at
+(`peer.go`), which is the counter incremented at the EOR WRITE itself rather than at
 scheduling. `api.quiesce()` is the alternative barrier and is equally sufficient AFTER
-establishment (`peer_run.go:376` sets `sendingInitialRoutes` at Established; `:404` clears
-it only after the EOR; `peer.go:864-867` `PendingSync()` and `reactor_api.go:923`
+establishment (`peer_run.go` sets `sendingInitialRoutes` at Established; `:404` clears
+it only after the EOR; `peer.go` `PendingSync()` and `reactor_api.go`
 `DrainPeerSync` block on exactly that) -- but quiesce ALONE is not an establishment
-barrier, since `reactor_api.go:906-913` skips a down/idle peer with an empty queue. So:
+barrier, since `reactor_api.go` skips a down/idle peer with an empty queue. So:
 poll established, THEN quiesce; or gate on `eor-sent`.
 
 -> Constraint: the "rr-basic EOR-wait pattern" this spec named **does not exist**.
@@ -321,38 +321,38 @@ The test's expectation is NOT stale (its content is right, see below); the test'
 MECHANISM cannot create the precondition it asserts. Root cause is test design.
 
 Producer chain for the observed WITHDRAW (every step read, not inferred):
-1. `internal/test/peer/peer.go:265-284` -- a **check-mode** ze-peer accepts one
+1. `internal/test/peer/peer.go` -- a **check-mode** ze-peer accepts one
    connection, waits for it to complete, and only then accepts the next
    (`if p.config.Mode != ModeCheck { continue }`; sink/echo do accept concurrently).
-   `peer.go:255-256` closes each connection via `defer c.Close()` when its script ends.
+   `peer.go` closes each connection via `defer c.Close()` when its script ends.
    So `option=tcp_connections:value=2` in check mode means SEQUENTIAL sessions:
    conn 1 is CLOSED BEFORE conn 2 is accepted. The two RS clients are never
    simultaneously established, so RS forwarding cannot occur regardless of ze.
-2. `internal/test/peer/checker.go:335-338` -- `conn=N` binds to the Nth **accepted**
+2. `internal/test/peer/checker.go` -- `conn=N` binds to the Nth **accepted**
    connection (`connectionIDs[0]` popped in order). Nothing correlates `conn=N` to a
    source IP. Observed: 127.0.0.2 (receiver-peer) is accepted FIRST in 5/5 runs, so
    `action=send:conn=1` fires at the RECEIVER, not the intended source at 127.0.0.1.
-3. `rs/server_forward.go:109` -- `selectForwardTargets` skips peers with `!peer.Up`.
+3. `rs/server_forward.go` -- `selectForwardTargets` skips peers with `!peer.Up`.
    The other client is not up yet, so targets is empty.
-4. `rs/server_forward.go:148-151` -- empty targets -> `releaseCache`, no forward.
+4. `rs/server_forward.go` -- empty targets -> `releaseCache`, no forward.
    The announce is correctly dropped: an RS forwards to OTHER clients; there were none.
-5. `rs/server_withdrawal.go:81-87` -- the withdrawal map is updated regardless of
+5. `rs/server_withdrawal.go` -- the withdrawal map is updated regardless of
    whether the forward happened, recording 10.0.0.0/24 against the source peer.
-6. conn 1 closes (step 1) -> `rs/server_handlers.go:65` `case "down"` ->
-   `handleStateDown` (`:80-93`) -> `sendBatchedWithdrawals` (`:100-139`) emits
+6. conn 1 closes (step 1) -> `rs/server_handlers.go` `case "down"` ->
+   `handleStateDown` -> `sendBatchedWithdrawals` emits
    `update text nlri ipv4/unicast del 10.0.0.0/24` to every peer except the source.
 7. conn 2 (127.0.0.1) then establishes and receives that withdraw, then EOR.
 
 -> Constraint: step 6 is a DEDUCTIVE proof, not ordering inference.
-`server_handlers.go:133` (`buf.WriteString(" del ")`) is the ONLY withdraw emitter in
+`server_handlers.go` (`buf.WriteString(" del ")`) is the ONLY withdraw emitter in
 the whole rs plugin; `sendBatchedWithdrawals` has exactly ONE caller
-(`server_handlers.go:92`), and rs's `handleStateDown` has exactly ONE caller
-(`server_handlers.go:65`, `state == "down"`). The source never sent a withdraw.
+(`server_handlers.go`), and rs's `handleStateDown` has exactly ONE caller
+(`server_handlers.go`, `state == "down"`). The source never sent a withdraw.
 Therefore the received withdraw PROVES a peer-down was processed with the prefix in
 the withdrawal map. Withdrawing a downed peer's routes is required behavior, not a bug.
 
 -> Decision: the expectation's CONTENT (AS_PATH prepend to [65000]) is correct for this
-config and must NOT be "fixed". `rs/yang/ze-rs-conf.yang:38-48` defines `rs-client`
+config and must NOT be "fixed". `rs/yang/ze-rs-conf.yang` defines `rs-client`
 (default **false**) as "transparent AS-path forwarding. RFC 7947 Section 2.2.2: the
 route server MUST NOT modify AS_PATH ... When true, the reactor SKIPS AS-path
 prepending". The `.ci` sets `rs-fast-path enable` but NOT `rs-client`, so prepend is
@@ -364,10 +364,10 @@ would enshrine a scenario that exercises no forwarding at all. The banned move i
 exactly what the `contains=` sibling below already did by accident.
 
 **Adjacent false green found (NOT fixed, different file, reported only).**
-`test/plugin/bgp-rs-reactor-fastpath.ci:28` asserts
+`test/plugin/bgp-rs-reactor-fastpath.ci` asserts
 `expect=bgp:conn=2:seq=1:contains=180A0000`. It is structurally IDENTICAL to this test
 (same single check-mode ze-peer, `tcp_connections:value=2`, `bind 0.0.0.0`, same two
-peers, same conn=1 send / conn=2 expect) and it PASSES -- but `checker.go:616-618`
+peers, same conn=1 send / conn=2 expect) and it PASSES -- but `checker.go`
 matches `contains:` with a plain `strings.Contains` on the hex stream, and the withdraw
 wire `...001B020004180A00000000` CONTAINS `180A0000`. So it is satisfied by the very
 same WITHDRAW that fails this test byte-for-byte. Its PASS is not evidence that RS
@@ -414,42 +414,42 @@ daemon before then.** In both, every OTHER asserted byte is produced correctly.
 
 Wire evidence -- the asserted CONTENT is byte-correct in both; only the EOR is missing:
 - B2.1: peer received `FFFF..FF:0017:05:00010001` = the ROUTE-REFRESH, **byte-identical**
-  to the `:12` expectation. The EOR (`:10`) never arrived.
+  to the `:12` expectation. The EOR never arrived.
 - B2.5: peer received `FFFF..FF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801`
-  = the 192.168.1.0/24 UPDATE, **byte-identical** to `:22`. The EOR (`:24`) never arrived.
-- Expectation ORDER is not asserted and is a red herring: `checker.go:354-365` matches a
+  = the 192.168.1.0/24 UPDATE, **byte-identical** to `:22`. The EOR never arrived.
+- Expectation ORDER is not asserted and is a red herring: `checker.go` matches a
   received message against ANY unmatched expectation in the same (conn,seq) group, and
   both files put every expectation at `conn=1:seq=1`.
 
 Producer chain for the missing EOR (every step read, not inferred):
-1. `peer_run.go:361-367` -- on Established, `apiSyncExpected` = count of ProcessBindings
+1. `peer_run.go` -- on Established, `apiSyncExpected` = count of ProcessBindings
    with `SendUpdate` (i.e. every `send [ update ]` process).
-2. `peer_initial_sync.go:171-178` -- if that count > 0: `clock.Sleep(500ms)` then
+2. `peer_initial_sync.go` -- if that count > 0: `clock.Sleep(500ms)` then
    `waitForAPISync(2 * time.Second)`.
-3. `peer_initial_sync.go:329-337` -- the EOR for every negotiated family is sent ONLY
+3. `peer_initial_sync.go` -- the EOR for every negotiated family is sent ONLY
    AFTER that wait (RFC 4724 S2, "including the case when there is no update to send").
-4. `peer.go:437-445` -- `waitForAPISync` returns on `<-ready` or the FULL timeout
+4. `peer.go` -- `waitForAPISync` returns on `<-ready` or the FULL timeout
    (`:441-444`, "API sync timeout"). Nothing shortens it.
-5. `peer.go:409-419` -- `Peer.SignalAPIReady` (the only thing that closes `ready`) is
-   reachable ONLY from `api_sync.go:179-191` `SignalPeerAPIReady`, driven by the
+5. `peer.go` -- `Peer.SignalAPIReady` (the only thing that closes `ready`) is
+   reachable ONLY from `api_sync.go` `SignalPeerAPIReady`, driven by the
    `peer <addr> plugin session ready` command.
-6. That command has exactly TWO emitters: `rib_replay.go:252` and `:276`.
-   (`rib_commands.go:603` and `rib_replay.go:280` document that they deliberately do NOT.)
+6. That command has exactly TWO emitters: `rib_replay.go` and `:276`.
+   (`rib_commands.go` and `rib_replay.go` document that they deliberately do NOT.)
 
 Why neither test ever signals -- TWO different upstream reasons, one shared consequence:
 - **B2.1**: the bound `send [ update ]` process is `bgp-route-refresh`, which contains NO
   signalling code at all (grep over `plugins/route_refresh/`: the only `SignalAPIReady` is
-  a no-op in `handler/mock_reactor_test.go:44`). And `config/peers.go:578-585` REQUIRES
+  a no-op in `handler/mock_reactor_test.go`). And `config/peers.go` REQUIRES
   route-refresh to be bound with `send [ update ]`, so `apiSyncExpected >= 1` is
   UNAVOIDABLE for every route-refresh peer.
 - **B2.5**: the bound process is `bgp-rib`, which HAS the signal but cannot reach it when
-  the peer's Adj-RIB-Out is empty. `rib_replay.go:250-253` signals ready when
+  the peer's Adj-RIB-Out is empty. `rib_replay.go` signals ready when
   `len(groups)==0`, but `collectGroupedRibOutRoutesFiltered` returns **nil** on BOTH empty
   paths (`:54-56` no ribOut map for the peer; `:98-100` no matching routes) and NEVER an
   empty non-nil slice -- while both callers gate on `if replayGroups != nil`
-  (`rib.go:1066-1068` handleStructuredState, `rib.go:1115-1117` handleState).
+  (`rib.go` handleStructuredState, `rib.go` handleState).
 
--> Decision (**PRODUCT BUG**, B2.5's chain): `rib_replay.go:251-253` is **dead code from
+-> Decision (**PRODUCT BUG**, B2.5's chain): `rib_replay.go` is **dead code from
 the peer-up path**. It exists precisely to signal "nothing to replay, proceed", and the
 nil-vs-empty conflation at both call sites defeats it; the dead branch is the author's
 stated intent, unreachable. Net: `bgp-rib` signals ready ONLY when it has >= 1 route to
@@ -457,12 +457,12 @@ replay, and a FRESH peer never does. Blast radius far beyond this test: **every 
 session with `bgp-rib` bound `send [ update ]` and an empty Adj-RIB-Out delays its EOR by
 500ms + 2000ms = 2.5s.** Not a protocol violation (RFC 4724 S2 sets no EOR deadline), but
 a real operator-visible convergence delay on the normal startup path. Fix belongs at
-`rib.go:1066`/`:1115` (call replay whenever the peer came up and let `rib_replay.go:251`
+`rib.go`/`:1115` (call replay whenever the peer came up and let `rib_replay.go`
 handle empty), or by returning an empty non-nil slice. NOT fixed here (characterise-only).
 
 -> Constraint: fixing that guard does NOT fix B2.1. `bgp-route-refresh` has no signaller
 at all, so a route-refresh peer WITHOUT `bgp-rib` still burns the full 2s. The deeper
-mismatch: `peer_run.go:363` counts plugins that MAY send updates, but only `bgp-rib` ever
+mismatch: `peer_run.go` counts plugins that MAY send updates, but only `bgp-rib` ever
 SIGNALS. The counter set and the signaller set disagree. Whether the remedy is "count only
 plugins that signal", "make every `send [ update ]` plugin signal", or "shorten the
 fallback" is a design call for Thomas, not a mechanical fix.
@@ -476,13 +476,13 @@ ABOVE the `stdin=peer` header -- inside it the runner rejects it, per `plan/lear
 | E2 | same, sleep 4.0 / 3.0 / 2.0 | **PASS all three.** The EOR arrives and both expectations match. Proves the EOR is LATE, not absent. |
 | E3 | `rib-pipe-filter`, committed | FAIL. `route sent 192.168.1.0/24` @10.703, `sleeping for API routes` @10.703, `waiting for API sync expected=1` @11.203, no completion. |
 | E4 | same + `time.sleep(3.0)` before shutdown | **PASS.** Peer log now shows BOTH `...:0030:02:...18C0A801` AND `...:0017:02:00000000` (the EOR). |
-| E5 | `api-route-refresh` with `send [ update ]` removed from `process route-refresh` | INVALID as a probe: ze REJECTS the config (`peers.go:578-585`, "route-refresh requires process with send [ update ]"). Recorded because it looks like an obvious experiment and is not one. |
+| E5 | `api-route-refresh` with `send [ update ]` removed from `process route-refresh` | INVALID as a probe: ze REJECTS the config (`peers.go`, "route-refresh requires process with send [ update ]"). Recorded because it looks like an obvious experiment and is not one. |
 
 -> Decision (verdict B2.1 `api-route-refresh`): **ze's ROUTE-REFRESH is CORRECT. The
 test's expectation CONTENT is correct. The test's TIMING is wrong.** RFC 2918 S3: the
 ROUTE-REFRESH message is 23 bytes, type 5, AFI(2) + Reserved(1) + SAFI(1); ze sent
 `0017 05 0001 00 01` = length 23, IPv4/unicast, Reserved 0. Correct. RFC 7313 **is**
-negotiated here (ze's OPEN carries `4600` = capability 70; `capability.go:76`
+negotiated here (ze's OPEN carries `4600` = capability 70; `capability.go`
 "CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1"; the ze-peer mirrors it), and
 RFC 7313 S4 redefines that Reserved octet as Message Subtype -- but subtype 0 IS the
 normal refresh REQUEST; BoRR/EoRR (1/2) are the RESPONDER's duty. ze is the requester, so
@@ -504,10 +504,10 @@ spec-fixit-migrate-sleeps-infra is removing. The honest test fix is the E9 recip
 (`count-sent` exact=1), `:194-196` (`prefix-filter` exact=1). All four FAIL today
 (`missing key 'adj-rib-out' in data: []`, `count=1 != expected 2`, `count=0 != expected 1`,
 `count=0 != expected 1`) and all four contradict a DELIBERATE design:
-`peer_initial_sync.go:68-72` sets `sendingConfigStatic`, `reactor_notify.go:349` tags the
-sent event, and `rib_structured.go:322-329` skips ribOut storage for it ("Storing them in
+`peer_initial_sync.go` sets `sendingConfigStatic`, `reactor_notify.go` tags the
+sent event, and `rib_structured.go` skips ribOut storage for it ("Storing them in
 ribOut would cause duplicates (config re-send + RIB replay)");
-`plan/learned/1008-cp-survival-4-on-demand-origination-design.md:21` corroborates
+`plan/learned/1008-cp-survival-4-on-demand-origination-design.md` corroborates
 `config-static` as the established Meta consumer. The file's own header `:5` ("Config
 static route populates adj-rib-out via RIB plugin") is therefore a FALSE premise. These
 never failed the test because `sys.exit(1)` sets the PLUGIN's exit code while
@@ -525,7 +525,7 @@ more wall-clock than the 2.5s the other two miss. Same class of red, unrelated c
 this test concerns filter-chain ordering. Do not go looking for an ordering bug.
 
 Three independent, provable defects in the 5 UPDATE expectations (`:10,12,14,16,18`):
-1. They use `.{8}` (regex) for NEXT_HOP. **The matcher has no regex.** `checker.go:612-620`
+1. They use `.{8}` (regex) for NEXT_HOP. **The matcher has no regex.** `checker.go`
    `matchRule` supports only `prefix:`, `contains:`, and `strings.EqualFold`;
    `internal/test/peer/` imports no `regexp` at all. These can NEVER match any byte string.
    This is the ONLY file in `test/plugin` + `test/encoding` using `.{N}`.
@@ -537,9 +537,9 @@ Three independent, provable defects in the 5 UPDATE expectations (`:10,12,14,16,
 
 And the routes are never injected at all:
 4. `:9,11,13,15,17,19` are `cmd=api:...` lines INSIDE a `stdin=peer` block. ze-peer IGNORES
-   them: `expect.go:112-113` (`case "cmd": // Ignore - documentation only`) and `consumes()`
+   them: `expect.go` (`case "cmd": // Ignore - documentation only`) and `consumes()`
    (`:32-44`) returns false for `cmd`. `cmd=api` is an ENCODE-suite directive
-   (`record_parse.go:690-700` sets `msg.Cmd` for the runner to drive ze's API); in a
+   (`record_parse.go` sets `msg.Cmd` for the runner to drive ze's API); in a
    plugin-suite peer block it is inert. Proven by the plugin's own log:
    `FAIL: first 3 count returned 0, expected 3` -- the RIB is EMPTY.
 
@@ -556,7 +556,7 @@ non-empty would re-ship the same false green in a new costume.
 to ze; but `expect=bgp` asserts what the peer **RECEIVES**. With an empty ze RIB the peer
 would receive only the EOR, so even a regex-capable matcher would never see those 5
 UPDATEs. An honest fix must make the peer SEND (e.g. `option=update:value=send-route:prefix=...`,
-`expect.go:179-227`), drop the 5 receive-side expectations, and only then assert first/last
+`expect.go`), drop the 5 receive-side expectations, and only then assert first/last
 on a populated RIB.
 
 -> Constraint (scope, 2026-07-16): B2.1/B2.5/B2.6 were characterised only. No production
@@ -567,7 +567,7 @@ three `.ci` files are byte-identical to HEAD (experiments were reverted from
 #### B2.3 `remove-private-as-export.ci` + B2.4 `remove-private-as-replace-peer.ci` -- INVESTIGATED 2026-07-16. SHARED root cause with EACH OTHER and with B2.2. Contains a REAL product bug (private ASN leak).
 
 Reproduced at HEAD via a pristine `git archive` tree (the working tree does not build:
-`internal/component/command/pipe.go:810 sessionFormat` undefined, another session's WIP).
+`internal/component/command/pipe.go sessionFormat` undefined, another session's WIP).
 Runner `bin/ze-test bgp plugin <name>` (`make ze-plugin-test`).
 
 -> Decision: **NEITHER expectation was edited and both stay red.** The AS_PATH each test
@@ -576,7 +576,7 @@ asserts is byte-exact CORRECT. Neither red is a remove-private-as bug.
 -> Decision: B2.3 and B2.4 share ONE root cause with each other, and it is **B2.2's**
 root cause, not a filter bug. Same shape: one check-mode `ze-peer`,
 `tcp_connections:value=2`, `bind 0.0.0.0`, two ze peers on 127.0.0.1/127.0.0.2. B2.2's
-producer chain (`peer.go:265-284` sequential accept, `server_handlers.go:65,92` ->
+producer chain (`peer.go` sequential accept, `server_handlers.go,92` ->
 `sendBatchedWithdrawals`) explains the observed WITHDRAW here verbatim; it is not
 re-derived. Corroborating measurement: 127.0.0.2 is accepted first in 8/10 runs, so
 `action=send:conn=1` injects into the RECEIVER, and the conn=2 expectation then sees the
@@ -595,10 +595,10 @@ concurrent, ze emits (`ze bgp decode --update`):
 
 64512 is the only RFC 6996 private ASN in the fixture path (64496/64497 are RFC 5398
 documentation ASNs, correctly retained). Producer read, not inferred:
-`rewritePrivateASSegments` (`internal/component/bgp/reactor/filter_delta.go:645-669`)
+`rewritePrivateASSegments` (`internal/component/bgp/reactor/filter_delta.go`)
 drops the ASN when `mode != peer-as` and substitutes `peerAS` when it is;
-`isRFC6996PrivateASN` (`:673`) implements 64512-65534 / 4200000000-4294967294 exactly.
-`filter_ordered.go:226` passes `destPeerAS` for export (65002 = the receiver's remote AS),
+`isRFC6996PrivateASN` implements 64512-65534 / 4200000000-4294967294 exactly.
+`filter_ordered.go` passes `destPeerAS` for export (65002 = the receiver's remote AS),
 which is why REPLACE yields 65002 and not the local 65000. Governing text: RFC 6996 S4
 (the MUST) + S5 (the ranges); the remove-vs-replace choice is vendor policy, unspecified
 by RFC, so `replace-with peer-as` is a design decision, not an RFC requirement.
@@ -606,13 +606,13 @@ by RFC, so `replace-with peer-as` is a design decision, not an RFC requirement.
 **Finding: the ONLY wire divergence is LOCAL_PREF, and the EXPECTATION is wrong.**
 Both tests expect `40 05 04 00000064` (LOCAL_PREF 100) to reach the receiver. ze instead
 emits `C0 FD 04 05010000` -- same 7 bytes, which is why total lengths still match.
-That is attr 253 `attrCodeAttrDiscard` (`message/attr_discard.go:22`,
+That is attr 253 `attrCodeAttrDiscard` (`message/attr_discard.go`,
 `draft-mangin-idr-attr-discard-00`), value = code 0x05 (LOCAL_PREF), reason 0x01
 (`DiscardReasonEBGPInvalid`). Producer chain, every step read:
-`validateLocalPrefAttr` (`internal/component/bgp/message/rfc7606.go:442-450`) returns
+`validateLocalPrefAttr` (`internal/component/bgp/message/rfc7606.go`) returns
 `RFC7606ActionAttributeDiscard` + `DiscardReasonEBGPInvalid` when `!isIBGP` ->
-`reactor/session_validation.go:117` calls `message.ApplyAttrDiscard` -> `applyInPlace`
-(`message/attr_discard.go:96-115`) overwrites LOCAL_PREF in place.
+`reactor/session_validation.go` calls `message.ApplyAttrDiscard` -> `applyInPlace`
+(`message/attr_discard.go`) overwrites LOCAL_PREF in place.
 Proven from RFC, NOT from ze's output: the fixture sends LOCAL_PREF INTO an EBGP session
 (source-peer local 65000 / remote 65001), which **RFC 7606 S7.5** requires the receiver to
 discard; and the receiver is EBGP (65000/65002), to which **RFC 4271 S5.1.5** forbids
@@ -631,17 +631,17 @@ EBGP receiver 127.0.0.2:
 = `AS_PATH [64496 64512 64497]`: private **64512 NOT removed**, local **65000 NOT
 prepended**, filter not applied. **RFC 6996 S4 is a MUST** ("Private Use ASNs MUST be
 removed from AS path attributes ... before being advertised to the global Internet").
-Non-prepend is also wrong here, and B2.2 already proved why: `rs/yang/ze-rs-conf.yang:38-48`
+Non-prepend is also wrong here, and B2.2 already proved why: `rs/yang/ze-rs-conf.yang`
 makes `rs-client` default **false**, so the reactor is supposed to prepend; RFC 7947 S2.2.2
 transparency does not apply to this config.
 Measured 3/18 concurrent-session runs, only when ze connected to the receiver BEFORE the
 UPDATE arrived on the source. **`rs-fast-path` is NOT the discriminator** (leak 1/10 with
 it DISABLED, 0/10 with it enabled), so this is not simply the documented fast path; that
 hypothesis was tested and killed.
--> Constraint: mechanism is HYPOTHESIS, NOT VERIFIED. `forward_rs.go:107-114` already
+-> Constraint: mechanism is HYPOTHESIS, NOT VERIFIED. `forward_rs.go` already
 intends to skip peers with `exportFilters` and hand them to bgp-rs `ForwardCached`, so the
 leak implies that snapshot looked empty. `peerForwardFacts.exportFilters` is populated only
-by `refreshForwardFacts` (`reactor/peer_forward_facts.go:82,116`), which its own comment
+by `refreshForwardFacts` (`reactor/peer_forward_facts.go,116`), which its own comment
 says runs at `setEncodingContexts` / `resolveDynamicPeerSettings`. A snapshot taken before
 config/registry attaches the filter refs, never refreshed, would produce exactly this. The
 LEAK IS MEASURED; that mechanism is not. Do not spec the mechanism before reading whether
@@ -660,15 +660,15 @@ re-added. All experiments ran in a throwaway `tmp/` export, never the working tr
 
 | # | Change | File | Why |
 |---|--------|------|-----|
-| F1 | Fail loudly instead of passing: a record with a ze-peer AND `ExpectExitCode` must still run the peer `successful` check + `validateJSON`. Narrow `selfValidated` to `!hasPeer && (rec.ExpectExitCode != nil \|\| hasOutputAssertion)` | `internal/test/runner/runner_exec.go:1116` | removes D2, the masking defect; makes every affected test honest. Expect reds: that is the point |
-| F2 | Reject a check-mode peer block whose expectations are all runner-side, at PARSE time, naming the file | `internal/test/runner/record_parse.go` (peer-block validation) | removes D1's silent mode; `expect.go:60-65` dropping `expect=json` is correct behavior, the bug is that nothing notices the peer is left with nothing to do |
-| F3 | Make ze-peer's "nothing to check" exit unmistakable in the runner's report (it is currently only visible as the peer's stderr in a failure dump) | `internal/test/cli/cmd_peer.go:46` + runner report | a peer that never binds should never look like a passing test |
+| F1 | Fail loudly instead of passing: a record with a ze-peer AND `ExpectExitCode` must still run the peer `successful` check + `validateJSON`. Narrow `selfValidated` to `!hasPeer && (rec.ExpectExitCode != nil \|\| hasOutputAssertion)` | `internal/test/runner/runner_exec.go` | removes D2, the masking defect; makes every affected test honest. Expect reds: that is the point |
+| F2 | Reject a check-mode peer block whose expectations are all runner-side, at PARSE time, naming the file | `internal/test/runner/record_parse.go` (peer-block validation) | removes D1's silent mode; `expect.go` dropping `expect=json` is correct behavior, the bug is that nothing notices the peer is left with nothing to do |
+| F3 | Make ze-peer's "nothing to check" exit unmistakable in the runner's report (it is currently only visible as the peer's stderr in a failure dump) | `internal/test/cli/cmd_peer.go` + runner report | a peer that never binds should never look like a passing test |
 | F4 | Then fix the 7 `bgp-redistribute-*.ci`: add a ze-peer-consumed expectation, drop `expect=exit:code=0`, correct the JSON to include `local-preference`, and convert the sleeps (recipe proven at E9) | `test/plugin/bgp-redistribute-*.ci` | AC-3/AC-4; converts the bucket AND makes it assert for the first time |
 
 -> Constraint: F1 before F4. Fixing the tests first would leave the harness able to hide
 the next one. F1 will likely turn other tests red across the 21 files listed below; each
 red is a pre-existing false green, not a regression, and must be triaged not silenced
-(`ai/rules/no-workarounds-for-missing-behavior.md`).
+(`ai/rules/completion.md`).
 
 -> Status (2026-07-22, F4 COMPLETE): all 7 `bgp-redistribute-*` and the four
 `redistribute-l2tp-*` tests pass with the converted expectations (committed earlier).
@@ -686,18 +686,18 @@ second bindable IPv6 loopback the earlier "left red on purpose" note deferred; I
 next-hop-self stays covered by `redistribute-as112-announce.ci`. Independently reviewed:
 SOUND (one stale-comment defect fixed). F5 and F6 remain open.
 
-| F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go:42-49`, re-read 2026-07-16); `isSelfValidated` returns false ONLY for a check peer (`:60-62`), so with the peer sinked the bare `rec.ExpectExitCode != nil` at `:72` makes it TRUE. `runner_exec.go:1117` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it at `:1141` (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/fail-closed-guards.md` names | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go:1117,1141` (the gate) | Found by the test-219 F4 shard |
+| F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go`, re-read 2026-07-16); `isSelfValidated` returns false ONLY for a check peer, so with the peer sinked the bare `rec.ExpectExitCode != nil` at `:72` makes it TRUE. `runner_exec.go` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it at `:1141` (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/evidence.md` names | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go,1141` (the gate) | Found by the test-219 F4 shard |
 
 -> Evidence (F5, reproduced not inferred): `forward-mpreach-nexthop-self-two-peer.ci`
 turns **PASS in 8.2s while asserting nothing** when sinked, because its only real
-expectations are `expect=json` (`:44`, `:53`). An agent following the guard's literal
+expectations are `expect=json`. An agent following the guard's literal
 advice will "fix" that file into a green that checks nothing.
 
 -> Decision (F5): two candidate fixes. (a) make the remedy text state the `expect=json`
 consequence so the author chooses knowingly -- a [workaround], it only warns. (b) evaluate
 `validateJSON` outside the peer branch so runner-side JSON assertions survive sinking --
 the [source] fix, since `expect=json` is consumed by the RUNNER, not by ze-peer
-(`internal/test/peer/expect.go:112` ignores `cmd`; json never reaches the peer), so its
+(`internal/test/peer/expect.go` ignores `cmd`; json never reaches the peer), so its
 evaluation has no business being gated on the peer path at all.
 
 -> Constraint (F5, scope): this does NOT affect the 8 tests sinked in `4ce173e32` /
@@ -706,7 +706,7 @@ evaluation has no business being gated on the peer path at all.
 deliberately breaking `show-l2tp-statistics`'s `expect=stderr:contains` (red) and
 restoring it byte-exactly (green). The hole is real; those files do not sit in it.
 
-| F6 (open, 2026-07-16) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go:700` sets `msg.Cmd`; the ONLY reader is `report.go:149-150`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go:112`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere) | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go:112`, `record_parse.go:700`, `report.go:149-150` | Found by the test-506 F4 shard |
+| F6 (open, 2026-07-16) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go` sets `msg.Cmd`; the ONLY reader is `report.go`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere) | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go`, `record_parse.go`, `report.go` | Found by the test-506 F4 shard |
 
 -> Constraint (F6): this is a THIRD vacuity class, distinct from F1 and F2. F1 = the peer
 never bound. F2 = the peer declared nothing to check. F6 = the peer binds and asserts
@@ -767,12 +767,12 @@ recorded here so the next session does not repeat them.
 ### Fixed + committed
 - **`fix(bgp): reconnect backoff floor 5s, not 120s connect-retry` (commit 44ad25d23).**
   `internal/component/bgp/reactor/peer.go` NewPeer(:294) set `reconnectMin :=
-  settings.ConnectRetry` (default 120s, RFC 4271 ConnectRetryTimer, `peersettings.go:66`),
+  settings.ConnectRetry` (default 120s, RFC 4271 ConnectRetryTimer, `peersettings.go`),
   while `reconnectMax = DefaultReconnectMax` (60s). So the backoff floor (120s) exceeded
-  its ceiling (60s), contradicting the design in `peer_run.go:24` ("min 5s, max 60s") and
-  `DefaultReconnectMin` (5s, peer.go:81). A failed first connect stranded the peer
+  its ceiling (60s), contradicting the design in `peer_run.go` ("min 5s, max 60s") and
+  `DefaultReconnectMin` (5s, peer.go). A failed first connect stranded the peer
   `connecting` for 2 minutes. Fix: `reconnectMin := DefaultReconnectMin`. ConnectRetry keeps
-  its real role as a connect timeout (`reactor_dynamic.go:343`). Reconnect unit tests use
+  its real role as a connect timeout (`reactor_dynamic.go`). Reconnect unit tests use
   `SetReconnectDelay` overrides, so unaffected. Verified: converted `announce` 25/25 (was
   ~80% flaky pre-fix); reactor package unit tests green.
 
@@ -788,14 +788,14 @@ restoring it:
 | Build | Result |
 |-------|--------|
 | pre-44ad25d23 backoff (`reconnectMin := settings.ConnectRetry`) | PASS 2/2, ~4.3s |
-| HEAD (`reconnectMin := DefaultReconnectMin`) | FAIL, 92.00s, `established==1` (`runner_test.go:688`) |
+| HEAD (`reconnectMin := DefaultReconnectMin`) | FAIL, 92.00s, `established==1` (`runner_test.go`) |
 
 Order-dependent: a full-package `-race` run of `./internal/chaos/inprocess/` PASSED once, so
-`make ze-chaos-unit-test` (`mk/test-chaos.mk:27`, `go test -race ./internal/chaos/...`) may
+`make ze-chaos-unit-test` (`mk/test-chaos.mk`, `go test -race ./internal/chaos/...`) may
 still be green. The isolation failure is the reliable reproducer.
 
 This is chaos-harness work, NOT a BGP defect: the harness itself documents the intended 5s
-backoff (`runner_test.go:246`, `runner.go:518-522` "DefaultReconnectMin = 5s virtual"). The
+backoff (`runner_test.go`, `runner.go` "DefaultReconnectMin = 5s virtual"). The
 test was green only because the 120s bug parked the retry loop outside the window.
 
 **RESOLVED 2026-07-16. The open question ("where does the real time go inside `vc.Advance`")
@@ -805,16 +805,16 @@ A goroutine dump taken 30s into the freeze answered it in one run:
 
 | Goroutine | Where |
 |---|---|
-| runner | `simWg.Wait()` (`runner.go:594`) -- the advance loop had ALREADY finished |
-| ze session | `VirtualClock.Sleep` (`virtualclock.go:49`) from `session.go:767` |
+| runner | `simWg.Wait()` (`runner.go`) -- the advance loop had ALREADY finished |
+| ze session | `VirtualClock.Sleep` (`virtualclock.go`) from `session.go` |
 
-The advance loop costs exactly what `runner.go:427-430` implies (~0.6s real for 60s virtual)
+The advance loop costs exactly what `runner.go` implies (~0.6s real for 60s virtual)
 and then EXITS -- after which nothing advances the clock. `session.Run()` polls for its
-connection with `s.clock.Sleep(10ms)` (`session.go:762-768`) and `VirtualClock.Sleep` is a
-bare `<-ch` (`virtualclock.go:47-50`). `clock.Clock.Sleep` takes no ctx, so `simCancel()`
+connection with `s.clock.Sleep(10ms)` (`session.go`) and `VirtualClock.Sleep` is a
+bare `<-ch` (`virtualclock.go`). `clock.Clock.Sleep` takes no ctx, so `simCancel()`
 cannot reach a goroutine parked there -- only `Advance` can. ze's session was stranded
 mid-sleep, never completed the handshake, the simulator blocked forever on the reply that
-never came (`executeReconnectStorm` -> `readMsg`, `simulator_actions.go:233`), and
+never came (`executeReconnectStorm` -> `readMsg`, `simulator_actions.go`), and
 `simWg.Wait()` hung until the 90s context tore the sockets down. That is the 92.00s, and
 `established==1` because the peer was asleep -- not because reconnect was broken.
 
@@ -830,7 +830,7 @@ virtual time. Verified 3/3 PASS in 3.70s, matching the 3.69s measured at `8f5f2f
 `-race`; `make ze-lint-changed` 0 issues. `plan/known-failures.md` entry closed.
 
 Do NOT "fix" this by reverting 44ad25d23: the 120s floor exceeded the 60s ceiling and
-contradicts `peer_run.go:19-25`, which documents this loop as deliberately replacing the RFC
+contradicts `peer_run.go`, which documents this loop as deliberately replacing the RFC
 4271 ConnectRetryTimer with "min 5s, max 60s".
 
 ### CONFIRMED (evidence)
@@ -854,19 +854,19 @@ contradicts `peer_run.go:19-25`, which documents this loop as deliberately repla
 - "Committed plugin-startup regression (closed pipe)": FALSE. Artifact of running with
   `ZE_TEST_NO_BUILD=1 ZE_BIN=bin/ze` where `bin/ze` was a `make ze` **core** build lacking the
   `zetest` fake plugins (fakeredist/fakefib). With the default `zetest` build (buildZe,
-  `cmd_bgp.go:458` uses `runner.TestBuildTags()`), `redistribute-as112-announce` passes.
+  `cmd_bgp.go` uses `runner.TestBuildTags()`), `redistribute-as112-announce` passes.
   Always let ze-test build (do not pin ZE_BIN to a core binary) for the `bgp plugin` suite.
 - "~20s StartPeers delay from observer polling": FALSE. That number conflated the ze-test
   `go build` time with startup. The manual full-log capture shows StartPeers is fast.
 - "The reactor drops or rejects an inbound connection while the peer's outbound retry loop is
   cycling, so a faster backoff starves establishment": FALSE, and it is NOT a missing feature.
-  The accept-while-cycling path exists and is wired: `peer_run.go:126-137` selects the backoff
+  The accept-while-cycling path exists and is wired: `peer_run.go` selects the backoff
   on `p.inboundNotify` alongside `p.clock.After(delay)` and restarts `runOnce` immediately
-  WITHOUT doubling the delay; `reactor_connection.go:151-163` (`acceptOrReject`) buffers the
+  WITHOUT doubling the delay; `reactor_connection.go` (`acceptOrReject`) buffers the
   connection via `peer.SetInboundConnection` rather than closing it on `ErrNotConnected` /
   `ErrSessionTearingDown` / `ErrAlreadyConnected` for a passive peer, commented as handling
   "the race where the remote reconnects faster than our session teardown";
-  `peer_connection.go:67-80` stores the conn and signals the size-1 notify channel. Do not go
+  `peer_connection.go` stores the conn and signals the size-1 notify channel. Do not go
   looking for a missing inbound-accept mechanism in the reactor: read these three first.
 
 ### REMAINING (the real open question) -- ANSWERED 2026-07-16, see ROOT CAUSE at the top
@@ -875,8 +875,8 @@ establishment, while a long-lived sink peer does?~~ **Answered.** This section a
 right question and its instinct was correct: *"Every dial is `connection refused`, so the
 ze-test peer is not listening at dial time -- pin ... whether the ze-test peer exits early."*
 It does exit early, before binding: a check-mode peer whose only expectation is `expect=json`
-is left with an empty `config.Expect` (`internal/test/peer/expect.go:60-65`) and bails at
-`internal/test/cli/cmd_peer.go:44-48` before `Listen` (`peer.go:211`). The observer's dispatch
+is left with an empty `config.Expect` (`internal/test/peer/expect.go`) and bails at
+`internal/test/cli/cmd_peer.go` before `Listen` (`peer.go`). The observer's dispatch
 does not shift ze's timing at all.
 
 -> Decision: neither proposed remedy is needed. (a) an event-driven observer wait is
@@ -893,7 +893,7 @@ redistribute tests stay blind-sleep only until F1-F4 land.
 - `internal/component/bgp/reactor/reactor_notify.go` (message counters, `notifyMessageReceiver`)
 - `plan/spec-fixit-migrate-sleeps-infra.md` (Mistake Log / Failed Approaches: the bisection)
 - `plan/spec-redistribute-late-join-replay.md` (the behavior the fix must not regress)
-- `ai/rules/diagnosis-before-fix.md`, `ai/rules/no-fabrication.md`
+- `ai/rules/completion.md`, `ai/rules/evidence.md`
 
 ## Current Behavior
 
@@ -937,12 +937,12 @@ an external observer plugin (the `.ci` test's `.run`) may call the plugin engine
 (`dispatch-command`, `quiesce`) or read its callback connection (`wait_for_event`).
 
 ### Transformation Path
-`register.go:83` subscribes the redistribute plugin to `["state"]`. On the down->up edge
-(`register.go:92-93`, `OnStructuredEvent`) it calls `coord.onPeerUp(bus, peerAddr)`, which
+`register.go` subscribes the redistribute plugin to `["state"]`. On the down->up edge
+(`register.go`, `OnStructuredEvent`) it calls `coord.onPeerUp(bus, peerAddr)`, which
 allocates a monotonic replayID and emits `redistevents.ReplayRequest{replayID}`
-(`replay.go:6-11`). Producers re-emit `RouteChangeBatch{ReplayID}`; the coordinator looks
+(`replay.go`). Producers re-emit `RouteChangeBatch{ReplayID}`; the coordinator looks
 up replayID->peer and injects the current redistribute route set to that ONE peer
-(`replay.go:11-14`). So establishment synchronously drives a plugin-facing state dispatch
+(`replay.go`). So establishment synchronously drives a plugin-facing state dispatch
 plus a replay injection back toward the reactor.
 
 ### Boundaries Crossed
@@ -954,7 +954,7 @@ plus a replay injection back toward the reactor.
 | External observer engine RPC (`dispatch`/`quiesce`/`wait_for_event`) | same plugin-engine serialization | the establishing window |
 
 ### Integration Points
-- `redistribute_egress` state subscription (`register.go:83`).
+- `redistribute_egress` state subscription (`register.go`).
 - Reactor establishment / forward-pool drain that `quiesce()` waits on.
 - The plugin-engine command/dispatch serialization shared by observer and plugins.
 
@@ -962,7 +962,7 @@ plus a replay injection back toward the reactor.
 
 | Entry Point | Feature Code | Test |
 |-------------|--------------|------|
-| Single-peer redistribute peer reaches Established while the observer polls the engine (`wait_for_event`/dispatch) during establishment | -> reactor establishment path + redistribute peer-up replay (`register.go:92`, `replay.go` coordinator) | new `.ci` / reactor test asserting the peer establishes; FAILS (stall, `connections-established: 0`) before the fix, PASSES after |
+| Single-peer redistribute peer reaches Established while the observer polls the engine (`wait_for_event`/dispatch) during establishment | -> reactor establishment path + redistribute peer-up replay (`register.go`, `replay.go` coordinator) | new `.ci` / reactor test asserting the peer establishes; FAILS (stall, `connections-established: 0`) before the fix, PASSES after |
 
 ## 🧪 TDD Test Plan
 
@@ -1002,17 +1002,17 @@ Settled by the 2026-07-16 root-cause. **No production file is modified.**
 1. Reproduce deterministically (single-peer redistribute + observer calling
    `wait_for_event` once during establishment). Capture goroutine dumps at the stall.
 2. Confirm/refute H1-H3 (below) from the dumps; cite the producing lock/queue `file:line`.
-3. Fix at the owning layer per `ai/rules/diagnosis-before-fix.md` (likely: async /
+3. Fix at the owning layer per `ai/rules/completion.md` (likely: async /
    non-re-entrant peer-up replay dispatch, or decouple `quiesce` drain from
    peer-established state). Never weaken the test.
 4. Convert the 7 redistribute tests (+ api-raw/route-refresh) to the proven
    `established -> eor-sent (show bgp summary) -> updates-sent (show bgp peer detail,
-   reactor_notify.go:268)` recipe; verify each 3x + concurrently; ratchet the baseline.
+   reactor_notify.go)` recipe; verify each 3x + concurrently; ratchet the baseline.
 5. Confirm no regression in `redistribute-as112-announce.ci` and the replay tests.
 
 ### Hypotheses -- ALL THREE REFUTED 2026-07-16 (AC-2 satisfied)
 - H1 **REFUTED**: no contention exists. The redistribute peer-up replay
-  (`redistribute_egress/register.go:92`, `replay.go`) is never reached in the affected
+  (`redistribute_egress/register.go`, `replay.go`) is never reached in the affected
   tests, because no peer ever establishes to trigger it. E6 proves the observer's
   `dispatch-command` polling runs concurrently with establishment with no ill effect.
 - H2 **REFUTED**: no circular wait. `quiesce`/forward-pool drain was never on the critical
@@ -1023,7 +1023,7 @@ Settled by the 2026-07-16 root-cause. **No production file is modified.**
 been true, and no goroutine dump would ever have shown them (the 2026-07-15 dump's zero
 `[semacquire]` was already telling us this). The keystone fact nobody read was what
 ze-peer does with a peer block containing only `expect=json`
-(`internal/test/peer/expect.go:60-65` -> `internal/test/cli/cmd_peer.go:44-48`).
+(`internal/test/peer/expect.go` -> `internal/test/cli/cmd_peer.go`).
 
 ## Acceptance Criteria
 

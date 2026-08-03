@@ -3,7 +3,7 @@
 # NOTE: this file governs update PRs only. GitHub's security-alert *scanning* is
 # always-on and cannot be suppressed here. In particular, alerts on the vendored
 # gokrazy init manifest under gokrazy/modcache/ are handled by bumping the pin per
-# ai/rules/appliance-dep-bumps.md, NOT by this config.
+# ai/rules/platform-linux.md, NOT by this config.
 #
 # Scoped to the root module (the ze codebase). The gokrazy builddir modules under
 # gokrazy/ze/builddir/ are hand-pinned for the appliance and are deliberately NOT

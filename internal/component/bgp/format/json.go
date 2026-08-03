@@ -157,7 +157,7 @@ func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotifica
 
 	inner["data"] = string(hex.AppendEncode(nil, notify.Data))
 
-	// Human-readable names (hyphenated per json-format.md)
+	// Human-readable names (hyphenated per cli.md)
 	if notify.ErrorCodeName != "" {
 		inner["code-name"] = notify.ErrorCodeName
 	}
@@ -188,7 +188,7 @@ func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction rp
 		caps = append(caps, capObj)
 	}
 
-	// Fields in inner payload (hyphenated per json-format.md)
+	// Fields in inner payload (hyphenated per cli.md)
 	inner["asn"] = open.ASN
 	inner["router-id"] = open.RouterID
 	inner["timer"] = map[string]any{"hold-time": open.HoldTime}
@@ -225,7 +225,7 @@ func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRe
 func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) string {
 	outer, inner := e.message(peer, "negotiated")
 
-	// Fields in inner payload (hyphenated per json-format.md)
+	// Fields in inner payload (hyphenated per cli.md)
 	inner["timer"] = map[string]any{"hold-time": neg.HoldTime}
 	inner["asn4"] = neg.ASN4
 	inner["families"] = neg.Families

@@ -31,8 +31,8 @@ The immediate symptoms were nonsense grammar such as `unit del` / `addr del`, pu
 
 ## Files
 
-- `ai/rules/cli-grammar.md`
+- `ai/rules/cli.md`
 - `ai/patterns/cli-command.md`
-- `ai/rules/cli-patterns.md`
+- `ai/rules/cli.md`
 - `ai/INSTRUCTIONS.md`
 - `handover/16-bgp-peer-dispatch-ownership-refactor.md`

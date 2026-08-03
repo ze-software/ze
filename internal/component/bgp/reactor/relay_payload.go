@@ -11,7 +11,7 @@
 // Replaying it through the forward rail needs the wire shape the SOURCE peer
 // actually sent, because forwardUpdateCore's egress steps parse the payload as a
 // received UPDATE. These builders reconstruct exactly that shape, writing into a
-// caller-owned pooled buffer at an offset (ai/rules/buffer-first.md) — no append,
+// caller-owned pooled buffer at an offset (ai/rules/performance.md) — no append,
 // no per-route allocation.
 
 package reactor

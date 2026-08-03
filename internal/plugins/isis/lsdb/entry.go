@@ -6,7 +6,7 @@
 // RFC: rfc/short/rfc3787.md -- the LSP-database-overload (OL) bit (clause 9.8 type block).
 // RFC: rfc/short/rfc3786.md -- the 256-fragment model: LSP number 0..255, fragment 0 is special.
 //
-// The entry follows Ze's buffer-first / lazy model (ai/rules/buffer-first.md):
+// The entry follows Ze's buffer-first / lazy model (ai/rules/performance.md):
 // it stores the verbatim PDU bytes (a single OWNED copy, never an alias of a
 // reused receive buffer) plus a small parsed metadata header. TLVs are parsed
 // ON DEMAND (Decode), never eagerly into structs, so an LSP carrying a TLV the
@@ -194,7 +194,7 @@ func (e *Entry) IsPurged() bool { return e.purged.Load() }
 func (e *Entry) Raw() []byte { return e.raw }
 
 // Decode parses the stored raw bytes into the typed LSP on demand (lazy parse,
-// ai/rules/buffer-first.md). SPF (isis-9) and `show isis database detail`
+// ai/rules/performance.md). SPF (isis-9) and `show isis database detail`
 // (isis-13) call this to read TLVs; the LSDB never holds the parsed form. The
 // returned LSP's TLV value slices alias the entry's raw bytes, which are stable
 // for the entry's lifetime, so the caller need not copy unless it outlives the

@@ -2,7 +2,7 @@
 """Generate ai/DOCS-TO-CODE.md: reverse index from `// Design:` headers in .go files.
 
 Every non-test, non-generated Go file carries a `// Design: <doc> -- topic` header
-(ai/rules/design-doc-references.md, hook-enforced). code_to_docs.py inverts the
+(ai/rules/go-standards.md, hook-enforced). code_to_docs.py inverts the
 `<!-- source: -->` anchors that live inside docs/; this script inverts the other
 direction, the `// Design:` edges that live inside the code, so that given a design
 document you can list every file that implements it without grepping the tree.
@@ -89,7 +89,7 @@ def render(index: dict[str, set[tuple[str, str]]]) -> str:
         "",
         "Given a design doc, the `.go` files that cite it in their `// Design:`",
         "header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side",
-        "`<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.",
+        "`<!-- source: -->` anchors). See `ai/rules/go-standards.md`.",
         "",
         f"Total: {len(index)} design docs, {len(files)} files",
         "",

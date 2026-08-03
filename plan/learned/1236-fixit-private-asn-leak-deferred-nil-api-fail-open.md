@@ -4,13 +4,13 @@
 
 Deferred R1 from `1231-fixit-private-asn-leak`. The same `r.api == nil` condition was
 guarded in one package (`internal/component/bgp/reactor`) three different ways: two
-fail CLOSED and loudly (`filter_chain.go:368` `policyFilterFunc`, `peer_initial_sync.go:718`
+fail CLOSED and loudly (`filter_chain.go` `policyFilterFunc`, `peer_initial_sync.go`
 default-originate), one fails OPEN and silently. The silent one pre-empted the loud ones,
 so the correct guard was unreachable. Concretely, the egress/ingress policy chains returned
 `accept: true` when the peer HAD export/import filters but the API server (the engine that
 runs them) was nil -- sending the route UNFILTERED, leaking whatever the policy exists to
 strip (e.g. RFC 6996 private ASNs). This is the zero-value trap verbatim
-(`ai/rules/fail-closed-guards.md`): downstream reads `accept: true` as "the filters ran and
+(`ai/rules/evidence.md`): downstream reads `accept: true` as "the filters ran and
 passed." The originated path (`exportFilterForBody`) was already fixed under commit
 `1fb231afb`; this slice closed the FORWARDED egress path, the INGRESS path, and the nil-api
 producer.
@@ -41,20 +41,20 @@ producer.
   failed `s.(*pluginserver.Server)` assertion, leaving `r.api` nil -- the one plausible
   producer of a nil api in a reactor that otherwise started fine. It now logs at Error naming
   the received type (`reflect.TypeOf(s)`) and returns; signature unchanged (the sole caller is
-  `register.go`). "Make the miss explicit at the producer" (`fail-closed-guards.md`) plus the
+  `register.go`). "Make the miss explicit at the producer" (`evidence.md`) plus the
   now-fail-closed guards give defense in depth.
 
 ## Consequences
 
 - No production reachability change: A-1 held (borrow mode hard-fails a nil api at
-  `reactor.go:1183`; standalone is closed by the incidental `r.mu` barrier). The fix is
+  `reactor.go`; standalone is closed by the incidental `r.mu` barrier). The fix is
   hygienic -- it removes the silent fail-open so a future ordering change cannot reopen the
   leak without a loud Warn. The undocumented `r.mu` barrier over the inverted bind/start
-  ordering (`reactor.go:1006-1017`) is NOT fixed here (R-2, recorded, left for a follow-up).
+  ordering (`reactor.go`) is NOT fixed here (R-2, recorded, left for a follow-up).
 - AC-5 fallout the spec predicted (~10 nil-api unit tests turning red) did NOT materialize:
   those `&Reactor{}` literals configure no filters AND leave `orderedEgressSteps` empty, so
   they exercise the `len == 0` accept path or skip the egress pass entirely (gated by
-  `if len(a.r.orderedEgressSteps) > 0` at `reactor_api_forward.go:492`). None reach the
+  `if len(a.r.orderedEgressSteps) > 0` at `reactor_api_forward.go`). None reach the
   api==nil-with-filters branch, so none turned red -- the full suite stayed green. The
   prediction assumed the literals had filters; they do not.
 
@@ -65,22 +65,22 @@ producer.
   not: `slogutil.Logger()` builds its own stderr handler (`createHandler`), so a test's
   `slog.SetDefault(recorder)` never sees a LazyLogger's output. Bare `slog.*` is the ONLY
   capturable path, is what the already-committed sibling `exportFilterForBody` and
-  `api_sync.go:202` use, and is what the `warnRecorder` test helper observes. Deviation from
+  `api_sync.go` use, and is what the `warnRecorder` test helper observes. Deviation from
   the spec's literal "reactorLogger().Error" wording, justified by testability + consistency.
 - **`fmt.Sprintf("%T", s)` is blocked by the no-sprintf hook** even though
-  `ai/rules/no-sprintf-alloc.md` lists `%T` as ALLOWED. Use `reflect.TypeOf(s)` as a slog
+  `ai/rules/performance.md` lists `%T` as ALLOWED. Use `reflect.TypeOf(s)` as a slog
   attribute instead (slog formats the reflect.Type via its Stringer; nil-safe for a nil
   interface).
-- **Drive the guard from the entry point, not the helper (`fail-closed-guards.md` corollary).**
+- **Drive the guard from the entry point, not the helper (`evidence.md` corollary).**
   The tests call the reactor's own chain methods (`runEgressPolicyChain{,ASN4}`,
   `runIngressPolicyChain`, `exportFilterForBody`), which are the guard's entry points. Their
-  real callers are verified present: `reactor_api_forward.go:500` (forwarded egress),
-  `reactor_notify.go:424` (ingress), `egress_inject_filter.go:76` (originated). The guard is
+  real callers are verified present: `reactor_api_forward.go` (forwarded egress),
+  `reactor_notify.go` (ingress), `egress_inject_filter.go` (originated). The guard is
   not uncalled.
 
 ## Files
 
-- `internal/component/bgp/reactor/filter_ordered.go` -- split `runIngressPolicyChain` (`:139`),
+- `internal/component/bgp/reactor/filter_ordered.go` -- split `runIngressPolicyChain`,
   `runEgressPolicyChain` (`:196`, delegates the miss), `runEgressPolicyChainASN4` (`:222`,
   the shared fail-closed point); `slog.Warn` on each miss.
 - `internal/component/bgp/reactor/reactor.go` -- `SetPluginServerAny` logs on a failed type

@@ -432,7 +432,7 @@ func likelyCauseTimeout(rec *Record) string {
 	// "server likely failed to start or crashed" -- which for an await fence
 	// is simply wrong: the daemon started fine and never printed the awaited
 	// line. Diagnosing test/plugin/as112-external-refuses.ci cost several
-	// reproduction rounds for exactly that reason (ai/rules/error-messages.md:
+	// reproduction rounds for exactly that reason (ai/rules/cli.md:
 	// a failure must say what failed, not guess).
 	if rec.Error != nil {
 		return rec.Error.Error()

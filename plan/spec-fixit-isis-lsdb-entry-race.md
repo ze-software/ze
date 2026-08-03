@@ -18,7 +18,7 @@ sections below were reconstructed from the committed code in the working tree on
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/no-fabrication.md` - cite the producing `file:line`, not the caller
+3. `ai/rules/evidence.md` - cite the producing `file:line`, not the caller
 4. `internal/plugins/isis/lsdb/entry.go` (the FIELD DISCIPLINE struct doc),
    `internal/plugins/isis/lsdb/aging.go`, `internal/plugins/isis/lsdb/lsdb.go`
 
@@ -30,12 +30,12 @@ unrelated BGP spec; it is NOT caused by that work (nothing under `internal/plugi
 was touched, and the BGP packages in the same run pass).
 
 **Diagnosis.** `Entry.lifetime` is mutated by the aging tick under the database lock:
-`e.lifetime--` at `internal/plugins/isis/lsdb/aging.go:121`, reached via
-`internal/plugins/isis/lsdb_wiring.go:96,78`. It is read WITHOUT any lock through the
+`e.lifetime--` at `internal/plugins/isis/lsdb/aging.go`, reached via
+`internal/plugins/isis/lsdb_wiring.go,78`. It is read WITHOUT any lock through the
 plain accessor `func (e *Entry) Lifetime() types.RemainingLifetime { return e.lifetime }`
-at `internal/plugins/isis/lsdb/entry.go:109`, reached from SNP generation at
-`internal/plugins/isis/lsdb/snp.go:319,360` on the flooding goroutine
-(`internal/plugins/isis/flooding_wiring.go:266,248`).
+at `internal/plugins/isis/lsdb/entry.go`, reached from SNP generation at
+`internal/plugins/isis/lsdb/snp.go,360` on the flooding goroutine
+(`internal/plugins/isis/flooding_wiring.go,248`).
 
 So the LSDB has a lock discipline that its own exported accessors bypass. `Lifetime()`
 is unlikely to be the only one -- `Sequence()`, `Checksum()`, `LSPID()` and the
@@ -43,7 +43,7 @@ overload-bit reader sit beside it in the same file with the same shape, and any 
 read fields the aging or update paths write.
 
 Reproducible, so this gets a spec rather than a `plan/known-failures/` shard
-(`ai/rules/no-parking.md`: a deterministic failure has no recording path).
+(`ai/rules/completion.md`: a deterministic failure has no recording path).
 
 **Investigate and fix at the discipline, not the one field.** Decide whether `Entry`
 accessors take the database lock, whether callers must hold it (and the accessors are
@@ -63,15 +63,15 @@ Reproduce with:
 - [ ] `plan/learned/932-isis-6-lsdb.md` - the `// Design:` target of every file changed here; the LSDB store, aging and snapshot model
   → Decision: the LSDB is a single-writer store behind one `sync.RWMutex`; writers (aging tick, origination, receive) take the write lock, snapshot readers take the read lock
   → Constraint: `Snapshot` hands out flat copies so no live pointer crosses the CLI/RPC boundary -- but `Lookup` does return the live pointer, which is what makes the field discipline load-bearing
-- [ ] `ai/rules/no-fabrication.md` - the rule that the second commit applies to itself
+- [ ] `ai/rules/evidence.md` - the rule that the second commit applies to itself
   → Constraint: a code comment is its author's belief, not a decision record; read the producing function before asserting what a field does
-- [ ] `ai/rules/fail-closed-guards.md` - why an "only these two fields" claim must be an enumeration, not an assertion
+- [ ] `ai/rules/evidence.md` - why an "only these two fields" claim must be an enumeration, not an assertion
   → Constraint: state the condition, then enumerate against it; a claim that names the wrong set is worse than no claim
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] ISO/IEC 10589 clause 7.3.16 / 7.3.17 (no `rfc/short/` summary: this is an ISO standard, referenced inline in the source)
   → Constraint: Remaining Lifetime decrements once per second; reaching 0 makes the LSP a purge that is re-flooded and RETAINED for `ZeroAgeLifetime`, not deleted -- which is why `lifetime` and `purged` are both mutated on an already-stored entry
-  → Constraint: clause 7.3.16 also refreshes the held Remaining Lifetime from a DUPLICATE LSP, a second post-publication write to the same field (`internal/plugins/isis/lsdb/lsdb.go:190`)
+  → Constraint: clause 7.3.16 also refreshes the held Remaining Lifetime from a DUPLICATE LSP, a second post-publication write to the same field (`internal/plugins/isis/lsdb/lsdb.go`)
 
 **Key insights:** (summary of all checkpoint lines — minimal context to resume after compaction)
 - The lock is not the whole story: `Lookup` returns a live `*Entry`, so the caller holds a pointer with no lock. What decides safety per field is whether the field is written after the entry became reachable.
@@ -81,17 +81,17 @@ Reproduce with:
 
 **Source files read:** (must read BEFORE writing this spec)
 <!-- Same rule: never tick [ ] to [x]. Write → Constraint: annotations instead. -->
-- [ ] `internal/plugins/isis/lsdb/entry.go:66` - the `Entry` struct: 14 fields, 9 exported accessors, and (post-fix) the FIELD DISCIPLINE doc at `entry.go:40`
-- [ ] `internal/plugins/isis/lsdb/lsdb.go:216` - `replaceLocked` builds a FRESH `Entry` and publishes it with `store.entries[id] = e` at `lsdb.go:252`; every scalar metadata field is assigned before that line
-- [ ] `internal/plugins/isis/lsdb/lsdb.go:295` - `Lookup` takes the read lock, returns the live `*Entry`, and releases; the caller then holds a pointer with no lock
-- [ ] `internal/plugins/isis/lsdb/lsdb.go:190` - `Receive`'s `Equal` branch refreshes the held lifetime IN PLACE (clause 7.3.16), the second post-publication write to `lifetime`
-- [ ] `internal/plugins/isis/lsdb/aging.go:121` - the tick decrement, and `aging.go:142` `markPurgedLocked` (sets lifetime 0, purged, deleteAt)
-- [ ] `internal/plugins/isis/lsdb/snp.go:319` - `buildPSNP` reads `Lifetime`/`Sequence`/`Checksum` on a `Lookup` result with no lock held: the reader half of the reported race
-- [ ] `internal/plugins/isis/spf_wiring.go:153` - SPF reads `IsPurged`/`Decode`/`IsOverloaded` off-lock
-- [ ] `internal/plugins/isis/lsdb/aging_test.go:236` - `TestISISLSDBEntryAccessorsAreRaceFree`, the regression test
+- [ ] `internal/plugins/isis/lsdb/entry.go` - the `Entry` struct: 14 fields, 9 exported accessors, and (post-fix) the FIELD DISCIPLINE doc at `entry.go`
+- [ ] `internal/plugins/isis/lsdb/lsdb.go` - `replaceLocked` builds a FRESH `Entry` and publishes it with `store.entries[id] = e` at `lsdb.go`; every scalar metadata field is assigned before that line
+- [ ] `internal/plugins/isis/lsdb/lsdb.go` - `Lookup` takes the read lock, returns the live `*Entry`, and releases; the caller then holds a pointer with no lock
+- [ ] `internal/plugins/isis/lsdb/lsdb.go` - `Receive`'s `Equal` branch refreshes the held lifetime IN PLACE (clause 7.3.16), the second post-publication write to `lifetime`
+- [ ] `internal/plugins/isis/lsdb/aging.go` - the tick decrement, and `aging.go` `markPurgedLocked` (sets lifetime 0, purged, deleteAt)
+- [ ] `internal/plugins/isis/lsdb/snp.go` - `buildPSNP` reads `Lifetime`/`Sequence`/`Checksum` on a `Lookup` result with no lock held: the reader half of the reported race
+- [ ] `internal/plugins/isis/spf_wiring.go` - SPF reads `IsPurged`/`Decode`/`IsOverloaded` off-lock
+- [ ] `internal/plugins/isis/lsdb/aging_test.go` - `TestISISLSDBEntryAccessorsAreRaceFree`, the regression test
 
 **Behavior to preserve:** (unless user explicitly said to change)
-- The LSDB stays a single-writer store behind one `sync.RWMutex`; the atomics are for the benefit of unlocked READERS, not a replacement for the lock or a new write-ordering mechanism (`internal/plugins/isis/lsdb/entry.go:171`).
+- The LSDB stays a single-writer store behind one `sync.RWMutex`; the atomics are for the benefit of unlocked READERS, not a replacement for the lock or a new write-ordering mechanism (`internal/plugins/isis/lsdb/entry.go`).
 - Every aging, purge and freshness semantic is unchanged: 1s decrement, purge-not-delete at 0, `ZeroAgeLifetime` grace, received-purge vs local-expiry distinction, clause 7.3.16.1 purge tiebreak.
 - `Lifetime()` keeps returning `types.RemainingLifetime` (a uint16 value) even though the backing store widens to `atomic.Uint32`: no caller sees a type change.
 - `Snapshot`, `LSPEntries`, `LSPIDs` keep handing out copies, never live pointers.
@@ -99,43 +99,43 @@ Reproduce with:
 **Behavior to change:** (only if user explicitly requested)
 - None at runtime. The change is representational (two plain fields become atomics), documentary (the discipline and `Lookup`'s contract), and a dead-accessor removal. No wire-visible or operator-visible behavior changes.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 Two concurrent goroutines reach the same `lsdb.Entry`:
-- the aging tick, `internal/plugins/isis/lsdb_wiring.go:78,96` -> `lsdb/aging.go:83,121`
-- SNP generation on the flooding goroutine, `internal/plugins/isis/flooding_wiring.go:248,266`
-  -> `lsdb/snp.go:360,319` -> `lsdb/entry.go:109`
+- the aging tick, `internal/plugins/isis/lsdb_wiring.go,96` -> `lsdb/aging.go,121`
+- SNP generation on the flooding goroutine, `internal/plugins/isis/flooding_wiring.go,266`
+  -> `lsdb/snp.go,319` -> `lsdb/entry.go`
 
 ### Transformation Path
-1. The aging tick decrements `Entry.lifetime` under the database lock (`aging.go:121`),
+1. The aging tick decrements `Entry.lifetime` under the database lock (`aging.go`),
    and may transition the entry to purged via `markPurgedLocked`.
 2. Concurrently, SNP generation walks entries and reads `Entry.Lifetime()`
-   (`entry.go:109`) with no lock held, to build the SNP lifetime field.
+   (`entry.go`) with no lock held, to build the SNP lifetime field.
 3. The two overlap on the same 4-byte field, which `-race` reports as a write/read race.
-4. After the fix, step 1 writes through `setLifetime` (`entry.go:173`, an
-   `atomic.Uint32` store) and step 2 reads through `Lifetime()` (`entry.go:167`, an
+4. After the fix, step 1 writes through `setLifetime` (`entry.go`, an
+   `atomic.Uint32` store) and step 2 reads through `Lifetime()` (`entry.go`, an
    atomic load), so the same overlap is a defined, race-free hand-off.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| LSDB lock ↔ lock-free reader | `Lookup` (`lsdb.go:295`) returns the LIVE `*Entry` and releases the read lock; the caller reads fields afterwards with no lock | Yes -- every off-lock accessor call site enumerated in Design Insights |
+| LSDB lock ↔ lock-free reader | `Lookup` (`lsdb.go`) returns the LIVE `*Entry` and releases the read lock; the caller reads fields afterwards with no lock | Yes -- every off-lock accessor call site enumerated in Design Insights |
 | Aging goroutine ↔ flooding goroutine | both hold the same `*Entry`; the tick writes, SNP generation reads | Yes -- `TestISISLSDBEntryAccessorsAreRaceFree` drives exactly this pair |
-| LSDB ↔ SPF / show / DIS | `spf_wiring.go:152`, `show.go:66`, `dis_wiring.go:330` each `Lookup` then read off-lock | Yes -- all three read only `IsPurged`, `Decode`, `IsOverloaded` |
-| Entry ↔ CLI/RPC | `Snapshot` (`lsdb.go:498`) copies into flat `LSPSnapshot` values under the read lock; no pointer escapes | Yes -- unchanged by this work |
+| LSDB ↔ SPF / show / DIS | `spf_wiring.go`, `show.go`, `dis_wiring.go` each `Lookup` then read off-lock | Yes -- all three read only `IsPurged`, `Decode`, `IsOverloaded` |
+| Entry ↔ CLI/RPC | `Snapshot` (`lsdb.go`) copies into flat `LSPSnapshot` values under the read lock; no pointer escapes | Yes -- unchanged by this work |
 
 ### Integration Points
-- `internal/plugins/isis/lsdb/snp.go:319,427` (`buildPSNP`, `compareSNPEntry`) - the production off-lock reader of `Lifetime()`; unchanged, now reading an atomic.
-- `internal/plugins/isis/lsdb/aging.go:121,146` - the production writer; converted from `e.lifetime--` / `e.lifetime = 0` to `setLifetime`.
-- `internal/plugins/isis/lsdb/lsdb.go:190,230` - the two other lifetime write sites (duplicate refresh, fresh entry build).
+- `internal/plugins/isis/lsdb/snp.go,427` (`buildPSNP`, `compareSNPEntry`) - the production off-lock reader of `Lifetime()`; unchanged, now reading an atomic.
+- `internal/plugins/isis/lsdb/aging.go,146` - the production writer; converted from `e.lifetime--` / `e.lifetime = 0` to `setLifetime`.
+- `internal/plugins/isis/lsdb/lsdb.go,230` - the two other lifetime write sites (duplicate refresh, fresh entry build).
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
-- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugins.md`)
 
 Findings for the four rows above (this spec adds no command, view, family or handler,
 so the registration row is N-A by construction):
@@ -159,10 +159,10 @@ so the registration row is N-A by construction):
 <!-- No assumption may still be `unvalidated` at Pre-Commit Verification. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `Sequence()`, `Checksum()`, `LSPID()` and `IsOverloaded()` are equally unsafe siblings of `Lifetime()` | the Task section's reasoning ("sit beside it in the same file with the same shape") | the fix would be four more atomics that cost reads and prove nothing | read every write site of each field | **broken** -- `replaceLocked` publishes a FRESH entry (`lsdb.go:252`), so those fields are written once before the entry is reachable |
-| A-2 | `lifetime` and `purged` are the ONLY fields mutated after publication | the comment `7f3bfd338` added to `entry.go` | a future reader concludes any other field is safe to expose, and the next accessor is a race | grep every assignment to every `Entry` field | **broken** -- `recvPurgeReflooded` (`aging.go:113`) and `deleteAt` (`aging.go:148`) are also post-publication, plus the three flag maps (`lsdb.go:385,419,440,449,472-474`); corrected by `71f91c170`. Seven fields satisfy condition 1, not two |
-| A-3 | What forces an atomic is post-publication mutation AND an off-lock read, both required | the corrected discipline at `entry.go:40-65` | either half alone would over- or under-protect | enumerate both conditions across all 14 fields | **confirmed** -- see the field table in Design Insights; exactly `lifetime` and `purged` satisfy both |
-| A-4 | Every off-lock read of an `Entry` field goes through an exported accessor | `Lookup` is the only producer of a live `*Entry` (`lsdb.go:295`) | an in-package off-lock read would be an unguarded race the accessor audit misses | grep every `*Entry` producer and every direct field access | **confirmed** for production code; one TEST reads a lock-only field off-lock (`aging_test.go:152`), benign because that test is single-goroutine -- recorded in Known Limitations |
+| A-1 | `Sequence()`, `Checksum()`, `LSPID()` and `IsOverloaded()` are equally unsafe siblings of `Lifetime()` | the Task section's reasoning ("sit beside it in the same file with the same shape") | the fix would be four more atomics that cost reads and prove nothing | read every write site of each field | **broken** -- `replaceLocked` publishes a FRESH entry (`lsdb.go`), so those fields are written once before the entry is reachable |
+| A-2 | `lifetime` and `purged` are the ONLY fields mutated after publication | the comment `7f3bfd338` added to `entry.go` | a future reader concludes any other field is safe to expose, and the next accessor is a race | grep every assignment to every `Entry` field | **broken** -- `recvPurgeReflooded` (`aging.go`) and `deleteAt` (`aging.go`) are also post-publication, plus the three flag maps (`lsdb.go,419,440,449,472-474`); corrected by `71f91c170`. Seven fields satisfy condition 1, not two |
+| A-3 | What forces an atomic is post-publication mutation AND an off-lock read, both required | the corrected discipline at `entry.go` | either half alone would over- or under-protect | enumerate both conditions across all 14 fields | **confirmed** -- see the field table in Design Insights; exactly `lifetime` and `purged` satisfy both |
+| A-4 | Every off-lock read of an `Entry` field goes through an exported accessor | `Lookup` is the only producer of a live `*Entry` (`lsdb.go`) | an in-package off-lock read would be an unguarded race the accessor audit misses | grep every `*Entry` producer and every direct field access | **confirmed** for production code; one TEST reads a lock-only field off-lock (`aging_test.go`), benign because that test is single-goroutine -- recorded in Known Limitations |
 | A-5 | `TestISISLSDBEntryAccessorsAreRaceFree` fails deterministically if either field reverts to plain | asserted in the test's own doc comment as committed | the regression is not actually gated and the AC evidence is vacuous | mutation-verify: revert each atomic, run the test repeatedly | **broken** -- 6/12 and 10/12 single runs. Fixed in this session; now 12/12. See Deviations |
 
 ### Risks
@@ -170,9 +170,9 @@ so the registration row is N-A by construction):
 <!-- Surviving risks copy forward to the Executive Summary "Risks & observations" and the learned summary. -->
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A future field or accessor is added over a post-publication-mutated field, reintroducing the race | `-race` red in the isis suite, or none at all if the window is narrow | the FIELD DISCIPLINE doc (`entry.go:40`) states the test to apply, and the regression test now calls EVERY accessor so a new unsafe one fails |
+| R-1 | A future field or accessor is added over a post-publication-mutated field, reintroducing the race | `-race` red in the isis suite, or none at all if the window is narrow | the FIELD DISCIPLINE doc (`entry.go`) states the test to apply, and the regression test now calls EVERY accessor so a new unsafe one fails |
 | R-2 | The regression test degrades into a coin flip again if the writer stops writing mid-run | the test still passes with the atomics reverted | the writer re-originates purged LSPs so both post-publication writes keep flowing; the rationale and the measured 6/12 figure are recorded in the test doc |
-| R-3 | Making `lifetime` atomic hides a torn multi-field read: `buildPSNP` (`snp.go:319-322`) reads lifetime, sequence and checksum as three separate off-lock loads | none -- it is not a race and `-race` will never flag it | benign: `sequence` and `checksum` are immutable for a given `Entry` object, so the tuple can only mix a fresher lifetime with that same entry's own sequence, and the SNP lifetime field is advisory. Recorded, not fixed |
+| R-3 | Making `lifetime` atomic hides a torn multi-field read: `buildPSNP` (`snp.go`) reads lifetime, sequence and checksum as three separate off-lock loads | none -- it is not a race and `-race` will never flag it | benign: `sequence` and `checksum` are immutable for a given `Entry` object, so the tuple can only mix a fresher lifetime with that same entry's own sequence, and the SNP lifetime field is advisory. Recorded, not fixed |
 | R-4 | `atomic.Uint32` for a uint16 value silently widens the store; a future writer could store a value above 65535 | a lifetime that never ages out | `setLifetime` takes `types.RemainingLifetime` (a uint16 type), so the narrowing is enforced by the parameter type, not by the field |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
@@ -182,9 +182,9 @@ so the registration row is N-A by construction):
 <!-- Every row MUST have a test name. "Deferred" / "TODO" / empty = spec cannot be marked done. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| aging tick concurrent with SNP generation | → | `lsdb.Entry` accessor lock discipline | `TestISISLSDBEntryAccessorsAreRaceFree` (`internal/plugins/isis/lsdb/aging_test.go:236`), run under `-race` |
-| every exported `Entry` accessor | → | the same discipline | `TestISISLSDBEntryAccessorsAreRaceFree` reader loop (`aging_test.go:297-307`) calls all nine accessors while the tick runs |
-| the originally reported symptom | → | `Entry.lifetime` read by DIS election | `TestISISDISElection` (`internal/plugins/isis/dis_wiring_test.go:115`) under `-race` |
+| aging tick concurrent with SNP generation | → | `lsdb.Entry` accessor lock discipline | `TestISISLSDBEntryAccessorsAreRaceFree` (`internal/plugins/isis/lsdb/aging_test.go`), run under `-race` |
+| every exported `Entry` accessor | → | the same discipline | `TestISISLSDBEntryAccessorsAreRaceFree` reader loop (`aging_test.go`) calls all nine accessors while the tick runs |
+| the originally reported symptom | → | `Entry.lifetime` read by DIS election | `TestISISDISElection` (`internal/plugins/isis/dis_wiring_test.go`) under `-race` |
 
 ## Acceptance Criteria
 
@@ -215,11 +215,11 @@ affected fields (`show isis database` via `Snapshot`, CSNP/PSNP via `LSPEntries`
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestISISLSDBEntryAccessorsAreRaceFree` | `internal/plugins/isis/lsdb/aging_test.go:236` | AC-1, AC-2, AC-3 -- the tick and four reader goroutines share live entries; `-race` is the oracle | Done |
-| `TestISISDISElection` | `internal/plugins/isis/dis_wiring_test.go:115` | AC-7 -- the originally reported symptom stays green under `-race` | Done (pre-existing test) |
-| `TestISISLSDBAgeDecrement` | `internal/plugins/isis/lsdb/aging_test.go:29` | the 1s decrement is unchanged by routing the write through `setLifetime` | Done (pre-existing test) |
-| `TestISISLSDBAgeToPurge` | `internal/plugins/isis/lsdb/aging_test.go:44` | purge-not-delete and the grace period are unchanged by the `purged` atomic | Done (pre-existing test) |
-| `TestISISReceivedPurgeRefloodSurfaced` | `internal/plugins/isis/lsdb/aging_test.go:139` | the received-purge distinction still holds after `IsReceivedPurge` was deleted and the field is read directly | Done (pre-existing test, call sites changed) |
+| `TestISISLSDBEntryAccessorsAreRaceFree` | `internal/plugins/isis/lsdb/aging_test.go` | AC-1, AC-2, AC-3 -- the tick and four reader goroutines share live entries; `-race` is the oracle | Done |
+| `TestISISDISElection` | `internal/plugins/isis/dis_wiring_test.go` | AC-7 -- the originally reported symptom stays green under `-race` | Done (pre-existing test) |
+| `TestISISLSDBAgeDecrement` | `internal/plugins/isis/lsdb/aging_test.go` | the 1s decrement is unchanged by routing the write through `setLifetime` | Done (pre-existing test) |
+| `TestISISLSDBAgeToPurge` | `internal/plugins/isis/lsdb/aging_test.go` | purge-not-delete and the grace period are unchanged by the `purged` atomic | Done (pre-existing test) |
+| `TestISISReceivedPurgeRefloodSurfaced` | `internal/plugins/isis/lsdb/aging_test.go` | the received-purge distinction still holds after `IsReceivedPurge` was deleted and the field is read directly | Done (pre-existing test, call sites changed) |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -263,7 +263,7 @@ Existing lifetime boundary coverage is unchanged and lives in
 | Pipe completeness | No | no new command output |
 | Env var registration | No | no `environment/` leaf added |
 | Doctor check for runtime dependencies | No | no file path, socket, port, module, binary or certificate introduced |
-| Prometheus counters/metrics | No | `ze_isis_purges_total` is unchanged; `markPurgedLocked` still bumps it exactly once per purge transition (`aging.go:149`) |
+| Prometheus counters/metrics | No | `ze_isis_purges_total` is unchanged; `markPurgedLocked` still bumps it exactly once per purge transition (`aging.go`) |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -380,11 +380,11 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| `Sequence`, `Checksum`, `LSPID` and the overload reader are unsafe siblings of `Lifetime` (A-1, the Task section's own reasoning) | `replaceLocked` builds a FRESH `Entry` and publishes it at `lsdb.go:252`, so those fields are written once before the entry is reachable | reading every assignment to each field rather than reasoning from the accessors' shape | the fix is two atomics instead of six; four needless atomic loads on the SNP hot path avoided |
-| `lifetime` and `purged` are the only fields mutated after publication (A-2, the comment `7f3bfd338` shipped) | four are: `recvPurgeReflooded` (`aging.go:113`) and `deleteAt` (`aging.go:148`) too, plus the three per-circuit flag maps | re-reading every access instead of trusting the just-written comment | the fix stayed correct (the conjunction still selects the same two fields) but the comment told a future reader that adding an accessor over `deleteAt` would be safe. Corrected by `71f91c170` |
+| `Sequence`, `Checksum`, `LSPID` and the overload reader are unsafe siblings of `Lifetime` (A-1, the Task section's own reasoning) | `replaceLocked` builds a FRESH `Entry` and publishes it at `lsdb.go`, so those fields are written once before the entry is reachable | reading every assignment to each field rather than reasoning from the accessors' shape | the fix is two atomics instead of six; four needless atomic loads on the SNP hot path avoided |
+| `lifetime` and `purged` are the only fields mutated after publication (A-2, the comment `7f3bfd338` shipped) | four are: `recvPurgeReflooded` (`aging.go`) and `deleteAt` (`aging.go`) too, plus the three per-circuit flag maps | re-reading every access instead of trusting the just-written comment | the fix stayed correct (the conjunction still selects the same two fields) but the comment told a future reader that adding an accessor over `deleteAt` would be safe. Corrected by `71f91c170` |
 | The regression test fails deterministically if either atomic is reverted (A-5, asserted in the test's own doc) | it caught the `lifetime` revert in 6 of 12 single runs and the `purged` revert in 10 of 12 | mutation-verifying the claim instead of reading it | the AC-3 evidence was vacuous half the time; fixed in this session by keeping the writer writing (see Deviations) |
-| `IsReceivedPurge`'s doc: "the engine reads this to decide the distinct flooding behavior" | the engine reads the `receivedPurge` FIELD directly in `aging.go:112,119,125` under the lock; the accessor had only two test callers | repo-wide grep for the symbol | an exported accessor with no non-test caller was carrying a fabricated justification; deleted |
-| The spec's own audit rows were accurate because the code analysis behind them was | three citations were not: `deleteAt`'s `lsdb.go:239` is pre-publication, `IsOwn()` gained a test caller from this spec's own strengthening pass, and the `IsReceivedPurge` grep was cited unscoped when it can only be empty when scoped | a second-pass audit (2026-07-27) that re-derived the field table from `grep` over every field assignment instead of reading the table | no verdict changed, but the same "assert rather than enumerate" shape `71f91c170` removed from the code had reappeared in the prose describing it. Rows corrected inline; recorded in Deviations |
+| `IsReceivedPurge`'s doc: "the engine reads this to decide the distinct flooding behavior" | the engine reads the `receivedPurge` FIELD directly in `aging.go,119,125` under the lock; the accessor had only two test callers | repo-wide grep for the symbol | an exported accessor with no non-test caller was carrying a fabricated justification; deleted |
+| The spec's own audit rows were accurate because the code analysis behind them was | three citations were not: `deleteAt`'s `lsdb.go` is pre-publication, `IsOwn()` gained a test caller from this spec's own strengthening pass, and the `IsReceivedPurge` grep was cited unscoped when it can only be empty when scoped | a second-pass audit (2026-07-27) that re-derived the field table from `grep` over every field assignment instead of reading the table | no verdict changed, but the same "assert rather than enumerate" shape `71f91c170` removed from the code had reappeared in the prose describing it. Rows corrected inline; recorded in Deviations |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -396,45 +396,45 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
-| A comment asserting "only X and Y" without enumerating against every site | twice in this spec alone (A-2, and `IsReceivedPurge`'s "the engine reads this") | already covered by `ai/rules/no-fabrication.md` ("citing a code comment as the project's design intent") and `ai/rules/fail-closed-guards.md` | no new rule; the Critical Review Checklist above carries an "Enumeration honesty" row so the next reviewer of this area checks it |
-| A `-race` test whose window closes early, so it passes with the bug present | once here; the same shape as the sleep-based flakes in `ai/rules/fix-dont-record.md` | mutation-verify every concurrency regression test, not just functional ones | `ai/rules/functional-test-gate.md` already mandates mutation-verification; this is a reminder that it applies to `-race` tests, where "the oracle is the race detector" makes it easy to skip |
+| A comment asserting "only X and Y" without enumerating against every site | twice in this spec alone (A-2, and `IsReceivedPurge`'s "the engine reads this") | already covered by `ai/rules/evidence.md` ("citing a code comment as the project's design intent") and `ai/rules/evidence.md` | no new rule; the Critical Review Checklist above carries an "Enumeration honesty" row so the next reviewer of this area checks it |
+| A `-race` test whose window closes early, so it passes with the bug present | once here; the same shape as the sleep-based flakes in `ai/rules/completion.md` | mutation-verify every concurrency regression test, not just functional ones | `ai/rules/testing.md` already mandates mutation-verification; this is a reminder that it applies to `-race` tests, where "the oracle is the race detector" makes it easy to skip |
 
 ## Design Insights
 
 **The full field classification.** Every `Entry` field, against both conditions.
-Condition 1 is "mutated after `store.entries[id] = e` (`lsdb.go:252`)"; condition 2 is
+Condition 1 is "mutated after `store.entries[id] = e` (`lsdb.go`)"; condition 2 is
 "read with no LSDB lock held". Only a field satisfying BOTH needs an atomic.
 
 | Field | Mutated post-publication? | Read off-lock? | Storage | Evidence |
 |-------|---------------------------|----------------|---------|----------|
-| `lifetime` | Yes -- `aging.go:121` (tick decrement), `aging.go:146` (markPurgedLocked), `lsdb.go:190` (clause 7.3.16 duplicate refresh) | Yes -- `Lifetime()` from `snp.go:319,427` | `atomic.Uint32` | both conditions |
-| `purged` | Yes -- `aging.go:147` (markPurgedLocked) | Yes -- `IsPurged()` from `spf_wiring.go:153`, `show.go:67`, `dis_wiring.go:331` | `atomic.Bool` | both conditions |
-| `recvPurgeReflooded` | Yes -- `aging.go:113` | No -- no accessor, read only at `aging.go:112` under the write lock | plain | condition 1 only |
-| `deleteAt` | Yes -- `aging.go:148` (`markPurgedLocked`) ONLY. `lsdb.go:239` is a PRE-publication write on the fresh entry (`replaceLocked`, published at `:252`) and does not count toward condition 1 | No -- no accessor, read only at `aging.go:100` under the write lock | plain | condition 1 only |
-| `srm` | Yes -- `lsdb.go:385,419,472` | No -- only via `SetSRM`/`ClearSRM`/`SRM`/`ClearCircuit`, all of which take the lock | plain map | condition 1 only |
-| `ssn` | Yes -- `lsdb.go:440,449,473` | No -- same, via the SSN methods | plain map | condition 1 only |
-| `srmSent` | Yes -- `lsdb.go:386,404,409,474` | No -- only via `SetSRM`/`noteSRMTransmit`/`ClearCircuit` | plain map | condition 1 only |
-| `sequence` | No -- assigned only in the `replaceLocked` literal (`lsdb.go:225`) | Yes -- `Sequence()` from `snp.go:321,421,423`, `flooding.go:308`, `lsdb_wiring.go:721` | plain | condition 2 only |
-| `checksum` | No -- `lsdb.go:226` | Yes -- `Checksum()` from `snp.go:322` | plain | condition 2 only |
-| `typeBlock` | No -- `lsdb.go:227` | Yes -- `IsOverloaded()` from `spf_wiring.go:162` | plain | condition 2 only |
-| `own` | No -- `lsdb.go:228` (read under the lock at `aging.go:114,119,125` and `lsdb.go:555`) | Reachable via `IsOwn()`, whose only caller is the regression test's reader loop (`aging_test.go:303`); no production off-lock read (see Known Limitations) | plain | condition 2 only, latently |
-| `raw` | No -- `lsdb.go:224`, and never mutated in place afterwards | Yes -- `Raw()` from `flooding.go:386`, `Decode()` from `spf_wiring.go:156`, `show.go:70`, `lsdb_wiring.go:844` | plain | condition 2 only |
-| `id` | No -- `lsdb.go:223` | Reachable via `LSPID()`; in-package reads are under the lock (`lsdb.go:186`) and the only off-lock call is the regression test (`aging_test.go:301`) | plain | condition 2 only, latently |
-| `receivedPurge` | No -- `lsdb.go:238`, before publication at `lsdb.go:252` | No production reader off-lock; read at `aging.go:112,119,125` under the lock | plain | neither |
+| `lifetime` | Yes -- `aging.go` (tick decrement), `aging.go` (markPurgedLocked), `lsdb.go` (clause 7.3.16 duplicate refresh) | Yes -- `Lifetime()` from `snp.go,427` | `atomic.Uint32` | both conditions |
+| `purged` | Yes -- `aging.go` (markPurgedLocked) | Yes -- `IsPurged()` from `spf_wiring.go`, `show.go`, `dis_wiring.go` | `atomic.Bool` | both conditions |
+| `recvPurgeReflooded` | Yes -- `aging.go` | No -- no accessor, read only at `aging.go` under the write lock | plain | condition 1 only |
+| `deleteAt` | Yes -- `aging.go` (`markPurgedLocked`) ONLY. `lsdb.go` is a PRE-publication write on the fresh entry (`replaceLocked`, published at `:252`) and does not count toward condition 1 | No -- no accessor, read only at `aging.go` under the write lock | plain | condition 1 only |
+| `srm` | Yes -- `lsdb.go,419,472` | No -- only via `SetSRM`/`ClearSRM`/`SRM`/`ClearCircuit`, all of which take the lock | plain map | condition 1 only |
+| `ssn` | Yes -- `lsdb.go,449,473` | No -- same, via the SSN methods | plain map | condition 1 only |
+| `srmSent` | Yes -- `lsdb.go,404,409,474` | No -- only via `SetSRM`/`noteSRMTransmit`/`ClearCircuit` | plain map | condition 1 only |
+| `sequence` | No -- assigned only in the `replaceLocked` literal (`lsdb.go`) | Yes -- `Sequence()` from `snp.go,421,423`, `flooding.go`, `lsdb_wiring.go` | plain | condition 2 only |
+| `checksum` | No -- `lsdb.go` | Yes -- `Checksum()` from `snp.go` | plain | condition 2 only |
+| `typeBlock` | No -- `lsdb.go` | Yes -- `IsOverloaded()` from `spf_wiring.go` | plain | condition 2 only |
+| `own` | No -- `lsdb.go` (read under the lock at `aging.go,119,125` and `lsdb.go`) | Reachable via `IsOwn()`, whose only caller is the regression test's reader loop (`aging_test.go`); no production off-lock read (see Known Limitations) | plain | condition 2 only, latently |
+| `raw` | No -- `lsdb.go`, and never mutated in place afterwards | Yes -- `Raw()` from `flooding.go`, `Decode()` from `spf_wiring.go`, `show.go`, `lsdb_wiring.go` | plain | condition 2 only |
+| `id` | No -- `lsdb.go` | Reachable via `LSPID()`; in-package reads are under the lock (`lsdb.go`) and the only off-lock call is the regression test (`aging_test.go`) | plain | condition 2 only, latently |
+| `receivedPurge` | No -- `lsdb.go`, before publication at `lsdb.go` | No production reader off-lock; read at `aging.go,119,125` under the lock | plain | neither |
 
 **Independently re-derived 2026-07-27 (second pass, different reader).** The
 "exactly `lifetime` and `purged`" conclusion was NOT taken from the table above: it was
 rebuilt from `grep -rn 'e\.\(id\|raw\|sequence\|lifetime\|checksum\|typeBlock\|own\|purged\|receivedPurge\|recvPurgeReflooded\|deleteAt\|srm\|ssn\|srmSent\)' internal/plugins/isis/lsdb/*.go`
-(non-test) cross-checked against the publication line `lsdb.go:252` and the nine-accessor
+(non-test) cross-checked against the publication line `lsdb.go` and the nine-accessor
 inventory `grep -n 'func (e \*Entry) [A-Z]' internal/plugins/isis/lsdb/entry.go`. The
 conclusion holds. Two citations in the original table were wrong and are corrected above:
-`deleteAt` cited `lsdb.go:239` as a post-publication write (it is pre-publication, inside
+`deleteAt` cited `lsdb.go` as a post-publication write (it is pre-publication, inside
 `replaceLocked`), and `own`/`id` were described as having no accessor caller at all (each
 has one, in the regression test). Neither error changes any field's storage class:
-`deleteAt` still satisfies condition 1 through `aging.go:148` alone, and `own`/`id` still
+`deleteAt` still satisfies condition 1 through `aging.go` alone, and `own`/`id` still
 fail condition 1. The re-derivation also re-confirmed that the three flag maps are
 touched ONLY through `SetSRM`/`noteSRMTransmit`/`ClearSRM`/`SRM`/`SetSSN`/`ClearSSN`/`SSN`/`ClearCircuit`
-(`lsdb.go:381-477`), every one of which takes `d.mu`, so condition 2 genuinely fails for
+(`lsdb.go`), every one of which takes `d.mu`, so condition 2 genuinely fails for
 them.
 
 **Why `replaceLocked` is the load-bearing fact.** The whole classification turns on one
@@ -467,77 +467,77 @@ the answer is a two-row table rather than an argument.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Two atomics on the fields that need them | lock every accessor; rename accessors `...Locked` and push the lock to callers | `Lookup` hands out a live pointer and releases the lock, so both alternatives require restructuring every off-lock caller (SPF, show, DIS, SNP) to fix a two-field problem. The atomics keep the read path lock-free, which is what the SNP hot path needs |
-| `setLifetime` stays unexported | export a `SetLifetime` for symmetry with `Lifetime()` | an exported setter invites a write from outside the LSDB lock. The atomic exists for unlocked READERS; writes remain the lock's job, and the doc at `entry.go:171` says so |
+| `setLifetime` stays unexported | export a `SetLifetime` for symmetry with `Lifetime()` | an exported setter invites a write from outside the LSDB lock. The atomic exists for unlocked READERS; writes remain the lock's job, and the doc at `entry.go` says so |
 | `atomic.Uint32` for a uint16 value | `atomic.Uint64`, or a `uint32` with manual `atomic.Load/StoreUint32` | `atomic.Uint32` is the narrowest typed atomic Go offers; `setLifetime`'s `types.RemainingLifetime` parameter keeps the value domain at uint16, so the widening is invisible to callers |
 | Leave `recvPurgeReflooded` and `deleteAt` plain, and say why in the field doc | make them atomic too, "for consistency" | consistency would be the wrong lesson: it would teach that post-publication mutation alone forces an atomic, which is the misreading that produced the bad comment in the first place. The doc instead says they stay plain PRECISELY BECAUSE no accessor exposes them |
-| Delete `IsReceivedPurge` rather than keep it for symmetry | keep it and correct its doc | an exported accessor with no non-test caller is dead code (`ai/rules/wiring-completeness.md`), and keeping it would put an accessor over a LOCK-ONLY field -- exactly the thing the discipline forbids. Its two test callers are in package `lsdb` and read the field directly |
+| Delete `IsReceivedPurge` rather than keep it for symmetry | keep it and correct its doc | an exported accessor with no non-test caller is dead code (`ai/rules/completion.md`), and keeping it would put an accessor over a LOCK-ONLY field -- exactly the thing the discipline forbids. Its two test callers are in package `lsdb` and read the field directly |
 | Test the whole accessor set, not just the two atomic fields | assert only `Lifetime()` and `IsPurged()` | the discipline is a claim about every accessor. Testing only the two that were fixed would leave a new unsafe accessor to be caught by nothing |
 
 ## Known Limitations
-- **`IsOwn()` has no NON-test caller.** `internal/plugins/isis/lsdb/entry.go:184`. Its
-  ONE caller repo-wide is `aging_test.go:303`, the reader loop of the regression test --
+- **`IsOwn()` has no NON-test caller.** `internal/plugins/isis/lsdb/entry.go`. Its
+  ONE caller repo-wide is `aging_test.go`, the reader loop of the regression test --
   a call this spec's own 2026-07-27 strengthening pass added when it widened the loop
   from four accessors to all nine. (An earlier draft of this bullet said "zero callers
   repo-wide, including tests"; that was written before the strengthening and is
   corrected here. Re-verified 2026-07-27: `grep -rn 'IsOwn()' --include='*.go' .` returns
-  the definition, `aging_test.go:303`, and one copy inside the detached
+  the definition, `aging_test.go`, and one copy inside the detached
   `.claude/worktrees/` checkout -- no production caller.) It is NOT a race (`own` is
   written once before publication), so it does not affect any AC, but it is the same
-  `ai/rules/wiring-completeness.md` argument that justified deleting `IsReceivedPurge` in
+  `ai/rules/completion.md` argument that justified deleting `IsReceivedPurge` in
   `71f91c170` -- applied to one accessor and not its neighbour, and the test call does
-  not discharge it (`wiring-completeness.md` asks for a non-test caller). Deciding its
+  not discharge it (`completion.md` asks for a non-test caller). Deciding its
   fate (delete, or wire the `own` flag into `Snapshot`/`show`) is outside this spec's
   race scope and is flagged for the reviewer rather than actioned here.
 - **`LSPID()` is in the same position, one step milder.** Its only reads are inside
-  package `lsdb` under the lock (`lsdb.go:186`) plus the same regression-test reader
-  loop (`aging_test.go:301`); no off-lock production caller exists. Like `own`, `id` is
+  package `lsdb` under the lock (`lsdb.go`) plus the same regression-test reader
+  loop (`aging_test.go`); no off-lock production caller exists. Like `own`, `id` is
   written once before publication, so plain storage is correct either way. Recorded so
   the accessor inventory in the field table is not read as "every accessor has a
   production off-lock caller".
 - **The condition-1 enumeration in the struct doc lists four fields, not seven.**
-  `entry.go:58-62` names `lifetime`, `purged`, `recvPurgeReflooded` and `deleteAt`; the
+  `entry.go` names `lifetime`, `purged`, `recvPurgeReflooded` and `deleteAt`; the
   three per-circuit flag maps (`srm`, `ssn`, `srmSent`) are also mutated post-publication
   and are addressed by the following sentence ("reachable only through LSDB methods that
   take the lock themselves") rather than by the enumeration. The conclusion is correct
   and the maps are covered, but the enumeration is not exhaustive -- the same shape of
   imprecision `71f91c170` was written to remove.
-- **One test reads a LOCK-ONLY field off-lock.** `aging_test.go:152,159` read
+- **One test reads a LOCK-ONLY field off-lock.** `aging_test.go,159` read
   `Lookup(...).receivedPurge` directly. Benign -- that test is single-goroutine, so there
   is no concurrent writer -- but it is the exact shape the discipline warns against, and
   it is only legal because the test is in package `lsdb`.
 - **Multi-field off-lock reads are consistency-relaxed, by design.** `buildPSNP`
-  (`snp.go:319-322`) takes three separate off-lock loads. Not a race and not fixed: see
+  (`snp.go`) takes three separate off-lock loads. Not a race and not fixed: see
   R-3.
 
 ## RFC Documentation
 
 The ISO/IEC 10589 clause references that constrain the two atomic fields are carried
 inline on the fields and their writers: clause 7.3.16/7.3.17 on `lifetime` and `purged`
-(`entry.go:79`, `entry.go:108`), clause 7.3.16 on the duplicate-refresh write
-(`lsdb.go:189`), and clause 7.3.16.4/7.3.17 on the tick and the grace period
-(`aging.go:72`, `aging.go:96`). No clause behavior changed, so no `rfc/short/` summary
+(`entry.go`, `entry.go`), clause 7.3.16 on the duplicate-refresh write
+(`lsdb.go`), and clause 7.3.16.4/7.3.17 on the tick and the grace period
+(`aging.go`, `aging.go`). No clause behavior changed, so no `rfc/short/` summary
 and no `docs/features/rfc-status.md` row moves.
 
 ## Implementation Summary
 
 ### What Was Implemented
 - `Entry.lifetime` is an `atomic.Uint32` and `Entry.purged` an `atomic.Bool`
-  (`internal/plugins/isis/lsdb/entry.go:95,115`). `Lifetime()` and `IsPurged()` read
-  through atomic loads (`entry.go:167,188`); a new unexported `setLifetime`
-  (`entry.go:173`) is the single write path.
-- All four post-publication write sites converted: the tick decrement (`aging.go:121`),
-  `markPurgedLocked` (`aging.go:146-147`), `replaceLocked` (`lsdb.go:230,232`) and the
-  clause 7.3.16 duplicate refresh (`lsdb.go:190`). All in-package plain reads of the two
+  (`internal/plugins/isis/lsdb/entry.go,115`). `Lifetime()` and `IsPurged()` read
+  through atomic loads (`entry.go,188`); a new unexported `setLifetime`
+  (`entry.go`) is the single write path.
+- All four post-publication write sites converted: the tick decrement (`aging.go`),
+  `markPurgedLocked` (`aging.go`), `replaceLocked` (`lsdb.go,232`) and the
+  clause 7.3.16 duplicate refresh (`lsdb.go`). All in-package plain reads of the two
   fields now go through the accessors.
-- The `Entry` struct carries a FIELD DISCIPLINE doc (`entry.go:40-65`) stating the two
+- The `Entry` struct carries a FIELD DISCIPLINE doc (`entry.go`) stating the two
   conditions as a conjunction and classifying every field; `recvPurgeReflooded` and
   `deleteAt` carry explicit LOCK-ONLY "do NOT add an accessor" notes
-  (`entry.go:128-137`).
-- `Lookup`'s doc (`lsdb.go:277-294`) replaced "callers that only read metadata are fine"
+  (`entry.go`).
+- `Lookup`'s doc (`lsdb.go`) replaced "callers that only read metadata are fine"
   with the explicit safe/unsafe split and a note that the old sentence is what produced
   the race.
 - `IsReceivedPurge` deleted; its two test callers read the field directly.
-- `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go:236`) drives the aging tick
+- `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go`) drives the aging tick
   against four reader goroutines; `-race` is the oracle.
 
 ### Bugs Found/Fixed
@@ -582,10 +582,10 @@ and no `docs/features/rfc-status.md` row moves.
   (2026-07-27) and corrected in place.** The audit and Pre-Commit sections were filled
   earlier the same day; a different reader re-derived the field classification from the
   source rather than from the table, and found: (1) `deleteAt`'s condition-1 evidence
-  cited `lsdb.go:239`, which is a PRE-publication write inside `replaceLocked` (the
-  publication is `lsdb.go:252`); (2) `IsOwn()` was described as having "zero callers
+  cited `lsdb.go`, which is a PRE-publication write inside `replaceLocked` (the
+  publication is `lsdb.go`); (2) `IsOwn()` was described as having "zero callers
   repo-wide, including tests" when this spec's own test-strengthening pass had just added
-  one at `aging_test.go:303`; (3) the AC-6 and Documentation evidence cited an unscoped
+  one at `aging_test.go`; (3) the AC-6 and Documentation evidence cited an unscoped
   `grep -rn 'IsReceivedPurge' .` as returning nothing, which cannot be true while this
   spec file discusses the symbol by name. **None of the three changes a verdict** -- the
   field classification, AC-6 and the documentation answers all still hold -- but all
@@ -601,31 +601,31 @@ and no `docs/features/rfc-status.md` row moves.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| The reported DATA RACE on `Entry.lifetime` no longer occurs | Done | `internal/plugins/isis/lsdb/entry.go:95,167,173` (atomic field, load, store) | Proven by `TestISISLSDBEntryAccessorsAreRaceFree`, which drives the tick against four reader goroutines under `-race` |
-| Fix at the discipline, not the one field | Done | `internal/plugins/isis/lsdb/entry.go:40-65` (the two-condition FIELD DISCIPLINE doc) plus the per-field classification in Design Insights | Every one of the 14 fields is classified against both conditions; `purged` was found by the discipline, not by a failing test |
+| The reported DATA RACE on `Entry.lifetime` no longer occurs | Done | `internal/plugins/isis/lsdb/entry.go,167,173` (atomic field, load, store) | Proven by `TestISISLSDBEntryAccessorsAreRaceFree`, which drives the tick against four reader goroutines under `-race` |
+| Fix at the discipline, not the one field | Done | `internal/plugins/isis/lsdb/entry.go` (the two-condition FIELD DISCIPLINE doc) plus the per-field classification in Design Insights | Every one of the 14 fields is classified against both conditions; `purged` was found by the discipline, not by a failing test |
 | Decide between locking accessors, `...Locked` renames, or atomics | Done (Changed vs the Task's framing) | Key Design Decisions row 1 | Atomics chosen; both alternatives require restructuring every off-lock caller because `Lookup` releases the lock before returning |
-| `Sequence()`, `Checksum()`, `LSPID()`, overload reader are equally unsafe | Changed | Design Insights field table | The premise was false: `replaceLocked` (`lsdb.go:216-252`) publishes a fresh entry, so those fields are written once before reachability. Recorded as A-1 broken |
-| A per-field patch must not leave sibling accessors unsafe | Done | `aging_test.go:297-307` | The regression test now calls all nine exported accessors, so a future accessor over a post-publication field fails here |
+| `Sequence()`, `Checksum()`, `LSPID()`, overload reader are equally unsafe | Changed | Design Insights field table | The premise was false: `replaceLocked` (`lsdb.go`) publishes a fresh entry, so those fields are written once before reachability. Recorded as A-1 broken |
+| A per-field patch must not leave sibling accessors unsafe | Done | `aging_test.go` | The regression test now calls all nine exported accessors, so a future accessor over a post-publication field fails here |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Done | `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go:236`); reader loop reads `Lifetime()` at `aging_test.go:297` and `IsPurged()` at `:298` while the writer at `:272` runs `d.Tick()`. Green under `-race -count=20` | The producing code is `entry.go:167` (atomic load) and `entry.go:173` / `aging.go:147` (atomic stores) |
-| AC-2 | Done | Same test, `aging_test.go:299-307`: `Sequence`, `Checksum`, `LSPID`, `IsOverloaded`, `IsOwn`, `Raw`, `Decode` all called off-lock in the reader loop. Green under `-race -count=20` | These seven accessors were NOT exercised by the committed version of the test; that coverage was added on 2026-07-27 (see Deviations). Their safety rests on `replaceLocked` publishing at `lsdb.go:252` after every assignment |
+| AC-1 | Done | `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go`); reader loop reads `Lifetime()` at `aging_test.go` and `IsPurged()` at `:298` while the writer at `:272` runs `d.Tick()`. Green under `-race -count=20` | The producing code is `entry.go` (atomic load) and `entry.go` / `aging.go` (atomic stores) |
+| AC-2 | Done | Same test, `aging_test.go`: `Sequence`, `Checksum`, `LSPID`, `IsOverloaded`, `IsOwn`, `Raw`, `Decode` all called off-lock in the reader loop. Green under `-race -count=20` | These seven accessors were NOT exercised by the committed version of the test; that coverage was added on 2026-07-27 (see Deviations). Their safety rests on `replaceLocked` publishing at `lsdb.go` after every assignment |
 | AC-3 | Done | Mutation verification, 2026-07-27: `lifetime` reverted to plain `uint32` → 12/12 single runs RED; `purged` reverted to plain `bool` → 12/12 single runs RED. Output in Pre-Commit Verification | Was 6/12 and 10/12 before the test was strengthened. This AC is the reason the strengthening happened rather than being recorded |
-| AC-4 | Done | `internal/plugins/isis/lsdb/entry.go:40-65` states both conditions as a numbered conjunction; `entry.go:81-94` (lifetime), `:112-114` (purged), `:128-130` (recvPurgeReflooded LOCK-ONLY), `:135-137` (deleteAt LOCK-ONLY) classify the fields | Verified by reading, not by a test -- a comment has no test. See Known Limitations for the one imprecision that remains (the four-field enumeration where seven qualify) |
-| AC-5 | Done | `internal/plugins/isis/lsdb/lsdb.go:277-294`: names the safe accessors, states what is not safe, and records that the earlier "callers that only read metadata are fine" wording produced the race | grep for the old sentence returns only this explanatory reference, never as guidance |
+| AC-4 | Done | `internal/plugins/isis/lsdb/entry.go` states both conditions as a numbered conjunction; `entry.go` (lifetime), `:112-114` (purged), `:128-130` (recvPurgeReflooded LOCK-ONLY), `:135-137` (deleteAt LOCK-ONLY) classify the fields | Verified by reading, not by a test -- a comment has no test. See Known Limitations for the one imprecision that remains (the four-field enumeration where seven qualify) |
+| AC-5 | Done | `internal/plugins/isis/lsdb/lsdb.go`: names the safe accessors, states what is not safe, and records that the earlier "callers that only read metadata are fine" wording produced the race | grep for the old sentence returns only this explanatory reference, never as guidance |
 | AC-6 | Done | Source-tree `grep -rn 'IsReceivedPurge' internal/ cmd/ pkg/ docs/ ai/ scripts/ test/` → exit 1 (evidence in Pre-Commit Verification). No accessor exists over `recvPurgeReflooded`, `deleteAt`, `receivedPurge`, `srm`, `ssn` or `srmSent` | `IsOwn()` still exists over `own` and `LSPID()` over `id`, both written once before publication, so AC-6 as stated ("over a field that is mutated after publication and not atomic") holds. Their lack of PRODUCTION callers is a separate wiring-completeness matter recorded in Known Limitations, deliberately not folded into this AC |
 | AC-7 | Done | `go test -race -count=10 -run TestISISDISElection ./internal/plugins/isis/` → `ok ... 106.058s`. Output in Pre-Commit Verification | The originally reported symptom |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| `TestISISLSDBEntryAccessorsAreRaceFree` | Done | `internal/plugins/isis/lsdb/aging_test.go:236` | Strengthened 2026-07-27: writer re-originates purged LSPs, reader calls all nine accessors. Mutation-verified 12/12 both fields |
-| `TestISISDISElection` | Done | `internal/plugins/isis/dis_wiring_test.go:115` | Pre-existing; the symptom. Green at `-race -count=10` |
-| `TestISISLSDBAgeDecrement` | Done | `internal/plugins/isis/lsdb/aging_test.go:29` | Pre-existing; proves the decrement semantics survived the `setLifetime` indirection |
-| `TestISISLSDBAgeToPurge` | Done | `internal/plugins/isis/lsdb/aging_test.go:44` | Pre-existing; proves purge-not-delete and the grace period survived the `purged` atomic |
-| `TestISISReceivedPurgeRefloodSurfaced` | Done | `internal/plugins/isis/lsdb/aging_test.go:139` | Pre-existing; its two assertions now read `receivedPurge` directly (`aging_test.go:152,159`) after `IsReceivedPurge` was deleted. Coverage unchanged: same package, same field |
+| `TestISISLSDBEntryAccessorsAreRaceFree` | Done | `internal/plugins/isis/lsdb/aging_test.go` | Strengthened 2026-07-27: writer re-originates purged LSPs, reader calls all nine accessors. Mutation-verified 12/12 both fields |
+| `TestISISDISElection` | Done | `internal/plugins/isis/dis_wiring_test.go` | Pre-existing; the symptom. Green at `-race -count=10` |
+| `TestISISLSDBAgeDecrement` | Done | `internal/plugins/isis/lsdb/aging_test.go` | Pre-existing; proves the decrement semantics survived the `setLifetime` indirection |
+| `TestISISLSDBAgeToPurge` | Done | `internal/plugins/isis/lsdb/aging_test.go` | Pre-existing; proves purge-not-delete and the grace period survived the `purged` atomic |
+| `TestISISReceivedPurgeRefloodSurfaced` | Done | `internal/plugins/isis/lsdb/aging_test.go` | Pre-existing; its two assertions now read `receivedPurge` directly (`aging_test.go,159`) after `IsReceivedPurge` was deleted. Coverage unchanged: same package, same field |
 | Functional `.ci` test | N/A | - | No user-facing behavior change; see TDD Test Plan → Functional Tests |
 | Interop scenario | N-A | - | No wire-visible change; see TDD Test Plan → Interop Tests |
 
@@ -633,7 +633,7 @@ and no `docs/features/rfc-status.md` row moves.
 | File | Status | Notes |
 |------|--------|-------|
 | `internal/plugins/isis/lsdb/entry.go` | Done | Both atomics, both accessors, `setLifetime`, the FIELD DISCIPLINE doc, LOCK-ONLY field notes, `IsReceivedPurge` removed |
-| `internal/plugins/isis/lsdb/aging.go` | Done | `aging.go:95,116,121,122,143` read via accessors; `:146,147` write via `setLifetime`/`Store` |
+| `internal/plugins/isis/lsdb/aging.go` | Done | `aging.go,116,121,122,143` read via accessors; `:146,147` write via `setLifetime`/`Store` |
 | `internal/plugins/isis/lsdb/lsdb.go` | Done | `:190,230,232` write via `setLifetime`/`Store`; `:218,359,507,510` read via accessors; `:277-294` the corrected `Lookup` doc |
 | `internal/plugins/isis/lsdb/aging_test.go` | Done | The regression test plus the two direct-field reads replacing `IsReceivedPurge()` |
 
@@ -650,8 +650,8 @@ and no `docs/features/rfc-status.md` row moves.
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
 | `TestISISDISElection` no longer fails under `-race` on the LSDB `Entry` field | Unit test under the race detector | `go test -race -count=10 -run TestISISDISElection ./internal/plugins/isis/` → `ok github.com/ze-software/ze/internal/plugins/isis 106.058s` (2026-07-27) |
-| The LSDB no longer has a lock discipline its own exported accessors bypass | Unit test calling EVERY exported accessor off-lock against a live writer | `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go:236`): reader loop `:297-307` calls all nine accessors while `:272` ticks. `-race -count=20` → `ok ... 4.674s` |
-| The fix is at the discipline, not the one field | Enumeration of all 14 fields against both conditions, plus a second field found by it | Design Insights field table. `purged` was fixed because the discipline selected it, not because a test failed on it; `recvPurgeReflooded`, `deleteAt` and the three flag maps were deliberately left plain with the reason recorded at `entry.go:128-137` |
+| The LSDB no longer has a lock discipline its own exported accessors bypass | Unit test calling EVERY exported accessor off-lock against a live writer | `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go`): reader loop `:297-307` calls all nine accessors while `:272` ticks. `-race -count=20` → `ok ... 4.674s` |
+| The fix is at the discipline, not the one field | Enumeration of all 14 fields against both conditions, plus a second field found by it | Design Insights field table. `purged` was fixed because the discipline selected it, not because a test failed on it; `recvPurgeReflooded`, `deleteAt` and the three flag maps were deliberately left plain with the reason recorded at `entry.go` |
 | The fix would fail if reverted (the test is not vacuous) | Mutation verification, both fields, single runs | `lifetime` → plain `uint32`: 12/12 single runs RED. `purged` → plain `bool`: 12/12 single runs RED. Full output in Pre-Commit Verification |
 | No behavior regression in aging, purge or freshness | Full package suite under the race detector | Whole tree, 2026-07-27: `go test -race ./internal/plugins/isis/...` → all 12 packages `ok` (`isis 86.047s`, `lsdb 358.443s`, plus adjacency, circuit, cli, packet, redistribute, redistribute/events, spf, transport, types, yang). Re-run of the changed package after the test was strengthened: `go test -race ./internal/plugins/isis/lsdb/` → `ok ... 222.356s` |
 | No exported accessor is left over an unsafe or uncalled-for field | Source-tree grep | `grep -rn 'IsReceivedPurge' internal/ cmd/ pkg/ docs/ ai/ scripts/ test/` → exit 1 (the symbol, its doc and both test call sites are gone). Partial, and named as such: `IsOwn()` and `LSPID()` remain exported with no PRODUCTION caller. Neither is over an unsafe field (both are written once before publication), so AC-6 as written holds; the uncalled-for half is recorded in Known Limitations, not claimed as met |
@@ -689,7 +689,7 @@ and no `docs/features/rfc-status.md` row moves.
 All evidence below was produced on 2026-07-27 against the working tree, independently of
 the audit tables. Feature tags used throughout are
 `ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u)`, per
-`ai/rules/bash-output.md` (a bare `go test` drops the tags and fabricates reds).
+`ai/rules/commands.md` (a bare `go test` drops the tags and fabricates reds).
 
 ### Files Exist (ls)
 <!-- For EVERY file in "Files to Create": ls -la <path> — paste output. -->
@@ -705,9 +705,9 @@ the audit tables. Feature tags used throughout are
 <!-- For EVERY AC-N: independently verify. Do NOT copy from audit — re-check. -->
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | tick + unlocked `Lifetime()`/`IsPurged()` is race-free | `go test -race -count=20 -run TestISISLSDBEntryAccessorsAreRaceFree ./internal/plugins/isis/lsdb/` → `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.674s`. Independently re-run on the second pass, 2026-07-27, with the full default-on feature tags (`ze_core` + every `ze_*` in `feature-gates.txt`, per `ai/rules/bash-output.md`): `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.616s`. The atomic that makes it true: `grep -n 'atomic\.' internal/plugins/isis/lsdb/entry.go` → `20: "sync/atomic"`, `95: lifetime atomic.Uint32`, `115: purged atomic.Bool` |
+| AC-1 | tick + unlocked `Lifetime()`/`IsPurged()` is race-free | `go test -race -count=20 -run TestISISLSDBEntryAccessorsAreRaceFree ./internal/plugins/isis/lsdb/` → `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.674s`. Independently re-run on the second pass, 2026-07-27, with the full default-on feature tags (`ze_core` + every `ze_*` in `feature-gates.txt`, per `ai/rules/commands.md`): `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.616s`. The atomic that makes it true: `grep -n 'atomic\.' internal/plugins/isis/lsdb/entry.go` → `20: "sync/atomic"`, `95: lifetime atomic.Uint32`, `115: purged atomic.Bool` |
 | AC-2 | all seven other accessors are read off-lock in the same test | `grep -n '_ = e\.' internal/plugins/isis/lsdb/aging_test.go` → lines 297-304 (`Lifetime`, `IsPurged`, `Sequence`, `Checksum`, `LSPID`, `IsOverloaded`, `IsOwn`, `Raw`) plus `305: if lsp, err := e.Decode(); err == nil`. Nine accessors; `grep -c 'func (e \*Entry) [A-Z]' internal/plugins/isis/lsdb/entry.go` → 9. Every exported accessor is covered |
-| AC-3 | reverting either atomic turns the test RED on a single run | `lifetime` → plain `uint32`: 12 separate `-test.count=1` runs, `CAUGHT 12 / 12`. `purged` → plain `bool`: 12 separate runs, `CAUGHT 12 / 12`. Sample race report from the pre-strengthening measurement: `WARNING: DATA RACE / Write at 0x00c0003a9b44 by goroutine 12: (*Entry).setLifetime() entry.go:173 ← tickLevelLocked() aging.go:121 / Previous read at 0x00c0003a9b44 by goroutine 16: (*Entry).Lifetime() entry.go:168`. Production code restored after each mutation: `git diff --stat -- internal/plugins/isis/lsdb/entry.go internal/plugins/isis/lsdb/aging.go internal/plugins/isis/lsdb/lsdb.go` → empty |
+| AC-3 | reverting either atomic turns the test RED on a single run | `lifetime` → plain `uint32`: 12 separate `-test.count=1` runs, `CAUGHT 12 / 12`. `purged` → plain `bool`: 12 separate runs, `CAUGHT 12 / 12`. Sample race report from the pre-strengthening measurement: `WARNING: DATA RACE / Write at 0x00c0003a9b44 by goroutine 12: (*Entry).setLifetime() entry.go ← tickLevelLocked() aging.go / Previous read at 0x00c0003a9b44 by goroutine 16: (*Entry).Lifetime() entry.go`. Production code restored after each mutation: `git diff --stat -- internal/plugins/isis/lsdb/entry.go internal/plugins/isis/lsdb/aging.go internal/plugins/isis/lsdb/lsdb.go` → empty |
 | AC-4 | the struct doc states both conditions and classifies every field | `sed -n '40,65p' internal/plugins/isis/lsdb/entry.go` shows the numbered conjunction ("A field needs an atomic when BOTH of these are true", items 1 and 2) and the classification sentence naming which fields stay plain and why. `grep -n 'LOCK-ONLY' internal/plugins/isis/lsdb/entry.go` → 128 (`recvPurgeReflooded`), 135 (`deleteAt`) |
 | AC-5 | `Lookup`'s doc names what is and is not safe | `sed -n '277,294p' internal/plugins/isis/lsdb/lsdb.go`: "What is safe to call on it without the LSDB lock: the metadata accessors ... What is NOT safe: mutating anything, and reading any other mutable field directly rather than through an accessor", and the record that the earlier wording "was the invitation that produced a DATA RACE" |
 | AC-6 | no exported accessor over a non-atomic post-publication field | `grep -rn 'IsReceivedPurge' internal/ cmd/ pkg/ docs/ ai/ scripts/ test/` → exit 1, no matches in any source or documentation tree (re-run 2026-07-27). Scoped deliberately: an unscoped `grep -rn '...' .` is NOT empty and never can be, because this spec file discusses the symbol by name in a dozen rows, and a detached `.claude/worktrees/` checkout still holds the pre-deletion copy. An earlier version of this row claimed the unscoped grep returned nothing; that was wrong on its face. Accessor inventory cross-checked against the field table: the nine accessors read `id`, `sequence`, `lifetime`, `checksum`, `typeBlock`, `own`, `purged`, `raw` -- of which only `lifetime` and `purged` are post-publication, and both are atomic. No accessor reaches `recvPurgeReflooded`, `deleteAt`, `receivedPurge`, `srm`, `ssn` or `srmSent` |
@@ -717,18 +717,18 @@ the audit tables. Feature tags used throughout are
 <!-- For EVERY wiring test row: does the test exist AND does it exercise the full path? -->
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| aging tick concurrent with SNP generation | none (`.ci` is N/A -- no user-facing surface); the wiring test is `TestISISLSDBEntryAccessorsAreRaceFree`, `internal/plugins/isis/lsdb/aging_test.go:236` | Yes -- read the test body, not just its name: the writer goroutine (`:266-281`) calls `d.Tick()`, which is the same `LSDB.Tick` the engine drives from `lsdb_wiring.go:78,96`; the reader goroutines (`:285-312`) call `d.Lookup` then read the accessors after the read lock has been released, which is the same shape as `snp.go:313-322` |
-| every exported `Entry` accessor | none (`.ci` N/A); `aging_test.go:297-307` | Yes -- all nine accessors are called in the reader loop; counted against `grep -c 'func (e \*Entry) [A-Z]' internal/plugins/isis/lsdb/entry.go` → 9 |
-| the originally reported symptom | none (`.ci` N/A); `internal/plugins/isis/dis_wiring_test.go:115` | Yes -- `TestISISDISElection` exercises DIS election, which reaches `Entry` metadata through the engine's own wiring; it is the test whose `-race` failure opened this spec |
+| aging tick concurrent with SNP generation | none (`.ci` is N/A -- no user-facing surface); the wiring test is `TestISISLSDBEntryAccessorsAreRaceFree`, `internal/plugins/isis/lsdb/aging_test.go` | Yes -- read the test body, not just its name: the writer goroutine calls `d.Tick()`, which is the same `LSDB.Tick` the engine drives from `lsdb_wiring.go,96`; the reader goroutines call `d.Lookup` then read the accessors after the read lock has been released, which is the same shape as `snp.go` |
+| every exported `Entry` accessor | none (`.ci` N/A); `aging_test.go` | Yes -- all nine accessors are called in the reader loop; counted against `grep -c 'func (e \*Entry) [A-Z]' internal/plugins/isis/lsdb/entry.go` → 9 |
+| the originally reported symptom | none (`.ci` N/A); `internal/plugins/isis/dis_wiring_test.go` | Yes -- `TestISISDISElection` exercises DIS election, which reaches `Entry` metadata through the engine's own wiring; it is the test whose `-race` failure opened this spec |
 
 ### Assumptions Resolved
 <!-- For EVERY A-N row in Risks & Assumptions: final status with evidence. -->
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | **broken** | `sed -n '216,258p' internal/plugins/isis/lsdb/lsdb.go`: `replaceLocked` assigns `id`, `raw`, `sequence`, `checksum`, `typeBlock`, `own` in the composite literal at `:222-229` and `receivedPurge`/`deleteAt` at `:238-239`, all before publication at `:252`. Grep confirms no other assignment to any of them: `grep -n '\.\(sequence\|checksum\|typeBlock\|own\|receivedPurge\)\b' internal/plugins/isis/lsdb/*.go` shows only reads outside `replaceLocked`. Mistake Log row 1, Deviations bullet 1 |
-| A-2 | **broken** | `grep -n 'recvPurgeReflooded\|deleteAt' internal/plugins/isis/lsdb/*.go` → writes at `aging.go:113`, `aging.go:148` and `lsdb.go:239`. Of those, `aging.go:113` and `aging.go:148` are post-publication; `lsdb.go:239` is inside `replaceLocked` and runs BEFORE the publication at `lsdb.go:252` (corrected on the 2026-07-27 second pass -- an earlier version of this row said "all after publication", which overcounted by one site without changing the verdict). Plus `srm`/`ssn`/`srmSent` mutated at `lsdb.go:385,419,440,449,472-474`. Seven fields satisfy condition 1, not two. Mistake Log row 2 |
-| A-3 | **confirmed** | The full 14-row field table in Design Insights, built from `grep`-verified write sites and the nine-accessor inventory. Exactly `lifetime` and `purged` satisfy both conditions; exactly those two are atomic (`entry.go:95,115`) |
-| A-4 | **confirmed (production), one benign test exception** | `grep -rn ') \*Entry\|(\*Entry,\|\[\]\*Entry' internal/plugins/isis/ --include='*.go'` excluding tests → one hit, `lsdb.go:295` (`Lookup`). So `Lookup` is the only producer of a live pointer. All production reads through it use exported accessors (call sites enumerated in Design Insights). The exception is `aging_test.go:152,159`, an in-package single-goroutine test read of `receivedPurge`; recorded in Known Limitations |
+| A-2 | **broken** | `grep -n 'recvPurgeReflooded\|deleteAt' internal/plugins/isis/lsdb/*.go` → writes at `aging.go`, `aging.go` and `lsdb.go`. Of those, `aging.go` and `aging.go` are post-publication; `lsdb.go` is inside `replaceLocked` and runs BEFORE the publication at `lsdb.go` (corrected on the 2026-07-27 second pass -- an earlier version of this row said "all after publication", which overcounted by one site without changing the verdict). Plus `srm`/`ssn`/`srmSent` mutated at `lsdb.go,419,440,449,472-474`. Seven fields satisfy condition 1, not two. Mistake Log row 2 |
+| A-3 | **confirmed** | The full 14-row field table in Design Insights, built from `grep`-verified write sites and the nine-accessor inventory. Exactly `lifetime` and `purged` satisfy both conditions; exactly those two are atomic (`entry.go,115`) |
+| A-4 | **confirmed (production), one benign test exception** | `grep -rn ') \*Entry\|(\*Entry,\|\[\]\*Entry' internal/plugins/isis/ --include='*.go'` excluding tests → one hit, `lsdb.go` (`Lookup`). So `Lookup` is the only producer of a live pointer. All production reads through it use exported accessors (call sites enumerated in Design Insights). The exception is `aging_test.go,159`, an in-package single-goroutine test read of `receivedPurge`; recorded in Known Limitations |
 | A-5 | **broken** | Measured 2026-07-27 with the committed test and `lifetime` reverted to plain `uint32`: `CAUGHT 6 / 12` single runs. With `purged` reverted: `CAUGHT 10 / 12`. The doc claim "fails deterministically" was false. After strengthening: 12/12 for both. Mistake Log row 3, Deviations bullet 3 |
 
 ### Documentation Verified

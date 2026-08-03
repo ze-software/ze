@@ -6,7 +6,7 @@
 (`internal/component/cli/model.go`) hardcoded a per-feature field + five switch
 sites (fields, `Update` message switch, both command-dispatch chains, key
 handling, render) for each rich live view (dashboard, ping, traceroute) -- the
-exact anti-pattern `ai/rules/plugin-self-containment.md` names and bans. Replaced
+exact anti-pattern `ai/rules/plugins.md` names and bans. Replaced
 with a client-side view registry the Model discovers, mirroring the daemon-side
 `RegisterMonitorProvider` in `internal/component/plugin/server/handler.go`.
 
@@ -69,7 +69,7 @@ with a client-side view registry the Model discovers, mirroring the daemon-side
   factory (Design 1 keeps concrete factory construction in the consumer).
 
 Links: `ai/patterns/registration.md` (init + registry + longest-prefix) ·
-`ai/rules/plugin-self-containment.md` ("Registration over hardcoding (the CLI client too)") ·
+`ai/rules/plugins.md` ("Registration over hardcoding (the CLI client too)") ·
 mirror `internal/component/plugin/server/handler.go` (`RegisterMonitorProvider`/`matchesPrefix`).
 
 ## Files

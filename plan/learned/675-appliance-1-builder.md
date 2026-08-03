@@ -22,7 +22,7 @@ Also: added `validity` parameter to `GenerateWebCertWithNames`, added `KeySSHAut
 | Decision | Rationale |
 |----------|-----------|
 | Key-on-socket agent protocol | Same-UID trust boundary; simpler than decrypt-on-socket; no serialization bottleneck |
-| Kebab-case JSON (not snake_case) | Project rule `json-format.md`; spec's snake_case claim was wrong |
+| Kebab-case JSON (not snake_case) | Project rule `cli.md`; spec's snake_case claim was wrong |
 | config-base validation at assemble time, not Validate() | Base dir is resolved at runtime; path validation needs the actual appliance dir |
 | Spec split into 4 specs | 74 ACs was 3-4x typical; builder (45 ACs), remote (18), recovery (6), device-config (5) |
 

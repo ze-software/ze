@@ -75,7 +75,7 @@ spec carries the same three things for strongSwan.
 
 | Deliverable | Why it is here and not elsewhere |
 |-------------|----------------------------------|
-| Two upstream reports, filed | A defect nobody reported is a defect that stays. `ai/rules/no-parking.md`: recording is not addressing |
+| Two upstream reports, filed | A defect nobody reported is a defect that stays. `ai/rules/completion.md`: recording is not addressing |
 | The workaround kept and cross-referenced to the reports | A future reader must be able to reach the report from the code that pays for the bug |
 | A removal condition, stated | Without one the RSA CA becomes permanent and its reason is forgotten |
 
@@ -121,11 +121,11 @@ failure into a working handshake with no CA hint, which is a correct TLS 1.3 exc
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/no-parking.md` - recording a defect is not addressing it
+- [ ] `ai/rules/completion.md` - recording a defect is not addressing it
   → Constraint: a defect found while doing something else is the reason you are now the one
     who reports it. The report is the action; this spec is where it is tracked, not a
     substitute for it.
-- [ ] `ai/rules/comparison-honesty.md` - claims about another project need a durable source
+- [ ] `ai/rules/writing.md` - claims about another project need a durable source
   → Constraint: cite the upstream source file and symbol, and label anything not read.
 - [ ] `plan/spec-ipsec-opaque-selector-port-mask.md` - the precedent for an upstream report
   → Decision: a spec that carries an upstream defect also carries the minimal patch shape and
@@ -159,7 +159,7 @@ while the workaround stands.
 **Behavior to change:** none in Ze, until upstream ships a fix. Then the scenario-local PKI
 is deleted and the scenario returns to the shared `test/ipsec-interop/pki/gen-pki.sh`.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
@@ -295,7 +295,7 @@ extension, and the rejection is the Go stdlib). It is Required Reading, not a ch
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| No fabrication | Every claim about strongSwan names the file and the function it was read in, and anything not read is labelled. `ai/rules/no-fabrication.md` |
+| No fabrication | Every claim about strongSwan names the file and the function it was read in, and anything not read is labelled. `ai/rules/evidence.md` |
 | Comparison honesty | The report states the inspected version and does not generalize beyond it |
 | Removal condition | AC-5 exists and is reachable, so the workaround is not permanent by default |
 

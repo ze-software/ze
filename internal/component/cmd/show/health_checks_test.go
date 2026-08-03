@@ -8,7 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/core/health"
 
 	// Health rows are registered by their OWNING components at init
-	// (ai/rules/plugin-self-containment.md). Linking the owners here mirrors
+	// (ai/rules/plugins.md). Linking the owners here mirrors
 	// the production wiring in internal/component/plugin/all. The probe
 	// behavior tests moved with the probes to
 	// internal/core/report/health_probe_test.go.

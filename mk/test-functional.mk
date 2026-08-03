@@ -165,7 +165,7 @@ ZE_CI_GO_TEST_PKGS = $(shell grep -rhoE 'exec=go test [^:]*' test/ --include='*.
 # compiler rather than on the behavior it asserts -- test/ospf/ospf-neighbor.ci
 # (20s exec budget) did exactly that while its own Go test takes 0.01s.
 # Compiling once here takes compilation out of every per-test budget instead of
-# hiding the problem behind a larger timeout (ai/rules/fix-dont-record.md: a
+# hiding the problem behind a larger timeout (ai/rules/completion.md: a
 # generous timeout is a synonym for an unknown one).
 #
 # No tags, deliberately: the `.ci` commands invoke bare `go test`, and the build

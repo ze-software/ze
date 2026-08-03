@@ -2,7 +2,7 @@
 
 ## Context
 
-`ai/rules/deferral-tracking.md` said two things that cannot both be true. "A spec's
+`ai/rules/planning.md` said two things that cannot both be true. "A spec's
 shard is deleted at the spec's closure" (Shard key) and "A homed row stays live"
 (Status Vocabulary). A row homed at a DIFFERENT spec is live, and its shard belongs
 to a spec that just closed. The rule gave no answer for that state, and the state is
@@ -34,13 +34,13 @@ what is on disk.
   signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a
   live-bearing shard LOWERS their counts. The forbidden action silences every observer
   of the rows it destroys, which is why prose alone could not hold it
-  (`ai/rules/fail-closed-guards.md`).
+  (`ai/rules/evidence.md`).
 - **Changing a rule is not changing behaviour: four surfaces EXECUTE this one and all
   four still taught the superseded version.** `ai/skills/ze-close.md` (the skill an
   agent actually follows at closure), `plan/TEMPLATE-CLOSURE.md` (inlined into every
-  closing spec), `ai/rules/critical-review.md` (a directive resting on the false
+  closing spec), `ai/rules/planning.md` (a directive resting on the false
   premise), and `ai/skills/ze-progress.md`. An independent review found them; the rule
-  edit alone would have shipped a rule nothing obeyed (`ai/rules/discovery-updates.md`).
+  edit alone would have shipped a rule nothing obeyed (`ai/rules/repo-maintenance.md`).
 - `ze-progress` stage 2 was filtering on `Status == open` while 127 live rows carry
   `deferred`, so it under-fired. Fixing that alone would have made it never terminate:
   homing a row is the correct resolution and leaves the row LIVE, so status alone
@@ -99,9 +99,9 @@ what is on disk.
 
 ## Files
 
-- `ai/rules/deferral-tracking.md` -- both readings, the governing one, the do-not-sweep directive, the named actor for residue
+- `ai/rules/planning.md` -- both readings, the governing one, the do-not-sweep directive, the named actor for residue
 - `ai/rules/planning.md` -- commit B reads the Status column; the "blocks every future commit" claim corrected to advisory
-- `ai/rules/critical-review.md` -- directive kept, its false rationale replaced
+- `ai/rules/planning.md` -- directive kept, its false rationale replaced
 - `ai/skills/ze-close.md` -- conditional `--remove`, and the gate that enforces it
 - `ai/skills/ze-progress.md` -- stage 2 fires on live AND unhomed, not on `open` alone
 - `plan/TEMPLATE-CLOSURE.md` -- same correction, inlined into every closing spec
@@ -109,4 +109,9 @@ what is on disk.
 - `scripts/dev/commit_helper_test.py` -- `TestDeferralShardRemoval`, 13 cases, driven through the assembly point rather than the gate alone
 - `scripts/dev/deferral_orphans.py` -- the producing script for every count this rule quotes
 - `plan/deferrals/fixit-rs-community-strip-arity.md` -- renamed from a doubled `spec-` prefix
-- `ai/rules/CONDENSED.md` -- regenerated
+- `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` -- regenerated. (This change also
+  regenerated CONDENSED.md (deleted 2026-08-03), which a concurrent session RETIRED later the
+  same day: `scripts/dev/rules_condensed.py` now emits two artifacts, not three,
+  because nothing loaded the third and it cost a 5,182-line rewrite per rule edit.
+  Named here without a live path, so the record stays true and the staleness gate
+  stays green.)

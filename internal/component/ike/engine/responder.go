@@ -413,7 +413,7 @@ func sendSAInitNotifyRaw(
 	n, err := msg.CheckedWriteTo(buf, 0)
 	if err != nil {
 		// RFC 7296 Section 3: a truncated IKE message is malformed. Drop rather
-		// than send a partial notify (ai/rules/no-workarounds-for-missing-behavior.md).
+		// than send a partial notify (ai/rules/completion.md).
 		log.Warn("ike: SA_INIT notify too large, dropping", "peer", peerName, "notify", notifyType, "error", err)
 		return
 	}
@@ -611,7 +611,7 @@ func selectResponderESP(sa *SA, remoteSAi2 *wire.PayloadSA) error {
 		}
 		// RFC 7296 Section 3.3 numbers the first proposal of an offer one, so a
 		// proposal numbered zero is malformed. Refuse it rather than answer with a
-		// number the peer cannot match (ai/rules/fail-closed-guards.md).
+		// number the peer cannot match (ai/rules/evidence.md).
 		if rp.Number == 0 {
 			return crypto.ErrNoProposalChosen
 		}
@@ -648,7 +648,7 @@ func matchOfferedESPProposal(offer *wire.PayloadSA, our ipsec.ESPProposal) (wire
 // policy. RFC 7296 Section 3.3.5 lets a responder accept a key that supplies greater
 // security, and crypto.NegotiateIKE records the configured length when it does. The
 // operator asked for the shorter key, so the running key is stated rather than silent
-// (ai/rules/exact-or-reject.md). A responder that accepts the configured length logs
+// (ai/rules/protocol.md). A responder that accepts the configured length logs
 // nothing.
 func logKeyLengthUpgrade(log *slog.Logger, peer string, chosen crypto.IKEProposal) {
 	if chosen.PolicyKeyLength == 0 {

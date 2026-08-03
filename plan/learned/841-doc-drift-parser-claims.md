@@ -32,5 +32,5 @@ The text parser architecture docs drifted after route-server parsing moved from 
 - `scripts/docvalid/scripts_test.go`
 - `mk/inventory.mk`
 - `docs/contributing/documentation-testing.md`
-- `ai/rules/documentation.md`
+- `ai/rules/writing.md`
 - `ai/CODE-TO-DOCS.md`

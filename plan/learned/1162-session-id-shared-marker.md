@@ -75,5 +75,5 @@ state for the OTHER session's spec.
 - `scripts/status/verify_run.go` - `ze-hook-test` in both stage lists
 - `scripts/status/verify_run_test.go` - `ze-hook-test` in required stages
 - `scripts/dev/spec-session.sh` - header corrected; the guarantee is a property of the id
-- `ai/rules/hook-mapping.md` - documents the two resolvers and their parity test
+- `ai/rules/repo-maintenance.md` - documents the two resolvers and their parity test
 - `Makefile` - `ze-hook-test` comment lists the session-id section

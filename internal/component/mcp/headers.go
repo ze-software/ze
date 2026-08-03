@@ -126,7 +126,7 @@ func validateStandardHeaders(r *http.Request, req *request, params map[string]an
 	// But an implicit refusal inside that arithmetic named the property
 	// nowhere. A later change to header validation can therefore restore an
 	// accept path, and no gate reports it. Make the miss explicit at the
-	// producer (ai/rules/fail-closed-guards.md).
+	// producer (ai/rules/evidence.md).
 	//
 	// The verdict deliberately stays -32020 with HTTP 400, the code the same
 	// Section "Server Validation" pins to a header/body disagreement. Only the
@@ -141,7 +141,7 @@ func validateStandardHeaders(r *http.Request, req *request, params map[string]an
 	//
 	// Absence and mismatch are the same verdict. No handshake remains as a
 	// fallback, so a missing header MUST NOT default to any revision
-	// (ai/rules/fail-closed-guards.md).
+	// (ai/rules/evidence.md).
 	headerVersion := r.Header.Get(headerProtocolVersion)
 	if headerVersion == "" {
 		if req.Method == initializeMethod {

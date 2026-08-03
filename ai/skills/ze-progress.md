@@ -40,7 +40,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - **Owed TO this spec:** any live row whose `Destination` names this spec. Someone routed that work here. It is this spec's to finish, wherever it came from.
    - **Owed BY this spec:** a live row whose `Source` names this spec, whose `Destination` does NOT name some OTHER `plan/spec-*.md` that exists on disk. Unhomed, or pointing at prose, or pointing back at this spec.
    - **Why the destination test, and why "some OTHER".** Status alone never terminates: homing a row is the correct resolution and leaves the row LIVE, so a spec with a homed row would re-enter stage 2 forever and could never be reported closeable. Without "OTHER", a row homed at this very spec reads as satisfied, and closure then deletes its destination. Status alone also under-fires: measured 2026-08-03, 127 live rows carry `deferred` and only 12 carry `open`, so a filter on `open` misses most of the corpus.
-   - If any such row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`ai/rules/deferral-tracking.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
+   - If any such row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`ai/rules/planning.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
 6. **Stage 3 -- Review:** Determine whether a review has been run since the most recent code change:
    - Most recent code change: `git diff --name-only HEAD~1 HEAD` plus any uncommitted changes from `git status`.
    - Most recent review: look for a review artifact in this session (conversation history) or in recent commits/messages mentioning `/ze-review`, `/ze-review-spec`, `/ze-review-deep`.
@@ -111,10 +111,10 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 |-------|-------------|-----------|
 | 1 | `/ze-implement` | Finish the missing ACs, tests, or wiring. A unit test in isolation is not wiring -- name the user entry point. |
 | 2 (resolvable) | Close the deferral: implement it or mark `done` in its `plan/deferrals/<source>.md` shard | A deferral that already exists in code is a bookkeeping bug, not scope |
-| 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | A deferral cannot silently VANISH at closure. It may survive it: a row homed at another spec stays live, and its shard outlives this spec (`ai/rules/deferral-tracking.md`). Homing it clears stage 2 -- do not treat a live homed row as unfinished closure work |
+| 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | A deferral cannot silently VANISH at closure. It may survive it: a row homed at another spec stays live, and its shard outlives this spec (`ai/rules/planning.md`). Homing it clears stage 2 -- do not treat a live homed row as unfinished closure work |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
-| 5 | Write `plan/learned/NNN-<stem>.md`, stage `git rm plan/spec-<name>.md` + the new learned file, then `/ze-commit` | Two-commit rule (`ai/rules/spec-preservation.md`): never delete a spec without committing it first |
+| 5 | Write `plan/learned/NNN-<stem>.md`, stage `git rm plan/spec-<name>.md` + the new learned file, then `/ze-commit` | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
 | done | "Spec complete. `/ze-spec` to pick the next one." | Nothing pending |
 
 ## Rules

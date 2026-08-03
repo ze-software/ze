@@ -13,7 +13,7 @@ func TestMonitorSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliMonitorCmdYANG, token) {
-			t.Errorf("central monitor schema declares owner command %q; move it to %s (see ai/rules/plugin-self-containment.md)", token, owner)
+			t.Errorf("central monitor schema declares owner command %q; move it to %s (see ai/rules/plugins.md)", token, owner)
 		}
 	}
 }

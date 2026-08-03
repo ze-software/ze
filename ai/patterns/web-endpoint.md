@@ -7,10 +7,10 @@ Architecture: `docs/architecture/web-interface.md`, `docs/architecture/web-compo
 
 | Rule | When it applies |
 |------|----------------|
-| `ai/rules/json-format.md` | Any API endpoint returning JSON |
+| `ai/rules/cli.md` | Any API endpoint returning JSON |
 | `ai/rules/goroutine-lifecycle.md` | SSE streaming, background workers |
-| `ai/rules/derive-not-hardcode.md` | Pages that list or enumerate items |
-| `ai/rules/config-design.md` (Listeners) | If adding a new web listener endpoint |
+| `ai/rules/evidence.md` | Pages that list or enumerate items |
+| `ai/rules/config.md` (Listeners) | If adding a new web listener endpoint |
 | Full navigation: `ai/INDEX.md` | |
 
 ## Three Web Interfaces

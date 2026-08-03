@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Independent-review gate: record and check the review artifact that
-`ai/rules/critical-review.md` requires before a spec may be closed.
+`ai/rules/planning.md` requires before a spec may be closed.
 
 The artifact `tmp/review/<spec-stem>-<session-id>.md` is written by INDEPENDENT
 reviewers (subagents / a fresh session, never the author's own inline reasoning)
@@ -116,7 +116,7 @@ def cmd_hash(files: list[str]) -> int:
 
 
 # --------------------------------------------------------------------------- #
-# The review model (ai/rules/model-selection.md).
+# The review model (ai/rules/planning.md).
 #
 # Review runs on Opus 5. Recording the artifact is the moment a review is
 # CLAIMED, so it is the right place to check. The reverse boundary -- editing
@@ -144,7 +144,7 @@ def _model_refusal(force: str) -> str:
         print(
             "review_gate: WARNING could not determine the running model; "
             "the review-model boundary is UNCHECKED "
-            "(ai/rules/model-selection.md)",
+            "(ai/rules/planning.md)",
             file=sys.stderr,
         )
         return ""
@@ -165,11 +165,11 @@ def _model_refusal(force: str) -> str:
         return ""
     return (
         f"review_gate: BLOCKED this session is on {model}. Review runs on "
-        "Opus 5 (ai/rules/model-selection.md).\n"
+        "Opus 5 (ai/rules/planning.md).\n"
         "  A review performed on the implementation model is the author "
         "grading their own work,\n"
         "  which is the failure the independent-review rule exists to "
-        "prevent (ai/rules/critical-review.md).\n"
+        "prevent (ai/rules/planning.md).\n"
         "  Switch to Opus 5 and re-run the review, or pass --model-override "
         "with the operator's reason."
     )
@@ -255,7 +255,7 @@ def _report_recorded_model(spec: str) -> None:
     if not on_review_model:
         print(
             f"review_gate: NOTE this artifact was recorded on {model}, not the "
-            "review model (ai/rules/model-selection.md)",
+            "review model (ai/rules/planning.md)",
             file=sys.stderr,
         )
 
@@ -269,7 +269,7 @@ def cmd_check(args: argparse.Namespace) -> int:
             f"no independent-review artifact at {out}",
             "Run an INDEPENDENT critical review (subagents / fresh session, never "
             "your own inline reasoning) and record it with review_gate.py record. "
-            "See ai/rules/critical-review.md.",
+            "See ai/rules/planning.md.",
         )
         return 3
     verdict, hashes = parsed
@@ -321,7 +321,7 @@ def main(argv: list[str]) -> int:
         "--model-override",
         default="",
         help="operator reason to record a review made off the review model "
-        "(ai/rules/model-selection.md). Their call, not yours.",
+        "(ai/rules/planning.md). Their call, not yours.",
     )
 
     c = sub.add_parser("check")

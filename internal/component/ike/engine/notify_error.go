@@ -84,7 +84,7 @@ func newOutboundNotifyLimiter(perSecond, burst float64) *outboundNotifyLimiter {
 //
 // It fails closed. A nil limiter denies.
 // A caller that forgot to construct one therefore sends nothing.
-// It does not send without a bound (ai/rules/fail-closed-guards.md).
+// It does not send without a bound (ai/rules/evidence.md).
 func (l *outboundNotifyLimiter) allow() bool {
 	if l == nil {
 		return false
@@ -243,7 +243,7 @@ func notifyForRefusal(err error) uint16 {
 // A parse of an attacker's payloads, to decide whether to answer them, is a larger
 // attack surface for no gain.
 //
-// Every precondition denies by sending nothing (ai/rules/fail-closed-guards.md).
+// Every precondition denies by sending nothing (ai/rules/evidence.md).
 func sendInvalidIKESPI(
 	tr *transport.UDPTransport,
 	pkt transport.Packet,
@@ -343,7 +343,7 @@ func answerOutOfSA(tr *transport.UDPTransport, pkt transport.Packet, natT bool, 
 // retransmission of such a request carries SK by construction. The test is structural,
 // needs no key material, and costs one pass over the payload list.
 //
-// It fails closed. A nil message reads false (ai/rules/fail-closed-guards.md).
+// It fails closed. A nil message reads false (ai/rules/evidence.md).
 func carriesSKPayload(msg *wire.Message) bool {
 	if msg == nil {
 		return false

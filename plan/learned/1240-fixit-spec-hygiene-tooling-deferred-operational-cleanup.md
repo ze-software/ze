@@ -16,7 +16,7 @@ design or code.
   learned 1069, then two-commit-closed it.
 - **Item 2 -- `ze-regen-check` green + no un-indexed learned.** The red was NOT un-indexed learned
   files (`ai/LEARNED-FULL-INDEX.md` already covers all 1211 summaries, numbering unique) but two
-  stale derived indexes: `ai/rules/CONDENSED.md` (had not absorbed the `appliance-dep-bumps.md`
+  stale derived indexes: `ai/rules/CONDENSED.md` (had not absorbed the `platform-linux.md`
   cadence/GPL/pin-table additions from `spec-fixit-supply-chain-hardening`) and `ai/CODE-TO-DOCS.md`.
   Regenerated both (`make ze-regen`) and committed them; `ze-regen-check-readonly` is now green.
 
@@ -27,7 +27,7 @@ design or code.
 
 ## Gotchas
 
-- Editing an `ai/rules/*.md` rule file (e.g. `appliance-dep-bumps.md`) stales `ai/rules/CONDENSED.md`,
+- Editing an `ai/rules/*.md` rule file (e.g. `platform-linux.md`) stales `ai/rules/CONDENSED.md`,
   which `make ze-discovery-index` does NOT refresh -- only the fuller `make ze-regen` does. Run
   `ze-regen` (not just `ze-discovery-index`) after touching a rule file, or `ze-regen-check` goes
   red on the next clean verify.

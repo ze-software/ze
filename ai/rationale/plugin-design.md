@@ -1,6 +1,6 @@
 # Plugin Design Rationale
 
-Why: `ai/rules/plugin-design.md`
+Why: `ai/rules/plugins.md`
 
 ## Why Registry Is a Leaf Package
 

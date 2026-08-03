@@ -27,7 +27,7 @@ role's `string` case and warnings), so a one-line key rename could not fix both.
 - Rejected a shared cross-plugin reader / importing one plugin's helper into the
   other: it would violate plugin self-containment and tier rules. Reading the
   reactor-provided `filterapi` field keeps both plugins isolated.
-- Fail-closed (ai/rules/fail-closed-guards.md): `dest.LocalAS == 0` now SKIPS the
+- Fail-closed (ai/rules/evidence.md): `dest.LocalAS == 0` now SKIPS the
   OTC stamp AND emits a WARN, so a missing local AS is observable, never a silent
   valid-looking zero. (A peer with no local AS cannot be established -- config
   parsing rejects it -- so 0 signals a wiring gap.)

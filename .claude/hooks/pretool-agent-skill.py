@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse Agent|Task: refuse a raw agent when a ze-* skill covers the task.
 
-ai/rules/agent-tooling.md: "When a skill covers the task (/ze-rfc, /ze-review,
+ai/rules/cli.md: "When a skill covers the task (/ze-rfc, /ze-review,
 /ze-implement, etc.), use it instead of spawning a raw agent or improvising the
 workflow." Nothing enforced that. On 2026-07-31 a session ran three research
 fan-outs and two reviews as hand-written prompts, reproducing a worse version of
@@ -104,7 +104,7 @@ def verdict(prompt: str) -> tuple[str, str] | None:
     return None
 
 
-# Skills whose work IS review. ai/rules/model-selection.md puts review on Opus 5,
+# Skills whose work IS review. ai/rules/planning.md puts review on Opus 5,
 # and a review done on the implementation model is the author grading their own
 # work. The skills gate already knows when a prompt asks for a review, so it is
 # the earliest place that can say so -- before the agent runs, rather than when
@@ -204,17 +204,17 @@ def review_model_refusal(prompt: str, transcript: str | None = None) -> str:
     model = _running_model(transcript)
     if not model:
         # Fail-closed guards must deny or SPEAK. This one cannot deny, so it
-        # says so (ai/rules/fail-closed-guards.md). The record gate still checks.
+        # says so (ai/rules/evidence.md). The record gate still checks.
         sys.stderr.write(
             "note: could not determine the running model, so the review-model "
-            "boundary is UNCHECKED here (ai/rules/model-selection.md)\n"
+            "boundary is UNCHECKED here (ai/rules/planning.md)\n"
         )
         return ""
     if rm_is_review_tier(model):
         return ""
     return (
         f"\u274c Blocked: review runs on Opus 5, and this session is on {model}\n"
-        "  (ai/rules/model-selection.md).\n"
+        "  (ai/rules/planning.md).\n"
         "  A subagent inherits the PHASE, not the task shape, so spawning a\n"
         "  reviewer from an implementation session still reviews on the wrong\n"
         "  model. Worse, it is usually the session that wrote the code.\n"
@@ -243,7 +243,7 @@ def main() -> int:
     skill, matched = hit
     sys.stderr.write(
         "❌ Blocked: a ze-* skill covers this agent's task "
-        "(ai/rules/agent-tooling.md).\n"
+        "(ai/rules/cli.md).\n"
         f'  The prompt asks for: "{matched}"\n'
         f"  Use {skill} instead of a hand-written prompt. The skill carries the\n"
         "  workflow, the gates and the report format that a raw agent improvises\n"

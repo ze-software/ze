@@ -1,6 +1,6 @@
 # Design Document References Rationale
 
-Why: `ai/rules/design-doc-references.md`
+Why: `ai/rules/go-standards.md`
 
 ## Why This Rule Exists
 Without traceability, developers cannot find the reasoning behind code decisions. When splitting, refactoring, or debugging, the first question is "what design governs this?" -- the answer should be in the file itself, not discovered through archaeology.

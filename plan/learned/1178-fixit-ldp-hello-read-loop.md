@@ -4,7 +4,7 @@
 
 `plan/spec-fixit-ldp-hello-read-loop.md`. LDP Basic Discovery (`internal/plugins/ldp`)
 sends and receives multicast Hellos per interface in `discoverOnInterface`
-(`register.go:540`). The receive was structurally coupled to the send: the loop's
+(`register.go`). The receive was structurally coupled to the send: the loop's
 `select` had only `<-ctx.Done()` and `<-helloTicker.C -> sendHello`, and a single
 1s-deadline-bounded `udpConn.ReadFromUDP` sat *after* the `select`, running exactly
 once per iteration. With `DefaultHelloInterval = 5s` the loop turned ~every 5s, so
@@ -17,7 +17,7 @@ that opened once per 5s.
 ## Decisions
 
 - **Mirror the ISIS dedicated-reader model, do not invent a new one.**
-  `internal/plugins/isis/transport/backend_linux.go:196` (`readLoop`) is the in-repo
+  `internal/plugins/isis/transport/backend_linux.go` (`readLoop`) is the in-repo
   precedent: a receiver runs its own loop with its own buffer, checks a stop signal,
   and exits on socket close / ctx cancel. New `readDiscoveryLoop` follows it exactly:
   its own `recvBuf`, `ReadFromUDP -> processDiscoveryPacket` with no per-tick gate,
@@ -40,11 +40,11 @@ that opened once per 5s.
   missed, the deadline wakes the reader within 1s so it re-checks `ctx.Err()` and exits.
   A dedicated test cancels ctx WITHOUT closing the socket to prove this path.
 - **Repaired pre-existing integration-test staleness in scope.**
-  `frr_interop_integration_linux_test.go:171` still called `startSessionForAdj` with the
+  `frr_interop_integration_linux_test.go` still called `startSessionForAdj` with the
   old 8-arg signature (a prior transport-address refactor added a `netip.Addr` arg). It
   only compiles under `integration && linux`, so normal CI never caught it. Since that
   test is the on-wire coverage of the new reader path, added the missing `c.TransportAddr`
-  arg (mirroring production wiring at `register.go:326`).
+  arg (mirroring production wiring at `register.go`).
 
 ## Consequences
 

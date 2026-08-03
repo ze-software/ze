@@ -1,6 +1,6 @@
 # Deferrals -- spec-router-advertisement
 
-Source: `plan/spec-router-advertisement.md`. Format: `ai/rules/deferral-tracking.md`.
+Source: `plan/spec-router-advertisement.md`. Format: `ai/rules/planning.md`.
 
 Created 2026-08-02 by a session sweeping the shared working tree, NOT by the spec's
 author. The spec's 2026-07-10 scoping decision excludes two RA options, and the commit gate

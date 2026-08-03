@@ -47,12 +47,12 @@ periodic report calls. The protocol gains two new verbs on the existing MuxConn 
 New obligation from the 2026-07 implementation wave (verified against current code): the new
 report verbs ride a transport that now enforces write timeouts. `pkg/plugin/rpc/conn.go`
 applies a default 30s write deadline when the context carries none (`defaultWriteDeadline`,
-conn.go:44; applied in `writeAppended`, conn.go:292-294, :309). The managed client wraps its
-TLS `net.Conn` in `rpc.NewConn` (`internal/component/managed/client.go:158`), a
+conn.go; applied in `writeAppended`, conn.go, :309). The managed client wraps its
+TLS `net.Conn` in `rpc.NewConn` (`internal/component/managed/client.go`), a
 deadline-capable transport, so `inventory-report` and `health-report` writes get the 30s
-deadline (the fail-fast watchdog for non-deadline transports, conn.go:191-200, never arms
+deadline (the fail-fast watchdog for non-deadline transports, conn.go, never arms
 here). Risk is low: the ~1-2KB payloads noted under Key insights are far below the 16 MB
-`MaxMessageSize` frame bound (`pkg/plugin/rpc/framing.go:66`). Obligation for the Data Flow
+`MaxMessageSize` frame bound (`pkg/plugin/rpc/framing.go`). Obligation for the Data Flow
 and client-side error handling: a report write that stalls 30s now fails with a deadline
 error / closed connection instead of blocking; treat it like the AC-11 error case (client
 continues operating normally and lets the existing reconnect logic recover).

@@ -10,7 +10,7 @@
 # pretool-writeedit.py accepts EITHER marker before allowing a spec/design file
 # write: an LSP invocation OR a source Read. Rationale: reading the function that
 # PRODUCES a behavior is the verification we actually want before authoring a
-# spec that claims something about that behavior (ai/rules/no-fabrication.md,
+# spec that claims something about that behavior (ai/rules/evidence.md,
 # "Behavioral claims and recommendations"). Requiring the LSP tool specifically
 # false-negatives legitimate investigation done via the Read tool.
 #

@@ -261,7 +261,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/component/cmd/update` | provides the top-level "update" CLI verb for refreshing stale data from external sources (PeeringDB, RPKI, IRR, etc.) |  |
 | `internal/component/cmd/update/yang` | embeds and registers the CLI update command and API YANG modules |  |
 | `internal/component/command` | provides shared types and logic for operational command execution |  |
-| `internal/component/command/grammar` | mechanizes the CLI command-syntax rules of ai/rules/cli-grammar.md as pure functions, so the grammar gate (scripts/checks/cli_grammar.go), the plugin |  |
+| `internal/component/command/grammar` | mechanizes the CLI command-syntax rules of ai/rules/cli.md as pure functions, so the grammar gate (scripts/checks/cli_grammar.go), the plugin |  |
 | `internal/component/command/registry` | holds the process-wide registries for ze's command-line surface: offline local handlers, top-level root commands, and owner-backed root command handlers |  |
 | `internal/component/config` | provides YANG-modeled configuration parsing, tree operations, and peer extraction for ze's BGP subsystem |  |
 | `internal/component/config/archive` | saves committed configuration to file and HTTP locations on commit, manual, and scheduled triggers |  |
@@ -344,7 +344,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/component/mcp` | implements the MCP (Model Context Protocol) server surface: JSON-RPC tool dispatch wrapping Ze's command dispatcher, served over the Streamable HTTP transport (streamable.go) |  |
 | `internal/component/mcp/yang` | embeds and registers the MCP configuration YANG module |  |
 | `internal/component/mpls` | reads the kernel MPLS forwarding table and serves the show mpls forwarding command |  |
-| `internal/component/ping/cmd` | owns the entire ping feature surface as a dedicated feature module (see ai/rules/plugin-self-containment.md "Dedicated feature modules") |  |
+| `internal/component/ping/cmd` | owns the entire ping feature surface as a dedicated feature module (see ai/rules/plugins.md "Dedicated feature modules") |  |
 | `internal/component/pki` | parses, validates, and stores X.509 certificates with show commands and expiry health checks |  |
 | `internal/component/pki/yang` | embeds and registers the PKI API and configuration YANG modules |  |
 | `internal/component/plugin` | provides the plugin infrastructure for ze, including registry management, process lifecycle, hub-based message routing, and event dispatch |  |
@@ -387,7 +387,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/component/telemetry/collector` | reads Netdata-compatible OS metrics from procfs and sysfs and feeds them into the shared metrics registry |  |
 | `internal/component/telemetry/exporter` | is the compile-out-able Prometheus HTTP exporter for Ze |  |
 | `internal/component/telemetry/exporter/yang` | embeds the telemetry exporter's YANG configuration schema and registers it with the config module registry |  |
-| `internal/component/traceroute/cmd` | owns the entire traceroute feature surface as a dedicated feature module (see ai/rules/plugin-self-containment.md "Dedicated feature modules") |  |
+| `internal/component/traceroute/cmd` | owns the entire traceroute feature surface as a dedicated feature module (see ai/rules/plugins.md "Dedicated feature modules") |  |
 | `internal/component/traffic` | defines the data model for ze-managed tc (traffic control) qdiscs, classes, and filters | traffic |
 | `internal/component/traffic/cli` | provides the ze traffic control subcommand for viewing tc qdisc, class, and filter state on network interfaces |  |
 | `internal/component/traffic/cmd` | provides traffic control (QoS) CLI command handlers and formatting helpers |  |

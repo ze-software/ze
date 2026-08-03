@@ -78,7 +78,7 @@ vary enormously in size, so a message-count cap silently diverges from BIRD.
 -> Constraint: Ze must add an explicit goroutine + queue handoff to get the
 property BIRD gets structurally. BIRD's producer *cannot* block (every fd is
 `O_NONBLOCK`, `sk_send` returns 0 rather than blocking); ze's `writeRaw`
-(`sender.go:231-237`) does `SetWriteDeadline(10s)` then a blocking `conn.Write`.
+(`sender.go`) does `SetWriteDeadline(10s)` then a blocking `conn.Write`.
 That is the substantive porting cost.
 
 -> Constraint: enqueue WHOLE messages only. BIRD's copy loop can `return`
@@ -108,7 +108,7 @@ handoff queue holding `[]byte` elements would have to COPY each message out of
 `scratch` before the producer returns (the producer reuses `scratch`
 immediately), which is one heap allocation per Route Monitoring message on that
 same hot path -- regressing precisely the property that comment records, and
-banned by `ai/rules/buffer-first.md` / `ai/rules/memory-architecture.md` for a
+banned by `ai/rules/performance.md` / `ai/rules/performance.md` for a
 wire-facing path.
 
 BIRD does not have this problem because it does not queue message objects: it
@@ -122,7 +122,7 @@ limit is a fill level rather than a count of elements.
 
 Consequence for planning: this is a memory-architecture change to a hot path,
 not a channel bolted onto `sendLocked`. It needs its own design pass against
-`ai/rules/memory-architecture.md` (pool strategy by goroutine shape: one
+`ai/rules/performance.md` (pool strategy by goroutine shape: one
 producer set + one drain goroutine per session), and an allocation assertion in
 its tests so the regression cannot come back silently.
 
@@ -139,10 +139,10 @@ goroutines.
 ~~UNVERIFIED and to be settled FIRST: whether a config reload re-delivers the
 Stage-2 configure callback at all.~~ **SETTLED 2026-07-27: it does NOT, so this
 is LATENT, not live.** `deliverConfigRPC`
-(`internal/component/plugin/server/startup.go:736`) has exactly one caller,
-`engineStartupSink.deliverConfig` (`:623`), reached only from
-`runStartupHandshake` (`startup_driver.go:153`), reached only from
-`handleProcessStartupRPC` (`startup.go:537`) and `subsystem.go:141`. That is
+(`internal/component/plugin/server/startup.go`) has exactly one caller,
+`engineStartupSink.deliverConfig`, reached only from
+`runStartupHandshake` (`startup_driver.go`), reached only from
+`handleProcessStartupRPC` (`startup.go`) and `subsystem.go`. That is
 once per plugin PROCESS startup; nothing re-delivers Stage-2 configure to a
 running plugin on reload.
 
@@ -186,7 +186,7 @@ not dead weight.
 **Behavior to change:** (only if user explicitly requested)
 - [list changes user asked for, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Defect 1: RIB best-change batches enter `BMPPlugin.handleBestChange` synchronously on the RIB publisher goroutine -- engine EventBus subscribers fire from `deliverEvent` (`internal/component/plugin/server/engine_event.go`, `SubscribeEngineEvent`)
@@ -219,7 +219,7 @@ not dead weight.
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
-- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -345,16 +345,16 @@ not dead weight.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | [ ] | Every leaf MUST have maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | [ ] | If native YANG constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for tab-completion. Register in `validators_register.go` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (action before identifier) | [ ] | `ai/rules/cli-grammar.md` |
+| CLI grammar (action before identifier) | [ ] | `ai/rules/cli.md` |
 | Editor autocomplete | [ ] | Automatic for YANG enum/type leaves. For dynamic values: `CompleteFn` in custom validator returns valid options |
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/pipe-completeness.md` |
-| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()`. Read `ai/rules/config-surface.md` before adding env-only settings |
-| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/doctor-checks.md`) |
+| Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/cli.md` |
+| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()`. Read `ai/rules/config.md` before adding env-only settings |
+| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | [ ] | If feature has observable state: define counters, register in telemetry, list metric names and labels in this spec |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -372,7 +372,7 @@ not dead weight.
 | 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | [ ] | `rfc/short/rfcNNNN.md` (summary) and `docs/features/rfc-status.md` (status ledger row with source anchors) |
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
@@ -451,9 +451,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | [feature-specific: e.g., "merge order correct", "error messages accurate"] |
 | Naming | [feature-specific: e.g., "JSON keys use kebab-case", "YANG uses kebab-case"] |
 | Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
-| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli-grammar.md` |
-| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugin-self-containment.md` |
-| Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/doctor-checks.md` |
+| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli.md` |
+| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugins.md` |
+| Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/repo-maintenance.md` |
 | YANG validation | If YANG leaves added: every leaf has max native constraints (`range`/`length`/`pattern`/`enum`). Bare `type string` is a red flag. Custom validator + `CompleteFn` where native is insufficient |
 | Prometheus counters | If observable state exists: counters defined, registered, metric names listed |
 | Rule: no-layering | [if replacing something: "old code fully deleted"] |

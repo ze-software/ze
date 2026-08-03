@@ -8,7 +8,7 @@ package main
 // *_test.py, and the Go tests in this package cover the Go tools only. They all
 // passed when run by hand, so this wires up working tests rather than repairing
 // broken ones. A test nothing runs is the test-side twin of unwired code: it reads
-// as coverage and provides none (ai/rules/wiring-completeness.md).
+// as coverage and provides none (ai/rules/completion.md).
 //
 // Discovery is by glob rather than a hardcoded list, deliberately: a new
 // <tool>_test.py is picked up with no further wiring, so this cannot rot the way

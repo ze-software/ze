@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md`
 3. `internal/plugins/fib/kernel/nexthop_linux.go` - the single-SID seg6 encap builder
 4. `internal/plugins/static/model.go` - static route model (no segments today)
-5. `ai/rules/qemu-testing.md` - seg6 encap is Linux-only; QEMU tests mandatory
+5. `ai/rules/platform-linux.md` - seg6 encap is Linux-only; QEMU tests mandatory
 
 ## Task
 
@@ -44,7 +44,7 @@ RESEARCH/DESIGN workflow. This skeleton tracks the gap; it is NOT ready to imple
   → Constraint: the segment list must extend `buildSEG6Encap` to N segments, not fork a new encoder.
 - [ ] `internal/plugins/static/backend_linux.go` - the static netlink install path (no encap today).
   → Constraint: static routes must gain a seg6-encap path parallel to the existing gateway/multipath install.
-- [ ] `ai/rules/qemu-testing.md` - seg6 encap and forwarding are kernel behaviours; QEMU integration tests mandatory.
+- [ ] `ai/rules/platform-linux.md` - seg6 encap and forwarding are kernel behaviours; QEMU integration tests mandatory.
   → Constraint: never skip QEMU tests for "needs hardware".
 
 ### RFC Summaries (MUST for protocol work)
@@ -58,9 +58,9 @@ RESEARCH/DESIGN workflow. This skeleton tracks the gap; it is NOT ready to imple
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/fib/kernel/nexthop_linux.go` - `buildSEG6Encap` (nexthop_linux.go:169-175) builds a `netlink.SEG6Encap` with a single-entry `Segments` list from one `netip.Addr`; there is no multi-SID path.
-- [ ] `internal/plugins/static/model.go` - `staticRoute` (static/model.go:34-42) has Prefix, Table, Description, Metric, Tag, Action, NextHops; there is no segments/SID field.
-- [ ] `internal/plugins/fib/vpp/srv6.go` - `addSRv6Steer` (fib/vpp/srv6.go:67) steers a prefix to a single SID via the VPP SR API; no segment list.
+- [ ] `internal/plugins/fib/kernel/nexthop_linux.go` - `buildSEG6Encap` (nexthop_linux.go) builds a `netlink.SEG6Encap` with a single-entry `Segments` list from one `netip.Addr`; there is no multi-SID path.
+- [ ] `internal/plugins/static/model.go` - `staticRoute` (static/model.go) has Prefix, Table, Description, Metric, Tag, Action, NextHops; there is no segments/SID field.
+- [ ] `internal/plugins/fib/vpp/srv6.go` - `addSRv6Steer` (fib/vpp/srv6.go) steers a prefix to a single SID via the VPP SR API; no segment list.
 
 **Behavior to preserve:**
 - BGP-driven single-SID SRv6 install (kernel and VPP) is unchanged.

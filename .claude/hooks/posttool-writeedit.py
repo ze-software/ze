@@ -13,7 +13,7 @@ NOT folded: validate-spec.sh stays a standalone hook. It has a latent set -e
 crash (greps the wiring table for Unicode `→` while real specs use ASCII `->`,
 so an unguarded `grep -v` pipeline aborts the script at exit 1). Folding it would
 mean either replicating that crash or silently turning a non-blocking gate into a
-blocking one. Left as-is; see ai/rules/hook-mapping.md.
+blocking one. Left as-is; see ai/rules/repo-maintenance.md.
 
 Exit codes: 0 allow/advisory, 1 warning, 2 block. Most severe wins. Fails OPEN
 (exit 0) on an unexpected internal error.
@@ -177,7 +177,7 @@ def c_file_size(ctx):
         return None
     n = txt.count("\n")
     base = os.path.basename(ctx["fp"])
-    # 1000 is the ONLY threshold (ai/rules/file-modularity.md, Thomas 2026-08-01).
+    # 1000 is the ONLY threshold (ai/rules/go-standards.md, Thomas 2026-08-01).
     # A 600-line tier used to warn here; it fired on cohesive single-concern files.
     if n > 1000:
         return (1, f"{RED}{BOLD}⚠️  File too large: {base} ({n} lines > 1000){RESET}")

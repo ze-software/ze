@@ -630,7 +630,7 @@ func (pa *PluginAcceptor) handleConn(conn net.Conn) {
 		// name over 64 chars -- none of which any config layer rejects first)
 		// produced a 30s connect-back hang with no diagnosis anywhere. A guard
 		// that denies without speaking does not exist
-		// (ai/rules/fail-closed-guards.md). The error text carries the offending
+		// (ai/rules/evidence.md). The error text carries the offending
 		// name but never a token or secret (see AuthenticateWithLookup).
 		slog.Warn("acceptor: plugin connect-back rejected", "error", err)
 		return // Authenticate already closed conn on failure.

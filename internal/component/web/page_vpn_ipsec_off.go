@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_ike-off VPN page stub
+// Design: ai/rules/plugins.md -- ze_ike-off VPN page stub
 // Related: page_vpn_ipsec.go -- the real IKE-backed page (ze_ike builds)
 
 //go:build !ze_ike

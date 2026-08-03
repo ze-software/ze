@@ -71,7 +71,7 @@ def title_of(raw_lines, fallback):
 def _strip_bold(text):
     """Drop bold markers outside code spans.
 
-    A blanket replace corrupts globs: the trigger of ci-sleep-justification.md
+    A blanket replace corrupts globs: the trigger of testing.md
     carries `test/**/*.ci`, which rendered as `test//*.ci` in the index until the
     code spans were protected.
     """
@@ -155,7 +155,7 @@ def build(rules_dir):
     missing = []
     for md in sorted(rules_dir.glob("*.md")):
         # A generated aggregate is not a rule. They are recognised by SHAPE --
-        # an all-caps stem, the repo's convention for INDEX.md / CONDENSED.md /
+        # an all-caps stem, the repo's convention for INDEX.md / TRIGGERS.md /
         # TRIGGERS.md / CORE.md -- so the next artifact needs no edit here. The
         # two-name list this replaces made TRIGGERS.md and CORE.md land in the
         # index as malformed rules on the day they were generated.

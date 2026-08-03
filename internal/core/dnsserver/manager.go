@@ -4,7 +4,7 @@
 // Package dnsserver holds the listener lifecycle, EDNS0/client-IP resolution,
 // and authoritative-answer shaping that any authoritative-only DNS plugin
 // needs, so a second plugin never has to import a sibling plugin
-// (ai/rules/plugin-design.md:133) or hand-copy a security-sensitive handler.
+// (ai/rules/plugins.md:133) or hand-copy a security-sensitive handler.
 package dnsserver
 
 import (

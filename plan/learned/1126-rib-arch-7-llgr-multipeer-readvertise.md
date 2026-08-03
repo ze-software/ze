@@ -3,11 +3,11 @@
 ## Context
 
 RFC 9494 LLGR readvertisement to non-LLGR peers was BROKEN, not just untested. The premise
-"add a multi-peer `.ci`" was wrong: `LLGREgressFilter` (`gr/gr_egress.go:57`) ran ONLY on the
-ForwardUpdate rail (`safeEgressFilter`, `reactor_api_forward.go:490`), while the LLGR
+"add a multi-peer `.ci`" was wrong: `LLGREgressFilter` (`gr/gr_egress.go`) ran ONLY on the
+ForwardUpdate rail (`safeEgressFilter`, `reactor_api_forward.go`), while the LLGR
 readvertise trigger (`onLLGREntryDone` -> `clear bgp rib out` -> `outboundResend` ->
-`resendRoutesWithCursor`, `rib_replay.go:299`) flows through `AnnounceNLRIBatch`, which ran NO
-egress chain and dropped `ctx.Meta` at `DispatchNLRIGroups` (`cmd/update/update_text.go:767`).
+`resendRoutesWithCursor`, `rib_replay.go`) flows through `AnnounceNLRIBatch`, which ran NO
+egress chain and dropped `ctx.Meta` at `DispatchNLRIGroups` (`cmd/update/update_text.go`).
 So stale routes reached non-LLGR peers unmodified.
 
 ## Decisions
@@ -26,7 +26,7 @@ So stale routes reached non-LLGR peers unmodified.
   runs the filters and maps mods to: `buildBatchWithdrawUpdate` (non-LLGR eBGP withdraw),
   `buildModifiedPayload` -> `sendBodyWithSplit` (non-LLGR iBGP depreference), unchanged send
   (LLGR-capable). `pp=nil` on `buildModifiedPayload` returns a safe-to-retain copy (no pool
-  release), which the cursor's 4000-byte NLRI cap (`rib_replay.go:316`) keeps within one UPDATE.
+  release), which the cursor's 4000-byte NLRI cap (`rib_replay.go`) keeps within one UPDATE.
 - **`decodePeerUp` fix is NOT here** -- that was rib-arch-5. Unrelated.
 
 ## Consequences
@@ -39,12 +39,12 @@ So stale routes reached non-LLGR peers unmodified.
 
 ## Gotchas
 
-- **rib-out is populated by SENT updates** (`rib_structured.go:349`, `sourcePeer =
-  se.SourcePeerStr`), and `mark-stale` (`rib_commands.go:804`) marks ONLY rib-out entries
+- **rib-out is populated by SENT updates** (`rib_structured.go`, `sourcePeer =
+  se.SourcePeerStr`), and `mark-stale` (`rib_commands.go`) marks ONLY rib-out entries
   sourced from the restarting peer. So a working multi-peer readvertise `.ci` needs the source's
   route FORWARDED into the other peers' rib-out (ForwardUpdate rail sets SourcePeerStr) -- the
   RS fast path bypasses rib-out, and RS replay-on-peer-up needs `bgp-adj-rib-in` loaded.
-- **ze-peer's OPEN ASN defaults to 0 = mirror ze's local AS** (`internal/test/peer/peer.go:106`);
+- **ze-peer's OPEN ASN defaults to 0 = mirror ze's local AS** (`internal/test/peer/peer.go`);
   set it explicitly with `option=asn:value=<N>` for an eBGP peer (else ze rejects the AS mismatch).
 - **The community AttrModHandler emits EXTENDED LENGTH** even for a 4-byte value: NO_EXPORT on
   the wire is `D0 08 00 04 FF FF FF 01` (flags 0xD0, 2-byte len), NOT the compact

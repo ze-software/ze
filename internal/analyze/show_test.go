@@ -78,7 +78,7 @@ func TestMPCounts_MalformedAttributeIsReportedNotSilentlyZero(t *testing.T) {
 	// MP_REACH carrying 40 IPv6 prefixes render with NO A= field at all,
 	// indistinguishable from an UPDATE that announced nothing. A count that
 	// cannot say "I am incomplete" is a guard that neither denies nor speaks
-	// (ai/rules/fail-closed-guards.md).
+	// (ai/rules/evidence.md).
 	truncatedHeader := []mrt.PathAttribute{{Code: mrt.AttrMPReachNLRI, Value: []byte{0, 2}}}
 	count, ok := mpReachCount(truncatedHeader)
 	assert.Equal(t, 0, count)

@@ -1,10 +1,10 @@
-// Design: ai/rules/doctor-checks.md -- management hub reachability readiness check
+// Design: ai/rules/repo-maintenance.md -- management hub reachability readiness check
 // Related: client.go -- the managed client whose hub dependency this check guards
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck
 
 // The managed component owns the plugin/hub/client dependency (a node's outbound
 // connection to a management hub), so it owns this doctor check
-// (ai/rules/doctor-checks.md "Components that are not plugins"). It mirrors the
+// (ai/rules/repo-maintenance.md "Components that are not plugins"). It mirrors the
 // radius component doctor pattern. The check is a STATELESS config-tree
 // reachability probe, not a read of live connection state: `ze doctor` runs as a
 // separate process from the daemon (DoctorCheckContext carries only the parsed

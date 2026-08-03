@@ -8,7 +8,7 @@
 | Updated | 2026-07-22 |
 
 Phase note (was in the Phase cell; moved 2026-07-22): A1+A2 DONE (bug reproduced,
-guard fixed via `reflect.DeepEqual` in `reactor_api.go:809`, landed 38170a13b;
+guard fixed via `reflect.DeepEqual` in `reactor_api.go`, landed 38170a13b;
 package green). A3/A4 + Phase B NOT started. NOT shippable — see "A2 MUST NOT
 SHIP ALONE". The A/B split needs consolidating (next section) before
 implementation resumes; the 2/9 count reflects the CURRENT A1-A4+B1-B5
@@ -21,7 +21,7 @@ pre-policy store). D-1b cancels the store, which makes the split partly redundan
 - **A3 (settings swap)** and **B2 (atomic swap for hot-swappable fields)** are now the SAME work.
 - **A4 (apply via `SoftClearPeer` refresh)** is now likely unnecessary: BIRD does not re-obtain
   routes on reconfigure, it swaps the pointer and lets the new chain govern subsequent routes
-  (`bird-bgp-reference.md:1596`). A4 asks the peer to re-send, which is a strictly larger promise
+  (`bird-bgp-reference.md`). A4 asks the peer to re-send, which is a strictly larger promise
   than parity and was only there to compensate for the store that no longer exists.
 - **B1 (categorise fields)** should arguably run BEFORE the swap, since the category decides
   whether a change swaps or restarts.
@@ -29,7 +29,7 @@ pre-policy store). D-1b cancels the store, which makes the split partly redundan
 → Suggested consolidation (NOT yet user-approved, do not execute silently): a single sequence —
 (1) failing tests [DONE], (2) fail-closed guard [DONE], (3) categorise fields, (4) atomic swap for
 hot-swappable + restart for FSM-relevant, (5) log the restart category, (6) `.ci` + interop, (7)
-fix the false doc claim at `bird-bgp-reference.md:1614`. Present this to the user before resuming.
+fix the false doc claim at `bird-bgp-reference.md`. Present this to the user before resuming.
 → Constraint: A1+A2 are already implemented and green; consolidation must not discard them.
 | Updated | 2026-07-16 |
 
@@ -39,7 +39,7 @@ fix the false doc claim at `bird-bgp-reference.md:1614`. Present this to the use
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/component/bgp/reactor/reactor_api.go` (`peerSettingsEqual` :780, `reconcilePeersJournaled` :477)
-4. `internal/component/bgp/reactor/filter_ordered.go:138`, `internal/component/bgp/reactor/peer.go:318`
+4. `internal/component/bgp/reactor/filter_ordered.go`, `internal/component/bgp/reactor/peer.go`
 5. `plan/spec-bgp-filtered-route-storage.md` - the spec blocked on this one (its BLOCKER section)
 
 ## Task
@@ -47,7 +47,7 @@ fix the false doc claim at `bird-bgp-reference.md:1614`. Present this to the use
 **A BGP peer's configured policy and behavior settings do not take effect when the operator
 edits the config and reloads. The change is silently discarded and the daemon reports success.**
 
-`peerSettingsEqual` (`reactor_api.go:780-825`) decides whether a peer changed on reload by
+`peerSettingsEqual` (`reactor_api.go`) decides whether a peer changed on reload by
 comparing a **hand-maintained list** of fields. Functionally significant fields are missing from
 that list, so a config edit touching only those fields is judged "functionally equivalent". The
 peer is not reconciled, the freshly parsed `*PeerSettings` carrying the new values is dropped, and
@@ -60,7 +60,7 @@ Fields present in `PeerSettings` but ABSENT from `peerSettingsEqual`:
 The worst facet is import/export policy: the operator edits policy, reloads, sees success, and the
 **datapath keeps enforcing the old chain**. `bgp peer <ip>` then DISPLAYS the new `import-policy`
 (it reads the re-parsed config, not the running peer), so the display and the enforcement disagree.
-`peerDiffCount` (`reactor_api.go:603`) uses the same predicate and reports **0 peer changes**. The
+`peerDiffCount` (`reactor_api.go`) uses the same predicate and reports **0 peer changes**. The
 failure is silent and in the direction that looks like success: an operator tightening policy to
 block a prefix believes it applied.
 
@@ -76,8 +76,8 @@ does nothing.
 - [ ] `docs/architecture/core-design.md` - reactor lock discipline, peer lifecycle
   → Constraint: TO BE FILLED by the implementing session. Do not copy a constraint from another
   spec's annotation: three of `spec-bgp-filtered-route-storage`'s Required Reading citations were
-  fabricated. Read the producer (`ai/rules/no-fabrication.md`).
-- [ ] `ai/rules/fail-closed-guards.md` - this defect IS the canonical shape the rule warns about
+  fabricated. Read the producer (`ai/rules/evidence.md`).
+- [ ] `ai/rules/evidence.md` - this defect IS the canonical shape the rule warns about
   → Constraint: a hand-maintained equality list is a guard whose omission looks like working code.
   Whatever replaces it must fail CLOSED: an unknown/new field must force a change, never silently
   compare equal.
@@ -88,26 +88,26 @@ does nothing.
   → Constraint: TO BE FILLED once the design decision is made.
 
 **Key insights:**
-- Ze already has the refresh machinery (`SoftClearPeer` `reactor_api.go:236`; `SendRefresh`/`SendBoRR`/`SendEoRR` `reactor_api_forward.go:80-87`), but nothing on the reload path calls it.
+- Ze already has the refresh machinery (`SoftClearPeer` `reactor_api.go`; `SendRefresh`/`SendBoRR`/`SendEoRR` `reactor_api_forward.go`), but nothing on the reload path calls it.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read (each verified at the producer, 2026-07-16):**
 <!-- NEVER tick [ ] to [x]. -->
-- [ ] `internal/component/bgp/reactor/reactor_api.go` (`peerSettingsEqual`, lines 780-825) - compares identity (`:786-789`), connectivity (`:794-798`), a 7-field behavior block (`:803-809`: ReceiveHoldTime, SendHoldTime, KeepaliveTime, ConnectRetry, GroupUpdates, IgnoreFamilyMismatch, DisableASN4), `len(StaticRoutes)` (`:814`), and capabilities by wire encoding (`:820`). Nothing else.
+- [ ] `internal/component/bgp/reactor/reactor_api.go` (`peerSettingsEqual`, lines 780-825) - compares identity, connectivity, a 7-field behavior block (`:803-809`: ReceiveHoldTime, SendHoldTime, KeepaliveTime, ConnectRetry, GroupUpdates, IgnoreFamilyMismatch, DisableASN4), `len(StaticRoutes)`, and capabilities by wire encoding. Nothing else.
   → Constraint: its doc comment claims "Returns true if the settings are functionally equivalent" (`:778-779`). That claim is FALSE for the nine omitted fields. Fixing the comment is not fixing the bug.
 - [ ] `internal/component/bgp/reactor/reactor_api.go` (`reconcilePeersJournaled`, line 477) - at `:498-513`, a peer whose settings compare equal lands in neither `toRemove` nor `toAdd`, so the newly parsed `*PeerSettings` goes out of scope and is garbage.
   → Constraint: there is NO in-place update branch. Reconcile is remove-then-re-add only (`:516-546`, `peer.Stop()` at `:524`), i.e. today any applied change costs a session bounce.
-- [ ] `internal/component/bgp/reactor/peer.go` (line 318) - `settings` is assigned once in the `Peer` constructor (struct literal `settings: settings`). `Settings()` (`peer.go:337-339`) returns the pointer.
-  → Constraint: grep for `p.settings =` / `peer.settings =` across `internal/component/bgp/reactor/` returns EMPTY. There is no setter. The only post-construction write to the pointee is `resolveDynamicPeerSettings` (`reactor_dynamic.go:329`), which fires on Established for DYNAMIC peers only.
-- [ ] `internal/component/bgp/reactor/filter_ordered.go` (lines 134-141) - `runIngressPolicyChain` reads `filters := peer.settings.ImportFilters` (`:138`) live per message, off the never-reassigned pointer. "Live" is real but useless: the target never changes.
-- [ ] `internal/component/bgp/config/peers.go` (line 155) - the producer of the value: `ps.ImportFilters = concatFilters(bgpImport, groupImport, peerImport)`. Reload re-runs this exact path (`config/loader_create.go:299-334` `createReloadFunc` → `PeersFromConfigTree`), so the NEW list is correctly computed — and then discarded downstream.
+- [ ] `internal/component/bgp/reactor/peer.go` (line 318) - `settings` is assigned once in the `Peer` constructor (struct literal `settings: settings`). `Settings()` (`peer.go`) returns the pointer.
+  → Constraint: grep for `p.settings =` / `peer.settings =` across `internal/component/bgp/reactor/` returns EMPTY. There is no setter. The only post-construction write to the pointee is `resolveDynamicPeerSettings` (`reactor_dynamic.go`), which fires on Established for DYNAMIC peers only.
+- [ ] `internal/component/bgp/reactor/filter_ordered.go` (lines 134-141) - `runIngressPolicyChain` reads `filters := peer.settings.ImportFilters` live per message, off the never-reassigned pointer. "Live" is real but useless: the target never changes.
+- [ ] `internal/component/bgp/config/peers.go` (line 155) - the producer of the value: `ps.ImportFilters = concatFilters(bgpImport, groupImport, peerImport)`. Reload re-runs this exact path (`config/loader_create.go` `createReloadFunc` → `PeersFromConfigTree`), so the NEW list is correctly computed — and then discarded downstream.
 - [ ] `internal/component/bgp/reactor/policy_dryrun.go` (lines 95-96) - already documents the concurrency hazard: "ImportFilters/ExportFilters can be rewritten by the peer FSM goroutine", and snapshots under `r.mu`.
-  → Constraint: `peer.settings` is read from the session read goroutine (`filter_ordered.go:138`) with no lock. Any fix that mutates settings from the reload goroutine introduces a data race unless it swaps an atomic pointer or takes a lock. This hazard already exists via `resolveDynamicPeerSettings`.
+  → Constraint: `peer.settings` is read from the session read goroutine (`filter_ordered.go`) with no lock. Any fix that mutates settings from the reload goroutine introduces a data race unless it swaps an atomic pointer or takes a lock. This hazard already exists via `resolveDynamicPeerSettings`.
 
 **Reported by the audit but NOT yet verified at the producer (verify before relying on it):**
 - Every `filter_*` plugin under `internal/component/bgp/plugins/` registers only `OnConfigure`, which
-  is startup-only (`plugin/server/startup.go:691-712`, driven solely from `:578`); `internal/plugins/vrrp/register.go:172`
+  is startup-only (`plugin/server/startup.go`, driven solely from `:578`); `internal/plugins/vrrp/register.go`
   reportedly states "OnConfigure does not fire on reload; OnConfigApply is the commit step". If true,
   changing a filter's CONTENTS (e.g. adding a prefix to a prefix-list) also fails to apply on reload
   — a second, independent facet of the same defect class.
@@ -115,42 +115,42 @@ does nothing.
 
 **Behavior to preserve:**
 - A config edit that genuinely changes nothing MUST still be a no-op (no gratuitous peer bounce).
-- The journal/rollback semantics of `reconcilePeersJournaled` (`reactor_api.go:477`) stay intact.
-- Capability changes keep forcing a bounce (renegotiation is required); `capabilitiesEqual` (`:820`) stays.
+- The journal/rollback semantics of `reconcilePeersJournaled` (`reactor_api.go`) stay intact.
+- Capability changes keep forcing a bounce (renegotiation is required); `capabilitiesEqual` stays.
 
 **Behavior to change:**
 - An edit to any functionally significant per-peer field MUST take effect on reload.
-- `peerDiffCount` (`reactor_api.go:603`) MUST report such an edit as a change.
+- `peerDiffCount` (`reactor_api.go`) MUST report such an edit as a change.
 - The `bgp peer <ip>` `import-policy` display MUST agree with what the datapath enforces.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Operator edits the config file and reloads (`Reload()` `reactor_api.go:363-399`, or the
-  transactional path `plugin/register.go:211` `OnConfigApply` → `ReconcilePeersWithJournal`
-  `reactor.go:643-650`). Both funnel into `reconcilePeersJournaled`.
+- Operator edits the config file and reloads (`Reload()` `reactor_api.go`, or the
+  transactional path `plugin/register.go` `OnConfigApply` → `ReconcilePeersWithJournal`
+  `reactor.go`). Both funnel into `reconcilePeersJournaled`.
 - Format at entry: config file text → `*config.Tree` → `map[string]any` → `[]*PeerSettings`.
 
 ### Transformation Path
-1. `createReloadFunc` (`config/loader_create.go:299`) parses and calls `PeersFromConfigTree`.
-2. `peers.go:155` computes the NEW `ImportFilters` (3-layer merge). **Correct at this point.**
-3. `reconcilePeersJournaled` (`reactor_api.go:477`) diffs old vs new via `peerSettingsEqual`.
-4. **THE DEFECT** (`reactor_api.go:498-513`): the predicate returns true for a policy-only edit, so
+1. `createReloadFunc` (`config/loader_create.go`) parses and calls `PeersFromConfigTree`.
+2. `peers.go` computes the NEW `ImportFilters` (3-layer merge). **Correct at this point.**
+3. `reconcilePeersJournaled` (`reactor_api.go`) diffs old vs new via `peerSettingsEqual`.
+4. **THE DEFECT** (`reactor_api.go`): the predicate returns true for a policy-only edit, so
    the peer is skipped and the new settings are dropped.
-5. The running peer keeps its constructor-assigned `settings` pointer; `filter_ordered.go:138`
+5. The running peer keeps its constructor-assigned `settings` pointer; `filter_ordered.go`
    reads the stale `ImportFilters` forever.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config file <-> PeerSettings | reload re-runs the full parse pipeline | [x] verified: `loader_create.go:299-334` |
-| Reload goroutine <-> session read goroutine | `peer.settings` read unlocked on the hot path | [x] verified: `filter_ordered.go:138`; hazard documented `policy_dryrun.go:95-96` |
-| PeerSettings <-> datapath | the ONLY link is the pointer assigned at `peer.go:318` | [x] verified: no setter exists |
+| Config file <-> PeerSettings | reload re-runs the full parse pipeline | [x] verified: `loader_create.go` |
+| Reload goroutine <-> session read goroutine | `peer.settings` read unlocked on the hot path | [x] verified: `filter_ordered.go`; hazard documented `policy_dryrun.go` |
+| PeerSettings <-> datapath | the ONLY link is the pointer assigned at `peer.go` | [x] verified: no setter exists |
 
 ### Integration Points
-- `reactor_api.go:780` `peerSettingsEqual` - the guard to fix.
-- `reactor_api.go:477` `reconcilePeersJournaled` - may need an in-place/refresh branch.
-- `reactor_api.go:236` `SoftClearPeer` / `reactor_api_forward.go:80-87` `SendRefresh` - existing
+- `reactor_api.go` `peerSettingsEqual` - the guard to fix.
+- `reactor_api.go` `reconcilePeersJournaled` - may need an in-place/refresh branch.
+- `reactor_api.go` `SoftClearPeer` / `reactor_api_forward.go` `SendRefresh` - existing
   refresh machinery a non-bouncing design could reuse.
 
 ### Architectural Verification
@@ -174,7 +174,7 @@ does nothing.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Data race: mutating `peer.settings` from the reload goroutine while `filter_ordered.go:138` reads it unlocked on the session goroutine | `go test -race` failures; corrupted filter chain | Atomic pointer swap or copy-under-lock. The hazard is pre-existing via `resolveDynamicPeerSettings` (`reactor_dynamic.go:329`) and `policy_dryrun.go:95-96` already snapshots under `r.mu` |
+| R-1 | Data race: mutating `peer.settings` from the reload goroutine while `filter_ordered.go` reads it unlocked on the session goroutine | `go test -race` failures; corrupted filter chain | Atomic pointer swap or copy-under-lock. The hazard is pre-existing via `resolveDynamicPeerSettings` (`reactor_dynamic.go`) and `policy_dryrun.go` already snapshots under `r.mu` |
 | R-2 | Fixing the guard makes every reload bounce every peer (over-triggering) | sessions flap on an unrelated config edit | Compare only functionally significant fields; add a test asserting a no-change reload bounces nothing |
 | R-3 | A policy edit that now applies changes the RIB, surprising operators used to the buggy no-op | route churn after upgrade | Document in the changelog as a behavior fix; it is the correct behavior |
 | R-4 | The filter-CONTENTS facet (unverified) is a separate defect that leaves the fix half-effective | policy contents still stale after reload despite the fix | Verify the `OnConfigure`-on-reload claim early; scope in or split into its own spec |
@@ -193,7 +193,7 @@ does nothing.
 | AC-1 | Peer established; operator changes ONLY the peer's import filter list and reloads | The new chain is enforced on subsequently evaluated routes; a prefix newly rejected by the new policy is no longer accepted |
 | AC-2 | Same as AC-1 | `peerDiffCount` reports >= 1 changed peer (not 0) |
 | AC-3 | Reload with a byte-identical config | No peer is bounced; `peerDiffCount` reports 0 |
-| AC-4 | Operator changes `route-reflector-client` and reloads | The new value governs forwarding (`peer_forward_facts.go:110` reads the new value) |
+| AC-4 | Operator changes `route-reflector-client` and reloads | The new value governs forwarding (`peer_forward_facts.go` reads the new value) |
 | AC-5 | `bgp peer <ip>` after a policy reload | The displayed `import-policy` matches what the datapath enforces |
 | AC-6 | A NEW per-peer field is added to `PeerSettings` and changed across a reload | It is not silently ignored (A-2: the guard fails closed for fields it does not know) |
 | AC-7 | `go test -race` over a reload-while-receiving-UPDATEs test | No data race on `peer.settings` (R-1) |
@@ -202,7 +202,7 @@ does nothing.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Tightens import policy to block a prefix, reloads, and the prefix is actually blocked | edit -> reload -> reconcile -> new chain at `filter_ordered.go:138` -> reject | `test/reload/bgp-import-policy-applies.ci` |
+| 1 | Tightens import policy to block a prefix, reloads, and the prefix is actually blocked | edit -> reload -> reconcile -> new chain at `filter_ordered.go` -> reject | `test/reload/bgp-import-policy-applies.ci` |
 | 2 | Reloads an unchanged config and sees no session flap | edit-none -> reload -> reconcile no-op | `test/reload/bgp-reload-noop-no-bounce.ci` |
 | 3 | Reads `bgp peer <ip>` and trusts that the displayed policy is the enforced policy | display vs datapath agree | `test/reload/bgp-import-policy-applies.ci` (assert both) |
 
@@ -239,8 +239,8 @@ does nothing.
 - The filter-CONTENTS facet (R-4) may split into its own spec once verified. Requires user approval.
 
 ## Files to Modify
-- `internal/component/bgp/reactor/reactor_api.go` - `peerSettingsEqual` (`:780`) and, depending on the design, an apply branch in `reconcilePeersJournaled` (`:477`).
-- `internal/component/bgp/reactor/peer.go` - only if the design needs an atomic settings swap (`:318`, `:337`).
+- `internal/component/bgp/reactor/reactor_api.go` - `peerSettingsEqual` and, depending on the design, an apply branch in `reconcilePeersJournaled`.
+- `internal/component/bgp/reactor/peer.go` - only if the design needs an atomic settings swap.
 - `internal/component/bgp/reactor/reactor_api_test.go` - unit tests above.
 
 ### Integration Checklist
@@ -290,16 +290,16 @@ A1. **Failing tests** - unit tests proving the guard misses each field today.
 A2. **Fix the guard** - `peerSettingsEqual` covers every functionally significant field, preferring
    a mechanism that fails CLOSED for fields it does not know (A-2, AC-6).
    - Tests: as above, plus `TestPeerSettingsEqualIdenticalIsEqual` (no over-trigger, R-2)
-   - Files: `reactor/reactor_api.go:780`
+   - Files: `reactor/reactor_api.go`
    - Verify: unit tests pass; a no-change reload bounces nothing.
 A3. **Settings swap** - get the new `*PeerSettings` onto the running peer without a data race (R-1).
    - Tests: `TestReloadWhileReceivingNoRace` under `-race`
-   - Files: `reactor/peer.go` (`:318`, `:337`), `reactor/reactor_api.go:477` (apply branch)
-   - Verify: AC-4, AC-7. `filter_ordered.go:138` observes the new chain.
+   - Files: `reactor/peer.go`, `reactor/reactor_api.go` (apply branch)
+   - Verify: AC-4, AC-7. `filter_ordered.go` observes the new chain.
    - → Constraint: `peer.settings` is read unlocked from the session goroutine; the swap must be an
-     atomic pointer or copy-under-lock. Cross-check `policy_dryrun.go:95-96`, which already snapshots
+     atomic pointer or copy-under-lock. Cross-check `policy_dryrun.go`, which already snapshots
      under `r.mu` for this exact hazard.
-A4. **Apply via refresh** - issue `SoftClearPeer` (`reactor_api.go:236`) after the swap so the peer
+A4. **Apply via refresh** - issue `SoftClearPeer` (`reactor_api.go`) after the swap so the peer
    re-sends and the new chain runs. Existing machinery; this phase only calls it.
    - Tests: `test/reload/bgp-import-policy-applies.ci`, `test/reload/bgp-reload-noop-no-bounce.ci`
    - Verify: AC-1, AC-2, AC-3, AC-5 end-to-end.
@@ -315,27 +315,27 @@ A4. **Apply via refresh** - issue `SoftClearPeer` (`reactor_api.go:236`) after t
 B1. **Categorise every `PeerSettings` field (BLOCKING - present to user before coding)** into:
    - **FSM-relevant → restart** (BIRD: "If any FSM-relevant field changes (ASN, authentication
      type, hold time, etc.) ... the protocol framework tears down and restarts the session",
-     `bird-bgp-reference.md:1599-1601`). Candidates: `LocalAS`, `PeerAS`, `RouterID`, `Address`,
+     `bird-bgp-reference.md`). Candidates: `LocalAS`, `PeerAS`, `RouterID`, `Address`,
      `Port`, `Connection`, `MD5Key`/`MD5IP`, hold/keepalive timers, `Capabilities`,
      `RequiredFamilies`.
    - **Hot-swappable → atomic swap, session survives**. Candidates: `ImportFilters`,
      `ExportFilters`, `RouteReflectorClient`, `ClusterID`, `ASOverride`, `NextHopMode`,
      the prefix-limit maps, `DefaultOriginate`, `SendCommunity`, the loop-detection fields.
    - **Cosmetic → no action**. `PrefixUpdated` (display-only staleness marker,
-     `peersettings.go:381`).
+     `peersettings.go`).
    → Constraint: the categorisation MUST fail closed (A-2/AC-6) — an unclassified field is
    treated as FSM-relevant (restart) rather than silently ignored. Restarting on an unknown
    field is conservative and visible; ignoring it is the bug this spec exists to fix.
    → Constraint: A2's `reflect.DeepEqual` guard answers "did anything change?" but NOT "which
    category?". It stays as the fail-closed backstop and gains a category split on top.
 B2. **Atomic swap for hot-swappable fields** - extend A3's swap so a hot-swappable-only change
-   applies WITHOUT a restart (`bird-bgp-reference.md:1596`: "filters are swapped atomically").
+   applies WITHOUT a restart (`bird-bgp-reference.md`: "filters are swapped atomically").
    Drop A4's `SoftClearPeer` from this path; the new chain applies to subsequently received routes.
 B3. **Log the category that forced a restart** - the repo's own explicit recommendation
-   (`bird-bgp-reference.md:1615-1620`): "log which category of change caused a restart when one
+   (`bird-bgp-reference.md`): "log which category of change caused a restart when one
    happens. BIRD produces no log at all for a successful soft reconfigure, which is excellent for
    ops teams watching dashboards." Mirror that: silent on hot swap, one clear line on restart.
-B4. **Fix the false doc claim** - `docs/research/bird-bgp-reference.md:1614` asserts "ze's filter
+B4. **Fix the false doc claim** - `docs/research/bird-bgp-reference.md` asserts "ze's filter
    reload path already handles the common case without bouncing sessions." That is FALSE today and
    is plausibly why this defect went unnoticed. It becomes true only when B2 lands; correct the
    line either way (checklist #16).
@@ -361,10 +361,10 @@ its own justification. Do not smuggle it in here.
 |-------|------------------------------|
 | Completeness | Every AC-N has file:line implementation |
 | Correctness | The guard covers every functionally significant field; capability changes still bounce |
-| Fail-closed | A newly added `PeerSettings` field is not silently ignored (`ai/rules/fail-closed-guards.md`, AC-6) |
+| Fail-closed | A newly added `PeerSettings` field is not silently ignored (`ai/rules/evidence.md`, AC-6) |
 | Data flow | The apply path runs through reconcile, not a side channel |
-| Concurrency | No unlocked cross-goroutine write to `peer.settings` (R-1); check against `policy_dryrun.go:95-96` |
-| Rule: no-workarounds | Do not "fix" this by editing the misleading doc comment at `:778-779`; fix the predicate (`ai/rules/no-workarounds-for-missing-behavior.md`) |
+| Concurrency | No unlocked cross-goroutine write to `peer.settings` (R-1); check against `policy_dryrun.go` |
+| Rule: no-workarounds | Do not "fix" this by editing the misleading doc comment at `:778-779`; fix the predicate (`ai/rules/completion.md`) |
 | Over-triggering | A no-change reload bounces nothing (R-2, AC-3) |
 
 ### Deliverables Checklist (/implement stage 10)
@@ -380,7 +380,7 @@ its own justification. Do not smuggle it in here.
 | Check | What to look for |
 |-------|-----------------|
 | Policy enforcement integrity | This defect IS a security-relevant failure: an operator tightening policy to block a prefix believes it applied while the old permissive chain runs. Verify the fix closes it for BOTH tightening and loosening |
-| Race conditions / TOCTOU | R-1: settings swap vs unlocked hot-path read (`filter_ordered.go:138`) |
+| Race conditions / TOCTOU | R-1: settings swap vs unlocked hot-path read (`filter_ordered.go`) |
 | Resource exhaustion | A fix that bounces peers on every reload is a self-inflicted DoS on a large fleet (R-2) |
 
 ### Failure Routing
@@ -396,7 +396,7 @@ its own justification. Do not smuggle it in here.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| (`spec-bgp-filtered-route-storage` A-5) A new per-peer leaf takes effect on reload | `peerSettingsEqual` omits it, so it silently no-ops | Audit read of `reactor_api.go:780-825` | Spawned this spec; blocked the other |
+| (`spec-bgp-filtered-route-storage` A-5) A new per-peer leaf takes effect on reload | `peerSettingsEqual` omits it, so it silently no-ops | Audit read of `reactor_api.go` | Spawned this spec; blocked the other |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -405,13 +405,13 @@ its own justification. Do not smuggle it in here.
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
-| A hand-maintained equality/field list silently drops new fields | Unknown - audit other reconcile/diff predicates | Possibly extend `ai/rules/fail-closed-guards.md` with a "no hand-maintained field lists in guards" clause | Decide at closure |
+| A hand-maintained equality/field list silently drops new fields | Unknown - audit other reconcile/diff predicates | Possibly extend `ai/rules/evidence.md` with a "no hand-maintained field lists in guards" clause | Decide at closure |
 
 ## Design Insights
 <!-- LIVE — write IMMEDIATELY when you learn something -->
 - The defect is invisible because the DISPLAY path and the ENFORCEMENT path read different sources:
-  `bgp peer <ip>` shows `import-policy` from the re-parsed config (`plugins/cmd/peer/peer.go:302`)
-  while the datapath reads the stale `peer.settings` (`filter_ordered.go:138`). Any fix must make
+  `bgp peer <ip>` shows `import-policy` from the re-parsed config (`plugins/cmd/peer/peer.go`)
+  while the datapath reads the stale `peer.settings` (`filter_ordered.go`). Any fix must make
   these two agree (AC-5); a fix that only corrects enforcement still leaves the two paths
   independently derived and free to diverge again.
 - ~~"Option 3 and `spec-bgp-filtered-route-storage` want the SAME thing: a pre-policy Adj-RIB-In.
@@ -422,16 +422,16 @@ its own justification. Do not smuggle it in here.
   v2.19.0 disproves every clause: `import keep filtered` retains ONLY the rejected copy behind a
   `REF_FILTERED` flag in the main table (`nest/route.h:274`, `nest/rt-table.c:1687-1697`);
   `import table` is a SEPARATE knob (`nest/config.Y:718-720`); BIRD's "soft reconfig" is an atomic
-  filter-pointer swap that stores nothing (`bird-bgp-reference.md:1589-1608`). Three mechanisms,
+  filter-pointer swap that stores nothing (`bird-bgp-reference.md`). Three mechanisms,
   not one store.
   → Lesson: an uncited claim written into a spec becomes indistinguishable from evidence within a
-  single session. `ai/rules/no-fabrication.md` says cite the producer; this is WHY. The cost is not
+  single session. `ai/rules/evidence.md` says cite the producer; this is WHY. The cost is not
   merely being wrong — it is that being wrong gets laundered into a citation and then decided upon.
 - **The real insight the fabrication displaced: this defect needs no store, because it is not a
-  data problem.** The new chain is computed correctly on every reload — `config/peers.go:155`,
+  data problem.** The new chain is computed correctly on every reload — `config/peers.go`,
   `ps.ImportFilters = concatFilters(bgpImport, groupImport, peerImport)` (re-read 2026-07-16). It
   is simply never delivered: `peerSettingsEqual` reports "no change", and `settings` is assigned
-  once in the `Peer` literal (`peer.go:317-318`, re-read 2026-07-16) with no setter. The fix is to
+  once in the `Peer` literal (`peer.go`, re-read 2026-07-16) with no setter. The fix is to
   deliver a pointer, not to archive routes. BIRD reaches the same conclusion — swap the pointer
   atomically, keep the session.
 - **BIRD parity gives less than the name suggests.** Even at full parity a policy change applies
@@ -444,13 +444,13 @@ its own justification. Do not smuggle it in here.
 | ID | Decision | Alternatives Considered | Rationale |
 |----|----------|------------------------|-----------|
 | D-1 | ~~**Soft reconfiguration (BIRD parity)** is the target design~~ **CORRECTED 2026-07-16 — see D-1b.** The option was presented under the wrong daemon's name: its description ("retain a pre-policy Adj-RIB-In, re-run policy over stored routes") is CISCO's `soft-reconfiguration inbound`, not BIRD's. The user's decision was taken on that mislabel. | Bounce; In-place + ROUTE_REFRESH | Superseded by D-1b. |
-| D-1b | **Real BIRD parity: compare-then-act with field CATEGORIES.** Compare old vs new per-peer config; if only non-session-affecting fields changed, **swap them atomically on the live session** and the session survives; if an FSM-relevant field changed (ASN, auth, hold time, capabilities), restart. **Log the category that forced a restart.** No new store anywhere. | Cisco-style pre-policy store (D-1's mislabel); bounce-on-any-change | User sign-off 2026-07-16 (third gate, after the mislabel was found). This is BIRD's actual `bgp_reconfigure` (`docs/research/bird-bgp-reference.md:1589-1608`: "the session continues, filters are swapped atomically, and running FSM state survives"; "no restart unless unavoidable"). It is ALSO what the repo already told ze to do: `:1615-1618` — "ze should explicitly compare old and new per-peer config for the fields that matter and log which category of change caused a restart when one happens." Far smaller than a pre-policy store, and it needs no retention. |
-| D-2 | Soft reconfiguration is a **strict superset** of the in-place+refresh option, NOT an alternative to it | - | Verified reasoning: re-running policy over stored routes uses `peer.settings.ImportFilters` (`filter_ordered.go:138`). If the guard still discards the new settings, soft reconfig re-runs the OLD policy and the defect survives. The guard fix AND the settings swap are unavoidable in every option. |
-| D-3 | Phase the work: **Phase A** (guard + swap + refresh-based apply) ships the defect fix; **Phase B** (pre-policy store + local re-run) delivers BIRD parity and replaces the refresh | Build Phase B only, shipping nothing until it lands | The defect is LIVE and silent today: operators are mis-enforcing policy right now. Phase A is small, complete on its own, and its work is not throwaway — the guard fix and settings swap are Phase B prerequisites (D-2), and `SoftClearPeer` already exists (`reactor_api.go:236`) so Phase A only calls it. Phase B then swaps the re-obtain mechanism from "ask the peer" to "replay the local store". |
+| D-1b | **Real BIRD parity: compare-then-act with field CATEGORIES.** Compare old vs new per-peer config; if only non-session-affecting fields changed, **swap them atomically on the live session** and the session survives; if an FSM-relevant field changed (ASN, auth, hold time, capabilities), restart. **Log the category that forced a restart.** No new store anywhere. | Cisco-style pre-policy store (D-1's mislabel); bounce-on-any-change | User sign-off 2026-07-16 (third gate, after the mislabel was found). This is BIRD's actual `bgp_reconfigure` (`docs/research/bird-bgp-reference.md`: "the session continues, filters are swapped atomically, and running FSM state survives"; "no restart unless unavoidable"). It is ALSO what the repo already told ze to do: `:1615-1618` — "ze should explicitly compare old and new per-peer config for the fields that matter and log which category of change caused a restart when one happens." Far smaller than a pre-policy store, and it needs no retention. |
+| D-2 | Soft reconfiguration is a **strict superset** of the in-place+refresh option, NOT an alternative to it | - | Verified reasoning: re-running policy over stored routes uses `peer.settings.ImportFilters` (`filter_ordered.go`). If the guard still discards the new settings, soft reconfig re-runs the OLD policy and the defect survives. The guard fix AND the settings swap are unavoidable in every option. |
+| D-3 | Phase the work: **Phase A** (guard + swap + refresh-based apply) ships the defect fix; **Phase B** (pre-policy store + local re-run) delivers BIRD parity and replaces the refresh | Build Phase B only, shipping nothing until it lands | The defect is LIVE and silent today: operators are mis-enforcing policy right now. Phase A is small, complete on its own, and its work is not throwaway — the guard fix and settings swap are Phase B prerequisites (D-2), and `SoftClearPeer` already exists (`reactor_api.go`) so Phase A only calls it. Phase B then swaps the re-obtain mechanism from "ask the peer" to "replay the local store". |
 | D-4 | ~~`spec-bgp-filtered-route-storage` is **superseded**~~ **WITHDRAWN 2026-07-16. It is NOT superseded.** It is an independent spec that merely DEPENDS on this one for its AC-3. | - | D-4 rested on the fabricated "pre-policy store subsumes keep-filtered" claim. **Disproven at BIRD v2.19.0 source:** `import keep filtered` retains only the rejected copy behind a `REF_FILTERED` flag in the main table (`nest/route.h:274`, `nest/rt-table.c:1687-1697`), and `import table` is a SEPARATE knob (`nest/config.Y:718-720`). Neither is a pre-policy store, so nothing here subsumes that spec. It has been rewritten around BIRD's real model; do not re-supersede it. |
-| D-5 | This spec builds **no store of any kind** | pre-policy retention (D-1's mislabel) | Applying a changed policy needs the config to reach the peer, not a route archive. BIRD achieves it with an atomic pointer swap and no retention. A store would be a large, memory-expensive answer to a question that is actually about a stale pointer (`peer.go:318`, no setter). |
+| D-5 | This spec builds **no store of any kind** | pre-policy retention (D-1's mislabel) | Applying a changed policy needs the config to reach the peer, not a route archive. BIRD achieves it with an atomic pointer swap and no retention. A store would be a large, memory-expensive answer to a question that is actually about a stale pointer (`peer.go`, no setter). |
 
-**Phase A is NOT "done" on its own** (`ai/rules/no-partial-completion.md`): it closes AC-1..AC-7 of
+**Phase A is NOT "done" on its own** (`ai/rules/completion.md`): it closes AC-1..AC-7 of
 this spec (the defect), but D-1's BIRD parity is delivered only by Phase B. Do not close this spec
 at the end of Phase A.
 
@@ -525,21 +525,21 @@ under test: `PrefixMaximum`/`PrefixWarning` (prefix limits), `PrefixTeardown`, `
 `DefaultOriginate`, `DefaultOriginateFilter`, `SendCommunity`, `LoopAllowOwnAS`, `LoopClusterID`,
 `LoopDisabled`, `LocalASNoPrepend`, `LocalASReplaceAS`, `NextHopAddress`, `MD5IP`, `GlobalLocalAS`,
 `BFD`, `RequiredFamilies`, `IgnoreFamilies`, `RequiredCapabilities`, `RefusedCapabilities`,
-`ProcessBindings`, `PluginRoutes`. `StaticRoutes` was compared by LENGTH ONLY (`:814`), so editing a
+`ProcessBindings`, `PluginRoutes`. `StaticRoutes` was compared by LENGTH ONLY, so editing a
 static route's contents was also silently dropped.
 → Decision: A-2 is **confirmed** — a hand-maintained list is unmaintainable here. The fix compares
 the whole struct with `reflect.DeepEqual`, excluding only `Capabilities` (semantic wire compare,
-preserved) and `PrefixUpdated` (display-only PeeringDB staleness marker, `peersettings.go:381`).
+preserved) and `PrefixUpdated` (display-only PeeringDB staleness marker, `peersettings.go`).
 Verified prerequisite: PeerSettings holds no locks/funcs/channels, so the struct copy and DeepEqual
 are well-defined.
 
 ### ⚠ A2 MUST NOT SHIP ALONE (read before committing)
 The fix is strictly BROADER than the old predicate, so many edits that previously (incorrectly) did
 nothing now mark the peer changed — and `reconcilePeersJournaled` applies a change by remove+re-add
-(`reactor_api.go:516-546`), i.e. **a session bounce**. Editing a static route or a prefix limit would
+(`reactor_api.go`), i.e. **a session bounce**. Editing a static route or a prefix limit would
 now flap the session. That is correct-but-disruptive and is NOT the mechanism the user chose (D-1).
 → Constraint: A3 (settings swap) + A4 (apply without reset) are REQUIRED before this is shippable.
-Do not commit A2 as a standalone fix without re-consulting the user (`ai/rules/no-partial-completion.md`).
+Do not commit A2 as a standalone fix without re-consulting the user (`ai/rules/completion.md`).
 
 ### Design
 - [ ] Abstract when you can (2+ use cases?)

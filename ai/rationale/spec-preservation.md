@@ -1,6 +1,6 @@
 # Spec Preservation Rationale
 
-Why: `ai/rules/spec-preservation.md`
+Why: `ai/rules/planning.md`
 
 ## What to Keep (and Why)
 

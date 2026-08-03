@@ -244,7 +244,7 @@ class TestRfcLedgerParse(unittest.TestCase):
     def test_no_enrolled_row_fails_closed(self):
         """Zero enrolled rows must not read as a vacuously satisfied partition.
 
-        VALIDATES: ai/rules/fail-closed-guards.md -- the zero-value trap. An
+        VALIDATES: ai/rules/evidence.md -- the zero-value trap. An
         empty enrolled population means the ledger's State marker changed or the
         row parse broke, never that every requirement is accounted for.
         """
@@ -879,7 +879,7 @@ class TestNegativeAssertTokens(unittest.TestCase):
 
 
 class TestSleepBaselineRobustness(unittest.TestCase):
-    """VALIDATES: ai/rules/fail-closed-guards.md."""
+    """VALIDATES: ai/rules/evidence.md."""
 
     def test_non_integer_baseline_is_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1218,7 +1218,7 @@ class TestStructuralFactRfcUnproven(unittest.TestCase):
 
     def test_missing_field_fails_closed(self):
         """A snapshot predating the field, or a renamed one, must speak. Yielding
-        `[]` here IS the defect (ai/rules/fail-closed-guards.md)."""
+        `[]` here IS the defect (ai/rules/evidence.md)."""
         m = self._metric()
         del m["unproven_rfcs"]
         with self.assertRaises(th.CollectError) as ctx:
@@ -1450,7 +1450,7 @@ class TestEntryPoints(unittest.TestCase):
     PREVENTS: the gap that shipped twice. `TestWriteCheckRoundTrip` claimed to
     cover the write -> check round trip and only ever called `tighten_baseline`,
     so re-swapping the render/tighten order in `do_write` would not have failed
-    a single test. ai/rules/fail-closed-guards.md: drive the guard from its
+    a single test. ai/rules/evidence.md: drive the guard from its
     entry point, never the helper alone.
     """
 

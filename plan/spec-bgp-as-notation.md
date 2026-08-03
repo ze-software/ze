@@ -33,9 +33,9 @@ Add AS-notation support:
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/buffer-first.md` - the attribute text formatters are buffer-first and config-free.
+- [ ] `ai/rules/performance.md` - the attribute text formatters are buffer-first and config-free.
   → Constraint: `core/bgp/attribute` is a leaf package and must NOT import config; the notation choice must be passed in as a parameter, not read from global state.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - the new BGP-global leaf.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new BGP-global leaf.
   → Constraint: `as-notation` is a display preference, so it is a YANG leaf (not an env var), scoped to BGP global parameters.
 
 **Key insights:**
@@ -46,9 +46,9 @@ Add AS-notation support:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/core/bgp/attribute/text_append.go` - `(*ASPath).AppendText` (text_append.go:146-176) renders every ASN via `strconv.AppendUint(buf, uint64(asn), 10)` (:158 single, :170 in a list); aggregator ASN at :29. Always base-10 asplain, no notation parameter.
-- [ ] `internal/core/bgp/attribute/text.go` - `ParseASPathText` parses each token with `strconv.ParseUint(tok, 10, 32)` (text.go:267); rejects any token containing a dot.
-- [ ] `internal/component/config/schema.go` - config value parse for an ASN (typedef `asn` = uint32) uses `strconv.ParseUint(value, 10, 32)` (schema.go:713-714); no dotted form.
+- [ ] `internal/core/bgp/attribute/text_append.go` - `(*ASPath).AppendText` (text_append.go) renders every ASN via `strconv.AppendUint(buf, uint64(asn), 10)` (:158 single, :170 in a list); aggregator ASN at :29. Always base-10 asplain, no notation parameter.
+- [ ] `internal/core/bgp/attribute/text.go` - `ParseASPathText` parses each token with `strconv.ParseUint(tok, 10, 32)` (text.go); rejects any token containing a dot.
+- [ ] `internal/component/config/schema.go` - config value parse for an ASN (typedef `asn` = uint32) uses `strconv.ParseUint(value, 10, 32)` (schema.go); no dotted form.
 
 **Behavior to preserve:**
 - Stored/wire ASN representation stays uint32 everywhere; no change to the on-wire encoding.
@@ -96,7 +96,7 @@ Add AS-notation support:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | All ASN parse paths funnel through the uint32 validator + `ParseASPathText` | schema.go:713, text.go:267 | additional parse sites accept only decimal | grep every `ParseUint(.*32)` ASN site during audit | unvalidated |
+| A-1 | All ASN parse paths funnel through the uint32 validator + `ParseASPathText` | schema.go, text.go | additional parse sites accept only decimal | grep every `ParseUint(.*32)` ASN site during audit | unvalidated |
 | A-2 | The formatter can receive a notation mode without a config import | buffer-first leaf-package rule | display change is deeper than expected | thread a mode parameter/context in the audit | unvalidated |
 
 ### Risks
@@ -168,7 +168,7 @@ Add AS-notation support:
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new leaf) | [ ] yes | BGP `parameters` `as-notation`; `ai/rules/config-naming.md` |
+| YANG schema (new leaf) | [ ] yes | BGP `parameters` `as-notation`; `ai/rules/config.md` |
 | Functional test | [ ] yes | `test/ci/bgp-as-notation.ci` |
 
 ### Documentation Update Checklist (BLOCKING)

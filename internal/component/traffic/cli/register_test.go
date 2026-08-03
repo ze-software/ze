@@ -1,6 +1,6 @@
 // VALIDATES: `ze traffic` routes its closed member set (`control`) to the tc/VPP
 // tool, is discoverable with no args (R-6), and rejects unknown members with a
-// hint instead of falling through to Run (ai/rules/cli-grammar.md closed set).
+// hint instead of falling through to Run (ai/rules/cli.md closed set).
 // PREVENTS: the split reintroducing a hyphenated `traffic-control` root, or an
 // unknown sub-token reaching the tool's arg parser.
 

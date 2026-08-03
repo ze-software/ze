@@ -224,7 +224,7 @@ def main():
         # silently drifted by 24 code paths (1439 recorded vs 1463 live) before
         # anyone noticed, because the one target that would have caught it
         # (ze-regen-check, via `git diff`) has no callers.
-        # A guard that cannot fail is not a guard (ai/rules/fail-closed-guards.md).
+        # A guard that cannot fail is not a guard (ai/rules/evidence.md).
         try:
             current = output_file.read_text(encoding="utf-8")
         except OSError as exc:

@@ -2,7 +2,7 @@
 
 ## Context
 
-Ze had no writing standard. `ai/rules/language-and-spelling.md` picked a spelling
+Ze had no writing standard. `ai/rules/writing.md` picked a spelling
 variant and stopped there, so every other choice was the author's taste. Ze is
 read by network operators whose English is often a second language. A sentence a
 reader misunderstands becomes a misconfigured router. The owner chose ASD-STE100
@@ -41,9 +41,9 @@ also asked for code that reviews a document against it.
 
 ## Files
 
-- `ai/rules/simplified-technical-english.md` (rule one), `docs/contributing/writing-style.md` (the working guide)
+- `ai/rules/writing.md` (rule one), `docs/contributing/writing-style.md` (the working guide)
 - `scripts/dev/ste_check.py`, `scripts/dev/ste_check_test.py` (60 tests)
 - `scripts/dev/commit_helper.py` (`ste_problems`, a BLOCK gate), `scripts/dev/commit_helper_test.py`
 - `mk/inventory.mk` (`ze-ste-check`, `ze-ste-review`, `ze-ste-review-changed`, `ze-ste-review-json`)
-- `ai/INSTRUCTIONS.md` (RULE ONE), `ai/INDEX.md`, `ai/rules/hook-mapping.md`, `ai/rules/language-and-spelling.md`
+- `ai/INSTRUCTIONS.md` (RULE ONE), `ai/INDEX.md`, `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`
 - `docs/contributing/README.md`, `docs/contributing/documentation-testing.md`

@@ -11,14 +11,14 @@ See also: `/ze-spec` (write a spec), `/ze-explore` (research a topic)
 
 ## Delegation
 
-`ai/rules/spec-delegation.md` exempts this skill: it runs in the MAIN THREAD.
+`ai/rules/planning.md` exempts this skill: it runs in the MAIN THREAD.
 Its gates require `AskUserQuestion`, and a subagent can neither hold a dialogue
 with the user nor use LSP.
 
 Delegate the work around the gates, not the gates themselves: send the research
 and the file reading out to agents (`/ze-explore`, `/ze-audit`), then carry every
 decision point here yourself. Verify what those agents report against source
-before putting it in front of the user (`ai/rules/no-fabrication.md`).
+before putting it in front of the user (`ai/rules/evidence.md`).
 
 ## Instructions
 

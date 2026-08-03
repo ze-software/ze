@@ -57,5 +57,5 @@ services.
 - `scripts/dev/dep_audit.py` (classify reuses composition-root wiring; new fields;
   re-labelled report; `--selftest` B-1 fixtures)
 - `Makefile` (`ze-tier-check` now runs `--selftest` before `--check`)
-- `ai/rules/module-tiers.md` (advisory "is a plugin" half is now mechanical)
+- `ai/rules/architecture.md` (advisory "is a plugin" half is now mechanical)
 - `plan/spec-tiers-0-umbrella.md` (tiers-5 B-1 progress recorded)

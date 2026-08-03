@@ -7,13 +7,13 @@
 ├── rules/              # Auto-loaded by file path (30 files)
 │   ├── session-start.md      # TOP 6 RULES + session checklist (*)
 │   ├── post-compaction.md    # Recovery after context compaction (*)
-│   ├── before-writing-code.md # Pre-code checks (*)
+│   ├── architecture.md # Pre-code checks (*)
 │   ├── planning.md           # Pre-implementation planning (*)
-│   ├── tdd.md                # TDD rules (**/*.go)
+│   ├── testing.md                # TDD rules (**/*.go)
 │   ├── go-standards.md       # Go coding standards (**/*.go)
 │   ├── rfc-compliance.md     # RFC rules (internal/bgp/**/*.go)
-│   ├── architecture-summary.md # Condensed system overview (*)
-│   ├── naming.md             # Ze naming convention (*)
+│   ├── architecture.md # Condensed system overview (*)
+│   ├── go-standards.md             # Ze naming convention (*)
 │   └── ...                   # See CLAUDE.md for full list + rationale
 ├── hooks/              # Automation scripts
 │   ├── session-start.sh      # Git status, active specs (SessionStart)

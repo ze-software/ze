@@ -58,7 +58,7 @@ ze-unit-test: ze-installer-unit-test
 # running them, and unlike `go test -c` accepts a package pattern, so a second
 # package under internal/install cannot silently drop out -- and the real
 # execution happens in the Alpine VM via `make ze-qemu-integration-test`
-# (ai/rules/qemu-testing.md: linux-only code runs under QEMU, never "unfixable
+# (ai/rules/platform-linux.md: linux-only code runs under QEMU, never "unfixable
 # on this host").
 ze-installer-unit-test:
 ifeq ($(shell go env GOOS),linux)
@@ -133,7 +133,7 @@ ze-test-rest:
 # the user's own ~/.cache/go-build: it rebuilds cold, shares nothing with
 # ze-verify, and leaves the project cache no warmer than it found it. The feature
 # tags, the timeout, GOMAXPROCS and CGO_ENABLED for race come from GO_TEST /
-# GO_TEST_RACE and a shell run drops all of them (ai/rules/bash-output.md).
+# GO_TEST_RACE and a shell run drops all of them (ai/rules/commands.md).
 #
 #   make ze-test-pkg PKG=./internal/component/ike/eap
 #   make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS

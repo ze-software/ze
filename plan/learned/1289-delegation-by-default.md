@@ -2,7 +2,7 @@
 
 ## Context
 
-`ai/rules/spec-delegation.md` requires every spec phase to run in a subagent while
+`ai/rules/planning.md` requires every spec phase to run in a subagent while
 the main thread supervises. It was not happening. Some harness builds carry a
 system-prompt guard from the Opus 4.6/4.7 era, *"Do not call the AgentTool unless
 the user requested it"*, which a session reads as forbidding the very delegation
@@ -21,7 +21,7 @@ whether a session that claimed a spec ever delegated at all.
   section stating that Thomas requests delegation in advance, in every session,
   naming the 4.6/4.7 guard explicitly and saying which one wins. It reaches every
   session through the generated `CLAUDE.md`. Chosen over editing
-  `spec-delegation.md` alone, which the guard would still appear to outrank.
+  `planning.md` alone, which the guard would still appear to outrank.
 - **Three dispositions, not one, because the phases genuinely differ.** Skills
   that need no mid-skill user dialogue (`explore`, `audit`, `implement`, `review`,
   `review-spec`, `close`, `verify`) say "delegate, then stop". `spec` and `design`
@@ -34,7 +34,7 @@ whether a session that claimed a spec ever delegated at all.
   with its Status, plus the subagent contract (cite `file:line` for the producer,
   no LSP, cannot ask the user). This works because subagents inherit
   `$CLAUDE_CODE_SESSION_ID` from the parent deliberately
-  (`.claude/hooks/lib/session_id.py:21-24`), so the parent's claim marker is the
+  (`.claude/hooks/lib/session_id.py`), so the parent's claim marker is the
   one the agent is working under.
 - **Nudge, never trap.** `mark-agent-spawned.sh` (PostToolUse on `Task|Agent`)
   records that a session delegated at least once, and `block-premature-stop.sh`
@@ -50,7 +50,7 @@ whether a session that claimed a spec ever delegated at all.
   Thomas re-registered `block-premature-stop.sh` on `Stop`, first in the array.
   The warning in the bullet above now fires as written. It exits 1, never 2, when
   this session claimed a spec and spawned no agent
-  (`.claude/hooks/block-premature-stop.sh:215-217`). The marker has a reader
+  (`.claude/hooks/block-premature-stop.sh`). The marker has a reader
   again. The nudge needs a CLAIMED spec, so a session that claimed none is never
   nudged, whatever it ran inline.
 
@@ -65,7 +65,7 @@ whether a session that claimed a spec ever delegated at all.
   out at 24h alongside `.source-read-*` and `.lsp-invoked-*` in
   `_cleanup_stale_markers`. Ageing cannot widen any gate: every reader checks a
   far tighter window (the design-without-lsp gate uses 30 minutes).
-- The model half of `ai/rules/model-selection.md` stays unenforceable. The `Agent`
+- The model half of `ai/rules/planning.md` stays unenforceable. The `Agent`
   tool's `model` parameter selects a family (`opus`/`sonnet`/`haiku`/`fable`), so
   Opus 4.8 versus 5 cannot be pinned from inside a session. The rule already said
   so; nothing was added to it.
@@ -80,9 +80,9 @@ whether a session that claimed a spec ever delegated at all.
   session that inherited the work, after re-verifying it: the fixture and golden
   counts, the `session_id.py` inheritance claim, and the presence of the settings
   wiring all held. One claim did not: the report said the model asymmetry was
-  recorded in a "new Enforcement section" of `model-selection.md`, but that
+  recorded in a "new Enforcement section" of `planning.md`, but that
   section is pre-existing and the file is unmodified. Verify before relaying
-  (`ai/rules/no-fabrication.md`).
+  (`ai/rules/evidence.md`).
 - **A basename-matched guard catches innocent files.** Fixing the em dash rule in
   the user's own `~/.claude/CLAUDE.md` was blocked by `c_generated_files`, which
   matched any file named `CLAUDE.md` anywhere and told its author to edit an
@@ -92,7 +92,7 @@ whether a session that claimed a spec ever delegated at all.
   subagents it authorised found two BLOCKERs in the same session's own work: a
   multi-line pipeline that bypassed the Bash pipe gate, and a commit-gate
   fail-open on PACKAGE-MAP. Both were in code its author had just tested, twice,
-  and believed correct. That is the case `ai/rules/critical-review.md` makes,
+  and believed correct. That is the case `ai/rules/planning.md` makes,
   demonstrated rather than argued: the author is the one party guaranteed to
   share the blind spot that produced the bug.
 
@@ -100,7 +100,7 @@ whether a session that claimed a spec ever delegated at all.
 
 - `ai/INSTRUCTIONS.md` -- STANDING REQUEST: delegate to subagents
 - `ai/skills/ze-{explore,audit,implement,review,review-spec,close,verify,spec,design,review-deep,debug}.md` -- `## Delegation`
-- `ai/rules/spec-delegation.md` -- reconciled with the standing request
+- `ai/rules/planning.md` -- reconciled with the standing request
 - `.claude/hooks/subagent-context.sh` -- spec + contract injection, `$CLAUDE_PROJECT_DIR` root
 - `.claude/hooks/mark-agent-spawned.sh` -- new marker
 - `.claude/hooks/block-premature-stop.sh` -- delegation nudge, generic state header

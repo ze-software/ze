@@ -17,11 +17,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 2026-07-17, both homed on prose ("future root-surface-grammar spec", "future spec
 extending the gate to local metas"). Their source spec closed and its file is
 gone, so nothing on disk was ever going to become that spec. A prose destination
-is a deletion with a polite name (`ai/rules/deferral-tracking.md`). This file is
+is a deletion with a polite name (`ai/rules/planning.md`). This file is
 their home.
 
 **The one subject.** The CLI grammar gate has three declaration surfaces and
-proves only two of them. `ai/rules/cli-grammar.md` lists the feeders: the static
+proves only two of them. `ai/rules/cli.md` lists the feeders: the static
 YANG-tree gate, registration-time `validateCommandName`, the runtime built-in
 guard, the root-namespace feeder, and the demo call-site gate. Neither of the two
 surfaces below reaches any of them, so a violation there is not caught by anything
@@ -38,7 +38,7 @@ is only reachable after the first.
 
 **Surface 2: local-handler paths.** `MustRegisterLocalMeta` registers 33 paths
 across the tree. They are a third declaration surface: not YANG-tree commands, not
-root handlers. `ai/rules/fail-closed-guards.md` is why this row exists rather than a
+root handlers. `ai/rules/evidence.md` is why this row exists rather than a
 claim that the namespace is fully governed -- a guard that cannot see a surface must
 say so, and this is that saying.
 
@@ -81,7 +81,7 @@ answer gets decided by the migration rather than by the rule.
 **Behavior to change:** (only what the user asked for)
 - [list, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - [Where data enters: wire bytes, API command, config, plugin message]
@@ -106,7 +106,7 @@ answer gets decided by the migration rather than by the rule.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -207,16 +207,16 @@ answer gets decided by the migration rather than by the rule.
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
 | CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli-grammar.md` |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
 | Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/pipe-completeness.md` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 
@@ -233,7 +233,7 @@ answer gets decided by the migration rather than by the rule.
 | 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
 | 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | | `docs/comparison.md` |

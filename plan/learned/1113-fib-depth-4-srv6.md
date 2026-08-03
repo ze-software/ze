@@ -2,17 +2,17 @@
 
 Both FIB backends consume the `SRv6SID` field on a best-change entry and program
 SRv6 steering/encap:
-- **Kernel (SEG6):** `buildSEG6Encap` (`internal/plugins/fib/kernel/nexthop_linux.go:169`),
+- **Kernel (SEG6):** `buildSEG6Encap` (`internal/plugins/fib/kernel/nexthop_linux.go`),
   reached from `buildRichRoute` and gated by `SRv6SID.Is6()`.
-- **VPP (SR steer):** `fibVPP.processSRv6Change` (`internal/plugins/fib/vpp/srv6.go:27`)
+- **VPP (SR steer):** `fibVPP.processSRv6Change` (`internal/plugins/fib/vpp/srv6.go`)
   dispatches on the route verb — install/replace → `govppSRv6Backend.addSRv6Steer`
-  (`srv6.go:67`, a real `sr.SrSteeringAddDel` with the SID as BSID), remove →
-  `delSRv6Steer` (`srv6.go:90`) — and tracks installed prefixes in `f.srv6Installed`
+  (`srv6.go`, a real `sr.SrSteeringAddDel` with the SID as BSID), remove →
+  `delSRv6Steer` (`srv6.go`) — and tracks installed prefixes in `f.srv6Installed`
   so removals are idempotent. A change with no SID is a no-op (the verb switch,
-  `srv6.go:33`).
+  `srv6.go`).
 
-Tests: `TestKernelSRv6Encap` (`fibkernel_test.go:707`), `TestSRv6SteerAdd`/
-`TestSRv6SteerWithdraw`/`TestSRv6ZeroSIDSkipped` (`apply_test.go:838/869/895`),
+Tests: `TestKernelSRv6Encap` (`fibkernel_test.go`), `TestSRv6SteerAdd`/
+`TestSRv6SteerWithdraw`/`TestSRv6ZeroSIDSkipped` (`apply_test.go/869/895`),
 `test/plugin/fib-srv6-kernel.ci`, interop `test/interop/scenarios/35-srv6-frr/`.
 
 ## GOTCHAS

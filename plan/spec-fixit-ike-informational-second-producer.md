@@ -74,7 +74,7 @@ drop in `routeInbound` keeps its current shape.
 dropped with a log line instead of reaching a second handler. The initiator removes its SA
 from the SATable when its lifecycle ends.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 

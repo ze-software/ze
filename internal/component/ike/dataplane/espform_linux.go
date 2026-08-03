@@ -26,7 +26,7 @@ var errNoESPFormReceiver = errors.New("dataplane: no ESP form receiver, so this 
 
 // espFormReadBufLen bounds one inbound ESP read. An ESP datagram cannot exceed the IPv4
 // total length, and each buffer is allocated once per reader rather than per datagram
-// (ai/rules/memory-architecture.md).
+// (ai/rules/performance.md).
 const espFormReadBufLen = 0xFFFF
 
 // espFormInjector delivers one built datagram back to the local endpoint.
@@ -109,12 +109,12 @@ func newESPFormReceiver(log *slog.Logger) *espFormReceiver {
 //
 // It reports an error when the sockets cannot be opened. The caller MUST surface that,
 // because a receiver that is not running leaves one of the two ESP forms unserved and the
-// tunnel then carries traffic in one form only (ai/rules/fail-closed-guards.md).
+// tunnel then carries traffic in one form only (ai/rules/evidence.md).
 // A nil receiver FAILS CLOSED here, and that is the whole point of returning an error.
 // xfrmBackend can be built as a bare literal, which leaves espForms nil. An SA that asked
 // to receive both ESP forms and got a silent nil would install a state serving ONE form
 // and drop the other, which is the quietest failure this subsystem has
-// (ai/rules/fail-closed-guards.md). Refusing the install surfaces it instead.
+// (ai/rules/evidence.md). Refusing the install surfaces it instead.
 func (r *espFormReceiver) Watch(spi uint32, peer, local netip.Addr) error {
 	if r == nil {
 		return errNoESPFormReceiver

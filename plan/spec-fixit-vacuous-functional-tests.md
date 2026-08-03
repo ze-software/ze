@@ -59,10 +59,10 @@ would remove the evidence the guard exists to produce.
 Test 1 needs the same guard for its dead `reject=bgp:` line, and separately needs
 a live injection path, which the guard does not give it.
 
-Neither test may be deleted to reach green (`ai/rules/no-test-deletion.md`). Both
+Neither test may be deleted to reach green (`ai/rules/testing.md`). Both
 name real behavior. The behavior needs proving, and if proving it exposes a
 defect in the export-filter gate, that defect is in scope
-(`ai/rules/no-parking.md`).
+(`ai/rules/completion.md`).
 
 Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, rows 4 and 5.
 
@@ -70,9 +70,9 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, rows 4 and 5.
 
 - [ ] `ai/rules/interop-and-goal-validation.md` - "Prove the test discriminates"
   → Constraint: revert the behavior under test and confirm the test goes RED. Both tests fail that check today.
-- [ ] `ai/rules/functional-test-gate.md` - "Mutation-Verify the Test Actually Gates"
+- [ ] `ai/rules/testing.md` - "Mutation-Verify the Test Actually Gates"
   → Constraint: disable the producing function; a test that still passes guards nothing.
-- [ ] `ai/rules/no-test-deletion.md` - a red or vacuous test is fixed, never weakened
+- [ ] `ai/rules/testing.md` - a red or vacuous test is fixed, never weakened
   → Constraint: the header states the subject; the assertions must be made to match it, not the reverse.
 - [ ] `docs/architecture/testing/ci-format.md` - which directives each block consumes
   → Constraint: `cmd=` and `reject=` are runner-only, so a peer block is the wrong home for both.
@@ -92,7 +92,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, rows 4 and 5.
 
 **Behavior to change:** the assertions, so that each one can fail. No production behavior is targeted, but a defect uncovered by a now-live assertion is fixed here.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 A `.ci` file read by the functional-test runner, which splits it into a peer block, a config block, and runner directives.
@@ -122,21 +122,21 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 | No unintended coupling | No | fill during design |
 | No duplicated functionality | No | fill during design: check whether an existing `.ci` already proves the export gate before writing a new driver |
 | Zero-copy preserved where applicable | N-A | test-side change |
-| Registration over hardcoding (`ai/rules/plugin-self-containment.md`) | N-A | no command, view, family, or handler added |
+| Registration over hardcoding (`ai/rules/plugins.md`) | N-A | no command, view, family, or handler added |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The export-direction family filter actually works, and only its test is broken. | Nothing has proven it either way; the test that claimed to has been vacuous since it was written. | A real defect exists in the export gate and is in scope here (`ai/rules/no-parking.md`). | make the assertion live and observe | unvalidated |
+| A-1 | The export-direction family filter actually works, and only its test is broken. | Nothing has proven it either way; the test that claimed to has been vacuous since it was written. | A real defect exists in the export gate and is in scope here (`ai/rules/completion.md`). | make the assertion live and observe | unvalidated |
 | A-2 | The `ipv4/flow` EoR is sent at initial sync regardless of export policy. | The hex asserted decodes to an MP_UNREACH with AFI 1, SAFI 133 and no NLRI, which is the EoR for that family. | The current assertion is not vacuous after all, and only the injection half of test 1 is broken. | remove the export filter from the config and re-run: if the test still passes, the assertion is vacuous | unvalidated |
 | A-3 | A `tmpfs` plugin script is the right way to drive a live injection. | Other `.ci` tests in `test/plugin/` use one for API-driven scenarios. | Use whatever the corpus's working injection tests use. | read a working API-injection `.ci` first | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The live assertion goes red and the temptation is to relax it back. | A failing assertion that "looks wrong". | The header states the requirement. A red means the daemon is wrong (`ai/rules/no-test-deletion.md`). |
+| R-1 | The live assertion goes red and the temptation is to relax it back. | A failing assertion that "looks wrong". | The header states the requirement. A red means the daemon is wrong (`ai/rules/testing.md`). |
 | R-2 | Test 2 is fixed before the guard lands, so the guard ships with no test that would have caught the class. | This spec's work starts before its `Depends` spec. | Honour the sequencing. The guard fires first, then this test is fixed. |
 | R-3 | Other `.ci` tests carry the same inert `cmd=api:` pattern and are equally vacuous. | The corpus scan finds more. | Audit for `cmd=` inside a peer block in the same pass, and report the count. |
 
@@ -201,8 +201,8 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 |-------|------------------------------|
 | Completeness | Both tests discriminate, proven by the reverted-behavior run, not by a green bar |
 | Correctness | The EoR assertion is no longer load-bearing on its own; the discriminating assertion is the suppression |
-| Rule: `ai/rules/no-test-deletion.md` | No assertion was removed to reach green; every removal carries a stated reason |
-| Rule: `ai/rules/no-parking.md` | A defect uncovered by the now-live assertion is fixed here, not filed |
+| Rule: `ai/rules/testing.md` | No assertion was removed to reach green; every removal carries a stated reason |
+| Rule: `ai/rules/completion.md` | A defect uncovered by the now-live assertion is fixed here, not filed |
 | Registration over hardcoding | N-A |
 
 ## Known Limitations

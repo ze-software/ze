@@ -187,7 +187,7 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 # whose kernel has no l2tp genl family -- there the kernel worker is never
 # built and the tests exercise the control plane alone. Marking them would
 # delete real coverage to hide a host-specific requirement
-# (ai/rules/no-test-deletion.md), so the requirement gets a RUNNER instead.
+# (ai/rules/testing.md), so the requirement gets a RUNNER instead.
 #
 # Host safety comes from the same per-test netns launch mode as ze-netns-test
 # above (ZE_TEST_NETNS=1): each test runs in a throwaway namespace and ze runs
@@ -213,7 +213,7 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 # and failed on etc/, leaving a root-owned directory behind on every run.
 #
 # Fails LOUDLY when the privilege is unavailable: no Linux, no sudo, or no
-# setcap is an error exit, never a silent skip (ai/rules/fail-closed-guards.md).
+# setcap is an error exit, never a silent skip (ai/rules/evidence.md).
 #
 # ZE_NETNS_PORT_LOCK_RESTORE undoes the one piece of state a root runner leaves
 # OUTSIDE the repo. The port allocator locks each candidate port with a file in
@@ -414,7 +414,7 @@ ze-qemu-all-test:
 # stays green and fast) and are validated here instead. ZE_QEMU_LINUX_ONLY=1
 # flips the runner to skip every test that is NOT marked needs-linux, so the VM
 # spends its time only on the Linux-only surface -- one VM boot, all the
-# Linux-only tests, never one VM per test. See ai/rules/qemu-testing.md.
+# Linux-only tests, never one VM per test. See ai/rules/platform-linux.md.
 #
 # web is skipped (browser-driven, not a kernel-feature surface); every other
 # suite runs so a needs-linux test in any of them (plugin, firewall, l2tp, ...)
@@ -516,7 +516,7 @@ endif
 		--keep-alive
 
 # Package list is DERIVED from `//go:build integration && linux` tags so a new
-# linux-only package cannot be silently omitted (ai/rules/qemu-testing.md).
+# linux-only package cannot be silently omitted (ai/rules/platform-linux.md).
 # Exclusions: ldp runs in ze-qemu-ldp-frr-test (needs FRR in the VM).
 # firewall/vpp is added explicitly: its fakeOps tests are linux-tagged but not
 # integration-tagged, and still need a linux GOOS to compile.

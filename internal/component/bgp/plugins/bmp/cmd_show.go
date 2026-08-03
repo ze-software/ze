@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — show bmp proxy handlers.
 // Owned by the bgp-bmp plugin so that removing the BMP surface removes the
 // `show bmp ...` command, its schema, and these handlers together. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 
 package bmp
 

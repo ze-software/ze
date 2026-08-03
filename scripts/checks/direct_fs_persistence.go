@@ -1,4 +1,4 @@
-// Design: ai/rules/zefs-persistence.md -- runtime state belongs in the zefs store
+// Design: ai/rules/architecture.md -- runtime state belongs in the zefs store
 //
 // direct_fs_persistence enforces the invariant that daemon runtime STATE is
 // persisted through ze's managed zefs store (internal/core/statestore ->

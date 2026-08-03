@@ -215,7 +215,7 @@ func TestDispatchGenerated(t *testing.T) {
 	}
 
 	// With peer: the selector goes AFTER the command's own `peer` keyword
-	// (ai/rules/cli-grammar.md "Peer Commands"), never in front of the command.
+	// (ai/rules/cli.md "Peer Commands"), never in front of the command.
 	// The old prefix form built `peer 10.0.0.1 show bgp peer detail`, which the
 	// dispatcher resolves nowhere.
 	args, _ = json.Marshal(map[string]string{"action": "peer detail", "peer": "10.0.0.1"})

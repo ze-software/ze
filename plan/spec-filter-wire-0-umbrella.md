@@ -22,13 +22,13 @@
 
 The external-plugin BGP policy filter chain converts every filtered UPDATE through a
 **text round-trip**: the reactor renders the wire attributes to a text string
-(`AppendUpdateForFilter`, `filter_format.go:42`), ships that text to each filter plugin, a
+(`AppendUpdateForFilter`, `filter_format.go`), ships that text to each filter plugin, a
 modifying plugin returns a **text delta**, the reactor merges deltas as text
-(`applyFilterDelta`, `filter_chain.go:223`), then converts the merged text back into wire
-attribute-operations (`textDeltaToModOps`, `filter_delta.go:202`) and applies them
-(`buildModifiedPayload`, `forward_build.go:58`). The in-process filters (community, role,
+(`applyFilterDelta`, `filter_chain.go`), then converts the merged text back into wire
+attribute-operations (`textDeltaToModOps`, `filter_delta.go`) and applies them
+(`buildModifiedPayload`, `forward_build.go`). The in-process filters (community, role,
 redistribute) already skip all of this -- they receive wire bytes and write wire mod-ops
-directly (`core-design.md:640`).
+directly (`core-design.md`).
 
 **Goal:** remove the wire->text->text-delta->wire-ops round-trip for the external chain and
 unify it onto the wire-native model the in-process filters and the apply engine already use:
@@ -51,45 +51,45 @@ direction; dual-representation is the documented fallback.
 <!-- NEVER tick [ ] to [x]. -->
 - [ ] `docs/architecture/core-design.md` (Ingress Filter Pipeline; Route Metadata / ModAccumulator, ~628-699) - the two filter mechanisms and the mod-op apply model
   -> Decision: in-process filters use `func(source, payload []byte, meta) (accept, modifiedPayload []byte)` and write `mods.Op(code, action, valueBytes)`; the external chain is the only text-based holdout. The redesign unifies the external chain onto this existing model, it does NOT invent a new algebra.
-  -> Constraint: the cached `WireUpdate` after filtering is the canonical post-filter representation every downstream consumer reads (`core-design.md:662`); the redesign must keep that invariant -- filters still produce a modified wire payload, only the intermediate representation changes.
-  -> Constraint: "copy on modify" -- every modify produces a new buffer; original wire buffer released on cache eviction (`core-design.md:667`).
+  -> Constraint: the cached `WireUpdate` after filtering is the canonical post-filter representation every downstream consumer reads (`core-design.md`); the redesign must keep that invariant -- filters still produce a modified wire payload, only the intermediate representation changes.
+  -> Constraint: "copy on modify" -- every modify produces a new buffer; original wire buffer released on cache eviction (`core-design.md`).
 
 ### RFC Summaries
 - [ ] `rfc/short/rfc6793.md` - AS4_PATH / four-octet ASN. The encoding-context (ASN4) stability is what makes binary forwarding safe only when source and dest share the capability.
-  -> Constraint: forwarding a route between peers with different ASN4 capability requires AS_PATH/AS4_PATH re-encoding; `fwdContextIDWithASN4` (`forward_context.go:15`) already gates this.
+  -> Constraint: forwarding a route between peers with different ASN4 capability requires AS_PATH/AS4_PATH re-encoding; `fwdContextIDWithASN4` (`forward_context.go`) already gates this.
 - [ ] `rfc/short/rfc6996.md` - private ASN ranges (remove-private-as rewriting).
 
 **Key insights:**
 - The external policy chain is the single text-based filter mechanism; everything else is already wire + mod-ops.
 - Text is *derived from wire at filter time* today (`AppendUpdateForFilter`), for BOTH API-origin and peer-origin routes -- by filter time every route is already wire. So the round-trip is pure overhead at the filter stage; the only place text is genuinely "native" is the API origination command (`update text ...`), which already converts to wire at entry via `AnnounceNLRIBatch`.
-- Two modify operations (`as-path-prepend`, `remove-private`) structurally cannot be computed plugin-side: they need `localAS` and the `asn4` flag which live only reactor-side (`filter_delta.go:536`, `:570`). They must keep a thin typed-intent channel.
+- Two modify operations (`as-path-prepend`, `remove-private`) structurally cannot be computed plugin-side: they need `localAS` and the `asn4` flag which live only reactor-side (`filter_delta.go`, `:570`). They must keep a thin typed-intent channel.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read (with the three research agents' findings folded in):**
-- [ ] `internal/component/bgp/reactor/filter_chain.go` - `PolicyFilterChain` (text pipe, `:175`), `applyFilterDelta` (text merge, `:223`), `parseFilterAttrs`/`formatFilterAttrs`, AC-13 validation (`:413`), `policyFilterFunc` builds `FilterUpdateInput` (`:387`).
-  -> Constraint: a raw override is TERMINAL (`:203`) -- cannot compose with downstream filters. The text-delta layer exists specifically to compose multiple filters. The wire-op design composes via a single shared `ModAccumulator` instead.
-- [ ] `internal/component/bgp/reactor/filter_delta.go` - `textDeltaToModOps` (`:202`, skips faNLRI/faASPath/faASPathPrepend/faRemovePrivate at `:206`), `ExtractASPathPrependOps` (`:536`, needs localAS), `ExtractRemovePrivateASOps` (`:570`, needs raw attrs + asn4 + peerAS), `extractLegacyNLRIOverride` (`:51`, IPv4-unicast only), the `encode*Value` wire encoders (`:279-510`).
+- [ ] `internal/component/bgp/reactor/filter_chain.go` - `PolicyFilterChain` (text pipe, `:175`), `applyFilterDelta` (text merge, `:223`), `parseFilterAttrs`/`formatFilterAttrs`, AC-13 validation, `policyFilterFunc` builds `FilterUpdateInput`.
+  -> Constraint: a raw override is TERMINAL -- cannot compose with downstream filters. The text-delta layer exists specifically to compose multiple filters. The wire-op design composes via a single shared `ModAccumulator` instead.
+- [ ] `internal/component/bgp/reactor/filter_delta.go` - `textDeltaToModOps` (`:202`, skips faNLRI/faASPath/faASPathPrepend/faRemovePrivate at `:206`), `ExtractASPathPrependOps` (`:536`, needs localAS), `ExtractRemovePrivateASOps` (`:570`, needs raw attrs + asn4 + peerAS), `extractLegacyNLRIOverride` (`:51`, IPv4-unicast only), the `encode*Value` wire encoders.
 - [ ] `internal/component/bgp/reactor/filter_format.go` - `AppendUpdateForFilter` (`:42`, wire->text at filter time), `AppendAttrsForFilter` (`:165`, empty-declared => all attrs), `attrNameToCode`.
-- [ ] `internal/component/bgp/reactor/filter_ordered.go` - the import (`:134-184`) and export (`:195-236`) call sites: `AppendUpdateForFilter` -> `PolicyFilterChain` -> `parseFilterAttrs` x2 -> `textDeltaToModOps` + `ExtractRemovePrivateASOps` + `ExtractASPathPrependOps` -> `extractLegacyNLRIOverride` -> `buildModifiedPayload`.
-- [ ] `internal/component/bgp/reactor/forward_build.go` - `buildModifiedPayload` (`:58`) consumes `ModAccumulator` ops via per-code `AttrModHandler`s; `groupOpsByCode`; NLRI override (Step 8, `:270`).
-- [ ] `internal/component/bgp/filterapi/filterapi.go` - `ModAccumulator` (`:98`), `Op(code, action, buf)` (`:132`), actions `AttrModSet/Add/Remove/Prepend/Suppress` (`:191-197`), `AttrOp{Code,Action,Buf}` (`:220`), out-of-band channels `SetWithdraw`/`SetNLRIRewrite`/`SetWithdrawnRewrite` (`:164-188`), `RegisterAttrModHandler` (`:450`).
-- [ ] `internal/component/bgp/reactor/forward_context.go` - `fwdContextIDWithASN4` (`:15`): same ASN4 => forward unchanged; different => register new encoding context.
-- [ ] `pkg/plugin/rpc/types.go` - `FilterUpdateInput` (`:177`: Filter, Direction, Peer, PeerAS, `Update string`, `Raw []byte`), `FilterUpdateOutput` (`:192`: Action, `Update string`, `Raw []byte`, Teardown...), `FilterAction` enum (`enums.go:78`).
-- [ ] `pkg/plugin/sdk/sdk_callbacks.go` - `FilterUpdateHandler func(*FilterUpdateInput)(*FilterUpdateOutput,error)` (`:72`), `OnFilterUpdate` (`:481`), decode/call/encode shim (`:485-493`). NOTE: no typed DirectBridge fast-path for filter-update -- always JSON (`Raw` base64) both directions.
+- [ ] `internal/component/bgp/reactor/filter_ordered.go` - the import and export call sites: `AppendUpdateForFilter` -> `PolicyFilterChain` -> `parseFilterAttrs` x2 -> `textDeltaToModOps` + `ExtractRemovePrivateASOps` + `ExtractASPathPrependOps` -> `extractLegacyNLRIOverride` -> `buildModifiedPayload`.
+- [ ] `internal/component/bgp/reactor/forward_build.go` - `buildModifiedPayload` consumes `ModAccumulator` ops via per-code `AttrModHandler`s; `groupOpsByCode`; NLRI override (Step 8, `:270`).
+- [ ] `internal/component/bgp/filterapi/filterapi.go` - `ModAccumulator`, `Op(code, action, buf)`, actions `AttrModSet/Add/Remove/Prepend/Suppress`, `AttrOp{Code,Action,Buf}`, out-of-band channels `SetWithdraw`/`SetNLRIRewrite`/`SetWithdrawnRewrite`, `RegisterAttrModHandler`.
+- [ ] `internal/component/bgp/reactor/forward_context.go` - `fwdContextIDWithASN4`: same ASN4 => forward unchanged; different => register new encoding context.
+- [ ] `pkg/plugin/rpc/types.go` - `FilterUpdateInput` (`:177`: Filter, Direction, Peer, PeerAS, `Update string`, `Raw []byte`), `FilterUpdateOutput` (`:192`: Action, `Update string`, `Raw []byte`, Teardown...), `FilterAction` enum (`enums.go`).
+- [ ] `pkg/plugin/sdk/sdk_callbacks.go` - `FilterUpdateHandler func(*FilterUpdateInput)(*FilterUpdateOutput,error)`, `OnFilterUpdate`, decode/call/encode shim. NOTE: no typed DirectBridge fast-path for filter-update -- always JSON (`Raw` base64) both directions.
 - [ ] the 7 plugins (per-plugin detail lives in the child specs): filter_aspath, filter_aspath_length, filter_community_match (accept/reject only), filter_prefix, filter_irr (NLRI modify), filter_modify, filter_remove_private_as (attribute modify).
 
 **The 7 external plugins (research summary -- exhaustive per-plugin detail in children):**
 
 | Plugin | Callback | Reads today | Decision | Migration |
 |--------|----------|-------------|----------|-----------|
-| filter_aspath | filter_aspath.go:91 | AS_PATH (text) | accept/reject | easy: wire-decode read-only |
-| filter_aspath_length | filter_aspath_length.go:62 | AS_PATH hop count | accept/reject | easy: wire-decode read-only |
-| filter_community_match | filter_community_match.go:82 | COMMUNITY/LARGE/EXT | accept/reject | easy: wire-decode read-only |
-| filter_prefix | filter_prefix.go:95 | NLRI prefixes | accept/reject/**modify** | hard: emit wire NLRI mod-op (filtered prefix set) |
-| filter_irr | filter_irr.go:292 | NLRI prefixes | accept/reject/**modify** | hard: emit wire NLRI mod-op |
-| filter_modify | filter_modify.go:86 | local-pref/med/origin/next-hop/aigp + communities + as-path-prepend | **modify** | attribute mod-ops + prepend intent |
-| filter_remove_private_as | filter_remove_private_as.go:70 | AS_PATH (text) + AS4_PATH (raw gate) | **modify** | remove-private intent (reactor computes wire) |
+| filter_aspath | filter_aspath.go | AS_PATH (text) | accept/reject | easy: wire-decode read-only |
+| filter_aspath_length | filter_aspath_length.go | AS_PATH hop count | accept/reject | easy: wire-decode read-only |
+| filter_community_match | filter_community_match.go | COMMUNITY/LARGE/EXT | accept/reject | easy: wire-decode read-only |
+| filter_prefix | filter_prefix.go | NLRI prefixes | accept/reject/**modify** | hard: emit wire NLRI mod-op (filtered prefix set) |
+| filter_irr | filter_irr.go | NLRI prefixes | accept/reject/**modify** | hard: emit wire NLRI mod-op |
+| filter_modify | filter_modify.go | local-pref/med/origin/next-hop/aigp + communities + as-path-prepend | **modify** | attribute mod-ops + prepend intent |
+| filter_remove_private_as | filter_remove_private_as.go | AS_PATH (text) + AS4_PATH (raw gate) | **modify** | remove-private intent (reactor computes wire) |
 
 Cross-cutting: none of the 7 declare a `FilterDecl` except filter_remove_private_as (`raw=true`, `Attributes:["as-path","remove-private"]`); the others get declaredAttrs=empty => receive ALL attributes as text and AC-13 modify-validation is skipped (which is why filter_prefix/irr may emit an `nlri` delta with no declared attrs).
 
@@ -97,7 +97,7 @@ Cross-cutting: none of the 7 declare a `FilterDecl` except filter_remove_private
 - The post-filter cached `WireUpdate` remains the canonical representation for all downstream consumers.
 - Every existing filter's accept/reject/modify semantics and every existing filter `.ci`/Go test expectation.
 - AC-13 (a filter may only modify attributes it declared) -- re-expressed at the mod-op level.
-- The IPv4-unicast-only NLRI modify limitation is documented today (`filter_delta.go:38-47`); the redesign is an opportunity to fix the IPv6/MP_REACH NLRI case (child spec decision, not forced).
+- The IPv4-unicast-only NLRI modify limitation is documented today (`filter_delta.go`); the redesign is an opportunity to fix the IPv6/MP_REACH NLRI case (child spec decision, not forced).
 - Teardown (import-only) semantics.
 
 **Behavior to change:**
@@ -111,7 +111,7 @@ Cross-cutting: none of the 7 declare a `FilterDecl` except filter_remove_private
 
 ### Transformation Path (today, export example)
 1. `WireUpdate` (wire) held in rib-out.
-2. `AppendUpdateForFilter` renders wire -> **text** (`filter_ordered.go:205`).
+2. `AppendUpdateForFilter` renders wire -> **text** (`filter_ordered.go`).
 3. `PolicyFilterChain` pipes text through each external filter; modify returns **text delta**.
 4. `applyFilterDelta` merges deltas (text).
 5. `parseFilterAttrs` x2 + `textDeltaToModOps` + Extract{ASPathPrepend,RemovePrivateAS}Ops -> `ModAccumulator` (wire ops).
@@ -147,11 +147,11 @@ Cross-cutting: none of the 7 declare a `FilterDecl` except filter_remove_private
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Unify-on-raw: a one-time text->raw conversion at API entry + raw-based manipulation does NOT significantly regress vs today's text manipulation. | User's expectation (raw is more compact); `forward_build.go` already applies wire ops with no text. | If it regresses, fall back to provenance-aware dual representation (keep text for API-origin). | **Phase 1 benchmark** vs `BenchmarkFilterModifyEgress` (filter_delta_test.go:1283) + a new API-origin benchmark. | unvalidated |
+| A-1 | Unify-on-raw: a one-time text->raw conversion at API entry + raw-based manipulation does NOT significantly regress vs today's text manipulation. | User's expectation (raw is more compact); `forward_build.go` already applies wire ops with no text. | If it regresses, fall back to provenance-aware dual representation (keep text for API-origin). | **Phase 1 benchmark** vs `BenchmarkFilterModifyEgress` (filter_delta_test.go) + a new API-origin benchmark. | unvalidated |
 | A-2 | Mod-ops can express every existing modify a filter emits, EXCEPT as-path-prepend and remove-private (which keep a typed intent). | Agent audit: filter_modify/remove_private are the only attribute modifiers; filter_prefix/irr only rewrite NLRI. | If a modify can't be expressed, that plugin keeps a narrow text/intent escape hatch. | Per-plugin child-spec design + tests | unvalidated |
 | A-3 | The 3 read-only filters need only single-attribute wire decode; no output-side change. | Agent audit (accept/reject only, never emit delta). | If one modifies, it moves to the "hard" child. | grep each callback for FilterModify | unvalidated |
 | A-4 | AC-13 (declared-attribute restriction) is expressible over mod-op codes. | Today it parses the text delta; mod-ops already carry the attr code. | Re-derive from FilterDecl.Attributes -> code set. | unit test on the validator | unvalidated |
-| A-5 | NLRI rewrite (filter_prefix/irr) can be carried as `ModAccumulator.SetNLRIRewrite` / a wire prefix list, replacing the text `nlri ...` delta. | `filterapi.go:176`, `forward_build.go:270` already support NLRI override. | If MP_REACH families are in scope, needs MP rewrite (not supported today). | filter_prefix child spec + .ci | unvalidated |
+| A-5 | NLRI rewrite (filter_prefix/irr) can be carried as `ModAccumulator.SetNLRIRewrite` / a wire prefix list, replacing the text `nlri ...` delta. | `filterapi.go`, `forward_build.go` already support NLRI override. | If MP_REACH families are in scope, needs MP rewrite (not supported today). | filter_prefix child spec + .ci | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -191,7 +191,7 @@ Cross-cutting: none of the 7 declare a `FilterDecl` except filter_remove_private
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `BenchmarkFilterModifyEgress` (reuse) | `filter_delta_test.go:1283` | perf guard: raw path <= text path | |
+| `BenchmarkFilterModifyEgress` (reuse) | `filter_delta_test.go` | perf guard: raw path <= text path | |
 | `BenchmarkFilterModifyEgress_Raw` (new) | reactor | raw-manipulation cost for A-1 | |
 | `TestModOpValidateDeclared` | reactor | AC-13 over mod-op codes | |
 | per-plugin decode/emit tests | each plugin | wire-decode decision + mod-op output | |
@@ -222,7 +222,7 @@ Cross-cutting: none of the 7 declare a `FilterDecl` except filter_remove_private
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| Plugin SDK/protocol changed | [x] | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| Plugin SDK/protocol changed | [x] | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | Functional test for new RPC/API | [x] | `test/plugin/*.ci` |
 | Doctor check | [ ] | n/a (no new runtime dependency) |
 | Prometheus counters | [ ] | reuse existing filter metrics |
@@ -261,7 +261,7 @@ Each phase ends with a Self-Critical Review.
 
 ## Known Limitations
 - Cross-process external filter plugins need a protocol version bump; a compatibility window is required.
-- MP_REACH NLRI rewrite for filter_prefix/irr is not supported today (the text path never handled it, `filter_delta.go:38-47`); the NLRI child spec decides whether to add it.
+- MP_REACH NLRI rewrite for filter_prefix/irr is not supported today (the text path never handled it, `filter_delta.go`); the NLRI child spec decides whether to add it.
 
 ## Relationship to perf-next-2-filter-delta-alloc
 `spec-perf-next-2-filter-delta-alloc.md` (in-progress, Phase 1/5) reduces allocations in

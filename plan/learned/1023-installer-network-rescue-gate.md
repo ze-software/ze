@@ -23,17 +23,17 @@ a rescue shell bound to serial (invisible on the monitor) and ungated.
 ## Where it landed (and how it moved)
 
 - Server side, still live: `serveBootIPXE` emits `ze.mac=${mac}` and
-  `ze.shell-auth=<hex>` on the kernel line (`internal/plugins/imageserver/handler.go:212`);
+  `ze.shell-auth=<hex>` on the kernel line (`internal/plugins/imageserver/handler.go`);
   provision writes `shell-auth-sha256` into the generated config + YANG leaf
   (`internal/plugins/provision/main.go`).
 - Client side moved: the spec implemented this in the busybox init
   (`tools/installer-initrd/init`), which was subsequently **deleted**
   (`faabc1cbb`) and re-implemented in the pure-Go installer:
   `ensureNetwork` does honest reachability + MAC-pin to `cfg.Mac`
-  (`internal/install/disk/network.go:36-79`), and `cfg.Mac` comes from parsing
-  `ze.mac` (`internal/install/disk/cmdline.go:55-56`).
+  (`internal/install/disk/network.go`), and `cfg.Mac` comes from parsing
+  `ze.mac` (`internal/install/disk/cmdline.go`).
 - Follow-up: `make ze-pxe`'s embedded iPXE also now emits `ze.mac=${mac}`
-  (`mk/appliance.mk:116`, commit `887a690ab`) so the build/pxe path matches the
+  (`mk/appliance.mk`, commit `887a690ab`) so the build/pxe path matches the
   server-generated `boot.ipxe`.
 
 ## Status at closure

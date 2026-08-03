@@ -9,7 +9,7 @@ import (
 )
 
 // TestStartAcceptsConfigPath verifies that `ze start` extracts the leading
-// positional config path (keyword-first grammar, ai/rules/cli-grammar.md R1)
+// positional config path (keyword-first grammar, ai/rules/cli.md R1)
 // while never mistaking a flag's value for the path.
 //
 // VALIDATES: startConfigPath returns the first non-flag positional and skips

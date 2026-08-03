@@ -19,24 +19,24 @@ At `origin/main`, for RFC 6793 §4.2.2:
 
 `internal/component/bgp/wireu/` has two producers of the same clause. Transcode
 implemented it and was tested to death. Rewrite, reached from the normal eBGP
-forward path (`received_update.go:138`), never emitted AS4_PATH at all. A map
+forward path (`received_update.go`), never emitted AS4_PATH at all. A map
 built from "which clauses have tests" marks §4.2.2 covered, with 43 citations to
 back it up.
 
 RFC 6996 §4 is the same shape one level up: `rewritePrivateASSegments`
-(`filter_delta.go:645-669`) implements the clause correctly and is tested.
+(`filter_delta.go`) implements the clause correctly and is tested.
 Nothing tested that the filter was *applied* on the originated egress path,
 where `exportFilterForBody` never asked it the question. The clause was tested;
 the path was not.
 
 ## Why the gate cannot see it
 
-`check_coverage` (`scripts/dev/rfc_requirements.py:570-641`) decides satisfaction
+`check_coverage` (`scripts/dev/rfc_requirements.py`) decides satisfaction
 purely from `by_rid` -- the set of `RFC requirement:` tags found in test files.
 One positive plus one negative tag *anywhere* satisfies a MUST. Nothing binds a
 clause to the production function obliged to satisfy it.
 
-`scan` (`rfc_requirements.py:544-556`) walks the tree reading only `_test.go` and
+`scan` (`rfc_requirements.py`) walks the tree reading only `_test.go` and
 `.ci`. Production code is never opened.
 
 So tagging `aspath_transcode_test.go` positive+negative for RFC6793-4.2.2 turns

@@ -8,9 +8,9 @@
 | Updated | 2026-07-10 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
-citations below updated in-body): `addSecurityHeaders` now `auth.go:355`, the
-`X-Ze-Version` header write `:361`. The lg cites (`server.go:568`,
-`version.go:218` `HTTPHeader`) are still exact.
+citations below updated in-body): `addSecurityHeaders` now `auth.go`, the
+`X-Ze-Version` header write `:361`. The lg cites (`server.go`,
+`version.go` `HTTPHeader`) are still exact.
 
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
 
@@ -49,7 +49,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
   -> Constraint: gate only the version header; leave the other security headers (frame-options, CSP, HSTS, no-store) untouched.
 - [ ] `internal/component/lg/server.go` - the looking-glass sets the same header independently.
   -> Constraint: both sites must consult the same toggle so suppression is complete.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - YANG vs env var, kebab-case.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - YANG vs env var, kebab-case.
   -> Decision: a single kebab-case boolean, resolved from config and consulted at both header sites.
 
 **Key insights:**
@@ -59,20 +59,20 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/web/auth.go` - `addSecurityHeaders` (auth.go:355) sets `X-Ze-Version` to `version.HTTPHeader()` (auth.go:361), unconditionally, on authenticated responses.
-- [ ] `internal/component/lg/server.go` - sets the same `X-Ze-Version` header (server.go:568), independently of the web path.
-- [ ] `internal/core/version/version.go` - `HTTPHeader` (version.go:218-235) builds `ze/<release> (<commit>[+]; <goVer>; <os>/<arch>)`; there is no caller-side option to omit it.
+- [ ] `internal/component/web/auth.go` - `addSecurityHeaders` (auth.go) sets `X-Ze-Version` to `version.HTTPHeader()` (auth.go), unconditionally, on authenticated responses.
+- [ ] `internal/component/lg/server.go` - sets the same `X-Ze-Version` header (server.go), independently of the web path.
+- [ ] `internal/core/version/version.go` - `HTTPHeader` (version.go) builds `ze/<release> (<commit>[+]; <goVer>; <os>/<arch>)`; there is no caller-side option to omit it.
 
 ### Post-wave corrections (2026-07-10)
 
 All refs re-verified against current code:
 
 - Line drift corrected in place above (old -> new): `addSecurityHeaders`
-  auth.go:310 -> :338 (doc comment :337), `X-Ze-Version` write :316 -> :344;
-  lg header write server.go:563 -> :568; `HTTPHeader` version.go:218-234 ->
+  auth.go -> :338 (doc comment :337), `X-Ze-Version` write :316 -> :344;
+  lg header write server.go -> :568; `HTTPHeader` version.go ->
   :218-235. Behaviour of all three sites is exactly as described.
-- Precision on the lg site: the write at server.go:568 lives inside the
-  `securityHeaders` middleware (server.go:561-570) which wraps ALL lg
+- Precision on the lg site: the write at server.go lives inside the
+  `securityHeaders` middleware (server.go) which wraps ALL lg
   responses, not only authenticated ones. The suppression guard therefore goes
   in that middleware; "authenticated responses" applies to the web site only.
 - Config surface candidates made concrete: the web schema is
@@ -133,7 +133,7 @@ All refs re-verified against current code:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Both header sites can read a resolved config toggle | auth.go:361, server.go:568 (refs refreshed 2026-07-22); note `addSecurityHeaders` takes only the ResponseWriter, so the toggle reaches it via its callers or a package-level setting | plumb the toggle into the relevant struct | trace both servers' config during audit | unvalidated |
+| A-1 | Both header sites can read a resolved config toggle | auth.go, server.go (refs refreshed 2026-07-22); note `addSecurityHeaders` takes only the ResponseWriter, so the toggle reaches it via its callers or a package-level setting | plumb the toggle into the relevant struct | trace both servers' config during audit | unvalidated |
 | A-2 | `X-Ze-Version` is the only response-header version leak | grep found only these two sites; no `Server` header | another surface leaks the banner | grep all response-header writers | unvalidated |
 
 ### Risks

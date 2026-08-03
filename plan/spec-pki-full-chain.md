@@ -8,10 +8,10 @@
 | Updated | 2026-07-10 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
-citations below updated in-body): `startWebServer` now `service_web.go:237`,
+citations below updated in-body): `startWebServer` now `service_web.go`,
 `LoadOrGenerateCert` `:282` (persist block `:278-286`, `NewWebServer`
-`:307-311`). `NewTLSConfig` (`selfcert.go:175`), `Intermediate`
-(`pki/types.go:28`), `LoadTLSMaterial` (`:26`), `CheckCertMaterial` (`:34`)
+`:307-311`). `NewTLSConfig` (`selfcert.go`), `Intermediate`
+(`pki/types.go`), `LoadTLSMaterial`, `CheckCertMaterial`
 verified exact.
 
 Design filled 2026-07-10; user instruction 2026-07-10 authorized conversion to ready.
@@ -31,11 +31,11 @@ Design filled 2026-07-10; user instruction 2026-07-10 authorized conversion to r
 ## Task
 
 Ze's web/API server always uses self-signed certificates via `selfcert.LoadOrGenerateCert`
-~~(`service_web.go:268`)~~ (stale citation; verified producer: `cmd/ze/hub/service_web.go:282`).
+~~(`service_web.go`)~~ (stale citation; verified producer: `cmd/ze/hub/service_web.go`).
 There is no path for operators to use PKI-stored certificates
 with their intermediate chain for the web/API HTTPS endpoint. The PKI component correctly
-stores intermediates (`CertificateEntry.Intermediate`, `types.go:28`) and includes them
-in PEM output (`show.go:171-172`, `show.go:197-198`), but the web TLS listener never
+stores intermediates (`CertificateEntry.Intermediate`, `types.go`) and includes them
+in PEM output (`show.go`, `show.go`), but the web TLS listener never
 consumes PKI-stored certs.
 
 This is a two-part gap:
@@ -44,7 +44,7 @@ This is a two-part gap:
 
 Design update 2026-07-10 (review-followup finding, `tmp/review-followup/result-batch-03.md`):
 the followup wave added a SECOND TLS-listener surface with the same limitation. The
-DoT/DoH listeners (`internal/core/dnsserver/tlsmaterial.go:26-59`, consumed by the
+DoT/DoH listeners (`internal/core/dnsserver/tlsmaterial.go`, consumed by the
 as112 and geodns plugins) serve operator file-PEM or an ephemeral self-signed
 certificate and never consult the PKI store. This spec generalizes: **TLS listeners
 can serve a PKI-stored certificate plus its full chain**, across BOTH consumers
@@ -57,20 +57,20 @@ behavior.
 
 ### Architecture Docs
 - [ ] `internal/component/web/` - web server implementation
-  → Constraint: `WebServer` builds one `tls.Config` at construction (`server.go:111`) and wraps every listener with it (`server.go:198`, `:337`); reload only migrates listen addresses (`cmd/ze/hub/listener_migrate.go:77-86`), never TLS material.
+  → Constraint: `WebServer` builds one `tls.Config` at construction (`server.go`) and wraps every listener with it (`server.go`, `:337`); reload only migrates listen addresses (`cmd/ze/hub/listener_migrate.go`), never TLS material.
 - [ ] `internal/component/pki/` - PKI certificate management
   → Decision: chain assembly already exists twice in `show.go` (`certPEM` :171-173, `certBundlePEM` :196-199); the new loader reuses that leaf+intermediate PEM concatenation, in the same package.
-  → Constraint: `pki.Load` validates expiry + chain against the stored CA pool before installing (`store.go:38-79`), so a loadable store entry is always verifiable up to a stored CA.
-- [ ] `ai/rules/config-surface.md` - YANG vs env var decision
+  → Constraint: `pki.Load` validates expiry + chain against the stored CA pool before installing (`store.go`), so a loadable store entry is always verifiable up to a stored CA.
+- [ ] `ai/rules/config.md` - YANG vs env var decision
   → Decision: operator-facing certificate selection is YANG config (visible, validated, commit/rollback); the `environment/` placement of the web leaf mandates a matching `ze.web.certificate` env var (`ai/patterns/config-option.md` step 3).
-- [ ] `ai/rules/module-tiers.md` - tier placement for the shared loader
-  → Constraint: `internal/core/` MUST NOT import `internal/component/` (core import-direction rule, enforced by `scripts/dev/dep_audit.py --check`); so `internal/core/dnsserver` and `internal/core/selfcert` can never call the pki store directly. PKI is explicitly "shared certificate infrastructure for IPsec and future TLS users" (`ai/rules/module-tiers.md:42`) -- the loader lives there.
-- [ ] `ai/rules/config-naming.md` - leaf naming
-  → Decision: reuse the ipsec precedent `leaf certificate { type string; description "Name of the ... certificate in the PKI store." }` (`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:228-231`).
-- [ ] `ai/rules/plugin-self-containment.md` - ownership of doctor checks and YANG
-  → Constraint: as112/geodns own their YANG leaves and doctor checks; the shared reference-check helper lives in pki (owner of certificate semantics), mirroring how `dnsserver.CheckCertMaterial` is shared today (`internal/core/dnsserver/certcheck.go:34`).
-- [ ] `ai/rules/doctor-checks.md` - doctor requirements
-  → Constraint: "Config leaf that references a file path (cert, key, ...)" and "New service with TLS" both require registered checks; plugins use `registry.Registration.DoctorChecks`, the web component uses `diagnostic.RegisterDoctorCheck()` (Tree is available in both contexts: `internal/core/diagnostic/doctor_registry.go:33-39`, `internal/component/plugin/registry` DoctorCheckContext).
+- [ ] `ai/rules/architecture.md` - tier placement for the shared loader
+  → Constraint: `internal/core/` MUST NOT import `internal/component/` (core import-direction rule, enforced by `scripts/dev/dep_audit.py --check`); so `internal/core/dnsserver` and `internal/core/selfcert` can never call the pki store directly. PKI is explicitly "shared certificate infrastructure for IPsec and future TLS users" (`ai/rules/architecture.md`) -- the loader lives there.
+- [ ] `ai/rules/config.md` - leaf naming
+  → Decision: reuse the ipsec precedent `leaf certificate { type string; description "Name of the ... certificate in the PKI store." }` (`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`).
+- [ ] `ai/rules/plugins.md` - ownership of doctor checks and YANG
+  → Constraint: as112/geodns own their YANG leaves and doctor checks; the shared reference-check helper lives in pki (owner of certificate semantics), mirroring how `dnsserver.CheckCertMaterial` is shared today (`internal/core/dnsserver/certcheck.go`).
+- [ ] `ai/rules/repo-maintenance.md` - doctor requirements
+  → Constraint: "Config leaf that references a file path (cert, key, ...)" and "New service with TLS" both require registered checks; plugins use `registry.Registration.DoctorChecks`, the web component uses `diagnostic.RegisterDoctorCheck()` (Tree is available in both contexts: `internal/core/diagnostic/doctor_registry.go`, `internal/component/plugin/registry` DoctorCheckContext).
 
 ### RFC Summaries (MUST for protocol work)
 N/A - standard TLS behavior, not protocol extension. (DoT/DoH transports were proven by
@@ -78,14 +78,14 @@ N/A - standard TLS behavior, not protocol extension. (DoT/DoH transports were pr
 only changes where their certificate material comes from.)
 
 **Key insights:**
-- ~~`service_web.go:268`: `selfcert.LoadOrGenerateCert` is the only TLS path~~ (stale path) `cmd/ze/hub/service_web.go:282`: `selfcert.LoadOrGenerateCert` is the only web TLS path; `cmd/ze/hub/service_lg.go:78` is the same pattern for the looking glass
-- ~~`selfcert.go:176`~~ `internal/core/selfcert/selfcert.go:176`: `NewTLSConfig` builds `tls.Config` via `tls.X509KeyPair` -- NOTE: `tls.X509KeyPair` parses EVERY CERTIFICATE block in the cert PEM into `tls.Certificate.Certificate`, so a leaf+intermediate PEM concatenation already serves the full chain; no selfcert change is needed, only chain-shaped input (validated by A-3 / `TestNewTLSConfigServesChain`)
-- `pki/types.go:28`: `CertificateEntry` has `Intermediate` field (chain is stored); `PrivateKey` is OPTIONAL (`pki/config.go:160-173`) -- a TLS server reference needs a key, so "no private key" is a validation error
-- `pki/show.go:171-172,197-198`: PEM output includes intermediates
+- ~~`service_web.go`: `selfcert.LoadOrGenerateCert` is the only TLS path~~ (stale path) `cmd/ze/hub/service_web.go`: `selfcert.LoadOrGenerateCert` is the only web TLS path; `cmd/ze/hub/service_lg.go` is the same pattern for the looking glass
+- ~~`selfcert.go`~~ `internal/core/selfcert/selfcert.go`: `NewTLSConfig` builds `tls.Config` via `tls.X509KeyPair` -- NOTE: `tls.X509KeyPair` parses EVERY CERTIFICATE block in the cert PEM into `tls.Certificate.Certificate`, so a leaf+intermediate PEM concatenation already serves the full chain; no selfcert change is needed, only chain-shaped input (validated by A-3 / `TestNewTLSConfigServesChain`)
+- `pki/types.go`: `CertificateEntry` has `Intermediate` field (chain is stored); `PrivateKey` is OPTIONAL (`pki/config.go`) -- a TLS server reference needs a key, so "no private key" is a validation error
+- `pki/show.go,197-198`: PEM output includes intermediates
 - No wiring exists between PKI store and web server TLS config
-- NEW: `internal/core/dnsserver/tlsmaterial.go:26-63` (`LoadTLSMaterial`) is the DoT/DoH sibling: file-PEM or ephemeral self-signed, never PKI; `secure.go:232-245` (`buildSecureTLS`) is its only caller; `secure.go:274-290` folds a leaf-cert fingerprint into the listener signature so cert rotation forces a rebind
-- `cmd/ze/hub/main.go:364`: `zepki.Load` at startup runs BEFORE plugin coordinator creation (:385) and service construction -- good; `cmd/ze/hub/main_reload.go:192`: on reload `zepki.Load` runs AFTER plugin apply (`s.ReloadConfig` :151, `eng.Reload` :163) -- plugins resolving PKI references at OnConfigure would see the OLD store; the reload ordering must change (AC-10)
-- `internal/plugins/as112/register.go:223-226`: as112 refuses to run as an external plugin (in-process registries); geodns has no such guard, so an external geodns resolving the process-local pki store must fail loudly, not silently
+- NEW: `internal/core/dnsserver/tlsmaterial.go` (`LoadTLSMaterial`) is the DoT/DoH sibling: file-PEM or ephemeral self-signed, never PKI; `secure.go` (`buildSecureTLS`) is its only caller; `secure.go` folds a leaf-cert fingerprint into the listener signature so cert rotation forces a rebind
+- `cmd/ze/hub/main.go`: `zepki.Load` at startup runs BEFORE plugin coordinator creation (:385) and service construction -- good; `cmd/ze/hub/main_reload.go`: on reload `zepki.Load` runs AFTER plugin apply (`s.ReloadConfig` :151, `eng.Reload` :163) -- plugins resolving PKI references at OnConfigure would see the OLD store; the reload ordering must change (AC-10)
+- `internal/plugins/as112/register.go`: as112 refuses to run as an external plugin (in-process registries); geodns has no such guard, so an external geodns resolving the process-local pki store must fail loudly, not silently
 
 ## Current Behavior (MANDATORY)
 
@@ -104,9 +104,9 @@ only changes where their certificate material comes from.)
 - [ ] `internal/core/dnsserver/secure.go` - `SecureConfig` (:135-143: `CertFile`/`KeyFile` only), `ParseSecureLeaves` (:161-196), `ApplyWithSecure` (:204-226), `buildSecureTLS` (:232-245: files re-read per apply so rotation is picked up; self-signed cached), listener signature folds cert fingerprint (:274-290); TLS load failure disables ONLY the secure listeners (:213-215), cleartext stays up (:89-97)
 - [ ] `internal/core/dnsserver/certcheck.go` - `CheckCertMaterial` (:34-84): shared doctor helper for file-based material (missing/invalid/expired + 30-day warning window)
 - [ ] `internal/plugins/as112/config.go` - `Secure dnsserver.SecureConfig` (:80), `ParseSecureLeaves` call (:180)
-- [ ] `internal/plugins/as112/doctor.go` - `checkAS112TLSCert` (:87-124) delegates to `dnsserver.CheckCertMaterial`; codes `doctor-tls-missing|expired|invalid` registered (`register.go:148-157`)
+- [ ] `internal/plugins/as112/doctor.go` - `checkAS112TLSCert` (:87-124) delegates to `dnsserver.CheckCertMaterial`; codes `doctor-tls-missing|expired|invalid` registered (`register.go`)
 - [ ] `internal/plugins/as112/register.go` - in-process-only guard (:223-226); DoctorChecks declaration (:138-157)
-- [ ] `internal/plugins/geodns/config.go` - same `Secure` field (:91) and shared parse (:206 area); `internal/plugins/geodns/doctor.go:126` same cert check; codes at `register.go:61`
+- [ ] `internal/plugins/geodns/config.go` - same `Secure` field (:91) and shared parse (:206 area); `internal/plugins/geodns/doctor.go` same cert check; codes at `register.go`
 - [ ] `cmd/ze/hub/main.go` - startup: `preparePKIConfig` + `zepki.Load` (:359-367) precede coordinator creation (:385) and service construction
 - [ ] `cmd/ze/hub/main_reload.go` - `doReload`: `preparePKIConfig` early (:131-137), plugin apply `s.ReloadConfig` (:151), `eng.Reload` (:163), `lm.ReloadListeners` (:178), `zepki.Load` LAST (:192-203)
 - [ ] `cmd/ze/hub/main_pki.go` - `preparePKIConfig` (:10-19): parse + side-effect-free `Validate`
@@ -117,14 +117,14 @@ only changes where their certificate material comes from.)
 
 **Behavior to preserve:**
 - Self-signed cert generation as fallback when no PKI cert configured
-  (web: `LoadOrGenerateCert` persisted in blob storage, `cmd/ze/hub/service_web.go:278-286`;
-  DoT/DoH: ephemeral self-signed with SAN fan-out, `tlsmaterial.go:46-58`, cached per manager `secure.go:236-244`)
-- DoT/DoH operator `cert-file`/`key-file` path keeps working exactly as today (file re-read per apply, half-pair error, `tlsmaterial.go:27-44`)
-- TLS material failure on DoT/DoH disables only the secure listeners, cleartext DNS stays up (`secure.go:213-215`, `:89-97`)
-- Cert-fingerprint rebind semantics of the dnsserver listener signature (`secure.go:271-290`)
+  (web: `LoadOrGenerateCert` persisted in blob storage, `cmd/ze/hub/service_web.go`;
+  DoT/DoH: ephemeral self-signed with SAN fan-out, `tlsmaterial.go`, cached per manager `secure.go`)
+- DoT/DoH operator `cert-file`/`key-file` path keeps working exactly as today (file re-read per apply, half-pair error, `tlsmaterial.go`)
+- TLS material failure on DoT/DoH disables only the secure listeners, cleartext DNS stays up (`secure.go`, `:89-97`)
+- Cert-fingerprint rebind semantics of the dnsserver listener signature (`secure.go`)
 - PKI intermediate storage and PEM display (`show.go`)
-- `pki.Load` validation semantics (expiry + chain, `store.go:38-79`) and expiry health/report/metrics (`health.go`)
-- Web server functionality, listener migration on reload (`listener_migrate.go`), TLS 1.2 floor (`selfcert.go:181-184`)
+- `pki.Load` validation semantics (expiry + chain, `store.go`) and expiry health/report/metrics (`health.go`)
+- Web server functionality, listener migration on reload (`listener_migrate.go`), TLS 1.2 floor (`selfcert.go`)
 - Compile-out rules: always-on hub code must not import `internal/component/web` directly (module-tiers disable-ability; the existing `Reconfigurable` seam pattern)
 
 **Behavior to change:**
@@ -133,16 +133,16 @@ only changes where their certificate material comes from.)
 - When configured, load cert + intermediate from PKI store; build TLS material with full certificate chain (new `pki.ServerTLSMaterial`)
 - Fall back to self-signed when not configured (unchanged); when configured but unresolvable, fail loudly (web: startup error / commit rejection; DoT/DoH: error log + secure listeners not started, mirroring today's file-material failure semantics)
 - Web TLS certificate becomes hot-rotatable on config reload (GetCertificate indirection; today it is fixed at construction)
-- Reload ordering: install the new PKI store BEFORE plugin apply so consumers resolving references at OnConfigure see the new material (today `main_reload.go:192` runs after `:151`/`:163`)
+- Reload ordering: install the new PKI store BEFORE plugin apply so consumers resolving references at OnConfigure see the new material (today `main_reload.go` runs after `:151`/`:163`)
 - Doctor checks for a configured-but-broken reference (missing entry, no private key, expired/expiring, incomplete chain)
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - YANG config: web server certificate reference to PKI store
   (`environment.web.certificate` leaf, extracted by `ExtractWebConfig` into `WebListenConfig.Certificate`; env override `ze.web.certificate`)
 - YANG config: `service.as112.tls.certificate` / `service.geodns.tls.certificate` (parsed by `dnsserver.ParseSecureLeaves` into `SecureConfig.Certificate`)
-- PKI material itself enters via the existing `pki { certificate <name> { certificate; intermediate; private { key } } }` config block (`ze-pki-conf.yang:40-74`)
+- PKI material itself enters via the existing `pki { certificate <name> { certificate; intermediate; private { key } } }` config block (`ze-pki-conf.yang`)
 
 ### Transformation Path
 1. Config specifies PKI certificate name for web server
@@ -152,10 +152,10 @@ only changes where their certificate material comes from.)
 5. HTTPS listener serves leaf + intermediates in TLS handshake
 
 Design elaboration (both consumers):
-1. Commit/startup parses the tree; `preparePKIConfig` validates the pki block (`main_pki.go:10-19`); `zepki.Load` installs the store (startup `main.go:364`; reload moved before plugin apply, see AC-10)
-2. New `pki.ServerTLSMaterial(name)` (component pki, new `tls.go`) resolves the store entry and assembles PEM: leaf + intermediate CERTIFICATE blocks concatenated (same shape as `show.go:196-199`) + private-key PEM; errors for unknown name and missing private key
-3. Web: hub `startWebServer` picks `pki.ServerTLSMaterial` when `WebListenConfig.Certificate` is set, else `selfcert.LoadOrGenerateCert`; PEM flows into `WebServer`, whose `tls.Config` now uses a GetCertificate indirection over an atomically swappable `tls.Certificate` (chain populated by `tls.X509KeyPair` multi-block parse, `selfcert.go:176`)
-4. DoT/DoH: `SecureConfig.Certificate` set -> `buildSecureTLS` calls an injected TLS-material resolver (consumer plugins inject `pki.ServerTLSMaterial`; core dnsserver stays PKI-free per module tiers); resolved chain PEM feeds the existing `selfcert.NewTLSConfig` path; the listener-signature fingerprint (`secure.go:274-290`) rebinds on rotation
+1. Commit/startup parses the tree; `preparePKIConfig` validates the pki block (`main_pki.go`); `zepki.Load` installs the store (startup `main.go`; reload moved before plugin apply, see AC-10)
+2. New `pki.ServerTLSMaterial(name)` (component pki, new `tls.go`) resolves the store entry and assembles PEM: leaf + intermediate CERTIFICATE blocks concatenated (same shape as `show.go`) + private-key PEM; errors for unknown name and missing private key
+3. Web: hub `startWebServer` picks `pki.ServerTLSMaterial` when `WebListenConfig.Certificate` is set, else `selfcert.LoadOrGenerateCert`; PEM flows into `WebServer`, whose `tls.Config` now uses a GetCertificate indirection over an atomically swappable `tls.Certificate` (chain populated by `tls.X509KeyPair` multi-block parse, `selfcert.go`)
+4. DoT/DoH: `SecureConfig.Certificate` set -> `buildSecureTLS` calls an injected TLS-material resolver (consumer plugins inject `pki.ServerTLSMaterial`; core dnsserver stays PKI-free per module tiers); resolved chain PEM feeds the existing `selfcert.NewTLSConfig` path; the listener-signature fingerprint (`secure.go`) rebinds on rotation
 5. Reload: new store installed first; hub calls the web cert-updater seam so the served web certificate rotates without rebind; plugins re-resolve during their apply and rebind if the fingerprint changed
 6. TLS handshake serves leaf + intermediate to clients (both consumers)
 
@@ -165,17 +165,17 @@ Design elaboration (both consumers):
 | Config -> web server | YANG tree resolution | [ ] |
 | Web server -> PKI store | PKI component query | [ ] |
 | Web server -> TLS listener | `tls.Config` with chain | [ ] |
-| Config -> as112/geodns plugin | JSON config section -> `ParseSecureLeaves` (`secure.go:161`) | [ ] |
+| Config -> as112/geodns plugin | JSON config section -> `ParseSecureLeaves` (`secure.go`) | [ ] |
 | Plugin -> PKI store | in-process call to `pki.ServerTLSMaterial` (injected into dnsserver as resolver func; external-process geodns fails loudly, see R-4) | [ ] |
 | core dnsserver <- component pki | ONLY via injected resolver func; no core->component import (module tiers) | [ ] |
-| Hub reload -> web TLS | cert-updater seam next to `Reconfigurable` (`listener_migrate.go:53-58` pattern, keeps compile-out) | [ ] |
+| Hub reload -> web TLS | cert-updater seam next to `Reconfigurable` (`listener_migrate.go` pattern, keeps compile-out) | [ ] |
 
 ### Integration Points
-- PKI component certificate lookup (`pki.GetCertificate`, `store.go:114`; new `pki.ServerTLSMaterial` wraps it)
-- Web server TLS configuration (`web/server.go:111,131,198`; hub glue `cmd/ze/hub/service_web.go:278-311`)
-- YANG config for certificate reference (`ze-web-conf.yang`, `ze-as112-conf.yang` tls container :147, `ze-geodns-conf.yang` tls container; `ExtractWebConfig` `loader_extract.go:93`)
-- dnsserver secure listener path (`secure.go:204-245`)
-- Reload pipeline (`main_reload.go:131-203`) and expiry health/reporting (`pki/health.go`) which already covers any store entry, so served certs inherit expiry metrics for free
+- PKI component certificate lookup (`pki.GetCertificate`, `store.go`; new `pki.ServerTLSMaterial` wraps it)
+- Web server TLS configuration (`web/server.go,131,198`; hub glue `cmd/ze/hub/service_web.go`)
+- YANG config for certificate reference (`ze-web-conf.yang`, `ze-as112-conf.yang` tls container :147, `ze-geodns-conf.yang` tls container; `ExtractWebConfig` `loader_extract.go`)
+- dnsserver secure listener path (`secure.go`)
+- Reload pipeline (`main_reload.go`) and expiry health/reporting (`pki/health.go`) which already covers any store entry, so served certs inherit expiry metrics for free
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -189,12 +189,12 @@ Design elaboration (both consumers):
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | PKI store is available before web server starts | Component startup order | Would need lazy cert loading | Check component dependency graph | confirmed -- `zepki.Load` at `cmd/ze/hub/main.go:364` precedes coordinator creation (:385) and service construction; web/lg/mcp services are built after the engine exists |
-| A-2 | Certificate rotation needs graceful reload | Standard practice | Would need server restart | Check if web server supports TLS cert reload | confirmed-as-gap -- `web/server.go:111,131` fixes the `tls.Config` at construction and `listener_migrate.go` only migrates addresses; this spec ADDS rotation via GetCertificate indirection (AC-9) |
-| A-3 | `tls.X509KeyPair` on a multi-block PEM yields a served chain (leaf + intermediates) with no selfcert change | Go stdlib documented behavior; `selfcert.go:176` | Would need a dedicated chain builder in selfcert | Unit test `TestNewTLSConfigServesChain` asserting `len(tls.Certificate.Certificate) == 2` | unvalidated |
-| A-4 | as112 and geodns doctor checks receive the FULL config tree, so a pki-reference check can parse the pki block offline | `internal/plugins/as112/doctor.go:27-45` (`ctx.Tree.(*config.Tree)` then reads `service`); `diagnostic/doctor_registry.go:33-39` | Doctor check would need the live store and could not run offline | Unit test feeding a tree containing both `pki` and `service` roots | unvalidated |
-| A-5 | Plugin OnConfigure during reload runs before `zepki.Load` today (ordering hazard is real) | `main_reload.go:151` (`s.ReloadConfig`, plugin verify/apply) and `:163` (`eng.Reload`) precede `:192` (`zepki.Load`) | Ordering fix unnecessary; drop AC-10 | Read of `doReload`; regression test `test/reload/pki-reference-reload.ci` proving one-commit add-cert+reference works after the fix | unvalidated |
-| A-6 | as112/geodns run in the hub process so `pki.ServerTLSMaterial` reads the live store | as112 refuses external (`register.go:223-226`); geodns MAY be external, handled by R-4 | Resolution returns not-found in external process | as112: existing guard; geodns: loud-failure path unit test | unvalidated |
+| A-1 | PKI store is available before web server starts | Component startup order | Would need lazy cert loading | Check component dependency graph | confirmed -- `zepki.Load` at `cmd/ze/hub/main.go` precedes coordinator creation (:385) and service construction; web/lg/mcp services are built after the engine exists |
+| A-2 | Certificate rotation needs graceful reload | Standard practice | Would need server restart | Check if web server supports TLS cert reload | confirmed-as-gap -- `web/server.go,131` fixes the `tls.Config` at construction and `listener_migrate.go` only migrates addresses; this spec ADDS rotation via GetCertificate indirection (AC-9) |
+| A-3 | `tls.X509KeyPair` on a multi-block PEM yields a served chain (leaf + intermediates) with no selfcert change | Go stdlib documented behavior; `selfcert.go` | Would need a dedicated chain builder in selfcert | Unit test `TestNewTLSConfigServesChain` asserting `len(tls.Certificate.Certificate) == 2` | unvalidated |
+| A-4 | as112 and geodns doctor checks receive the FULL config tree, so a pki-reference check can parse the pki block offline | `internal/plugins/as112/doctor.go` (`ctx.Tree.(*config.Tree)` then reads `service`); `diagnostic/doctor_registry.go` | Doctor check would need the live store and could not run offline | Unit test feeding a tree containing both `pki` and `service` roots | unvalidated |
+| A-5 | Plugin OnConfigure during reload runs before `zepki.Load` today (ordering hazard is real) | `main_reload.go` (`s.ReloadConfig`, plugin verify/apply) and `:163` (`eng.Reload`) precede `:192` (`zepki.Load`) | Ordering fix unnecessary; drop AC-10 | Read of `doReload`; regression test `test/reload/pki-reference-reload.ci` proving one-commit add-cert+reference works after the fix | unvalidated |
+| A-6 | as112/geodns run in the hub process so `pki.ServerTLSMaterial` reads the live store | as112 refuses external (`register.go`); geodns MAY be external, handled by R-4 | Resolution returns not-found in external process | as112: existing guard; geodns: loud-failure path unit test | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -202,11 +202,11 @@ Design elaboration (both consumers):
 | R-1 | PKI cert expires without auto-renewal | HTTPS stops working | Fall back to self-signed on cert load failure |
 | R-2 | Circular dependency: PKI needs web, web needs PKI | Startup deadlock | Lazy cert loading after both components are up |
 | R-3 | Reload rollback leaves store/config drift once `zepki.Load` moves before plugin apply | Rollback path in `doReload` restores provider but serves new certs | Re-install the prior PKI config in `rollbackReload` (re-prepare from the prior provider snapshot's `pki` root) |
-| R-4 | geodns configured `external` with `tls.certificate` set silently serves nothing | DoT/DoH listeners absent, only a log line | Loud failure: resolution error logged at error level + secure listeners not started (existing `secure.go:213-215` semantics); doctor check flags the reference; document in geodns YANG description |
-| R-5 | Web configured with a broken reference silently downgrades to self-signed (operator believes real cert is served) | Browser shows self-signed warning in production | Fail CLOSED for web: startup returns error (like pki config errors `main.go:360-367`); reload rejects the commit; never silent fallback when a name WAS configured |
-| R-6 | `intermediate` supports a single certificate (`pki/config.go:147-158`), deeper chains (leaf+2 intermediates) cannot be expressed | Operator with a 4-tier CA cannot serve a complete chain | Out of scope: single-intermediate chains cover the common case; doctor's chain check reports AKI/SKI mismatch so the gap is visible; extending `intermediate` to a list is follow-up work |
+| R-4 | geodns configured `external` with `tls.certificate` set silently serves nothing | DoT/DoH listeners absent, only a log line | Loud failure: resolution error logged at error level + secure listeners not started (existing `secure.go` semantics); doctor check flags the reference; document in geodns YANG description |
+| R-5 | Web configured with a broken reference silently downgrades to self-signed (operator believes real cert is served) | Browser shows self-signed warning in production | Fail CLOSED for web: startup returns error (like pki config errors `main.go`); reload rejects the commit; never silent fallback when a name WAS configured |
+| R-6 | `intermediate` supports a single certificate (`pki/config.go`), deeper chains (leaf+2 intermediates) cannot be expressed | Operator with a 4-tier CA cannot serve a complete chain | Out of scope: single-intermediate chains cover the common case; doctor's chain check reports AKI/SKI mismatch so the gap is visible; extending `intermediate` to a list is follow-up work |
 
-Notes on skeleton rows (append-only): R-1 is refined by R-5 -- the self-signed fallback applies only when NO reference is configured; a configured-but-expired cert is caught by `pki.Validate` at commit (`store.go:56-60`) and by expiry warnings 30 days ahead (`health.go:101-114`). R-2 did not materialize: pki is a passive in-process store loaded from the config tree (`main.go:359-364`) with no dependency on web; no lazy loading needed.
+Notes on skeleton rows (append-only): R-1 is refined by R-5 -- the self-signed fallback applies only when NO reference is configured; a configured-but-expired cert is caught by `pki.Validate` at commit (`store.go`) and by expiry warnings 30 days ahead (`health.go`). R-2 did not materialize: pki is a passive in-process store loaded from the config tree (`main.go`) with no dependency on web; no lazy loading needed.
 
 ## Wiring Test (MANDATORY)
 | Entry Point | -> | Feature Code | Test |
@@ -238,10 +238,10 @@ Notes on skeleton rows (append-only): R-1 is refined by R-5 -- the self-signed f
 AC-3 scope note: "config validation error" means commit rejection on the hub-owned web path
 (startup error / reload error). For as112/geodns the same condition is AC-7/AC-8 behavior
 (loud apply failure + doctor), because their verifier only receives the `service` root
-(`register.go:120` ConfigRoots) and must not have the pki root (private keys) delivered
+(`register.go` ConfigRoots) and must not have the pki root (private keys) delivered
 to a possibly-external plugin process.
 AC-4 is proven with a Go `crypto/tls` client asserting two `PeerCertificates` (the .ci
-observer sandbox cannot drive TLS handshakes, see `test/plugin/as112-dot.ci:55-57`);
+observer sandbox cannot drive TLS handshakes, see `test/plugin/as112-dot.ci`);
 `openssl s_client` remains the manual operator check.
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -282,7 +282,7 @@ observer sandbox cannot drive TLS handshakes, see `test/plugin/as112-dot.ci:55-5
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| `certificate` leaf length (all three YANG modules) | 1..255 chars (mirrors `pki/config.go:17` maxNameLen + `validateName`) | 255-char name | empty string | 256-char name |
+| `certificate` leaf length (all three YANG modules) | 1..255 chars (mirrors `pki/config.go` maxNameLen + `validateName`) | 255-char name | empty string | 256-char name |
 
 No new numeric leaves; ports/paths of the tls/doh containers are unchanged.
 
@@ -298,7 +298,7 @@ No new numeric leaves; ports/paths of the tls/doh containers are unchanged.
 
 ### Interop Tests (MANDATORY for protocol features)
 N/A -- no wire-protocol change. TLS serving uses stock `crypto/tls`; DoT/DoH transports
-and their interop runbook were proven in spec-followup-subsystem (`test/plugin/as112-dot.ci:6-7`
+and their interop runbook were proven in spec-followup-subsystem (`test/plugin/as112-dot.ci`
 cites `TestDoTListener` + runbook). The chain content is asserted by Go handshake tests above.
 
 ### Future (if deferring any tests)
@@ -326,7 +326,7 @@ None deferred.
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | YANG schema (new RPCs/config) | [ ] yes | `internal/component/web/yang/ze-web-conf.yang`, `internal/plugins/as112/yang/ze-as112-conf.yang`, `internal/plugins/geodns/yang/ze-geodns-conf.yang` (existing modules extended; no new module registration) |
-| YANG validation constraints | [ ] yes | `certificate` leaves get `length "1..255"` + `pattern` for the pki name charset (`pki/config.go:45-50`); booleans/ports unchanged |
+| YANG validation constraints | [ ] yes | `certificate` leaves get `length "1..255"` + `pattern` for the pki name charset (`pki/config.go`); booleans/ports unchanged |
 | YANG custom validators | [ ] no | cross-root reference existence cannot be a per-leaf `ValidateFn` (no tree access); enforced at hub startup/reload (web) and doctor + apply (plugins). Optional follow-up: `CompleteFn` completing live store names |
 | CLI commands/flags | [ ] no | config-only feature; no new verbs |
 | CLI grammar (action before identifier) | [ ] no | no CLI change |
@@ -335,7 +335,7 @@ None deferred.
 | Pipe completeness | [ ] no | no new output-producing command |
 | Env var registration | [ ] yes | `ze.web.certificate` in `internal/component/config/environment.go` (environment/ leaf rule); plugin `service.*` leaves need none |
 | Doctor check for runtime dependencies | [ ] yes | `pki.CheckCertReference` helper (pki owns cert semantics); as112/geodns extend existing tls checks; web registers via `diagnostic.RegisterDoctorCheck`; new code `doctor-tls-reference` in `internal/core/diagnostic/codes.go` + unit tests + functional doctor coverage test (`TestDoctorCoverageCodesRegistered`) |
-| Prometheus counters/metrics | [ ] no new | store entries already emit `ze_pki_certificate_expiry_seconds` / `ze_pki_certificate_near_expiry` (`pki/health.go:143-167`); serving certs are store entries, so expiry observability is inherited |
+| Prometheus counters/metrics | [ ] no new | store entries already emit `ze_pki_certificate_expiry_seconds` / `ze_pki_certificate_near_expiry` (`pki/health.go`); serving certs are store entries, so expiry observability is inherited |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -359,7 +359,7 @@ None deferred.
 | 17 | Existing config/CLI examples in docs for this area? | [ ] check | DoT/DoH examples showing cert-file must mention the certificate alternative |
 
 ## Files to Create
-- `internal/component/pki/tls.go` - `ServerTLSMaterial(name) (certPEM, keyPEM []byte, err error)` + `CheckCertReference(cfg *PKIConfig, name string, now time.Time)` doctor helper (reuses `marshalPrivateKeyPEM`, chain shape of `show.go:196-199`)
+- `internal/component/pki/tls.go` - `ServerTLSMaterial(name) (certPEM, keyPEM []byte, err error)` + `CheckCertReference(cfg *PKIConfig, name string, now time.Time)` doctor helper (reuses `marshalPrivateKeyPEM`, chain shape of `show.go`)
 - `internal/component/pki/tls_test.go` - unit tests listed above
 - `internal/component/web/doctor.go` + `doctor_test.go` - web reference doctor check (if not folded into register.go)
 - `cmd/ze/hub/service_web_test.go` additions or new test file for the hub glue tests
@@ -444,10 +444,10 @@ None deferred.
 |-------|-----------------|
 | Private key handling | key PEM never logged, never written to disk on these paths (unlike ipsec `ExportPEM`); keys stay in-memory PEM/DER; error messages name the certificate, never key material |
 | Fail-closed web | configured-but-broken reference must NEVER silently serve self-signed (R-5); verify both startup and reload paths |
-| Reference name as input | name flows into map lookup only; `validateName` charset already prevents traversal (`pki/config.go:30-50`); no filesystem use |
+| Reference name as input | name flows into map lookup only; `validateName` charset already prevents traversal (`pki/config.go`); no filesystem use |
 | External plugin boundary | pki root is NOT added to plugin `ConfigRoots`/`WantsConfig` (would ship private keys over the plugin transport); geodns-external resolution fails loudly (R-4) |
 | Downgrade on rotation failure | a reload that breaks the reference must reject the commit (web) or keep serving the previous material until rebind (DoT/DoH), never fall back to self-signed mid-flight |
-| TLS floor | TLS 1.2 minimum preserved (`selfcert.go:181-184`) on all new paths |
+| TLS floor | TLS 1.2 minimum preserved (`selfcert.go`) on all new paths |
 
 ### Failure Routing
 | Failure | Route To |
@@ -465,7 +465,7 @@ None deferred.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| Spec skeleton cited `internal/component/web/service_web.go:268` and `web/selfcert.go:176` | Producers are `cmd/ze/hub/service_web.go:282` and `internal/core/selfcert/selfcert.go:176` | 2026-07-10 design research read the tree | Citations corrected; design unchanged |
+| Spec skeleton cited `internal/component/web/service_web.go` and `web/selfcert.go` | Producers are `cmd/ze/hub/service_web.go` and `internal/core/selfcert/selfcert.go` | 2026-07-10 design research read the tree | Citations corrected; design unchanged |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -488,22 +488,22 @@ shape for core-hosted listeners like dnsserver.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Chain assembly lives in `internal/component/pki` (`ServerTLSMaterial`, new `tls.go`) | (a) shared loader in `internal/core` (selfcert or dnsserver); (b) each consumer assembles from `CertificateEntry` | (a) violates the core import-direction rule (`ai/rules/module-tiers.md`, dep_audit gate) since core may not import component pki; (b) duplicates the `show.go:196-199` chain logic in 3+ places. module-tiers.md:42 names pki the home for shared cert infrastructure for TLS users |
-| Loader returns PEM bytes (chain + key), not `*tls.Certificate` | returning `tls.Certificate` or `*tls.Config` | PEM feeds the EXISTING `selfcert.NewTLSConfig` path both consumers already use (`web/server.go:111`, `tlsmaterial.go:39`), so TLS policy (1.2 floor) stays in one place and consumers change minimally |
-| dnsserver gets the material via an injected resolver func; `SecureConfig` carries only the `Certificate` name | (a) core dnsserver imports pki; (b) plugins pre-resolve PEM into new SecureConfig byte fields | (a) tier violation; (b) splits parse-time struct with apply-time material and would re-resolve stale material between OnConfigure runs; the resolver runs inside `buildSecureTLS` per apply, matching the existing per-apply file re-read that makes rotation work (`secure.go:228-231`) |
-| Web rotation via `tls.Config.GetCertificate` over an atomic cert + hub updater called after `zepki.Load` on reload | (a) restart/rebind web listeners on cert change; (b) no rotation (restart required) | web holds long-lived sessions (SSE); GetCertificate swap is race-free per handshake and needs no listener churn; dnsserver keeps its existing rebind-by-fingerprint because that machinery already exists (`secure.go:274-290`) |
-| Move `zepki.Load` before plugin apply in `doReload`; rollback reinstalls prior store | validate-only early + late install (today); double-load | the store is already validated side-effect-free early (`main_reload.go:131`); consumers resolving names during apply must see the same commit's material (AC-10); rollback path re-prepares the prior pki root so drift (R-3) is impossible |
-| Web fail-closed, DoT/DoH degrade-loud on broken references | uniform silent fallback to self-signed | a configured web reference silently downgrading is an operator trap (R-5); DoT/DoH already have a defined loud-degrade contract that keeps cleartext DNS up (`secure.go:213-215`) and their commit path must not depend on cross-root data a possibly-external plugin cannot see |
+| Chain assembly lives in `internal/component/pki` (`ServerTLSMaterial`, new `tls.go`) | (a) shared loader in `internal/core` (selfcert or dnsserver); (b) each consumer assembles from `CertificateEntry` | (a) violates the core import-direction rule (`ai/rules/architecture.md`, dep_audit gate) since core may not import component pki; (b) duplicates the `show.go` chain logic in 3+ places. architecture.md names pki the home for shared cert infrastructure for TLS users |
+| Loader returns PEM bytes (chain + key), not `*tls.Certificate` | returning `tls.Certificate` or `*tls.Config` | PEM feeds the EXISTING `selfcert.NewTLSConfig` path both consumers already use (`web/server.go`, `tlsmaterial.go`), so TLS policy (1.2 floor) stays in one place and consumers change minimally |
+| dnsserver gets the material via an injected resolver func; `SecureConfig` carries only the `Certificate` name | (a) core dnsserver imports pki; (b) plugins pre-resolve PEM into new SecureConfig byte fields | (a) tier violation; (b) splits parse-time struct with apply-time material and would re-resolve stale material between OnConfigure runs; the resolver runs inside `buildSecureTLS` per apply, matching the existing per-apply file re-read that makes rotation work (`secure.go`) |
+| Web rotation via `tls.Config.GetCertificate` over an atomic cert + hub updater called after `zepki.Load` on reload | (a) restart/rebind web listeners on cert change; (b) no rotation (restart required) | web holds long-lived sessions (SSE); GetCertificate swap is race-free per handshake and needs no listener churn; dnsserver keeps its existing rebind-by-fingerprint because that machinery already exists (`secure.go`) |
+| Move `zepki.Load` before plugin apply in `doReload`; rollback reinstalls prior store | validate-only early + late install (today); double-load | the store is already validated side-effect-free early (`main_reload.go`); consumers resolving names during apply must see the same commit's material (AC-10); rollback path re-prepares the prior pki root so drift (R-3) is impossible |
+| Web fail-closed, DoT/DoH degrade-loud on broken references | uniform silent fallback to self-signed | a configured web reference silently downgrading is an operator trap (R-5); DoT/DoH already have a defined loud-degrade contract that keeps cleartext DNS up (`secure.go`) and their commit path must not depend on cross-root data a possibly-external plugin cannot see |
 | Plugin-side commit rejection for missing references NOT attempted; doctor + loud apply instead | deliver `pki` root to plugin verifiers via ConfigRoots | delivering the pki root would ship private keys over the plugin transport to possibly-external processes; doctor checks get the full tree in the hub process (A-4) and cover the pre-flight need |
 | One new doctor code `doctor-tls-reference`; reuse `doctor-tls-expired` for expiry | reuse `doctor-tls-missing`/`invalid` for reference problems | missing-file and missing-store-entry have different operator fixes; a dedicated code keeps `ze explain` actionable, while expiry semantics are identical to the file case |
-| Leaf named `certificate` on all three surfaces | `pki-certificate`, `certificate-name` | matches the established ipsec reference precedent (`ze-ipsec-conf.yang:228`: "Name of the server certificate in the PKI store") and config-naming (noun, no redundancy) |
+| Leaf named `certificate` on all three surfaces | `pki-certificate`, `certificate-name` | matches the established ipsec reference precedent (`ze-ipsec-conf.yang`: "Name of the server certificate in the PKI store") and config-naming (noun, no redundancy) |
 
 ## Known Limitations
 - No current bug: self-signed certs have no chain to serve
 - Gap is architectural: no path exists to use operator certs even if desired
 - ~~Certificate rotation / reload not covered in this skeleton~~ (now in scope: AC-9/AC-10 cover rotation and reload ordering)
-- Looking glass TLS (`cmd/ze/hub/service_lg.go:78`) keeps the self-signed-only path; it is the same `LoadOrGenerateCert` + PEM-in pattern, so extending it is a small follow-up consuming `pki.ServerTLSMaterial` (out of scope to keep this spec bounded; same for MCP/REST if they grow TLS)
-- Single intermediate only: `pki` stores at most one intermediate per entry (`config.go:147-158`); deeper chains need a schema extension (R-6)
+- Looking glass TLS (`cmd/ze/hub/service_lg.go`) keeps the self-signed-only path; it is the same `LoadOrGenerateCert` + PEM-in pattern, so extending it is a small follow-up consuming `pki.ServerTLSMaterial` (out of scope to keep this spec bounded; same for MCP/REST if they grow TLS)
+- Single intermediate only: `pki` stores at most one intermediate per entry (`config.go`); deeper chains need a schema extension (R-6)
 - Client-certificate authentication (mTLS) on these listeners is not in scope; this spec covers the server-side chain only
 - Live CLI completion of store certificate names (CompleteFn) is a UX follow-up, not required for correctness
 - geodns run as an external plugin cannot resolve the in-process store; behavior is loud failure + doctor diagnostic (R-4), not support

@@ -23,7 +23,7 @@ import (
 // silently, the exact fail-open siblings policyFilterFunc (filter_chain.go) and
 // default-originate (peer_initial_sync.go) already reject loudly. These tests
 // drive exportFilterForBody directly (the entry point that triggers the guard,
-// per fail-closed-guards.md) and pin each of the three split cases.
+// per evidence.md) and pin each of the three split cases.
 //
 // Spec: plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1, AC-2).
 

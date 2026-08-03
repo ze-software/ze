@@ -2,7 +2,7 @@
 
 ## Context
 
-CI ran ONLY the fast gate (`make ze-verify` on push/pull_request); the entire heavy evidence surface -- Linux-integration, QEMU, fuzz, mutation, interop -- existed as make targets that no automated pipeline invoked, so a regression in any heavy suite silently reached main. `ai/rules/qemu-testing.md` called QEMU tests blocking while nothing enforced them. The goal was a scheduled nightly pipeline invoking a representative evidence subset, advisory-first, converting "silently reaches main" into next-day detection.
+CI ran ONLY the fast gate (`make ze-verify` on push/pull_request); the entire heavy evidence surface -- Linux-integration, QEMU, fuzz, mutation, interop -- existed as make targets that no automated pipeline invoked, so a regression in any heavy suite silently reached main. `ai/rules/platform-linux.md` called QEMU tests blocking while nothing enforced them. The goal was a scheduled nightly pipeline invoking a representative evidence subset, advisory-first, converting "silently reaches main" into next-day detection.
 
 ## Decisions
 
@@ -12,7 +12,7 @@ CI ran ONLY the fast gate (`make ze-verify` on push/pull_request); the entire he
 
 ## Consequences
 
-- **AC-6 (QEMU) remains OPEN as a deliberate runner-gated follow-up:** `ze-qemu-integration-test` is absent from the nightly because GitHub-hosted runners do not reliably provide nested virt / KVM, and it is still enforced by review alone (the `ai/rules/qemu-testing.md` "What actually RUNS these suites" table says so explicitly). The guard makes the follow-up self-announcing: `TestEvidenceNightlyRunsFuzzAndIntegration` FAILS if `ze-qemu-integration-test` is added, so the follow-up cannot land without also updating the guard. When a KVM-capable runner is confirmed, either add the target or switch the step to the `ze-release-evidence` composite (which self-skips QEMU/Docker via its probes). Closure must home this as a deferral row pointing at this summary.
+- **AC-6 (QEMU) remains OPEN as a deliberate runner-gated follow-up:** `ze-qemu-integration-test` is absent from the nightly because GitHub-hosted runners do not reliably provide nested virt / KVM, and it is still enforced by review alone (the `ai/rules/platform-linux.md` "What actually RUNS these suites" table says so explicitly). The guard makes the follow-up self-announcing: `TestEvidenceNightlyRunsFuzzAndIntegration` FAILS if `ze-qemu-integration-test` is added, so the follow-up cannot land without also updating the guard. When a KVM-capable runner is confirmed, either add the target or switch the step to the `ze-release-evidence` composite (which self-skips QEMU/Docker via its probes). Closure must home this as a deferral row pointing at this summary.
 - The fast merge gate is pinned: `TestVerifyWorkflowIsTheFastMergeGate` fails if `verify.yml` gains a schedule trigger or any heavy suite; `TestValidationIsNotOnWoodpecker` fails if a `.woodpecker/` pipeline reappears; `TestWorkflowMakeTargetsExist` fails if any workflow names a make target with no rule head (the failure mode that lets night-only pipelines rot).
 - Interop and mutation suites are still unscheduled; they are later expansions once nightly timing is known.
 
@@ -21,7 +21,7 @@ CI ran ONLY the fast gate (`make ze-verify` on push/pull_request); the entire he
 - The spec's own verification claim was fabricated once: an `evidence-pipeline-dryrun` check was cited that DOES NOT EXIST (grep found the name only inside the spec; no woodpecker binary was present, so the claimed config lint never ran). The real verification is the Go guard tests plus `make -n` on the invoked targets.
 - The pre-migration fuzz-only scope rested on a circular justification (an implementer-authored "AUTONOMOUS DEFAULT" note cited as approval). Thomas's explicit instruction is what resolved AC-2, not the note.
 - "No cron config exists in the repo" was stale when written: `.woodpecker/perf-nightly.yml` already existed (and was the template); the true gap was that no cron ran any integration/QEMU/fuzz suite.
-- Even the non-QEMU `ze-integration-test` needs capabilities (`mk/test-integration.mk:83-105` recipe comments name `CAP_NET_ADMIN` / root); an unprivileged runner would skip all six suites and report a vacuous green. Confirmed by reading the producer, not assumed.
+- Even the non-QEMU `ze-integration-test` needs capabilities (`mk/test-integration.mk` recipe comments name `CAP_NET_ADMIN` / root); an unprivileged runner would skip all six suites and report a vacuous green. Confirmed by reading the producer, not assumed.
 
 ## Files
 
@@ -29,5 +29,5 @@ CI ran ONLY the fast gate (`make ze-verify` on push/pull_request); the entire he
 - `.github/workflows/verify.yml` (fast merge gate, ported from Woodpecker; push/pull_request -> `make ze-verify`)
 - `.github/workflows/perf-nightly.yml` (ported; scheduled-only, guarded by `TestPerfNightlyIsScheduled`)
 - `scripts/dev/github_workflows_test.go` (7 shape guards)
-- `ai/rules/qemu-testing.md` ("What actually RUNS these suites" enforcement table)
+- `ai/rules/platform-linux.md` ("What actually RUNS these suites" enforcement table)
 - Removed: `.woodpecker/` (validation off Codeberg)

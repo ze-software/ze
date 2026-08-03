@@ -76,23 +76,23 @@ spec could land before fw-7 introduces a second traffic backend.
 ## Gotchas
 
 - **The SDK does NOT dispatch OnConfigVerify/OnConfigApply when the diff for a
-  plugin's root is empty.** `internal/component/plugin/server/reload.go:190-216`
+  plugin's root is empty.** `internal/component/plugin/server/reload.go`
   only adds a plugin to `affected` if `rootHasChanges(diff, root)` is true. A
   comment-only change inside `traffic-control` produces an empty semantic diff
   and the reactor never runs -- the reload test's first draft (comment-only
   config2) passed boot but silently skipped reload. The fix was to make the
   reload actually change a leaf.
 - **Removing a plugin's root entirely auto-stops the plugin** (via
-  `autoStopForRemovedConfigPaths`, `reload.go:160-170`). So "reload with
+  `autoStopForRemovedConfigPaths`, `reload.go`). So "reload with
   traffic-control section removed" does NOT run OnConfigApply -- it closes the
   backend and kills the plugin process. Tests that want to exercise the reload
   path must keep the section present and mutate inside it.
 - **Background `ze` in a `.ci` test does not receive `ZE_READY_FILE`.** Only
   the foreground path writes daemon.pid + daemon.ready (see
-  `runner_exec.go:705-717`). Reload tests need ze foreground and the signalling
+  `runner_exec.go`). Reload tests need ze foreground and the signalling
   script as a background cmd that polls for daemon.ready.
 - **`expect=stderr:contains=` only fires inside the `ExpectExitCode != nil`
-  branch** (`runner_exec.go:838-859`). Without `expect=exit:code=0` the runner
+  branch** (`runner_exec.go`). Without `expect=exit:code=0` the runner
   falls through to the "peer produced successful" path and reports
   TYPE=unknown. Orchestrated `.ci` tests without a peer must set an exit code
   expectation.

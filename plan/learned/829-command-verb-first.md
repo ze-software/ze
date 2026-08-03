@@ -2,14 +2,14 @@
 
 ## Context
 
-All CLI commands must follow `<verb> <noun> [<action>] [<identifier>]` grammar per `ai/rules/cli-grammar.md`. About 60 plugin commands and 16 inter-plugin dispatch calls used noun-first form (e.g., `sysctl show` instead of `show sysctl`, `bgp rib status` instead of `show bgp rib status`). This created grammar inconsistency and blocked the `spec-command-strip-prefix` work which assumed a single noun prefix per plugin.
+All CLI commands must follow `<verb> <noun> [<action>] [<identifier>]` grammar per `ai/rules/cli.md`. About 60 plugin commands and 16 inter-plugin dispatch calls used noun-first form (e.g., `sysctl show` instead of `show sysctl`, `bgp rib status` instead of `show bgp rib status`). This created grammar inconsistency and blocked the `spec-command-strip-prefix` work which assumed a single noun prefix per plugin.
 
 ## Decisions
 
 - Chose 8 root verbs (`show`, `monitor`, `clear`, `set`, `request`, `resolve`, `commit`, `update`) over 18+ domain verbs, keeping the vocabulary small and learnable
 - Folded `log` into `show log`/`set log`, `del` into `clear`, `subscribe`/`unsubscribe` into `request`, over keeping them as standalone verbs
 - Kept `resolve` as distinct from `show` (network lookups vs. local state reads) over merging them
-- Implemented deprecation via `CommandRegistry.RegisterDeprecated()` with once-per-session warnings over breaking changes, per cli-grammar.md backward compat requirement
+- Implemented deprecation via `CommandRegistry.RegisterDeprecated()` with once-per-session warnings over breaking changes, per cli.md backward compat requirement
 - Added `DeprecatedNames []string` to `rpc.CommandDecl` so plugins declare old names alongside new ones over a centralized alias table, keeping names co-located with their command
 - Deprecated lookups return the canonical `RegisteredCommand` (new name), so plugin handlers only switch on new names over having plugins handle both old and new forms
 

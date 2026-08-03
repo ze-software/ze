@@ -11,7 +11,7 @@
 #
 # It measures assumption A-4 of spec-knowledge-3-rule-digest: whether a model
 # that sees a matching **When:** trigger actually loads the rule. It runs in the
-# CURRENT world where ai/rules/CONDENSED.md is still eagerly imported, so a miss
+# world where every rule's trigger line is loaded but its body is not, so a miss
 # it reports is a session that never consulted a rule its own file types matched
 # even with the whole digest in context. The logic, and the blind spot it under-
 # reports through, live in scripts/dev/rule_coverage.py.

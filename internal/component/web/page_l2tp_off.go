@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp-off L2TP page stub
+// Design: ai/rules/plugins.md -- ze_l2tp-off L2TP page stub
 // Related: page_l2tp.go -- the real BNG-backed pages (ze_l2tp builds)
 
 //go:build !ze_l2tp

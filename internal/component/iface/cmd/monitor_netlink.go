@@ -21,7 +21,7 @@ const (
 )
 
 // netlinkGroups is the canonical list of accepted netlink monitor groups.
-// Every "valid: ..." message derives from it (ai/rules/derive-not-hardcode.md).
+// Every "valid: ..." message derives from it (ai/rules/evidence.md).
 var netlinkGroups = []string{netlinkGroupRoute, netlinkGroupLink, netlinkGroupAddress, netlinkGroupAll}
 
 var errUnknownNetlinkGroup = newUnknownNetlinkGroupError()

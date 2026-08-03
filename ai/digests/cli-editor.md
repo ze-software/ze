@@ -13,56 +13,56 @@ surface is reachable offline via `ze <verb> ...`, which routes to the daemon ove
 to in-process registry handlers.
 
 ## Flow
-1. **SSH session → model.** `buildSessionModelFactory` (`cmd/ze/hub/session_factory.go:56`)
-   builds a per-user `*cli.Editor` (`newSessionEditor`, `session_factory.go:36`; sets a
-   reload notifier), then `cli.NewModel(ed)` (`internal/component/cli/model.go:317`). It wires
+1. **SSH session → model.** `buildSessionModelFactory` (`cmd/ze/hub/session_factory.go`)
+   builds a per-user `*cli.Editor` (`newSessionEditor`, `session_factory.go`; sets a
+   reload notifier), then `cli.NewModel(ed)` (`internal/component/cli/model.go`). It wires
    `SetCommandCompleter(cmdCompleter)`, `SetCommandExecutor(executor)` where `executor =
-   srv.ExecutorForUser(...)` (`internal/component/ssh/ssh.go:323`), plus audit recorder and
-   stop/restart callbacks (`session_factory.go:87-107`; view factories injected via
+   srv.ExecutorForUser(...)` (`internal/component/ssh/ssh.go`), plus audit recorder and
+   stop/restart callbacks (`session_factory.go`; view factories injected via
    `injectViewFactories` → `cli.RegisteredViews()`). No editor (`ConfigPath` empty) →
-   `cli.NewCommandModel()` (`model.go:373`), an operational-only console. `ze start --cli`
-   uses the same models via `client.RunAttached` (`internal/component/cli/client/main.go:99`).
-2. **Keystroke → dispatch.** `Model.Update` (`model.go:440`) routes `tea.KeyPressMsg` to
-   `handleKeyMsg` (`model_keys.go:18`). Tab → `handleTab` (`model_keys.go:273`) accepts ghost
-   text / opens the dropdown; Enter → `handleEnter` (`model_keys.go:344`). `handleEnter` is
+   `cli.NewCommandModel()` (`model.go`), an operational-only console. `ze start --cli`
+   uses the same models via `client.RunAttached` (`internal/component/cli/client/main.go`).
+2. **Keystroke → dispatch.** `Model.Update` (`model.go`) routes `tea.KeyPressMsg` to
+   `handleKeyMsg` (`model_keys.go`). Tab → `handleTab` (`model_keys.go`) accepts ghost
+   text / opens the dropdown; Enter → `handleEnter` (`model_keys.go`). `handleEnter` is
    mode-aware: `configure`/config-verbs switch to `ModeConfig`, `run <cmd>` and operational
    verbs go operational, `exit`/`quit`/`stop`/`restart` are handled inline before async
-   dispatch (`model_keys.go:366-501`).
-3. **Config edit → tree.** In `ModeConfig`, `executeCommand` (`model_commands.go:32`) →
-   `dispatchCommand` (`model_commands.go:41`) tokenizes with `tokenizeCommand`
-   (`model_commands.go:271`, quote-aware, no backslash escapes) and switches on `tokens[0]`
-   against the `cmd*` name constants (`model.go:180`): `set/delete/activate/insert/rename/copy`
+   dispatch (`model_keys.go`).
+3. **Config edit → tree.** In `ModeConfig`, `executeCommand` (`model_commands.go`) →
+   `dispatchCommand` (`model_commands.go`) tokenizes with `tokenizeCommand`
+   (`model_commands.go`, quote-aware, no backslash escapes) and switches on `tokens[0]`
+   against the `cmd*` name constants (`model.go`): `set/delete/activate/insert/rename/copy`
    → editor tree mutation (`model_commands_edit.go`), `edit/top/up` → context navigation,
-   `show/option` → viewport render. Each returns a `commandResult` (`model.go:270`) applied by
-   `handleCommandResult` (`model.go:533`).
-4. **Completion (YANG-driven).** `updateCompletions` (`model.go:641`) picks the source by mode:
-   config completion `Completer.Complete` (`cli/completer.go:118`) walks the editor's `*config.Tree`;
-   leaf values come from `valueCompletions` (`cli/completer.go:769`), `ze:validate` `CompleteFn`
-   first (`validateCompletions`, `cli/completer.go:835`), then YANG `enum`/`bool`/`union`, else a
+   `show/option` → viewport render. Each returns a `commandResult` (`model.go`) applied by
+   `handleCommandResult` (`model.go`).
+4. **Completion (YANG-driven).** `updateCompletions` (`model.go`) picks the source by mode:
+   config completion `Completer.Complete` (`cli/completer.go`) walks the editor's `*config.Tree`;
+   leaf values come from `valueCompletions` (`cli/completer.go`), `ze:validate` `CompleteFn`
+   first (`validateCompletions`, `cli/completer.go`), then YANG `enum`/`bool`/`union`, else a
    `<type>` hint. Operational completion is `TreeCompleter.Complete`
-   (`internal/component/command/completer.go:136`) over a `*command.Node` tree built from YANG
-   command modules by `BuildCommandTree` (`internal/component/config/yang/command.go:170`).
-5. **Operational command → daemon.** `executeOperationalCommand` (`model_mode.go:147`) runs
+   (`internal/component/command/completer.go`) over a `*command.Node` tree built from YANG
+   command modules by `BuildCommandTree` (`internal/component/config/yang/command.go`).
+5. **Operational command → daemon.** `executeOperationalCommand` (`model_mode.go`) runs
    pipe operators through `command.ProcessPipesDefaultFormatChecked`, then calls the injected
    `executor(cmdStr)` which reaches the daemon dispatcher.
-6. **Daemon dispatch (online).** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go:538`)
+6. **Daemon dispatch (online).** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
    tokenizes, `matchBuiltinTokens` finds the longest builtin **YANG-path** prefix (inline typed
    selectors extracted), runs authz + `validateCommandArgs`, then `matchedCmd.Handler(ctx, args)`.
    Builtins are registered under their YANG path by `LoadBuiltins`/`LoadBuiltinsWithAliases`
-   (`server/command.go:53,72`): `name := wireToPath[reg.WireMethod]`; read-only class from
-   `IsReadOnlyPath` (`server/command.go:106`).
+   (`server/command.go,72`): `name := wireToPath[reg.WireMethod]`; read-only class from
+   `IsReadOnlyPath` (`server/command.go`).
 7. **Commit → reactor.** `commit` → `cmdCommit`/`cmdCommitSession`
-   (`model_commands_commit.go:142,255`): `validator.ValidateTransition` blocks on **errors AND
+   (`model_commands_commit.go,255`): `validator.ValidateTransition` blocks on **errors AND
    warnings**, then `commitSaveAndReload`/`commitCandidateAndReload` (`:197,221`) →
-   `editor.StageCandidate` → `editor.NotifyReload()` (`editor.go:268`) invokes the wired
-   `onReload` = `reloadAfterCommit` (`cmd/ze/hub/main.go:606`) → `doReload(apiServer, eng, ...)`;
+   `editor.StageCandidate` → `editor.NotifyReload()` (`editor.go`) invokes the wired
+   `onReload` = `reloadAfterCommit` (`cmd/ze/hub/main.go`) → `doReload(apiServer, eng, ...)`;
    on success `MarkCommittedContent`. Reload failure clears the candidate and leaves the editor
    dirty. With no reload notifier (standalone) it just `editor.Save()`s to disk.
-8. **Offline (`ze <verb> ...`).** `dispatchMain` (`cmd/ze/dispatch.go:148`) → `zeDispatch`
-   (`cmd/ze/ze_core_dispatch.go:284`). A YANG verb (`isYANGVerb`, `ze_core_dispatch.go:559`) →
-   `cmdutil.RunCommand` (`cmd/ze/internal/cmdutil/cmdutil.go:53`), which validates against the
+8. **Offline (`ze <verb> ...`).** `dispatchMain` (`cmd/ze/dispatch.go`) → `zeDispatch`
+   (`cmd/ze/ze_core_dispatch.go`). A YANG verb (`isYANGVerb`, `ze_core_dispatch.go`) →
+   `cmdutil.RunCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`), which validates against the
    YANG verb tree, tries local handlers, then routes daemon commands through `cli.Run` (SSH).
-   Non-verbs → `registry.LookupRoot`/`LookupLocal` (`registry.go:257,312`) in-process handlers,
+   Non-verbs → `registry.LookupRoot`/`LookupLocal` (`registry.go,312`) in-process handlers,
    or a config-file path → `hub.Run`.
 
 ## Key files
@@ -85,52 +85,52 @@ to in-process registry handlers.
 
 ## Invariants & gotchas
 - **Verb-first grammar, one vocabulary.** Every command's first token is a `command.Verbs`
-  key (`verbs.go:34`): `show/monitor/resolve` read, `set/delete` mutate the config tree,
+  key (`verbs.go`): `show/monitor/resolve` read, `set/delete` mutate the config tree,
   `clear/request/commit/update/cache/create/debug` are actions. Keywords precede free-form
   values; member selection uses typed selectors (`name`/`id`/`index`/`address`/`type`). Both
   the static grammar gate and plugin-registration gate derive from `Verbs`, never add a second
-  hardcoded verb list (`ai/rules/cli-grammar.md`).
+  hardcoded verb list (`ai/rules/cli.md`).
 - **Dispatch key = YANG path, not wire method.** `LoadBuiltins` registers under
-  `wireToPath[reg.WireMethod]` (`server/command.go:55`); a handler with no YANG entry is skipped. Moving
+  `wireToPath[reg.WireMethod]` (`server/command.go`); a handler with no YANG entry is skipped. Moving
   a `ze:command` container in the YANG tree **renames the command** and breaks any programmatic
-  sender of the bare path (see cli-grammar.md "Migrating a Built-in Command's Path").
+  sender of the bare path (see cli.md "Migrating a Built-in Command's Path").
 - **Command names are constants, not literals.** Editor commands use the `cmd*` block
-  (`model.go:180-225`); offline YANG verbs use the `yangVerbs` map (`ze_core_dispatch.go:554`);
-  modes use `ModeConfig`/`ModeOperational` (`model_mode.go:23`). Read-only status is decided by
+  (`model.go`); offline YANG verbs use the `yangVerbs` map (`ze_core_dispatch.go`);
+  modes use `ModeConfig`/`ModeOperational` (`model_mode.go`). Read-only status is decided by
   `command.IsReadOnlyVerb` (offline) and `server.IsReadOnlyPath` (runtime), keep them in sync.
 - **Completion source of truth is YANG.** Config editor completes from the live `*config.Tree`;
   operational completion from the YANG-built command `Node` tree. A leaf with `ze:validate` +
-  `CompleteFn` yields actionable values and takes priority over static `enum` (`cli/completer.go:778`);
-  a `<type>` result is a display-only `"hint"` and is not applied by Tab (`model_keys.go:315`).
+  `CompleteFn` yields actionable values and takes priority over static `enum` (`cli/completer.go`);
+  a `<type>` result is a display-only `"hint"` and is not applied by Tab (`model_keys.go`).
   The runtime tree also injects plugin `CommandRegistry` entries after startup
   (`client/inject.go` `injectPluginCommands`); the offline `BuildCommandTree` sees only
   YANG-backed commands, so a plugin needing offline completion must ship a `-cmd` YANG module
-  (`ai/rules/cli-patterns.md`).
+  (`ai/rules/cli.md`).
 - **Commit is fail-closed and transactional-when-daemon.** Both errors and warnings block a
-  plain `commit`; `commit force` skips warnings but still blocks on errors (`:173`); `commit
-  confirmed <N>` arms an auto-rollback countdown and is not supported in session mode (`:93`).
+  plain `commit`; `commit force` skips warnings but still blocks on errors; `commit
+  confirmed <N>` arms an auto-rollback countdown and is not supported in session mode.
   Session commit does conflict detection (LIVE/STALE, `:286`). Transactional path fires only when
   `HasReloadNotifier()`, `StageCandidate` → `NotifyReload` → `MarkCommittedContent`; a reload
   error clears the candidate (`storage.ClearCandidate`) and reports failure. No notifier =
   offline save, status "committed (daemon not running)".
 - **Modes and mode-crossing.** `ModeConfig` is default when an editor is attached. In config
   mode `exit` returns to operational (NOS convention); in operational mode `exit`/`quit`
-  terminate (`model_keys.go:454`). `configure` enters config mode; typing a config verb in
-  operational mode auto-switches (`configModeCommands`, `model_mode.go:95`); `run <cmd>` runs one
+  terminate (`model_keys.go`). `configure` enters config mode; typing a config verb in
+  operational mode auto-switches (`configModeCommands`, `model_mode.go`); `run <cmd>` runs one
   operational command from config mode. Pending changes gate exit/quit behind a y/N confirm.
 - **Editor guard.** `dispatchCommand` rejects config commands when `m.editor == nil` except
-  `exit/quit/help/?/run` (`model_commands.go:57`); session-only commands (`who`, `disconnect`)
+  `exit/quit/help/?/run` (`model_commands.go`); session-only commands (`who`, `disconnect`)
   need `editor.HasSession()`.
 - **`tokenizeCommand` ≠ shell.** Double-quotes group tokens; there are no backslash escapes
-  (`model_commands.go:271`). The daemon dispatcher has its own `tokenize` (`server/command.go:539`).
+  (`model_commands.go`). The daemon dispatcher has its own `tokenize` (`server/command.go`).
 - **State flows through `commandResult`, not direct mutation.** Handlers run inside a `tea.Cmd`
   closure over a value copy of `Model`; they must return changes in `commandResult`
-  (`model.go:270`) for `handleCommandResult` to apply, or the change is lost.
+  (`model.go`) for `handleCommandResult` to apply, or the change is lost.
 
 ## See also
 - `docs/architecture/cli/plugin-modes.md`, plugin CLI/decode/engine modes (`ze plugin ...`)
 - `docs/architecture/cli/command-namespacing.md`, object-rooted, family-as-filter; why filters are YANG keywords not `--flags`
-- `ai/rules/cli-grammar.md`, verb-first grammar (R1–R8), dispatch-key=YANG-path, mechanical enforcement
-- `ai/rules/cli-patterns.md`, offline `cmd/ze/` dispatch, flags, exit codes, completion requirement
+- `ai/rules/cli.md`, verb-first grammar (R1–R8), dispatch-key=YANG-path, mechanical enforcement
+- `ai/rules/cli.md`, offline `cmd/ze/` dispatch, flags, exit codes, completion requirement
 - `ai/digests/config-pipeline.md`, what `commit`'s reload re-runs (file → Tree → reactor)
 - `ai/digests/plugin-transport.md`, how plugin commands reach the dispatcher

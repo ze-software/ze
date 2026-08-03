@@ -5,7 +5,7 @@
 // device-filtering behavior the option provides. They require root (port 69 is
 // privileged) and, for the negative case, CAP_NET_ADMIN to create a dummy
 // interface. Both prerequisites are present in the QEMU Alpine VM
-// (see ai/rules/qemu-testing.md); on hosts without them the tests t.Skip.
+// (see ai/rules/platform-linux.md); on hosts without them the tests t.Skip.
 //
 // Why bind to "lo" for the positive round-trip rather than a veth/dummy:
 // locally-routed traffic between two addresses in the same network namespace
@@ -208,7 +208,7 @@ func TestTFTPServerBindsViaResolveWithoutBackend(t *testing.T) {
 	if err != nil {
 		// test-relax: same root/port-69 prerequisite skip as the other two
 		// integration tests in this file; not a coverage drop. Under QEMU
-		// (ai/rules/qemu-testing.md) the bind succeeds and the body runs.
+		// (ai/rules/platform-linux.md) the bind succeeds and the body runs.
 		t.Skipf("cannot bind %s:69 (needs root): %v", device, err)
 	}
 	defer func() { _ = conn.Close() }()

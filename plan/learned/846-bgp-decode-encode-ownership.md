@@ -38,7 +38,7 @@ exists for `ze-show:bgp-decode`), and that path is untouched.
   the label namespace.
 - **Schema lives under `cmd/` (`cmd/ze/bgp/schema`), not `internal/`.** Offline
   command + handler ownership is `cmd/ze/bgp`; the schema belongs next to it
-  (plugin-self-containment.md "Where a Plugin's Surface Lives" row: offline/root
+  (plugins.md "Where a Plugin's Surface Lives" row: offline/root
   command + handler -> owner package). `cmd -> internal` import is legal; the
   daemon CLI tree includes decode/encode only because `cmd/ze` links the
   package -- verified via `ze show bgp help`.
@@ -83,4 +83,4 @@ Same self-containment question, out of scope here.
   `internal/component/bgp/cli/register.go`
 - `internal/component/cmd/show/yang/{ze-cli-show-cmd.yang,self_containment_test.go}`
 - `test/parse/cli-show-bgp-tools-help.ci`
-- `ai/rules/plugin-self-containment.md`, `docs/contributing/documentation-testing.md`
+- `ai/rules/plugins.md`, `docs/contributing/documentation-testing.md`

@@ -1,5 +1,5 @@
 // VALIDATES: the whole built-in CLI command surface obeys the grammar rules
-// R1-R8 and carries no --flag in any .yang (ai/rules/cli-grammar.md), by running
+// R1-R8 and carries no --flag in any .yang (ai/rules/cli.md), by running
 // scripts/cli_grammar.go over the compile-time YANG command tree.
 // PREVENTS: a noun-first, flagged, or mis-typed command from regressing the surface.
 

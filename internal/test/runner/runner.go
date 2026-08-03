@@ -38,7 +38,7 @@ const TestPluginBuildTag = "zetest"
 
 // featureGatesFile is the feature-gate manifest (repo-relative): the single
 // source of truth for compile-out-able features, shared with the Makefile,
-// the generator, and dep_audit.py. See ai/rules/feature-gate-registration.md.
+// the generator, and dep_audit.py. See ai/rules/plugins.md.
 const featureGatesFile = "feature-gates.txt"
 
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.

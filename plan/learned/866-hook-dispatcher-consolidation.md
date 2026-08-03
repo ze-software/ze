@@ -31,6 +31,6 @@ The Claude Code hook system had grown to 69 shell hooks: up to 11 PreToolUse hoo
 - `.claude/hooks/auto_linter.sh` (modified) -- single golangci pass
 - `.claude/settings.json` (modified) -- 58 hook entries -> 3 dispatchers, narrowed LSP gate, agent hook removed
 - `scripts/dev/hook-parity-check.py` (created) -- self-contained golden regression test (`--bless` to regenerate)
-- `ai/rules/hook-mapping.md` (modified) -- rewritten for the dispatcher architecture
+- `ai/rules/repo-maintenance.md` (modified) -- rewritten for the dispatcher architecture
 - `ai/rules/git-safety.md` (modified) -- fixed a deleted-hook example reference
 - 56 `.claude/hooks/*.sh` (removed) -- consolidated into the dispatchers

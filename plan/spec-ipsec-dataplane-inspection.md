@@ -46,22 +46,22 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/patterns/cli-command.md` and `ai/rules/cli-grammar.md` - the shape of a new command.
+- [ ] `ai/patterns/cli-command.md` and `ai/rules/cli.md` - the shape of a new command.
   → Constraint: a per-object lookup takes a typed selector container (the `peer name` precedent in `ze-ipsec-cmd.yang`), never a bare positional, and no `--flag` may appear anywhere in a `.yang` file, descriptions included.
   → Decision: reading kernel state is a `show` verb, not `debug`, however low-level the data is.
-- [ ] `ai/rules/pipe-completeness.md` - output routing.
+- [ ] `ai/rules/cli.md` - output routing.
   → Constraint: an RPC handler returns `plugin.Map` and never formats. `command.ApplyPipes` (`internal/component/command/pipe.go`) dispatches to `ApplyTable`/`ApplyJSON`, and `renderList` (`internal/component/command/pipe_table.go`) derives table columns from the JSON keys sorted alphabetically. A handler that calls `ApplyPipes` itself is the violation.
-- [ ] `ai/rules/doctor-checks.md` - the surface a new runtime-dependency check owes.
+- [ ] `ai/rules/repo-maintenance.md` - the surface a new runtime-dependency check owes.
   → Constraint: the check lives in the owning package, registers through `registry.DoctorCheckDef`, carries a `doctor-`-prefixed code in `internal/core/diagnostic/codes.go`, and needs both a unit test and a functional `.ci`.
-- [ ] `ai/rules/fail-closed-guards.md` - a zero value must never be a valid-looking answer.
+- [ ] `ai/rules/evidence.md` - a zero value must never be a valid-looking answer.
   → Constraint: `vppBackend.ListSAs` (`internal/component/ike/dataplane/vpp.go`) and `noopDataplane.ListSAs` (`noop.go`) both return `(nil, nil)`. Rendered as a table that reads "no SAs installed", which is the exact fail-open shape this rule bans.
 - [ ] `ai/rules/interop-and-goal-validation.md` - the vacuity traps.
   → Constraint: a read-only dump passes on an empty kernel with its body deleted. Every kernel assertion must name an SPI or address the test itself installed, and must assert a transition (present, then absent), not a state.
-- [ ] `ai/rules/wiring-completeness.md` - every exported symbol has a non-test caller.
+- [ ] `ai/rules/completion.md` - every exported symbol has a non-test caller.
   → Decision: this spec is the first production caller of `ListSAs`, and of `ownerOf` in `internal/component/ike/dataplane/policy_owner.go`.
-- [ ] `ai/rules/qemu-testing.md` - Linux-only code ships with QEMU tests.
+- [ ] `ai/rules/platform-linux.md` - Linux-only code ships with QEMU tests.
   → Constraint: `//go:build integration && linux` files are auto-enrolled by `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`), which greps for that build line, so a new file in an already-enrolled package needs no Makefile edit.
-- [ ] `ai/rules/plugin-self-containment.md` - removing the plugin removes the feature.
+- [ ] `ai/rules/plugins.md` - removing the plugin removes the feature.
   → Constraint: the commands, their YANG, and their handlers stay in `internal/component/ike/`. `xfrmAvailable` (`internal/plugins/ospf/doctor_ipsec_linux.go`) is unexported and belongs to OSPF. Duplicate its two-line probe in the ike package rather than creating a cross-plugin dependency.
 
 ### RFC Summaries (Scope: protocol)
@@ -113,7 +113,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `show vpn ipsec sa` and `show vpn ipsec peer name` gain the byte and packet counters their grammar already advertises.
 - `checkKernelModules` stops reporting a missing module for functionality built into the kernel.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Operator types `show vpn ipsec dataplane sa` at the Ze CLI, over SSH or the web terminal.
@@ -152,7 +152,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -388,9 +388,9 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Naming | JSON keys are kebab-case and match the existing `show vpn ipsec sa` style (`if-id`, not `ifid`) |
 | Data flow | Handlers format nothing. Table and JSON both come from `command.ApplyPipes` |
 | Data flow | The doctor check derives its expectation from the config tree, never from `ActiveTable()`, which is nil in the doctor process |
-| Rule: `ai/rules/fail-closed-guards.md` | A nil backend, an EPERM, and an unsupported backend are three distinct errors, and none of them is an empty list |
-| Rule: `ai/rules/plugin-self-containment.md` | Nothing is added to `internal/component/doctor` except the built-in module fix, which is that package's own defect |
-| Rule: `ai/rules/wiring-completeness.md` | `ListSAs`, `ListPolicies`, and `ownerOf` each have a non-test caller when the spec closes |
+| Rule: `ai/rules/evidence.md` | A nil backend, an EPERM, and an unsupported backend are three distinct errors, and none of them is an empty list |
+| Rule: `ai/rules/plugins.md` | Nothing is added to `internal/component/doctor` except the built-in module fix, which is that package's own defect |
+| Rule: `ai/rules/completion.md` | `ListSAs`, `ListPolicies`, and `ownerOf` each have a non-test caller when the spec closes |
 | Rule: `ai/rules/interop-and-goal-validation.md` | Each kernel assertion names an object the test installed, and asserts a transition |
 
 ### Deliverables Checklist
@@ -438,7 +438,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Name the surface `dataplane`, not `xfrm` | `show vpn ipsec xfrm state` mirroring `ip xfrm` | `Dataplane` is the abstraction, and VPP is a second backend. Naming the command after the Linux backend would make the VPP case read as a category error |
 | Split SAD and SPD into two commands | One merged view | RFC 4301 Section 4.4 keeps them separate, and a policy with no matching state is the exact failure the surface exists to show. Merging hides it |
 | Drift is a live CLI view and a health signal, not a doctor check | A `ze doctor` reconciliation check | `ze doctor` runs offline against a config file, in a process where the engine never ran. `ActiveTable()` is nil there, which is why `checkIPsecUDPEncap` already says nothing in that context |
-| Unsupported backends return `ErrNotSupported` | Keep returning an empty list | An empty list is indistinguishable from "no SAs installed". `ai/rules/fail-closed-guards.md` bans a zero value that looks like a valid answer |
+| Unsupported backends return `ErrNotSupported` | Keep returning an empty list | An empty list is indistinguishable from "no SAs installed". `ai/rules/evidence.md` bans a zero value that looks like a valid answer |
 | The doctor check probes netlink instead of adding another module row | Add `esp4`/`esp6` to `checkKernelModules` | On an appliance kernel XFRM is built in, so `/proc/modules` lists nothing and the module check produces a false error. A netlink probe tests the capability rather than the packaging |
 | Byte counters come from the kernel SAD | Count in the engine as packets are processed | The engine never sees ESP payload; the kernel does. Counting in userspace would report a number that is always zero |
 | Render algorithm names and key lengths, never key bytes | Render the full `XfrmState` | The dump would otherwise print session keys to a terminal, a log, and a `| json` pipe |

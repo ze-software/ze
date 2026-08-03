@@ -75,7 +75,7 @@ as112.
 
 - A test rewritten to fix a nondeterminism bug (matching on community
   substring instead of a fixed conn number) must be checked against
-  `ai/rules/no-test-deletion.md`'s "test rewrite as replacement" concern --
+  `ai/rules/testing.md`'s "test rewrite as replacement" concern --
   here it does NOT weaken coverage, since exact byte-for-byte NLRI/AS_PATH
   hex for both AS112 covering prefixes is already asserted elsewhere
   (`as112-healthcheck-announce.ci`/`as112-healthcheck-withdraw.ci`); the
@@ -118,7 +118,7 @@ as112.
   - **The "home" decision**, previously the actual blocker (neither the
     as112 plugin nor bgp could own it without violating the spec's own
     no-layering rule -- neither may read the other's config): both checks
-    live in `internal/component/doctor` per `ai/rules/doctor-checks.md`'s
+    live in `internal/component/doctor` per `ai/rules/repo-maintenance.md`'s
     "dependency with no narrower owner" bucket, reading the whole
     `config.Tree` generically (same pattern as the pre-existing
     `checkConfigReferences`/`checkBGPMD5`), importing neither package.

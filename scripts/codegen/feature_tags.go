@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- the three static consumers are GENERATED, not hand-maintained
+// Design: ai/rules/plugins.md -- the three static consumers are GENERATED, not hand-maintained
 //
 // feature_tags regenerates the build-tag lists that DERIVE from feature-gates.txt
 // but live inside files a program cannot self-derive at runtime:
@@ -8,7 +8,7 @@
 //   - docs/guide/quickstart.md `go install`  = ze_core, ze_distro + every gate tag (sorted)
 //   - .github/workflows/codeql.yml `go build` combos = the distro and appliance shipped tag sets
 //
-// feature-gates.txt is the single source of truth (ai/rules/feature-gate-registration.md).
+// feature-gates.txt is the single source of truth (ai/rules/plugins.md).
 // The Makefile ZE_FEATURES, the test runner, the plugin_imports generator, and
 // dep_audit all already derive from the manifest; these three static files could not,
 // so they were hand-maintained + drift-gated. This generator makes them derived too:

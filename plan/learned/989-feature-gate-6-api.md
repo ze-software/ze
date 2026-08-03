@@ -80,6 +80,6 @@ packages -- worth dropping one without the other.
   `internal/component/api/yang/ze-api-conf.yang` (base only),
   `internal/component/config/{loader_extract,api_schema_check,all_schemas}_test.go`
   (relocated schema imports), `feature-gates.txt`, `.golangci.yml`,
-  `internal/component/plugin/all/all.go`, `docs/features.md`, `ai/rules/module-tiers.md`,
-  `ai/rules/feature-gate-registration.md`, `docs/architecture/mcp/overview.md` +
+  `internal/component/plugin/all/all.go`, `docs/features.md`, `ai/rules/architecture.md`,
+  `ai/rules/plugins.md`, `docs/architecture/mcp/overview.md` +
   `docs/guide/configuration.md` (stale mcp.go anchors)

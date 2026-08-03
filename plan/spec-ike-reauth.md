@@ -51,10 +51,10 @@ Add IKEv2 reauthentication:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/engine/established.go` - the maintenance loop: on IKE SA soft expiry it rekeys via `rekeyIKESA` (established.go:132-143, "RFC 7296 Section 1.3.3: IKE SA rekey via CREATE_CHILD_SA"); on hard expiry it tears down and returns `errTimeout` (established.go:145-148).
+- [ ] `internal/component/ike/engine/established.go` - the maintenance loop: on IKE SA soft expiry it rekeys via `rekeyIKESA` (established.go, "RFC 7296 Section 1.3.3: IKE SA rekey via CREATE_CHILD_SA"); on hard expiry it tears down and returns `errTimeout` (established.go).
 - [ ] `internal/component/ike/engine/rekey.go` - `rekeyIKESA` derives new keys from the old SK_d and copies the authenticated identity into the new SA (rekey path, not reauth); `newLifetimeState` builds the single soft/hard lifetime timer.
 - [ ] `internal/component/ike/ipsec/types.go` - `IKEGroup` carries only `Lifetime uint32`; no `Reauth`/`ReauthTime` field.
-- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `leaf lifetime` (ze-ipsec-conf.yang:112-118), default 28800, description at line 117 wrongly says "0 disables reauth". No `reauth`/`reauth-time` leaf.
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `leaf lifetime` (ze-ipsec-conf.yang), default 28800, description at line 117 wrongly says "0 disables reauth". No `reauth`/`reauth-time` leaf.
 - [ ] `internal/component/ike/engine/fsm.go` / `reconcile.go` - `runInitiator` performs the full IKE_SA_INIT+IKE_AUTH; the reconnect loop re-runs it on failure with backoff.
 
 **Behavior to preserve:**
@@ -178,9 +178,9 @@ Add IKEv2 reauthentication:
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | `ze-ipsec-conf.yang` reauth leaves; `ai/rules/config-surface.md`, `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | `ze-ipsec-conf.yang` reauth leaves; `ai/rules/config.md`, `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | `reauth-time` `range`; per-peer override enum |
-| CLI grammar | [ ] yes | `ai/rules/cli-grammar.md` |
+| CLI grammar | [ ] yes | `ai/rules/cli.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/ike-reauth.ci` |
 | Prometheus counters/metrics | [ ] maybe | counter for reauth events per peer |
 

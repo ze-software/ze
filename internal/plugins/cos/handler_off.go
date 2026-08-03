@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp-off dynamic-CoS stub
+// Design: ai/rules/plugins.md -- ze_l2tp-off dynamic-CoS stub
 // Related: handler.go -- the real dynamic RADIUS-CoS handler (ze_l2tp builds)
 
 //go:build !ze_l2tp

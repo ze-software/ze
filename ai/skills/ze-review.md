@@ -13,7 +13,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
 ## Delegation
 
-`ai/rules/spec-delegation.md`: the main thread supervises, it does not run this
+`ai/rules/planning.md`: the main thread supervises, it does not run this
 phase itself.
 
 - **If you are the main thread:** spawn an agent to run this skill, hand it the
@@ -24,17 +24,17 @@ phase itself.
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
-  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
   unverified is fabrication with an extra hop. Report the conclusion and the
   evidence that would overturn it, never the search. Under 40 lines
-  (`ai/rules/detail-budget.md`).
+  (`ai/rules/writing.md`).
 
 ## Steps
 
 0. **Automated pre-checks (run both, fix or report findings before proceeding):**
     - `make ze-validate` — catches the mechanical subset of steps 1-3 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
-    - `python3 scripts/dev/audit-test-relaxation.py` for uncommitted changes, or `python3 scripts/dev/audit-test-relaxation.py origin/main` to also cover work already committed but not yet pushed (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing — the tool now refuses that with exit 2 rather than reporting clean). — flags tests that were deleted or weakened rather than the code being fixed. Treat its output as findings: every `[DELETED]` and `[WEAKENED]` is a **BLOCKER** unless the code was genuinely fixed and the test legitimately no longer applies; every `[RELAXED]` (a `// test-relax:` token) must be justified by a removed feature or replaced coverage — quote the reason and have the user confirm it. A test edited to match broken code IS the defect, not the fix. This pass exists because weakening tests to reach green is a recurring failure mode (see `ai/rules/no-test-deletion.md`).
+    - `python3 scripts/dev/audit-test-relaxation.py` for uncommitted changes, or `python3 scripts/dev/audit-test-relaxation.py origin/main` to also cover work already committed but not yet pushed (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing — the tool now refuses that with exit 2 rather than reporting clean). — flags tests that were deleted or weakened rather than the code being fixed. Treat its output as findings: every `[DELETED]` and `[WEAKENED]` is a **BLOCKER** unless the code was genuinely fixed and the test legitimately no longer applies; every `[RELAXED]` (a `// test-relax:` token) must be justified by a removed feature or replaced coverage — quote the reason and have the user confirm it. A test edited to match broken code IS the defect, not the fix. This pass exists because weakening tests to reach green is a recurring failure mode (see `ai/rules/testing.md`).
 
 1. **Wiring verification (FIRST — before any other analysis):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This is the FIRST step because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
@@ -46,13 +46,13 @@ phase itself.
     | Struct / type | Same: at least one non-test consumer |
     | HTTP handler / web route | Registered on a mux (`srv.Handle`, `mux.HandleFunc`, etc.) and reachable from `hub/main.go` or `web/server.go` |
     | CLI command | Registered via `registry.MustRegisterLocal` or `registry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
-    | CLI command (completion) | Command appears in tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A command without completion is undiscoverable. See `ai/rules/cli-patterns.md` "Command Completion". |
+    | CLI command (completion) | Command appears in tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A command without completion is undiscoverable. See `ai/rules/cli.md` "Command Completion". |
     | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `make generate`) |
     | Config option / YANG leaf | YANG module registered, leaf read by runtime code (not just parsed) |
     | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |
     | Metrics | Metric created AND updated somewhere reachable |
     | Event / send type | Listed in plugin `Registration.EventTypes`/`SendTypes`, at least one subscriber/caller |
-    | Runtime dependency (file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, netlink) | A registered `ze doctor` check exists (plugin `Registration.DoctorChecks` or owning-package registration) AND a diagnostic code is registered in `internal/core/diagnostic/codes.go`. A new dependency with no doctor check is a BLOCKER: agents cannot verify host readiness before starting the daemon. See `ai/rules/doctor-checks.md`. This surface is verified nowhere else in the pipeline. |
+    | Runtime dependency (file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, netlink) | A registered `ze doctor` check exists (plugin `Registration.DoctorChecks` or owning-package registration) AND a diagnostic code is registered in `internal/core/diagnostic/codes.go`. A new dependency with no doctor check is a BLOCKER: agents cannot verify host readiness before starting the daemon. See `ai/rules/repo-maintenance.md`. This surface is verified nowhere else in the pipeline. |
 
     **Do not skip this step.** "The code compiles" and "tests pass" do not prove wiring. A function with zero callers outside tests is dead code in production. Report every unwired symbol as a BLOCKER finding.
 
@@ -74,7 +74,7 @@ phase itself.
 
     Find the most similar existing feature. Diff its registrations, handlers, and tests against the new feature. Report anything the reference has that the new feature lacks as a BLOCKER: "missing [component] -- reference [feature] has it in [file] [symbol]."
 
-2. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/functional-test-gate.md`: match the change type to the required test directory and check for a test covering the behavior.
+2. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/testing.md`: match the change type to the required test directory and check for a test covering the behavior.
 
     | Change type | Required test |
     |-------------|--------------|
@@ -100,7 +100,7 @@ phase itself.
     | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze --plugins` output |
     | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
     | Metrics | Telemetry docs list metric names and labels |
-    | New feature, tool, make target, or verification gate | `ai/INDEX.md` keyword + task rows updated; `ai/LEARNED-INDEX.md` if the decision is structural; `ai/rules/hook-mapping.md` if a new hook/gate. Per `ai/rules/discovery-updates.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
+    | New feature, tool, make target, or verification gate | `ai/INDEX.md` keyword + task rows updated; `ai/LEARNED-INDEX.md` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
 
     Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
 
@@ -109,7 +109,7 @@ phase itself.
 6. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
 7. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 6: step 6 asks "why did the old code exist?" This step asks "is the protection still there?"
 
-    **Test rewrite check (BLOCKING):** For every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression, even when the assertion count stays the same. The hook cannot catch this (same structural shape); this step is the defense. Ask: "what did the old assertion prove, and where is that proof now?" If it is nowhere, report as BLOCKER: "test rewrite dropped coverage of [old behavior]." Rule: `ai/rules/no-test-deletion.md` "Test Rewrite as Replacement."
+    **Test rewrite check (BLOCKING):** For every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression, even when the assertion count stays the same. The hook cannot catch this (same structural shape); this step is the defense. Ask: "what did the old assertion prove, and where is that proof now?" If it is nowhere, report as BLOCKER: "test rewrite dropped coverage of [old behavior]." Rule: `ai/rules/testing.md` "Test Rewrite as Replacement."
 8. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
 9. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
 10. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
@@ -127,7 +127,7 @@ phase itself.
     | Shadowed variable | `:=` in inner scope hiding an outer variable the function relies on |
     | Integer truncation | `uint16(bigValue)` silently wrapping, `int(uint32Val)` on 32-bit |
     | Nil dereference path | Method call on a receiver that could be nil (check callers) |
-    | Guard that fails open | A check whose miss/error/empty path returns the permissive value (allow, admin, nil error, "no violation") instead of denying. See `ai/rules/fail-closed-guards.md` |
+    | Guard that fails open | A check whose miss/error/empty path returns the permissive value (allow, admin, nil error, "no violation") instead of denying. See `ai/rules/evidence.md` |
     | Valid-looking zero value | A bare map read (`m[k]`) or lookup whose zero result reads downstream as a legitimate answer: allow, match-nothing, success, count-of-1. `v, ok := m[k]` and handle `!ok`. Note a present-but-empty value passes `ok`: check `!ok \|\| len(v) == 0` when empty is also wrong |
 
     For each function: does the code do what the function name says?
@@ -136,15 +136,15 @@ phase itself.
 
     1. **Does it fail closed?** Name the miss/error/empty path and the value it returns. If that value is permissive, it is a BLOCKER. A guard that neither denies nor logs does not exist.
     2. **Is the guard driven from its entry point in a test?** A unit test on the helper proves the helper, not that any caller reaches it with the input that matters. A green unit test on an uncalled guard is worse than no test: report as BLOCKER, "guard tested only via helper, no test drives it from [entry point]." Check the guard is reachable with the rejecting input at all: a constraint that cannot receive the value it rejects is inert.
-    3. **Does the diff assert a safety property it does not prove?** Any doc, comment, or spec line in the diff claiming a check denies something ("RBAC denies privileged actions", "validated by YANG") must be traced to the producing function. If the diff does not prove it, report as BLOCKER: a false safety claim is the shield that stops the next reviewer asking. Per `ai/rules/no-fabrication.md`.
+    3. **Does the diff assert a safety property it does not prove?** Any doc, comment, or spec line in the diff claiming a check denies something ("RBAC denies privileged actions", "validated by YANG") must be traced to the producing function. If the diff does not prove it, report as BLOCKER: a false safety claim is the shield that stops the next reviewer asking. Per `ai/rules/evidence.md`.
 
     Never discard a finding here for being "unlikely": these degrade silently and each looks correct locally.
 
-14. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
+14. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `performance.md` "Hot Path Rule" for the list).
 
     | Check | What to look for |
     |-------|-----------------|
-    | `fmt.Sprintf` / `fmt.Errorf` on hot path | Use `textbuf.Buffer`, `errors.New`, or append-based alternatives (see `no-sprintf-alloc.md`) |
+    | `fmt.Sprintf` / `fmt.Errorf` on hot path | Use `textbuf.Buffer`, `errors.New`, or append-based alternatives (see `performance.md`) |
     | `.String()` concatenation on hot path | Use `AppendTo` or `textbuf.Buffer` chain |
     | Allocation inside a loop | `make()`, `append()`, or string building per iteration when a single buffer outside the loop suffices |
     | Heap escape via interface boxing | Passing a concrete value through `any` or `interface{}` on a hot path |
@@ -154,9 +154,9 @@ phase itself.
     | O(n^2) or worse | Nested loops over the same collection, linear scan inside a loop when a map lookup suffices |
     | Map with string key from known set | `map[string]V` where `map[uint16]V` or typed enum key would avoid hashing overhead |
     | `string([]byte)` for comparison | Compare bytes directly instead of converting to string |
-    | Callee allocates what caller could provide | Function does `make([]byte, n)` when caller has a buffer in scope (see `memory-architecture.md`) |
+    | Callee allocates what caller could provide | Function does `make([]byte, n)` when caller has a buffer in scope (see `performance.md`) |
 
-    Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `no-sprintf-alloc.md`.
+    Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `performance.md`.
 
 15. **Plugin traversal + config-surface check:** If config structure changed, grep for all code reading the old structure. When the diff nests a config container, adds a plugin `show`/RPC command, registers a wire method, or adds a plugin-loading `.ci`, also apply the **Config-Surface & Command-Tree Checks** section (golden-snapshot sync, merged-node description parity, nested-ConfigRoot unwrap, needs-linux for dependency-pulling `.ci`).
 16. **Altitude check:** For each change, ask: is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
@@ -164,21 +164,21 @@ phase itself.
 
 | Changed code touches | Check against |
 |---------------------|---------------|
-| Wire encoding/decoding | `buffer-first.md` -- WriteTo(buf, off), no append/make in encoding |
+| Wire encoding/decoding | `performance.md` -- WriteTo(buf, off), no append/make in encoding |
 | New goroutine | `goroutine-lifecycle.md` -- long-lived worker, not per-event |
-| Naming (types, JSON keys, YANG) | `naming.md`, `json-format.md` -- kebab-case JSON, ze- prefix |
-| Plugin code | `plugin-design.md` -- proximity, YANG required, import rules |
-| CLI handler | `cli-patterns.md` -- flag.NewFlagSet, exit codes, stderr for errors, tab-completion |
-| Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
-| New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
+| Naming (types, JSON keys, YANG) | `go-standards.md`, `cli.md` -- kebab-case JSON, ze- prefix |
+| Plugin code | `plugins.md` -- proximity, YANG required, import rules |
+| CLI handler | `cli.md` -- flag.NewFlagSet, exit codes, stderr for errors, tab-completion |
+| Config parsing | `config.md` -- fail on unknown keys, no version numbers |
+| New data wrapper/struct | `architecture.md` -- lazy over eager, no identity wrappers |
 
 18. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
-| Pre-existing issue the goal does NOT depend on | Not introduced by these changes. If the goal depends on that path, "pre-existing" never excuses it: the test is dependency, never causation (`ai/rules/critical-review.md`, "Bounding the loop") |
+| Pre-existing issue the goal does NOT depend on | Not introduced by these changes. If the goal depends on that path, "pre-existing" never excuses it: the test is dependency, never causation (`ai/rules/planning.md`, "Bounding the loop") |
 | Linter/compiler-catchable (imports, types, formatting) | `make ze-lint` catches these separately |
-| Issue on unmodified lines, when the goal does not depend on it | This review does not cover it. Never discard an always-in-scope class this way (`ai/rules/critical-review.md`, "Bounding the loop", which owns the list). An absence sits on no changed line, so this row would otherwise swallow every one of them |
+| Issue on unmodified lines, when the goal does not depend on it | This review does not cover it. Never discard an always-in-scope class this way (`ai/rules/planning.md`, "Bounding the loop", which owns the list). An absence sits on no changed line, so this row would otherwise swallow every one of them |
 | Intentional behavioral change clearly related to the broader diff | Not a bug, it is the point |
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
@@ -302,7 +302,7 @@ outside the round's scope is still fixed when the goal this work exists to
 achieve depends on it, when you are unsure whether it does, or when it belongs
 to the always-in-scope classes. What those classes are, what happens to
 everything else, and why none of it is parking are settled in ONE place:
-`ai/rules/critical-review.md` "Bounding the loop". Do not restate the list or
+`ai/rules/planning.md` "Bounding the loop". Do not restate the list or
 the tests here. A second copy is how the corrected rule and the defective one
 end up one hop apart, and an enumeration that falls short by one class reads as
 permission to home the class it omitted.
@@ -313,4 +313,4 @@ permission to home the class it omitted.
 - Do NOT check spec completeness -- that is `/ze-review-spec`.
 - After the user reviews your list, they will tell you which to fix.
 - **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development. The issue exists because a test was missing; the fix is incomplete without one. If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
-- No cap on the NUMBER of review passes, a hard bound on each one's SCOPE. Run a fresh pass whenever the code has changed since the last one, over the fixes that changed it. Stop when a pass finds nothing within its own scope. "I already reviewed this" is not a reason to stop. "A full re-read of the whole diff found something unrelated" is not a reason to continue (`ai/rules/critical-review.md`, "Bounding the loop").
+- No cap on the NUMBER of review passes, a hard bound on each one's SCOPE. Run a fresh pass whenever the code has changed since the last one, over the fixes that changed it. Stop when a pass finds nothing within its own scope. "I already reviewed this" is not a reason to stop. "A full re-read of the whole diff found something unrelated" is not a reason to continue (`ai/rules/planning.md`, "Bounding the loop").

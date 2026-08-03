@@ -105,7 +105,7 @@ routes and links zero BGP symbols, with the default build unchanged.
   `reaudit_note`. Note the hook that would normally block such an edit never
   fired: it is a Write/Edit hook, and the rename was applied by a script.
 - **Two pre-existing reds surfaced and were fixed rather than parked**
-  (`ai/rules/no-parking.md`): `session-end-scratch.sh` called `_sid_safe`, which
+  (`ai/rules/completion.md`): `session-end-scratch.sh` called `_sid_safe`, which
   the session-id shim refactor had deleted, so session scratch dirs were never
   cleaned; and the audit-relaxation fixture symlinked the hook but not the `lib/`
   it imports at module scope. Both blocked `ze-verify`, so both were in scope.

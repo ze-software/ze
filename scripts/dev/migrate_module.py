@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic module-tier migration tool (see ai/rules/module-tiers.md).
+"""Deterministic module-tier migration tool (see ai/rules/architecture.md).
 
 Moves a package directory from one repo-relative internal/... path to another.
 Bare names keep the original top-level component<->plugins behavior; explicit

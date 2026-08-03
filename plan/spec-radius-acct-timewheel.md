@@ -52,13 +52,13 @@ Design constraints Ze has that osvbng does not:
 ### Architecture Docs
 - [ ] `docs/research/l2tpv2-ze-integration.md` - RADIUS accounting design context.
   → Constraint: accounting failures MUST NOT tear down sessions (RFC 2866).
-- [ ] `ai/rules/memory-architecture.md` - if a wheel is built, its slot storage should be allocation-conscious.
+- [ ] `ai/rules/performance.md` - if a wheel is built, its slot storage should be allocation-conscious.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] RFC 2866 (RADIUS accounting) - interim semantics; Section 5.18 override handling must survive any redesign.
 
 **Key insights:**
-- The per-session override (clamped at acct.go:113-116, clamp at :318-326) is the
+- The per-session override (clamped at acct.go, clamp at :318-326) is the
   main design constraint distinguishing Ze from the osvbng reference.
 
 ## Current Behavior (MANDATORY)

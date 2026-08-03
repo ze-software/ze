@@ -9,7 +9,7 @@
 
 Anchor refresh (2026-07-22 plan review, design unchanged, feature not
 landed; citations below updated in-body): `BFDSettings` struct now
-`peersettings.go:192-212` (`MultiHop` at `:199`). `peer_bfd.go` is still a
+`peersettings.go` (`MultiHop` at `:199`). `peer_bfd.go` is still a
 pure failure detector with no `Strict`/`HoldTime`.
 
 ## Post-Compaction Recovery
@@ -46,7 +46,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] RFC 5880/5882 (BFD) - BFD state machine (Up/Init/Down/AdminDown).
-- [ ] RFC 9384 - BGP Cease NOTIFICATION subcodes; subcode 10 ("BFD Down") is already used on teardown (`peer_bfd.go:130`).
+- [ ] RFC 9384 - BGP Cease NOTIFICATION subcodes; subcode 10 ("BFD Down") is already used on teardown (`peer_bfd.go`).
   → Constraint: strict mode changes *when* the BGP session is allowed up; it does not change the wire OPEN exchange.
 
 **Key insights:**
@@ -56,14 +56,14 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/reactor/peer_bfd.go` - `startBFDClient` is "Called from the FSM callback on StateEstablished" (peer_bfd.go:50-61); `runBFDSubscriber` acts only on Down/AdminDown and explicitly ignores Up/Init: "BFD is a failure detector, not a session driver" (peer_bfd.go:104-106). Down triggers `Teardown` with `NotifyCeaseBFDDown` (peer_bfd.go:123-134).
-- [ ] `internal/component/bgp/reactor/peersettings.go` - `BFDSettings` has only `Enabled`, `MultiHop`, `Profile`, `MinTTL`, `Interface` (peersettings.go:192-212, `MultiHop` at :199); no `Strict`/`HoldTime`.
-- [ ] `internal/component/bfd/` - session API surfaced via `api.GetService()`, `EnsureSession`, `Subscribe` (used at peer_bfd.go:66-79).
+- [ ] `internal/component/bgp/reactor/peer_bfd.go` - `startBFDClient` is "Called from the FSM callback on StateEstablished" (peer_bfd.go); `runBFDSubscriber` acts only on Down/AdminDown and explicitly ignores Up/Init: "BFD is a failure detector, not a session driver" (peer_bfd.go). Down triggers `Teardown` with `NotifyCeaseBFDDown` (peer_bfd.go).
+- [ ] `internal/component/bgp/reactor/peersettings.go` - `BFDSettings` has only `Enabled`, `MultiHop`, `Profile`, `MinTTL`, `Interface` (peersettings.go, `MultiHop` at :199); no `Strict`/`HoldTime`.
+- [ ] `internal/component/bfd/` - session API surfaced via `api.GetService()`, `EnsureSession`, `Subscribe` (used at peer_bfd.go).
 
 **Behavior to preserve:**
 - Default (non-strict) BFD remains a pure failure detector: session opens post-Established, only Down tears down.
-- Teardown on BFD Down keeps RFC 9384 Cease subcode 10 (`peer_bfd.go:130`).
-- If the BFD plugin is not loaded, a BFD-configured peer still runs (current warn-and-continue at `peer_bfd.go:67-70`) — except that in strict mode this is a config/runtime error surfaced to the operator, not a silent continue.
+- Teardown on BFD Down keeps RFC 9384 Cease subcode 10 (`peer_bfd.go`).
+- If the BFD plugin is not loaded, a BFD-configured peer still runs (current warn-and-continue at `peer_bfd.go`) — except that in strict mode this is a config/runtime error surfaced to the operator, not a silent continue.
 
 **Behavior to change:**
 - When `strict` is set, open the BFD session earlier (before declaring the peer up) and hold the BGP session down until BFD is Up (or hold-time elapses).
@@ -89,9 +89,9 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 | BFD ↔ FSM | Up transition permits Established; Down still tears down | [ ] |
 
 ### Integration Points
-- `startBFDClient` (`peer_bfd.go:61`) - split so the session can be opened pre-Established in strict mode.
-- `runBFDSubscriber` (`peer_bfd.go:107`) - handle Up/Init in strict mode.
-- `BFDSettings` (`peersettings.go:192`) - add `Strict`, `HoldTime`.
+- `startBFDClient` (`peer_bfd.go`) - split so the session can be opened pre-Established in strict mode.
+- `runBFDSubscriber` (`peer_bfd.go`) - handle Up/Init in strict mode.
+- `BFDSettings` (`peersettings.go`) - add `Strict`, `HoldTime`.
 - FSM Established gate - consult BFD-up state for strict peers.
 
 ### Architectural Verification
@@ -106,7 +106,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The BFD session can be opened before the BGP FSM reaches Established | `EnsureSession` is not gated on BGP state (peer_bfd.go:66-73) | strict mode needs deeper FSM changes | read `EnsureSession` + FSM bring-up during audit | unvalidated |
+| A-1 | The BFD session can be opened before the BGP FSM reaches Established | `EnsureSession` is not gated on BGP state (peer_bfd.go) | strict mode needs deeper FSM changes | read `EnsureSession` + FSM bring-up during audit | unvalidated |
 | A-2 | There is a single FSM point where "declare peer up" can consult BFD state | reactor FSM | gate is invasive if dispersed | trace FSM Established transition | unvalidated |
 | A-3 | Operators want fallback-after-hold-time, not permanent hold | operational norm; matches `hold-time` framing | permanent-hold semantics differ | design confirmation with user | unvalidated |
 
@@ -178,10 +178,10 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | BGP `bfd` container in the owning `yang/`; `ai/rules/config-surface.md`, `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | BGP `bfd` container in the owning `yang/`; `ai/rules/config.md`, `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | `strict` valueless; `hold-time` `range` |
-| CLI grammar | [ ] yes | `ai/rules/cli-grammar.md` |
-| Doctor check for runtime dependencies | [ ] yes | strict requires the BFD plugin loaded — `ai/rules/doctor-checks.md` |
+| CLI grammar | [ ] yes | `ai/rules/cli.md` |
+| Doctor check for runtime dependencies | [ ] yes | strict requires the BFD plugin loaded — `ai/rules/repo-maintenance.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/bgp-bfd-strict.ci` |
 
 ### Documentation Update Checklist (BLOCKING)

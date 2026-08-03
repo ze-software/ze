@@ -72,7 +72,7 @@ func TestRFCRequirementsSelftest(t *testing.T) {
 
 // TestRFCRequirementsFailsClosed asserts the gate refuses to report clean when it has
 // nothing to compare. "Clean" must mean "I compared things and found nothing", never
-// "I compared nothing" (ai/rules/fail-closed-guards.md).
+// "I compared nothing" (ai/rules/evidence.md).
 //
 // Guards the specific regression where rfc/enrolled.txt is emptied (or the file is lost)
 // and the gate cheerfully passes while enforcing zero requirements.
@@ -87,6 +87,6 @@ func TestRFCRequirementsFailsClosed(t *testing.T) {
 	}
 	if strings.Contains(out, ": 0 gated MUST-level requirement") {
 		t.Fatal("gate reported clean while enforcing 0 requirements -- that is a vacuous " +
-			"pass, not a passing gate (ai/rules/fail-closed-guards.md)")
+			"pass, not a passing gate (ai/rules/evidence.md)")
 	}
 }

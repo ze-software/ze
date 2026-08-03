@@ -256,7 +256,7 @@ func bufferedPeerLen(tr *eapTLSTransport) int {
 
 // TestEAPTLSProcessRefusesUnboundedPeerBuffer drives the backlog ceiling through
 // tlsMethod.Process, the entry point an unauthenticated peer actually reaches
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // The transport is marked finished with NO error, which is exactly the state
 // runTLSServer leaves behind once its goroutine has returned: nothing drains

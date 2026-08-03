@@ -1,16 +1,16 @@
 # Pattern: Config Option
 
 Structural template for adding a configuration option to Ze.
-Rules: `ai/rules/config-design.md`. Architecture: `docs/architecture/config/yang-config-design.md`.
+Rules: `ai/rules/config.md`. Architecture: `docs/architecture/config/yang-config-design.md`.
 
 ## Also Read
 
 | Rule | When it applies |
 |------|----------------|
-| `ai/rules/config-design.md` (Listeners) | Network endpoint options: use `zt:listener` + `ze:listener` |
-| `ai/rules/config-design.md` (YANG Structure) | Augment vs grouping: augment only for cross-component extension |
+| `ai/rules/config.md` (Listeners) | Network endpoint options: use `zt:listener` + `ze:listener` |
+| `ai/rules/config.md` (YANG Structure) | Augment vs grouping: augment only for cross-component extension |
 | `ai/rules/go-standards.md` (Environment Variables) | Every YANG `environment/` leaf needs `env.MustRegister()` |
-| `ai/rules/exact-or-reject.md` | Backend/translator config: exact application or verify/commit fails |
+| `ai/rules/protocol.md` | Backend/translator config: exact application or verify/commit fails |
 | Full navigation: `ai/INDEX.md` | |
 
 ## End-to-End Pipeline
@@ -192,8 +192,8 @@ Namespace: `urn:ze:<domain>:<purpose>` (e.g., `urn:ze:bgp:conf`).
 
 ## Naming Across Layers
 
-Full naming conventions: `ai/rules/config-naming.md`
-Decision framework (YANG vs env var): `ai/rules/config-surface.md`
+Full naming conventions: `ai/rules/config.md`
+Decision framework (YANG vs env var): `ai/rules/config.md`
 
 | Layer | Convention | Example |
 |-------|-----------|---------|

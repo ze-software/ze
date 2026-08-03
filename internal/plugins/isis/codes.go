@@ -9,7 +9,7 @@
 // side effect stays in the component's registration file (ai/patterns/registration.md).
 // Registering here instead of in the central diagnostic.builtinCodes slice means
 // deleting the IS-IS component removes the codes with it (ai/rules/
-// plugin-self-containment.md). One code, one owner: the raw-socket code
+// plugins.md). One code, one owner: the raw-socket code
 // (doctor-isis-raw-socket) is owned and listed by the transport, never here.
 
 package isis

@@ -87,7 +87,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 		// bgp/session/allow-shared-router-id (YANG boolean, default false): opt out
 		// of AS-wide BGP-Identifier uniqueness enforcement. Tree booleans arrive as
-		// the string "true"/"false" (config-string-coercion.md), same idiom as
+		// the string "true"/"false" (config.md), same idiom as
 		// resolve.go's rs-client read. Absent leaf keeps the strict default.
 		if sessionContainer := bgpContainer.GetContainer("session"); sessionContainer != nil {
 			if v, ok := sessionContainer.Get("allow-shared-router-id"); ok {

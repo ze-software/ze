@@ -6,7 +6,7 @@ The user was tired of a recurring agent failure: when a test went red or a check
 rejected an input, the agent would weaken the test (skip it, drop assertions,
 change the expected value) or work around the problem (rename a command to dodge
 a validation gap) instead of fixing the source. The repo already had strong prose
-rules (`no-test-deletion.md`, `no-workarounds-for-missing-behavior.md`) but they
+rules (`testing.md`, `completion.md`) but they
 were enforced only by in-the-moment discipline, which is exactly what fails under
 completion pressure. The goal was to convert those rules from hope into mechanical
 guards at the points where the failure actually happens.
@@ -37,7 +37,7 @@ guards at the points where the failure actually happens.
 - A failing test can no longer be silently neutered: the hook blocks it at edit
   time, and the review surfaces anything that slipped past (relax token, out-of-band
   commit) across a whole branch.
-- New canonical rule `diagnosis-before-fix.md` changes the success criterion for any
+- New canonical rule `completion.md` changes the success criterion for any
   fix from "symptom gone" to "root cause traced to file:line and fixed at the owning
   layer", enforced in `/ze-debug` and `/ze-implement`.
 - The hook detection logic is now load-bearing for two consumers (the hook and the
@@ -67,9 +67,9 @@ guards at the points where the failure actually happens.
 - `.claude/hooks/pretool-writeedit.py` -- `c_test_deletion_edit` -> `c_test_weakening` (broadened) + `_test_weakening_errs` helper
 - `scripts/dev/hook-parity-check.py` -- WEAKEN_CASES + WEAKEN_GOLDEN corpus (10 new cases)
 - `scripts/dev/audit-test-relaxation.py` -- new branch/diff audit, reuses hook logic, `--selftest`
-- `ai/rules/diagnosis-before-fix.md` -- new BLOCKING rule
-- `ai/rules/no-test-deletion.md` -- broadened to cover weakening + escape token
-- `ai/rules/hook-mapping.md` -- updated check entry
+- `ai/rules/completion.md` -- new BLOCKING rule
+- `ai/rules/testing.md` -- broadened to cover weakening + escape token
+- `ai/rules/repo-maintenance.md` -- updated check entry
 - `ai/rules/INDEX.md` -- regenerated
 - `ai/skills/ze-review.md`, `ze-review-deep.md` -- wired in the audit pass
 - `ai/skills/ze-debug.md`, `ze-implement.md` -- wired in the diagnosis gate

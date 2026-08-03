@@ -43,7 +43,7 @@ func plimESPTree(count int) *config.Tree {
 // with an error naming the limit and the count.
 // PREVENTS: silent truncation on the wire. The Proposal Num field is one octet, so a
 // 256th proposal has no exact encoding. Ze rejects the config rather than send a
-// number that wrapped (ai/rules/exact-or-reject.md).
+// number that wrapped (ai/rules/protocol.md).
 //
 // RFC 7296 Section 3.3.1 gives Proposal Num one octet, and Section 3.3 numbers an
 // offer one upward, so 255 is the largest number a conforming offer can carry.

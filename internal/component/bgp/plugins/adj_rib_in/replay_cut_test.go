@@ -3,7 +3,7 @@
 //
 // Driven from handleCommand, not from buildReplayRoutes, because the defect these
 // pin lived in how the command's max-msg-id ARGUMENT was interpreted, not in the
-// bound itself (ai/rules/fail-closed-guards.md: drive the guard from its entry
+// bound itself (ai/rules/evidence.md: drive the guard from its entry
 // point).
 
 package adj_rib_in

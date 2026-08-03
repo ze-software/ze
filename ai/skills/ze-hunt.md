@@ -141,7 +141,7 @@ Two places that must agree but can silently diverge: YANG module vs
 `yang_schema.go`, an env var registered twice, a plugin/command listed in two
 files. For each registry pair, confirm a build-time consistency test diffs the
 two sources. Where none exists, that gap is the finding. See
-`ai/rules/derive-not-hardcode.md`.
+`ai/rules/evidence.md`.
 
 ### H8 -- Unwired feature (structural; the project's most recurring defect)
 
@@ -149,7 +149,7 @@ A production (non-`_test.go`) exported symbol with zero non-test callers is
 either dead code or a feature not reachable from any user entry point. Use LSP
 `findReferences` (not grep) on suspect exported symbols; cross-check that
 registered CLI dispatch keys, web routes, and config validators are reachable.
-See `ai/rules/wiring-completeness.md`.
+See `ai/rules/completion.md`.
 
 ## Report format
 

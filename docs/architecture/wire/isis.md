@@ -36,7 +36,7 @@ separate codepath).
   spans so the LSDB can re-flood them verbatim. A decoded view is valid only
   while the caller's backing slice is stable (isis-6 copies LSP bytes it
   retains; see `TLV.CopyValue`).
-- **Encode is buffer-first** (`ai/rules/buffer-first.md`): every PDU and TLV
+- **Encode is buffer-first** (`ai/rules/performance.md`): every PDU and TLV
   writes into a caller-owned buffer via `WriteTo(buf []byte, off int) int`. The
   PDU Length field and the LSP Fletcher checksum are written by
   skip-and-backfill, never a `Len()`-then-`WriteTo()` double traversal.

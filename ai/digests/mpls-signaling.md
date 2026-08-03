@@ -23,159 +23,159 @@ forwarding`, independent of either engine's in-memory state.
 ## Flow
 
 ### LDP: discovery, session, label distribution, LIB → FIB
-1. **Registration.** `registerLDP` (`ldp/register.go:191`) registers the `ldp`
+1. **Registration.** `registerLDP` (`ldp/register.go`) registers the `ldp`
    plugin (YANG root `ldp`, depends on `fib-kernel`+`sysctl`) and a doctor check
-   for UDP/TCP port 646 (`ldp/register.go:211`, `ldp/doctor.go:27`). `runLDPEngine`
-   (`ldp/register.go:236`) is the process entry point: it builds a `LIB`
-   (`ldp/lib.go:47`) and `AdjacencyTable` (`ldp/discovery.go:63`), then wires
+   for UDP/TCP port 646 (`ldp/register.go`, `ldp/doctor.go`). `runLDPEngine`
+   (`ldp/register.go`) is the process entry point: it builds a `LIB`
+   (`ldp/lib.go`) and `AdjacencyTable` (`ldp/discovery.go`), then wires
    `OnConfigVerify`/`OnConfigure`/`OnConfigApply`/`OnStarted` callbacks
-   (`ldp/register.go:255-338`).
-2. **Startup: local FECs and egress pop.** `OnStarted` (`ldp/register.go:298`)
+   (`ldp/register.go`).
+2. **Startup: local FECs and egress pop.** `OnStarted` (`ldp/register.go`)
    computes this LSR's originated FECs, its LSR-ID plus connected prefixes on
-   configured interfaces (`localFECs`, `ldp/local.go:28`), and for each calls
-   `lib.EnsureLocal` to allocate a stable local label (`ldp/lib.go:85`,
+   configured interfaces (`localFECs`, `ldp/local.go`), and for each calls
+   `lib.EnsureLocal` to allocate a stable local label (`ldp/lib.go`,
    `nextLabel` starts at 16) then `fib.ProgramPop` to install the egress
-   disposition entry immediately (`ldp/register.go:320`, `ldp/fib.go:185`).
-3. **Discovery (RFC 5036 §2.4.1).** A `discoveryManager` (`ldp/discovery_manager.go:33`)
+   disposition entry immediately (`ldp/register.go`, `ldp/fib.go`).
+3. **Discovery (RFC 5036 §2.4.1).** A `discoveryManager` (`ldp/discovery_manager.go`)
    starts one `discoverOnInterface` goroutine per configured interface (or one
    system-default listener) and reconciles the set on every config reload
-   (`ldp/discovery_manager.go:45`, called from `OnConfigApply` at `ldp/register.go:293`).
-   Each worker sends periodic UDP multicast Hellos to 224.0.0.2:646 (`ldp/register.go:583`)
+   (`ldp/discovery_manager.go`, called from `OnConfigApply` at `ldp/register.go`).
+   Each worker sends periodic UDP multicast Hellos to 224.0.0.2:646 (`ldp/register.go`)
    and decodes received Hellos via `processDiscoveryPacket` → `AdjacencyTable.Update`
-   (`ldp/register.go:618`, `ldp/discovery.go:76`), which creates/refreshes an `Adjacency`
-   keyed by `AdjacencyKey(LSR-ID, label-space)` (`ldp/discovery.go:42`).
+   (`ldp/register.go`, `ldp/discovery.go`), which creates/refreshes an `Adjacency`
+   keyed by `AdjacencyKey(LSR-ID, label-space)` (`ldp/discovery.go`).
 4. **Session establishment (RFC 5036 §2.5, TCP/646).** A new adjacency triggers
-   `startSessionForAdj` (`ldp/register.go:325`,`:430`): it dials TCP to the peer's
-   advertised transport address (`ldpSessionDialer`, `ldp/register.go:422`), builds a
-   `Session` (`ldp/session.go:130`), and `runSession` (`ldp/register.go:684`) sends
-   Initialization then Keepalive (`Session.SendInit`/`SendKeepalive`, `ldp/session.go:207`,
-   `:240`). Rx runs on `Session.ReadLoop` (`ldp/session.go:318`) → `processMessages`
-   (`ldp/session.go:358`); a received Initialization advances the session state via
-   `handleInit` (`ldp/session.go:458`), OpenSent→Operational on the first Init after we
-   sent ours (`ldp/session.go:477`).
+   `startSessionForAdj` (`ldp/register.go`,`:430`): it dials TCP to the peer's
+   advertised transport address (`ldpSessionDialer`, `ldp/register.go`), builds a
+   `Session` (`ldp/session.go`), and `runSession` (`ldp/register.go`) sends
+   Initialization then Keepalive (`Session.SendInit`/`SendKeepalive`, `ldp/session.go`,
+   `:240`). Rx runs on `Session.ReadLoop` (`ldp/session.go`) → `processMessages`
+   (`ldp/session.go`); a received Initialization advances the session state via
+   `handleInit` (`ldp/session.go`), OpenSent→Operational on the first Init after we
+   sent ours (`ldp/session.go`).
 5. **Local advertisement.** On reaching Operational, `runSession`'s
-   `onOperational` callback (`ldp/register.go:772`) advertises every local
+   `onOperational` callback (`ldp/register.go`) advertises every local
    binding downstream-unsolicited via `Session.SendLabelMapping`
-   (`ldp/session.go:261`, called at `ldp/register.go:777`).
+   (`ldp/session.go`, called at `ldp/register.go`).
 6. **Label distribution in (LabelMapping/Withdraw → LIB → FIB).** `ReadLoop`
    dispatches `MsgTypeLabelMapping`/`MsgTypeLabelWithdraw` to the `onLabel`/
-   `onWithdraw` closures (`ldp/session.go:387`,`:395`) built in `runSession`
-   (`ldp/register.go:730`,`:756`). On a mapping: resolve the data-plane next hop
+   `onWithdraw` closures (`ldp/session.go`,`:395`) built in `runSession`
+   (`ldp/register.go`,`:756`). On a mapping: resolve the data-plane next hop
    from the peer's advertised Address-message interfaces (`pickNextHop`,
-   `ldp/local.go:98`), then atomically `lib.AddRemote` + `reconcileFEC` under
-   `fib.withReconcileLock` (`ldp/register.go:741`, `ldp/lib.go:110`,
-   `ldp/fib.go:174`,`:61`). On a withdraw: `withdrawRemoteBinding`
-   (`ldp/fib.go:48`) removes the LIB entry and reconciles the same way.
-7. **FEC → mpls-fib entry.** `reconcileFEC` (`ldp/fib.go:61`) picks the
+   `ldp/local.go`), then atomically `lib.AddRemote` + `reconcileFEC` under
+   `fib.withReconcileLock` (`ldp/register.go`, `ldp/lib.go`,
+   `ldp/fib.go`,`:61`). On a withdraw: `withdrawRemoteBinding`
+   (`ldp/fib.go`) removes the LIB entry and reconciles the same way.
+7. **FEC → mpls-fib entry.** `reconcileFEC` (`ldp/fib.go`) picks the
    lowest-peer-key surviving binding for the FEC (`LIB.RemainingForFEC`,
-   `ldp/lib.go:189`) and calls `applyRemoteBinding` (`ldp/fib.go:33`): implicit-null
+   `ldp/lib.go`) and calls `applyRemoteBinding` (`ldp/fib.go`): implicit-null
    (label 3, RFC 3032 §2.1 penultimate-hop-pop) clears any stale push and forwards
-   as plain IP (`fib.Remove`, `ldp/fib.go:147`); any other label calls
-   `fib.ProgramPush` (`ldp/fib.go:128`), which emits `(mpls-fib, entry)` Add/Push
-   (`ldp/fib.go:114`, `mplsfib/events.go:79`). No surviving binding withdraws the
+   as plain IP (`fib.Remove`, `ldp/fib.go`); any other label calls
+   `fib.ProgramPush` (`ldp/fib.go`), which emits `(mpls-fib, entry)` Add/Push
+   (`ldp/fib.go`, `mplsfib/events.go`). No surviving binding withdraws the
    push (`fib.Remove`).
-8. **Session/adjacency teardown.** Expired adjacencies (`ldp/register.go:818`,
-   `AdjacencyTable.ExpireSweep`, `ldp/discovery.go:110`) or a closed TCP conn stop
-   the `Session`; `runSession`'s deferred `onDone` (`ldp/register.go:466`) calls
-   `reconcilePeerDown` (`ldp/fib.go:76`), which removes every FEC binding from
+8. **Session/adjacency teardown.** Expired adjacencies (`ldp/register.go`,
+   `AdjacencyTable.ExpireSweep`, `ldp/discovery.go`) or a closed TCP conn stop
+   the `Session`; `runSession`'s deferred `onDone` (`ldp/register.go`) calls
+   `reconcilePeerDown` (`ldp/fib.go`), which removes every FEC binding from
    that peer and re-reconciles each FEC, re-pointing to a surviving peer or
    withdrawing the push, per-FEC locked so one large peer's teardown does not
    stall other sessions' label processing.
 
 ### RSVP-TE: LSP setup, label allocation, tunnel state
-9. **Registration and transport.** `registerRSVPTE` (`rsvpte/register.go:436`) registers
+9. **Registration and transport.** `registerRSVPTE` (`rsvpte/register.go`) registers
    the `rsvp-te` plugin (depends on `fib-kernel`+`sysctl`) plus a CAP_NET_RAW doctor check
-   (`rsvpte/register.go:456`, `rsvpte/doctor.go:23`). `runRSVPTEEngine`
-   (`rsvpte/register.go:481`) is the process entry; `OnStarted` (`rsvpte/register.go:556`)
-   opens the raw IP transport on protocol 46 (`newTransport`, `rsvpte/transport.go:36`,
-   backed by an `AF_INET SOCK_RAW` socket in `rsvpte/transport_linux.go:35`) and builds the
-   `engine` (`newEngine`, `rsvpte/engine.go:88`, wired at `rsvpte/register.go:570`) around
-   the transport, `lspTable` (`rsvpte/fsm.go:196`), `admissionController`
-   (`rsvpte/admission.go:119`) and a `busFIB` (`rsvpte/fib.go:28`).
+   (`rsvpte/register.go`, `rsvpte/doctor.go`). `runRSVPTEEngine`
+   (`rsvpte/register.go`) is the process entry; `OnStarted` (`rsvpte/register.go`)
+   opens the raw IP transport on protocol 46 (`newTransport`, `rsvpte/transport.go`,
+   backed by an `AF_INET SOCK_RAW` socket in `rsvpte/transport_linux.go`) and builds the
+   `engine` (`newEngine`, `rsvpte/engine.go`, wired at `rsvpte/register.go`) around
+   the transport, `lspTable` (`rsvpte/fsm.go`), `admissionController`
+   (`rsvpte/admission.go`) and a `busFIB` (`rsvpte/fib.go`).
 10. **Ingress: configured tunnel → PATH.** `reconcileTunnels`
-    (`rsvpte/register.go:711`, called from `OnStarted` and `OnConfigApply`) calls
-    `setupTunnel` (`rsvpte/register.go:743`) per configured tunnel: it builds a
+    (`rsvpte/register.go`, called from `OnStarted` and `OnConfigApply`) calls
+    `setupTunnel` (`rsvpte/register.go`) per configured tunnel: it builds a
     `pathStateBlock` (SESSION/SENDER_TEMPLATE/ERO/SenderTSpec/LABEL_REQUEST,
-    `rsvpte/register.go:768-789`), sets state `PathSent`
-    (`LSP.setState`, `rsvpte/fsm.go:308`), and `engine.sendPath`
-    (`rsvpte/engine.go:134`) encodes and transmits it (`buildPath`,
-    `rsvpte/build.go:81`) toward the tunnel endpoint.
-11. **Receive loop and message dispatch.** `engine.run` (`rsvpte/engine.go:96`)
+    `rsvpte/register.go`), sets state `PathSent`
+    (`LSP.setState`, `rsvpte/fsm.go`), and `engine.sendPath`
+    (`rsvpte/engine.go`) encodes and transmits it (`buildPath`,
+    `rsvpte/build.go`) toward the tunnel endpoint.
+11. **Receive loop and message dispatch.** `engine.run` (`rsvpte/engine.go`)
     reads `Packet`s off `Transport.Recv()` and calls `handlePacket`
-    (`rsvpte/engine.go:111`) → `DecodeMessage` (`rsvpte/wire.go:722`) → dispatch by
+    (`rsvpte/engine.go`) → `DecodeMessage` (`rsvpte/wire.go`) → dispatch by
     `MsgType` to `handlePath`/`handleResv`/`handlePathErr`/`handlePathTear`
-    (`rsvpte/engine.go:117-128`).
-12. **Transit: PATH relay + admission + FRR arm.** `handlePath` (`rsvpte/engine.go:181`)
-    routes to `handlePathTransit` (`rsvpte/engine.go:306`) when this node is not the
+    (`rsvpte/engine.go`).
+12. **Transit: PATH relay + admission + FRR arm.** `handlePath` (`rsvpte/engine.go`)
+    routes to `handlePathTransit` (`rsvpte/engine.go`) when this node is not the
     tunnel endpoint: it strips itself from the ERO (`nextHopFromERO`,
-    `rsvpte/engine.go:407`), runs admission control on the link toward the sender
-    (`e.reserve`→`admissionController.reserveSession`, `rsvpte/engine.go:201`,
-    `rsvpte/admission.go:131`, SHARED-EXPLICIT footprint accounting so a
+    `rsvpte/engine.go`), runs admission control on the link toward the sender
+    (`e.reserve`→`admissionController.reserveSession`, `rsvpte/engine.go`,
+    `rsvpte/admission.go`, SHARED-EXPLICIT footprint accounting so a
     make-before-break replacement does not double-reserve), installs transit PSB state
-    (`rsvpte/engine.go:359`), and, if the PATH carries a FAST_REROUTE/SESSION_ATTRIBUTE
+    (`rsvpte/engine.go`), and, if the PATH carries a FAST_REROUTE/SESSION_ATTRIBUTE
     protection request (RFC 4090), arms a configured bypass via `selectBypass`
-    (`rsvpte/frr.go:253`) before relaying the PATH downstream with a decremented TTL
-    (`buildPath`, `rsvpte/engine.go:390`).
+    (`rsvpte/frr.go`) before relaying the PATH downstream with a decremented TTL
+    (`buildPath`, `rsvpte/engine.go`).
 13. **Egress: admission, label allocation, RESV.** `handlePathEgress`
-    (`rsvpte/engine.go:221`) is idempotent across PATH refreshes: on first receipt
+    (`rsvpte/engine.go`) is idempotent across PATH refreshes: on first receipt
     it reserves bandwidth, allocates a label (`lspTable.AllocateLabel`,
-    `rsvpte/fsm.go:205`, starting at `firstDynamicLabel`=1000), builds the RSB with
-    this node's RRO entry (`recordRoute`, `rsvpte/engine.go:453`), and sends RESV
-    upstream (`buildResv`, `rsvpte/build.go:117`); it then programs the egress pop
-    (`fib.programPop`, `rsvpte/engine.go:293`, `rsvpte/fib.go:63`).
+    `rsvpte/fsm.go`, starting at `firstDynamicLabel`=1000), builds the RSB with
+    this node's RRO entry (`recordRoute`, `rsvpte/engine.go`), and sends RESV
+    upstream (`buildResv`, `rsvpte/build.go`); it then programs the egress pop
+    (`fib.programPop`, `rsvpte/engine.go`, `rsvpte/fib.go`).
 14. **RESV propagates upstream: transit swap, ingress push.**
-    `handleResv` (`rsvpte/engine.go:421`) dispatches by this node's stored `Role`
-    (`rsvpte/fsm.go:135`). Transit (`handleResvTransit`, `rsvpte/engine.go:526`)
+    `handleResv` (`rsvpte/engine.go`) dispatches by this node's stored `Role`
+    (`rsvpte/fsm.go`). Transit (`handleResvTransit`, `rsvpte/engine.go`)
     allocates its own in-label outside the LSP lock (avoids inverting the
     table→LSP lock order the cleanup walk uses), programs a swap
-    (`fib.programSwap`, `rsvpte/engine.go:611`, `rsvpte/fib.go:49`), records the
-    RFC 4090 backup label for its bypass (`rsvpte/engine.go:562-589`), and relays
-    RESV upstream. Ingress (`handleResvIngress`, `rsvpte/engine.go:489`) stores
+    (`fib.programSwap`, `rsvpte/engine.go`, `rsvpte/fib.go`), records the
+    RFC 4090 backup label for its bypass (`rsvpte/engine.go`), and relays
+    RESV upstream. Ingress (`handleResvIngress`, `rsvpte/engine.go`) stores
     the out-label, programs the ingress push (`fib.programPush`,
-    `rsvpte/engine.go:510`, `rsvpte/fib.go:44`), sets state `Up`
-    (`rsvpte/fsm.go:29`), and, for a make-before-break reroute, tears the old
-    LSP it replaces (`e.teardownLSP`, `rsvpte/reroute.go:82`, called from
-    `rsvpte/engine.go:519`).
+    `rsvpte/engine.go`, `rsvpte/fib.go`), sets state `Up`
+    (`rsvpte/fsm.go`), and, for a make-before-break reroute, tears the old
+    LSP it replaces (`e.teardownLSP`, `rsvpte/reroute.go`, called from
+    `rsvpte/engine.go`).
 15. **Soft-state refresh, expiry, teardown, link-down repair.**
-    `runRefreshLoop`/`runCleanupLoop` (`rsvpte/register.go:872`,`:928`) re-send PATH
+    `runRefreshLoop`/`runCleanupLoop` (`rsvpte/register.go`,`:928`) re-send PATH
     (ingress) or RESV (egress/transit) each refresh tick (`refreshPaths`,
-    `rsvpte/register.go:890`) and expire/`tearLSPLocal` (`rsvpte/engine.go:829`) LSPs
+    `rsvpte/register.go`) and expire/`tearLSPLocal` (`rsvpte/engine.go`) LSPs
     whose PSB has not refreshed within `RefreshMultiplier` periods. An explicit PathTear
-    removes state hop-by-hop (`handlePathTear`, `rsvpte/engine.go:660`, withdraws the
+    removes state hop-by-hop (`handlePathTear`, `rsvpte/engine.go`, withdraws the
     matching push/swap/pop via `fib.removePush`/`removeSwap`). An interface-down event
-    (`rsvpte/register.go:609-643`) drives `handleLinkDown` (`rsvpte/engine.go:743`): a
+    (`rsvpte/register.go`) drives `handleLinkDown` (`rsvpte/engine.go`): a
     protected transit LSP with an armed bypass is locally repaired in place
-    (`tryLocalRepair`, `rsvpte/frr.go:310`, programs a 2-label swap via
-    `fib.programBackup`, `rsvpte/fib.go:58`) instead of torn down; everything else sends
+    (`tryLocalRepair`, `rsvpte/frr.go`, programs a 2-label swap via
+    `fib.programBackup`, `rsvpte/fib.go`) instead of torn down; everything else sends
     a PathErr upstream (or a local event at the ingress head-end) and is torn down.
 
 ### Signaled labels → kernel FIB
-16. **The shared bus topic.** Both `ldpFIB.emit` (`ldp/fib.go:114`) and
-    `busFIB.emit` (`rsvpte/fib.go:32`) build an `mplsfibevents.Entry` (Action
+16. **The shared bus topic.** Both `ldpFIB.emit` (`ldp/fib.go`) and
+    `busFIB.emit` (`rsvpte/fib.go`) build an `mplsfibevents.Entry` (Action
     Add/Remove, Op Push/Swap/Pop, tagged `Source` = 2 for LDP / 1 for RSVP-TE,
-    `ldp/fib.go:91`, `rsvpte/fib.go:21`) and call
-    `mplsfibevents.EntryChange.Emit` (`mplsfib/events.go:79`), a batch of one
+    `ldp/fib.go`, `rsvpte/fib.go`) and call
+    `mplsfibevents.EntryChange.Emit` (`mplsfib/events.go`), a batch of one
     entry per call, onto the `(mpls-fib, entry)` namespace
-    (`mplsfib/events.go:22-25`).
+    (`mplsfib/events.go`).
 17. **fib-kernel programs it.** `fibKernel.run` subscribes `f.handleMPLSEntry` to
-    `mplsfibevents.EntryChange` (`internal/plugins/fib/kernel/fibkernel.go:458`,
+    `mplsfibevents.EntryChange` (`internal/plugins/fib/kernel/fibkernel.go`,
     alongside the separate `sysribevents.BestChange` subscription that carries BGP-LU
-    labels through a different path, `internal/plugins/fib/kernel/fibkernel.go:453`).
-    `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go:47`) dispatches each
+    labels through a different path, `internal/plugins/fib/kernel/fibkernel.go`).
+    `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go`) dispatches each
     entry: `OpPush` reuses the IP rich-route path, `Add`/`Replace` on a prefix route
     carrying an MPLS label-stack encap (`addMPLSEntryLocked`,
-    `internal/plugins/fib/kernel/mplsentry.go:69-101`, Add on first install so a foreign
+    `internal/plugins/fib/kernel/mplsentry.go`, Add on first install so a foreign
     route for the same prefix is never clobbered, Replace only for ze's own re-label);
     `OpSwap`/`OpPop` program an `AF_MPLS` route keyed by `InLabel` via the platform
-    `mplsBackend` (`internal/plugins/fib/kernel/mplsentry.go:102-124`, no-op with a
+    `mplsBackend` (`internal/plugins/fib/kernel/mplsentry.go`, no-op with a
     warning on a non-Linux backend). Removal is the mirror (`delMPLSEntryLocked`,
-    `internal/plugins/fib/kernel/mplsentry.go:135`).
+    `internal/plugins/fib/kernel/mplsentry.go`).
 18. **Observing the result.** `internal/component/mpls` reads the same kernel tables back
-    independently for `show mpls forwarding`: `dumpMPLSRoutes` (`mpls/forwarding_linux.go:27`)
+    independently for `show mpls forwarding`: `dumpMPLSRoutes` (`mpls/forwarding_linux.go`)
     lists `netlink.FAMILY_MPLS` routes (swap/pop, keyed by `MPLSDst`) plus ze-owned
     (`rtprotZE`) IPv4/IPv6 routes carrying an `MPLSEncap` (push, `pushEntryFromRoute`,
-    `mpls/forwarding_linux.go:88`), served by the `ze-show:mpls-forwarding` RPC
-    (`mpls/show_forwarding.go:45`). This path never touches either engine's in-memory
+    `mpls/forwarding_linux.go`), served by the `ze-show:mpls-forwarding` RPC
+    (`mpls/show_forwarding.go`). This path never touches either engine's in-memory
     LIB/LSP table, it is a pure kernel readback, so it reports the authoritative
     dataplane state (or an installed-but-engine-crashed entry, a useful divergence
     signal, not a bug).
@@ -212,55 +212,55 @@ forwarding`, independent of either engine's in-memory state.
   nor `rsvpte/fib.go` calls netlink; both only emit `(mpls-fib, entry)`. This
   keeps stale-sweep, `RouteAdd`-vs-`RouteReplace` foreign-route safety, and the
   `ze_fibkernel_mpls_*` metrics unified across producers
-  (`internal/plugins/fib/kernel/mplsentry.go:1-11`).
+  (`internal/plugins/fib/kernel/mplsentry.go`).
 - **Two distinct producer topics feed fib-kernel's MPLS state.** BGP labeled-unicast
   rides `sysribevents.BestChange` through `fibKernel.processEvent` (rich-route path,
-  `internal/plugins/fib/kernel/fibkernel.go:453`); LDP/RSVP-TE ride the dedicated
+  `internal/plugins/fib/kernel/fibkernel.go`); LDP/RSVP-TE ride the dedicated
   `mplsfibevents.EntryChange` through `handleMPLSEntry`
-  (`internal/plugins/fib/kernel/fibkernel.go:458`). This digest covers only the
+  (`internal/plugins/fib/kernel/fibkernel.go`). This digest covers only the
   latter; see `plan/learned/919-mpls-kernel.md` for the former.
 - **No shared label allocator between LDP and RSVP-TE.** LDP's local labels start
-  at 16 (`ldp/lib.go:52`) and RSVP-TE's start at 1000 (`firstDynamicLabel`,
-  `rsvpte/fsm.go:184`); both independently grow toward the same 20-bit ceiling
-  (`MaxLabel` = 1048575, defined separately in `ldp/wire.go:82` and
-  `rsvpte/wire.go:126`) with no cross-protocol coordination. Running both
+  at 16 (`ldp/lib.go`) and RSVP-TE's start at 1000 (`firstDynamicLabel`,
+  `rsvpte/fsm.go`); both independently grow toward the same 20-bit ceiling
+  (`MaxLabel` = 1048575, defined separately in `ldp/wire.go` and
+  `rsvpte/wire.go`) with no cross-protocol coordination. Running both
   protocols concurrently on one node for long enough makes an in-label numeric
   collision possible; nothing in `fib-kernel` currently detects two different
   `Source` tags racing to install the same `InLabel`.
 - **Implicit-null (PHP) is a "do not push" signal, not a real label.** LDP label 3
   means "forward as plain IP, don't impose anything" (RFC 3032 §2.1); it is
-  handled as a special case in `applyRemoteBinding` (`ldp/fib.go:33`) that clears
+  handled as a special case in `applyRemoteBinding` (`ldp/fib.go`) that clears
   any prior push rather than emitting one with label 3. RSVP-TE has no
   implicit-null path in this codebase, every allocated label is imposed for
   real, including at egress (pop is InLabel-keyed, not a special value).
 - **The reconcile lock serializes LDP FIB writes across sessions.** `ldpFIB.
-  withReconcileLock` (`ldp/fib.go:174`) makes "mutate the LIB, then decide the
+  withReconcileLock` (`ldp/fib.go`) makes "mutate the LIB, then decide the
   FIB state" atomic per FEC, but because the emit happens synchronously inside
   the lock, LDP label installation is effectively single-threaded across peer
   sessions (an accepted trade-off; each locked section is bounded to one FEC, 
-  see `reconcilePeerDown`, `ldp/fib.go:76`, which takes the lock per-FEC rather
+  see `reconcilePeerDown`, `ldp/fib.go`, which takes the lock per-FEC rather
   than once for the whole peer to avoid stalling other sessions).
 - **Transit label allocation deliberately happens outside the LSP lock.**
   `handleResvTransit` allocates the in-label outside the LSP's own mutex
-  (`rsvpte/engine.go:535-543`) to avoid inverting the table→LSP lock order the
-  cleanup sweep (`expiredPSBs`, `rsvpte/fsm.go:288`) relies on; moving that
+  (`rsvpte/engine.go`) to avoid inverting the table→LSP lock order the
+  cleanup sweep (`expiredPSBs`, `rsvpte/fsm.go`) relies on; moving that
   allocation back inside the lock would deadlock against cleanup.
 - **Admission accounting only fires when the interface can be resolved.**
-  `admissionInterface` (`rsvpte/engine.go:876`) skips accounting entirely (not
+  `admissionInterface` (`rsvpte/engine.go`) skips accounting entirely (not
   fails) when a multi-interface config has no `address` prefix matching the
   neighbor, so bandwidth for that LSP is silently unenforced rather than
-  rejected, logged once at startup (`rsvpte/register.go:588-603`), not
+  rejected, logged once at startup (`rsvpte/register.go`), not
   per-LSP.
 - **RFC 4090 local repair requires a resolved merge-point label.**
-  `tryLocalRepair` (`rsvpte/frr.go:310`) refuses to redirect traffic onto a
+  `tryLocalRepair` (`rsvpte/frr.go`) refuses to redirect traffic onto a
   bypass when `BackupLabel` is 0 (unresolved node-protection merge point,
-  `rsvpte/engine.go:571-585`) even if a bypass is armed, it falls back to the
+  `rsvpte/engine.go`) even if a bypass is armed, it falls back to the
   base tear-down rather than risk forwarding on the wrong label.
 - **`internal/component/mpls` is read-only and protocol-agnostic.** It has no
   dependency on `ldp`/`rsvpte`/`mplsfib` and no knowledge of which protocol
   installed an entry; it distinguishes push (ze-owned IP route with `MPLSEncap`,
   `rtprotZE` = `rtproto.FIBKernel`) from swap/pop (`AF_MPLS` route) purely from
-  kernel route shape (`mpls/forwarding_linux.go:88`,`:108`).
+  kernel route shape (`mpls/forwarding_linux.go`,`:108`).
 
 ## See also
 - `plan/learned/920-mpls-ldp.md`, LDP closure notes: config-shape trap, dynamic
@@ -274,4 +274,4 @@ forwarding`, independent of either engine's in-memory state.
   non-clobber
 - `ai/PACKAGE-MAP.md`, one-line role of every package, including `mplsfib` and
   `component/mpls`
-- `ai/rules/architecture-summary.md`, one-page component map and boundaries
+- `ai/rules/architecture.md`, one-page component map and boundaries

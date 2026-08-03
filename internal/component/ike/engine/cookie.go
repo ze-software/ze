@@ -112,7 +112,7 @@ var responderCookies cookieSecret
 //
 // It reports failure rather than continuing with a zero key. A zero secret would let
 // any peer that guessed it mint a valid cookie, which is the zero-value trap
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func (s *cookieSecret) ensureLocked(now time.Time) bool {
 	if s.rotatedAt.IsZero() {
 		if _, err := rand.Read(s.current[:]); err != nil {
@@ -243,7 +243,7 @@ func verifyCookie(data []byte, spiI [8]byte, ni []byte, ip net.IP, now time.Time
 // slot right now.
 //
 // It is DERIVED from responderBusy rather than kept as a second counter beside it
-// (ai/rules/derive-not-hardcode.md). responderBusy is set at the CAS in
+// (ai/rules/evidence.md). responderBusy is set at the CAS in
 // tryResponderSAInit and cleared at six sites across three files; a parallel counter
 // would have to be decremented at every one of them, and the one that was missed would
 // leave this node challenging every handshake forever.
@@ -284,7 +284,7 @@ func cookieRequired(ps *PeerSession) bool {
 //
 // It fails closed. A nil source yields a nil address, and cookieMAC refuses a nil
 // address, so a packet with no readable source can never mint or verify a cookie
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func cookieRemoteIP(remote *net.UDPAddr) net.IP {
 	if remote == nil {
 		return nil
@@ -302,7 +302,7 @@ func cookieRemoteIP(remote *net.UDPAddr) net.IP {
 //
 // Every bound denies rather than continues. ok reports that the chain parsed cleanly; a
 // cookie outside the 1..64 octets RFC 7296 Section 2.6 allows is a malformed chain here,
-// never a value to truncate (ai/rules/exact-or-reject.md).
+// never a value to truncate (ai/rules/protocol.md).
 func scanSAInitPreState(data []byte) (cookie, nonce []byte, ok bool) {
 	if len(data) < wire.HeaderLen {
 		return nil, nil, false

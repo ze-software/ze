@@ -66,7 +66,7 @@ var spanIndexPool = sync.Pool{
 //     Because the count and the write replay the same walk, the size is exact
 //     rather than an upper bound. That removes the old len(payload)+256 slack
 //     and, with it, the branch that abandoned every modification on overflow and
-//     forwarded the route unchanged (ai/rules/fail-closed-guards.md).
+//     forwarded the route unchanged (ai/rules/evidence.md).
 //  3. WRITE. A buffer of exactly that size is acquired and the same walk writes
 //     it. Adjacent untouched attributes coalesce into one copy, and a new
 //     attribute is merge-inserted at its ascending type-code position rather
@@ -99,7 +99,7 @@ var spanIndexPool = sync.Pool{
 // peerBufIdx == 0 means the slice is independently allocated (safe to retain).
 //
 // A nil payload has TWO meanings and the caller MUST tell them apart by the
-// third value (ai/rules/fail-closed-guards.md):
+// third value (ai/rules/evidence.md):
 //
 //   - (nil, 0, modifyFailureNone): no modifications were needed. Forward the
 //     route as it stands.

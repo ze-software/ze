@@ -58,7 +58,7 @@ and audit every `.ci` file in the repo for the same latent bug.
 - **Latent naming bug in the logging tests.** All three logging `.ci` files
   (`logging-level-filter`, `logging-stderr`, `logging-syslog`) use
   `option=env:var=ze.bgp.log.server:value=...`. The registered convention is
-  `ze.log.<subsystem>` (see `internal/core/slogutil/slogutil.go:45` —
+  `ze.log.<subsystem>` (see `internal/core/slogutil/slogutil.go` —
   `MustRegister("ze.log.<subsystem>", ...)`). So `ze.bgp.log.server` was being
   dropped twice: first by the parser (this spec's fix), then by the env registry
   on the ze side. The tests pass anyway because their stderr/syslog patterns

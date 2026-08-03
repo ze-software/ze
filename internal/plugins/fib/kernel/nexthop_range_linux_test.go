@@ -8,7 +8,7 @@
 // 32-bit build a uint32 above MaxInt32 turns negative and the attribute is
 // dropped without an error: a redistributed route silently lands in
 // RT_TABLE_MAIN at the kernel default metric. Linux-only (netlink); runs under
-// QEMU per ai/rules/qemu-testing.md.
+// QEMU per ai/rules/platform-linux.md.
 
 //go:build linux
 

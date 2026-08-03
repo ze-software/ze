@@ -1,4 +1,4 @@
-// Design: ai/rules/doctor-checks.md -- self-contained doctor checks owned by
+// Design: ai/rules/repo-maintenance.md -- self-contained doctor checks owned by
 // the plugin that owns the runtime dependency.
 // Overview: register.go -- init() registers these checks.
 //

@@ -50,7 +50,7 @@ const invalidMsgIDDataLen = 4
 // anywhere in the tree carries the guard and no constructor changes. Only the maintainSA
 // owner loop reaches this path for a given SA, so the lazy creation needs no lock.
 //
-// It fails closed: a nil SA denies (ai/rules/fail-closed-guards.md).
+// It fails closed: a nil SA denies (ai/rules/evidence.md).
 func (sa *SA) invalidMsgIDAllowed() bool {
 	if sa == nil {
 		return false
@@ -72,7 +72,7 @@ func (sa *SA) invalidMsgIDAllowed() bool {
 // datagram spend this SA's request window.
 //
 // Every precondition denies by sending nothing, and each records the guard that stopped
-// it (ai/rules/fail-closed-guards.md).
+// it (ai/rules/evidence.md).
 func (ps *PeerSession) sendInvalidMessageID(sa *SA, badID uint32, tr *transport.UDPTransport, log *slog.Logger) {
 	if sa == nil || tr == nil {
 		countErrorNotifySuppressed("invalid-msgid-no-destination")

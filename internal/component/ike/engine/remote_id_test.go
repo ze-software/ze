@@ -188,7 +188,7 @@ func TestRidCommonNameNeverOverridesASubjectAltName(t *testing.T) {
 // certificate carries.
 // PREVENTS: the guard relying on its caller. asciiEqualFold("", "") is true, so an empty
 // common name and an empty asserted value agreed. Only the want != "" gate in
-// getRemoteCert kept that unreachable (ai/rules/fail-closed-guards.md).
+// getRemoteCert kept that unreachable (ai/rules/evidence.md).
 func TestRidEmptyAssertedIdentityNeverBinds(t *testing.T) {
 	_, sign := ridAnchor(t)
 	der, _ := sign(t, "", nil, nil)
@@ -247,7 +247,7 @@ func TestRidAddressRemoteIDBindsOnlyToAnAddressAltName(t *testing.T) {
 // cert.IPAddresses alone. remoteIDMatches read the ASSERTED type instead, so ID_FQDN
 // carrying the text 10.0.0.1 satisfied it. For X.509 and EAP the certificate half then
 // denied the peer. For pre-shared-secret no certificate exists, so nothing denied it
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestRidAddressRemoteIDRefusesATextIdentity(t *testing.T) {
 	// The text types a peer can spell an address literal into. Each one is refused.
 	for _, tc := range []struct {
@@ -310,7 +310,7 @@ func TestRidTextRemoteIDRefusesAnAddressIdentity(t *testing.T) {
 // PREVENTS: an operator reading "asserted vpn.example.com., expects vpn.example.com" and
 // seeing no difference. RFC 7296 Section 3.5 puts the A-label on the wire, so the strict
 // comparison is correct and only the message needed the hint
-// (ai/rules/error-messages.md, leg 3).
+// (ai/rules/cli.md, leg 3).
 func TestRidTrailingDotRefusalNamesTheTrailingDot(t *testing.T) {
 	sa := testSAWithKeys(t)
 	sa.PeerCfg.Auth.Mode = ipsec.AuthPreSharedSecret
@@ -330,7 +330,7 @@ func TestRidTrailingDotRefusalNamesTheTrailingDot(t *testing.T) {
 // VALIDATES: an identity type ze cannot compare denies the peer and names the type, and a
 // malformed distinguished name denies rather than rendering to something comparable.
 // PREVENTS: the guard falling through. A check that cannot run is a check that denies,
-// never one that passes (ai/rules/fail-closed-guards.md).
+// never one that passes (ai/rules/evidence.md).
 //
 // ID_DER_ASN1_DN moved OUT of this test when RFC7296-4-4 made it comparable, and the two
 // cases below are what remains genuinely incomparable. ID_DER_ASN1_GN is still assigned by
@@ -443,7 +443,7 @@ func TestRidDeniesAPeerThatSendsNoIdentity(t *testing.T) {
 // VALIDATES: an unset remote-id leaves the identity unchecked, and the engine states that
 // in the log rather than passing in silence.
 // PREVENTS: the gap becoming invisible. A guard that cannot deny must say something
-// (ai/rules/fail-closed-guards.md). Every certificate the authority issued authenticates
+// (ai/rules/evidence.md). Every certificate the authority issued authenticates
 // as this peer while remote-id is empty.
 func TestRidUnsetRemoteIDWarnsThatAnyIssuedCertificatePasses(t *testing.T) {
 	anchor, sign := ridAnchor(t)

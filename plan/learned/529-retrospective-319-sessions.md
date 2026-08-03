@@ -22,7 +22,7 @@ Mining of 319 Claude Code session files (1.09 GB) and 532 learned summaries to f
 
 ### 1. "Done" means "tests pass" (47 corrections)
 
-Claude says "all pass" and stops. Docs, audit, learned summary, spec completion gates all left undone. The user had to ask "what is left?" session after session. Rules added: quality.md ("tests are step 10 of 12"), anti-rationalization.md.
+Claude says "all pass" and stops. Docs, audit, learned summary, spec completion gates all left undone. The user had to ask "what is left?" session after session. Rules added: quality.md ("tests are step 10 of 12"), completion.md.
 
 ### 2. Features not wired (8+ specs, #1 in mistake log)
 

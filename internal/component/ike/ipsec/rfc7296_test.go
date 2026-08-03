@@ -207,7 +207,7 @@ func TestIKESuitePolicyIsOperatorSpecified(t *testing.T) {
 // Before DHGroupImplemented was added to parseIKEProposal it committed.
 // crypto.LookupDHGroup then returned the ZERO DHGroupTransform, which is Transform ID 0.
 // RFC 7296 Section 3.3.2 reserves that ID, and it reached the wire as a valid-looking
-// answer. That is the zero-value trap of ai/rules/fail-closed-guards.md, and the
+// answer. That is the zero-value trap of ai/rules/evidence.md, and the
 // encryption and hash leaves were already gated against it (EncryptionImplemented,
 // HashImplemented).
 //
@@ -240,7 +240,7 @@ func TestIKESuitePolicyRejectsAnUnhonourableSuite(t *testing.T) {
 			continue
 		}
 		// The error must name the group and the implemented set, per
-		// ai/rules/error-messages.md: what failed, why, and what to do next.
+		// ai/rules/cli.md: what failed, why, and what to do next.
 		if !strings.Contains(err.Error(), "not implemented") {
 			t.Errorf("dh-group %s refusal does not read as an implementability failure: %v",
 				group, err)
@@ -335,7 +335,7 @@ func TestPSKAcceptsHexEncoding(t *testing.T) {
 // authentication that works today, and violate RFC7296-2.15-1 at the same time. With the
 // leaf absent the value must survive byte for byte.
 //
-// Steps 2 and 3 are ai/rules/exact-or-reject.md: a value the interface cannot honor is
+// Steps 2 and 3 are ai/rules/protocol.md: a value the interface cannot honor is
 // refused at parse, and no peer is left holding an ASCII-interpreted fallback.
 func TestHexEncodingIsExplicitAndNeverGuessed(t *testing.T) {
 	// 1. The collision case, with the leaf absent and with it set to ascii.

@@ -41,10 +41,10 @@ deterministic simulation.
   → Decision: adopt only the Option-D clock-injection slice (Phase 1 of its roadmap) + event capture; the FSM event queue, fault injection, and scheduler layers stay in the analysis doc (read by research agent 2026-07-10; digest in tmp/session/session-state-improve-3-event-replay-56997.md)
   → Constraint: full timer determinism per that doc needs an event queue; replay asserts FSM/RIB outcomes, not exact interleaving (see A-2)
 - [ ] `docs/architecture/core-design.md` - session/reactor layering
-  → Constraint: Session is owned by Peer; clock wiring flows Peer -> Session at `runOnce` (`peer_run.go:194`, `Session.SetClock` `session.go:462`); capture writer must be reactor-owned, format package a leaf (re-verify doc at implementation)
-- [ ] `ai/rules/buffer-first.md` - capture path must not allocate per message on hot path
+  → Constraint: Session is owned by Peer; clock wiring flows Peer -> Session at `runOnce` (`peer_run.go`, `Session.SetClock` `session.go`); capture writer must be reactor-owned, format package a leaf (re-verify doc at implementation)
+- [ ] `ai/rules/performance.md` - capture path must not allocate per message on hot path
   → Constraint: capture writer uses pooled buffers; disabled capture costs one nil check
-- [ ] `ai/rules/config-surface.md` - capture enable knob placement (YANG vs env)
+- [ ] `ai/rules/config.md` - capture enable knob placement (YANG vs env)
   → Decision: per-peer YANG leaf (operator-facing, per user story 1: operator enables on a live box); read rule in full at implementation for the leaf's naming/validation
 
 ### RFC Summaries (MUST for protocol work)
@@ -62,11 +62,11 @@ deterministic simulation.
 - [ ] `internal/component/bgp/reactor/session_read.go` - `readAndProcessMessage` (:57): header read :74, body read :118-125; complete wire message in `buf.Buf[:hdr.Length]` before `processMessage` (:132-134); pooled-buffer lifecycle :59-71 (read directly 2026-07-10)
   → Constraint: tee copies bytes AFTER body read completes and BEFORE processMessage may take buffer ownership (`kept`); capture must never retain the pooled buffer
 - [ ] `internal/component/bgp/reactor/session_coalesce.go` - `readAndProcessCoalesced` (:53) is a SECOND independent read path (own header read :69, body :107, slice :119) and coalescing is DEFAULT ON (`ze.bgp.reactor.coalesce=true`) -- A-1 resolved: TWO tee points (research agent)
-- [ ] `internal/component/bgp/reactor/reactor_notify.go` - `notifyMessageReceiver` (:218) sees every message from both paths BUT post-RFC7606 short-circuit (`session_read.go:170,:216`), so the existing observer hook cannot serve raw capture; mrt observes there (`mrt/component.go:99` via `reactor.MessageObserver` `reactor.go:218`) (research agent)
-- [ ] `internal/component/bgp/reactor/raw_capture.go` - `BGPRawCaptureRing` (:36): in-memory 256x4096 ring, truncates >4096, pcap-snapshot feature (`EnableRawCapture` `reactor.go:780`) -- adjacent, not reusable for persistent JSONL (research agent)
-- [ ] `internal/core/clock/clock.go` + reactor clock chain - `Clock` (:18); `Peer.clock` (`peer.go:148`), `SetClock` (`peer.go:377`), `Session.SetClock` (`session.go:462`), wired `peer_run.go:194`; grep: ZERO raw time.* in non-test reactor code (research agent)
+- [ ] `internal/component/bgp/reactor/reactor_notify.go` - `notifyMessageReceiver` (:218) sees every message from both paths BUT post-RFC7606 short-circuit (`session_read.go,:216`), so the existing observer hook cannot serve raw capture; mrt observes there (`mrt/component.go` via `reactor.MessageObserver` `reactor.go`) (research agent)
+- [ ] `internal/component/bgp/reactor/raw_capture.go` - `BGPRawCaptureRing` (:36): in-memory 256x4096 ring, truncates >4096, pcap-snapshot feature (`EnableRawCapture` `reactor.go`) -- adjacent, not reusable for persistent JSONL (research agent)
+- [ ] `internal/core/clock/clock.go` + reactor clock chain - `Clock` (:18); `Peer.clock` (`peer.go`), `SetClock` (`peer.go`), `Session.SetClock` (`session.go`), wired `peer_run.go`; grep: ZERO raw time.* in non-test reactor code (research agent)
   → Constraint: verify `internal/bgp/fsm/timer.go` (older path flagged by the analysis doc) during implementation; reactor session/peer path is already clean for deterministic replay
-- [ ] `internal/component/bgp/reactor/reactor.go` + `operation.go` - config entry points to capture: `ReconcilePeersWithJournal` (`reactor.go:637`, called from `bgp/plugin/register.go:221`) and `ApplyConfigOperation` (`operation.go:25`, dispatch :33-40) (research agent)
+- [ ] `internal/component/bgp/reactor/reactor.go` + `operation.go` - config entry points to capture: `ReconcilePeersWithJournal` (`reactor.go`, called from `bgp/plugin/register.go`) and `ApplyConfigOperation` (`operation.go`, dispatch :33-40) (research agent)
 - [ ] `internal/component/config/transaction/orchestrator.go` - txID + phase states (:43-45, :94, :150) enrich captured config events with transaction identity (research agent)
 
 **Behavior to preserve:** (unless user explicitly said to change)
@@ -81,12 +81,12 @@ deterministic simulation.
 
 ### Entry Point
 - Capture: inbound BGP message bytes at BOTH read paths, after each complete
-  message is read (`readAndProcessMessage` post-body-read `session_read.go:118-134`;
-  `readAndProcessCoalesced` post-slice `session_coalesce.go:107-119`); config events
+  message is read (`readAndProcessMessage` post-body-read `session_read.go`;
+  `readAndProcessCoalesced` post-slice `session_coalesce.go`); config events
   at the reactor boundary (`ReconcilePeersWithJournal`, `ApplyConfigOperation`)
   tagged with orchestrator txID when present.
 - Replay: `ze test replay <capture-file>` (ze-test subtree, registerRoot pattern
-  `internal/test/cli/register.go:55`) feeding a session instance in a harness
+  `internal/test/cli/register.go`) feeding a session instance in a harness
   process with `SetClock(FakeClock)` + stub `net.Conn`, not the live daemon.
   ~~`ze bgp replay`~~ superseded 2026-07-10: the harness is test infrastructure
   (fake clock, stub conn) and belongs with `ze-test peer`/inject, keeping the NOS
@@ -108,14 +108,14 @@ deterministic simulation.
 | Replay ↔ session | stub net.Conn + injected clock (existing `s.clock` seam) | [ ] |
 
 ### Integration Points
-- `readAndProcessMessage` (`session_read.go:57`, tee after :125) AND
-  `readAndProcessCoalesced` (`session_coalesce.go:53`, tee after :119) - two tee points.
-- Clock chain `Peer.SetClock` (`peer.go:377`) -> `Session.SetClock` (`session.go:462`)
-  -> wired `peer_run.go:194`; `FakeClock` (`internal/test/sim/sim.go`) - replay determinism.
-- `Reactor.ReconcilePeersWithJournal` (`reactor.go:637`) + `ApplyConfigOperation`
-  (`operation.go:25`) - config event sources; orchestrator txID (:94) as metadata.
-- Replay observation: `Dispatcher.Dispatch` (`server/command.go:538`), adj-rib-in
-  show commands (`rib_commands.go:28-32`), FSM history (`peer_run.go:436`).
+- `readAndProcessMessage` (`session_read.go`, tee after :125) AND
+  `readAndProcessCoalesced` (`session_coalesce.go`, tee after :119) - two tee points.
+- Clock chain `Peer.SetClock` (`peer.go`) -> `Session.SetClock` (`session.go`)
+  -> wired `peer_run.go`; `FakeClock` (`internal/test/sim/sim.go`) - replay determinism.
+- `Reactor.ReconcilePeersWithJournal` (`reactor.go`) + `ApplyConfigOperation`
+  (`operation.go`) - config event sources; orchestrator txID (:94) as metadata.
+- Replay observation: `Dispatcher.Dispatch` (`server/command.go`), adj-rib-in
+  show commands (`rib_commands.go`), FSM history (`peer_run.go`).
 - spec-improve-4 conformance fixtures consume this capture format as their event-stream input.
 
 ### Architectural Verification
@@ -123,15 +123,15 @@ deterministic simulation.
 - [ ] No unintended coupling (capture writer owned by reactor; format pkg shared with replay tool)
 - [ ] No duplicated functionality (extends event trail; does not replace event ring)
 - [ ] Zero-copy preserved (capture copies bytes once at tee point, only when enabled)
-- [ ] Registration over hardcoding -- replay CLI registers via existing dispatch (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding -- replay CLI registers via existing dispatch (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | ~~One tee point sees all inbound bytes~~ RESOLVED broken as anticipated: coalescing is DEFAULT ON and has its own read path | `readAndProcessCoalesced` (`session_coalesce.go:53`, header :69, body :107) verified by research agent | - | Design now specifies TWO tee points (Data Flow); shared tee helper so they cannot drift | confirmed (two tees adopted) |
-| A-2 | The injected clock seam is sufficient for deterministic replay of timer-driven behavior | grep: zero raw time.* in non-test reactor code; clock chain `peer.go:377` -> `session.go:462` -> `peer_run.go:194` | Replay diverges on hold/keepalive timing; need the analysis doc's event-queue layer | Prototype replay of a captured session with timer expiry; verify `internal/bgp/fsm/timer.go` (older path flagged by analysis doc) | unvalidated (basis strengthened) |
+| A-1 | ~~One tee point sees all inbound bytes~~ RESOLVED broken as anticipated: coalescing is DEFAULT ON and has its own read path | `readAndProcessCoalesced` (`session_coalesce.go`, header :69, body :107) verified by research agent | - | Design now specifies TWO tee points (Data Flow); shared tee helper so they cannot drift | confirmed (two tees adopted) |
+| A-2 | The injected clock seam is sufficient for deterministic replay of timer-driven behavior | grep: zero raw time.* in non-test reactor code; clock chain `peer.go` -> `session.go` -> `peer_run.go` | Replay diverges on hold/keepalive timing; need the analysis doc's event-queue layer | Prototype replay of a captured session with timer expiry; verify `internal/bgp/fsm/timer.go` (older path flagged by analysis doc) | unvalidated (basis strengthened) |
 | A-3 | JSONL per-message capture keeps up at stress rates when enabled | buffered writer design | Capture must sample or be documented as debug-rate only | Stress test with `ze-test peer --mode inject` during implementation | unvalidated |
 
 ### Risks
@@ -203,8 +203,8 @@ deterministic simulation.
 ## Files to Create
 - `internal/component/bgp/reactor/capture_replay.go` - capture writer (reactor-owned). ~~`capture.go`~~ (renamed in plan 2026-07-22: `reactor/capture.go` now already exists as an unrelated diagnostic message-capture ring, Design: learned/673, landed for diag-4 -- the planned JSONL writer must not clobber it)
 - capture format package under `internal/core/` (leaf tier: imported by both reactor
-  and ze-test replay; exact name at implementation per `ai/rules/module-tiers.md`) - JSONL schema + version header
-- `internal/test/cli/cmd_replay.go` + harness (Session + FakeClock + stub conn, feeds `ReadAndProcess` `session_read.go:28`)
+  and ze-test replay; exact name at implementation per `ai/rules/architecture.md`) - JSONL schema + version header
+- `internal/test/cli/cmd_replay.go` + harness (Session + FakeClock + stub conn, feeds `ReadAndProcess` `session_read.go`)
 - `test/replay/bgp-capture-replay.ci` - functional test
 
 ### Integration Checklist
@@ -214,12 +214,12 @@ deterministic simulation.
 | YANG validation constraints | Yes | size cap `range 1..1024`, default 100 (Boundary Tests table) |
 | YANG custom validators | N/A | native constraints suffice |
 | CLI commands/flags | Yes | `ze test replay` via `internal/test/cli/register.go` registerRoot |
-| CLI grammar (action before identifier) | Yes | verify `test replay <file>` against `ai/rules/cli-grammar.md` at implementation |
+| CLI grammar (action before identifier) | Yes | verify `test replay <file>` against `ai/rules/cli.md` at implementation |
 | Editor autocomplete | N/A | automatic for boolean/range leaves |
 | Functional test for new RPC/API | Yes | `test/replay/bgp-capture-replay.ci` |
 | Pipe completeness | N/A | replay harness output is a test-tool report, not a NOS CLI command (confirm at implementation) |
 | Env var registration | N/A | YANG leaf chosen (config-surface decision above) |
-| Doctor check for runtime dependencies | Yes | capture directory writability when capture enabled (file-path dependency): owning-package check + `internal/core/diagnostic/codes.go` + tests per `ai/rules/doctor-checks.md` |
+| Doctor check for runtime dependencies | Yes | capture directory writability when capture enabled (file-path dependency): owning-package check + `internal/core/diagnostic/codes.go` + tests per `ai/rules/repo-maintenance.md` |
 | Prometheus counters/metrics | Yes | capture-drop counter (writer backpressure drops, Data Flow boundary row); name + labels listed at implementation |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -239,7 +239,7 @@ deterministic simulation.
 | 12 | Internal architecture changed? | No | additive tee + leaf format package |
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | Yes | metrics doc page for the capture-drop counter |
-| 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | Yes | command + doctor inventory rows per `ai/rules/discovery-updates.md` |
+| 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | Yes | command + doctor inventory rows per `ai/rules/repo-maintenance.md` |
 | 16 | Any changed source file is referenced by existing doc source anchors? | Check at implementation | grep `docs/` for anchors on session_read/session_coalesce |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | none exist yet |
 
@@ -256,8 +256,8 @@ deterministic simulation.
 |-------|------------------------------|
 | Completeness | AC-1..AC-8 with file:line |
 | Correctness | replay uses the real processing path; no parallel decoder |
-| Performance | disabled capture adds no allocation on hot path (`ai/rules/buffer-first.md`) |
-| Registration over hardcoding | replay command registered via dispatch registry (`ai/rules/plugin-self-containment.md`) |
+| Performance | disabled capture adds no allocation on hot path (`ai/rules/performance.md`) |
+| Registration over hardcoding | replay command registered via dispatch registry (`ai/rules/plugins.md`) |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -284,14 +284,14 @@ deterministic simulation.
   same format seeds its conformance tests. Ze's adaptation keeps the shape
   (JSONL + virtualized time) but tees raw wire bytes pre-enforcement, which Holo
   does not need (it records typed events post-decode).
-- Replay asserts OUTCOMES (FSM transitions via `Peer.history` `peer_run.go:436`,
+- Replay asserts OUTCOMES (FSM transitions via `Peer.history` `peer_run.go`,
   RIB effect via dispatch show commands), not goroutine interleavings -- exact
   interleaving reproduction needs the analysis doc's event-queue layer, explicitly
   out of scope (R-3).
 
 ## Capture Format (v1) -- field enumeration (added 2026-07-10 at design gate, per user request)
 
-One JSON object per line, kebab-case keys (`ai/rules/json-format.md`). Bytes are
+One JSON object per line, kebab-case keys (`ai/rules/cli.md`). Bytes are
 base64 (JSONL-safe). `seq` is a per-file monotonic counter so truncation is
 detectable (AC-5).
 
@@ -315,10 +315,10 @@ detectable (AC-5).
 **type=message:** `direction` ("recv"; v1 captures inbound only), `msg-type`
 (uint8 BGP message type from `hdr.Type`), `len` (uint16 wire length), `data`
 (base64 of the FULL wire message including header, `buf.Buf[:hdr.Length]`),
-`source-id`/`ctx-id` (when set on the session, `session_read.go:143` context).
+`source-id`/`ctx-id` (when set on the session, `session_read.go` context).
 
 **type=config:** `op` ("reconcile" / "add-peer" / "modify-peer" / "remove-peer",
-mirroring `ApplyConfigOperation` dispatch `operation.go:33-40`), `tx-id` (orchestrator
+mirroring `ApplyConfigOperation` dispatch `operation.go`), `tx-id` (orchestrator
 transaction ID or empty), `payload` (the operation's JSON as delivered).
 
 **type=session:** `event` ("connect" / "disconnect" / "capture-start" /
@@ -332,10 +332,10 @@ stop per config; a rotated or stopped capture emits a final "capture-stop" event
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Capture wire bytes, not decoded structs | decoded-event capture (serialize the internal message types) | bytes replay through the real decoder and survive internal refactors |
-| Tee at the two read points post-body-read, NOT at the message-observer hook | reuse `reactor.MessageObserver`/`AddMessageObserver` (mrt's hook) | the observer fires post-RFC7606 short-circuit (`session_read.go:170,:216`) and post-decode -- it misses exactly the malformed inputs a bug capture exists to record |
+| Tee at the two read points post-body-read, NOT at the message-observer hook | reuse `reactor.MessageObserver`/`AddMessageObserver` (mrt's hook) | the observer fires post-RFC7606 short-circuit (`session_read.go,:216`) and post-decode -- it misses exactly the malformed inputs a bug capture exists to record |
 | Replay hosts in the ze-test subtree (`ze test replay`) | `ze bgp replay` in the NOS CLI | harness needs FakeClock + stub net.Conn (test infra); ze-test already hosts the peer/inject harness family; NOS CLI stays operator-only |
 | Config events captured at the reactor boundary (`ReconcilePeersWithJournal`, `ApplyConfigOperation`), txID as metadata | orchestrator-level phase capture only | single-session replay needs the peer-scoped operations the reactor actually applies; orchestrator phases lack per-peer granularity |
-| Timestamps from `s.clock.Now()` at the tee | wall-clock `time.Now()` | keeps capture consistent with the injected-clock world so replay time math is uniform (mrt stamps wall clock at `mrt/component.go:112` -- plugin-side, not a precedent for reactor code) |
+| Timestamps from `s.clock.Now()` at the tee | wall-clock `time.Now()` | keeps capture consistent with the injected-clock world so replay time math is uniform (mrt stamps wall clock at `mrt/component.go` -- plugin-side, not a precedent for reactor code) |
 
 ## Known Limitations
 - Single-session replay only; multi-peer/topology replay and full deterministic

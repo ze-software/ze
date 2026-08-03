@@ -74,7 +74,7 @@ func TestRescueGateRefusesWrongToken(t *testing.T) {
 // VALIDATES: AC-3 -- a malformed ze.rescue-auth never opens the shell, through
 // the installer's own gate.
 // PREVENTS: A cmdline value an attacker can supply on the PXE network being
-// treated as "nothing to verify" (ai/rules/fail-closed-guards.md).
+// treated as "nothing to verify" (ai/rules/evidence.md).
 func TestRescueGateFailsClosedOnMalformedCmdlineValue(t *testing.T) {
 	for _, bad := range []string{"", "garbage", strings.Repeat("a", 64), "aabb:ccdd"} {
 		var out strings.Builder

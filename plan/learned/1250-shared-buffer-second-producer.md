@@ -24,7 +24,7 @@ pattern was missing that the process had in fact printed.
   funnel.** The funnel is tidier and impossible to forget, but the closure
   allocates on the BGP-UPDATE -> Route Monitoring hot path that `sender.go`'s own
   comment calls allocation-free. Chose repetition plus a "Caller MUST hold
-  writeMu" contract on `scratchFor` and `sendLocked` (`ai/rules/api-contracts.md`).
+  writeMu" contract on `scratchFor` and `sendLocked` (`ai/rules/go-standards.md`).
 - **Publish `ss.conn` only after `sendInitiation` returns.** RFC 7854 Section 4.3
   requires Initiation first, and `rfc/short/rfc7854.md` [RFC7854-x-6] already
   claimed ze did this ("the sender always emits Initiation as the first message
@@ -36,7 +36,7 @@ pattern was missing that the process had in fact printed.
   every `Write`, which is quadratic for a general accumulator.
 - **The new cap announces itself.** `lockedBuilder` replaced *uncapped*
   `strings.Builder`s, so its 10 MB cap was new behaviour. A silent cap is a guard
-  that neither denies nor speaks (`ai/rules/fail-closed-guards.md`): a positive
+  that neither denies nor speaks (`ai/rules/evidence.md`): a positive
   `expect=stdout:pattern=` whose needle lands past the cap fails over a capture
   that looks complete. Both accumulators now append a one-shot truncation marker.
 - **Re-stamped the 8 stale rfc7606 audit verdicts rather than re-judging them**,
@@ -101,5 +101,5 @@ pattern was missing that the process had in fact printed.
   marker, `syncWriter` short-write fix, `peerOutput.stderr`
 - `internal/test/runner/runner_exec.go` -- shared accumulators
 - `scripts/dev/stress-repro.py` -- sub-suite selector, `-v` order, `--any-failure`
-- `ai/rules/flaky-under-load.md`, `ai/INDEX.md` -- tool discovery
+- `ai/rules/testing.md`, `ai/INDEX.md` -- tool discovery
 - `ai/RFC-REQUIREMENTS.md`, `rfc/audit/rfc7606.json` -- ledger + verdict re-stamp

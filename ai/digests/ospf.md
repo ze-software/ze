@@ -6,149 +6,149 @@
 
 ## What it is
 The `ospf` plugin runs OSPFv2 (RFC 2328) and, over the same codebase, OSPFv3 (RFC 5340/5838) as a set
-of independent `engine` instances (`instance.go:25-178`): one base OSPFv2 engine plus one more per
-configured OSPFv2 Instance ID (RFC 6549, `register.go:366` -> `multi_instance.go`) and one per
-configured OSPFv3 address family (RFC 5838, `register.go:375` -> `register_multiaf.go:33`
+of independent `engine` instances (`instance.go`): one base OSPFv2 engine plus one more per
+configured OSPFv2 Instance ID (RFC 6549, `register.go` -> `multi_instance.go`) and one per
+configured OSPFv3 address family (RFC 5838, `register.go` -> `register_multiaf.go`
 `v6EngineSet`). Each engine is fully self-contained: its own packet `dispatcher`, per-area `LSDB`,
 per-interface FSM table (`iface` package), per-neighbor FSM table (`neighbor` package), and SPF
 `Computer` (`spf` package) that installs straight into the shared Loc-RIB; engines never share
 state, only the wire codec (v4Codec/v6Codec) and transport (`transport` vs `v3/transport`) differ.
 Concurrency is per-engine goroutines: one shared receive goroutine draining `transport.Receive()`
-into `dispatcher.dispatch` (`instance.go:693-710`), one Hello/inactivity/wait-timer goroutine set per
-`iface.Interface` (`iface/iface.go:400-408`), one shared 1-second tick goroutine per engine driving
-LSDB retransmission, self-LSA refresh, and NSSA translation (`instance.go:712-749`), and SPF's own
-debounced `time.AfterFunc` per `Computer` (`spf/computer.go:372-398`). Locking is layered, never
+into `dispatcher.dispatch` (`instance.go`), one Hello/inactivity/wait-timer goroutine set per
+`iface.Interface` (`iface/iface.go`), one shared 1-second tick goroutine per engine driving
+LSDB retransmission, self-LSA refresh, and NSSA translation (`instance.go`), and SPF's own
+debounced `time.AfterFunc` per `Computer` (`spf/computer.go`). Locking is layered, never
 crossed: `engine.mu` (`instance.go`) is held only to resolve config/interface lookups; `iface.Interface`,
 `neighbor.Table`, `lsdb.LSDB`, and `spf.Computer` each own an independent mutex and are called with no
-other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin registration) and
-`runOSPFEngine` (`register.go:294`, the SDK subprocess main loop that builds engines and answers
+other lock held. Entry points are `registerOSPF` (`register.go`, plugin registration) and
+`runOSPFEngine` (`register.go`, the SDK subprocess main loop that builds engines and answers
 `show`/`clear`/`debug` commands).
 
 ## Flow
-1. **Registration + engine construction.** `registerOSPF` (`register.go:75`) registers with
-   `registry.Registration{RunEngine: runOSPFEngine, ...}` (`register.go:97-129`). `runOSPFEngine`
-   (`register.go:294`) builds the base OSPFv2 engine via `wireV4Engine` (`register.go:306-356`) ->
-   `newEngine` -> `newEngineWithCodecAF` (`instance.go:180`, `instance.go:186`), which builds the
-   `dispatcher` (`dispatcher.go:44`), the `LSDB` (`lsdb/lsdb.go:118`), the neighbor `Table`
-   (`neighbor/table.go:52`), and (`initSPF`, `spf_wiring.go:17`) the SPF `Computer`. `newInstanceManager`
-   (`register.go:366`) stands up one more engine per configured OSPFv2 Instance ID (RFC 6549);
-   `newV6EngineSet` (`register.go:375`, `register_multiaf.go:33`) stands up one engine per configured
-   OSPFv3 address family (RFC 5838), each over its own `v3/transport` (`register_multiaf.go:52`).
-2. **Config -> open interfaces.** `OnConfigure`/`OnConfigApply` (`register.go:404`, `register.go:423`)
-   call `engine.setConfig` (`instance.go:459`, rebuilds `e.areas` via `newAreas`, `area.go:13`) then
-   `instances.reconcile`/`v6set.apply`. `OnStarted` (`register.go:436`) calls `instances.start(cfg)`
-   (`register.go:475`) and `v6set.start(...)` (`register.go:480`), both driving `engine.openInterfaces`
-   (`instance.go:639`): opens each enrolled interface (`openConfiguredInterface`/`openInterface`,
-   `instance.go:668`, `instance.go:679`), starts the shared receive loop once (`startReceiveLoop`,
-   `instance.go:693`) and the shared 1s retransmit/tick loop once (`startNeighborRetransmitLoop`,
-   `instance.go:712`).
-3. **Receive loop -> dispatch.** The `startReceiveLoop` goroutine (`instance.go:696-708`) drains
-   `transport.Receive()` (`transport/transport.go:186`), a channel fed per-interface by
-   `Transport.rxLoop` (`transport/transport.go:368`, spawned at `transport/transport.go:331`) reading
-   the raw-socket handle's `Recv()` and forwarding a `wire.RawPacket` (`wire/rawpacket.go:14`) into the
-   shared `deliver` channel. Each packet reaches `dispatcher.dispatch` (`dispatcher.go:59`): decode the
+1. **Registration + engine construction.** `registerOSPF` (`register.go`) registers with
+   `registry.Registration{RunEngine: runOSPFEngine, ...}` (`register.go`). `runOSPFEngine`
+   (`register.go`) builds the base OSPFv2 engine via `wireV4Engine` (`register.go`) ->
+   `newEngine` -> `newEngineWithCodecAF` (`instance.go`, `instance.go`), which builds the
+   `dispatcher` (`dispatcher.go`), the `LSDB` (`lsdb/lsdb.go`), the neighbor `Table`
+   (`neighbor/table.go`), and (`initSPF`, `spf_wiring.go`) the SPF `Computer`. `newInstanceManager`
+   (`register.go`) stands up one more engine per configured OSPFv2 Instance ID (RFC 6549);
+   `newV6EngineSet` (`register.go`, `register_multiaf.go`) stands up one engine per configured
+   OSPFv3 address family (RFC 5838), each over its own `v3/transport` (`register_multiaf.go`).
+2. **Config -> open interfaces.** `OnConfigure`/`OnConfigApply` (`register.go`, `register.go`)
+   call `engine.setConfig` (`instance.go`, rebuilds `e.areas` via `newAreas`, `area.go`) then
+   `instances.reconcile`/`v6set.apply`. `OnStarted` (`register.go`) calls `instances.start(cfg)`
+   (`register.go`) and `v6set.start(...)` (`register.go`), both driving `engine.openInterfaces`
+   (`instance.go`): opens each enrolled interface (`openConfiguredInterface`/`openInterface`,
+   `instance.go`, `instance.go`), starts the shared receive loop once (`startReceiveLoop`,
+   `instance.go`) and the shared 1s retransmit/tick loop once (`startNeighborRetransmitLoop`,
+   `instance.go`).
+3. **Receive loop -> dispatch.** The `startReceiveLoop` goroutine (`instance.go`) drains
+   `transport.Receive()` (`transport/transport.go`), a channel fed per-interface by
+   `Transport.rxLoop` (`transport/transport.go`, spawned at `transport/transport.go`) reading
+   the raw-socket handle's `Recv()` and forwarding a `wire.RawPacket` (`wire/rawpacket.go`) into the
+   shared `deliver` channel. Each packet reaches `dispatcher.dispatch` (`dispatcher.go`): decode the
    common header + verify checksum via the version `Codec`, reject a mismatched Instance ID (RFC
-   6549/RFC 5340 §4.2.2, `dispatcher.go:85`), reject an area mismatch (`dispatcher.go:92` ->
-   `engine.acceptsArea`, `instance.go:505`), reject a failed authentication (`dispatcher.go:98`), then
+   6549/RFC 5340 §4.2.2, `dispatcher.go`), reject an area mismatch (`dispatcher.go` ->
+   `engine.acceptsArea`, `instance.go`), reject a failed authentication (`dispatcher.go`), then
    invoke the registered `packetHandler` for the packet Type (`installStubHandlers`,
-   `instance.go:286-292`).
-4. **Hello receive -> interface FSM.** `engine.handleHello` (`instance.go:294`) resolves the interface,
-   decodes the Hello via the codec, gates the RFC 5838 AF-bit (`instance.go:313`), and calls
-   `Interface.ReceiveDecodedHello` -> `receiveHello` (`iface/iface.go:457`, `iface/iface.go:465`).
+   `instance.go`).
+4. **Hello receive -> interface FSM.** `engine.handleHello` (`instance.go`) resolves the interface,
+   decodes the Hello via the codec, gates the RFC 5838 AF-bit (`instance.go`), and calls
+   `Interface.ReceiveDecodedHello` -> `receiveHello` (`iface/iface.go`, `iface/iface.go`).
    `receiveHello` validates NetworkMask/HelloInterval/DeadInterval/E-bit/N-bit
-   (`iface/iface.go:467` -> `validateHelloLocked`, `iface/iface.go:857`), upserts the `Neighbor` record,
-   computes TwoWay from the Hello's neighbor list (`iface/iface.go:482`), and on a BackupSeen or
-   neighbor-state change re-runs the RFC 2328 §9.4 DR/BDR election (`iface/iface.go:497` ->
-   `runElectionLocked`, `iface/iface.go:813` -> `electDRBDR`, `iface/election.go:30`). The Hello is then
-   forwarded to `nsmAdapter.NeighborHello` (`instance.go:1038`) -> `neighbor.Table.Hello`
-   (`neighbor/table.go:113`).
-5. **NSM Hello event -> adjacency decision.** `Table.hello` (`neighbor/table.go:119`) creates/updates the
-   `Neighbor`, drives Down->Init->TwoWay (RFC 2328 §10.3), and when `shouldAdj` (`neighbor/nsm.go:17`,
+   (`iface/iface.go` -> `validateHelloLocked`, `iface/iface.go`), upserts the `Neighbor` record,
+   computes TwoWay from the Hello's neighbor list (`iface/iface.go`), and on a BackupSeen or
+   neighbor-state change re-runs the RFC 2328 §9.4 DR/BDR election (`iface/iface.go` ->
+   `runElectionLocked`, `iface/iface.go` -> `electDRBDR`, `iface/election.go`). The Hello is then
+   forwarded to `nsmAdapter.NeighborHello` (`instance.go`) -> `neighbor.Table.Hello`
+   (`neighbor/table.go`).
+5. **NSM Hello event -> adjacency decision.** `Table.hello` (`neighbor/table.go`) creates/updates the
+   `Neighbor`, drives Down->Init->TwoWay (RFC 2328 §10.3), and when `shouldAdj` (`neighbor/nsm.go`,
    RFC 2328 §10.4: always for p2p/PtMP, DR/BDR-relative for broadcast/NBMA) holds
-   (`neighbor/table.go:167`), starts Exchange: `startExchangeLocked` seeds the Database Summary from
-   the LSDB (`neighbor/table.go:451-454` -> `lsdb.Summary`), `sendInitialDDLocked` sends the empty
-   negotiating DD (`neighbor/dd.go:161`), and the neighbor moves to ExStart
-   (`neighbor/table.go:170`).
-6. **Database Description exchange.** `handleDBDesc` (`neighbor/dd.go:34`) branches on state: ExStart
-   negotiates master/slave by Router ID (RFC 2328 §10.8, `neighbor/dd.go:71` ->
+   (`neighbor/table.go`), starts Exchange: `startExchangeLocked` seeds the Database Summary from
+   the LSDB (`neighbor/table.go` -> `lsdb.Summary`), `sendInitialDDLocked` sends the empty
+   negotiating DD (`neighbor/dd.go`), and the neighbor moves to ExStart
+   (`neighbor/table.go`).
+6. **Database Description exchange.** `handleDBDesc` (`neighbor/dd.go`) branches on state: ExStart
+   negotiates master/slave by Router ID (RFC 2328 §10.8, `neighbor/dd.go` ->
    `handleExStartDDLocked`); Exchange walks the paginated Headers list and queues an LS Request when the
-   peer's header is newer (`neighbor/dd.go:104` -> `handleExchangeDDLocked`, request build at
-   `neighbor/dd.go:131`); on the last non-More DD the neighbor moves to Loading if the request list is
-   non-empty (`neighbor/dd.go:156`) or straight to Full (`neighbor/dd.go:154`). A sequence-number
+   peer's header is newer (`neighbor/dd.go` -> `handleExchangeDDLocked`, request build at
+   `neighbor/dd.go`); on the last non-More DD the neighbor moves to Loading if the request list is
+   non-empty (`neighbor/dd.go`) or straight to Full (`neighbor/dd.go`). A sequence-number
    mismatch or unexpected flag combination restarts the exchange from ExStart.
-7. **LS Request -> LS Update (Loading).** `handleLSReq` (`neighbor/lsreq.go:49`) looks up each requested
-   LSA in the LSDB (`neighbor/lsreq.go:75`) and replies with an LS Update sized to the interface MTU
-   (`neighbor/lsreq.go:202` -> `sendLSUpdateLocked`). `handleLSUpdate` (`neighbor/lsreq.go:91`) removes
-   satisfied entries from the RequestList (`neighbor/lsreq.go:104-110`, freshness via `headerNewer`, RFC
-   2328 §13.1) and on an empty RequestList fires Loading Done -> Full (`neighbor/lsreq.go:111-113`).
-8. **Full adjacency side effects.** `Table.setStateLocked` (`neighbor/table.go:524`) detects the
+7. **LS Request -> LS Update (Loading).** `handleLSReq` (`neighbor/lsreq.go`) looks up each requested
+   LSA in the LSDB (`neighbor/lsreq.go`) and replies with an LS Update sized to the interface MTU
+   (`neighbor/lsreq.go` -> `sendLSUpdateLocked`). `handleLSUpdate` (`neighbor/lsreq.go`) removes
+   satisfied entries from the RequestList (`neighbor/lsreq.go`, freshness via `headerNewer`, RFC
+   2328 §13.1) and on an empty RequestList fires Loading Done -> Full (`neighbor/lsreq.go`).
+8. **Full adjacency side effects.** `Table.setStateLocked` (`neighbor/table.go`) detects the
    Down<->Full and Full<->other transitions, updates the `ze_ospf_neighbors`/`ze_ospf_adjacencies_full`
-   gauges, and emits `NeighborUp`/`NeighborDown` (`neighbor/table.go:548-553`) to the engine's
-   `neighborEventSink` (`instance.go:1006-1028`), which re-originates self-LSAs (`onChange` ->
+   gauges, and emits `NeighborUp`/`NeighborDown` (`neighbor/table.go`) to the engine's
+   `neighborEventSink` (`instance.go`), which re-originates self-LSAs (`onChange` ->
    `engine.originateSelfLSAs`) and drives the BFD session lifecycle.
 9. **LSA flooding (receive path).** Once a neighbor is Exchange+ (`AcceptsFlooding`,
-   `neighbor/table.go:405`), an LS Update reaches `engine.handleLSUpdate` (`instance.go:332`) ->
-   `lsdb.ReceiveUpdate` (`lsdb/flooding.go:155`): the RFC 2328 §13 per-LSA procedure verifies the
-   checksum, drops by area type (`lsdb/flooding.go:165` -> `shouldDropByArea`), installs
-   (`lsdb/lsdb.go:368` `install`/`installLocked`, freshness via `CompareHeaders`), and on `Newer`:
+   `neighbor/table.go`), an LS Update reaches `engine.handleLSUpdate` (`instance.go`) ->
+   `lsdb.ReceiveUpdate` (`lsdb/flooding.go`): the RFC 2328 §13 per-LSA procedure verifies the
+   checksum, drops by area type (`lsdb/flooding.go` -> `shouldDropByArea`), installs
+   (`lsdb/lsdb.go` `install`/`installLocked`, freshness via `CompareHeaders`), and on `Newer`:
    removes the LSA from every retransmit list, floods it out every other eligible interface
-   (`lsdb/flooding.go:217` -> `floodExcept`, `lsdb/flooding.go:318`), decides the RFC 2328 Table 19
-   acknowledgment (`lsdb/flooding.go:615` -> `ackForReceive`), and calls `notifyChange`
-   (`lsdb/lsdb.go:236`) which is wired to `engine.triggerSPF` (`spf_wiring.go:42`, `spf_wiring.go:106`).
-10. **LSA origination (self).** `engine.originateSelfLSAs` (`instance.go:1227`), invoked after every
-    Full/Down transition and once per second from the retransmit tick (`instance.go:730`), calls
-    `lsdb.OriginateFromTopology` (`lsdb/origination.go:50`): per active area, `OriginateRouter` builds
-    the Type 1 Router-LSA from the live interface/neighbor topology (`lsdb/origination.go:111`, ABR/
+   (`lsdb/flooding.go` -> `floodExcept`, `lsdb/flooding.go`), decides the RFC 2328 Table 19
+   acknowledgment (`lsdb/flooding.go` -> `ackForReceive`), and calls `notifyChange`
+   (`lsdb/lsdb.go`) which is wired to `engine.triggerSPF` (`spf_wiring.go`, `spf_wiring.go`).
+10. **LSA origination (self).** `engine.originateSelfLSAs` (`instance.go`), invoked after every
+    Full/Down transition and once per second from the retransmit tick (`instance.go`), calls
+    `lsdb.OriginateFromTopology` (`lsdb/origination.go`): per active area, `OriginateRouter` builds
+    the Type 1 Router-LSA from the live interface/neighbor topology (`lsdb/origination.go`, ABR/
     ASBR/virtual-link/Nt flags, RFC 2328 App A.4.2), skips the install when the encoded body is
-    byte-identical to the last self-LSA (`lsdb/origination.go:130` -> `existingSelfBodyUnchanged`,
-    def at `lsdb/origination.go:681`), and for each segment where this router is DR, `OriginateNetwork`
-    emits the Type 2 Network-LSA. `installOriginated` (`lsdb/origination.go:734`) floods the new
+    byte-identical to the last self-LSA (`lsdb/origination.go` -> `existingSelfBodyUnchanged`,
+    def at `lsdb/origination.go`), and for each segment where this router is DR, `OriginateNetwork`
+    emits the Type 2 Network-LSA. `installOriginated` (`lsdb/origination.go`) floods the new
     instance the same way a received LSA is flooded.
-11. **Opaque carrier.** `registerOpaqueConsumer` (`opaque_registry.go:136`) assigns
+11. **Opaque carrier.** `registerOpaqueConsumer` (`opaque_registry.go`) assigns
     one package-local consumer to each Opaque Type. The self-LSA pass pulls
-    desired LSAs through `originateOpaqueLSAs` (`opaque.go:147`).
-    Newer received LSAs reach `deliverOpaque` (`opaque.go:114`) outside the LSDB
+    desired LSAs through `originateOpaqueLSAs` (`opaque.go`).
+    Newer received LSAs reach `deliverOpaque` (`opaque.go`) outside the LSDB
     lock with the Type-11 originator-reachability result.
-12. **Retransmission until acked.** `RetransmitTick` (`lsdb/flooding.go:506`), driven every second from
-    the engine's shared timer goroutine (`instance.go:727`), resends every queued
+12. **Retransmission until acked.** `RetransmitTick` (`lsdb/flooding.go`), driven every second from
+    the engine's shared timer goroutine (`instance.go`), resends every queued
     (interface,neighbor) retransmit entry whose RxmtInterval has elapsed (RFC 2328 §13.5, first resend
     waits a full interval because `queueRetransmit` stamps `last` at queue time,
-    `lsdb/flooding.go:465`); `ReceiveAck` (`lsdb/flooding.go:248`) clears matching entries, and once
-    every retransmit list has acked a MaxAge purge, `deletePurgedIfAcked` (`lsdb/flooding.go:784`)
+    `lsdb/flooding.go`); `ReceiveAck` (`lsdb/flooding.go`) clears matching entries, and once
+    every retransmit list has acked a MaxAge purge, `deletePurgedIfAcked` (`lsdb/flooding.go`)
     removes the LSA from its store.
-13. **SPF trigger -> Dijkstra.** `TriggerArea` (`spf/computer.go:372`) marks the area dirty and arms an
-    exponential-backoff `AfterFunc` (delay/hold/max-hold, `spf/computer.go:400` -> `bumpDelayLocked`) so
-    a burst of LSDB changes coalesces into one `Computer.Run` (`spf/computer.go:419`). `Run` rebuilds
-    each configured area's transit graph via the `AFPrefixStrategy` seam (`spf/afstrategy.go:30`
-    `BuildGraph` -> `spf/graph.go:86`, OSPFv2 reads Router/Network-LSA bodies from the `Source`=`LSDB`,
-    `spf/graph.go:70`), runs Dijkstra (`computeWithNextHop`, `spf/spf.go:156`, RFC 2328 §16.1 stage 1
-    over router + transit-network vertices only, relaxation in `spf/spf.go:251`), then `BuildRoutes`
-    (`spf/route.go:150`) attaches stub-network/transit-network prefixes to reached vertices (stage 2).
+13. **SPF trigger -> Dijkstra.** `TriggerArea` (`spf/computer.go`) marks the area dirty and arms an
+    exponential-backoff `AfterFunc` (delay/hold/max-hold, `spf/computer.go` -> `bumpDelayLocked`) so
+    a burst of LSDB changes coalesces into one `Computer.Run` (`spf/computer.go`). `Run` rebuilds
+    each configured area's transit graph via the `AFPrefixStrategy` seam (`spf/afstrategy.go`
+    `BuildGraph` -> `spf/graph.go`, OSPFv2 reads Router/Network-LSA bodies from the `Source`=`LSDB`,
+    `spf/graph.go`), runs Dijkstra (`computeWithNextHop`, `spf/spf.go`, RFC 2328 §16.1 stage 1
+    over router + transit-network vertices only, relaxation in `spf/spf.go`), then `BuildRoutes`
+    (`spf/route.go`) attaches stub-network/transit-network prefixes to reached vertices (stage 2).
 14. **Inter-area + external + selection.** `Run` computes inter-area routes via
-    `strategy.ComputeInterArea` (`spf/computer.go:471`, Type 3 Summary-LSAs, RFC 2328 §16.2), an RFC
-    2328 §16.3 transit-area re-examination pass for virtual links (`spf/computer.go:477` ->
-    `transitAreaPass`), selects the best intra/inter-area candidate per prefix (`spf/route.go:227`
+    `strategy.ComputeInterArea` (`spf/computer.go`, Type 3 Summary-LSAs, RFC 2328 §16.2), an RFC
+    2328 §16.3 transit-area re-examination pass for virtual links (`spf/computer.go` ->
+    `transitAreaPass`), selects the best intra/inter-area candidate per prefix (`spf/route.go`
     `selectBestRoutes`, RFC 2328 §11 preference order), computes AS-external/NSSA routes against the
-    resolved ASBRs (`spf/computer.go:497` -> `strategy.ComputeExternal`, RFC 2328 §16.4), and re-selects
-    (`spf/computer.go:498`). When fast-reroute is enabled, `attachAllBackups`
-    (`spf/computer.go:508`) attaches a per-primary RFC 5286 LFA or TI-LFA backup before install.
-15. **Install into Loc-RIB.** `Installer.Apply` (`spf/install.go:114`), called under the Computer's lock
-    (`spf/computer.go:528`), diffs the new selected set against the previously installed one
-    (`spf/route.go:331` `DiffRoutes`) and calls `insert`/`remove` per prefix (`spf/install.go:139`,
-    `spf/install.go:183`): `insert` writes one `locrib.Path` per equal-cost next-hop with
-    `Source=ospfProtocolID`, `AdminDistance=110` (`spf/install.go:25`, `spf/install.go:163` ->
+    resolved ASBRs (`spf/computer.go` -> `strategy.ComputeExternal`, RFC 2328 §16.4), and re-selects
+    (`spf/computer.go`). When fast-reroute is enabled, `attachAllBackups`
+    (`spf/computer.go`) attaches a per-primary RFC 5286 LFA or TI-LFA backup before install.
+15. **Install into Loc-RIB.** `Installer.Apply` (`spf/install.go`), called under the Computer's lock
+    (`spf/computer.go`), diffs the new selected set against the previously installed one
+    (`spf/route.go` `DiffRoutes`) and calls `insert`/`remove` per prefix (`spf/install.go`,
+    `spf/install.go`): `insert` writes one `locrib.Path` per equal-cost next-hop with
+    `Source=ospfProtocolID`, `AdminDistance=110` (`spf/install.go`, `spf/install.go` ->
     `loc.InsertForward`), tagging any precomputed fast-reroute backup as carry-through Path metadata.
     Loc-RIB arbitration and RTPROT_ZE kernel FIB programming happen downstream in sysrib/fibkernel
     (outside this digest); OSPF never touches the kernel FIB directly. `SetPostRun`
-    (`spf_wiring.go:49`, `e.srInstallFromRoutes`) fires after `Apply` so Segment Routing MPLS labels
+    (`spf_wiring.go`, `e.srInstallFromRoutes`) fires after `Apply` so Segment Routing MPLS labels
     ride an already-installed IP route (spec-ospf-ext-5 R-8).
 16. **Debug and introspection.** OSPFv2 detail views use consumer-owned typed
-    decoders with a generic fallback (`decode_view.go:53`, `decode_view.go:158`).
-    OSPFv3 registers its base decoders separately (`decode_view_v3.go:76`).
-    `ExplainSnapshot` reads the last SPF result (`spf/explain.go:48`). Crafted-LSA
+    decoders with a generic fallback (`decode_view.go`, `decode_view.go`).
+    OSPFv3 registers its base decoders separately (`decode_view_v3.go`).
+    `ExplainSnapshot` reads the last SPF result (`spf/explain.go`). Crafted-LSA
     injection requires the off-by-default runtime gate and reuses the existing
-    v2 or v3 origination seams (`debug_enable.go:25`, `inject.go:69`,
-    `inject_v3.go:46`).
+    v2 or v3 origination seams (`debug_enable.go`, `inject.go`,
+    `inject_v3.go`).
 
 ## Key files
 | File | Role |
@@ -181,41 +181,41 @@ other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin regis
 - **Per-engine isolation.** Every OSPFv2 Instance ID and every OSPFv3 address family is a fully separate
   `engine` (own dispatcher, LSDB, neighbor table, SPF Computer, Loc-RIB install family) -- not a shared
   LSDB keyed by instance/AF. A cross-instance adjacency cannot form because `dispatcher.dispatch`
-  discards a non-matching Instance ID before any ISM/NSM/LSDB code runs (`dispatcher.go:80-91`).
+  discards a non-matching Instance ID before any ISM/NSM/LSDB code runs (`dispatcher.go`).
 - **Gate order at dispatch.** Instance ID, then area, then authentication -- all BEFORE the packet
-  handler (`dispatcher.go:85,92,98`). A packet failing any gate never reaches `iface`/`neighbor`/`lsdb`
+  handler (`dispatcher.go,92,98`). A packet failing any gate never reaches `iface`/`neighbor`/`lsdb`
   code, so a bad-auth or wrong-area Hello cannot influence the ISM/NSM even indirectly.
 - **SPF debounce, not per-LSA recompute.** `TriggerArea` only arms/re-arms an `AfterFunc`
-  (`spf/computer.go:372-398`); a burst of LSDB changes inside the current delay window does not
-  double-run SPF, and `bumpDelayLocked` (`spf/computer.go:400`) exponentially backs off a sustained
+  (`spf/computer.go`); a burst of LSDB changes inside the current delay window does not
+  double-run SPF, and `bumpDelayLocked` (`spf/computer.go`) exponentially backs off a sustained
   flap up to `maxHold` (default 5s) before resetting on a quiet period.
 - **Route install is Loc-RIB-only.** `spf.Installer` (`spf/install.go`) never programs the kernel FIB;
-  it inserts/removes `locrib.Path` values (`AdminDistance`=110, `spf/install.go:25`) and sysrib/
+  it inserts/removes `locrib.Path` values (`AdminDistance`=110, `spf/install.go`) and sysrib/
   fibkernel (outside this digest) arbitrate and program RTPROT_ZE routes downstream.
 - **Graceful Restart suppresses install, not compute.** `SetInstallSuppress`
-  (`spf_wiring.go:41`, `spf/computer.go:293`) makes `Installer.Apply`/`RemoveAll` no-ops while restarting
+  (`spf_wiring.go`, `spf/computer.go`) makes `Installer.Apply`/`RemoveAll` no-ops while restarting
   (RFC 3623 §2/2.1), but SPF still runs and `Routes()`/`Snapshot()` show the computed set even though
   nothing was installed -- do not read "SPF ran" as "FIB changed" during a graceful restart.
 - **Self-LSA origination is idempotent per tick.** `existingSelfBodyUnchanged`
-  (`lsdb/origination.go:130,681`) skips re-install and re-flood when the encoded Router-LSA body is
+  (`lsdb/origination.go,681`) skips re-install and re-flood when the encoded Router-LSA body is
   byte-identical to the last self-instance, so the 1-second retransmit-tick call to
-  `originateSelfLSAs` (`instance.go:730`) does not churn the sequence number on every tick.
+  `originateSelfLSAs` (`instance.go`) does not churn the sequence number on every tick.
 - **Flood-back exception.** RFC 2328 §13.3: a DR re-floods a received LSA back out the receiving
   broadcast/NBMA interface only when it came from a DROther, never from the BDR
-  (`lsdb/flooding.go:344`); this suppresses the acknowledgment (`ackForReceive` floodedBack case,
-  `lsdb/flooding.go:616-618`).
+  (`lsdb/flooding.go`); this suppresses the acknowledgment (`ackForReceive` floodedBack case,
+  `lsdb/flooding.go`).
 - **AS-wide vs area-scoped store split.** Type 5 (AS-External) and Type 11 (AS-scope opaque) share one
   AS-wide store; Type 11 is NOT `ASWide()`-typed so it must be named explicitly
-  (`isASWideType`, `lsdb/flooding.go:261`) everywhere a stub/NSSA area filter or flood-scope check is
+  (`isASWideType`, `lsdb/flooding.go`) everywhere a stub/NSSA area filter or flood-scope check is
   applied, or it would leak into (or vanish from) the wrong scope.
 - **Neighbor identity is (interface, RouterID).** `neighbor.Table` keys by `tableKey{iface, router}`
-  (`neighbor/table.go:16-19`), so the same Router ID heard on two interfaces (e.g. a broadcast segment
+  (`neighbor/table.go`), so the same Router ID heard on two interfaces (e.g. a broadcast segment
   plus a backup link) is two fully independent `Neighbor` records with independent FSM state.
-- **LSInfinity has two different values.** `lsdb/origination.go:19` defines the 16-bit RFC 2328 Metric
-  ceiling (`0xffff`, what a Router-LSA link cost saturates at); `spf/spf.go:19` defines the SPF-internal
+- **LSInfinity has two different values.** `lsdb/origination.go` defines the 16-bit RFC 2328 Metric
+  ceiling (`0xffff`, what a Router-LSA link cost saturates at); `spf/spf.go` defines the SPF-internal
   24-bit path-cost ceiling (`0x00ff_ffff`, RFC 2328 §16.1 "0xffff00 to 0xffffff"). A cumulative SPF path
   cost can hit the SPF ceiling long before any single link metric approaches the LSA ceiling.
-- **OSPFv3's one Dijkstra seam.** `NextHopSource` (`spf/spf.go:127-133`) is the only address-family
+- **OSPFv3's one Dijkstra seam.** `NextHopSource` (`spf/spf.go`) is the only address-family
   branch inside the Dijkstra core: OSPFv2 reads the neighbor's interface address from the reciprocal
   Router-LSA link data; OSPFv3 Router-LSAs carry no per-link address, so the v6 strategy resolves the
   neighbor's IPv6 link-local from the live adjacency table instead. Everything else in `spf/spf.go` is
@@ -224,8 +224,8 @@ other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin regis
 ## See also
 - `docs/architecture/wire/ospf.md`, OSPFv2 wire codec (`packet`) + IPv4 raw transport layering
 - `docs/architecture/wire/ospfv3.md`, OSPFv3 wire codec/transport (`v3/{types,packet,transport}`) and how it diverges from OSPFv2
-- `ai/rules/architecture-summary.md`, one-page component map and boundaries
-- `ai/rules/plugin-self-containment.md`, component-owned diagnostic/doctor registration boundary (referenced by `register.go`)
+- `ai/rules/architecture.md`, one-page component map and boundaries
+- `ai/rules/plugins.md`, component-owned diagnostic/doctor registration boundary (referenced by `register.go`)
 - `plan/learned/958-ospf-4-component-config.md`, engine skeleton + packet dispatcher
 - `plan/learned/959-ospf-5-interface-ism.md`, interface ISM + RFC 2328 §9.4 DR/BDR election
 - `plan/learned/960-ospf-6-neighbor-nsm.md`, neighbor NSM + Database Description / LS Request exchange

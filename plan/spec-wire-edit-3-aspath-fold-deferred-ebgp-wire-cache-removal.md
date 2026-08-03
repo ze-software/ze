@@ -9,7 +9,7 @@
 | Updated | 2026-08-02 |
 
 Deferral holder created at the closure of `plan/learned/1319-wire-edit-3-aspath-fold.md` on 2026-08-02
-(`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
+(`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
@@ -29,7 +29,7 @@ What is left, and what it costs:
 
 There is no behavioral effect: the slots are never written, so the release
 branches are no-ops and the cache is correct. The cost is dead code plus an
-exported symbol with no non-test caller, which `ai/rules/wiring-completeness.md`
+exported symbol with no non-test caller, which `ai/rules/completion.md`
 treats as a defect.
 
 Deferred rather than done at closure because the deletion touches the read-pool

@@ -506,7 +506,7 @@ func TestRelayStoredRouteEmptyIsNoOp(t *testing.T) {
 // TestRelayPayloadSizeBoundary verifies the size guard at the exact UPDATE limit
 // and one byte past it.
 //
-// VALIDATES: ai/rules/tdd.md boundary testing -- last valid, first invalid.
+// VALIDATES: ai/rules/testing.md boundary testing -- last valid, first invalid.
 // PREVENTS: a stored route one byte over the 16-bit attribute-length limit being
 // silently truncated onto the wire instead of refused.
 func TestRelayPayloadSizeBoundary(t *testing.T) {

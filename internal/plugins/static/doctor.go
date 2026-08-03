@@ -28,10 +28,10 @@ const doctorCodeRouteSkipped = "doctor-static-route-skipped"
 // staticDoctorChecks declares the static plugin's doctor readiness checks. The
 // interface-only next-hop check is the config-time backstop for the runtime
 // dependency an interface next-hop has on a loaded iface backend
-// (spec-fixit-static-interface-nexthops D-2 = (a)+(b), ai/rules/doctor-checks.md).
+// (spec-fixit-static-interface-nexthops D-2 = (a)+(b), ai/rules/repo-maintenance.md).
 // The route-skipped check surfaces routes the running plugin isolated at apply
 // time so a skip is never a silent no-op (spec-fixit-static-per-route-isolation
-// AC-3, ai/rules/fail-closed-guards.md).
+// AC-3, ai/rules/evidence.md).
 func staticDoctorChecks() []registry.DoctorCheckDef {
 	return []registry.DoctorCheckDef{
 		{

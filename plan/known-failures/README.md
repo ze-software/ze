@@ -34,7 +34,7 @@ this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
 
 **Host load is a mechanism, so it does not belong here either**
-(`ai/rules/fix-dont-record.md`, owner directive 2026-07-26). Once you can say
+(`ai/rules/completion.md`, owner directive 2026-07-26). Once you can say
 "it fails when the machine is busy",
 you have the diagnosis: the test asserts on elapsed time instead of on state. Fix
 it to wait on the condition. "Load-sensitive", "passes in isolation", "the failing
@@ -91,7 +91,7 @@ replaced with the established+`quiesce()` and `wait_until`+`runtime_fail` fences
 and mutation-verified. `reload-transaction-tests-load-sensitive` closed because
 its headline issue (fixed startup deadlines under CPU starvation) was already
 fixed at source by `withParallelHeadroom`
-(`internal/test/runner/runner_exec_util.go:147`), and because its finding 3 --
+(`internal/test/runner/runner_exec_util.go`), and because its finding 3 --
 "the daemon hangs when it cannot apply interface config" -- was DISPROVEN in QEMU:
 the daemon exits rc=1 in under a second as an unprivileged user. The real defect
 there was an error that dropped its cause, now fixed.

@@ -12,7 +12,7 @@ This closure records the umbrella-to-delivery mapping and the AC evidence.
 ## Decisions
 
 - Resolver lives in the iface component (`Resolve`/`Addresses`/`Subscribe`,
-  `internal/component/iface/resolve.go:65,71,80`) over a standalone service or
+  `internal/component/iface/resolve.go,71,80`) over a standalone service or
   per-consumer translation, because iface already owned interface knowledge and
   the Monitor event source.
 - 7 planned sub-specs closed as 5 units: 949 (model: os-name + permaddr in show),
@@ -25,7 +25,7 @@ This closure records the umbrella-to-delivery mapping and the AC evidence.
 
 - AC-U1 is a standing verify gate, not a one-shot audit: `ze-iface-resolution-check`
   (`scripts/checks/iface_resolution.go`; target `Makefile:310`, executed by
-  `stagesForMode` in `scripts/status/verify_run.go:125,138` -- the Makefile
+  `stagesForMode` in `scripts/status/verify_run.go,138` -- the Makefile
   `_ze-verify-impl` list at :287 is documented dead code) rejects
   new direct kernel name resolution outside its allowlist. New backends (the VPP
   wave's tunnel/mirror/LCP files) had to pass it, proving it load-bearing.

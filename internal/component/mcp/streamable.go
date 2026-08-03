@@ -46,7 +46,7 @@ const OAuthMetadataPath = "/.well-known/oauth-protected-resource"
 //
 // Exactly one entry: the cutover to 2026-07-28 dropped the handshake-based
 // revisions outright, and no shim, alias or default survives for them
-// (ai/rules/compatibility.md). A slice rather than a set so the advertised
+// (ai/rules/go-standards.md). A slice rather than a set so the advertised
 // order is deterministic; membership goes through
 // isSupportedProtocolVersion.
 var supportedProtocolVersions = []string{ProtocolVersion}

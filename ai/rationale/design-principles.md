@@ -1,6 +1,6 @@
 # Design Principles Rationale
 
-Why: `ai/rules/design-principles.md`
+Why: `ai/rules/architecture.md`
 
 ## YAGNI Examples
 

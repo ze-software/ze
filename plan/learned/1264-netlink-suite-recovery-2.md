@@ -43,11 +43,11 @@ cited root cause a follow-up can act on without re-deriving it.
   rests on the `lower_linux_test.go` unit test.
 - `option=netns-link` is the vehicle for the remaining interface-missing ospf failures
   (50/58/68 + ospfv3 6/7): an **active** OSPF interface (nbma/ptmp/broadcast) needs a real link
-  (`openConfiguredInterface`, `internal/plugins/ospf/instance.go:668`, sends non-passive/
+  (`openConfiguredInterface`, `internal/plugins/ospf/instance.go`, sends non-passive/
   non-loopback through `openInterface`), so those tests must provision their interface and run
   under netns mode -- do not make OSPF tolerate a missing active link.
 - Two ospf clusters are diagnosed but unfixed: the ldp-sync/multiaf 8 fail because the hub
-  Orchestrator subsystem start path (`internal/component/plugin/server/subsystem.go:112`) never
+  Orchestrator subsystem start path (`internal/component/plugin/server/subsystem.go`) never
   calls `SetAcceptor`, so an OSPF-only daemon (no `bgp` block) cannot start external plugins.
   Fixing it threads an acceptor through core startup -- its own change.
 

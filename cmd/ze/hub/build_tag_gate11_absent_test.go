@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_bmp/ze_mrt symbol-drop + dependent-gate proof
+// Design: ai/rules/plugins.md -- ze_bmp/ze_mrt symbol-drop + dependent-gate proof
 
 //go:build ze_bmp && ze_mrt
 

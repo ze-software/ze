@@ -110,7 +110,7 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	// Fail closed: a subsystem is always an external fork, and an external
 	// plugin with no acceptor has nowhere to connect back to. Refuse here, where
 	// the subsystem is still nameable, rather than letting the process layer
-	// report a bare plugin name (ai/rules/fail-closed-guards.md).
+	// report a bare plugin name (ai/rules/evidence.md).
 	//
 	// The wording is operator-facing on purpose: this error reaches the console
 	// through cmd/ze/hub/main.go, and a reader there cannot act on Go symbols.

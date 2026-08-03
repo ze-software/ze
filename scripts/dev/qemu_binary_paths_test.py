@@ -10,7 +10,7 @@ scripts/evidence/netns_qemu.py used to rebuild that literal itself and exec it.
 Off-session the two spellings coincide and nothing looked wrong; under a session
 the make target wrote `...-<session-id>` and the driver exec'd a file that did
 not exist. Nothing caught it: the ze-qemu-* targets run in no automated CI
-(ai/rules/qemu-testing.md), so the mismatch only surfaces when a human runs it.
+(ai/rules/platform-linux.md), so the mismatch only surfaces when a human runs it.
 
 These tests pin both halves of the contract: the make target hands the paths
 over, and the driver takes them.

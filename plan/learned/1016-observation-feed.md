@@ -17,7 +17,7 @@ lost their tick-driven behavior. This was a latent defect.
    The deprecated `RegisterCollectNotify` wraps the new API for compatibility.
 
 2. **In-process typed Feed, not EventBus.** The EventBus appends to a 1024-entry
-   diagnostic ring per event (`dispatch.go:403`); per-source/per-flow volume would
+   diagnostic ring per event (`dispatch.go`); per-source/per-flow volume would
    thrash it. A dedicated `internal/core/observation.Feed` with buffered channels
    and atomic-pointer CoW avoids this.
 

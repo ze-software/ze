@@ -74,7 +74,7 @@ RFCs, and `CODE-TO-DOCS.md` is a real generated reverse index. The gaps below ar
 code itself.** When I need "which package owns route selection" or "what does
 `internal/component/managed` actually do", there is no compact source. The generated
 arch map lists 134 directory names with zero descriptions each
-(`scripts/dev/arch_map.py:38-46` emits `", ".join(names)` and nothing more). The
+(`scripts/dev/arch_map.py` emits `", ".join(names)` and nothing more). The
 keyword table in `ai/INDEX.md` covers popular topics but is not an enumeration of
 packages. So I open packages one at a time, and 42% of them have no package doc
 comment to read (356 of 610 package directories carry `// Package ...`; the rest do
@@ -84,11 +84,11 @@ not).
 exactly two things: `CLAUDE.md` (198 lines) and about 15 lines of stdout from
 `session-start.sh`. Both are pointers, not knowledge. When a session ends, the only
 per-session state written (`tmp/session/session-state-*.md`) is a git-status file
-list, it is gitignored, and it is deleted after 24 hours (`session-start.sh:14-15`,
-`.gitignore:12,51-55`). The digest format that `post-compaction.md:24-28` describes
+list, it is gitignored, and it is deleted after 24 hours (`session-start.sh`,
+`.gitignore:12,51-55`). The digest format that `post-compaction.md` describes
 (`peer.go (380L): Peer struct, FSM transitions...`) is exactly the right shape, but
 nothing enforces it and its sink is the same ephemeral file. So the code-flow tracing
-that `before-writing-code.md:22-60` mandates before every buffer or call-site change
+that `architecture.md` mandates before every buffer or call-site change
 is discovered, used once, and discarded. The next session starts cold.
 
 Everything below follows from these two.
@@ -99,32 +99,32 @@ Everything below follows from these two.
 lists every package or plugin with a one-line responsibility.
 
 **Evidence.**
-- `scripts/dev/arch_map.py:38-46` generates only comma-separated directory-name lists
+- `scripts/dev/arch_map.py` generates only comma-separated directory-name lists
   (the `arch-components` / `arch-system-plugins` / `arch-bgp-plugins` blocks in
-  `CLAUDE.md:72-98`). Names, no descriptions.
+  `CLAUDE.md`). Names, no descriptions.
 - Package doc coverage is ~58% (356 of 610 dirs). Confirmed missing on real packages:
   `internal/plugins/dhcpserver`, `internal/plugins/static`, `internal/component/ike`,
   `internal/core/textbuf`, `internal/core/observation`.
 - The descriptions **already exist** for plugins but are surfaced only at runtime. The
-  registry carries `Description string` (`registry.go:42`), and 106 `register.go`
-  files set a real one-liner, for example `internal/plugins/ospf/register.go:99`
+  registry carries `Description string` (`registry.go`), and 106 `register.go`
+  files set a real one-liner, for example `internal/plugins/ospf/register.go`
   ("Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP"). The only
-  consumers are help text and the TUI (`registry.go:773`, `cmd/ze/help_command.go`).
+  consumers are help text and the TUI (`registry.go`, `cmd/ze/help_command.go`).
   An agent sees them only by running `bin/ze help`.
 
 **Fix.** Generate `ai/PACKAGE-MAP.md` (or root `PACKAGES.md`): one row per package and
 plugin, `path | one-line responsibility | key type / entrypoint`. Populate it by
 joining two sources you already keep:
 - Plugins and components: `reg.Description` (the registry already exposes it via
-  `registry.All()`; `inventory.go:123-137` already reads it).
+  `registry.All()`; `inventory.go` already reads it).
 - Documented packages: the first sentence of the `// Package ...` comment.
 - Undocumented packages (~254): emit as `TODO`. The artifact then doubles as a
   doc-coverage backfill driver, which is a feature, not a defect.
 
 **Cost.** Low. Extend `scripts/dev/arch_map.py` (already walks the trees) or
 `scripts/inventory/inventory.go` (already imports the registry and renders a
-Description column, `inventory.go:426-437`), and wire it into the existing
-`ze-doc-test` / `ze-regen` freshness gate (`mk/inventory.mk:72-93`) so it cannot rot.
+Description column, `inventory.go`), and wire it into the existing
+`ze-doc-test` / `ze-regen` freshness gate (`mk/inventory.mk`) so it cannot rot.
 
 **Why first.** It is the literal answer to your complaint, it is ~90% generatable from
 metadata you maintain, and the freshness gate keeps it honest. This is the single best
@@ -137,7 +137,7 @@ go change or verify the code", I have to grep for the implementing files every t
 
 **Evidence.**
 - Every non-test, non-generated `.go` carries a forward `// Design: <doc>` header,
-  hook-enforced (`ai/rules/design-doc-references.md`, `pretool-writeedit.py:1340-1364`),
+  hook-enforced (`ai/rules/go-standards.md`, `pretool-writeedit.py`),
   about 5717 edges. `ai/CODE-TO-DOCS.md` also runs code to docs. Both are **forward**.
   The inverse (doc to the `.go` files that implement it) is not materialized anywhere.
   There is no `make` target and no `DOCS-TO-CODE.md`.
@@ -162,7 +162,7 @@ process decision, not code.
 
 **Symptom.** Each session that needs to understand a flow, say how an UPDATE moves
 from receive through the reactor and pools to egress, re-traces it from source. The
-rules mandate the tracing (`before-writing-code.md:22-60`, "Memory Lifecycle Tracing"
+rules mandate the tracing (`architecture.md`, "Memory Lifecycle Tracing"
 and "Sibling Call-Site Audit") but give it no durable sink.
 
 **Evidence.**
@@ -263,5 +263,5 @@ design-decision discoverability (`DESIGN-HISTORY`, `LEARNED-INDEX`, `CODE-TO-DOC
 the ADR directory, the `// Design:` enforcement), the package-level "what does what"
 map (`arch_map.py`, `registry.go`, `inventory.go`, package-doc coverage sampling), and
 per-session bootstrap cost (`session-start.sh`, the compaction hooks, the
-`tmp/session` state mechanism, `before-writing-code.md`). Their findings agreed and
+`tmp/session` state mechanism, `architecture.md`). Their findings agreed and
 are folded into the gaps above.

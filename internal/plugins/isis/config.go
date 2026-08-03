@@ -211,7 +211,7 @@ var (
 // parser.go:266). Relying on a guard three layers up means this code fails OPEN
 // for any future entry point that delivers a tree without that validation, and a
 // bare uintN(v) would then store a silently truncated value rather than reject
-// it (ai/rules/fail-closed-guards.md, ai/rules/exact-or-reject.md).
+// it (ai/rules/evidence.md, ai/rules/protocol.md).
 //
 // The bound is the target type's own maximum, not a per-leaf maximum: every YANG
 // leaf here declares the same width as the Go field it feeds, so no config the

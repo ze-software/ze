@@ -27,10 +27,10 @@ Plausible findings:
 - `plan/review-bug-review-inventory.md`
 - `plan/spec-bug-review-0-umbrella.md`
 - `plan/spec-bug-review-1-inventory-and-self-containment.md`
-- `docs/architecture/core-design.md:70-82,336-400,1154-1171`
-- `ai/rules/plugin-design.md`
-- `ai/rules/plugin-self-containment.md`
-- `ai/rules/data-flow-tracing.md`
+- `docs/architecture/core-design.md,336-400,1154-1171`
+- `ai/rules/plugins.md`
+- `ai/rules/plugins.md`
+- `ai/rules/architecture.md`
 - `skill://ze-review`
 - `skill://ze-review-deep`
 
@@ -38,58 +38,58 @@ Plausible findings:
 
 Plugin infrastructure and SDK:
 
-- `internal/component/plugin/types.go:1-120`
-- `internal/component/plugin/registration.go:1-360`
-- `internal/component/plugin/registry/registry.go:35-143,266-331,575-753,784-1053`
-- `internal/component/plugin/all/all.go:1-278`
-- `internal/component/plugin/server/startup.go:1-995`
-- `internal/component/plugin/server/startup_autoload.go:1-481`
-- `internal/component/plugin/server/reload.go:161-323`
-- `internal/component/plugin/server/rpc_register.go:1-80`
-- `internal/component/plugin/server/schema.go:107-184`
-- `internal/component/plugin/server/dispatch.go:37-58`
-- `internal/component/plugin/process/process.go:489-520`
-- `internal/component/plugin/process/delivery.go:219-280`
-- `pkg/plugin/rpc/bridge.go:1-132,154-190,571-632`
-- `pkg/plugin/sdk/sdk_callbacks.go:1-240`
-- `pkg/plugin/sdk/sdk_dispatch.go:99-153`
-- `internal/core/family/registry.go:120-180`
+- `internal/component/plugin/types.go`
+- `internal/component/plugin/registration.go`
+- `internal/component/plugin/registry/registry.go,266-331,575-753,784-1053`
+- `internal/component/plugin/all/all.go`
+- `internal/component/plugin/server/startup.go`
+- `internal/component/plugin/server/startup_autoload.go`
+- `internal/component/plugin/server/reload.go`
+- `internal/component/plugin/server/rpc_register.go`
+- `internal/component/plugin/server/schema.go`
+- `internal/component/plugin/server/dispatch.go`
+- `internal/component/plugin/process/process.go`
+- `internal/component/plugin/process/delivery.go`
+- `pkg/plugin/rpc/bridge.go,154-190,571-632`
+- `pkg/plugin/sdk/sdk_callbacks.go`
+- `pkg/plugin/sdk/sdk_dispatch.go`
+- `internal/core/family/registry.go`
 
 System and component-owned plugin references:
 
-- `internal/plugins/static/register.go:70-180`
-- `internal/plugins/fib/kernel/register.go:57-64`
-- `internal/plugins/tftpserver/config.go:1-83`
-- `internal/plugins/tftpserver/handler.go:160-333`
-- `internal/plugins/imageserver/config.go:1-108`
-- `internal/plugins/imageserver/handler.go:1-217`
-- `internal/plugins/bfd/bfd.go:618-735`
-- `internal/component/vpp/config.go:1-475`
-- `internal/component/vpp/yang/ze-vpp-conf.yang:1-193`
-- `internal/component/firewall/plugins/irr/register.go:1-40`
-- `internal/component/firewall/plugins/irr/config.go:1-220`
-- `internal/component/flowexport/register.go:1-220`
-- `internal/component/iface/register.go:1-710`
-- `internal/component/ldp/register.go:1-390`
-- `internal/component/rsvpte/register.go:430-725`
-- `internal/component/traffic/register.go:1-390`
+- `internal/plugins/static/register.go`
+- `internal/plugins/fib/kernel/register.go`
+- `internal/plugins/tftpserver/config.go`
+- `internal/plugins/tftpserver/handler.go`
+- `internal/plugins/imageserver/config.go`
+- `internal/plugins/imageserver/handler.go`
+- `internal/plugins/bfd/bfd.go`
+- `internal/component/vpp/config.go`
+- `internal/component/vpp/yang/ze-vpp-conf.yang`
+- `internal/component/firewall/plugins/irr/register.go`
+- `internal/component/firewall/plugins/irr/config.go`
+- `internal/component/flowexport/register.go`
+- `internal/component/iface/register.go`
+- `internal/component/ldp/register.go`
+- `internal/component/rsvpte/register.go`
+- `internal/component/traffic/register.go`
 
 Command, schema, and root command wiring references:
 
-- `cmd/ze/ze_core_dispatch.go:49-69`
-- `cmd/ze/setup_features_distro.go:1-15`
-- `cmd/ze/setup_features_setup.go:1-15`
-- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang:1-120`
-- `internal/component/cmd/show/yang/ze-cli-show-api.yang:1-23`
-- `internal/component/cmd/clear/yang/ze-cli-clear-api.yang:1-15`
-- `internal/component/cmd/delete/yang/ze-cli-delete-api.yang:1-11`
-- `internal/component/cmd/delete/yang/self_containment_test.go:1-38`
-- `internal/plugins/host-cmd/yang/ze-host-cmd.yang:1-110`
+- `cmd/ze/ze_core_dispatch.go`
+- `cmd/ze/setup_features_distro.go`
+- `cmd/ze/setup_features_setup.go`
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`
+- `internal/component/cmd/show/yang/ze-cli-show-api.yang`
+- `internal/component/cmd/clear/yang/ze-cli-clear-api.yang`
+- `internal/component/cmd/delete/yang/ze-cli-delete-api.yang`
+- `internal/component/cmd/delete/yang/self_containment_test.go`
+- `internal/plugins/host-cmd/yang/ze-host-cmd.yang`
 - `internal/plugins/host-cmd/cmd/show_host.go`
-- `internal/plugins/host/host.go:1-200`
+- `internal/plugins/host/host.go`
 - `internal/plugins/exabgp/main.go`
-- `internal/plugins/completion/root_commands.go:1-98`
-- `internal/component/command/registry/registry.go:1-200`
+- `internal/plugins/completion/root_commands.go`
+- `internal/component/command/registry/registry.go`
 
 ### Inventory package classes covered
 
@@ -124,7 +124,7 @@ Command, schema, and root command wiring references:
 
 ### SYS-001, BLOCKER, Startup failure can be swallowed after partial dynamic registration
 
-- File and line: `internal/component/plugin/server/startup.go:511-527`, `internal/component/plugin/server/startup.go:577-582`, `internal/component/plugin/server/startup.go:386-415`, `internal/component/plugin/server/startup.go:674-694`, `internal/component/plugin/registration.go:185-218`, `internal/component/plugin/registration.go:333-377`, `internal/core/family/registry.go:130-177`.
+- File and line: `internal/component/plugin/server/startup.go`, `internal/component/plugin/server/startup.go`, `internal/component/plugin/server/startup.go`, `internal/component/plugin/server/startup.go`, `internal/component/plugin/registration.go`, `internal/component/plugin/registration.go`, `internal/core/family/registry.go`.
 - Reachable trigger: an external or internal plugin starts in a phase, reaches Stage 1 or Stage 3, then fails after a partial registration. Concrete examples: `registerPluginFamilies` registers an earlier family and then a later family conflicts, or `AddPluginCapabilities` appends an earlier decoded capability and then a later capability conflicts. Another plugin in the same tier can hit `stageTransition` failure, but `runPluginPhase` only waits for goroutines and returns nil.
 - Expected behavior: startup is exact-or-reject. If a plugin fails any startup stage, the phase returns an error, partial registry, family, command, capability, event, send, and cache state is rolled back, and `WaitForStartupComplete` reports failure for config-path or fatal failures.
 - Actual behavior: Stage 1 calls `s.registry.Register(reg)` before `registerPluginFamilies` and neither path has rollback. Capability injection mutates `globalCaps`, `globalByCode`, `peerCaps`, and `peerByCode` while iterating. `handleProcessStartupRPC` reports failure to the coordinator, but `runPluginPhase` does not inspect coordinator failure or final process stages after `procWg.Wait`, starts async handlers for any process collected, and returns nil to `runPluginStartup`.
@@ -135,7 +135,7 @@ Command, schema, and root command wiring references:
 
 ### SYS-002, ISSUE, Failed reload cleanup passes plugin names to config-root stop logic
 
-- File and line: `internal/component/plugin/server/reload.go:199-212`, `internal/component/plugin/server/reload.go:271-276`, `internal/component/plugin/server/startup_autoload.go:233-237`, `internal/component/plugin/server/startup_autoload.go:273-305`, `internal/plugins/fib/kernel/register.go:58-63`.
+- File and line: `internal/component/plugin/server/reload.go`, `internal/component/plugin/server/reload.go`, `internal/component/plugin/server/startup_autoload.go`, `internal/component/plugin/server/startup_autoload.go`, `internal/plugins/fib/kernel/register.go`.
 - Reachable trigger: a reload adds a new config-root plugin whose plugin name differs from its `ConfigRoots` entry, then transaction verify or apply fails. Example: adding `fib { kernel { ... } }` starts plugin `fib-kernel`, whose config root is `fib/kernel`, then a later affected plugin rejects the transaction.
 - Expected behavior: the newly auto-loaded plugin is stopped and removed after the rejected transaction so the running process set remains equal to the pre-reload committed config.
 - Actual behavior: `autoLoadForNewConfigPaths` returns started plugin names such as `fib-kernel`. The failure path calls `autoStopForRemovedConfigPaths(autoLoaded)`, but `autoStopForRemovedConfigPaths` treats its input as removed config roots and compares entries against roots such as `fib/kernel`. `fib-kernel` does not match `fib/kernel`, so the process is not stopped.
@@ -146,7 +146,7 @@ Command, schema, and root command wiring references:
 
 ### SYS-003, ISSUE, DirectBridge callback panic leaves engine caller waiting for timeout
 
-- File and line: `pkg/plugin/rpc/bridge.go:91-118`, `pkg/plugin/sdk/sdk_dispatch.go:117-148`, `internal/component/plugin/process/process.go:501-516`, `internal/component/plugin/server/dispatch.go:46-51`.
+- File and line: `pkg/plugin/rpc/bridge.go`, `pkg/plugin/sdk/sdk_dispatch.go`, `internal/component/plugin/process/process.go`, `internal/component/plugin/server/dispatch.go`.
 - Reachable trigger: an internal bridge-mode plugin panics inside any engine-to-plugin callback handled by `bridgeEventLoop`, for example an `OnConfigApply`, `OnConfigVerify`, `OnBye`, or `OnAllPluginsReady` callback reached through `DirectBridge.SendCallback`.
 - Expected behavior: the bridge path should match the external pipe path's error semantics closely enough that a crashing callback returns a prompt error, closes the bridge, and lets server cleanup remove the process-owned surfaces.
 - Actual behavior: `bridgeEventLoop` calls `handler(cb.Params)` and then sends on `cb.Result`. It has no local `recover`. The outer internal plugin goroutine recovers and logs the panic, but the specific `BridgeCallbackResult` is never sent. `SendCallback` waits until its context expires. For bridge-mode plugins, the server runtime goroutine just waits on `s.ctx.Done()` and cleanup is not tied to the plugin goroutine panic.
@@ -159,7 +159,7 @@ Command, schema, and root command wiring references:
 
 ### SYS-004, ISSUE, Initial autoload downgrades dependency resolution errors to warnings
 
-- File and line: `internal/component/plugin/server/startup_autoload.go:118-124`, `internal/component/plugin/server/startup_autoload.go:453-459`, `internal/component/plugin/registry/registry.go:842-893`, `internal/component/plugin/server/startup.go:143-151`, `internal/component/plugin/server/startup.go:176-183`, `internal/component/plugin/server/startup.go:197-204`, `internal/component/plugin/server/startup.go:218-224`.
+- File and line: `internal/component/plugin/server/startup_autoload.go`, `internal/component/plugin/server/startup_autoload.go`, `internal/component/plugin/registry/registry.go`, `internal/component/plugin/server/startup.go`, `internal/component/plugin/server/startup.go`, `internal/component/plugin/server/startup.go`, `internal/component/plugin/server/startup.go`.
 - Reachable trigger: an internal plugin registered for a config root, event type, or send type declares a missing hard dependency, or a future generated import omission leaves a dependency unregistered. Initial startup asks autoload to resolve dependencies for that plugin.
 - Expected behavior: missing hard dependencies are registration/startup errors. The plugin stack should not start without declared hard dependencies.
 - Actual behavior: initial config-root autoload and event/send autoload log a warning and set `resolved = needed`, so the owner plugin can be launched without its dependency. The reload path is stricter and returns an error for the same config-root dependency failure.
@@ -171,7 +171,7 @@ Command, schema, and root command wiring references:
 
 ### SYS-005, ISSUE, VPP DPDK parser accepts unknown nested keys if config reaches parser directly
 
-- File and line: `internal/component/vpp/config.go:190-193`, `internal/component/vpp/config.go:296-327`, `internal/component/vpp/config.go:349-396`, `internal/component/vpp/yang/ze-vpp-conf.yang:93-128`.
+- File and line: `internal/component/vpp/config.go`, `internal/component/vpp/config.go`, `internal/component/vpp/config.go`, `internal/component/vpp/yang/ze-vpp-conf.yang`.
 - Reachable trigger: `ParseSettings` receives a VPP JSON section with typo keys under `dpdk` or under a `dpdk/interface` entry, for example `{"dpdk":{"interfase":{...}}}` or an interface object with `rx_queue` instead of `rx-queues`.
 - Expected behavior: VPP config parsing is exact-or-reject like the surrounding parser functions. Unknown nested keys are rejected before startup.conf or DPDK binding is derived.
 - Actual behavior: top-level config, `cpu`, `memory`, `stats`, and `lcp` call `unknownKeys`, but `parseDPDK` does not call `unknownKeys` for the `dpdk` container or interface entry fields. Unknown keys are silently ignored.
@@ -179,17 +179,17 @@ Command, schema, and root command wiring references:
 - Severity: ISSUE.
 - Owner: VPP component plugin parser, `internal/component/vpp`.
 - Regression test plan: add `ParseSettings` unit cases for unknown `dpdk` container keys and unknown per-interface keys, expecting errors that name the offending key.
-- Why plausible, not confirmed: normal user config appears to pass through the YANG module read at `internal/component/vpp/yang/ze-vpp-conf.yang:93-128`, which should reject unknown schema leaves before this parser. The parser itself is inconsistent and may still be reachable through direct config sections or tests.
+- Why plausible, not confirmed: normal user config appears to pass through the YANG module read at `internal/component/vpp/yang/ze-vpp-conf.yang`, which should reject unknown schema leaves before this parser. The parser itself is inconsistent and may still be reachable through direct config sections or tests.
 
 ## Rejected candidates with proof
 
 | Candidate | Rejected proof |
 |-----------|----------------|
-| DirectBridge structured event readiness race | Event delivery checks `bridgeReady := p.bridge != nil && p.bridge.Ready()` and `p.bridge.HasStructuredHandler()` before `DeliverStructured` in `internal/component/plugin/process/delivery.go:247-257`. `HasStructuredHandler` also checks bridge readiness in `pkg/plugin/rpc/bridge.go:164-168`. |
-| TFTP path traversal through RRQ filename | `resolvePath` cleans the filename, strips leading slash, rejects `..`, evaluates the root and joined path symlinks, and verifies the resolved path stays under root in `internal/plugins/tftpserver/handler.go:171-204`. |
-| Image server directory traversal | `serveFromDir` rejects empty names, slash and backslash, `.` and `..`, NUL, and any name changed by `filepath.Clean` before `http.ServeFile` in `internal/plugins/imageserver/handler.go:199-215`. |
+| DirectBridge structured event readiness race | Event delivery checks `bridgeReady := p.bridge != nil && p.bridge.Ready()` and `p.bridge.HasStructuredHandler()` before `DeliverStructured` in `internal/component/plugin/process/delivery.go`. `HasStructuredHandler` also checks bridge readiness in `pkg/plugin/rpc/bridge.go`. |
+| TFTP path traversal through RRQ filename | `resolvePath` cleans the filename, strips leading slash, rejects `..`, evaluates the root and joined path symlinks, and verifies the resolved path stays under root in `internal/plugins/tftpserver/handler.go`. |
+| Image server directory traversal | `serveFromDir` rejects empty names, slash and backslash, `.` and `..`, NUL, and any name changed by `filepath.Clean` before `http.ServeFile` in `internal/plugins/imageserver/handler.go`. |
 | Missing external RPC framing bounds | The review read RPC framing, mux, message, and connection code through the delegated infrastructure pass. No unbounded per-message allocation was promoted because no surrounding caller path proved an attacker-controlled frame can bypass existing read and context handling. |
-| Generic command root missing imports | Directory-only roots are blank-imported by `cmd/ze/ze_core_dispatch.go:54-66`, `cmd/ze/setup_features_distro.go:8-12`, or `cmd/ze/setup_features_setup.go:8-11` per inventory. No missing non-BGP root import was verified. |
+| Generic command root missing imports | Directory-only roots are blank-imported by `cmd/ze/ze_core_dispatch.go`, `cmd/ze/setup_features_distro.go`, or `cmd/ze/setup_features_setup.go` per inventory. No missing non-BGP root import was verified. |
 | BGP-specific `PeerSubcommandKeywords` in plugin server | It is BGP-specific central code, but the only verified caller found was a BGP config test. Runtime BGP command ownership is assigned to child 3 or 4, so this was not promoted in child 2. |
 
 ## Cleared classes

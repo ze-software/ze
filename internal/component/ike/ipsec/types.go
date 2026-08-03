@@ -456,7 +456,7 @@ const DefaultCertificateCount uint8 = 4
 // CertificateChainLimit reports the configured chain bound, substituting the RFC's
 // figure when the leaf is unset. Every consumer reads the bound through this, so a
 // zero-valued AuthConfig (a test fixture, a peer parsed before the leaf existed)
-// cannot silently mean "no limit" (ai/rules/fail-closed-guards.md).
+// cannot silently mean "no limit" (ai/rules/evidence.md).
 func (a AuthConfig) CertificateChainLimit() uint8 {
 	if a.CertificateCount == 0 {
 		return DefaultCertificateCount

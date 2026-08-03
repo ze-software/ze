@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_vpp partition of the dataplane registry
+// Design: ai/rules/plugins.md -- ze_vpp partition of the dataplane registry
 
 //go:build ze_vpp
 

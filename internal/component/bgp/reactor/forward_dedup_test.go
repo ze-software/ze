@@ -348,7 +348,7 @@ func (h *fanoutHarness) forward() error {
 //
 // It waits on the COUNT rather than on a duration: the forward pool dispatches
 // to per-peer workers, so the bytes arrive on other goroutines and a fixed sleep
-// would be a load-sensitive assertion (ai/rules/fix-dont-record.md).
+// would be a load-sensitive assertion (ai/rules/completion.md).
 func (h *fanoutHarness) delivered(t testing.TB, want int) []fanoutSent {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)

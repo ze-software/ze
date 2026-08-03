@@ -36,7 +36,7 @@ network address.
 ### Architecture Docs
 - [ ] `docs/architecture/config/syntax.md` - config idempotency expectations.
   → Constraint: the resolved config model should be canonical so re-reading it produces no spurious diff.
-- [ ] `ai/rules/config-surface.md` - firewall address matches are operator config.
+- [ ] `ai/rules/config.md` - firewall address matches are operator config.
   → Constraint: decide canonicalize-silently vs reject-with-error (design decision; canonicalize is the gentler default).
 
 **Key insights:**
@@ -46,9 +46,9 @@ network address.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/firewall/config.go` - `parseAddressMatch` calls `netip.ParsePrefix(v)` and stores the result verbatim in `MatchSourceAddress{Prefix}` / `MatchDestinationAddress{Prefix}` (config.go:585-602); no `.Masked()`, no host-bits check.
-- [ ] `internal/component/firewall/validate.go` - `validateMatch` (validate.go:108-155) has no case for `MatchSourceAddress`/`MatchDestinationAddress`; the code comments the gap explicitly: "Parallel gap for literal MatchSourceAddress/DestinationAddress is tracked separately (pre-existing, not introduced here)" (validate.go:196-197).
-- [ ] `internal/component/firewall/model.go` - `MatchSourceAddress struct{ Prefix netip.Prefix }` / `MatchDestinationAddress` (model.go:281,284).
+- [ ] `internal/component/firewall/config.go` - `parseAddressMatch` calls `netip.ParsePrefix(v)` and stores the result verbatim in `MatchSourceAddress{Prefix}` / `MatchDestinationAddress{Prefix}` (config.go); no `.Masked()`, no host-bits check.
+- [ ] `internal/component/firewall/validate.go` - `validateMatch` (validate.go) has no case for `MatchSourceAddress`/`MatchDestinationAddress`; the code comments the gap explicitly: "Parallel gap for literal MatchSourceAddress/DestinationAddress is tracked separately (pre-existing, not introduced here)" (validate.go).
+- [ ] `internal/component/firewall/model.go` - `MatchSourceAddress struct{ Prefix netip.Prefix }` / `MatchDestinationAddress` (model.go,284).
 - [ ] `internal/plugins/firewall/nft/lower_linux.go` - backend masks defensively (`lowerAddrMatch` at :370-403, `prefixMask`/`maskedAddr` at :982-1001), so the kernel rule is correct despite the stored host bits.
 
 **Behavior to preserve:**
@@ -62,7 +62,7 @@ network address.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Config: firewall rule `source address` / `destination address` values, parsed by `parseAddressMatch` (config.go:585-602).
+- Config: firewall rule `source address` / `destination address` values, parsed by `parseAddressMatch` (config.go).
 
 ### Transformation Path
 1. Operator sets a rule address (possibly with host bits).
@@ -79,8 +79,8 @@ network address.
 | Model ↔ dataplane | backends receive an already-canonical prefix | [ ] |
 
 ### Integration Points
-- `parseAddressMatch` (`config.go:585-602`) - canonicalize here.
-- `validateMatch` (`validate.go:108-155`) - add the address-match case (closes the acknowledged gap).
+- `parseAddressMatch` (`config.go`) - canonicalize here.
+- `validateMatch` (`validate.go`) - add the address-match case (closes the acknowledged gap).
 
 ### Architectural Verification
 - [ ] No bypassed layers (canonicalization at the single parse point)
@@ -94,7 +94,7 @@ network address.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Canonicalizing silently is acceptable operator UX | common firewall behaviour | operator prefers rejection | design confirmation with user | unvalidated |
-| A-2 | `parseAddressMatch` is the only entry that builds these matches | config.go:585-602 | other builders bypass it | grep constructors of MatchSource/DestinationAddress | unvalidated |
+| A-2 | `parseAddressMatch` is the only entry that builds these matches | config.go | other builders bypass it | grep constructors of MatchSource/DestinationAddress | unvalidated |
 | A-3 | No existing config relies on host bits being preserved | backends already mask | behaviour change surprises someone | scan tests/config fixtures | unvalidated |
 
 ### Risks
@@ -199,7 +199,7 @@ network address.
 | Completeness | Every AC-N implemented with file:line |
 | Correctness | only CIDR masked; ranges/singles/negation intact; both v4 and v6 |
 | Data flow | canonicalization at the single parse point |
-| Rule: no-layering | acknowledged-gap comment at validate.go:196-197 removed once closed |
+| Rule: no-layering | acknowledged-gap comment at validate.go removed once closed |
 | Registration over hardcoding | change confined to firewall component |
 
 ### Deliverables Checklist (/implement stage 10)

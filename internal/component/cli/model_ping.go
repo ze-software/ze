@@ -156,7 +156,7 @@ type pingState struct {
 // pingPipedState holds state for piped monitor ping (| json, | log, etc.).
 // pipeResolve/pipeOrigin mirror traceroutePipedState: the | log render path
 // bypasses ApplyPipes, so data-transform pipes are applied via enrichAddr
-// when the target legend is written (see ai/rules/pipe-completeness.md).
+// when the target legend is written (see ai/rules/cli.md).
 type pingPipedState struct {
 	target        string
 	interval      time.Duration
@@ -305,7 +305,7 @@ func (m *Model) SetPingFactory(f PingFactory) {
 // pingFactory returns the injected PingFactory, or nil when none is registered
 // or the stored value is the wrong type. Fail-closed: a type mismatch is a
 // misconfiguration, surfaced by the caller as an unavailable status message,
-// never a nil-driven silent no-op (ai/rules/fail-closed-guards.md).
+// never a nil-driven silent no-op (ai/rules/evidence.md).
 func (m *Model) pingFactory() PingFactory {
 	raw, present := m.viewFactoryRaw(ViewKeyPing)
 	if !present {

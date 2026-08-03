@@ -783,7 +783,7 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		// leaf cannot drift: a bare netip.ParseAddr here accepted 0.0.0.0 as a valid
 		// BGP Identifier (RFC 6286 Section 2.1 requires non-zero) and swallowed a
 		// malformed value into a silent RouterID of 0 -- a zero that reads as a
-		// valid answer (ai/rules/fail-closed-guards.md). Reject instead, matching
+		// valid answer (ai/rules/evidence.md). Reject instead, matching
 		// how this function already treats an invalid remote ip.
 		if v, ok := fields["router-id"].(string); ok {
 			id, err := parseRouterID(v)
@@ -816,7 +816,7 @@ func parseUint32FromString(s string, out *uint32) {
 // peerSettingsEqual compares two PeerSettings for reload diffing.
 // Returns true if the settings are functionally equivalent.
 //
-// FAIL-CLOSED BY CONSTRUCTION (ai/rules/fail-closed-guards.md): every field of
+// FAIL-CLOSED BY CONSTRUCTION (ai/rules/evidence.md): every field of
 // PeerSettings participates via reflect.DeepEqual unless it is explicitly
 // neutralized below with a stated reason. A field added to PeerSettings is
 // therefore compared automatically and cannot be silently ignored on reload.

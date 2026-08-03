@@ -24,7 +24,7 @@ full equality check.
   one policy group can have identical edit sets over DIFFERENT bases, reachable
   through a filter-supplied raw export override.
 - **No adaptive threshold, deliberately.** Any cutoff L silently disables sharing
-  for G >= L, which is the silent cap `ai/rules/no-parking.md` and the umbrella
+  for G >= L, which is the silent cap `ai/rules/completion.md` and the umbrella
   both ban. The trade is +3% worst case for -29% best case, and it is recorded
   rather than hidden.
 

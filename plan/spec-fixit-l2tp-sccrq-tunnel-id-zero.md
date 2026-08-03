@@ -27,10 +27,10 @@ what Ze owes or adds an unauthenticated reply surface.
 
 ### What the code does
 
-`parseSCCRQ` (`internal/component/l2tp/tunnel_fsm.go:321`) rejects a zero Assigned
+`parseSCCRQ` (`internal/component/l2tp/tunnel_fsm.go`) rejects a zero Assigned
 Tunnel ID with an error, `"l2tp: Assigned Tunnel ID AVP must be non-zero"`.
 
-`Reactor.handlePacket` (`internal/component/l2tp/reactor.go:353`) calls it for every
+`Reactor.handlePacket` (`internal/component/l2tp/reactor.go`) calls it for every
 packet arriving with `TunnelID == 0`, and on error logs at Debug and returns:
 
 - `:355` logs `"l2tp: TunnelID=0 packet with malformed body dropped"`.
@@ -38,33 +38,33 @@ packet arriving with `TunnelID == 0`, and on error logs at Debug and returns:
 
 Nothing is sent. The peer receives silence.
 
-`reactor.go:671` carries the comment `"sccrq.AssignedTunnelID is guaranteed non-zero
+`reactor.go` carries the comment `"sccrq.AssignedTunnelID is guaranteed non-zero
 by parseSCCRQ"`, which is true and is exactly how the drop became invisible: the
 validation moved to the parser, and the parser's only failure mode is a dropped
 packet.
 
 ### What the requirement says
 
-`rfc/short/rfc2661.md:479` states the obligation:
+`rfc/short/rfc2661.md` states the obligation:
 
 - `[RFC2661-24.10-1] [MUST] Assigned Tunnel ID of 0 in SCCRQ/SCCRP is a protocol
   error; reject with StopCCN (§24.10)`
 
 The requirement names BOTH messages, SCCRQ and SCCRP.
 
-`rfc/short/rfc2661.md:433` states the implemented coverage as `"Reactor rejects with
+`rfc/short/rfc2661.md` states the implemented coverage as `"Reactor rejects with
 StopCCN Result Code 2"`. The Reactor is precisely the path that sends nothing.
 
 ### What the evidence actually proves
 
-`rfc2661` is ENROLLED (`rfc/enrolled.txt:162`), so this MUST is gated.
+`rfc2661` is ENROLLED (`rfc/enrolled.txt`), so this MUST is gated.
 
 Both tags sit on the initiator side, over SCCRP:
 
-- `internal/component/l2tp/tunnel_initiator_test.go:107` carries the negative polarity.
-- `internal/component/l2tp/tunnel_initiator_test.go:135` carries the positive polarity.
+- `internal/component/l2tp/tunnel_initiator_test.go` carries the negative polarity.
+- `internal/component/l2tp/tunnel_initiator_test.go` carries the positive polarity.
 
-`ai/RFC-REQUIREMENTS.md:1361` records both as `unit/verify`.
+`ai/RFC-REQUIREMENTS.md` records both as `unit/verify`.
 
 So the requirement is fully gated in both polarities, and both polarities test the
 SCCRP half. The SCCRQ half has no test at all. The ledger cannot see this, because
@@ -98,7 +98,7 @@ model.
 **What full compliance costs, stated so the answer is informed.** Route A needs a
 StopCCN emission path reachable before any tunnel state exists, because the current
 drop happens before a tunnel entry is allocated, and that ordering is deliberate:
-the comment at `reactor.go:349` says the body is parsed before `tunnelsMu` is taken
+the comment at `reactor.go` says the body is parsed before `tunnelsMu` is taken
 so a malformed body allocates nothing. Emitting StopCCN needs a peer identity and a
 control-channel sequence, so it either allocates the state the drop avoids or sends
 a synthetic reply outside the tunnel machinery. It also needs a tagged test on the
@@ -115,7 +115,7 @@ owner answers.
 ### Architecture Docs
 - [ ] `ai/rules/rfc-compliance.md` - who may decide anything short of full compliance
   → Constraint: a subagent may not classify this row away. Quote the requirement, name the producer, state the cost, and ask which way to fix it
-- [ ] `ai/rules/fail-closed-guards.md` - a guard that neither denies nor speaks
+- [ ] `ai/rules/evidence.md` - a guard that neither denies nor speaks
   → Constraint: the current drop denies correctly but says nothing to the peer, which is why the behavior was invisible
 - [ ] `ai/rules/testing.md` - RFC-tagged tests and the draft incubator
   → Constraint: a tagged test IS the requirement. Write the SCCRQ test in `test/draft/l2tp/` first, and promote it when green
@@ -127,7 +127,7 @@ owner answers.
 
 **Key insights:** (minimal context to resume after compaction)
 - The requirement is gated and tagged in both polarities, and both tags test SCCRP.
-- The SCCRQ path silently drops at `reactor.go:353-357`.
+- The SCCRQ path silently drops at `reactor.go`.
 - The published coverage line names the Reactor, which is the path that sends nothing.
 - The fix direction is the OWNER's call. Do not narrow the claim and do not write a gap.
 
@@ -147,7 +147,7 @@ owner answers.
 **Behavior to change:** (only what the user asked for)
 - Undecided, and deliberately so. The owner's answer selects route A, B or C above. No code changes until then.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A UDP datagram arrives on the L2TP control port with `TunnelID == 0`.
@@ -179,7 +179,7 @@ owner answers.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -187,7 +187,7 @@ owner answers.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No other code path answers a zero-ID SCCRQ with StopCCN | read, `reactor.go` `handlePacket` returns at `:357` | The requirement is already met and only the test is missing, which makes this a test-only spec | grep every StopCCN emission site and check reachability with no tunnel | unvalidated |
-| A-2 | Both `RFC2661-24.10-1` tags really do drive SCCRP and never SCCRQ | read, `tunnel_initiator_test.go:107` and `:135` | The SCCRQ half is already proven and the finding dissolves | read both test bodies in full | unvalidated |
+| A-2 | Both `RFC2661-24.10-1` tags really do drive SCCRP and never SCCRQ | read, `tunnel_initiator_test.go` and `:135` | The SCCRQ half is already proven and the finding dissolves | read both test bodies in full | unvalidated |
 | A-3 | Sending StopCCN before any tunnel exists needs new machinery | read, existing StopCCN paths all hang off a tunnel | Route A is far cheaper than stated, which should change the owner's answer | trace `teardownStopCCN` and check whether a tunnel-free emission already exists | unvalidated |
 | A-4 | The reflection concern is real, meaning no return-routability check precedes this point | read, the control exchange order | Route A carries no amplification risk and is the obvious answer | confirm no cookie or challenge precedes SCCRQ handling | unvalidated |
 | A-5 | A StopCCN reply is not larger than the SCCRQ that triggers it | not checked | Route A is an amplification vector and not merely a reflection one | compare the encoded sizes | unvalidated |
@@ -224,7 +224,7 @@ owner answers.
 |-------|-------------------|-------------------|
 | AC-1 | The owner question above is put to Thomas | A recorded answer selecting route A, B or C, captured in Key Design Decisions with the rejected alternatives |
 | AC-2 | Route A or C is chosen, and an SCCRQ carrying Assigned Tunnel ID 0 arrives | Ze transmits StopCCN with Result Code 2 and allocates no tunnel entry |
-| AC-3 | Route B is chosen | The published coverage at `rfc/short/rfc2661.md:433` states the SCCRQ half is a deliberate silent drop, and the reason, so no reader is misled |
+| AC-3 | Route B is chosen | The published coverage at `rfc/short/rfc2661.md` states the SCCRQ half is a deliberate silent drop, and the reason, so no reader is misled |
 | AC-4 | Any route is chosen | The SCCRQ path carries an `RFC requirement:` tag in both polarities, with the id the owner's answer settles |
 | AC-5 | `make ze-rfc-check` runs after the change | It passes, and `ai/RFC-REQUIREMENTS.md` is regenerated in the same commit |
 | AC-6 | A flood of zero-ID SCCRQ datagrams arrives | The tunnel table does not grow, whichever route was chosen |
@@ -295,14 +295,14 @@ owner answers.
 | 6 | Has a user guide page? | | Check the L2TP guide at design time |
 | 7 | Wire format changed? | | Route A and C emit a StopCCN that is not emitted today |
 | 8 | Plugin SDK/protocol changed? | No | |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc2661.md` and the `docs/features/rfc-status.md:204` RFC 2661 row, with source anchors |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc2661.md` and the `docs/features/rfc-status.md` RFC 2661 row, with source anchors |
 | 10 | Test infrastructure changed? | | A new `.ci` in an existing suite. Confirm at design time |
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | No | |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | | Depends on the Integration Checklist row above |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/features/rfc-status.md:204` already anchors L2TP source files. Re-verify each |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/features/rfc-status.md` already anchors L2TP source files. Re-verify each |
 | 17 | Existing docs show config/CLI/API examples for this area? | | Verify the L2TP guide at design time |
 
 ## Implementation Steps

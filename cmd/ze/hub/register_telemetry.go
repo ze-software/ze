@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_telemetry compile-out seam
+// Design: ai/rules/plugins.md -- ze_telemetry compile-out seam
 //
 // Wires the gated Prometheus HTTP exporter into the always-on
 // metrics.StartExporter seam. Compiled only under //go:build ze_telemetry;

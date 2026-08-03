@@ -69,7 +69,7 @@ ze-command-ownership-check-json:
 	@$(GO_RUN) scripts/checks/command_ownership.go --json
 
 # CLI grammar gate: every built-in command obeys the verb-first grammar rules
-# (ai/rules/cli-grammar.md, R1-R8) and no .yang carries a --flag.
+# (ai/rules/cli.md, R1-R8) and no .yang carries a --flag.
 ze-cli-grammar-check:
 	@$(GO_RUN) scripts/checks/cli_grammar.go
 
@@ -99,7 +99,7 @@ ze-doc-test:
 	echo "  -> Rule format (every ai/rules/*.md has the When/Severity block)..."; \
 	python3 scripts/dev/rules_lint.py --quiet || FAIL=1; \
 	echo ""; \
-	echo "  -> Rules digest (ai/rules/CONDENSED.md fresh)..."; \
+	echo "  -> Rules digest (ai/rules/TRIGGERS.md + CORE.md fresh)..."; \
 	python3 scripts/dev/rules_condensed.py --check || FAIL=1; \
 	echo ""; \
 	echo "  -> Discovery indexes (package map, docs-to-code, learned index fresh)..."; \
@@ -125,7 +125,7 @@ ze-doc-test:
 	echo "Documentation tests PASSED"
 
 # Simplified Technical English (ASD-STE100 Issue 9) -- rule one of the repository
-# (ai/rules/simplified-technical-english.md). ze-ste-check counts the six banned
+# (ai/rules/writing.md). ze-ste-check counts the six banned
 # habits in each file the working tree changed, against that file's own HEAD
 # version, and fails when a habit grew. HEAD is the baseline, so legacy prose
 # stays until someone rewrites it, no baseline file exists to re-bless, and the
@@ -160,8 +160,7 @@ ze-rules-index:
 ze-rules-index-check:
 	@python3 scripts/dev/rules_index.py --check
 
-# Rule digest artifacts, all three from one parse of ai/rules/*.md:
-#   CONDENSED.md  every rule's directives, in one file
+# Rule digest artifacts, both from one parse of ai/rules/*.md:
 #   TRIGGERS.md   one routing line per rule (path, severity, **When:**)
 #   CORE.md       the directives of the always-on rules, derived from the
 #                 rung 1/2 ladder in ai/rules/rule-precedence.md

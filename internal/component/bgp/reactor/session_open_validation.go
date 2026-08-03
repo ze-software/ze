@@ -30,7 +30,7 @@ import (
 // as the peer's AS made `internal` false for every dynamic peer against any real LocalAS, so the
 // second MUST of Section 2.2 -- reject this speaker's OWN identifier from an internal peer -- was
 // never enforced on that rail: a genuine iBGP dynamic peer presenting our identifier was ACCEPTED.
-// The zero value silently selected the permissive branch (ai/rules/fail-closed-guards.md). So when
+// The zero value silently selected the permissive branch (ai/rules/evidence.md). So when
 // the configured AS is absent, fall back to the AS the peer advertises, read through the AS4
 // capability rather than My AS so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS.
 //

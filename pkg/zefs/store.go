@@ -583,7 +583,7 @@ func (s *BlobStore) flushInPlace() error {
 	// loadOSPFBootCount under a contended run). An error here is not a lost
 	// write: flush() restores the pre-pwrite snapshot and falls back to
 	// flushFull, which re-encodes the whole file from memory
-	// (ai/rules/fail-closed-guards.md -- fail closed, and say which two numbers
+	// (ai/rules/evidence.md -- fail closed, and say which two numbers
 	// disagreed).
 	if end := containerDataOff + containerCap; end > len(fileData) {
 		return fmt.Errorf("zefs: flush in-place: %s is %d bytes, container needs %d (offset %d + capacity %d)",

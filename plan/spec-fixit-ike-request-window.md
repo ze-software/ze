@@ -36,33 +36,33 @@ would allow that.** RFC 7296 Section 2.3 carries two obligations, and Ze meets n
 Both quotations are verbatim, because a changed quotation is false evidence.
 
 Four code paths emit a self-initiated request. Each one takes the next value of the
-single counter `sa.NextMsgID` (`internal/component/ike/engine/sa.go:83`). No shared
+single counter `sa.NextMsgID` (`internal/component/ike/engine/sa.go`). No shared
 slot couples them.
 
 | # | Path | Producer | Guard |
 |---|------|----------|-------|
-| 1 | Dead peer detection | `engine/dpd.go:91`, `:94` | `dpdState.awaitReply` only (`engine/dpd.go:62-64`) |
-| 2 | Child SA rekey | `engine/rekey.go:81`, `:86` | `ps.pendingRekey == nil` only (`engine/established.go:197`) |
-| 3 | IKE SA rekey | `engine/rekey.go:323`, `:329` | `ps.pendingRekey == nil` only (`engine/established.go:229`) |
-| 4 | Delete IKE and Delete ESP | `engine/inbound.go:237`, `:242`, `:304`, `:309` | **none**, beyond `tr == nil` |
+| 1 | Dead peer detection | `engine/dpd.go`, `:94` | `dpdState.awaitReply` only (`engine/dpd.go`) |
+| 2 | Child SA rekey | `engine/rekey.go`, `:86` | `ps.pendingRekey == nil` only (`engine/established.go`) |
+| 3 | IKE SA rekey | `engine/rekey.go`, `:329` | `ps.pendingRekey == nil` only (`engine/established.go`) |
+| 4 | Delete IKE and Delete ESP | `engine/inbound.go`, `:242`, `:304`, `:309` | **none**, beyond `tr == nil` |
 
 **The guards never consult each other.** One `maintainSA` tick runs the DPD branch at
-`engine/established.go:189-191` and then the rekey branch at `:197` or `:229`. The first
+`engine/established.go` and then the rekey branch at `:197` or `:229`. The first
 sets `awaitReply` and the second reads `pendingRekey`, so both fire. The DPD probe takes
 message id N and the rekey request takes N+1, with no response to either yet.
 
 **Path 4 is the worst case, because it has no guard at all.** `sendDeleteIKE`
-(`engine/inbound.go:233-244`) and `sendDeleteESP` (`engine/inbound.go:297-311`) check
-only that the transport is present. `sendDeleteESP` is called from `engine/inbound.go:131`
+(`engine/inbound.go`) and `sendDeleteESP` (`engine/inbound.go`) check
+only that the transport is present. `sendDeleteESP` is called from `engine/inbound.go`
 while a DPD probe CAN be outstanding.
 
 **The window is permanently 1, so the RFC's own escape never applies.** Section 2.3
 allows a larger window when the peer sends a SET_WINDOW_SIZE Notify.
-`NotifySetWindowSize` exists as a bare constant (`internal/component/ike/wire/payload_notify.go:28`).
+`NotifySetWindowSize` exists as a bare constant (`internal/component/ike/wire/payload_notify.go`).
 A tree-wide search finds no other use, so Ze never sends it and never parses it.
 
 **One outstanding-request slot already exists, and it is not general.** `classifyInbound`
-(`engine/msgid.go:69-83`) tracks exactly one, `pendingRekey`. A Delete never occupies it.
+(`engine/msgid.go`) tracks exactly one, `pendingRekey`. A Delete never occupies it.
 
 ## Required Reading
 
@@ -71,7 +71,7 @@ A tree-wide search finds no other use, so Ze never sends it and never parses it.
 | `rfc/short/rfc7296.md` | The checklist rows this spec unblocks |
 | `rfc/full/rfc7296.txt` Section 2.3 | The two obligations, verbatim. The file is line-wrapped |
 | `ai/rules/rfc-compliance.md` | Conformance is not negotiable, and who decides a deviation |
-| `ai/rules/no-fabrication.md` | Cite the producing function, never the caller |
+| `ai/rules/evidence.md` | Cite the producing function, never the caller |
 | `internal/component/ike/engine/established.go` | The maintain tick that emits paths 1 to 3 |
 | `internal/component/ike/engine/msgid.go` | The existing single-slot tracking |
 
@@ -95,22 +95,22 @@ A peer therefore CAN receive two requests with consecutive message ids and no in
 response. A conforming peer answers only within its window, so the second request goes
 unanswered until the first completes. Ze reads that as a lost message and retransmits.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
-The `maintainSA` tick (`internal/component/ike/engine/established.go:185-235`) and the
-inbound handlers that send a Delete (`internal/component/ike/engine/inbound.go:131`,
+The `maintainSA` tick (`internal/component/ike/engine/established.go`) and the
+inbound handlers that send a Delete (`internal/component/ike/engine/inbound.go`,
 `:263`). Format at entry is a decision to send, not yet any bytes.
 
 ### Transformation Path
 
 A path decides to send. It reads and increments `sa.NextMsgID`
-(`internal/component/ike/engine/sa.go:83`). A build function encodes the request.
+(`internal/component/ike/engine/sa.go`). A build function encodes the request.
 `sendRaw` hands the bytes to `transport.UDPTransport`.
 
 The response returns through `transport` to `classifyInbound`
-(`internal/component/ike/engine/msgid.go:69-83`), which routes it to the owning handler.
+(`internal/component/ike/engine/msgid.go`), which routes it to the owning handler.
 That classifier knows about `pendingRekey` alone, so a response to a Delete or to a DPD
 probe carries no slot to release.
 
@@ -170,7 +170,7 @@ the two-site contract.
 |----------|------|---------|
 | One shared outstanding-request slot on the SA | Per-mechanism guards that consult each other | Four guards that each know about three others is the shape that produced this defect. One slot has one owner |
 | Queue and defer a blocked request | Drop it | strongSwan defers. A dropped DPD probe delays liveness detection, and a dropped Delete leaks peer state |
-| The slot is released when the response is classified | Release in each handler | `classifyInbound` (`engine/msgid.go:69-83`) already sees every inbound message and already owns `pendingRekey`. One release site cannot be forgotten by a new caller |
+| The slot is released when the response is classified | Release in each handler | `classifyInbound` (`engine/msgid.go`) already sees every inbound message and already owns `pendingRekey`. One release site cannot be forgotten by a new caller |
 | No SET_WINDOW_SIZE | A negotiated window larger than 1 | Neither reference implementation supports it, so it buys no interoperability. Ze's window stays 1, which the RFC permits |
 | A teardown Delete keeps its best-effort character | Blocking teardown on a free slot | `sendDeleteIKE` runs while the SA is being torn down. It waits for the slot when one is expected soon, and never blocks shutdown |
 
@@ -206,9 +206,9 @@ a conforming peer already required.
 
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
-| `maintainSA` tick, DPD due AND lifetime soft-expired (`established.go:189-235`) | -> | the shared slot take | `TestWinOneRequestPerTick` |
-| Inbound Delete while a probe is outstanding (`inbound.go:131`) | -> | the slot take on the unguarded path | `TestWinDeleteDefersWhileProbeOutstanding` |
-| Response classified (`msgid.go:69-83`) | -> | the slot release | `TestWinResponseReleasesSlot` |
+| `maintainSA` tick, DPD due AND lifetime soft-expired (`established.go`) | -> | the shared slot take | `TestWinOneRequestPerTick` |
+| Inbound Delete while a probe is outstanding (`inbound.go`) | -> | the slot take on the unguarded path | `TestWinDeleteDefersWhileProbeOutstanding` |
+| Response classified (`msgid.go`) | -> | the slot release | `TestWinResponseReleasesSlot` |
 
 ## 🧪 TDD Test Plan
 

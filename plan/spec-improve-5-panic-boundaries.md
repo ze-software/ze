@@ -40,7 +40,7 @@ receive paths) for the same boundary and apply the same policy where missing.
   → Constraint: (fill during design)
 - [ ] `docs/architecture/core-design.md` - session/reactor layering
   → Constraint: recover must sit where session teardown is already well-defined
-- [ ] `ai/rules/error-messages.md` - panic log content requirements
+- [ ] `ai/rules/cli.md` - panic log content requirements
   → Constraint: log must name peer, state, and next action without reading source
 
 ### RFC Summaries (MUST for protocol work)
@@ -63,7 +63,7 @@ receive paths) for the same boundary and apply the same policy where missing.
 **Behavior to preserve:** (unless user explicitly said to change)
 - Normal error paths (parse errors, NOTIFICATION handling, FSM events) unchanged;
   recover fires only on actual panics.
-- Buffer pool discipline: the existing `kept` defer in `session_read.go:64-71` must
+- Buffer pool discipline: the existing `kept` defer in `session_read.go` must
   still return buffers correctly when unwinding stops at the new boundary.
 - Existing recovers (cancel goroutine, monitor, listener, engine events) stay.
 
@@ -74,7 +74,7 @@ receive paths) for the same boundary and apply the same policy where missing.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Untrusted peer bytes enter at `Session.Run` -> `readAndProcessMessage` (`session.go:776`);
+- Untrusted peer bytes enter at `Session.Run` -> `readAndProcessMessage` (`session.go`);
   a panic anywhere below (decode, attribute parsing, RIB callbacks) unwinds to Run's
   goroutine and today kills the process.
 
@@ -93,15 +93,15 @@ receive paths) for the same boundary and apply the same policy where missing.
 | Recover ↔ metrics/logs | structured log + counter, no allocation before recover fires | [ ] |
 
 ### Integration Points
-- `Session.Run` (`session.go:706`) - boundary location.
-- `setCloseReason`/`closeConn` teardown path (`session.go:735-737`) - reused for post-panic close.
+- `Session.Run` (`session.go`) - boundary location.
+- `setCloseReason`/`closeConn` teardown path (`session.go`) - reused for post-panic close.
 - Prometheus metrics registry - panic counter.
 
 ### Architectural Verification
 - [ ] No bypassed layers (post-panic close uses the normal teardown path)
 - [ ] No unintended coupling (no recover sprinkled in decode internals)
 - [ ] No duplicated functionality (one boundary per task, matching existing precedents)
-- [ ] Registration over hardcoding -- N/A for control flow; any new metric registers via the existing registry (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding -- N/A for control flow; any new metric registers via the existing registry (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -190,7 +190,7 @@ receive paths) for the same boundary and apply the same policy where missing.
 | Completeness | AC-1..AC-6 with file:line |
 | Correctness | recover at task boundary only; teardown path reused; no recover in decode internals |
 | Performance | hot path unchanged (A-2 benchmark) |
-| Registration over hardcoding | metric registered via existing registry (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | metric registered via existing registry (`ai/rules/plugins.md`) |
 | Rule: anti-rationalization | R-1 knob: containment never downgrades the log below ERROR |
 
 ### Security Review Checklist
@@ -274,8 +274,8 @@ sent from the recover path (see Required Reading constraint).
 
 The followup wave added new network-input listen paths that the AC-6 audit table must enumerate (all re-verified in current code):
 
-- `bindDoT` (`internal/core/dnsserver/secure.go:307`) -- DNS-over-TLS (RFC 7858) TCP listener.
-- `bindDoH` (`internal/core/dnsserver/secure.go:335`) -- DNS-over-HTTPS (RFC 8484) listener; its serve goroutine is `serveHTTP` (`secure.go:363`).
-- The UDP/TCP accept-loop goroutine `serve` (`internal/core/dnsserver/manager.go:224`, launched at `manager.go:195-196`); `bindDoT` reuses the same `serve` loop.
+- `bindDoT` (`internal/core/dnsserver/secure.go`) -- DNS-over-TLS (RFC 7858) TCP listener.
+- `bindDoH` (`internal/core/dnsserver/secure.go`) -- DNS-over-HTTPS (RFC 8484) listener; its serve goroutine is `serveHTTP` (`secure.go`).
+- The UDP/TCP accept-loop goroutine `serve` (`internal/core/dnsserver/manager.go`, launched at `manager.go`); `bindDoT` reuses the same `serve` loop.
 
-Boundary status of these paths: the DoT server is built with the manager's handler (`secure.go:316`) and the DoH handler dispatches into it (`secure.go:402`); as112 (`internal/plugins/as112/server.go:173`) and geodns (`internal/plugins/geodns/server.go:288`) construct that handler via `dnsserver.Authoritative`, whose per-query recover sits at `internal/core/dnsserver/handler.go:51`. The new listeners therefore inherit the existing recover boundary, but the AC-6 audit table must list them explicitly with that inheritance noted; the spec's Current Behavior sibling-loop list (which cites only `handler.go:51`) predates these listeners.
+Boundary status of these paths: the DoT server is built with the manager's handler (`secure.go`) and the DoH handler dispatches into it (`secure.go`); as112 (`internal/plugins/as112/server.go`) and geodns (`internal/plugins/geodns/server.go`) construct that handler via `dnsserver.Authoritative`, whose per-query recover sits at `internal/core/dnsserver/handler.go`. The new listeners therefore inherit the existing recover boundary, but the AC-6 audit table must list them explicitly with that inheritance noted; the spec's Current Behavior sibling-loop list (which cites only `handler.go`) predates these listeners.

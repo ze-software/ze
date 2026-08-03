@@ -907,7 +907,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// detects a non-binding peer into a silent no-op for exactly the
 				// tests that could not otherwise notice. See
 				// plan/spec-fixit-redistribute-establishment-stall.md (D1) and
-				// ai/rules/fail-closed-guards.md.
+				// ai/rules/evidence.md.
 				//
 				// --dial peers take the active role and never listen, so they have
 				// no bind barrier to wait on (no .ci uses --dial today).
@@ -1101,7 +1101,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// 0 / received 0" and NOTHING the daemon said, which is the one thing
 			// that explains why the needle never arrived (a daemon that died in
 			// startup looks identical to one that is merely slow).
-			// ai/rules/fail-closed-guards.md: the guard must speak.
+			// ai/rules/evidence.md: the guard must speak.
 			rec.ClientOutput = clientStdout.String() + clientStderr.String()
 			rec.PeerOutput = collectPeerOutput(peerOutputs)
 			rec.Duration = time.Since(rec.StartTime)

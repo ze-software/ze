@@ -21,7 +21,7 @@ described had already been done piecemeal by other changes, and nobody told the 
 ## Consequences
 
 - The five files the spec targeted need no work. Their remaining `time.sleep` calls are
-  bounded polls that `ai/rules/ci-sleep-justification.md` classifies as already-correct
+  bounded polls that `ai/rules/testing.md` classifies as already-correct
   waits, each carrying the comment that rule requires.
 - The `.ci` sleep ratchet is unaffected: the count sits exactly on its ceiling of 101
   (`test/.ci-sleep-baseline`, the sum of `125 -11 -12 -1`), with zero headroom. Any NEW
@@ -35,7 +35,7 @@ and an independent check caught it before the spec was deleted.
 The spec's A-4 obligation was live: *"wire the linux-gated static suite into an actually-run
 linux path, do NOT drop the gate."* The tree had moved AGAINST it. `test/static/004-show.ci`
 and `005-table-interface.ci` both carry `option=needs-linux`, and
-`internal/test/runner/record_parse.go:445-449` skips such a record when `GOOS != linux`, so
+`internal/test/runner/record_parse.go` skips such a record when `GOOS != linux`, so
 they never run on the darwin dev host. `static` is absent from `all_suites` in
 `mk/test-functional.mk`, so the default verify gate never runs it, and absent from the
 `fsuite` list in `scripts/evidence/qemu-all-tests.sh`, so the QEMU Linux-only target -- the
@@ -50,7 +50,7 @@ nowhere.
 Rehomed to `plan/spec-release-evidence-gate.md` (which already names `static` among its
 non-gated suites) with rows in `plan/deferrals/ad-hoc-2026-07-27-2c83641a.md`, in the same
 commit that removed this spec. Two smaller items travel with it: both static tests run
-`ip link add` while declaring no `caps=net-admin`, which `record_parse.go:413-433`
+`ip link add` while declaring no `caps=net-admin`, which `record_parse.go`
 documents as a fail-open shape; and `test/vpp/007-fib-route-lookup.ci` cites a
 `// Design:` spec that does not exist.
 

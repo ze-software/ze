@@ -86,7 +86,7 @@ const (
 	slotDrop
 	// slotFail is a handler refusing. The route is suppressed for this
 	// destination rather than forwarded missing the change the policy required
-	// (ai/rules/fail-closed-guards.md).
+	// (ai/rules/evidence.md).
 	slotFail
 )
 
@@ -334,7 +334,7 @@ func (p *AttrPlan) KeepAll() {
 // one requested when the attribute is absent from the source, refuses the whole
 // plan: a fragment is resolved against peer-controlled bytes at write time, so
 // the bound is checked here, once, rather than trusted there
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // Adjacent value fragments coalesce, so a community removal that retains a run
 // of consecutive values emits one fragment for the whole run.
@@ -424,7 +424,7 @@ func (p *AttrPlan) New(b []byte) {
 //
 // It exists so the commonest arena use -- a recomputed length field, such as the
 // next-hop length an MP_REACH rewrite changes -- needs no slice literal on a
-// per-destination path (ai/rules/no-sprintf-alloc.md).
+// per-destination path (ai/rules/performance.md).
 func (p *AttrPlan) NewByte(b byte) {
 	if p.closed {
 		return

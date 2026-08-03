@@ -2,7 +2,7 @@
 """Unit tests for spec-citation-check.py (the spec citation freshness gate).
 
 Driven end-to-end through the real entry point (subprocess) per the guard test
-corollary in ai/rules/fail-closed-guards.md: the exit code IS the gate, so the
+corollary in ai/rules/evidence.md: the exit code IS the gate, so the
 gate -- not a helper -- is what gets asserted. Each fixture builds a throwaway
 repo under a tempdir with its own plan/ tree and (optionally) a baseline, so a
 test never depends on the real repo's rot.

@@ -52,7 +52,7 @@ A black-holed `count 100 timeout 30s` that used to take ~50 minutes
   *total* send failure (first `WriteTo` fails: ENETUNREACH with no route, EPERM without
   CAP_NET_RAW) fall through to `sent=0/received=0/loss-percent=0.0` with `StatusDone` --
   a transport failure rendered as a healthy 0%-loss answer, the exact
-  `ai/rules/fail-closed-guards.md` anti-pattern. `runPingSession` *swallows* the WriteTo
+  `ai/rules/evidence.md` anti-pattern. `runPingSession` *swallows* the WriteTo
   error (it only emits per-probe maps), so `runPingBatch` cannot see it directly; it
   reconstructs the failure from the empty result: `count > 0 && len(replies) == 0` means
   nothing reached the wire, so it returns `errPingNoProbesSent` (or a ctx-cancel error

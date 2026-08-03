@@ -26,19 +26,19 @@ Verified 2026-07-16:
 
 | Fact | Evidence |
 |------|----------|
-| `buildDropTerm` matches destination/proto/ports/flags only | `internal/plugins/ddos/local/match.go:17-47`: appends `MatchDestinationAddress` (`:20`), `MatchProtocol` (`:23`), `MatchDestinationPort` (`:26`), `MatchSourcePort` (`:31`), `MatchTCPFlags` (`:41`). No source-address match. Its whole input is `(name string, v ddosevent.VectorTuple)` |
-| The firewall primitive already exists | `internal/component/firewall/model.go:281`: `type MatchSourceAddress struct{ Prefix netip.Prefix }`, with its `matchMarker()` at `:379` |
+| `buildDropTerm` matches destination/proto/ports/flags only | `internal/plugins/ddos/local/match.go`: appends `MatchDestinationAddress`, `MatchProtocol`, `MatchDestinationPort`, `MatchSourcePort`, `MatchTCPFlags`. No source-address match. Its whole input is `(name string, v ddosevent.VectorTuple)` |
+| The firewall primitive already exists | `internal/component/firewall/model.go`: `type MatchSourceAddress struct{ Prefix netip.Prefix }`, with its `matchMarker()` at `:379` |
 | ddos never uses it | `grep -rn MatchSourceAddress internal/plugins/ddos/` returns nothing |
-| **No firewall-side work is needed** | The backends already lower it: nft at `internal/plugins/firewall/nft/lower_linux.go:218`, VPP at `internal/plugins/firewall/vpp/translate.go:78` and `vpp/verify.go:167`. Config already parses it (`internal/component/firewall/config.go:599`) |
+| **No firewall-side work is needed** | The backends already lower it: nft at `internal/plugins/firewall/nft/lower_linux.go`, VPP at `internal/plugins/firewall/vpp/translate.go` and `vpp/verify.go`. Config already parses it (`internal/component/firewall/config.go`) |
 
 So the building block is present, already lowered by every backend, and simply unwired for
 ddos. The cost of this spec is not in the firewall layer.
 
 **The keystone gap (verified, and the reason this is not a small change):**
 
-`ddosevent.VectorTuple` (`internal/core/ddosevent/event.go:103-109`) carries `DstPrefix`,
+`ddosevent.VectorTuple` (`internal/core/ddosevent/event.go`) carries `DstPrefix`,
 `Proto`, `DstPort`, `SrcPort`, `TCPFlags`. It has **no source address field at all**. The only
-source data on the wire is `TopSources []netip.Addr` (`event.go:119`, and `:146` on
+source data on the wire is `TopSources []netip.Addr` (`event.go`, and `:146` on
 `AttackCharacterized`): bare addresses rather than prefixes, and "top" sources rather than
 "exempt" ones. So no existing field names the sources a policy rule exempted. Either the
 detector gains one, or the responder gains a policy view it is not architecturally allowed to
@@ -69,7 +69,7 @@ The firewall model's term ordering decides this; do not assume the match-list ap
 ### Architecture Docs
 - [ ] `docs/guide/ddos.md` - operator model for policy rules and exemptions
   → Constraint: an exemption's operator-visible meaning must not change silently
-- [ ] `ai/rules/fail-closed-guards.md` - `SuppressMitigation` was named so the zero value means mitigate
+- [ ] `ai/rules/evidence.md` - `SuppressMitigation` was named so the zero value means mitigate
   → Constraint: a narrowing bug must fail toward mitigating, never toward letting an attack through
 - [ ] `plan/learned/1110-ddos-direction-allowlist.md` - the direction/allowlist design this extends
   → Decision: policy is evaluated once at detection and the outcome is encoded on the event (`SuppressMitigation`), so the responder does not re-evaluate policy
@@ -85,7 +85,7 @@ The firewall model's term ordering decides this; do not assume the match-list ap
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/ddos/local/match.go` - `buildDropTerm` (`:17`) builds a firewall term from a `ddosevent.VectorTuple`, matching dst prefix, protocol, dst port, src port; never src address
+- [ ] `internal/plugins/ddos/local/match.go` - `buildDropTerm` builds a firewall term from a `ddosevent.VectorTuple`, matching dst prefix, protocol, dst port, src port; never src address
 - [ ] `internal/component/firewall/model.go` - `:281` defines `MatchSourceAddress`, unused by ddos
 - [ ] `internal/plugins/ddos/local/responder.go` - applies the mitigation via `firewall.ApplyAll`; honors `SuppressMitigation` all-or-nothing
 
@@ -94,8 +94,8 @@ The firewall model's term ordering decides this; do not assume the match-list ap
 - `SuppressMitigation`'s fail-safe polarity: the bool zero value means mitigate (`plan/learned/1110`).
 - Existing drop-term construction for every non-exempt vector must produce identical firewall terms.
 - The detector stays the single policy enforcement point. Responders obey the event and never re-read policy (`learned/1110`; plugins receive only their own config subtree).
-- `buildDropTerm`'s exact-match TCP-flag mask contract, documented at `match.go:35-41`: `Mask == Flags` means "examine exactly these bits, require them set" (AC-9 of the parent).
-- The `ze_ddos-local` table name and its ownership prefix (`local/responder.go:15-22`): renaming it strands drop rules in the kernel.
+- `buildDropTerm`'s exact-match TCP-flag mask contract, documented at `match.go`: `Mask == Flags` means "examine exactly these bits, require them set" (AC-9 of the parent).
+- The `ze_ddos-local` table name and its ownership prefix (`local/responder.go`): renaming it strands drop rules in the kernel.
 
 **Behavior to change:**
 - Only if design approves: an exempted source is carved out of the drop rather than suppressing the whole incident. This is a behavior change requiring explicit user approval.
@@ -109,7 +109,7 @@ The firewall model's term ordering decides this; do not assume the match-list ap
 1. Detector characterizes the attack and produces a `VectorTuple` (dst prefix, proto, ports).
 2. Policy is evaluated ONCE and its outcome is encoded on the event as `SuppressMitigation` (1110's decision).
 3. `local/responder.go` receives the event; if `SuppressMitigation` it does nothing at all.
-4. Otherwise `buildDropTerm` (`match.go:17`) turns the tuple into a firewall term.
+4. Otherwise `buildDropTerm` (`match.go`) turns the tuple into a firewall term.
 5. The term is installed via `firewall.ApplyAll` on the direction-appropriate hook (INPUT for local victims, FORWARD for transit).
 
 Stage 2 is where the source set is currently collapsed to a boolean, and stage 4 is where a source match would have to be expressed. Both must change together.
@@ -123,8 +123,8 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 
 ### Integration Points
 - `internal/core/ddosevent/event.go` - would need to carry the exempted source set, not just a bool. This is the blast radius (see "The keystone gap").
-- `internal/plugins/ddos/local/match.go:17` - `buildDropTerm` is the single term builder; there is no second construction path to keep in sync.
-- `internal/component/firewall.MatchSourceAddress` (`model.go:281`) - the unused primitive to wire. **No firewall-side work is needed**: nft (`internal/plugins/firewall/nft/lower_linux.go:218`) and VPP (`vpp/translate.go:78`, `vpp/verify.go:167`) already lower it.
+- `internal/plugins/ddos/local/match.go` - `buildDropTerm` is the single term builder; there is no second construction path to keep in sync.
+- `internal/component/firewall.MatchSourceAddress` (`model.go`) - the unused primitive to wire. **No firewall-side work is needed**: nft (`internal/plugins/firewall/nft/lower_linux.go`) and VPP (`vpp/translate.go`, `vpp/verify.go`) already lower it.
 - `internal/plugins/ddos/local/responder.go` - term application and hook selection; `applyMitigation` calls `buildDropTerm` and honors `SuppressMitigation` wholesale at `:99-109`.
 - `ddos/detect`'s policy evaluation - where the exempt set is known, and per 1110 the only place allowed to resolve it.
 
@@ -132,7 +132,7 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 - [ ] No bypassed layers (policy stays evaluated at detection; the responder does not learn policy)
 - [ ] No unintended coupling (ddos must not import policy internals)
 - [ ] No duplicated functionality (reuse `MatchSourceAddress`, do not add a ddos-local source match)
-- [ ] Registration over hardcoding — no new per-feature field/switch in shared firewall code (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — no new per-feature field/switch in shared firewall code (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -253,10 +253,10 @@ the nft backend deadlock recorded in `learned/1110` Gotchas applies. Read
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | AC-1..AC-4 each have a test |
-| Fail-closed | An error building the carve-out mitigates fully; it never skips the drop (`ai/rules/fail-closed-guards.md`) |
+| Fail-closed | An error building the carve-out mitigates fully; it never skips the drop (`ai/rules/evidence.md`) |
 | Correctness | `SuppressMitigation` zero-value polarity preserved |
 | Data flow | Policy still evaluated once at detection; the responder learns no policy |
-| Registration over hardcoding | No ddos-specific field added to shared firewall model (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | No ddos-specific field added to shared firewall model (`ai/rules/plugins.md`) |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |

@@ -1,6 +1,6 @@
 # Config Design Rationale
 
-Why: `ai/rules/config-design.md`
+Why: `ai/rules/config.md`
 
 ## Why No Version Numbers
 - All config changes must be machine-transformable

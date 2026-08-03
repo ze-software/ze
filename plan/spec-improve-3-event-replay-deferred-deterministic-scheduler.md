@@ -41,14 +41,14 @@ DO exist and were re-verified:
 
 | Fact | Producer | Verified |
 |------|----------|----------|
-| Clock is injectable per session | `Session.SetClock` (`session.go:463`) | yes |
-| Clock flows Peer -> Session at run time | `peer_run.go:194` calls `session.SetClock(p.clock)` | yes |
-| Peer owns the clock | `Peer.SetClock` (`peer.go:382`), reactor fans out at `reactor.go:536` | yes |
-| FSM transitions are recorded and assertable | `p.history.append(FSMTransition{...})` (`peer_run.go:436`) | yes |
-| The global event ring is a counter trail, not a reproduction artifact | `EventRecord` holds Timestamp/Namespace/EventType only (`event_ring.go:13-17`) | yes |
+| Clock is injectable per session | `Session.SetClock` (`session.go`) | yes |
+| Clock flows Peer -> Session at run time | `peer_run.go` calls `session.SetClock(p.clock)` | yes |
+| Peer owns the clock | `Peer.SetClock` (`peer.go`), reactor fans out at `reactor.go` | yes |
+| FSM transitions are recorded and assertable | `p.history.append(FSMTransition{...})` (`peer_run.go`) | yes |
+| The global event ring is a counter trail, not a reproduction artifact | `EventRecord` holds Timestamp/Namespace/EventType only (`event_ring.go`) | yes |
 
 Note the source spec's line citations have drifted by one to three lines
-(`session.go:462` is now :463, `peer.go:377`/`:380` is now :382). The behavior is
+(`session.go` is now :463, `peer.go`/`:380` is now :382). The behavior is
 unchanged; only the line numbers moved.
 
 **Points to complete:**
@@ -64,8 +64,8 @@ unchanged; only the line numbers moved.
    validates A-2 as confirmed, the scope here shrinks; if it breaks, this spec is
    the remedy. Do not start until A-2 has a final status.
 3. Decide the scope of determinism: one session, one peer with concurrent timers,
-   or the whole reactor including the forward pool (`forward_pool.go:401` has its
-   own `SetClock`) and the listener (`listener.go:60`).
+   or the whole reactor including the forward pool (`forward_pool.go` has its
+   own `SetClock`) and the listener (`listener.go`).
 4. Account for the two inbound read paths. improve-3's A-1 resolved BROKEN: message
    coalescing is default on and has its own read path, so capture needs two tee
    points. A scheduler layer inherits that split.
@@ -73,7 +73,7 @@ unchanged; only the line numbers moved.
    interleaving must be able to FAIL when the interleaving differs, or it proves
    nothing.
 
-**Known constraint:** `ai/rules/buffer-first.md` applies. Any scheduler seam on the
+**Known constraint:** `ai/rules/performance.md` applies. Any scheduler seam on the
 session read path must cost approximately nothing when replay is off, the way
 improve-3 specified capture costs one nil check when disabled.
 
@@ -86,7 +86,7 @@ improve-3 specified capture costs one nil check when disabled.
   → Constraint: replay asserts outcomes, not interleavings; that boundary is what this spec moves
 - [ ] `docs/architecture/core-design.md` - session/reactor layering and ownership
   → Constraint: Session is owned by Peer; a scheduler must respect that ownership rather than reach across it
-- [ ] `ai/rules/buffer-first.md` - the read path is hot
+- [ ] `ai/rules/performance.md` - the read path is hot
   → Constraint: disabled scheduler costs one nil check; no per-message allocation
 
 ### RFC Summaries (MUST for protocol work)
@@ -112,12 +112,12 @@ improve-3 specified capture costs one nil check when disabled.
 - The clock injection chain (reactor -> peer -> session) keeps its current shape and ownership.
 - Both inbound read paths (coalesced and non-coalesced) keep working; coalescing stays default on.
 - `Peer.history` keeps recording FSM transitions in the same form, since existing assertions read it.
-- Hot-path cost when replay is disabled stays at a nil check, per `ai/rules/buffer-first.md`.
+- Hot-path cost when replay is disabled stays at a nil check, per `ai/rules/performance.md`.
 
 **Behavior to change:**
 - Add a replay-only event-queue / scheduler seam so a captured run can be re-executed with the same ordering, not only the same outcome.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A replay invocation over a capture file produced by `plan/spec-improve-3-event-replay.md` (JSONL, one event per line, with a version header).
@@ -140,7 +140,7 @@ improve-3 specified capture costs one nil check when disabled.
 
 ### Integration Points
 - `Session.SetClock` / `Peer.SetClock` / `Reactor.SetClock`, the existing injection chain.
-- `Peer.history` (`peer_run.go:436`) as the outcome oracle.
+- `Peer.history` (`peer_run.go`) as the outcome oracle.
 - The capture format and replay harness delivered by `plan/spec-improve-3-event-replay.md`.
 - `internal/core/clock` fake clock, already used by reactor tests.
 
@@ -157,7 +157,7 @@ improve-3 specified capture costs one nil check when disabled.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Exact interleaving reproduction is worth its cost | improve-3 R-3 deferred it rather than cancelling it | The spec should be cancelled instead of built | User decision at pickup, plus a real bug that outcome-replay could not reproduce | unvalidated |
-| A-2 | The reactor's concurrency sources can all be driven from one scheduler | Every one has a `SetClock` seam (reactor.go:536, peer.go:382, session.go:463, forward_pool.go:401, listener.go:60) | Partial determinism only; scope narrows to a single session | Enumerate goroutine spawns in the reactor at design time | unvalidated |
+| A-2 | The reactor's concurrency sources can all be driven from one scheduler | Every one has a `SetClock` seam (reactor.go, peer.go, session.go, forward_pool.go, listener.go) | Partial determinism only; scope narrows to a single session | Enumerate goroutine spawns in the reactor at design time | unvalidated |
 | A-3 | improve-3's capture format carries enough ordering information | improve-3 Capture Format v1 has a per-file monotonic `seq` | Format v2 needed; improve-3's version field absorbs it | Read the format section once improve-3 lands | unvalidated |
 
 ### Risks
@@ -220,7 +220,7 @@ improve-3 specified capture costs one nil check when disabled.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
-| Hot path | Disabled replay costs one nil check (`ai/rules/buffer-first.md`) |
+| Hot path | Disabled replay costs one nil check (`ai/rules/performance.md`) |
 | Assertion has teeth | AC-2 proves the ordering check can fail |
 | Registration over hardcoding | The scheduler registers; no per-feature field or switch added to the reactor |
 | Scope | Fault injection and full simulation stay out (improve-3 R-3) |

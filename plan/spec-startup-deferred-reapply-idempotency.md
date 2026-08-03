@@ -40,20 +40,20 @@ re-apply:
 | Daemon restart | Boot applies the full config against a dataplane that may still hold objects from the previous run (interfaces, routes, nft rules) |
 
 **Mechanism, verified at the producer.** `filterDiffs`
-(`internal/component/config/transaction/orchestrator.go:472-488`) matches a
+(`internal/component/config/transaction/orchestrator.go`) matches a
 participant's `ConfigRoots` / `WantsConfig` against the diff map's ROOT keys and
 appends `sections...` for every matched root. It never compares a section against
-what the participant last applied. `runApply` (`:382-399`) then emits one
+what the participant last applied. `runApply` then emits one
 `ApplyEvent` per participant with a non-empty filtered set. Root sharing is wide:
-`environment` is declared by ntp (`register.go:52,182`); `service` is declared by
+`environment` is declared by ntp (`register.go,182`); `service` is declared by
 four independent plugins (dhcpserver, geodns, imageserver, tftpserver, each
 `register.go` `configRootService = "service"`).
 
 **One confirmed instance (the seed, not the scope).** NTP's `OnConfigApply`
-(`internal/plugins/ntp/register.go:169-177`) calls `startWorker(*cfg)` whenever
-`pendingCfg` is non-nil. `pendingCfg` is set by `OnConfigVerify` (`:154-167`) for
+(`internal/plugins/ntp/register.go`) calls `startWorker(*cfg)` whenever
+`pendingCfg` is non-nil. `pendingCfg` is set by `OnConfigVerify` for
 ANY delivered `environment` section, with no comparison against the running
-config. `startWorker` (`:111-134`) unconditionally calls `worker.stopAndWait()`,
+config. `startWorker` unconditionally calls `worker.stopAndWait()`,
 unsubscribes, then builds and starts a fresh worker. So an unrelated `environment`
 edit tears down and rebuilds the NTP sync worker even when the ntp config is
 byte-identical. This is churn, not a crash: startup-resilience fixed the BLOCKING
@@ -65,7 +65,7 @@ deliberately left the unconditional restart.
 1. Audit every participant declaring `ConfigRoots` / `WantsConfig` for apply-handler
    idempotency under an unchanged section. Classify each with producer `file:line`,
    as the closed spec classified its eight reachability touchpoints. Some handlers
-   already guard: static compares via `routesEqual` (`internal/plugins/static/diff.go:10`);
+   already guard: static compares via `routesEqual` (`internal/plugins/static/diff.go`);
    `internal/component/iface/config_apply.go` guards on `interfaceExists` (`:443`,
    `:549`, `:1123`) and tolerates wireguard "already exists" (`:495-503`).
 2. Audit the restart trigger: does boot apply collide with surviving dataplane objects?
@@ -86,9 +86,9 @@ depend on receiving sibling sections; narrowing the coordinator is a larger spec
   -> Constraint: NTP's worker handoff must stay synchronous (single clock-writer invariant), so a fix must SKIP the handoff, never make it async
 
 **Key insights:**
-- `orchestrator.go:472-488`: `filterDiffs` selects by root, appends all sections, compares nothing
-- `ntp/register.go:169-177` -> `:111-134`: apply restarts the worker unconditionally
-- `static/diff.go:10`, `iface/config_apply.go:443,495-503,549`: the existing guard precedent
+- `orchestrator.go`: `filterDiffs` selects by root, appends all sections, compares nothing
+- `ntp/register.go` -> `:111-134`: apply restarts the worker unconditionally
+- `static/diff.go`, `iface/config_apply.go,495-503,549`: the existing guard precedent
 
 ## Current Behavior (MANDATORY)
 
@@ -110,19 +110,19 @@ depend on receiving sibling sections; narrowing the coordinator is a larger spec
 **Behavior to change:**
 - To be decided by the audit. One confirmed candidate: an apply carrying an unchanged ntp section should not restart the sync worker.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A config commit (CLI editor commit, `ze config commit`, or a hub-driven apply) hands `TxCoordinator.Execute` a diff map keyed by config root: `map[string][]DiffSection` (`orchestrator.go:198`).
+- A config commit (CLI editor commit, `ze config commit`, or a hub-driven apply) hands `TxCoordinator.Execute` a diff map keyed by config root: `map[string][]DiffSection` (`orchestrator.go`).
 - Second entry point: daemon boot, applying the full config to a dataplane that may already hold objects from a previous run.
 
 ### Transformation Path
-1. `Execute` (`orchestrator.go:198`) runs `runVerify` (`:321`) then `runApply` (`:374`).
-2. `filterDiffs` (`:472-488`) matches each participant's declared roots against the diff map's ROOT keys and appends every section under a matched root. No last-applied comparison happens here.
-3. `runApply` (`:382-399`) emits one `ApplyEvent` per participant whose filtered set is non-empty, carrying the shared deadline.
-4. The SDK delivers the event to the plugin's `OnConfigApply` handler (`pkg/plugin/sdk/sdk_callbacks.go:328-331`).
-5. The handler re-applies its whole section. NTP (`ntp/register.go:169-177`) calls `startWorker` with the verify-phase `pendingCfg`, unconditionally.
-6. `startWorker` (`ntp/register.go:111-134`) stops and waits for the existing worker, unsubscribes, builds and starts a fresh one; the plugin then acks apply.
+1. `Execute` (`orchestrator.go`) runs `runVerify` then `runApply`.
+2. `filterDiffs` matches each participant's declared roots against the diff map's ROOT keys and appends every section under a matched root. No last-applied comparison happens here.
+3. `runApply` emits one `ApplyEvent` per participant whose filtered set is non-empty, carrying the shared deadline.
+4. The SDK delivers the event to the plugin's `OnConfigApply` handler (`pkg/plugin/sdk/sdk_callbacks.go`).
+5. The handler re-applies its whole section. NTP (`ntp/register.go`) calls `startWorker` with the verify-phase `pendingCfg`, unconditionally.
+6. `startWorker` (`ntp/register.go`) stops and waits for the existing worker, unsubscribes, builds and starts a fresh one; the plugin then acks apply.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -135,7 +135,7 @@ depend on receiving sibling sections; narrowing the coordinator is a larger spec
 ### Integration Points
 - `filterDiffs` / `runApply` (`orchestrator.go`) - the delivery producer; read-only for this spec
 - `OnConfigApply` handlers across every participant declaring a config root - the audit surface
-- `routesEqual` (`static/diff.go:10`), `interfaceExists` (`iface/config_apply.go:1123`) - the guard precedent to follow or generalize
+- `routesEqual` (`static/diff.go`), `interfaceExists` (`iface/config_apply.go`) - the guard precedent to follow or generalize
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)

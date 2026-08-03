@@ -278,7 +278,7 @@ func TestAPISyncConcurrent(t *testing.T) {
 // session ready" command lands on (bgp/plugins/cmd/peer/session.go:20), and
 // assert the peer-visible effect: waitForAPISync (peer.go:423) is released.
 // They do not test findPeerByAddr directly -- the bug was never in the helper,
-// it was that the caller never reached it (ai/rules/fail-closed-guards.md,
+// it was that the caller never reached it (ai/rules/evidence.md,
 // "Test corollary").
 
 // warnRecorder is a slog.Handler that records the "peer" attribute of Warn+
@@ -414,7 +414,7 @@ func TestSignalPeerAPIReadyDefaultPort(t *testing.T) {
 // TestSignalPeerAPIReadyUnknownPeerWarns verifies a signal for a peer that does
 // not exist reaches nobody AND is observable.
 //
-// VALIDATES: ai/rules/fail-closed-guards.md "or say something" -- the lookup miss
+// VALIDATES: ai/rules/evidence.md "or say something" -- the lookup miss
 // logs at Warn naming the peer instead of degrading into a silent no-op. Nothing
 // downstream can report it: handlePeerSessionReady still answers "peer ready
 // acknowledged" (cmd/peer/session.go:22).

@@ -492,7 +492,7 @@ func lspTypeBlock(level Level, overload, fragmentZero bool) uint8 {
 // returns it. The codec backfills the PDU length and the Fletcher checksum
 // (ISO/IEC 10589 clause 7.3.11) on WriteTo. The result is a build buffer the
 // LSDB copies once into the entry (entry.go); using make here is the
-// result-copy-to-caller case explicitly allowed by ai/rules/buffer-first.md
+// result-copy-to-caller case explicitly allowed by ai/rules/performance.md
 // ("cached encoding, result copies to callers").
 func encodeLSP(lsp *packet.LSP) []byte {
 	buf := make([]byte, lsp.EncodedLen())

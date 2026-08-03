@@ -3,7 +3,7 @@
 // registered RPC handler each; these forwarders hop the command straight to the
 // plugin process via ForwardToPlugin, where command.go's handleCommand serves it.
 // Owned by firewall-irr so removing the plugin removes the command nodes, these
-// handlers, and the config schema together. See ai/rules/plugin-self-containment.md.
+// handlers, and the config schema together. See ai/rules/plugins.md.
 
 package irr
 

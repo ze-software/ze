@@ -15,7 +15,7 @@ for exactly that reason.
 
 ## Decisions
 
-- **`GOOS` is part of the lint contract.** `translate_linux.go:82`'s `unparam`
+- **`GOOS` is part of the lint contract.** `translate_linux.go`'s `unparam`
   finding (`makeHandle - major always receives 1`) is real and deterministic, and
   `make ze-lint` on darwin cannot see it: the file is `//go:build linux` and
   `Makefile:276` runs golangci-lint with no GOOS. Chose to fix the finding (drop
@@ -28,7 +28,7 @@ for exactly that reason.
   it is a parameter name throughout the package.
 
 - **A checkout depth is a test input.** `collect_adoption`
-  (`scripts/dev/testing_health.py:727-751`) deliberately answers `unknown` in a
+  (`scripts/dev/testing_health.py`) deliberately answers `unknown` in a
   shallow clone, `do_check` compares every metric status, and `actions/checkout`
   defaults to `fetch-depth: 1` -- so `ze-regen-check-readonly` was red on EVERY
   run with a diagnostic ("regenerate and commit") that could not possibly fix it,
@@ -47,7 +47,7 @@ for exactly that reason.
 
 - **"Unset" and "all at once" must not be the same value.** Every suite in
   `internal/test/cli/register.go` declared parallel `0`, and `Runner.Run`
-  (`runner.go:417-421`) turns a non-positive `Parallel` into `len(selected)`. So
+  (`runner.go`) turns a non-positive `Parallel` into `len(selected)`. So
   `ze-test ospf --all` launched 97 ze daemons simultaneously and the GitHub runner
   agent itself was killed (exit 143, "the runner has received a shutdown signal").
   Chose to resolve `0` at registration to `DefaultSuiteConcurrency()` (2x CPUs,
@@ -88,7 +88,7 @@ for exactly that reason.
   -- without CAP_BPF the memcg probe (BPF_MAP_CREATE) fails, so
   `rlimit.RemoveMemlock` falls back to `prlimit(2)` and is denied there too. The
   fallback exists for kernels older than 5.11
-  (`vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go:108`) and every kernel
+  (`vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go`) and every kernel
   this gate runs on is far past it -- ze's appliance builds 7.1.4, CI is 6.x.
   Requiring the second bit would be over-strict, and an over-strict gate SKIPS a
   test the host could run, which is the deletion the mechanism exists to stop.
@@ -104,7 +104,7 @@ for exactly that reason.
 - **The rpki demo raced a ten-minute timer.** `run.sh` backgrounded the RTR cache
   mock and `ze` with nothing sequencing them. ze dials the cache ONCE and then
   waits its RFC 8210 Retry Interval -- 600s by default
-  (`rpki/rtr_session.go:81`, which is the RFC's own default and correct). A cache
+  (`rpki/rtr_session.go`, which is the RFC's own default and correct). A cache
   milliseconds late to listen therefore costs ten minutes, not a retry: the
   session sits `state: idle`, every prefix validates NotFound, `not-found accept`
   admits the RPKI-invalid `10.43.0.0/24`, and the demo teaches the opposite of its
@@ -119,7 +119,7 @@ for exactly that reason.
   future "works locally, red in CI" should check those three first.
 - The Linux-only functional surface has an automated home for the first time.
   It is advisory and may run under TCG emulation, so it reports rather than
-  blocks; `ai/rules/qemu-testing.md`'s "What actually RUNS these suites" table
+  blocks; `ai/rules/platform-linux.md`'s "What actually RUNS these suites" table
   records the split between `ze-qemu-needs-linux-test` (now scheduled) and
   `ze-qemu-integration-test` (still nothing).
 - Suites now run bounded by default. On a 16-core host the ospf suite goes from
@@ -208,4 +208,4 @@ for exactly that reason.
 | `scripts/dev/github_workflows_test.go` | pins qemu-nightly's shape; links markers to a QEMU home |
 | 24 `.ci` files | `option=needs-linux:caps=net-admin`, or `caps=net-admin,bpf` for the six eBPF-dependent ddos tests |
 | `demos/terminal/rpki/{run,validate}.sh` | wait on listeners and on the VRP count |
-| `ai/rules/qemu-testing.md` | the marker relocates coverage; CI table updated |
+| `ai/rules/platform-linux.md` | the marker relocates coverage; CI table updated |

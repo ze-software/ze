@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Review the repository's writing against ASD-STE100 Simplified Technical English.
 
-`ai/rules/simplified-technical-english.md` is rule one of this repository: every
+`ai/rules/writing.md` is rule one of this repository: every
 word Ze writes is Simplified Technical English (ASD-STE100, Issue 9, 2025-01-15).
 The goal is simpler English that a reader with basic English understands the first
 time. That rule names six habits to avoid. This tool finds them, so the rule is
@@ -643,8 +643,8 @@ def units_markdown(lines):
 # --------------------------------------------------------------------------
 
 # Structured markers are machine-read contracts, not prose. `// Design:`,
-# `// Related:` and friends are required by design-doc-references.md and
-# related-refs.md, and their content is paths.
+# `// Related:` and friends are required by go-standards.md and
+# go-standards.md, and their content is paths.
 GO_MARKERS = (
     "go:",
     "nolint",
@@ -1366,7 +1366,7 @@ def report(findings, counts, reviewed, skipped, limit):
         print(row)
     if skipped:
         print(f"  skipped: {skipped} document(s) (generated, or ste: ignore-file)")
-    print("\nRule: ai/rules/simplified-technical-english.md")
+    print("\nRule: ai/rules/writing.md")
 
 
 def run_gate(root, args):
@@ -1418,7 +1418,7 @@ def run_gate(root, args):
         print(
             "\nRewrite the prose. HEAD is the baseline, so only your own new text counts."
             "\nWhole-tree report: make ze-ste-review"
-            "\nRule: ai/rules/simplified-technical-english.md",
+            "\nRule: ai/rules/writing.md",
             file=sys.stderr,
         )
         return EXIT_HABIT_GREW

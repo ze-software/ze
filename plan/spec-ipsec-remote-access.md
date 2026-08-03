@@ -26,15 +26,15 @@ daemon **silently ignores**. Traced 2026-07-23 (recorded in
 
 | Field | Consumer today | Effect |
 |-------|----------------|--------|
-| `ra.Pool.*` | `engine/register.go:313-320` builds `eap.NewPool(...)` into `ipPool` | **discarded**: ~~`register.go:372`~~ **`register.go:393`** is `_ = ipPool`. Line re-verified 2026-07-31, because the file moved under concurrent edits |
+| `ra.Pool.*` | `engine/register.go` builds `eap.NewPool(...)` into `ipPool` | **discarded**: ~~`register.go`~~ **`register.go`** is `_ = ipPool`. Line re-verified 2026-07-31, because the file moved under concurrent edits |
 | `ra.Auth.*` | none | none |
 | `ra.Users` (`eap-user`) | none | none |
 
-The IKE responder admits only sources that `matchResponderPeer` (`engine/register.go:536-555`)
+The IKE responder admits only sources that `matchResponderPeer` (`engine/register.go`)
 resolves to a configured **site-to-site** peer with a literal `remote-address` match; everything
 else is logged "unsolicited IKE_SA_INIT from unconfigured source" and dropped
-(`register.go:564-567`). `PeerSession.peerCfg` is populated exclusively from `cfg.Peers`
-(`reconcile.go:366`). A road-warrior client, whose address is by definition not preconfigured,
+(`register.go`). `PeerSession.peerCfg` is populated exclusively from `cfg.Peers`
+(`reconcile.go`). A road-warrior client, whose address is by definition not preconfigured,
 can never establish.
 
 Owner decision 2026-07-23: implement the feature rather than reject or warn about the
@@ -49,10 +49,10 @@ payload codec (`wire/payload_cp.go`) and the virtual IP pool (`eap/pool.go`, wit
 
 > **Superseded 2026-07-31 (WP-9 design pass).** "Both complete" is wrong, and the
 > correction is load-bearing. The codec folds the RESERVED bit into the attribute type
-> (`wire/payload_cp.go:73` reads 16 bits where RFC 7296 Section 3.15.1 defines 1 reserved
+> (`wire/payload_cp.go` reads 16 bits where RFC 7296 Section 3.15.1 defines 1 reserved
 > bit plus a 15-bit type), it omits four attribute constants, and the pool hands out
 > addresses outside the configured range for an IPv6 prefix longer than `/64`
-> (`eap/pool.go:161`). Both halves need repair before they can be joined. Detail is in
+> (`eap/pool.go`). Both halves need repair before they can be joined. Detail is in
 > "RFC 7296 Rows Homed Here" below.
 
 So the missing pieces are admission, per-user credentials, and address assignment:
@@ -72,13 +72,13 @@ So the missing pieces are admission, per-user credentials, and address assignmen
 
 **Provenance.** These rows arrived from `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Item 15
 of that spec's phase list held 17 RFC 7296 rows as work package WP-9, "Configuration
-payload and remote access" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:723`). On 2026-07-31
+payload and remote access" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). On 2026-07-31
 the owner split WP-9. The rows that need the address-assignment FEATURE move here. The
 rows that are already conformant stay in the pilot, together with two live defects.
 
-The split follows `ai/rules/deferral-tracking.md`, which prefers an existing spec that
+The split follows `ai/rules/planning.md`, which prefers an existing spec that
 owns the topic over a new one. This spec owns the surface, and
-`internal/component/ike/engine/config.go:115` names it as the owner in the source. The
+`internal/component/ike/engine/config.go` names it as the owner in the source. The
 deferral rows are in `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`.
 
 **Work-package numbering.** A re-triage on 2026-07-30 renumbered the pilot's work
@@ -93,16 +93,16 @@ editing `internal/component/ike/engine/`. Cite by function name, then re-locate 
 
 ### The concrete gap this spec closes
 
-`internal/component/ike/engine/register.go:393` is `_ = ipPool`. Verified 2026-07-31.
+`internal/component/ike/engine/register.go` is `_ = ipPool`. Verified 2026-07-31.
 
 An operator can configure a virtual IP pool today. The daemon parses it (FUNCTION
 `parseVirtualIPPool`, `ipsec/config.go`), validates its prefix bounds
-(`ipsec/validate.go:197` for IPv4 and `:202` for IPv6, reached from
-`engine/config.go:152`), builds a live `eap.Pool` and logs a creation message. Then it
+(`ipsec/validate.go` for IPv4 and `:202` for IPv6, reached from
+`engine/config.go`), builds a live `eap.Pool` and logs a creation message. Then it
 discards the object four lines before the engine shuts down. No client receives an
 address.
 
-This is a shipped config surface with no behavior. `ai/rules/no-parking.md` gives three
+This is a shipped config surface with no behavior. `ai/rules/completion.md` gives three
 permitted answers: wire it, delete it, or reject the config. This spec wires it.
 
 ### Roster: the rows homed here
@@ -206,7 +206,7 @@ proposal. The literal reading would discard an SA proposal because a Configurati
 elsewhere in the same message carried attribute 5.
 
 **`1.7-1` does not duplicate `3.15.1-4`.** The pilot asked this spec to settle the
-question (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1289`). They are separate obligations.
+question (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). They are separate obligations.
 
 `3.15.1-4` scopes attributes Ze does not recognize. `1.7-1` names type 5 and binds even an
 implementation that DOES recognize it, because RFC 4306 defined type 5. An implementation
@@ -233,8 +233,8 @@ both are landable on their own merits.
 
 | Defect | Site | What is wrong | Row it violates |
 |--------|------|---------------|-----------------|
-| RESERVED-bit fold | `wire/payload_cp.go:73` reads, `:49` writes | The attribute type is read and written as 16 bits. RFC 7296 Section 3.15.1 defines "Reserved (1 bit) - This bit MUST be set to zero and MUST be ignored on receipt" plus "Attribute Type (15 bits)". A peer that sets the bit on `INTERNAL_IP4_ADDRESS` yields `0x8001` | `RFC7296-2.5-7` on read, `2.5-6` on write. Both are already gated |
-| IPv6 out-of-range lease | `eap/pool.go:161` | `allocateV6` writes the host ID into `ip6[8:]`, which assumes a prefix no longer than `/64`. `validatePoolPrefix` permits `/48../126` (`ipsec/validate.go:202`). A `/96` pool leases addresses outside the configured range | none. It is a correctness bug with no row |
+| RESERVED-bit fold | `wire/payload_cp.go` reads, `:49` writes | The attribute type is read and written as 16 bits. RFC 7296 Section 3.15.1 defines "Reserved (1 bit) - This bit MUST be set to zero and MUST be ignored on receipt" plus "Attribute Type (15 bits)". A peer that sets the bit on `INTERNAL_IP4_ADDRESS` yields `0x8001` | `RFC7296-2.5-7` on read, `2.5-6` on write. Both are already gated |
+| IPv6 out-of-range lease | `eap/pool.go` | `allocateV6` writes the host ID into `ip6[8:]`, which assumes a prefix no longer than `/64`. `validatePoolPrefix` permits `/48../126` (`ipsec/validate.go`). A `/96` pool leases addresses outside the configured range | none. It is a correctness bug with no row |
 
 **Cross-spec dependency.** `RFC7296-3.15.1-4` is homed here but cannot be proven until the
 RESERVED-bit fix lands. The negative half of its tagged pair IS the reserved-bit case. If
@@ -243,10 +243,10 @@ move it and say so in both specs.
 
 ### Id allocation (cross-spec hazard, BLOCKING)
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py:477-510`) refuses a new id whose
+`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses a new id whose
 ordinal is at or below its section's high-water mark. The mark comes from the committed
 HEAD summaries. A section with no mark is skipped entirely
-(`scripts/dev/rfc_requirements.py:501-502`). Refusal is permanent for that ordinal: the
+(`scripts/dev/rfc_requirements.py`). Refusal is permanent for that ordinal: the
 row must take a higher one and leaves document order.
 
 **Marks measured 2026-07-31**, against `git show HEAD:rfc/short/rfc7296.md` and against
@@ -272,7 +272,7 @@ the working tree, which agree for every section below.
 **Correction to the briefing that opened this work.** The briefing stated that `4-1` had
 already landed and set the mark to 1. It has not. No `RFC7296-4-*` id exists at HEAD or in
 the working tree, and all four rows are still `NOT IMPL` in the pilot's Appendix A
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1244-1247`). The hazard is real, and its mechanism
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). The hazard is real, and its mechanism
 is "first to land sets the mark", not "the mark is already 1".
 
 **The rule: Section 4 must land in ascending ordinal order across specs.** `4-1` first,
@@ -310,7 +310,7 @@ evidence, and they earn no row a polarity.
 ### Security requirements (BLOCKING)
 
 `RFC7296-2.19-5` and `RFC7296-2.19-6` are AUTHORIZATION checks.
-`ai/rules/fail-closed-guards.md` requires each to deny on a miss, on an empty set, on an
+`ai/rules/evidence.md` requires each to deny on a miss, on an empty set, on an
 unmapped input and on an error.
 
 **`2.19-5`: a nil test is NOT sufficient.** The idiomatic Go shape is a `*wire.PayloadCP`
@@ -351,8 +351,8 @@ Two behaviors the RFC pins, and an implementer will get both wrong:
 
 **Pool exhaustion is the default failure mode, not an attack.** Verified 2026-07-31:
 
-- `Pool.Release` (`eap/pool.go:126`) has **no non-test caller**. The only callers are
-  `eap/pool_test.go:60` and `:128`.
+- `Pool.Release` (`eap/pool.go`) has **no non-test caller**. The only callers are
+  `eap/pool_test.go` and `:128`.
 - **No address lease or expiry concept exists anywhere in `internal/component/ike/`.** The
   only "expiry" matches are SA rekey lifetimes and PKI certificate expiry, and
   `releaseRequestWindow` is a message-ID window, not an address.
@@ -363,7 +363,7 @@ Then every later client is refused. No attacker is needed. **Release wiring plus
 expiry is not a hardening extra. It is the difference between a feature that works for a
 week and one that works.**
 
-The authenticated attack is second. `Allocate` (`eap/pool.go:89`) takes no identity, so
+The authenticated attack is second. `Allocate` (`eap/pool.go`) takes no identity, so
 one valid credential can open many IKE SAs and drain the pool. A per-identity lease
 maximum bounds it, and address reuse for the same identity is what the RFC already asks
 for.
@@ -385,8 +385,8 @@ one.
 `INTERNAL_ADDRESS_FAILURE` notification when address assignment fails. The IKE SA is still
 created. Appendix A extracted no Section 3.15.4 row.
 
-`NotifyInternalAddressFailure` (`wire/payload_notify.go:43`) has zero referents, as does
-`NotifyFailedCPRequired` (`:44`). An unextracted obligation is still an obligation
+`NotifyInternalAddressFailure` (`wire/payload_notify.go`) has zero referents, as does
+`NotifyFailedCPRequired`. An unextracted obligation is still an obligation
 (`ai/rules/rfc-compliance.md`). Implement it. Owner item OI-4 asks whether Section 3.15.4
 gains rows.
 
@@ -418,13 +418,13 @@ gates exists. This spec owns both.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/plugin-design.md` - registration and proximity
+- [ ] `ai/rules/plugins.md` - registration and proximity
   -> Constraint: no new communication mechanism; the engine already owns its dispatch loop.
 - [ ] `ai/rules/goroutine-lifecycle.md`
   -> Constraint: a per-client session is a goroutine per *lifecycle* (allowed), never a
      goroutine per event. It MUST be reaped when its SA dies, or a road-warrior gateway leaks
      one goroutine and one pool address per connection attempt.
-- [ ] `ai/rules/exact-or-reject.md`
+- [ ] `ai/rules/protocol.md`
   -> Constraint: pool exhaustion must refuse the client with a clear reason, never assign a
      duplicate or silently omit the address.
 
@@ -444,13 +444,13 @@ gates exists. This spec owns both.
      therefore known before the method starts, which is what makes per-user lookup possible.
 
 **Key insights:**
-- `Session.handleIdentity` (`eap/eap.go:205-217`) sets `s.identity` and only then calls
+- `Session.handleIdentity` (`eap/eap.go`) sets `s.identity` and only then calls
   `s.method.Start(...)`. That ordering is the hook for per-user credential resolution: the
   method can be handed the right password after the identity is known and before it is used.
-- `MethodConfig.Password` (`eap/eap.go:157`) is a single value captured at
-  `newMSCHAPv2Method` (`eap/eap_mschapv2.go:38-42`), so it cannot express a user table as-is.
+- `MethodConfig.Password` (`eap/eap.go`) is a single value captured at
+  `newMSCHAPv2Method` (`eap/eap_mschapv2.go`), so it cannot express a user table as-is.
 - `PeerSession.responderBusy` gates ONE in-flight half-open handshake **per session**
-  (`reconcile.go:25-35`). Sharing one session across all road warriors would serialize them
+  (`reconcile.go`). Sharing one session across all road warriors would serialize them
   and let one client's handshake block every other's; a per-client session avoids this and
   reuses the established/DPD/rekey machinery unchanged.
 
@@ -516,7 +516,7 @@ Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NA
 
   > ~~`eap.Pool` gains no API; `Allocate`/`Release` are already the right shape.~~
 
-  `Allocate` takes no identity (`eap/pool.go:89`), so it can express neither a
+  `Allocate` takes no identity (`eap/pool.go`), so it can express neither a
   per-identity quota nor address reuse across a rekey. The signature changes.
 - **Superseded 2026-07-31:**
 
@@ -539,7 +539,7 @@ Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NA
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | A `SiteToSitePeer` synthesized from `RemoteAccessConfig` drives the existing responder FSM unchanged | scenario 08 proves the same FSM works for EAP with a peer struct | a parallel responder path would be needed, much larger | interop scenario 12 | unvalidated |
-| A-2 | `wire.PayloadCP` round-trips the attributes strongSwan sends | codec reads/writes per RFC 7296 3.15 but has never run against a real peer | CP codec fixes needed first | unit round-trip + interop | **broken** (2026-07-31). `ReadFrom` reads a 16-bit attribute type at `wire/payload_cp.go:73`, but RFC 7296 Section 3.15.1 defines 1 reserved bit plus a 15-bit type. A peer that sets the reserved bit on `INTERNAL_IP4_ADDRESS` yields type `0x8001`, and Ze reads it as an unknown attribute. The "if wrong" column called this correctly: codec fixes come first |
+| A-2 | `wire.PayloadCP` round-trips the attributes strongSwan sends | codec reads/writes per RFC 7296 3.15 but has never run against a real peer | CP codec fixes needed first | unit round-trip + interop | **broken** (2026-07-31). `ReadFrom` reads a 16-bit attribute type at `wire/payload_cp.go`, but RFC 7296 Section 3.15.1 defines 1 reserved bit plus a 15-bit type. A peer that sets the reserved bit on `INTERNAL_IP4_ADDRESS` yields type `0x8001`, and Ze reads it as an unknown attribute. The "if wrong" column called this correctly: codec fixes come first |
 | A-3 | `eap.Pool.Allocate` is safe under concurrent road-warrior handshakes | `pool.go` takes a lock in `allocateV4`/`allocateV6` | duplicate address assignment | `-race` test with concurrent Allocate | unvalidated |
 | A-4 | A per-client `PeerSession` can be reaped without disturbing configured peers | `activePeersMap` is name-keyed and reconcile iterates config peers | reconcile would delete or resurrect dynamic sessions | reconcile test with both kinds present | unvalidated |
 | A-5 | strongSwan can be driven as a road-warrior client in the existing lab | the lab already runs strongSwan as initiator (scenarios 01-06) | interop proof needs another client | scenario 12 | unvalidated |

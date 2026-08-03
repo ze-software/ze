@@ -6,7 +6,7 @@ A spec-authored feature (the traffic monitor) was implemented by another agent t
 hardcoded a per-feature field + factory + state + dispatch into the core CLI
 `Model` (mirroring how dashboard/traceroute/ping already do it), instead of
 registering and letting the core discover it. That violates the small-core /
-registration pattern. The principle existed in `plugin-self-containment.md` for the
+registration pattern. The principle existed in `plugins.md` for the
 daemon command/schema tree ("Unowned verb roots"), but it was never stated for the
 CLI client and was not a per-spec check, so it slipped through review. Goal: make
 "registration over hardcoding" land in EVERY spec we author and be mechanically
@@ -14,7 +14,7 @@ checkable.
 
 ## Decisions
 
-- Extended `ai/rules/plugin-self-containment.md` with a "Registration over hardcoding
+- Extended `ai/rules/plugins.md` with a "Registration over hardcoding
   (the CLI client too)" section, over creating a new rule file -- the principle
   already lived there for commands/schema; generalize rather than proliferate rules.
 - Propagated via `plan/TEMPLATE.md` (Architectural Verification bullet + Critical
@@ -56,5 +56,5 @@ checkable.
 ## Files
 
 - `plan/TEMPLATE.md` -- Architectural Verification + Critical Review Checklist rows
-- `ai/rules/plugin-self-containment.md` -- "Registration over hardcoding (the CLI client too)"
+- `ai/rules/plugins.md` -- "Registration over hardcoding (the CLI client too)"
 - `.claude/hooks/validate-spec.sh` -- warning check for the canonical phrase

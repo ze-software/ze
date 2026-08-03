@@ -174,7 +174,7 @@ func TestZeGokIdentifiesTheSubcommandNotAnyToken(t *testing.T) {
 // be prepared is an error naming the path, never a silent fallthrough that would
 // build from the tracked dir with the pins discarded.
 //
-// VALIDATES: fail-closed guard (ai/rules/fail-closed-guards.md).
+// VALIDATES: fail-closed guard (ai/rules/evidence.md).
 // PREVENTS: a preparation failure degrading into an unpinned network build.
 func TestZeGokFailsClosedOnUnpreparableParentDir(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "nonexistent")

@@ -16,7 +16,7 @@ enforces less than before), each paired with a must-not-fire test.
 
 - **T-1 (`.claude/hooks/validate-spec.sh`): the Current Behavior citation regex
   required the backticked path to END in `go|py|rs|ts|js`.** A trailing `:line`
-  (the exact form `ai/rules/no-fabrication.md` mandates) defeated the match, and
+  (the exact form `ai/rules/evidence.md` mandates) defeated the match, and
   `.sh`/`Makefile` were absent so a shell spec could not cite its own subject.
   New path atom: `` `[^`]*(\.(go|py|rs|ts|js|sh|mk)|Makefile)(:[0-9]+)?` ``. The
   `- [ ]`/`- [x]` checkbox anchor already keeps prose out, so widening the atom
@@ -34,22 +34,22 @@ enforces less than before), each paired with a must-not-fire test.
   `case` in mark-source-read.sh is what WRITES it. Widened that case to `.py`
   under `scripts/`, `.sh` under `.claude/hooks/`, `Makefile`, `mk/`, and updated
   the pretool message text to match (truthfulness). Edited the producer per
-  `ai/rules/no-fabrication.md`; docs/specs/unrelated files still skip the marker.
+  `ai/rules/evidence.md`; docs/specs/unrelated files still skip the marker.
 - **T-2 (`.claude/rules/session-start.md`): doc carve-out, no gate change.**
-  Verified at the producer that `block-until-lsp.sh:36` already lifts on the
+  Verified at the producer that `block-until-lsp.sh` already lifts on the
   ToolSearch QUERY TEXT (`grep -qi LSP`), not on a successful load (deliberate,
   comment `:32-35`). A PreToolUse hook structurally cannot see ToolSearch
   RESULTS, so the only owed fix is to stop the banned-excuses table telling
   subagents they must LOAD a tool their harness does not expose. Added a
   subagent carve-out: issuing the query and getting "No matching deferred tools
   found" SATISFIES step 1.
-- **T-3 (`scripts/dev/commit_helper.py` + `ai/rules/error-messages.md`): a
+- **T-3 (`scripts/dev/commit_helper.py` + `ai/rules/cli.md`): a
   remediation that cannot work.** The structural-gate refusal told the reader to
   re-run `make <gate>` (e.g. `ze-lint-changed`) to "refresh
   tmp/ze-verify-failures.json". Verified only `scripts/status/verify_run.go`
   (via `make ze-verify`/`ze-verify-changed`) writes that file; a lint target
   does not. Fixed the message to name the true refresher and say the per-gate
-  command does NOT refresh. Generalised in `error-messages.md`: leg-3 advice
+  command does NOT refresh. Generalised in `cli.md`: leg-3 advice
   must be verifiably TRUE (read the producer of the promised effect first).
 - **T-6 (`scripts/dev/discovery_sources.py` + `commit_helper.py`): the index
   gate demanded indexes the commit does not feed.** `OUTPUTS` was a flat tuple

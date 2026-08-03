@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp partition of the raw-capture display
+// Design: ai/rules/plugins.md -- ze_l2tp partition of the raw-capture display
 // Related: capture_raw.go -- the always-on raw-capture dispatcher this fills in
 
 //go:build ze_l2tp

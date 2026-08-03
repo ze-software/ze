@@ -7,7 +7,7 @@
 // one is the dangerous half: once an interop scenario may carry an
 // `RFC requirement:` tag (this spec's Phase 2), a green-but-unrun suite would
 // satisfy `make ze-rfc-check` with evidence nothing executed
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // Go rather than Python because there is no Python test root under test/interop
 // (scripts/dev/python_tests_test.go pins the three that exist), and this package

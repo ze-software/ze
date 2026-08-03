@@ -3,7 +3,7 @@
 # Advisory only -- ensures visibility, not blocking.
 #
 # Deferrals are sharded one file per source under plan/deferrals/ so concurrent
-# sessions never cross-commit each other's rows (ai/rules/deferral-tracking.md,
+# sessions never cross-commit each other's rows (ai/rules/planning.md,
 # ai/rules/git-safety.md). The open-count is a fold over the directory.
 
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || exit 0

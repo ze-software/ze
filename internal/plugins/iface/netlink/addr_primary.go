@@ -115,7 +115,7 @@ type deviceAddress struct {
 // lives, so an address whose flags did not arrive reads as Secondary=false. If
 // the sibling test required the flag, that zero value would silently look like
 // "no hazard" and the guard would fail OPEN -- exactly the trap
-// ai/rules/fail-closed-guards.md names. Any other same-subnet IPv4 address is
+// ai/rules/evidence.md names. Any other same-subnet IPv4 address is
 // therefore treated as at risk: a device only ever holds one primary per
 // subnet, so a sibling in the same subnet IS the secondary whether or not its
 // flag survived. The cost of the conservative read is at most one extra

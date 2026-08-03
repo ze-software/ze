@@ -44,7 +44,7 @@ code -- every edit target was v3-safe (guarded by `ospfv3/types/imports_test.go`
   DR-reflood-back / sender-RouterID args. A `replace_all` missed one site first pass; sibling
   call-site audit is mandatory after a flood-helper signature change.
 - **AC-3/6/7 are wired to `ze config validate`, not just the engine.**
-  `verifyOSPFConfigSections` (register.go:99 `InProcessConfigVerifier`) routes the validate CLI
+  `verifyOSPFConfigSections` (register.go `InProcessConfigVerifier`) routes the validate CLI
   through `parseOSPFConfig` -> `validateConfig`, so the functional `.ci` rejection cases prove
   the user-facing surface. Cost 0 / transmit-delay 0 are caught first by the YANG range
   (`invalid value for cost`); key-id 256 (YANG `uint32`, no range) is caught by `ErrKeyIDTooWide`.

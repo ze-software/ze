@@ -13,7 +13,7 @@ import (
 //
 // Every case drives ValidateUpdateRFC7606, the RFC 7606 decision point, rather than the
 // per-attribute validator directly: a validator nobody reaches is not compliance
-// (ai/rules/fail-closed-guards.md, "drive the guard's test from its entry point").
+// (ai/rules/evidence.md, "drive the guard's test from its entry point").
 
 // rfc7606MandatoryAttrs is the well-known mandatory prefix every conforming UPDATE carries,
 // so a case cannot pass or fail for want of ORIGIN/AS_PATH/NEXT_HOP.

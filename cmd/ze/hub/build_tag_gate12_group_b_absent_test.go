@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- spec-feature-gate-12 Group B absent validation
+// Design: ai/rules/plugins.md -- spec-feature-gate-12 Group B absent validation
 //
 //go:build !ze_tacacs && !ze_exabgp
 

@@ -36,7 +36,7 @@ var (
 	KeyIRRCache              = MustRegister(KeyEntry{Pattern: "meta/bgp/irr-cache", Description: "IRR-resolved prefix cache (JSON, all ASNs; legacy, migrated to meta/irr/{name})"})
 	KeyIRRPrefixCache        = MustRegister(KeyEntry{Pattern: "meta/irr/{name}", Description: "IRR-resolved prefix cache, per ASN/AS-SET (JSON)"})
 
-	// Persisted runtime state (see ai/rules/zefs-persistence.md). These live in
+	// Persisted runtime state (see ai/rules/architecture.md). These live in
 	// the shared store instead of loose files so appliance state is managed.
 	KeyDDoSDetectBaseline   = MustRegister(KeyEntry{Pattern: "meta/ddos/detect-baseline", Description: "ddos-detect rolling PPS/BPS baseline snapshot (JSON)"})
 	KeyTrafficTCSnapshot    = MustRegister(KeyEntry{Pattern: "meta/traffic/tc-snapshot", Description: "traffic-usage original-qdisc snapshot for restore (JSON)"})

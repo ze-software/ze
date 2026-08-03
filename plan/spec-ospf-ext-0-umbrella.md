@@ -282,7 +282,7 @@ likely a new spec) to revive.
 - [ ] `internal/plugins/ospf/auth_keystore.go` + `internal/plugins/ospf/auth_wiring.go` -- the delivered RFC 7166 Authentication Trailer (AT-bit, SA config, sign/verify, 64-bit sequence anti-replay) for IPv6, and the IPv4 AuType 0/1/2/3 path
   -> Constraint: ext-16 (RFC 4552 IPsec) is a SEPARATE auth path (kernel IPsec SA/SP), not an extension of the trailer code; the trailer remains the in-packet mechanism
 - [ ] `internal/plugins/ospf/register.go` + `internal/plugins/ospf/dispatcher.go` + `internal/plugins/ospf/instance.go` -- the delivered registration + SDK lifecycle (`register.go` spawns the IPv4 and IPv6 engine instances; `dispatcher.go` holds the Instance-ID demux); ext-1 adds the IPv4 opaque consumer registry here; ext-15 consumes the reserved IPv6 Instance-ID; later extensions register their own commands/schema/doctor checks
-  -> Constraint: each extension is self-contained (`ai/rules/plugin-self-containment.md`); removing a child removes all its registration cleanly. No v3 extension spelling appears in any generic/central package; no child forks a second engine
+  -> Constraint: each extension is self-contained (`ai/rules/plugins.md`); removing a child removes all its registration cleanly. No v3 extension spelling appears in any generic/central package; no child forks a second engine
 
 **Behavior to preserve:** (the delivered bases are a stable foundation)
 - The unified engine: IPv4 (OSPFv2) and IPv6 (OSPFv3) SHARE the AF-neutral FSM / flooding / DR election / SPF / LSDB-sequencing machinery; every extension is additive and must not fork a second engine or leak v3 LS-type constants into the IPv4 path.
@@ -295,7 +295,7 @@ likely a new spec) to revive.
 **Behavior to change:** (this umbrella changes NONE directly)
 - None -- the umbrella implements nothing. Each child changes behaviour additively, documented in that child's own "Behavior to change". The umbrella only coordinates ordering and records the rested set.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 (Umbrella-level: the data paths each child plugs into. Each child carries its own detailed Data Flow.)
 

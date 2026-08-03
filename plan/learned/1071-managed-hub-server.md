@@ -15,7 +15,7 @@ to actually serve managed clients.
 
 - **Dedicated managed TLS listener over extending the plugin `PluginAcceptor`** (user decision). The
   acceptor routes an authenticated connection to a `WaitForPlugin(name)` waiter and closes any name
-  with no waiter (`tls.go:632-635`); managed clients connect inbound at any time with no waiter, so
+  with no waiter (`tls.go`); managed clients connect inbound at any time with no waiter, so
   reusing it needed a multi-listener refactor of a security-sensitive shared component. A dedicated
   listener that reuses `AuthenticateWithLookup` + `rpc.MuxConn` (no new auth/wire protocol) is lower
   blast radius and keeps the plugin acceptor untouched (so "plugins unaffected" holds by construction).

@@ -30,7 +30,7 @@ func captureRoleLog(t *testing.T) *bytes.Buffer {
 // (otc.go: OTCIngressFilter and both OTCEgressFilter lookups). The config was
 // therefore stored under a key nothing could ever read, and a nil cfg makes
 // every RFC 9234 Section 5 gate go permissive -- the zero-value trap of
-// ai/rules/fail-closed-guards.md, where a miss is indistinguishable from
+// ai/rules/evidence.md, where a miss is indistinguishable from
 // "this peer has no role configured".
 //
 // The fallback is only wrong when the peer NAME is not itself an address.

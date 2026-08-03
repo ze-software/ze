@@ -761,5 +761,5 @@ Plugins can register custom commands:
 - `architecture.md` - Full API architecture
 - `process-protocol.md` - Plugin startup details
 - `commands.md` - Command syntax details
-- `json-format.md` - JSON output format details
+- `cli.md` - JSON output format details
 - `capability-contract.md` - GR/RR capability handling

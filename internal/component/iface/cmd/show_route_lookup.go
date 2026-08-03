@@ -1,6 +1,6 @@
 // Design: plan/learned/664-diag-5-active-probes.md -- route lookup via netlink.
 // Owned by the iface component: resolves the kernel FIB next-hop through the
-// iface backend (iface.RouteLookup). See ai/rules/plugin-self-containment.md.
+// iface backend (iface.RouteLookup). See ai/rules/plugins.md.
 
 package cmd
 

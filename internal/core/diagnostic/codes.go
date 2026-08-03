@@ -440,7 +440,7 @@ var builtinCodes = []CodeMeta{
 	// doctor-isis-net-missing and doctor-isis-system-id-mismatch are NOT listed
 	// here: they are owned and registered by the IS-IS component
 	// (internal/plugins/isis/codes.go init() via diagnostic.Register), so
-	// deleting the IS-IS component removes them (ai/rules/plugin-self-containment.md).
+	// deleting the IS-IS component removes them (ai/rules/plugins.md).
 	{
 		Code:        "doctor-l2tp-module",
 		Title:       "L2TP kernel module not loaded",

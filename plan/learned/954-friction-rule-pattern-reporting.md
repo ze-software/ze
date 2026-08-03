@@ -4,7 +4,7 @@
 
 Thomas asked for a rule that when an agent finds a pattern of problems during
 development, it must report the pattern so the team can decide whether better
-rules are required. Ze already had `ai/rules/friction-reporting.md`, but it
+rules are required. Ze already had `ai/rules/repo-maintenance.md`, but it
 focused on confusion, surprise, stale docs, and tooling friction. It did not
 explicitly require naming a recurring problem pattern or making a rule/no-rule
 decision.

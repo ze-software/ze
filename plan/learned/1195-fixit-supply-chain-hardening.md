@@ -13,7 +13,7 @@ the markers survived a re-vendor.
 - `internal/appliance/updater/` **does not exist** in the current tree. The spec's
   file paths (`internal/appliance/updater/body_leak_test.go`, `.../updater.go`) are
   stale (that package lived only in an old modcache snapshot). The updater is
-  consumed via the vendored package in `internal/appliance/cmd_push.go:24`.
+  consumed via the vendored package in `internal/appliance/cmd_push.go`.
 - The vendored copy `v0.0.0-20260620140544` had **already regressed**: a prior
   re-vendor dropped `io.LimitReader` and `http.NoBody` (only `Body.Close` survived
   because upstream now has it). The reapply script had not been re-run. This is the
@@ -38,7 +38,7 @@ the markers survived a re-vendor.
 ## Scope parked (NOT done)
 Assigned slice was AC-3 only. AC-1 (Makefile `ze-vulncheck` + `.github/workflows/govulncheck.yml`
 + `go.mod` x/vuln), AC-2 (codeql.yml tag set), AC-4 (go.mod pin->tag), AC-5
-(appliance-dep-bumps.md cadence), AC-6 (GPLv2 sign-off) touch shared contended files
+(platform-linux.md cadence), AC-6 (GPLv2 sign-off) touch shared contended files
 (Makefile already `M` by a sibling; go.mod needs heavy tidy/vendor) and were left for
 their owning sessions. Scope decision recorded here and in the drain recipe
 (`tmp/drain-fixit-supply-chain-hardening.md`).

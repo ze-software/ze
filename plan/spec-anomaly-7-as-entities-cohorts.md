@@ -58,10 +58,10 @@ children 6 and 5 respectively and are consumed, not modified, here.
   → Constraint: scoring is PURE in `score.go`; freeze-learn is `scoreEntity` returning pending
     `baselineUpdate`s that `onTick` folds only when NOT anomalous or still warming; warmup gates
     self-deviation for `warmupTicks`. Any new entity type must preserve all three.
-- [ ] `ai/rules/plugin-self-containment.md` - remove the plugin, its surface vanishes
+- [ ] `ai/rules/plugins.md` - remove the plugin, its surface vanishes
   → Constraint: any new config leaf, show field, or metric registers inside `anomaly/detect`; no
     AS-specific spelling leaks into a core or shared package.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - if a config leaf is added
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - if a config leaf is added
   → Constraint: a new tracked entity DIMENSION (memory cost) is opt-in via a YANG leaf under
     `anomaly/detect`, kebab-case, with maximal native validation.
 
@@ -77,10 +77,10 @@ children 6 and 5 respectively and are consumed, not modified, here.
   rarity math and the +Inf exclusion are untouched. Per-ASN entities reuse `entityState` and
   `scoreEntity` behind a second keyed map (or child 5's generalized axis).
 - The only unavoidable NON-detector change is representing an ASN as an incident subject: the
-  event contract's `Entity` is a `netip.Prefix` (`event.go:71`) and cannot hold an ASN. A small
+  event contract's `Entity` is a `netip.Prefix` (`event.go`) and cannot hold an ASN. A small
   additive discriminator is required (or reuse of child 5's, if child 5 added one for its port
   dimension, which is likewise not a prefix).
-- The shape responder keys `r.armed` on `e.Entity` (`responder.go:81,90,102`) with no
+- The shape responder keys `r.armed` on `e.Entity` (`responder.go,90,102`) with no
   `IsValid` guard, so an AS-subject incident must NOT reach it as an actionable prefix event.
 
 ## Current Behavior (MANDATORY)
@@ -88,48 +88,48 @@ children 6 and 5 respectively and are consumed, not modified, here.
 **Source files read (BEFORE writing this spec):**
 - [ ] `internal/plugins/anomaly/detect/detector.go` - the detector. NOTE: there is no
   `detect/feature.go` or `detect/event.go`; the feature read and entity keying live here.
-  - `onTick` (detector.go:120) reads `trafficfeature.Snapshot`, iterates `snap.Sources`
+  - `onTick` (detector.go) reads `trafficfeature.Snapshot`, iterates `snap.Sources`
     (`[]trafficfeature.FeatureEntry`), keys per-entity baselines on `netip.Addr` in
-    `states map[netip.Addr]*entityState` (detector.go:105,133).
-  - `buildCohorts` (detector.go:185) groups entities into `map[netip.Prefix]*cohortAgg` keyed by
-    `cohortPrefix(fe.Addr)` (detector.go:189); it EXCLUDES a `+Inf` out/in ratio from the ratio
-    accumulator (detector.go:199) so an exfil host cannot dominate the cohort baseline.
-  - `cohortPrefix` (detector.go:256) derives the `/24` (v4) or `/48` (v6) bucket from
+    `states map[netip.Addr]*entityState` (detector.go,133).
+  - `buildCohorts` (detector.go) groups entities into `map[netip.Prefix]*cohortAgg` keyed by
+    `cohortPrefix(fe.Addr)` (detector.go); it EXCLUDES a `+Inf` out/in ratio from the ratio
+    accumulator (detector.go) so an exfil host cannot dominate the cohort baseline.
+  - `cohortPrefix` (detector.go) derives the `/24` (v4) or `/48` (v6) bucket from
     `CohortPrefixLenV4/V6`.
-  - `scoreEntity` (detector.go:213) computes `max(self-deviation, cohort.rarity)` per continuous
+  - `scoreEntity` (detector.go) computes `max(self-deviation, cohort.rarity)` per continuous
     feature, gated by warmup, returning pending `baselineUpdate`s (no mutation).
-  - Freeze-learn (detector.go:144): `onTick` folds updates only when `!above || samples < warmupTicks`.
-  - `stateFor` (detector.go:270) bounds distinct baselines by `maxTrackedEntities = 10000`
-    (detector.go:30), returning nil at the cap.
-  - `activate` (detector.go:287) builds `anomalyevent.AnomalyDetected{Entity: prefix, Cohort:
-    cohortPrefix(addr).String(), ...}`, appends to the ring (detector.go:297), and EMITS on the bus
-    (detector.go:305).
+  - Freeze-learn (detector.go): `onTick` folds updates only when `!above || samples < warmupTicks`.
+  - `stateFor` (detector.go) bounds distinct baselines by `maxTrackedEntities = 10000`
+    (detector.go), returning nil at the cap.
+  - `activate` (detector.go) builds `anomalyevent.AnomalyDetected{Entity: prefix, Cohort:
+    cohortPrefix(addr).String(), ...}`, appends to the ring (detector.go), and EMITS on the bus
+    (detector.go).
   → Constraint: score/rarity math is called from here but DEFINED in `score.go`; this child changes
     keying and event construction only, never the rarity arithmetic.
 - [ ] `internal/plugins/anomaly/detect/score.go` - the PURE pinned rule.
-  - `cohortStats.rarity` (score.go:61) is the leave-one-out rarity: `n = count-1`; returns 0 below
+  - `cohortStats.rarity` (score.go) is the leave-one-out rarity: `n = count-1`; returns 0 below
     `minSize` OTHER members; removes `value`'s own contribution before computing mean/variance.
-  - `cohortStats.add` (score.go:49) accumulates sum / sumSq / count.
+  - `cohortStats.add` (score.go) accumulates sum / sumSq / count.
   → Constraint: `score.go` MUST NOT be edited. The AS cohort is the SAME `cohortStats` accumulated
     under a different grouping key; it calls the identical `rarity`.
 - [ ] `internal/core/anomalyevent/event.go` - the event contract.
-  - `AnomalyDetected.Entity` is a `netip.Prefix` (event.go:71); `Cohort` is a free-form `string`
-    (event.go:72); there is NO entity-kind discriminator.
+  - `AnomalyDetected.Entity` is a `netip.Prefix` (event.go); `Cohort` is a free-form `string`
+    (event.go); there is NO entity-kind discriminator.
   → Constraint: AS-origin cohort rarity needs NO contract change (it only sets `Cohort = "AS64500"`
     on a still-prefix Entity). Per-ASN ENTITIES need an additive discriminator because an ASN is
     not a `netip.Prefix`.
 - [ ] `internal/component/trafficfeature/feature.go` - the facts surface.
-  - `FeatureEntry` (feature.go:30-50) has `Addr, FanOut, OutInRatio, PortEntropy, NewPeer,
+  - `FeatureEntry` (feature.go) has `Addr, FanOut, OutInRatio, PortEntropy, NewPeer,
     RarePort, Beaconing`. There is NO `SrcAS` field today.
-  - `maxTrackedKey = 10000` (feature.go:23) bounds the facts-layer source map.
+  - `maxTrackedKey = 10000` (feature.go) bounds the facts-layer source map.
   → Constraint: `fe.SrcAS` does not exist yet. Reading it is a child-6 (planned) dependency. This
     child does NOT modify `trafficfeature`.
 - [ ] `internal/core/observation/observation.go` - the feed carrying the facts.
-  - `FlowKey` (observation.go:54-60) is `Src, Dst, SrcPort, DstPort, Proto`; `Observation`
-    (observation.go:62-69) carries no AS. Confirms AS attribution is absent upstream too (child 6).
+  - `FlowKey` (observation.go) is `Src, Dst, SrcPort, DstPort, Proto`; `Observation`
+    (observation.go) carries no AS. Confirms AS attribution is absent upstream too (child 6).
 - [ ] `internal/plugins/anomaly/shape/responder.go` - the responder that consumes incidents.
-  - `onDetected` (responder.go:77) reads `e.Entity` (responder.go:81) and keys `r.armed`
-    (a `map[netip.Prefix]`) on it (responder.go:90,102) with NO `Entity.IsValid()` guard.
+  - `onDetected` (responder.go) reads `e.Entity` (responder.go) and keys `r.armed`
+    (a `map[netip.Prefix]`) on it (responder.go,102) with NO `Entity.IsValid()` guard.
   → Constraint: an AS-subject incident with an invalid/zero `Entity` prefix would poison
     `r.armed`. AS-subject incidents must be report-only (ring + show), not emitted on the actionable
     `anomalyevent.Detected` bus, so the responder is never handed an invalid prefix.
@@ -150,11 +150,11 @@ children 6 and 5 respectively and are consumed, not modified, here.
 **Behavior to change:** Only additive. Cohort grouping gains an AS-keyed path (degrading to prefix);
 a new opt-in per-ASN entity dimension; an additive event-contract discriminator for the ASN subject.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Config `anomaly { detect { enabled true } }` (plus the opt-in per-ASN leaf) starts the tick loop
-  (`register.go:114` calls `d.onTick(svc.Snapshot())`). Operator intent and the fact `fe.SrcAS`
+  (`register.go` calls `d.onTick(svc.Snapshot())`). Operator intent and the fact `fe.SrcAS`
   (child 6, planned) enter through `trafficfeature.Snapshot`.
 
 ### Transformation Path
@@ -197,23 +197,23 @@ a new opt-in per-ASN entity dimension; an additive event-contract discriminator 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `trafficfeature.FeatureEntry` gains a `SrcAS` field | umbrella Data-Flow step 1 + AC-4; child 6 (planned) | this child cannot read AS; whole feature blocked | child 6 lands; grep `SrcAS` on `FeatureEntry`; `feature.go:30-50` has none today | unvalidated -- depends on child 6 (planned) |
+| A-1 | `trafficfeature.FeatureEntry` gains a `SrcAS` field | umbrella Data-Flow step 1 + AC-4; child 6 (planned) | this child cannot read AS; whole feature blocked | child 6 lands; grep `SrcAS` on `FeatureEntry`; `feature.go` has none today | unvalidated -- depends on child 6 (planned) |
 | A-2 | The entity axis is generalized (dest/port) so an ASN dimension plugs in cleanly | umbrella child-5 row; child 5 (planned) | per-ASN entity adds a bespoke `map[uint32]*entityState` instead of riding the generalized axis | child 5 lands; inspect the generalized entity key/registry | unvalidated -- depends on child 5 (planned) |
 | A-3 | `SrcAS == 0` is the "unset / not attributed" sentinel | RFC 7607 (AS 0 reserved); child 6 API choice (planned) | the degrade branch tests the wrong condition | child 6's chosen representation (`0` vs a `HasAS bool`) | unvalidated -- depends on child 6 (planned) |
-| A-4 | AS-origin cohort rarity is a cohort-KEY swap only; `score.go` is untouched | `buildCohorts` keys by `cohortPrefix` (detector.go:189); `rarity` (score.go:61) is key-agnostic | design churn if rarity needs AS-specific math | unit test: AS cohort produces identical rarity to a prefix cohort with the same members | confirmed against code |
-| A-5 | An ASN cannot be represented by `AnomalyDetected.Entity` (a `netip.Prefix`) | `event.go:71` | per-ASN incidents cannot be surfaced without a contract change | read `event.go` | confirmed against code |
+| A-4 | AS-origin cohort rarity is a cohort-KEY swap only; `score.go` is untouched | `buildCohorts` keys by `cohortPrefix` (detector.go); `rarity` (score.go) is key-agnostic | design churn if rarity needs AS-specific math | unit test: AS cohort produces identical rarity to a prefix cohort with the same members | confirmed against code |
+| A-5 | An ASN cannot be represented by `AnomalyDetected.Entity` (a `netip.Prefix`) | `event.go` | per-ASN incidents cannot be surfaced without a contract change | read `event.go` | confirmed against code |
 | A-6 | Child 5 may already add an entity-kind discriminator (its port dimension is also non-prefix) | umbrella child-5 row ("port has no natural cohort"); child 5 (planned) | this child adds `EntityKind`/`EntityAS` itself instead of reusing child 5's | inspect `AnomalyDetected` after child 5 lands | unvalidated -- depends on child 5 (planned) |
-| A-7 | The shape responder has no `Entity.IsValid()` guard | `responder.go:81,90,102` (no guard) | AS incidents on the bus would poison `r.armed` | read `responder.go`; keep AS incidents off the bus | confirmed against code |
-| A-8 | Reading `fe.SrcAS` adds no import to `detect` | `detector.go:18` already imports `trafficfeature` | umbrella "zero new imports" claim wrong | `goimports` diff after implementation | confirmed against code |
+| A-7 | The shape responder has no `Entity.IsValid()` guard | `responder.go,90,102` (no guard) | AS incidents on the bus would poison `r.armed` | read `responder.go`; keep AS incidents off the bus | confirmed against code |
+| A-8 | Reading `fe.SrcAS` adds no import to `detect` | `detector.go` already imports `trafficfeature` | umbrella "zero new imports" claim wrong | `goimports` diff after implementation | confirmed against code |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Per-ASN entities add a second keyed map and inflate tracked-entity memory (umbrella R-1) | a new `ze_anomaly_tracked_as_entities` gauge climbs; eviction churn | bound the AS map by its own cap mirroring `maxTrackedEntities` (detector.go:30); make the dimension opt-in; reuse idle eviction |
+| R-1 | Per-ASN entities add a second keyed map and inflate tracked-entity memory (umbrella R-1) | a new `ze_anomaly_tracked_as_entities` gauge climbs; eviction churn | bound the AS map by its own cap mirroring `maxTrackedEntities` (detector.go); make the dimension opt-in; reuse idle eviction |
 | R-2 | AS-subject incident leaks onto the actionable bus and poisons `r.armed` (invalid prefix) | shape arms an all-zero/invalid prefix; `armedCount` drifts | keep AS incidents report-only (ring + show), never `Detected.Emit`; unit-test that no AS payload reaches a bus subscriber |
 | R-3 | Hard dependency on flowexport: AS-keyed grouping stops the detector scoring when AS is absent (umbrella R-3) | detector emits nothing once flowexport is disabled | per-entry degrade to `cohortPrefix`; whole-snapshot all-unset path is byte-for-byte the current behavior; covered by a dedicated test |
-| R-4 | AS cohort has too few members (a single-homed source AS) to score rarity | AS cohorts of size < `MinCohortSize`; rarity always 0 | `cohortStats.rarity` already returns 0 below `minSize` (score.go:63); self-deviation still scores; this is correct, not a bug |
-| R-5 | A single `+Inf` exfil host inflates the AS cohort ratio baseline and masks peers | AS cohort ratio mean spikes | replicate the `+Inf` exclusion (detector.go:199) in the AS-keyed builder; test mirrors `TestBuildCohortsExcludesInfiniteRatio` |
+| R-4 | AS cohort has too few members (a single-homed source AS) to score rarity | AS cohorts of size < `MinCohortSize`; rarity always 0 | `cohortStats.rarity` already returns 0 below `minSize` (score.go); self-deviation still scores; this is correct, not a bug |
+| R-5 | A single `+Inf` exfil host inflates the AS cohort ratio baseline and masks peers | AS cohort ratio mean spikes | replicate the `+Inf` exclusion (detector.go) in the AS-keyed builder; test mirrors `TestBuildCohortsExcludesInfiniteRatio` |
 | R-6 | Freeze-learn not wired for the per-ASN path, so a sustained AS anomaly self-clears | AS incident flaps; AS baseline drifts up | per-ASN scoring routes through the SAME `scoreEntity` + `onTick` fold; test mirrors `TestFreezeLearnDuringSustainedAnomaly` |
 | R-7 | Divergence from child 5's final entity-axis or child 6's `SrcAS` API forces rework | children 5/6 land with a different shape than assumed | this spec is implementable once 5/6 are done; the A-1/A-2/A-3/A-6 rows pin the exact surfaces to re-check first |
 
@@ -237,7 +237,7 @@ a new opt-in per-ASN entity dimension; an additive event-contract discriminator 
 | AC-5 | A per-ASN incident is produced | It carries an unambiguous entity-kind discriminator identifying the ASN subject, appears in the recent-incident ring and `show anomaly detect`, and is NOT delivered to the shape responder as an actionable prefix event (responder `r.armed` never keyed on an invalid prefix) |
 | AC-6 | Any AS path exercised | `internal/plugins/anomaly/detect/score.go` is byte-for-byte unchanged (the pinned pure rule) |
 | AC-7 | The `detect` package built after the change | No new import is added to `detect`; `fe.SrcAS` is a field access on the already-imported `trafficfeature` type |
-| AC-8 | A `+Inf` (pure-sender / exfil) source inside an AS cohort | It is excluded from the AS cohort's ratio baseline (mirrors detector.go:199) and still scores via self-deviation |
+| AC-8 | A `+Inf` (pure-sender / exfil) source inside an AS cohort | It is excluded from the AS cohort's ratio baseline (mirrors detector.go) and still scores via self-deviation |
 
 ## End-to-End User Stories
 
@@ -265,8 +265,8 @@ a new opt-in per-ASN entity dimension; an additive event-contract discriminator 
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | `fe.SrcAS` (uint32) | 0 = unset sentinel; 1..4294967295 = attributed | 4294967295 | N/A (unsigned) | N/A |
-| per-ASN map size | 0..cap (mirrors `maxTrackedEntities` 10000) | cap | N/A | entity beyond cap dropped (nil, like `stateFor` detector.go:274) |
-| `MinCohortSize` (existing) | 2..1024 (config.go:118) | reused unchanged | reused | reused |
+| per-ASN map size | 0..cap (mirrors `maxTrackedEntities` 10000) | cap | N/A | entity beyond cap dropped (nil, like `stateFor` detector.go) |
+| `MinCohortSize` (existing) | 2..1024 (config.go) | reused unchanged | reused | reused |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -316,7 +316,7 @@ N/A -- this child adds no wire-protocol behavior. It reads a fact and emits an i
 | Pipe completeness | [ ] N/A | `show anomaly detect` output path is unchanged; only a field is added |
 | Env var registration | [ ] No | config is YANG-modeled, not an `environment/` leaf |
 | Doctor check for runtime dependencies | [ ] No | AS enrichment is an OPTIONAL soft dependency that degrades (R-3); no new file/socket/port/binary. The existing `anomaly-detect-feature-source` check already covers the trafficfeature dependency. (Optional future: an info-level check reporting "AS unset -> degraded to prefix cohorts".) |
-| Prometheus counters/metrics | [ ] Yes | add `ze_anomaly_tracked_as_entities` gauge, registered alongside the existing gauges in `bindMetrics` (detector.go:407) |
+| Prometheus counters/metrics | [ ] Yes | add `ze_anomaly_tracked_as_entities` gauge, registered alongside the existing gauges in `bindMetrics` (detector.go) |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -453,7 +453,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | AS-origin cohort rarity sets only `Cohort="AS<n>"`, keeping the incident subject a source prefix | Make every AS-cohort incident an AS subject | The subject of a cohort-rarity finding is the rare MEMBER (a source), not the cohort; keeps these incidents fully actionable by the shape responder with zero contract change |
-| Per-ASN incidents are report-only (ring + show), not emitted on the `Detected` bus | Emit with a discriminator and guard the responder | The shape responder keys `r.armed` on `Entity` (a prefix) with no `IsValid` guard (responder.go:81,90,102); keeping AS subjects off the bus preserves that invariant without editing a second plugin |
+| Per-ASN incidents are report-only (ring + show), not emitted on the `Detected` bus | Emit with a discriminator and guard the responder | The shape responder keys `r.armed` on `Entity` (a prefix) with no `IsValid` guard (responder.go,90,102); keeping AS subjects off the bus preserves that invariant without editing a second plugin |
 | Additive `EntityKind`/`EntityAS` on `AnomalyDetected`, reuse child 5's field if present | A synthetic prefix encoding an ASN | An ASN encoded as a `netip.Prefix` is semantically wrong and would still poison the responder; an explicit discriminator is honest and backward-compatible |
 | Degrade is per-entry (`SrcAS==0` -> `cohortPrefix`), not all-or-nothing | Disable AS grouping entirely when any source lacks AS | Partial AS attribution is normal; per-entry degrade keeps AS grouping for attributed sources while unattributed ones stay on prefix cohorts (R-3) |
 | Per-ASN entity tracking is opt-in via `track-as-entities` (default false) | Always-on | It is a new tracked DIMENSION with memory cost (R-1, umbrella R-1); opt-in matches config-surface conventions and lets operators keep the memory ceiling flat |

@@ -323,7 +323,7 @@ func TestLockedBuilderCapsOutput(t *testing.T) {
 	// The orchestrated clientStdout/clientStderr were UNCAPPED bare builders
 	// before lockedBuilder replaced them, so this cap is new. It must announce
 	// itself: otherwise a positive expect=stdout:pattern= whose needle lands past
-	// 10 MB fails over a capture that looks complete (ai/rules/fail-closed-guards.md).
+	// 10 MB fails over a capture that looks complete (ai/rules/evidence.md).
 	got := b.String()
 	if want := maxOutputBytes + len(truncationMarker); len(got) != want {
 		t.Fatalf("buffered output = %d bytes, want %d (cap + one truncation marker)", len(got), want)

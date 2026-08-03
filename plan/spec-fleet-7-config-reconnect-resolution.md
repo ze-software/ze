@@ -64,12 +64,12 @@ different concept in the same subsystem.
 
 New obligation from the 2026-07 implementation wave (verified against current code): the
 transport `config-push` rides now enforces write timeouts. `pkg/plugin/rpc/conn.go` applies a
-default 30s write deadline when the context carries none (`defaultWriteDeadline`, conn.go:44;
-applied in `writeAppended`, conn.go:292-294, :309); on transports without `SetWriteDeadline`
-a fail-fast watchdog closes the connection on a stalled write (conn.go:191-200). Both managed
+default 30s write deadline when the context carries none (`defaultWriteDeadline`, conn.go;
+applied in `writeAppended`, conn.go, :309); on transports without `SetWriteDeadline`
+a fail-fast watchdog closes the connection on a stalled write (conn.go). Both managed
 endpoints are TLS `net.Conn`s wrapped in `rpc.NewConn` (client:
-`internal/component/managed/client.go:158`; hub:
-`internal/component/plugin/server/managed_serve.go:224`), so the deadline path applies.
+`internal/component/managed/client.go`; hub:
+`internal/component/plugin/server/managed_serve.go`), so the deadline path applies.
 
 This matters more here than for fleet-4 because `config-push` carries a full device config
 upstream, the largest payload on this channel. Two consequences for the design and for R-1's
@@ -77,8 +77,8 @@ upstream, the largest payload on this channel. Two consequences for the design a
 
 | Consequence | Detail | Citation |
 |-------------|--------|----------|
-| Hard frame bound already exists | A frame larger than 16 MB is rejected at write time, before any bytes hit the socket | `pkg/plugin/rpc/framing.go:66`; enforced in conn.go:302-304 |
-| Slow-link abort | A `config-push` write that cannot complete within 30s (slow WAN link, stalled hub) fails with a deadline error and the connection may close; the client must treat this as a normal disconnect and retry after reconnect, still in the `diverged` state | conn.go:44, :292-294 |
+| Hard frame bound already exists | A frame larger than 16 MB is rejected at write time, before any bytes hit the socket | `pkg/plugin/rpc/framing.go`; enforced in conn.go |
+| Slow-link abort | A `config-push` write that cannot complete within 30s (slow WAN link, stalled hub) fails with a deadline error and the connection may close; the client must treat this as a normal disconnect and retry after reconnect, still in the `diverged` state | conn.go, :292-294 |
 
 R-1's payload bound should be chosen with the 30s write window in mind, not only storage
 concerns.

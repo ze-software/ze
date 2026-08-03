@@ -65,7 +65,7 @@ func (r *RIBManager) collectPeerUpReplay(peerAddr netip.Addr, seenBefore bool) [
 	if seenBefore {
 		return r.collectGroupedRibOutRoutes(peerAddr)
 	}
-	// Say it rather than decline silently (ai/rules/fail-closed-guards.md): a
+	// Say it rather than decline silently (ai/rules/evidence.md): a
 	// non-empty Adj-RIB-Out here means the reordering actually happened and a
 	// duplicate was suppressed, which is invisible everywhere else.
 	if n := len(r.ribOut[peerAddr]); n > 0 {

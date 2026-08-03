@@ -10,7 +10,7 @@ import (
 // central clear schema must NOT declare it, and this package MUST. Removing
 // the resolve component must remove the whole clear dns cache surface with no
 // dangling node.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestResolveCmdSchemaOwnsClearDNSCache(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-clear:dns-cache"`,
@@ -29,7 +29,7 @@ func TestResolveCmdSchemaOwnsClearDNSCache(t *testing.T) {
 // central show schema must NOT declare them, and this package MUST. Removing
 // the resolve component must remove the whole show dns surface with no dangling
 // node.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestResolveCmdSchemaOwnsShowDNS(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:dns-lookup"`,

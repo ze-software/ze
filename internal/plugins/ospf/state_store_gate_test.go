@@ -1,4 +1,4 @@
-// Design: ai/rules/zefs-persistence.md -- runtime state persists in the managed
+// Design: ai/rules/architecture.md -- runtime state persists in the managed
 // zefs store, and only where the operator pinned one.
 // Related: auth_keystore.go -- pinnedStateDir and the boot-count store opener.
 

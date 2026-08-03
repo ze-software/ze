@@ -346,7 +346,7 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 	// that bailed on nil (checkKernelModules just indexes the nil map and
 	// reports every module missing), so an unreadable /proc/modules produced no
 	// output at all and there was no way to tell a passing check from one that
-	// never ran. Say so instead (ai/rules/fail-closed-guards.md: a guard that
+	// never ran. Say so instead (ai/rules/evidence.md: a guard that
 	// cannot be evaluated must speak).
 	loaded := loadedKernelModules()
 	if loaded == nil {

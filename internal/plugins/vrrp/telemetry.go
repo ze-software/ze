@@ -27,7 +27,7 @@ const EventStateChange = "state-change"
 // StateChange is the eventbus payload for a transition.
 //
 // Self-contained value types only: it crosses the plugin boundary, so no
-// pointers into plugin-owned data (ai/rules/plugin-design.md Cross-Boundary
+// pointers into plugin-owned data (ai/rules/plugins.md Cross-Boundary
 // Value Types).
 type StateChange struct {
 	Interface string `json:"interface"`

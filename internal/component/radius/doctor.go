@@ -1,11 +1,11 @@
-// Design: ai/rules/doctor-checks.md -- RADIUS admin reachability readiness check
+// Design: ai/rules/repo-maintenance.md -- RADIUS admin reachability readiness check
 // Overview: config.go -- system/authentication/radius config this check reads
 // Related: aaa.go -- the admin backend whose dependency this check guards
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck
 // RFC: rfc/short/rfc2865.md -- Access-Request probe
 
 // The radius component owns the system/authentication/radius dependency, so it
-// owns this doctor check (ai/rules/doctor-checks.md "Components that are not
+// owns this doctor check (ai/rules/repo-maintenance.md "Components that are not
 // plugins"). It is distinct from the L2TP subscriber path's own
 // doctor-radius-unreachable check.
 package radius

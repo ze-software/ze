@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 10 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 8 of 26. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -113,10 +113,10 @@ time, when the work is finished and you are about to prepare the commit script.*
 **Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
 | You changed | Run this |
 |-------------|----------|
-| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/lint-gate.md`) |
+| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
 | Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
 | A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
-| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/qemu-testing.md`) |
+| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
 | `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
 | `docs/**`, `ai/**`, `plan/**` | `make ze-doc-test`, and `make ze-verify-wiring-docs` for the changed-file gates |
 | `ai/rules/*.md` | `make ze-rules-condensed` then `make ze-rules-lint`, and commit all three digests with the rule |
@@ -255,8 +255,8 @@ The spec's Goal Validation table must have:
 - Evidence column filled with a concrete reference (test name, file path, command output)
 - No empty evidence cells
 ## Relationship to Other Rules
-- `functional-test-gate.md`: requires functional tests per feature type; this rule adds interop on top for protocol features
-- `no-partial-completion.md`: requires every AC tested; this rule requires the *aggregate* goal proven
+- `testing.md`: requires functional tests per feature type; this rule adds interop on top for protocol features
+- `completion.md`: requires every AC tested; this rule requires the *aggregate* goal proven
 - `rfc-compliance.md`: requires RFC conformance in code; this rule requires conformance proven against other implementations
 - `testing.md`: test infrastructure and workflow; this rule specifies when each test type is mandatory
 
@@ -315,51 +315,6 @@ When replacing X with Y: DELETE X first, then implement Y.
 
 ---
 
-## Quality Standards
-`ai/rules/quality.md`
-**When:** before presenting any work as complete — **Severity:** blocking
-
-## Directives
-## Linting
-**FIX lint issues. Never disable linters.** Only exclusions: `fieldalignment` (govet), test-file exclusions for `dupl`/`goconst`/`prealloc`/`gosec`.
-## Self-Critical Review
-All checks must pass before claiming "done."
-| Check | Question |
-|-------|----------|
-| Correctness | Actually works? Edge cases? |
-| Simplicity | Simplest solution? Over-engineered? |
-| Modularity | Modified files still one-concern? Line count ok? (rules/file-modularity.md) |
-| Consistency | Follows existing patterns? |
-| Completeness | TODOs, FIXMEs, unfinished? |
-| Quality | Debug statements removed? Errors clear? |
-| Tests | Cover the change? Any flaky? |
-## Adversarial Self-Review (BLOCKING)
-**Before presenting any work as complete**, answer these questions. Fix what they reveal BEFORE presenting.
-| # | Question | If the answer is bad |
-|---|----------|---------------------|
-| 1 | If a thorough code review ran right now, what would it find? | Fix those things first |
-| 2 | What test cases did I skip because they seemed unlikely? | Write them |
-| 3 | Is every new function reachable from a user entry point? Name the path. | Wire it or say "not yet wired" |
-| 4 | If I doubled the test count, which tests would I add? | Add them now, not after being challenged |
-| 5 | Did I ask questions earlier that went unanswered? | List them. Do not silently assume answers and proceed |
-| 6 | If I deliberately broke the production code path, would the test catch it? | Re-run after breaking it. Observer-exit antipattern hides this (`ai/rules/testing.md`) |
-| 7 | Did I rename a registered name (plugin / subsystem / log / dispatch key)? Did I grep every consumer? | `ai/rules/plugin-design.md` "Renaming a Registered Name" |
-| 8 | Did I add a guard / fallback to a function? Did I check sibling call sites? | `ai/rules/before-writing-code.md` "Sibling Call-Site Audit" |
-| 9 | Did I touch reactor concurrency code? Did `make ze-race-reactor` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
-**Never present "version 1" knowing "version 2" is needed.** The first presentation should be the thorough one.
-**Tests passing is not completion.** After tests pass, continue to the next checklist item (docs, audit, learned summary). Never stop at "tests pass" and wait for the user to say "continue." The Completion Checklist has 12 steps -- tests are step 10, not the finish line. Only stop when blocked or when every step is done.
-**Unanswered questions block work.** If a question was asked and not answered, re-state it before proceeding. Do not silently pick an answer and keep going.
-## Proof
-Paste command output as evidence.
-## Learned Summary Verification
-Learned summaries can contain wrong claims about what is "deferred" or "requires X change." When a summary says something is "deferred because X is missing" or "requires Y change," verify the claim against actual code...
-## Critical Reviews
-Validate understanding of existing architecture BEFORE proposing changes.
-
-<!-- always-on: no past task would surface it -->
-
----
-
 ## RFC Compliance (every protocol, not just BGP)
 `ai/rules/rfc-compliance.md`
 **When:** writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements — **Severity:** blocking
@@ -372,33 +327,33 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 |-----------|------------------|
 | Full conformance and full proof of it are reachable | Implement it and prove it with a tagged test. Do not ask which subset Thomas wants |
 | Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Implement Full Compliance. Ask Thomas Only Before Doing LESS" below |
-| You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/no-parking.md`) |
+| You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/completion.md`) |
 | A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
-| A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/no-fabrication.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
+| A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/evidence.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
 | The RFC requirement is not in `rfc/short/<stem>.md` | An unextracted obligation is still an obligation. Add the checklist row (see Extraction Completeness) -- the gate's silence is not conformance |
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
 **Before claiming a protocol behaviour is correct, read the RFC text**, not only the summary and not only the surrounding code. Cite the section you relied on.
 ## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
 **When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. Implement it and prove it. Thomas has already chosen, so there is nothing to put to him.**
-**Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/no-asking.md` still governs everything else). The gate exists in one direction only.
+**Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
 **Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule** (`plan/learned/1314-rule-heading-inverted-its-directive.md`).
 | You are about to ... | Do instead |
 |----------------------|------------|
 | Classify a requirement `{gap}`, `{not-applicable}`, `partial`, or "does not apply to ze" | Ask. A classification that lowers what Ze owes is a decision about compliance, not bookkeeping |
-| Leave a MUST implemented but unproven (no `RFC requirement:` tagged test) | Ask. "Implemented" is a claim; the tagged test is the evidence (`ai/rules/testing.md`, `ai/rules/tdd.md`) |
+| Leave a MUST implemented but unproven (no `RFC requirement:` tagged test) | Ask. "Implemented" is a claim; the tagged test is the evidence (`ai/rules/testing.md`, `ai/rules/testing.md`) |
 | Leave a MUST unextracted, or scope a spec so an RFC obligation falls outside it | Ask. See Extraction Completeness -- the gate cannot see an obligation nobody wrote down |
-| Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/no-parking.md`), and the deferral machinery is not a compliance decision procedure |
+| Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/completion.md`), and the deferral machinery is not a compliance decision procedure |
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
-**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/no-fabrication.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/no-parking.md`).
+**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/evidence.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/completion.md`).
 **Every earlier answer that pointed away from full compliance or full proof is VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, cannot be cited as one, and does not survive being rediscovered.
 | Where a void answer hides | What to do when you meet one |
 |---------------------------|------------------------------|
 | A `plan/learned/` deviation record, or a spec `Deviations` row | Do not rely on it. Raise the requirement with Thomas again, then correct the record with the new answer |
 | A `{gap}` / `{not-applicable}` / `partial` in `rfc/short/*.md` or `docs/features/rfc-status.md` | Re-derive it from the RFC text. If it still reads as less than full compliance, ask |
 | A deferral row marked `user-approved-drop`, or a `cancelled` status, covering an RFC obligation | Void. Re-raise it; the row is not a close |
-| A code comment or `rfc/audit/*.json` verdict calling the deviation deliberate | A comment is a belief, not a ruling (`ai/rules/no-fabrication.md`). Void by default; ask |
+| A code comment or `rfc/audit/*.json` verdict calling the deviation deliberate | A comment is a belief, not a ruling (`ai/rules/evidence.md`). Void by default; ask |
 **Finding a void answer while doing something else is not permission to move on.** Raise it, and record the fresh answer where the stale one lived, so the next reader inherits a decision rather than a rationalization.
 ## RFC Summaries (`rfc/short/`)
 **RFC summaries are protocol-only reference documents: they must NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader should be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
@@ -471,7 +426,7 @@ ExaBGP ref: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 
 ## Rule Precedence
 `ai/rules/rule-precedence.md`
-**When:** when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue — **Severity:** blocking — **Related:** no-asking, model-selection, spec-delegation, no-parking, no-partial-completion
+**When:** when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue — **Severity:** blocking — **Related:** completion, planning, testing
 
 ## Directives
 Rules that disagree almost always disagree about one thing: whether to keep going.
@@ -480,35 +435,18 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 |------|---------|-------|------------------------------|
 | 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
 | 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation` | When full compliance AND full proof of it is reachable, IMPLEMENT it. You may not pick anything narrower, and you may not ask Thomas to pick for you. Ask only when you are about to do LESS, and then ask which way to fix it |
-| 3 | Scope integrity | `no-partial-completion`, `no-parking`, `fix-dont-record`, `no-test-deletion` | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
-| 4 | Phase boundaries | `model-selection`, `spec-delegation`, `critical-review` | End the phase, report, and hand off. Do not cross onto the next phase in this context |
-| 5 | Autonomy | `no-asking` | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
-**Stopping at a phase boundary is NOT asking permission.** `no-asking` bans "would you like me to...?" before work you were already asked to do. It does not ban ending a phase, reporting the result, and letting the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read `no-asking` as "never stop".
-**When a higher rung forces a question, the question is HOW, never WHETHER.** "Which way do you want this fixed" is always legitimate. "May I skip it", "may I drop the test", "shall I defer this" are banned at every rung (`no-parking.md`).
-**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: home it per `deferral-tracking.md`. If no, it is parking with a polite name: fix it now (`no-parking.md`).
-**Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on is fixed AFTER the work in hand is closed, never on the way to closing it.** `no-parking.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Name it, home it per `deferral-tracking.md`, close, then fix it. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
-**Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`fix-dont-record.md`).
+| 3 | Scope integrity | `completion` (no partial completion, no parking, fix do not record), `testing` (no test deletion) | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
+| 4 | Phase boundaries | `planning` (model selection, spec delegation, critical review) | End the phase, report, and hand off. Do not cross onto the next phase in this context |
+| 5 | Autonomy | `completion` (no asking) | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
+**Stopping at a phase boundary is NOT asking permission.** The no-asking directive in `completion` bans "would you like me to...?" before work you were already asked to do. It does not ban ending a phase, reporting the result, and letting the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read that directive as "never stop".
+**When a higher rung forces a question, the question is HOW, never WHETHER.** "Which way do you want this fixed" is always legitimate. "May I skip it", "may I drop the test", "shall I defer this" are banned at every rung (`completion.md`).
+**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: home it per `planning.md`. If no, it is parking with a polite name: fix it now (`completion.md`).
+**Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on is fixed AFTER the work in hand is closed, never on the way to closing it.** `completion.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Name it, home it per `planning.md`, close, then fix it. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
+**Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`completion.md`).
 **A rule's own subject matter is never overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
 **If the ladder genuinely does not resolve a conflict, say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
 
 <!-- always-on: the ladder itself -->
-
----
-
-## No Code in Specs
-`ai/rules/spec-no-code.md`
-**When:** writing or editing a spec — **Severity:** blocking
-
-## Directives
-Specs MUST NOT contain code snippets (any language).
-| Instead of | Use |
-|------------|-----|
-| Go struct | Table: Field / Type / Description |
-| Function implementation | Prose: numbered steps |
-| Code example | Text: input/output format |
-| State machine code | State transition table |
-
-<!-- always-on: no past task would surface it -->
 
 ---
 

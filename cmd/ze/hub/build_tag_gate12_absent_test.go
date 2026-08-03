@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- spec-feature-gate-12 symbol-drop proof
+// Design: ai/rules/plugins.md -- spec-feature-gate-12 symbol-drop proof
 //
 //go:build ze_l2tp && ze_radius
 

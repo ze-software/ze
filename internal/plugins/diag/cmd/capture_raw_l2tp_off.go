@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp-off raw-capture stub
+// Design: ai/rules/plugins.md -- ze_l2tp-off raw-capture stub
 // Related: capture_raw_l2tp.go -- the real l2tp branches (ze_l2tp builds)
 
 //go:build !ze_l2tp
@@ -15,7 +15,7 @@ func captureRawL2TPStop(stopped []string, _ string) []string { return stopped }
 
 // captureRawL2TPNote makes an explicit `capture-raw start|stop l2tp` answer
 // honestly instead of returning an empty list with no explanation (the
-// stub-honesty rule in ai/rules/feature-gate-registration.md).
+// stub-honesty rule in ai/rules/plugins.md).
 func captureRawL2TPNote(protocol string) string {
 	if protocol == capL2TP {
 		return "l2tp is not included in this build (ze_l2tp off)"

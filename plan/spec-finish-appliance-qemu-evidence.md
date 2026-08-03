@@ -23,7 +23,7 @@ in `f42c2ccb2`). The end-to-end QEMU run it unblocked was never executed, and tw
 rows were left pointing at the deleted spec file, so `commit_helper.py` refuses commits with
 "live deferrals without a destination spec". This spec is that destination.
 
-`plan/learned/1103` states the residue plainly (`:69-73`): the full L2TP evidence test
+`plan/learned/1103` states the residue plainly: the full L2TP evidence test
 (`ze-deployment-gokrazy-l2tp-ppp-test`) needs root, and "AC-3's end-to-end qemu run remains
 to be executed on a root host".
 
@@ -43,7 +43,7 @@ bugs are exactly what `1103` fixed. So the blocker is gone; what remains is exec
 on a host with root + `/dev/ppp` + PPPoL2TP kernel support. This is an ENVIRONMENT
 requirement, not an implementation gap.
 
--> Constraint: `ai/rules/qemu-testing.md` makes QEMU integration mandatory for linux-only
+-> Constraint: `ai/rules/platform-linux.md` makes QEMU integration mandatory for linux-only
 code and forbids skipping for "needs hardware". Read it before proposing any narrowing.
 
 ## Required Reading
@@ -51,7 +51,7 @@ code and forbids skipping for "needs hardware". Read it before proposing any nar
 ### Architecture Docs
 - [ ] `plan/learned/1103-fixit-appliance-evidence-config.md` - the two bugs fixed, and the stated residue at :69-73
   → Constraint: (fill during research) the two blocking bugs (`ze init --force` daemonRunning guard vs host sshd:22; active-config shadowing the build template) are FIXED -- confirm against the producing code before assuming the run is still blocked.
-- [ ] `ai/rules/qemu-testing.md` - QEMU integration is mandatory for linux-only code
+- [ ] `ai/rules/platform-linux.md` - QEMU integration is mandatory for linux-only code
   → Constraint: (fill during research)
 
 **Key insights:** (fill during research)

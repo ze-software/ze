@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_gnmi reload seam validation
+// Design: ai/rules/plugins.md -- ze_gnmi reload seam validation
 //
 //go:build ze_gnmi
 

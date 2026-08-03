@@ -10,7 +10,7 @@ The format (see ai/rules/rule-format.md) is:
     ...body...
 
 Tooling (rules_index.py, rules_condensed.py, and the eager @-import of
-CONDENSED.md) relies on this block being present and machine-readable. This
+TRIGGERS.md / CORE.md) relies on this block being present and machine-readable. This
 linter is the durable gate that keeps it true; it runs inside `make ze-doc-test`.
 
 Beyond presence, two checks keep the block HONEST, because a metadata field that
@@ -23,7 +23,7 @@ routes confidently to the wrong place.
      "All CLI commands MUST follow these patterns" is a directive: it matches
      every task and therefore routes nothing. The same check catches triggers
      copied out of a wrapped body line and cut mid-clause; eight had shipped
-     into CONDENSED.md, where they were read by every session.
+     into the digest artifacts, where they were read by every session.
 
   2. `**Severity:**` must agree with the prose. A rule that declares `advisory`
      while its body says BLOCKING teaches readers that the field is decoration.
@@ -73,7 +73,7 @@ NOT_GERUND = {"nothing", "something", "anything", "everything", "string", "thing
 # punctuation or a stray bold marker.
 TRUNCATED_TAIL = (",", ";", ":", "-", "--")
 
-# ... or it stops on a word no English clause ends on. critical-review.md shipped
+# ... or it stops on a word no English clause ends on. planning.md shipped
 # "...and is enforced by" for months: syntactically a fine metadata line, and
 # useless as a trigger.
 DANGLING_LAST_WORD = {
@@ -116,7 +116,7 @@ DANGLING_LAST_WORD = {
 # Exact spelling the consumers require: rules_condensed.py:META_LINE and
 # rules_index.py match `**When:**` / `**Severity:**` / `**Related:**`
 # case-sensitively, so the lint must too -- a lowercase key that "passes" here
-# would leak into CONDENSED/INDEX bodies unparsed. Keep this in sync with them.
+# would leak into the digest/INDEX bodies unparsed. Keep this in sync with them.
 CANON_KEYS = ("When", "Severity", "Related")
 
 CODE_SPAN = re.compile(r"`[^`]*`")
@@ -178,7 +178,7 @@ def check_trigger(trigger):
 def check_severity_agrees(severity, title, lines, body_start):
     """Return violations where the declared severity contradicts the prose.
 
-    Table rows are exempt: reference rules such as hook-mapping.md tabulate OTHER
+    Table rows are exempt: reference rules such as repo-maintenance.md tabulate OTHER
     rules' severities, and those cells say nothing about this rule's own weight.
     A prose line that describes another artifact's severity can say so with a
     trailing `<!-- severity-note: ... -->`.

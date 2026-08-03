@@ -32,7 +32,7 @@ const argCount = "count"
 
 // Per-component health checks are registered by their OWNERS (l2tp, iface,
 // bgp/plugin, fib/kernel, plugin/process, core/report), not here: deleting a
-// component must remove its health row (ai/rules/plugin-self-containment.md).
+// component must remove its health row (ai/rules/plugins.md).
 // This package keeps only the generic show-health RPC below.
 
 func init() {

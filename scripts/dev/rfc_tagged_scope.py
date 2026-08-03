@@ -27,7 +27,7 @@ THE TWO TRAPS THIS MODULE'S CALLERS KEEP FALLING INTO
 2. The spans are NOT a partition of the file. A tag can sit outside every one of them (a
    hoisted table, a tag separated from its func by a blank line, a `func` inside a raw
    string), and the honest answer there is the WHOLE FILE -- more checking, never less
-   (`ai/rules/fail-closed-guards.md`).
+   (`ai/rules/evidence.md`).
 """
 
 import re

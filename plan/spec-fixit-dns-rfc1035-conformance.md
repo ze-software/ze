@@ -14,9 +14,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 `plan/spec-rfcgate-4-ledger.md` re-authored the extraction for RFC 1035 on 2026-07-30.
-The new summary declares **27 gated MUST-level obligations**. `docs/features/rfc-status.md:250`
+The new summary declares **27 gated MUST-level obligations**. `docs/features/rfc-status.md`
 publishes RFC 1035 as `Supported`. The stem is declared `backlog` in
-`rfc/not-enrolled.txt:33` and cannot enrol until its obligations are met and proven.
+`rfc/not-enrolled.txt` and cannot enrol until its obligations are met and proven.
 
 Two problems block enrolment.
 
@@ -54,7 +54,7 @@ and 31 sites. It is signed off at `signed-off = 2026-07-30`.
 A capitalised-keyword scan of `rfc/full/rfc1035.txt` returns nothing. Extraction
 under that scan would declare the DNS wire format free of obligations. The prose
 register is the only reading under which this document constrains an
-implementation. `rfc/short/rfc1035.md:46-58` records the same reading.
+implementation. `rfc/short/rfc1035.md` records the same reading.
 
 → Constraint: all 27 rows are `prose`-register obligations. Do not re-derive them
 under a keyword scan, because that scan yields zero rows.
@@ -130,7 +130,7 @@ WP-4a. Raise that with him rather than deciding it here.
 - [ ] `rfc/short/rfc7858.md` - DoT, the other stream transport
   → Constraint: DoT is a stream. The 512-octet bound does not apply to it.
 
-**MUST CREATE before WP-1 and WP-4 design work** (`ai/rules/rfc-reading.md`):
+**MUST CREATE before WP-1 and WP-4 design work** (`ai/rules/protocol.md`):
 
 | Stem | Topic | Needed by | State |
 |------|-------|-----------|-------|
@@ -140,7 +140,7 @@ WP-4a. Raise that with him rather than deciding it here.
 
 → Constraint: three summaries do not exist yet, and neither do their full texts.
 Fetch each into `rfc/full/` and summarise it. Do this before you design WP-1 or WP-4.
-`ai/rules/rfc-reading.md` forbids a citation from memory when a summary belongs in
+`ai/rules/protocol.md` forbids a citation from memory when a summary belongs in
 the repo.
 
 **Key insights:** (minimal context to resume after compaction)
@@ -152,39 +152,39 @@ the repo.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (you must read these BEFORE you write this spec)
-- [ ] `internal/core/dnsserver/handler.go:48` - `Authoritative` wraps an answer func, shapes the reply, and owns the single wire write
-- [ ] `internal/core/dnsserver/handler.go:62` - `_ = w.WriteMsg(msg)`. The only write path. No size accounting, no `Truncate` call, and the returned error is discarded
-- [ ] `internal/core/dnsserver/handler.go:72` - `shapeAuthoritative` sets `Authoritative = true`, `RecursionAvailable = false`, `Compress = false`
-- [ ] `internal/core/dnsserver/manager.go:143` - `bind` opens a UDP and a TCP listener per endpoint
-- [ ] `internal/core/dnsserver/manager.go:165` - the UDP `dns.Server`
-- [ ] `internal/core/dnsserver/manager.go:174` - the TCP `dns.Server`, already bound and serving
-- [ ] `internal/core/dnsserver/client.go:23` - `r.IsEdns0()` reads an inbound OPT for client-subnet only
-- [ ] `internal/plugins/geodns/server.go:106` - `recordRR` emits `rec.TTL` verbatim
-- [ ] `internal/plugins/geodns/server.go:138` - `buildSOA` uses `SOA.Minimum` as the SOA record's own TTL
-- [ ] `internal/plugins/geodns/server.go:145` - `Minttl` carries `SOA.Minimum` into the wire SOA
-- [ ] `internal/plugins/geodns/server.go:154` - `appendNS` synthesizes `ns<N>.<zone>` with no length guard
-- [ ] `internal/plugins/geodns/server.go:288` - geodns builds its handler through `dnsserver.Authoritative`
-- [ ] `internal/plugins/geodns/config.go:151` - `fqdn(z)` appends the trailing dot to each configured zone
-- [ ] `internal/plugins/as112/server.go:173` - as112 builds its handler through the same `dnsserver.Authoritative`
-- [ ] `internal/plugins/as112/zones.go:24` - `soaMinTTL uint32 = 604800`
-- [ ] `internal/plugins/as112/zones.go:25` - `zoneTTL uint32 = 604800`
-- [ ] `internal/core/dnsserver/secure_test.go:565` - `TestDoHIgnoresEDNSUDPSize`, tagged `RFC8484-6-1 positive`, asserts the DoH path must not set TC
+- [ ] `internal/core/dnsserver/handler.go` - `Authoritative` wraps an answer func, shapes the reply, and owns the single wire write
+- [ ] `internal/core/dnsserver/handler.go` - `_ = w.WriteMsg(msg)`. The only write path. No size accounting, no `Truncate` call, and the returned error is discarded
+- [ ] `internal/core/dnsserver/handler.go` - `shapeAuthoritative` sets `Authoritative = true`, `RecursionAvailable = false`, `Compress = false`
+- [ ] `internal/core/dnsserver/manager.go` - `bind` opens a UDP and a TCP listener per endpoint
+- [ ] `internal/core/dnsserver/manager.go` - the UDP `dns.Server`
+- [ ] `internal/core/dnsserver/manager.go` - the TCP `dns.Server`, already bound and serving
+- [ ] `internal/core/dnsserver/client.go` - `r.IsEdns0()` reads an inbound OPT for client-subnet only
+- [ ] `internal/plugins/geodns/server.go` - `recordRR` emits `rec.TTL` verbatim
+- [ ] `internal/plugins/geodns/server.go` - `buildSOA` uses `SOA.Minimum` as the SOA record's own TTL
+- [ ] `internal/plugins/geodns/server.go` - `Minttl` carries `SOA.Minimum` into the wire SOA
+- [ ] `internal/plugins/geodns/server.go` - `appendNS` synthesizes `ns<N>.<zone>` with no length guard
+- [ ] `internal/plugins/geodns/server.go` - geodns builds its handler through `dnsserver.Authoritative`
+- [ ] `internal/plugins/geodns/config.go` - `fqdn(z)` appends the trailing dot to each configured zone
+- [ ] `internal/plugins/as112/server.go` - as112 builds its handler through the same `dnsserver.Authoritative`
+- [ ] `internal/plugins/as112/zones.go` - `soaMinTTL uint32 = 604800`
+- [ ] `internal/plugins/as112/zones.go` - `zoneTTL uint32 = 604800`
+- [ ] `internal/core/dnsserver/secure_test.go` - `TestDoHIgnoresEDNSUDPSize`, tagged `RFC8484-6-1 positive`, asserts the DoH path must not set TC
 
 **Verified absent** (grep over `internal/`, `pkg/`, `cmd/`):
 
 | Behavior | Evidence |
 |----------|----------|
 | AXFR, IXFR, or `dns.Transfer` | no match anywhere in production or test code |
-| A production `Msg.Truncate` call or a `Truncated` assignment | no match in `internal/core/dnsserver/` or `internal/plugins/geodns/`. The one `Truncated` reference is `secure_test.go:603`, which asserts the bit is CLEAR |
+| A production `Msg.Truncate` call or a `Truncated` assignment | no match in `internal/core/dnsserver/` or `internal/plugins/geodns/`. The one `Truncated` reference is `secure_test.go`, which asserts the bit is CLEAR |
 | `RcodeNotImplemented` or any `Opcode` inspection | no match in either DNS package. An inverse query is not even detected |
 | An emitted OPT record, a `SetUDPSize` call, or a 512-octet constant | no match in production code in either DNS package |
-| A name-length guard in geodns | no match. The only `len()` test is the `ns<N>` prefix shape at `server.go:53` |
+| A name-length guard in geodns | no match. The only `len()` test is the `ns<N>` prefix shape at `server.go` |
 | Any `RFC1035-` test tag | zero matches across `internal/` |
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- The authoritative shape re-asserted after the answer func (`handler.go:61`). It is a security invariant, not a convention.
+- The authoritative shape re-asserted after the answer func (`handler.go`). It is a security invariant, not a convention.
 - `RecursionAvailable = false` on every reply. Ze must never advertise recursion.
-- The panic guard that drops a reply rather than crashing the listener (`handler.go:50-54`).
+- The panic guard that drops a reply rather than crashing the listener (`handler.go`).
 - `TestDoHIgnoresEDNSUDPSize` stays green. DoH must not truncate on an advertised UDP size.
 - NXDOMAIN for a name outside every served zone. NODATA plus the zone SOA for an in-zone name with no matching record.
 - AS112 SOA and NS parameters. `TestSOA_RFCMandatedParameters` pins them for RFC 7534.
@@ -197,22 +197,22 @@ the repo.
 - AXFR and IXFR are served over TCP, subject to access control. Today neither exists.
 - A failed wire write is logged and counted. Today the error is discarded.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A DNS query arrives as a UDP datagram or a TCP stream on a configured listener, port 53 by default. `manager.go:143` binds both per endpoint.
+- A DNS query arrives as a UDP datagram or a TCP stream on a configured listener, port 53 by default. `manager.go` binds both per endpoint.
 - A DoT or DoH query arrives on a separate secure listener built by `secure.go`.
 - Format at entry: raw DNS wire bytes. `github.com/miekg/dns` parses them into a `dns.Msg` before Ze sees them.
 
 ### Transformation Path
 1. `miekg/dns` accepts the connection and unpacks the wire bytes into a `dns.Msg`. Malformed input never reaches Ze.
-2. `dnsserver.Authoritative` (`handler.go:48`) installs the panic guard, allocates the reply, and calls `SetReply`.
-3. `shapeAuthoritative` (`handler.go:72`) sets the AA bit, clears recursion, and disables compression.
-4. The plugin answer func runs. geodns uses `answerQuery` (`server.go:221`). as112 uses its own `answerQuery` (`server.go:86`).
-5. The answer func resolves the client through `dnsserver.ClientIP` (`client.go:23`), which CAN read an inbound EDNS0 client-subnet option.
+2. `dnsserver.Authoritative` (`handler.go`) installs the panic guard, allocates the reply, and calls `SetReply`.
+3. `shapeAuthoritative` (`handler.go`) sets the AA bit, clears recursion, and disables compression.
+4. The plugin answer func runs. geodns uses `answerQuery` (`server.go`). as112 uses its own `answerQuery` (`server.go`).
+5. The answer func resolves the client through `dnsserver.ClientIP` (`client.go`), which CAN read an inbound EDNS0 client-subnet option.
 6. The answer func appends records to `Answer`, `Ns`, and `Extra`, or sets an RCODE.
-7. `shapeAuthoritative` runs a second time (`handler.go:61`), so no answer func can leave the reply non-authoritative or compressed.
-8. `handler.go:62` packs and writes the reply once. The pack error is discarded today.
+7. `shapeAuthoritative` runs a second time (`handler.go`), so no answer func can leave the reply non-authoritative or compressed.
+8. `handler.go` packs and writes the reply once. The pack error is discarded today.
 
 **New stages this spec inserts.** Stage 3.5 rejects an unsupported opcode with
 NOTIMP before any answer func runs. Stage 7.5 applies the transport-aware size
@@ -222,12 +222,12 @@ stage 2 for a zone-transfer request, which streams several messages rather than 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Network ↔ `miekg/dns` | wire bytes unpacked to `dns.Msg`, packed back on write | Yes - `manager.go:165` and `:174` |
-| `miekg/dns` ↔ harness | `dns.HandlerFunc(w dns.ResponseWriter, r *dns.Msg)` | Yes - `handler.go:49` |
-| Harness ↔ plugin answer func | `AnswerFunc(msg, r *dns.Msg, p Peer) bool`. `Peer` exposes `RemoteAddr` only | Yes - `handler.go:19-37` |
+| Network ↔ `miekg/dns` | wire bytes unpacked to `dns.Msg`, packed back on write | Yes - `manager.go` and `:174` |
+| `miekg/dns` ↔ harness | `dns.HandlerFunc(w dns.ResponseWriter, r *dns.Msg)` | Yes - `handler.go` |
+| Harness ↔ plugin answer func | `AnswerFunc(msg, r *dns.Msg, p Peer) bool`. `Peer` exposes `RemoteAddr` only | Yes - `handler.go` |
 | Harness ↔ transport identity | **not currently crossed.** The answer func and the write path cannot tell UDP from TCP | No - this is the WP-1 gap |
-| Plugin ↔ zone data | geodns reads a config snapshot through `loadState()`. as112 uses compile-time constants | Yes - `server.go:235` and `zones.go:20-26` |
-| Plugin ↔ metrics | per-plugin counters. The harness never owns metrics | Yes - `server.go:231` |
+| Plugin ↔ zone data | geodns reads a config snapshot through `loadState()`. as112 uses compile-time constants | Yes - `server.go` and `zones.go` |
+| Plugin ↔ metrics | per-plugin counters. The harness never owns metrics | Yes - `server.go` |
 
 → Constraint: the harness cannot see the transport today. WP-1 must surface it. The
 answer func must still not receive the `ResponseWriter`. That would break the
@@ -244,11 +244,11 @@ shaping invariant recorded in `plan/learned/1027-dns-server-harness.md`.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | To fill during design. Truncation must sit at the single write in `handler.go:62`, not in either plugin. |
+| No bypassed layers (data flows through the intended path) | No | To fill during design. Truncation must sit at the single write in `handler.go`, not in either plugin. |
 | No unintended coupling (components stay isolated) | No | To fill during design. The harness must not learn a plugin name. A transfer authoriser is registered, not switched on. |
-| No duplicated functionality (extends existing, does not recreate) | No | To fill during design. WP-4 reuses the bound TCP listener at `manager.go:174`. It must not open a second one. |
+| No duplicated functionality (extends existing, does not recreate) | No | To fill during design. WP-4 reuses the bound TCP listener at `manager.go`. It must not open a second one. |
 | Zero-copy preserved where applicable (refs, not copies) | No | To fill during design. `Msg.Truncate` mutates in place. A transfer stream must not buffer a whole zone. |
-| Registration over hardcoding. New commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core package (`ai/rules/plugin-self-containment.md`) | No | To fill during design. The transfer authoriser and the zone-data source register through `dnsserver.Options`. No `if plugin == "geodns"` in the harness. |
+| Registration over hardcoding. New commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core package (`ai/rules/plugins.md`) | No | To fill during design. The transfer authoriser and the zone-data source register through `dnsserver.Options`. No `if plugin == "geodns"` in the harness. |
 
 ## Positive-Only Rows: The Polarity Problem
 
@@ -262,19 +262,19 @@ is not uniform.
 | Rule | Requirement |
 |------|-------------|
 | `ai/rules/testing.md` | every gated MUST needs a positive and a negative tagged test |
-| `rfc/enrolled.txt:5-8` | enrolment needs both polarities, or an annotation of `{not-applicable}`, `{gap}`, or `{single-polarity}` |
-| `scripts/dev/rfc_requirements.py:111` | `{single-polarity}` is a first-class annotation kind |
-| `scripts/dev/rfc_requirements.py:273-285` | `{single-polarity}` needs an explicit polarity AND a reason |
-| `ai/rules/rfc-compliance.md:56` | every earlier answer pointing away from full compliance or full proof is VOID |
+| `rfc/enrolled.txt` | enrolment needs both polarities, or an annotation of `{not-applicable}`, `{gap}`, or `{single-polarity}` |
+| `scripts/dev/rfc_requirements.py` | `{single-polarity}` is a first-class annotation kind |
+| `scripts/dev/rfc_requirements.py` | `{single-polarity}` needs an explicit polarity AND a reason |
+| `ai/rules/rfc-compliance.md` | every earlier answer pointing away from full compliance or full proof is VOID |
 
 **A correction to the framing that commissioned this spec.**
 `ai/rules/rfc-compliance.md` does **not** void `{single-polarity}`. The string
 does not appear in that file at all. Its void table names `{gap}`,
 `{not-applicable}`, and `partial` only.
 
-`{single-polarity}` is documented at `rfc/enrolled.txt:8`, validated by the gate,
+`{single-polarity}` is documented at `rfc/enrolled.txt`, validated by the gate,
 and already used by roughly twenty enrolled RFCs.
-`scripts/dev/testing_health.py:434` treats a change from one into a test pair as
+`scripts/dev/testing_health.py` treats a change from one into a test pair as
 an improvement. The gate therefore reads it as a weaker but legal state, not as a
 void one.
 
@@ -296,24 +296,24 @@ and it belongs to him.
 **Route A is viable for more rows than the original claim assumed, and
 investigating it already found a real Ze-owned defect.**
 
-`vendor/github.com/miekg/dns/msg.go:24` defines
+`vendor/github.com/miekg/dns/msg.go` defines
 `maxDomainNameWireOctets = 255 // See RFC 1035 section 2.3.4`. The library
-returns `ErrLongDomain` (`msg.go:61`) rather than silently truncating. So an
+returns `ErrLongDomain` (`msg.go`) rather than silently truncating. So an
 over-long name is a **detectable error at Ze's seam**, not an invariant the
 library hides.
 
 Ze can reach that error today:
 
-1. `internal/plugins/geodns/yang/ze-geodns-conf.yang:42` bounds a zone name with `length "1..255"`. That counts presentation characters, not wire octets.
-2. `internal/plugins/geodns/config.go:151` appends a trailing dot with `fqdn(z)`.
-3. `internal/plugins/geodns/server.go:154` synthesizes `ns<N>.<zone>` with no length guard at all.
+1. `internal/plugins/geodns/yang/ze-geodns-conf.yang` bounds a zone name with `length "1..255"`. That counts presentation characters, not wire octets.
+2. `internal/plugins/geodns/config.go` appends a trailing dot with `fqdn(z)`.
+3. `internal/plugins/geodns/server.go` synthesizes `ns<N>.<zone>` with no length guard at all.
 
 A 255-character zone therefore yields a synthesized glue name of more than 255 wire
 octets. `miekg/dns` refuses to pack it. Ze then **discards the error**, because
-`internal/core/dnsserver/handler.go:62` reads `_ = w.WriteMsg(msg)`.
+`internal/core/dnsserver/handler.go` reads `_ = w.WriteMsg(msg)`.
 
 The consequence is a silent drop. No log. No metric. No SERVFAIL. That is a
-`ai/rules/fail-closed-guards.md` failure and an `ai/rules/error-messages.md`
+`ai/rules/evidence.md` failure and an `ai/rules/cli.md`
 failure in its own right, independent of RFC 1035.
 
 So route A gives `RFC1035-3.1-4` a genuine negative. A config that produces an
@@ -322,19 +322,19 @@ failure rather than swallows it. `RFC1035-3.1-1` and `RFC1035-3.1-2` reach the s
 seam through the same packer.
 
 **Route B is not recommended.** It lowers the obligation but keeps the id. That is
-exactly the shape `ai/rules/rfc-compliance.md:56` voids. It also hides the change
+exactly the shape `ai/rules/rfc-compliance.md` voids. It also hides the change
 from a reader who sees only the id.
 
 **Route C carries the residue.** Some rows plausibly have no Ze-reachable
 negative even after route A. `RFC1035-4.1.4-2` and `RFC1035-4.1.4-3` govern
-compression-pointer emission. `handler.go:76` sets `Compress = false`, so Ze
+compression-pointer emission. `handler.go` sets `Compress = false`, so Ze
 never emits a pointer at all. `RFC1035-4.1.3-2` governs RDLENGTH, which the
 packer computes with no Ze input.
 
 → Decision required from Thomas, not from the implementer. Put the surviving ids
 to him with the RFC text, the producing `file:line`, and the cost of a pair. Ask
 which way he wants each fixed. Never offer to skip one
-(`ai/rules/no-parking.md`).
+(`ai/rules/completion.md`).
 
 **A design-time task, before WP-5 and WP-7 code.** Attempt route A per row.
 Record the outcome in the table below. Escalate only what survives.
@@ -354,15 +354,15 @@ Record the outcome in the table below. Escalate only what survives.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | §4.2.1 binds UDP only, so truncation must not apply to TCP, DoT, or DoH | `rfc/full/rfc1035.txt:1752-1758` is headed "4.2.1. UDP usage" | a naive all-transport bound breaks `TestDoHIgnoresEDNSUDPSize` and cripples DoH | re-read §4.2.1 and §4.2.2, then run `internal/core/dnsserver` tests | unvalidated |
-| A-2 | An existing tagged test forbids DoH truncation | `internal/core/dnsserver/secure_test.go:565`, tagged `RFC8484-6-1 positive`, asserts TC is clear on a reply of more than 512 bytes | WP-1 lands red against a protected RFC-tagged test, which the `rfc-tagged-test` hook guards against any edit | read the test, then confirm it stays green after WP-1 | confirmed by read, re-confirm by run |
-| A-3 | Ze never emits an OPT record, so it cannot advertise a payload of more than 512 octets | grep found no `SetUDPSize` and no emitted `dns.OPT` in production code in either DNS package. `client.go:23` only reads an inbound OPT | if Ze did advertise a larger size, RFC 6891 would move the bound and a flat 512 would be wrong | grep production code again, then read the `rfc6891.md` summary once it exists | confirmed by grep |
-| A-4 | The TCP listener AXFR needs already exists | `internal/core/dnsserver/manager.go:166-198` binds and serves a TCP `dns.Server` per endpoint | WP-4 grows by a whole listener lifecycle, and WP-4b stops being a small commit | read `bind`, then assert an AXFR request reaches the handler over TCP | confirmed by read |
+| A-2 | An existing tagged test forbids DoH truncation | `internal/core/dnsserver/secure_test.go`, tagged `RFC8484-6-1 positive`, asserts TC is clear on a reply of more than 512 bytes | WP-1 lands red against a protected RFC-tagged test, which the `rfc-tagged-test` hook guards against any edit | read the test, then confirm it stays green after WP-1 | confirmed by read, re-confirm by run |
+| A-3 | Ze never emits an OPT record, so it cannot advertise a payload of more than 512 octets | grep found no `SetUDPSize` and no emitted `dns.OPT` in production code in either DNS package. `client.go` only reads an inbound OPT | if Ze did advertise a larger size, RFC 6891 would move the bound and a flat 512 would be wrong | grep production code again, then read the `rfc6891.md` summary once it exists | confirmed by grep |
+| A-4 | The TCP listener AXFR needs already exists | `internal/core/dnsserver/manager.go` binds and serves a TCP `dns.Server` per endpoint | WP-4 grows by a whole listener lifecycle, and WP-4b stops being a small commit | read `bind`, then assert an AXFR request reaches the handler over TCP | confirmed by read |
 | A-5 | No existing `.ci` asserts an untruncated large UDP response | the four geodns `.ci` files are `test/ui/doctor-geodns.ci`, `test/parse/geodns-config.ci`, `test/parse/geodns-invalid-record.ci`, `test/plugin/geodns-show.ci`. None issues a live query | WP-1 breaks a functional test, and the fix looks like a regression | read all four, then run the parse, ui, and plugin suites after WP-1 | confirmed by read, re-confirm by run |
-| A-6 | as112 already satisfies `RFC1035-3.3.13-1` by constant equality | `internal/plugins/as112/zones.go:24-25` set `soaMinTTL` and `zoneTTL` both to 604800, so `max(TTL, MINIMUM)` equals the TTL | the WP-2 clamp must also cover as112, and its RFC 7534 pinned parameters constrain the fix | read the constants, then add a regression test asserting the equality holds | confirmed by read |
-| A-7 | `miekg/dns` reports an over-long name rather than truncating it | `vendor/github.com/miekg/dns/msg.go:24` defines the 255-octet limit. `msg.go:61` defines `ErrLongDomain`. `msg.go:406` returns it | route A loses its negative for `RFC1035-3.1-4`, and the residue escalated to Thomas grows | read the vendored packer, then drive a pack failure from a geodns config | confirmed by read |
-| A-8 | `Compress = false` makes truncation fire more often than an operator expects | `internal/core/dnsserver/handler.go:76` disables compression on every reply | the operational impact of WP-1 is smaller than estimated, which is a benign miss | measure a realistic multi-record reply size with and without compression | unvalidated |
-| A-9 | The YANG `length "1..255"` bound counts presentation characters, not wire octets | `internal/plugins/geodns/yang/ze-geodns-conf.yang:42`. RFC 1035 §2.3.4 bounds wire octets, which include a length octet per label | the name-length negative is unreachable and `RFC1035-3.1-4` joins the escalation residue | compute the wire length of a maximal configured zone plus the `ns1.` prefix | unvalidated |
-| A-10 | Three RFC summaries this spec needs do not exist yet | `rfc/short/` has no entry for RFC 6891, RFC 5936, or RFC 1995, and `rfc/full/` has no text for any of the three | WP-1 and WP-4 design proceeds on memory, which `ai/rules/rfc-reading.md` forbids | list `rfc/short/` and `rfc/full/` again before you start WP-1 | confirmed by check |
+| A-6 | as112 already satisfies `RFC1035-3.3.13-1` by constant equality | `internal/plugins/as112/zones.go` set `soaMinTTL` and `zoneTTL` both to 604800, so `max(TTL, MINIMUM)` equals the TTL | the WP-2 clamp must also cover as112, and its RFC 7534 pinned parameters constrain the fix | read the constants, then add a regression test asserting the equality holds | confirmed by read |
+| A-7 | `miekg/dns` reports an over-long name rather than truncating it | `vendor/github.com/miekg/dns/msg.go` defines the 255-octet limit. `msg.go` defines `ErrLongDomain`. `msg.go` returns it | route A loses its negative for `RFC1035-3.1-4`, and the residue escalated to Thomas grows | read the vendored packer, then drive a pack failure from a geodns config | confirmed by read |
+| A-8 | `Compress = false` makes truncation fire more often than an operator expects | `internal/core/dnsserver/handler.go` disables compression on every reply | the operational impact of WP-1 is smaller than estimated, which is a benign miss | measure a realistic multi-record reply size with and without compression | unvalidated |
+| A-9 | The YANG `length "1..255"` bound counts presentation characters, not wire octets | `internal/plugins/geodns/yang/ze-geodns-conf.yang`. RFC 1035 §2.3.4 bounds wire octets, which include a length octet per label | the name-length negative is unreachable and `RFC1035-3.1-4` joins the escalation residue | compute the wire length of a maximal configured zone plus the `ns1.` prefix | unvalidated |
+| A-10 | Three RFC summaries this spec needs do not exist yet | `rfc/short/` has no entry for RFC 6891, RFC 5936, or RFC 1995, and `rfc/full/` has no text for any of the three | WP-1 and WP-4 design proceeds on memory, which `ai/rules/protocol.md` forbids | list `rfc/short/` and `rfc/full/` again before you start WP-1 | confirmed by check |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -419,7 +419,7 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-15 | A query name differing only in letter case from a configured zone or host | The answer is identical to the exact-case query. Positive and negative tags for `RFC1035-2.3.3-1`, `RFC1035-3.1-5`, `RFC1035-3.1-6`. |
 | AC-16 | A configured name whose wire form exceeds 255 octets, including a synthesized `ns<N>.<zone>` glue name | The config is rejected at validate time and names the offending value. Positive and negative tags for `RFC1035-3.1-4`. |
 | AC-17 | A configured label exceeding 63 octets | The config is rejected at validate time. Positive and negative tags for `RFC1035-3.1-3`. |
-| AC-18 | A reply that fails to pack for any reason | The failure is logged, counted in a metric, and never a silent drop. `handler.go:62` no longer discards the error. |
+| AC-18 | A reply that fails to pack for any reason | The failure is logged, counted in a metric, and never a silent drop. `handler.go` no longer discards the error. |
 | AC-19 | Any reply Ze emits | The Z field is zero, the AA bit is set, and a name outside every served zone draws RCODE 3. Positive and negative tags for `RFC1035-4.1.1-1`, `RFC1035-4.1.1-2`, `RFC1035-4.1.1-3`. |
 | AC-20 | Any reply Ze emits, round-tripped through the packer and unpacker | Every RR survives unchanged, proving label, terminator, RDLENGTH, and pointer handling at Ze's seam. Tags for `RFC1035-3.1-1`, `RFC1035-3.1-2`, `RFC1035-4.1.3-2`, `RFC1035-4.1.4-4`, `RFC1035-4.1.4-5`. |
 | AC-21 | An inbound query containing a compression pointer | The query is understood and answered. Positive and negative tags for `RFC1035-4.1.4-5`. |
@@ -427,7 +427,7 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-23 | Every one of the 27 gated rows | Each carries a positive and a negative tagged test, or a `{single-polarity}` annotation Thomas explicitly authorised, with his answer recorded in the summary. |
 | AC-24 | Enrolment | `rfc1035` is removed from `rfc/not-enrolled.txt` and added to `rfc/enrolled.txt` with a reason naming each row's proof. `rfc/extraction/rfc1035.json` stays valid, its `source-sha` still matching `rfc/full/rfc1035.txt`. |
 | AC-25 | `make ze-rfc-check` and `make ze-verify` | Both exit 0. `ai/RFC-REQUIREMENTS.md` is regenerated and committed alongside the tag changes. |
-| AC-26 | The published status row | `docs/features/rfc-status.md:250` no longer claims obligations with no code path, and its coverage text carries source anchors to the producing lines. |
+| AC-26 | The published status row | `docs/features/rfc-status.md` no longer claims obligations with no code path, and its coverage text carries source anchors to the producing lines. |
 
 ## End-to-End User Stories
 
@@ -454,7 +454,7 @@ Record the outcome in the table below. Escalate only what survives.
 | `TestTruncationEmitsNoPartialRecord` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-4 | |
 | `TestUnsupportedOpcodeReturnsNotImplemented` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-9 | |
 | `TestQueryOpcodeAnsweredNormally` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-10, the negative polarity | |
-| `TestWriteFailureLoggedAndCounted` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-18. The discarded error at `handler.go:62` | |
+| `TestWriteFailureLoggedAndCounted` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-18. The discarded error at `handler.go` | |
 | `TestReplyZBitZeroAndAASet` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-19 | |
 | `TestReplyRoundTripsThroughPacker` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-20. The route-A library-boundary assertion | |
 | `TestInboundCompressionPointerUnderstood` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-21 | |
@@ -498,7 +498,7 @@ Record the outcome in the table below. Escalate only what survives.
 | `dns-name-too-long` | `test/parse/dns-name-too-long.ci` | A zone whose glue name cannot pack is rejected at validate time | |
 | `doctor-dns-transfer` | `test/ui/doctor-dns-transfer.ci` | `ze doctor --json` reports the transfer surface | |
 
-**Mutation-verify each functional test** (`ai/rules/functional-test-gate.md`).
+**Mutation-verify each functional test** (`ai/rules/testing.md`).
 Disable the producing function, confirm the test flips red, then revert. A
 truncation test that passes with truncation disabled guards nothing.
 
@@ -555,16 +555,16 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `internal/plugins/geodns/yang/ze-geodns-conf.yang` for the transfer access leaves. Read `ai/rules/config-surface.md` and `ai/rules/config-naming.md` |
+| YANG schema (new RPCs/config) | Yes | `internal/plugins/geodns/yang/ze-geodns-conf.yang` for the transfer access leaves. Read `ai/rules/config.md` and `ai/rules/config.md` |
 | YANG validation constraints | Yes | correct the name `length` bound to wire octets, and add a `range` to every TTL leaf |
 | YANG custom validators | Yes | a `ze:validate` for a packable domain name, since a wire-octet bound is not expressible as a `length` on a presentation string |
 | CLI commands/flags | Yes | a `show` view for transfer state, owned by the geodns plugin, never a central verb package |
-| CLI grammar (keyword before value) | Yes | `ai/rules/cli-grammar.md`. Any new selector uses a typed keyword |
+| CLI grammar (keyword before value) | Yes | `ai/rules/cli.md`. Any new selector uses a typed keyword |
 | Editor autocomplete | Yes | automatic for the new enum and range leaves. A zone list needs a `CompleteFn` |
 | Functional test for new RPC/API | Yes | `test/plugin/dns-axfr-authorised.ci` and the seven sibling `.ci` files |
-| Pipe completeness | Yes | route any new `show` output through `ApplyPipes` per `ai/rules/pipe-completeness.md` |
-| Env var registration | N-A | no `environment/` leaf is added. The transfer surface is operator config, so `ai/rules/config-surface.md` puts it in YANG |
-| Doctor check for runtime dependencies | Yes | the transfer surface adds an access-control decision and a listener role. Owning-package check plus `internal/core/diagnostic/codes.go` plus unit and functional tests, per `ai/rules/doctor-checks.md` |
+| Pipe completeness | Yes | route any new `show` output through `ApplyPipes` per `ai/rules/cli.md` |
+| Env var registration | N-A | no `environment/` leaf is added. The transfer surface is operator config, so `ai/rules/config.md` puts it in YANG |
+| Doctor check for runtime dependencies | Yes | the transfer surface adds an access-control decision and a listener role. Owning-package check plus `internal/core/diagnostic/codes.go` plus unit and functional tests, per `ai/rules/repo-maintenance.md` |
 | Prometheus counters/metrics | Yes | a transfer request counter labelled by outcome, and a pack-failure counter for AC-18 |
 | BGP family surface (new SAFI / capability / attribute) | N-A | this spec touches no BGP surface |
 
@@ -579,14 +579,14 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 | 6 | Has a user guide page? | Yes | the geodns guide page gains truncation and transfer sections |
 | 7 | Wire format changed? | Yes | `docs/architecture/wire/` gains the transfer message stream and the truncation rule |
 | 8 | Plugin SDK/protocol changed? | No | the `AnswerFunc` signature is unchanged. The transport hint rides in `dnsserver.Options`, which is internal, not SDK |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc1035.md` and the `docs/features/rfc-status.md:250` row, with source anchors |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc1035.md` and the `docs/features/rfc-status.md` row, with source anchors |
 | 10 | Test infrastructure changed? | No | the eight `.ci` files use existing suites and directives. No new runner or format. Confirm before closure that no `.ci` directive was added |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`. Zone transfer is a feature other daemons list |
 | 12 | Internal architecture changed? | Yes | the harness gains transport awareness and a transfer path. Update the dnsserver subsystem doc |
 | 13 | Route metadata keys added/changed? | N-A | no route metadata is involved |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` for the transfer and pack-failure counters |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | a new command and doctor check change the inventory. Update `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/features/rfc-status.md:274` anchors `internal/core/dnsserver/handler.go`. Every anchor to a changed file must be re-verified |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/features/rfc-status.md` anchors `internal/core/dnsserver/handler.go`. Every anchor to a changed file must be re-verified |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify every geodns config example still validates after the name and TTL bounds tighten |
 
 ## Implementation Steps
@@ -653,16 +653,16 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 | Correctness | The TTL clamp raises, never lowers. `max(RR TTL, MINIMUM)` is not `MINIMUM` |
 | Correctness | The transport bound fires on UDP only. DoT, DoH, and TCP are untouched |
 | Correctness | An over-long name is rejected at config validate time, not discovered at pack time |
-| Naming | New YANG leaves are kebab-case with unit-free names plus a `units` statement, per `ai/rules/yang-structure.md` |
+| Naming | New YANG leaves are kebab-case with unit-free names plus a `units` statement, per `ai/rules/config.md` |
 | Naming | New JSON keys are kebab-case, and each metric name matches the documented one |
 | Data flow | Truncation lives at the single write in the harness. Neither plugin implements it |
 | Data flow | The answer func still never receives the `ResponseWriter`. R-2 stays closed |
 | Registration over hardcoding | The transfer authoriser and zone-data source register through `dnsserver.Options`. The harness contains no plugin name and no per-plugin switch case |
 | Rule: `ai/rules/rfc-compliance.md` | No row is annotated `{gap}`, `{not-applicable}`, `partial`, or `{single-polarity}` without Thomas's explicit answer recorded in the summary |
-| Rule: `ai/rules/fail-closed-guards.md` | The transfer authoriser denies on a miss, an empty allow-list, or an error. A zero value is never a valid-looking allow |
+| Rule: `ai/rules/evidence.md` | The transfer authoriser denies on a miss, an empty allow-list, or an error. A zero value is never a valid-looking allow |
 | Rule: `ai/rules/testing.md` | `ai/RFC-REQUIREMENTS.md` is regenerated in the same commit as every tag change |
-| Rule: `ai/rules/functional-test-gate.md` | Each `.ci` was mutation-verified. Disabling the producing function flips it red |
-| Rule: `ai/rules/plugin-self-containment.md` | Deleting geodns removes its transfer surface, its command, and its doctor check, leaving as112 and the harness working |
+| Rule: `ai/rules/testing.md` | Each `.ci` was mutation-verified. Disabling the producing function flips it red |
+| Rule: `ai/rules/plugins.md` | Deleting geodns removes its transfer surface, its command, and its doctor check, leaving as112 and the harness working |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -686,14 +686,14 @@ disclosure surface. Both are in scope here.
 | Check | What to look for |
 |-------|-----------------|
 | Amplification: response size | Truncation is a mitigation, not just a conformance fix. An unbounded UDP reply lets a spoofed query generate a large response to a victim. Confirm the bound applies to every UDP reply, including a refusal and an error reply |
-| Amplification: compression off | `handler.go:76` sets `Compress = false`, so every reply is larger than it needs to be. Quantify the amplification factor. Decide whether enabling compression for UDP is a separate, owner-visible decision rather than a silent change |
+| Amplification: compression off | `handler.go` sets `Compress = false`, so every reply is larger than it needs to be. Quantify the amplification factor. Decide whether enabling compression for UDP is a separate, owner-visible decision rather than a silent change |
 | Amplification: the TC path | A truncated reply must not invite a larger retry over UDP. Confirm a client is steered to TCP |
-| Zone disclosure: default posture | AXFR must be refused unless explicitly authorised. Confirm an absent, empty, or malformed allow-list denies. `ai/rules/fail-closed-guards.md` forbids a zero value that reads as allow |
+| Zone disclosure: default posture | AXFR must be refused unless explicitly authorised. Confirm an absent, empty, or malformed allow-list denies. `ai/rules/evidence.md` forbids a zero value that reads as allow |
 | Zone disclosure: scope of a grant | An authorisation for one zone must not transfer another. Confirm the authoriser receives the zone, not only the source address |
 | Zone disclosure: what a zone reveals | A transferred zone lists every host name. Document that enabling transfer publishes the whole namespace to the authorised peer |
 | Resource exhaustion: transfer streams | A transfer holds a TCP connection and streams many messages. Bound the concurrent transfer count and the per-transfer duration. Confirm a slow reader cannot pin memory by forcing a whole zone to buffer |
 | Resource exhaustion: the opcode path | The NOTIMP reply must be cheap. Confirm it is produced before any zone lookup or client resolution |
-| Input validation: names from config | A name that cannot pack must be rejected at validate time with the offending value named. Confirm the error names the value, per `ai/rules/error-messages.md` |
+| Input validation: names from config | A name that cannot pack must be rejected at validate time with the offending value named. Confirm the error names the value, per `ai/rules/cli.md` |
 | Input validation: names from the wire | `miekg/dns` rejects a malformed query before Ze sees it. Confirm no new path bypasses that parse |
 | Error leakage | A refusal must not reveal whether a zone exists, whether an allow-list is configured, or how many entries it has. Confirm REFUSED carries no zone data and no diagnostic detail |
 | Failure visibility | AC-18 turns a silent drop into a logged and counted failure. Confirm the log is rate-limited so it cannot itself become a denial-of-service vector, per R-7 |
@@ -717,13 +717,13 @@ disclosure surface. Both are in scope here.
 
 ## Design Insights
 
-- **Two responders, one harness.** `internal/plugins/geodns/server.go:288` and `internal/plugins/as112/server.go:173` both build their handler through `dnsserver.Authoritative`. Truncation, the opcode check, and write-error handling therefore belong in the harness. One fix serves both surfaces, which matches the existing `shapeAuthoritative` design.
-- **The TCP listener already exists.** `internal/core/dnsserver/manager.go:174` binds and serves a TCP `dns.Server` per endpoint. AXFR needs request routing, not a new listener. This shrinks WP-4 materially.
-- **`Compress = false` enlarges every reply.** `internal/core/dnsserver/handler.go:76` disables compression. Truncation will therefore fire on smaller record sets than an operator would predict from a compressed baseline. This is a conformance interaction and an amplification consideration at once.
-- **The write path discards its error.** `internal/core/dnsserver/handler.go:62` reads `_ = w.WriteMsg(msg)`. A reply that fails to pack vanishes with no log, no metric, and no SERVFAIL. This is an independent defect. It surfaced when this spec checked the positive-only claim.
-- **The YANG name bound measures the wrong thing.** `internal/plugins/geodns/yang/ze-geodns-conf.yang:42` uses `length "1..255"` on a presentation string. RFC 1035 §2.3.4 bounds wire octets, which include one length octet per label. `internal/plugins/geodns/server.go:154` then synthesizes `ns<N>.<zone>` with no guard at all, so a maximal zone yields an unpackable glue name.
-- **AS112 conformance for the MINIMUM rule is a coincidence.** `internal/plugins/as112/zones.go:24-25` set `soaMinTTL` and `zoneTTL` both to 604800. `max(TTL, MINIMUM)` equals the TTL only because the two constants happen to be equal. A future edit to either breaks conformance silently, so the equality needs a regression test.
-- **`{single-polarity}` is legal, not void.** It is defined at `rfc/enrolled.txt:8`, validated at `scripts/dev/rfc_requirements.py:273-285`, and used by roughly twenty enrolled RFCs. `ai/rules/rfc-compliance.md` never mentions it. The framing that it is void does not hold. It still proves less than a pair, so the owner decides whether to accept it.
+- **Two responders, one harness.** `internal/plugins/geodns/server.go` and `internal/plugins/as112/server.go` both build their handler through `dnsserver.Authoritative`. Truncation, the opcode check, and write-error handling therefore belong in the harness. One fix serves both surfaces, which matches the existing `shapeAuthoritative` design.
+- **The TCP listener already exists.** `internal/core/dnsserver/manager.go` binds and serves a TCP `dns.Server` per endpoint. AXFR needs request routing, not a new listener. This shrinks WP-4 materially.
+- **`Compress = false` enlarges every reply.** `internal/core/dnsserver/handler.go` disables compression. Truncation will therefore fire on smaller record sets than an operator would predict from a compressed baseline. This is a conformance interaction and an amplification consideration at once.
+- **The write path discards its error.** `internal/core/dnsserver/handler.go` reads `_ = w.WriteMsg(msg)`. A reply that fails to pack vanishes with no log, no metric, and no SERVFAIL. This is an independent defect. It surfaced when this spec checked the positive-only claim.
+- **The YANG name bound measures the wrong thing.** `internal/plugins/geodns/yang/ze-geodns-conf.yang` uses `length "1..255"` on a presentation string. RFC 1035 §2.3.4 bounds wire octets, which include one length octet per label. `internal/plugins/geodns/server.go` then synthesizes `ns<N>.<zone>` with no guard at all, so a maximal zone yields an unpackable glue name.
+- **AS112 conformance for the MINIMUM rule is a coincidence.** `internal/plugins/as112/zones.go` set `soaMinTTL` and `zoneTTL` both to 604800. `max(TTL, MINIMUM)` equals the TTL only because the two constants happen to be equal. A future edit to either breaks conformance silently, so the equality needs a regression test.
+- **`{single-polarity}` is legal, not void.** It is defined at `rfc/enrolled.txt`, validated at `scripts/dev/rfc_requirements.py`, and used by roughly twenty enrolled RFCs. `ai/rules/rfc-compliance.md` never mentions it. The framing that it is void does not hold. It still proves less than a pair, so the owner decides whether to accept it.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -731,17 +731,17 @@ disclosure surface. Both are in scope here.
 | Truncate at the single write in the harness | Truncate in each plugin's answer func | The harness already owns the wire write and the authoritative shape. Two copies of a size bound would drift, and one plugin CAN omit it. Matches `plan/learned/1027-dns-server-harness.md` |
 | Make the bound transport-aware | Apply 512 octets to every transport | §4.2.1 is headed "UDP usage" and binds UDP only. A flat bound would break the enrolled RFC 8484 tagged test and cripple DoT and DoH |
 | Pass a transport enum, never the `ResponseWriter` | Give the answer func the writer so it can decide | Withholding the writer is the invariant that stops an answer func bypassing the shaping. Handing it over to solve a size problem would trade a security property for convenience |
-| Reject an unpackable name at config validate time | Discover it at pack time and answer SERVFAIL | `ai/rules/exact-or-reject.md` requires a config Ze cannot serve exactly to fail at verify. An operator learns at commit, not from a resolver timeout |
-| Refuse transfers by default, authorise explicitly | Serve transfers to any client, as some daemons once did | A zone transfer publishes the whole namespace. `ai/rules/fail-closed-guards.md` requires the deny path on a miss or an empty set |
+| Reject an unpackable name at config validate time | Discover it at pack time and answer SERVFAIL | `ai/rules/protocol.md` requires a config Ze cannot serve exactly to fail at verify. An operator learns at commit, not from a resolver timeout |
+| Refuse transfers by default, authorise explicitly | Serve transfers to any client, as some daemons once did | A zone transfer publishes the whole namespace. `ai/rules/evidence.md` requires the deny path on a miss or an empty set |
 | Route A before route C for positive-only rows | Annotate all six `{single-polarity}` immediately | Investigating route A already found a reachable negative and a real defect. Annotating first would have hidden both |
-| Reject route B outright | Narrow each requirement's text to what Ze owns | It keeps the id but lowers the obligation, which is the shape `ai/rules/rfc-compliance.md:56` voids. It also hides the change from a reader who sees only the id |
+| Reject route B outright | Narrow each requirement's text to what Ze owns | It keeps the id but lowers the obligation, which is the shape `ai/rules/rfc-compliance.md` voids. It also hides the change from a reader who sees only the id |
 | Keep WP-4 in this spec, landed in four commits | Split WP-4 into a sibling spec now | The owner asked for full compliance including transfer. Splitting it invites the transfer half to stall. The four-commit shape keeps the gate green throughout and still splits cleanly at WP-4a if he prefers |
 
 ## Known Limitations
-- The three prerequisite RFC summaries do not exist yet. Design work on WP-1 and WP-4 is blocked until they are written, per `ai/rules/rfc-reading.md`.
+- The three prerequisite RFC summaries do not exist yet. Design work on WP-1 and WP-4 is blocked until they are written, per `ai/rules/protocol.md`.
 - This spec raises compression for UDP replies as a security and conformance observation. It does not decide it. Compression changes wire output on every query, so it needs an owner decision.
 - Any positive-only row that survives route A is escalated to Thomas rather than annotated. Nothing in this spec authorises a `{single-polarity}` row.
-- The 6 SHOULD-level and RECOMMENDED rows in `rfc/short/rfc1035.md:105-110` are not gated and are out of scope. Enrolment does not require them.
+- The 6 SHOULD-level and RECOMMENDED rows in `rfc/short/rfc1035.md` are not gated and are out of scope. Enrolment does not require them.
 - Anything genuinely deferred lands in `plan/deferrals/fixit-dns-rfc1035-conformance.md` with a destination spec. No RFC obligation is deferred until Thomas answers first.
 
 ## RFC Documentation (Scope: protocol)

@@ -32,8 +32,8 @@ A community leaf does exist, and it predates the deferral:
 
 | Half of the original claim | Verified status |
 |---------------------------|-----------------|
-| "decorator registered in `service_web.go` and functional" | HOLDS. Registered at `cmd/ze/hub/service_web.go:297-299` (`decorators.Register(zeweb.NewCommunityNameDecorator())`), implemented at `internal/component/web/decorator_community.go:28-52`, unit-tested in `internal/component/web/decorator_community_test.go` |
-| "no community leaf exists in the BGP YANG to attach it to" | FALSE. `internal/component/bgp/yang/ze-bgp-conf.yang:237` declares `leaf-list community` under `list update > container attribute`. It landed 2026-06-08 in commit `8973d902d`, a month before the deferral was recorded |
+| "decorator registered in `service_web.go` and functional" | HOLDS. Registered at `cmd/ze/hub/service_web.go` (`decorators.Register(zeweb.NewCommunityNameDecorator())`), implemented at `internal/component/web/decorator_community.go`, unit-tested in `internal/component/web/decorator_community_test.go` |
+| "no community leaf exists in the BGP YANG to attach it to" | FALSE. `internal/component/bgp/yang/ze-bgp-conf.yang` declares `leaf-list community` under `list update > container attribute`. It landed 2026-06-08 in commit `8973d902d`, a month before the deferral was recorded |
 
 **The real blocker is different, and it is why a naive fix fails silently.** The
 decorator plumbing only supports a single-valued leaf, and the community leaf is a
@@ -41,25 +41,25 @@ leaf-list:
 
 | Fact | Evidence |
 |------|----------|
-| `Decorate` is a field on `LeafNode` only | `internal/component/config/schema.go:139` |
-| It is assigned in exactly one place, `yangToLeaf` | `internal/component/config/yang_schema.go:575` |
-| `yangToLeaf` is only reached for a non-leaf-list leaf; a leaf-list returns `ValueOrArray`, a different node type with no `Decorate` field | `internal/component/config/yang_schema.go:331-344` |
-| The web render reads `Decorate` off a `*config.LeafNode` | `internal/component/web/fragment.go:447-454` (`buildFieldMeta`) |
-| Every leaf decorated today is a plain `leaf`, never a leaf-list | `ze-bgp-conf.yang:88`, `:312`, `:448`, `:453` (three `asn-name`, one `reverse-dns`) |
+| `Decorate` is a field on `LeafNode` only | `internal/component/config/schema.go` |
+| It is assigned in exactly one place, `yangToLeaf` | `internal/component/config/yang_schema.go` |
+| `yangToLeaf` is only reached for a non-leaf-list leaf; a leaf-list returns `ValueOrArray`, a different node type with no `Decorate` field | `internal/component/config/yang_schema.go` |
+| The web render reads `Decorate` off a `*config.LeafNode` | `internal/component/web/fragment.go` (`buildFieldMeta`) |
+| Every leaf decorated today is a plain `leaf`, never a leaf-list | `ze-bgp-conf.yang`, `:312`, `:448`, `:453` (three `asn-name`, one `reverse-dns`) |
 
 So adding `ze:decorate "community-name"` to line 237 today would parse, validate,
 and then be silently dropped: `getDecorateExtension` would never be called for that
 entry. The work is to teach the decorator path about leaf-lists (decorating each
 element), then attach the decorator. That a `ze:decorate` on a leaf-list is
 accepted and ignored rather than rejected is itself worth fixing per
-`ai/rules/fail-closed-guards.md`.
+`ai/rules/evidence.md`.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/web-interface.md` - decorator registry and display-time enrichment
   → Constraint: decorators resolve at render time by name; a missing decorator degrades gracefully rather than erroring
-- [ ] `ai/rules/fail-closed-guards.md` - a silently ignored `ze:decorate` is a guard that fails open
+- [ ] `ai/rules/evidence.md` - a silently ignored `ze:decorate` is a guard that fails open
   → Constraint: an unsupported `ze:decorate` target should be reported, not dropped
 
 ### RFC Summaries (MUST for protocol work)
@@ -67,9 +67,9 @@ accepted and ignored rather than rejected is itself worth fixing per
   → Constraint: only well-known communities have a bare name; an ordinary community renders as `ASN:value` and needs no annotation
 
 **Key insights:**
-- `decorator_community.go:46-51`: the decorator returns "" for anything that still renders with a colon, so ordinary communities are left alone
-- `decorator_community.go:28-41`: non-numeric or non-`ASN:value` input returns "" rather than an error (graceful degradation)
-- The decorator needs no external resolver: the mapping is the in-process well-known registry (`decorator_community.go:54-56`)
+- `decorator_community.go`: the decorator returns "" for anything that still renders with a colon, so ordinary communities are left alone
+- `decorator_community.go`: non-numeric or non-`ASN:value` input returns "" rather than an error (graceful degradation)
+- The decorator needs no external resolver: the mapping is the in-process well-known registry (`decorator_community.go`)
 
 ## Current Behavior (MANDATORY)
 
@@ -85,26 +85,26 @@ accepted and ignored rather than rejected is itself worth fixing per
 - The three `asn-name` leaves and the one `reverse-dns` leaf keep decorating exactly as today
 - Graceful degradation: a value the decorator cannot parse renders undecorated, never errors
 - An ordinary (non-well-known) community keeps rendering as `ASN:value` with no annotation
-- The community leaf-list keeps accepting both a single value and bracket-list syntax (`ValueOrArray`, `yang_schema.go:340`)
-- Decorators stay optional: a nil registry disables decoration (`render.go:293`)
+- The community leaf-list keeps accepting both a single value and bracket-list syntax (`ValueOrArray`, `yang_schema.go`)
+- Decorators stay optional: a nil registry disables decoration (`render.go`)
 
 **Behavior to change:**
 - Decorator support extends to leaf-list nodes, annotating each element
 - `ze:decorate "community-name"` attaches to the community leaf-list
 - An unsupported `ze:decorate` target is reported at schema build rather than silently ignored
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- YANG schema build: a `ze:decorate` extension on a config entry, read by `getDecorateExtension` (`internal/component/config/yang_schema.go:397-406`)
+- YANG schema build: a `ze:decorate` extension on a config entry, read by `getDecorateExtension` (`internal/component/config/yang_schema.go`)
 - Web render of a config field carrying a value (the `bgp update attribute community` path)
 
 ### Transformation Path
-1. The YANG parser produces a goyang entry for `leaf-list community` (`ze-bgp-conf.yang:237`)
-2. `yangToSchemaNode` branches on kind: a leaf-list without `ze:syntax` becomes `ValueOrArray` and never reaches `yangToLeaf` (`yang_schema.go:331-344`)
-3. For a plain leaf, `yangToLeaf` copies the extension argument into `node.Decorate` (`yang_schema.go:575`)
-4. The web fragment builder copies `leaf.Decorate` into `FieldMeta.DecoratorName` for a `*config.LeafNode` (`fragment.go:447-454`)
-5. The renderer resolves that name against the decorator registry and appends the annotation at display time (`render.go:96`, `render.go:293`)
+1. The YANG parser produces a goyang entry for `leaf-list community` (`ze-bgp-conf.yang`)
+2. `yangToSchemaNode` branches on kind: a leaf-list without `ze:syntax` becomes `ValueOrArray` and never reaches `yangToLeaf` (`yang_schema.go`)
+3. For a plain leaf, `yangToLeaf` copies the extension argument into `node.Decorate` (`yang_schema.go`)
+4. The web fragment builder copies `leaf.Decorate` into `FieldMeta.DecoratorName` for a `*config.LeafNode` (`fragment.go`)
+5. The renderer resolves that name against the decorator registry and appends the annotation at display time (`render.go`, `render.go`)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -132,9 +132,9 @@ accepted and ignored rather than rejected is itself worth fixing per
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Decorating each element of a leaf-list is the desired UX | The decorator annotates one community value at a time (`decorator_community.go:28`) | A per-list summary annotation is wanted instead | User confirmation at pickup | unvalidated |
-| A-2 | Only the standard community leaf-list needs this decorator | Large (`:238`) and extended (`:239`) communities use different formats the decorator returns "" for | Those leaves need their own decorators | Check the decorator against each format | unvalidated |
-| A-3 | No other leaf-list in any YANG carries a `ze:decorate` today | Only four decorated entries exist, all plain leaves (`ze-bgp-conf.yang:88`, `:312`, `:448`, `:453`) | The silent-drop bug already affects shipped config surface | Grep `ze:decorate` across `internal/**/*.yang` | unvalidated |
+| A-1 | Decorating each element of a leaf-list is the desired UX | The decorator annotates one community value at a time (`decorator_community.go`) | A per-list summary annotation is wanted instead | User confirmation at pickup | unvalidated |
+| A-2 | Only the standard community leaf-list needs this decorator | Large and extended communities use different formats the decorator returns "" for | Those leaves need their own decorators | Check the decorator against each format | unvalidated |
+| A-3 | No other leaf-list in any YANG carries a `ze:decorate` today | Only four decorated entries exist, all plain leaves (`ze-bgp-conf.yang`, `:312`, `:448`, `:453`) | The silent-drop bug already affects shipped config surface | Grep `ze:decorate` across `internal/**/*.yang` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

@@ -54,7 +54,7 @@ var rdnAttributes = map[string]bool{
 // It is exported because the engine's identity classifier must make the SAME reading as
 // the commit-time validator. Two independent notions of "this value is a DN" would let a
 // config commit on one reading and then be compared under the other
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 func IsDistinguishedName(value string) bool {
 	return distinguishedName(value)
 }
@@ -73,7 +73,7 @@ func distinguishedName(value string) bool {
 // from the shape of the value, and it has no ID_DER_ASN1_DN branch. It would therefore
 // send the literal text as ID_FQDN, and a peer expecting a distinguished name refuses
 // that. Ze cannot deliver what the config asks for, so the config does not commit
-// (ai/rules/exact-or-reject.md).
+// (ai/rules/protocol.md).
 //
 // A distinguished-name REMOTE-id is now accepted. The refusal that used to cover it was
 // lifted in the same change that gave the engine the capability. RFC 7296 Section 4
@@ -108,7 +108,7 @@ func (c *IPsecConfig) ValidateIdentities() error {
 		//
 		// Both refusals land at COMMIT rather than at encode time. encodeIKEID would put
 		// local-id on the wire verbatim, and a silent repair there would send an identity
-		// the operator never wrote (ai/rules/exact-or-reject.md). remote-id is checked
+		// the operator never wrote (ai/rules/protocol.md). remote-id is checked
 		// for the same reason from the other direction: a conformant peer can never
 		// assert an ID_FQDN or ID_RFC822_ADDR holding a terminator, so such a remote-id
 		// matches nothing and the tunnel would fail authentication with no stated cause.
@@ -150,7 +150,7 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 		// responder to the initiator". The responder signs its AUTH with the
 		// certificate named here. An EAP peer without one cannot meet that
 		// obligation. Refuse the config rather than let the daemon decide at
-		// session setup (ai/rules/exact-or-reject.md).
+		// session setup (ai/rules/protocol.md).
 		//
 		// Before this check, eap-mschapv2 with no certificate was accepted. The
 		// responder then signed its AUTH with a pre-shared key, which is not a
@@ -167,7 +167,7 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 		// configured trust anchor and has no other way to do so, because EAP
 		// carries no server hostname to check. Without one the session
 		// authenticates nothing, so the config is refused here rather than at
-		// session setup (ai/rules/exact-or-reject.md). The runtime refuses it too,
+		// session setup (ai/rules/protocol.md). The runtime refuses it too,
 		// in eap.PeerSession.startTLSClient and engine.buildPeerTLSConfig.
 		if peer.Auth.Mode == AuthEAPTLS && peer.Auth.CACertificate == "" {
 			return fmt.Errorf(
@@ -229,7 +229,7 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 // the chain silently sends a path the peer cannot complete. The operator then sees a peer
 // that refuses ze's certificate, with nothing in ze's own logs to explain it. Ignoring the
 // bound makes certificate-count a decoration on the send side. Refusing at commit is the
-// third option, and it is the one ai/rules/exact-or-reject.md requires. Ze cannot deliver
+// third option, and it is the one ai/rules/protocol.md requires. Ze cannot deliver
 // exactly what the config asks for, so the config does not commit.
 func (c *IPsecConfig) ValidateCertificateChains(certChainLen func(string) int) error {
 	for name := range c.Peers {

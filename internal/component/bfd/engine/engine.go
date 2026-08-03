@@ -411,7 +411,7 @@ func buildAuthPair(req api.SessionRequest, key api.Key) (*session.AuthPair, erro
 	// PersistDir is now a vestigial back-compat opt-in flag: its value no
 	// longer names a directory (persistence routes to the shared zefs store
 	// via internal/core/statestore), but a non-empty value still enables
-	// sequence persistence for the session. See ai/rules/zefs-persistence.md
+	// sequence persistence for the session. See ai/rules/architecture.md
 	// and the persist-dir leaf in yang/ze-bfd-conf.yang (flagged for later
 	// YANG deprecation).
 	if req.Auth.Meticulous && req.PersistDir != "" {

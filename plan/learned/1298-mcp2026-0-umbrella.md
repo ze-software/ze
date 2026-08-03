@@ -12,7 +12,7 @@ two revisions behind.
 
 The goal was full conformance as a **clean cutover** -- the older revisions
 dropped rather than maintained alongside. Ze is unreleased and the MCP server is
-not the plugin API, so `ai/rules/compatibility.md` says no compatibility surface
+not the plugin API, so `ai/rules/go-standards.md` says no compatibility surface
 is owed (owner decision, 2026-07-28). Four sequenced child specs delivered it:
 stateless core, MRTR, the Tasks extension, and caching + Apps.
 
@@ -82,7 +82,7 @@ stateless core, MRTR, the Tasks extension, and caching + Apps.
   claim blamed a flaky test on a fixed timeout, when the runner already
   multiplies every per-test budget by `ParallelTimeoutHeadroom`
   (`internal/test/runner/parallel.go`). Both were plausible, both cited real line
-  numbers, and neither survived `ai/rules/no-fabrication.md` applied properly. A
+  numbers, and neither survived `ai/rules/evidence.md` applied properly. A
   coherent narrative is a hypothesis until the producer is read.
 - **A green test run proved nothing once.** A `make ze-test` killed by a timeout
   finished as an orphan process *after* the verification that depended on it. A

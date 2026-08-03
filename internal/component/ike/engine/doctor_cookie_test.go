@@ -56,7 +56,7 @@ func TestCookieThresholdDoctorReportsUnreachable(t *testing.T) {
 			"so it is not an error", diags[0].Severity)
 	}
 	// The message must carry both numbers. Without them the operator cannot tell what
-	// to lower the threshold to (ai/rules/error-messages.md).
+	// to lower the threshold to (ai/rules/cli.md).
 	for _, want := range []string{"5", "2", "cookie-threshold"} {
 		if !strings.Contains(diags[0].Message, want) {
 			t.Errorf("the message does not name %q: %s", want, diags[0].Message)

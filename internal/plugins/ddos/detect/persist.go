@@ -2,7 +2,7 @@
 // Restoring the rolling baseline on startup skips the BaselineWindow re-warm (and
 // the StartupGrace blind window) that an in-memory-only baseline suffers after every
 // restart, update, or reconfigure. The snapshot is a versioned JSON blob persisted
-// in the shared zefs store (ai/rules/zefs-persistence.md) via internal/core/statestore,
+// in the shared zefs store (ai/rules/architecture.md) via internal/core/statestore,
 // not a loose file, so appliance state lives inside the managed database.zefs.
 
 package detect

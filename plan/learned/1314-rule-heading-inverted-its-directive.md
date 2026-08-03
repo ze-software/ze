@@ -18,7 +18,7 @@ qualifier that governs it came one paragraph later.
   and named the wrong reading explicitly per `ai/rules/rule-format.md`, over a third example.
 - Corrected all six other sites pointing at "ask". They differed in kind:
   `ai/INSTRUCTIONS.md` had the same fusion, reworded with the clauses reversed;
-  `no-asking.md` and `rule-precedence.md` rung 2 had the inversion without the fusion;
+  `completion.md` and `rule-precedence.md` rung 2 had the inversion without the fusion;
   `ai/skills/ze-rfc.md` stated the CORRECT reading but cited the dead heading.
 - Swept the four `plan/` heading citations, and the LINE citations too: the new table row
   and the "Two readings" paragraph shifted the file by three lines, staling 14 references
@@ -51,11 +51,11 @@ I fix it".
   `plan/learned/`, so a spec that wrote `// Design: plan/learned/NNNN-<slug>.md` before
   writing the summary is invisible to it. This session was given 1313, which live IKE
   files cited, and took 1314. `make ze-doc-links` surfaces it, but reports THREE citers
-  where grep finds four: `_test.go` is exempt (`ai/rules/design-doc-references.md`).
+  where grep finds four: `_test.go` is exempt (`ai/rules/go-standards.md`).
   Same hazard as [1155], one tree instead of two branches.
 
 ## Files
 
-`ai/rules/rfc-compliance.md`, `ai/rules/no-asking.md`, `ai/rules/rule-precedence.md`,
+`ai/rules/rfc-compliance.md`, `ai/rules/completion.md`, `ai/rules/rule-precedence.md`,
 `ai/INSTRUCTIONS.md`, `ai/skills/ze-rfc.md`, plus citation fixes in 11 `plan/` files and
 `rfc/drain-budget.txt`.

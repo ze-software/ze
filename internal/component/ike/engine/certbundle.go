@@ -102,7 +102,7 @@ func decodeCertBundle(der []byte) ([][]byte, error) {
 	// nothing, so a count of certificates left a CRL-only bundle unbounded. A million
 	// empty crl [1] elements passed the test on every iteration, and the loop
 	// unmarshalled all of them. That is the time budget this bound exists to protect
-	// (ai/rules/fail-closed-guards.md).
+	// (ai/rules/evidence.md).
 	for elements := 0; len(body) > 0; elements++ {
 		if elements >= certBundleMaxElements {
 			return nil, fmt.Errorf("%w: more than %d", errCertBundleTooMany, certBundleMaxElements)

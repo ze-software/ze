@@ -18,7 +18,7 @@
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/deferral-tracking.md)
+     Deferral shard: every deferred item lands there (ai/rules/planning.md)
      and closure must resolve its rows, so name the file from the start. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -84,9 +84,9 @@ that pass with the dataplane broken.
   → Constraint: "Before claiming an interop/functional test validates a change,
     revert the behaviour and watch the test go red." A test asserting the
     ABSENCE of something, or one whose assertion is swallowed, is not evidence.
-- [ ] `ai/rules/fail-closed-guards.md` - a guard must deny or say something
+- [ ] `ai/rules/evidence.md` - a guard must deny or say something
   → Constraint: a check that cannot evaluate its assertion must fail, not pass.
-- [ ] `ai/rules/qemu-testing.md` - "Interop Labs and Docker-Based Tests Need a QEMU Runner Too"
+- [ ] `ai/rules/platform-linux.md` - "Interop Labs and Docker-Based Tests Need a QEMU Runner Too"
   → Decision: for a Docker lab needing host-kernel features, the repo's existing
     answer is a QEMU sibling (`ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`).
   → Constraint: those siblings run `scripts/evidence/effective-*.py`, NOT the
@@ -156,7 +156,7 @@ that pass with the dataplane broken.
 - The two ipsec checks stop converting a thrown assertion into a pass.
 - `test/ipsec-interop/` gains an automated caller and, with it, `interop/nightly`.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A developer writes `# RFC requirement: <id> <polarity> -- <why>` in a
@@ -197,7 +197,7 @@ that pass with the dataplane broken.
 | No unintended coupling (components stay isolated) | Yes | the reader is one function in `rfc_requirements.py`; nothing else learns about workflows |
 | No duplicated functionality (extends existing, does not recreate) | Partial | a make-target extractor already exists in Go (`parseMakeTargets`). AC-7 requires the two be pinned against each other rather than left to drift |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | tooling, no wire path |
-| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugin-self-containment.md`) | Yes | this change REMOVES hardcoding: four asserted tiers become one derived rule (`ai/rules/derive-not-hardcode.md`) |
+| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | Yes | this change REMOVES hardcoding: four asserted tiers become one derived rule (`ai/rules/evidence.md`) |
 
 ## Risks & Assumptions
 
@@ -283,7 +283,7 @@ a test, and that path is covered by the Wiring Test table above.
 | `test_scheduled_workflow_targets_reads_make_targets` | `scripts/dev/rfc_requirements_test.py` | the reader finds `ze-interop-test` and `ze-ipsec-interop-test` in a scheduled workflow fixture | |
 | `test_scheduled_workflow_targets_ignores_push_only_workflow` | same | a target named only by `verify.yml` (push/pull_request) does not grant a NIGHTLY tier | |
 | `test_scheduled_workflow_targets_ignores_comments` | same | a commented-out `make` line grants nothing, matching `stripComments` on the Go side | |
-| `test_scheduled_workflow_targets_fails_closed_when_unreadable` | same | an unreadable workflow dir raises `ParseError`, never "everything runs" (`ai/rules/fail-closed-guards.md`) | |
+| `test_scheduled_workflow_targets_fails_closed_when_unreadable` | same | an unreadable workflow dir raises `ParseError`, never "everything runs" (`ai/rules/evidence.md`) | |
 | `test_ipsec_interop_carrier_earns_nightly_when_wired` | same | `carrier_for('test/ipsec-interop/scenarios/x/check.py').tier == TIER_NIGHTLY` | |
 | `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` | same | with the job removed from the fixture, the same path resolves `TIER_UNRUN` and `_refuse_unrun` names the runner | |
 | `test_head_carriers_read_head_workflows` | same | `_build_head_carriers()` labels from HEAD's workflow set, so a job deletion is a LOSS not a wash | |
@@ -388,7 +388,7 @@ bound to this tree yet, so no false evidence is created either way.
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` and `ai/` for anchors naming `rfc_requirements.py` and the three trees; `ai/RFC-REQUIREMENTS.md:21` names them as having no automated caller and is regenerated |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` and `ai/` for anchors naming `rfc_requirements.py` and the three trees; `ai/RFC-REQUIREMENTS.md` names them as having no automated caller and is regenerated |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/labs/*.md` show the make targets; verify each still exists after the change |
 
 ## Implementation Steps
@@ -432,13 +432,13 @@ avoid, so the checks are fixed before the tier is available.
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file + symbol; AC-4/AC-5 are explicitly BLOCKED, not silently dropped |
 | Feature completeness | A tag in `test/ipsec-interop/` is accepted end to end: written, scanned, labelled, rendered in the ledger |
-| Fail-closed | An unreadable or absent `.github/workflows/` raises `ParseError`. It must never resolve to "everything runs" (`ai/rules/fail-closed-guards.md`) |
+| Fail-closed | An unreadable or absent `.github/workflows/` raises `ParseError`. It must never resolve to "everything runs" (`ai/rules/evidence.md`) |
 | Discrimination | No `check.py` in the newly-tiered tree converts a thrown assertion into a pass. Grep the whole tree for `except`, not only the two known sites |
 | Ratchet safety | `check_evidence_ratchet` and `check_coverage_ratchet` stay green: no requirement loses a kind or a polarity. Run `make ze-rfc-check` before and after |
 | Derivation, not assertion | No tier literal survives for a carrier whose runner a workflow names. `grep TIER_NIGHTLY` returns the derivation, not four hardcoded rows |
 | HEAD symmetry | `_build_head_carriers()` reads HEAD's workflows. Prove a job deletion reports a LOSS by running the ratchet against a fixture |
 | Rule: `ai/rules/testing.md` | The rule's carrier table and the code agree after the change. The rule is the published contract; a stale row there is a false promise |
-| Rule: `ai/rules/derive-not-hardcode.md` | The workflow reader is the ONLY place a tier is decided; `ai/rules/testing.md` describes it rather than re-listing it |
+| Rule: `ai/rules/evidence.md` | The workflow reader is the ONLY place a tier is decided; `ai/rules/testing.md` describes it rather than re-listing it |
 
 ### Deliverables Checklist
 
@@ -502,7 +502,7 @@ avoid, so the checks are fixed before the tier is available.
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Derive the interop tier from `.github/workflows/*.yml` | Keep the literal and just flip `TIER_UNRUN`→`TIER_NIGHTLY` for ipsec | The literal is a claim nobody checks. Flipping it would grant a tier that survives deleting the job. Deriving fixes `interop-bgp`'s identical weakness in the same change (`ai/rules/derive-not-hardcode.md`) |
+| Derive the interop tier from `.github/workflows/*.yml` | Keep the literal and just flip `TIER_UNRUN`→`TIER_NIGHTLY` for ipsec | The literal is a claim nobody checks. Flipping it would grant a tier that survives deleting the job. Deriving fixes `interop-bgp`'s identical weakness in the same change (`ai/rules/evidence.md`) |
 | Fix the two fail-open checks BEFORE granting the tier | Grant the tier now, fix the checks in a follow-up | A tier granted to a vacuous check is exactly the false evidence the `unrun` refusal exists to prevent. Ordering costs nothing and the reverse is unsafe (R-1) |
 | Wire ipsec now; hold l2tp/pppoe for evidence | Wire all three at once | Their kernel prerequisite on `ubuntu-latest` is unmeasured (A-6, A-7). Wiring a lab that cannot run yields a permanent advisory red, which earns no tier and devalues the workflow. `ai/rules/testing.md` sequencing is wire → observe → grant |
 | Reject the QEMU siblings as the pipeline for l2tp/pppoe | Point the tier at `ze-qemu-l2tp-ppp-test` / `ze-qemu-pppoe-accel-test` | Those targets run `scripts/evidence/effective-*.py`, NOT the trees' `check.py`. Crediting a `check.py` for a run that never opens it is precisely a tier the carrier has not earned |
@@ -515,7 +515,7 @@ avoid, so the checks are fixed before the tier is available.
   dropped.** They are BLOCKED on A-6/A-7, which need either one observed nightly
   run on `ubuntu-latest` or an owner ruling. They stay acceptance criteria of
   THIS spec, so the spec stays open until they are settled: blocked is not
-  deferred, and a blocker is not a scope reduction (`ai/rules/no-parking.md`).
+  deferred, and a blocker is not a scope reduction (`ai/rules/completion.md`).
   The two matching rows in `plan/deferrals/rfcgate-2-evidence.md` already name
   this spec as their destination and stay `deferred` (live) until then.
 - `interop/nightly` is advisory evidence by construction. It never gates a merge,

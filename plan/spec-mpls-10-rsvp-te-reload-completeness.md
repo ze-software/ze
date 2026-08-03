@@ -33,7 +33,7 @@ that changes the rsvp-te config does not fully take effect until the daemon
 restarts:
 
 1. **Stale refresh/cleanup timers.** `runRefreshLoop` and `runCleanupLoop`
-   (`register.go:872`, `:928`) capture `cfg` by value when started in `OnStarted`
+   (`register.go`, `:928`) capture `cfg` by value when started in `OnStarted`
    and build `time.NewTicker(cfg.RefreshPeriod)` once. A reload that changes
    `refresh-period` or `refresh-multiplier` is never adopted: the refresh cadence,
    and the soft-state expiry factor in `expiredPSBs(now, cfg.RefreshMultiplier)`,
@@ -67,7 +67,7 @@ the reconcile read it.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE implementing this spec)
-- [ ] `register.go` - `runRefreshLoop` (`:872`): `ticker := time.NewTicker(cfg.RefreshPeriod)`; loop body uses the captured `cfg`. `runCleanupLoop` (`:928`): same ticker, plus `expiredPSBs(now, cfg.RefreshMultiplier)` (`:937`). Both launched `go run...Loop(ctx, log, lspTable, cfg, eng)` at `:605`/`:607` with `cfg` copied by value. `eng` is non-nil here (engine built only with a valid router-id).
+- [ ] `register.go` - `runRefreshLoop`: `ticker := time.NewTicker(cfg.RefreshPeriod)`; loop body uses the captured `cfg`. `runCleanupLoop`: same ticker, plus `expiredPSBs(now, cfg.RefreshMultiplier)`. Both launched `go run...Loop(ctx, log, lspTable, cfg, eng)` at `:605`/`:607` with `cfg` copied by value. `eng` is non-nil here (engine built only with a valid router-id).
 - [ ] `admission.go` - `setInterface` updates/creates `interfaces[name]`; there is no `removeInterface`. `OnConfigApply` (`register.go` ~`:525`) loops `for _, iface := range cfg.Interfaces { admission.setInterface(...) }` with no teardown of removed interfaces.
 
 **Behavior to preserve:**
@@ -82,7 +82,7 @@ the reconcile read it.
   `refresh-multiplier` (expiry factor) without a restart.
 - `OnConfigApply` removes admission state for interfaces no longer in the config.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Config reload: `commit` → plugin `OnConfigApply` with the new rsvp-te tree.

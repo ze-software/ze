@@ -25,23 +25,23 @@ edits has changed shape in five ways an implementer must re-plan around:
 
 1. **CLI surface moved and was renamed.** Appliance tooling is now the
    self-contained command provider `internal/appliance/` (dispatch:
-   `internal/appliance/main.go:87` `Run()`), registered as the root command
-   `appliance` via `internal/appliance/register.go:28`
+   `internal/appliance/main.go` `Run()`), registered as the root command
+   `appliance` via `internal/appliance/register.go`
    (`registry.MustRegisterRootHandler("appliance", ...)`). The grammar is
    `ze appliance build|init|...`, NOT `ze install appliance ...`. Every
    `ze install appliance` spelling in this spec must be read as `ze appliance`.
 2. **`ApplianceConfig` dissolved, not moved.** The config struct is now the
-   UNEXPORTED `applianceConfig` (`internal/appliance/config.go:85`), and
-   `SaveConfig` is now unexported `saveConfig` (`config.go:359`);
-   `DefaultConfig` (`config.go:107`), `Validate` (`config.go:245`) and
-   `LoadConfig` (`config.go:345`) remain. Adding the planned `CloudConfig`
+   UNEXPORTED `applianceConfig` (`internal/appliance/config.go`), and
+   `SaveConfig` is now unexported `saveConfig` (`config.go`);
+   `DefaultConfig` (`config.go`), `Validate` (`config.go`) and
+   `LoadConfig` (`config.go`) remain. Adding the planned `CloudConfig`
    field is package-internal; there is no exported config surface to extend.
-3. **Build runs gok in-process.** `runBuild` (`internal/appliance/cmd_build.go:76`)
-   -> `runGokBuild` (`cmd_build.go:275`) -> `runGokInProcess` (`cmd_build.go:239`,
+3. **Build runs gok in-process.** `runBuild` (`internal/appliance/cmd_build.go`)
+   -> `runGokBuild` (`cmd_build.go`) -> `runGokInProcess` (`cmd_build.go`,
    embeds `github.com/gokrazy/tools/gok`, repo-local `gokrazy/modcache`), then
-   `injectZeFS` (`cmd_build.go:324`) writes the ZeFS database into the /perm
+   `injectZeFS` (`cmd_build.go`) writes the ZeFS database into the /perm
    partition via debugfs. The `--cloud` variant ("omit pre-baked ZeFS") hooks
-   into `buildOne` (`cmd_build.go:103`), which currently always assembles and
+   into `buildOne` (`cmd_build.go`), which currently always assembles and
    injects the database. (Anchors re-verified 2026-07-23 after the
    origin/main fast-forward to 822029463, which touched `cmd_build.go`.)
 4. **No new gokrazy builddir is needed.** `cmd/ze-cloud-init` would live in this
@@ -52,9 +52,9 @@ edits has changed shape in five ways an implementer must re-plan around:
    `gokrazy/ze-cloud-init/builddir/github.com/ze-software/ze/go.mod` is
    obsolete as specified.
 5. **The pushed-config slot the design targets already exists.** Ze reads
-   `/perm/ze/config-pushed.conf` at boot: `cmd/ze/pushed_config.go:20`
+   `/perm/ze/config-pushed.conf` at boot: `cmd/ze/pushed_config.go`
    (`pushedConfigPath`), applied by `checkPushedConfig`
-   (`cmd/ze/pushed_config.go:35`); its comment (`pushed_config.go:17`) already
+   (`cmd/ze/pushed_config.go`); its comment (`pushed_config.go`) already
    names cloud-init as the intended external writer. The "Config write" step of
    the Data Flow needs no new Ze-side code for the loose-file inbox.
 
@@ -66,7 +66,7 @@ replaced by `cmd/ze-serial-shell`, and per-package `Environment` /
 initrd `tools/installer-initrd/init` was dissolved into pure Go:
 `cmd/ze-installer/main.go` (build tag `ze_installer`) calling
 `internal/install/disk.RunInitrd()`, built by `ze appliance initrd`
-(`runInitrd`, `internal/appliance/cmd_initrd.go:43`).
+(`runInitrd`, `internal/appliance/cmd_initrd.go`).
 
 ## Post-Compaction Recovery
 
@@ -75,9 +75,9 @@ initrd `tools/installer-initrd/init` was dissolved into pure Go:
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/guide/appliance.md` - appliance architecture, boot flow, /perm layout
 4. `internal/core/gokrazyutil/gokrazyutil.go` - gokrazy helper patterns
-5. ~~`cmd/ze/install/appliance/config.go` - ApplianceConfig struct~~ (moved 2026-07-22 re-map: now `internal/appliance/config.go:85` - unexported `applianceConfig` struct)
-6. ~~`cmd/ze/install/appliance/cmd_build.go` - image build flow~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_build.go:76` - `runBuild`)
-7. ~~`cmd/ze/install/appliance/cmd_assemble.go` - ZeFS assembly, seed config injection~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_assemble.go:19` - `runAssemble`; seed config injection at `cmd_assemble.go:125`)
+5. ~~`cmd/ze/install/appliance/config.go` - ApplianceConfig struct~~ (moved 2026-07-22 re-map: now `internal/appliance/config.go` - unexported `applianceConfig` struct)
+6. ~~`cmd/ze/install/appliance/cmd_build.go` - image build flow~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_build.go` - `runBuild`)
+7. ~~`cmd/ze/install/appliance/cmd_assemble.go` - ZeFS assembly, seed config injection~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_assemble.go` - `runAssemble`; seed config injection at `cmd_assemble.go`)
 
 ## Task
 
@@ -112,7 +112,7 @@ N/A (not protocol work).
 - Ze already resolves machine-id from /etc/machine-id, hostname, or crypto/rand (`identity.Resolve()` in `internal/core/identity/identity.go`).
 - The appliance config loading priority (pushed > seed) gives us a natural injection point: cloud-init writes to the "pushed" slot.
 - Gokrazy supervises processes: a cloud-init binary that exits 0 after first boot is simply not restarted (exit code 125 = "don't restart").
-- ~~`ApplianceConfig` (config.go:61)~~ (moved 2026-07-22 re-map: dissolved into unexported `applianceConfig` at `internal/appliance/config.go:85`) already has Identity, Credentials, SSH, Web, TLS, Device, Image, QEMU structs (plus Managed, ConfigBase). CloudConfig is a natural addition, now package-internal.
+- ~~`ApplianceConfig` (config.go)~~ (moved 2026-07-22 re-map: dissolved into unexported `applianceConfig` at `internal/appliance/config.go`) already has Identity, Credentials, SSH, Web, TLS, Device, Image, QEMU structs (plus Managed, ConfigBase). CloudConfig is a natural addition, now package-internal.
 
 ## Current Behavior (MANDATORY)
 
@@ -124,7 +124,7 @@ N/A (not protocol work).
 - [ ] ~~`cmd/ze/install/appliance/cmd_assemble.go` - ZeFS assembly: password hash, TLS cert, seed config at `zefs.KeyFileTemplate.Key("ze.conf")`~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_assemble.go` - `assembleZeFS()` `:73`, seed config at `zefs.KeyFileTemplate.Key("ze.conf")` `:125`)
 - [ ] ~~`cmd/ze/install/appliance/cmd_init.go` - `runInit()` appliance init wizard, `runBatchInit()` batch init~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_init.go` - `runInit()` `:40`, `runBatchInit()` `:329`)
 - [ ] `gokrazy/ze/config.json` - gokrazy instance config: ~~Packages (serial-busybox, ze), Environment (ze.config.dir=/perm/ze), CommandLineFlags (start)~~ (updated 2026-07-22 re-map: path unchanged; Packages are now `cmd/ze-serial-shell` + `cmd/ze` (serial-busybox replaced), and `Environment` (`ze.config.dir=/perm/ze`) / `CommandLineFlags` (`start`) sit per-package under `PackageConfig`)
-- [ ] ~~`tools/installer-initrd/init` - PXE/ISO installer initrd (PID 1 shell script), cmdline params ze.source, ze.server, etc.~~ (moved 2026-07-22 re-map: shell initrd dissolved; replaced by pure-Go PID-1 `cmd/ze-installer/main.go` (build tag `ze_installer`) calling `internal/install/disk.RunInitrd()`, built by `ze appliance initrd` -- `runInitrd` at `internal/appliance/cmd_initrd.go:43`)
+- [ ] ~~`tools/installer-initrd/init` - PXE/ISO installer initrd (PID 1 shell script), cmdline params ze.source, ze.server, etc.~~ (moved 2026-07-22 re-map: shell initrd dissolved; replaced by pure-Go PID-1 `cmd/ze-installer/main.go` (build tag `ze_installer`) calling `internal/install/disk.RunInitrd()`, built by `ze appliance initrd` -- `runInitrd` at `internal/appliance/cmd_initrd.go`)
 
 **Behavior to preserve:**
 - Bare-metal and on-prem appliances continue to work unchanged (pre-baked ZeFS + seed config)
@@ -136,8 +136,8 @@ N/A (not protocol work).
 **Behavior to change:**
 - A new Go binary (`ze-cloud-init`) is added to the gokrazy image for cloud builds
 - On first boot, ze-cloud-init queries IMDS and writes config + credentials to /perm
-- ~~`ze install appliance build`~~ (moved 2026-07-22 re-map: grammar is now `ze appliance build` -- `internal/appliance/main.go:35` dispatch, `cmd_build.go:76`) gains a `--cloud` flag to include ze-cloud-init in the image
-- ~~`ze install appliance init`~~ (moved 2026-07-22 re-map: grammar is now `ze appliance init` -- `internal/appliance/main.go:32` dispatch, `cmd_init.go:40`) gains a `--cloud` flag to configure a cloud-mode appliance
+- ~~`ze install appliance build`~~ (moved 2026-07-22 re-map: grammar is now `ze appliance build` -- `internal/appliance/main.go` dispatch, `cmd_build.go`) gains a `--cloud` flag to include ze-cloud-init in the image
+- ~~`ze install appliance init`~~ (moved 2026-07-22 re-map: grammar is now `ze appliance init` -- `internal/appliance/main.go` dispatch, `cmd_init.go`) gains a `--cloud` flag to configure a cloud-mode appliance
 
 ## Data Flow (MANDATORY)
 
@@ -168,9 +168,9 @@ N/A (not protocol work).
 
 ### Integration Points
 - `internal/core/identity/identity.go:Resolve()` (~~line 32~~ (moved 2026-07-22 re-map: now `:34`)) - reads machine-id from ZeFS; cloud-init writes it
-- Ze config loading - reads pushed config from /perm; cloud-init writes it (verified 2026-07-22: `cmd/ze/pushed_config.go:20` `pushedConfigPath = "/perm/ze/config-pushed.conf"`, applied by `checkPushedConfig` at `:35`)
+- Ze config loading - reads pushed config from /perm; cloud-init writes it (verified 2026-07-22: `cmd/ze/pushed_config.go` `pushedConfigPath = "/perm/ze/config-pushed.conf"`, applied by `checkPushedConfig` at `:35`)
 - `gokrazy/ze/config.json` - cloud variant includes ze-cloud-init as additional package
-- ~~`cmd/ze/install/appliance/cmd_build.go:runBuild()`~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_build.go:76`) - build flow gains --cloud flag
+- ~~`cmd/ze/install/appliance/cmd_build.go:runBuild()`~~ (moved 2026-07-22 re-map: now `internal/appliance/cmd_build.go`) - build flow gains --cloud flag
 
 ### Architectural Verification
 - [ ] No bypassed layers (cloud-init writes to existing config slots, Ze reads normally)
@@ -269,7 +269,7 @@ Alternative considered: inotify watch on `/perm/ze/config-pushed.conf`. Rejected
 
 ### ApplianceConfig Changes
 
-New `CloudConfig` struct added to ~~`ApplianceConfig`~~ (moved 2026-07-22 re-map: the struct is now the unexported `applianceConfig` at `internal/appliance/config.go:85`; the addition is package-internal):
+New `CloudConfig` struct added to ~~`ApplianceConfig`~~ (moved 2026-07-22 re-map: the struct is now the unexported `applianceConfig` at `internal/appliance/config.go`; the addition is package-internal):
 
 | Field | Type | JSON key | Default | Purpose |
 |-------|------|----------|---------|---------|
@@ -450,7 +450,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | IMDSv2 token flow correct (PUT to get token, GET with X-aws-ec2-metadata-token header) |
 | Correctness | GCP uses Metadata-Flavor: Google on every request |
 | Correctness | SIGHUP delivery finds correct Ze PID via /proc scan |
-| Naming | CloudConfig JSON keys use kebab-case per json-format.md |
+| Naming | CloudConfig JSON keys use kebab-case per cli.md |
 | Data flow | ze-cloud-init writes only to /perm, never to read-only root |
 | Security | User-data validated before writing; no arbitrary command execution |
 | Security | IMDSv2 used for AWS (prevents SSRF via token requirement) |

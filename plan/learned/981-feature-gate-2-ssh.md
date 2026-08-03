@@ -82,4 +82,4 @@ functional suite before the compile-out is introduced.
 - `cmd/ze/hub/infra_setup.go`, `main.go` - call the seam; AAA stays always-on; no `zessh` import
 - `cmd/ze/hub/{build_tag_ssh_present,build_tag_ssh_absent}_test.go` (new); `infra_setup_test.go`, `session_factory_test.go`, `main_test.go` (gated/guarded)
 - `scripts/codegen/plugin_imports.go` (featureTags += ssh/yang), `internal/component/plugin/all/all_ze_ssh.go` (generated), `all.go` (ssh/yang removed)
-- `scripts/dev/dep_audit.py` (DISABLEABLE += ssh), `Makefile` (ZE_FEATURES += ze_ssh; ze-stripped keeps ssh), `internal/test/runner/runner.go` (TestBuildTags += ze_ssh), `.golangci.yml` (+ ze_ssh), `ai/rules/module-tiers.md`, `docs/features.md`
+- `scripts/dev/dep_audit.py` (DISABLEABLE += ssh), `Makefile` (ZE_FEATURES += ze_ssh; ze-stripped keeps ssh), `internal/test/runner/runner.go` (TestBuildTags += ze_ssh), `.golangci.yml` (+ ze_ssh), `ai/rules/architecture.md`, `docs/features.md`

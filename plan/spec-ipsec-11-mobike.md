@@ -14,7 +14,7 @@ planned interop scenario numbers 03/04 collided with existing
 `11-responder-accepts-reinit`. RESOLVED in-body 2026-07-22: every
 occurrence is renumbered to `12-mobike-responder`/`13-mobike-initiator`
 (verified free -- scenario directories present are 01-05 and 07-11).
-The `monitor_linux.go:76` refresh note still holds.
+The `monitor_linux.go` refresh note still holds.
 
 ## Post-Compaction Recovery
 
@@ -668,6 +668,6 @@ MUST document: capability negotiation, UPDATE_SA_ADDRESSES handling, COOKIE2 ver
 
 Line-ref refresh only, no design change. Re-verified against current code after the followup-vpp-iface wave (SLAAC address origin tracking landed in the same file this spec cites as its AddrSubscribe reference):
 
-- `netlink.AddrSubscribe(addrCh, m.stopCh)` moved from monitor_linux.go:75 to `internal/plugins/iface/netlink/monitor_linux.go:76` (the subscribe block in `start()` is now :72-88).
-- NEW in the file: `safeHandleAddrUpdate` at monitor_linux.go:132, a panic-recovery wrapper invoked from the monitor loop (:112) around `handleAddrUpdate` (:220). `handleAddrUpdate` now also classifies the address origin (static/slaac/temporary/dynamic) via `addrOrigin` (`internal/plugins/iface/netlink/slaac_linux.go:30`), applied at monitor_linux.go:247 and emitted as the `Origin` field of the address event payload (:265).
+- `netlink.AddrSubscribe(addrCh, m.stopCh)` moved from monitor_linux.go to `internal/plugins/iface/netlink/monitor_linux.go` (the subscribe block in `start()` is now :72-88).
+- NEW in the file: `safeHandleAddrUpdate` at monitor_linux.go, a panic-recovery wrapper invoked from the monitor loop (:112) around `handleAddrUpdate` (:220). `handleAddrUpdate` now also classifies the address origin (static/slaac/temporary/dynamic) via `addrOrigin` (`internal/plugins/iface/netlink/slaac_linux.go`), applied at monitor_linux.go and emitted as the `Origin` field of the address event payload (:265).
 - Impact on this spec: none to the design. The `netlink.AddrUpdate` fields cited (NewAddr, LinkAddress, LinkIndex) are unchanged, and the planned `addrwatch_linux.go` subscribes independently. The origin classification is a useful reference if the addrwatch wants to ignore SLAAC/temporary churn, but nothing here requires it.

@@ -20,7 +20,7 @@ closing. No spec owned this.
 exits 1 before any SSH connection is opened, because nothing ever provisioned an SSH
 username for the lab's ze container.**
 
-The scenario aborts at `test/ipsec-interop/scenarios/10-clear-reestablish/check.py:54`. The
+The scenario aborts at `test/ipsec-interop/scenarios/10-clear-reestablish/check.py`. The
 lab helper raises on any non-zero exit, so the SPI assertions that follow never run. The
 IKE code under test is never reached.
 
@@ -32,7 +32,7 @@ failing against the lab's `ZE_STORAGE_BLOB=false`. Both halves are wrong, verifi
 
 | Claim | Reality |
 |-------|---------|
-| The file is `internal/component/ssh/client/client.go` | That path does not exist. `internal/component/ssh/` is the SSH **server**. The function is `readCredentials` at `internal/core/ssh/client/client.go:302` |
+| The file is `internal/component/ssh/client/client.go` | That path does not exist. `internal/component/ssh/` is the SSH **server**. The function is `readCredentials` at `internal/core/ssh/client/client.go` |
 | `ZE_STORAGE_BLOB=false` is the cause | `readCredentials` never reads that key. It opens the zefs database directly through `ResolveDBPath`. The only producing consumer of `ze.storage.blob` is `resolve.Storage` (`internal/core/resolve/resolve.go`), which selects the daemon's **config** storage backend |
 | Fixing the flag would fix the scenario | It would not. Even with blob storage on, `ze start` creates an empty database and `storedUsername` still returns the empty string. The credential keys are written only by `ze init`, `ze connect`, appliance assemble, and the image server. The lab runs none of them |
 
@@ -45,7 +45,7 @@ later, fail-closed and correctly, because no source named a user.
 Two facts, both measured:
 
 1. **The lab provisions no SSH credentials.** No `ze init`, no `ze.ssh.username`, no
-   `ze.ssh.password`. `test/ipsec-interop/lab.py:762` sets only `ZE_STORAGE_BLOB=false` and
+   `ze.ssh.password`. `test/ipsec-interop/lab.py` sets only `ZE_STORAGE_BLOB=false` and
    a log level. The per-scenario `ze-env` seam the lab already supports is unused by
    scenario 10, which carries only `check.py`, `swanctl.conf` and `ze.conf`.
 2. **Scenario 10's `ze.conf` has no `system` block at all.** It is a bare
@@ -67,15 +67,15 @@ The scenario exists to prove that an operator `clear vpn ipsec sa` tears down an
 re-establishes an SA against a real peer. It has never once proven that. It was authored and
 deferred to CI (`plan/deferrals/fixit-ipsec-clear-reestablish.md`, 2026-07-19), and when CI
 finally ran it, it aborted before its first assertion. A scenario that cannot reach its
-assertions is not coverage (`ai/rules/no-parking.md`).
+assertions is not coverage (`ai/rules/completion.md`).
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/fail-closed-guards.md` - `readCredentials` is a correct fail-closed guard
+- [ ] `ai/rules/evidence.md` - `readCredentials` is a correct fail-closed guard
   → Constraint: the guard is right. Do not weaken it to make the lab pass. Provision the
     credential the guard is asking for.
-- [ ] `ai/rules/no-workarounds-for-missing-behavior.md` - the user goal is the operator clear
+- [ ] `ai/rules/completion.md` - the user goal is the operator clear
   → Constraint: the fix must make the goal work, not route around the assertion.
 - [ ] `plan/learned/1159-fixit-cli-credential-resolution.md` - owns `readCredentials`
   → Decision: the resolver's precedence (flag, then env, then store) and its injectable
@@ -88,7 +88,7 @@ assertions is not coverage (`ai/rules/no-parking.md`).
 
 **Source files read on 2026-08-02:**
 
-- [ ] `internal/core/ssh/client/client.go:302` - `readCredentials`; resolves username from
+- [ ] `internal/core/ssh/client/client.go` - `readCredentials`; resolves username from
   flag, then `ze.ssh.username`, then the store; fails closed naming the host and port when
   none supplies one
 - [ ] `internal/core/resolve/resolve.go` - `Storage`; the only producing consumer of
@@ -101,12 +101,12 @@ interop scenarios must keep passing unchanged.
 **Behavior to change:** scenario 10 reaches its SPI assertions. Nothing in the credential
 resolver changes.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
 `docker_exec(ZE_CONTAINER, ["ze", "cli", "-c", "clear vpn ipsec sa"])`, at
-`test/ipsec-interop/scenarios/10-clear-reestablish/check.py:54`.
+`test/ipsec-interop/scenarios/10-clear-reestablish/check.py`.
 
 ### Transformation Path
 
@@ -151,7 +151,7 @@ resolver changes.
 
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The temptation to drop the `ze cli` call and drive the clear the way the `.ci` does. That removes the only CLI-path coverage in the lab, which is part of what the scenario is for | A proposed diff that deletes line 54 | Reducing coverage to reach green is banned (`ai/rules/no-parking.md`). Provision the credential instead |
+| R-1 | The temptation to drop the `ze cli` call and drive the clear the way the `.ci` does. That removes the only CLI-path coverage in the lab, which is part of what the scenario is for | A proposed diff that deletes line 54 | Reducing coverage to reach green is banned (`ai/rules/completion.md`). Provision the credential instead |
 | R-2 | A credential provisioned only for scenario 10 leaves the next `ze cli` caller with the same wall | A second scenario is written and fails identically | Prefer provisioning in the shared `lab.py` over a per-scenario override, if A-1 allows |
 | R-3 | A-3 is broken and a real IKE defect surfaces. The scenario then stays red for a new reason | The command succeeds and the SPI poll times out | That is a new finding with its own home. It does not reopen this spec's scope |
 

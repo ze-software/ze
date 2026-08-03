@@ -178,13 +178,13 @@ The goal was machinery only:
 
   The fix deletes the helper (`ai/rules/no-layering.md`: delete the old spelling, do not keep it
   beside the new one). It RE-POINTS the assertions at the live branch rather than deleting them
-  (`ai/rules/no-test-deletion.md`). That revealed a fifth case the old spelling cannot express:
+  (`ai/rules/testing.md`). That revealed a fifth case the old spelling cannot express:
   the boundary at which a recorded `units` map leaves the transitional branch. Net effect on the
   suite: 520 tests -> 521, and one confirmation that the helper was dead -- `--check` prints
   byte-identical figures with it removed.
 
   Two transferable rules. **A docstring's account of which function calls which is a belief, not a
-  wiring -- grep for call sites.** `ai/rules/no-fabrication.md` already bans citing a comment as
+  wiring -- grep for call sites.** `ai/rules/evidence.md` already bans citing a comment as
   design intent, and this is the same ban one level down, about the call graph. **When you keep an
   old function "as the one spelling", the delegation IS the deliverable.** If it is not written,
   you have two spellings and a comment claiming otherwise, which is strictly worse than one.
@@ -210,5 +210,5 @@ The goal was machinery only:
 | `rfc/audit/rfc7606.json` | 4 record corrections plus a 49-verdict `units` backfill |
 | `ai/RFC-REQUIREMENTS.md` | Generated `## Audit coverage` section and its `### Audited but not proven` worklist |
 | `ai/skills/ze-rfc-audit.md` | The five-value vocabulary and the new fields, held to the code by two gate tests |
-| `ai/rules/hook-mapping.md`, `ai/INDEX.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/functional-tests.md` | Discovery: the new target, the shared leaf, and what the audit record now guarantees |
+| `ai/rules/repo-maintenance.md`, `ai/INDEX.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/functional-tests.md` | Discovery: the new target, the shared leaf, and what the audit record now guarantees |
 | `plan/deferrals/rfc-gate-regression-ratchets.md` | The 2026-07-20 "skip it" row recorded VOID as authority and superseded |

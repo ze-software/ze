@@ -32,7 +32,7 @@ checks needed for the current diff and is included in `make ze-verify`.
 | `scripts/dev/learned_staleness.py` | `ze-learned-staleness` and `ze-doc-test` | Every path a `plan/learned/NNN-*.md` lists in its `## Files` section still resolves, and every `plan/learned/NNN` citation still names a summary. A summary is read through `## Files` and every `## Files <qualifier>` heading, so a second `## Files Modified` section is checked rather than skipped. A summary with no `## Files` section, or one that cannot be read, is reported. An empty finding list must mean every summary was read, never that the parser gave up. A `..` token, or a path whose real target leaves the tree, is reported and never resolved. Findings are counted against the shrink-only ceiling `plan/.learned-staleness-baseline`. More than the ceiling fails the gate, and fewer rewrites it down. The corpus held 1,860 dead references when the gate landed, which is why the ceiling exists. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 | `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
-| `scripts/dev/ste_check.py --check` | `ze-ste-check`, and `commit_helper.py create` | The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with `make ze-ste-review`. Rule: `ai/rules/simplified-technical-english.md`. |
+| `scripts/dev/ste_check.py --check` | `ze-ste-check`, and `commit_helper.py create` | The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with `make ze-ste-review`. Rule: `ai/rules/writing.md`. |
 
 `ze-doc-test` runs doc drift, command validation, and stale source-anchor validation unconditionally and reports
 a combined verdict. `ze-verify-wiring-docs` is the changed-file-aware gate used
@@ -152,17 +152,17 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
 4. Add the new target to `scripts/dev/verify_wiring_docs.py` if changed files
    should trigger it during `make ze-verify`.
 5. Add a row to the table in this file.
-6. Update `ai/rules/discovery-updates.md`, `ai/INDEX.md`, or
+6. Update `ai/rules/repo-maintenance.md`, `ai/INDEX.md`, or
    `ai/NAVIGATION.md` when the new check changes what future agents should run
    or discover.
 7. Add a help entry in the Makefile or owning `mk/` quick reference.
 
 ## See also
 
-- `ai/rules/documentation.md` -- canonical documentation rules,
+- `ai/rules/writing.md` -- canonical documentation rules,
   including the BLOCKING Documentation Update Checklist for specs
-- `ai/rules/discovery-updates.md` -- required discovery updates when new
+- `ai/rules/repo-maintenance.md` -- required discovery updates when new
   checks, tools, or verification gates are added
-- `ai/rules/hook-mapping.md` -- which hooks and make gates enforce which rules
+- `ai/rules/repo-maintenance.md` -- which hooks and make gates enforce which rules
 - `mk/inventory.mk` -- owning make targets for documentation, inventory,
   command validation, and wiring/doc gates

@@ -68,7 +68,7 @@ func TestModifyFailureLabelsAreClosedAndStable(t *testing.T) {
 // against the operator, on a path a peer influences.
 //
 // Time is injected rather than slept on: a test that waits out a real second
-// asserts on elapsed time, which is the load-sensitive shape ai/rules/fix-dont-record.md
+// asserts on elapsed time, which is the load-sensitive shape ai/rules/completion.md
 // bans.
 func TestModifyFailureLogRateLimits(t *testing.T) {
 	var l modifyFailureLog

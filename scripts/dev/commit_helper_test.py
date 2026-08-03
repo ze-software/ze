@@ -229,7 +229,7 @@ DEFERRALS_HEADER = (
 
 
 class TestDeferralDestination(unittest.TestCase):
-    """ai/rules/deferral-tracking.md: an open deferral always names a spec that exists."""
+    """ai/rules/planning.md: an open deferral always names a spec that exists."""
 
     def _repo(self, tmp: str, rows: str) -> Path:
         root = Path(tmp)
@@ -344,7 +344,7 @@ class TestDeferralShardRemoval(unittest.TestCase):
     Driven through commit_gate_problems, the BLOCK-severity entry point create()
     actually calls -- not through deferral_shard_removal_problems alone. A gate
     that works when called directly and is never wired into the assembly is the
-    failure this drives out (ai/rules/fail-closed-guards.md, ai/rules/wiring-completeness.md).
+    failure this drives out (ai/rules/evidence.md, ai/rules/completion.md).
     """
 
     def test_removing_a_shard_with_a_live_row_is_refused(self) -> None:
@@ -511,7 +511,7 @@ class TestDeferralShardRemoval(unittest.TestCase):
     def test_an_unreadable_shard_is_reported_not_waved_through(self) -> None:
         # `git show` failing for a reason OTHER than "absent from HEAD" or
         # "HEAD is unborn" means the gate cannot SEE the rows. A gate that
-        # cannot see must say so, never pass (ai/rules/fail-closed-guards.md).
+        # cannot see must say so, never pass (ai/rules/evidence.md).
         # Without this case, `if returncode: continue` reads every breakage --
         # a corrupt object store, git missing, a permission failure -- as
         # "nothing to protect", and the loudest failures become the quietest.
@@ -574,18 +574,18 @@ def _deferral_gate(rows: list[tuple[str, str]]) -> list[str]:
 
 
 class TestDeferralUnassigned(unittest.TestCase):
-    """The STATUS half of the gate enforcing ai/rules/deferral-tracking.md's "no
+    """The STATUS half of the gate enforcing ai/rules/planning.md's "no
     deferral without a destination".
 
     TestDeferralDestination above covers which Destination cells are a valid home.
     This class covers WHICH ROWS ARE LOOKED AT AT ALL, which is the half that was
-    fail-open (ai/rules/fail-closed-guards.md): the gate tested `status == "open"`,
+    fail-open (ai/rules/evidence.md): the gate tested `status == "open"`,
     so every row at `deferred` bypassed the destination check no matter how strict
     that check became.
     """
 
     # VALIDATES: a row at status `deferred` with no destination is flagged.
-    # `deferred` is the word ai/rules/deferral-tracking.md itself uses for this
+    # `deferred` is the word ai/rules/planning.md itself uses for this
     # state, and most of the rows across plan/deferrals/ carry it.
     # PREVENTS: hole 1 -- `status == "open"` meant a row written in the rule's own
     # vocabulary was never looked at.
@@ -646,7 +646,7 @@ class TestDeferralUnassigned(unittest.TestCase):
     # VALIDATES: a row that cannot be parsed is reported rather than skipped.
     # PREVENTS: hole 3 -- `len(fields) < 7: continue` dropped a short row on the
     # floor and a Status-less row read status as "" and passed, so a malformed row
-    # was silently treated as absent-and-fine (ai/rules/fail-closed-guards.md:
+    # was silently treated as absent-and-fine (ai/rules/evidence.md:
     # a guard that neither denies nor speaks does not exist).
     def test_malformed_row_is_reported_not_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -674,7 +674,7 @@ class TestDeferralUnassigned(unittest.TestCase):
 class TestDeferralGateSeverity(unittest.TestCase):
     """An unhomed deferral is ADVISORY: its message rides commit_gate_warnings,
     never commit_gate_problems, so a bookkeeping-only issue (harmless to software
-    behaviour) cannot hard-block a commit (ai/rules/deferral-tracking.md). The
+    behaviour) cannot hard-block a commit (ai/rules/planning.md). The
     detector still flags it, so nothing goes silent.
     """
 
@@ -717,7 +717,7 @@ class TestDeferralInDiff(unittest.TestCase):
     """deferral_in_diff_problems scans added prose for un-homed deferral language,
     but exempts the rule corpus (ai/rules/, .claude/rules/), which DISCUSSES
     deferral policy rather than parking work. Code and specs stay in scope
-    (ai/rules/deferral-tracking.md, ai/rules/friction-reporting.md).
+    (ai/rules/planning.md, ai/rules/repo-maintenance.md).
     """
 
     def _repo(self, tmp: str) -> Path:
@@ -761,11 +761,11 @@ class TestDeferralInDiff(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
             (root / "ai" / "rules").mkdir(parents=True)
-            (root / "ai" / "rules" / "CONDENSED.md").write_text(
+            (root / "ai" / "rules" / "planning.md").write_text(
                 "# Condensed\n\nRisks: new coupling, follow-up work, future work.\n"
             )
             self.assertEqual(
-                ch.deferral_in_diff_problems(root, ("ai/rules/CONDENSED.md",), ()), []
+                ch.deferral_in_diff_problems(root, ("ai/rules/planning.md",), ()), []
             )
 
     def test_bare_deferral_in_spec_still_blocks(self):
@@ -964,7 +964,7 @@ class TestStructuralGateRemediation(unittest.TestCase):
     """T-3 (AC-5): the structural-gate refusal must name a command that actually
     refreshes tmp/ze-verify-failures.json. Only a full `make ze-verify` /
     `ze-verify-changed` (verify_run.go) rewrites that record; `make <gate>` alone
-    does not. A remediation that cannot work is worse than none (ai/rules/error-messages.md).
+    does not. A remediation that cannot work is worse than none (ai/rules/cli.md).
     """
 
     def test_refusal_names_the_real_refresher_and_disclaims_the_gate_command(self):
@@ -1099,7 +1099,7 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
 
     The live names are PARSED out of stagesForMode rather than restated here:
     a second hand-kept copy of the stage list is the bug this test exists to
-    prevent (ai/rules/derive-not-hardcode.md). That is the opposite choice from
+    prevent (ai/rules/evidence.md). That is the opposite choice from
     the goldens in verify_run_test.go, and deliberately so -- a golden's job is
     to be a change-detector for the list itself, while this test only needs to
     know what the list currently CONTAINS in order to check a subset relation.
@@ -1246,7 +1246,7 @@ class TestLearnedNextCounterFree(unittest.TestCase):
 class TestDeferralSharding(unittest.TestCase):
     """AC-1: deferrals are sharded one file per source under plan/deferrals/, so a
     session stages only files it owns and git merges disjoint creations without
-    conflict (ai/rules/deferral-tracking.md, ai/rules/git-safety.md). The bug this
+    conflict (ai/rules/planning.md, ai/rules/git-safety.md). The bug this
     fixes: a single shared plan/deferrals.md means `git add <file>` stages every
     session's pending rows, so whoever commits first carries the others'.
     """
@@ -1394,7 +1394,7 @@ def _pcv(files: str = "", ac: str = "", wiring: str = "") -> str:
 class TestPreCommitVerificationFilled(unittest.TestCase):
     """The closure gate must check EVERY evidence sub-table, not the section.
 
-    VALIDATES: `ai/rules/implementation-audit.md` Pre-Commit Verification --
+    VALIDATES: `ai/rules/completion.md` Pre-Commit Verification --
     "For each item: run a command and paste the evidence". Each sub-table is a
     separate obligation (files exist / AC re-verified / wiring re-read), so
     evidence for one is not evidence for another.
@@ -1451,7 +1451,7 @@ class TestPreCommitVerificationFilled(unittest.TestCase):
 
 
 class TestSTEGate(unittest.TestCase):
-    """The ASD-STE100 prose gate (ai/rules/simplified-technical-english.md).
+    """The ASD-STE100 prose gate (ai/rules/writing.md).
 
     It BLOCKS a commit whose own prose grew one of the six banned habits, and it
     compares each file with its own HEAD version so legacy prose in a file you
@@ -1798,7 +1798,7 @@ class TestLessonIsContentDriven(unittest.TestCase):
 
     # The demand's evidence must name the line that CHANGED. Pointing at a
     # removed line to explain a reordering sends the reader to the wrong end of
-    # the diff (ai/rules/error-messages.md: the value, not just the operation).
+    # the diff (ai/rules/cli.md: the value, not just the operation).
     def test_reordering_evidence_names_the_added_line(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)

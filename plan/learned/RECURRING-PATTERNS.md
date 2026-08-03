@@ -96,7 +96,7 @@ flagged by the user across sessions.
    is always wiring.
 3. `/ze-review` step 1: wiring check runs first, blocks the rest of
    the review if any symbol is unreachable.
-4. `before-writing-code.md` item 5: name the entry point and file:line
+4. `architecture.md` item 5: name the entry point and file:line
    before writing any feature code.
 
 **Gated by.** `make ze-verify-wiring-docs`, which runs `check_wiring` in
@@ -139,7 +139,7 @@ post-switch `else` (or explicit `if`) that returns an error naming the
 unknown value and the valid set.
 
 **Recover if you hit it.** Add the explicit rejection path. Reinforces
-`ai/rules/exact-or-reject.md`.
+`ai/rules/protocol.md`.
 
 ---
 
@@ -305,16 +305,16 @@ them shipping:**
 
 **Fix.** Carry PRESENCE separately from VALUE. A pointer (`*uint64`), a
 `(value, ok)` pair, or an explicit `tracked bool` beside the field. Where the
-producer cannot answer at all, say so -- `ai/rules/fail-closed-guards.md`: a
+producer cannot answer at all, say so -- `ai/rules/evidence.md`: a
 guard that neither denies nor speaks does not exist.
 
 **Why it recurs.** Each instance looked locally reasonable, and several carried
 a COMMENT asserting the safety property they did not provide ("the config
 system's error to report", "RFC 6793 handling"). A comment is its author's
-belief, not a decision record (`ai/rules/no-fabrication.md`). Reading the
+belief, not a decision record (`ai/rules/evidence.md`). Reading the
 comment is not reading the producer.
 
-**Detection gap, unfilled.** `fail-closed-guards.md` names the pattern but
+**Detection gap, unfilled.** `evidence.md` names the pattern but
 nothing greps for it. A mechanical check over `== 0` / `len(x) == 0` guards on
 identity-bearing fields would have caught most of the six. That check does not
 exist yet and is smaller than the defects it prevents.
@@ -324,7 +324,7 @@ through review in that session and all four were blocked by it; three concealed
 live defects behind green artifacts, passing tests and clean-looking audits. In
 one case the author had written the comment explaining why a synchronous release
 was necessary and still missed the two sibling call sites needing the same fix.
-`ai/rules/critical-review.md`'s claim that self-review is not review is not
+`ai/rules/planning.md`'s claim that self-review is not review is not
 theoretical.
 
 ## Testing traps
@@ -355,7 +355,7 @@ actually produces. The test self-validates against its own setup.
   via an ALTERNATE production path, not the replay under test; caught
   only by disabling `handleReplayBatch` and seeing all three stay green.
   The reactor does not persist routes across reconnects itself
-  (`internal/component/bgp/reactor/peer.go:143`), so a reconnect is not
+  (`internal/component/bgp/reactor/peer.go`), so a reconnect is not
   a clean genuinely-new-peer isolation).
 
 **Avoid it by.** Before citing a test as evidence that feature F
@@ -367,7 +367,7 @@ just NAME that line — DISABLE it (early `return` / no-op / `if true {
 return }`) and confirm the test flips RED, then revert. A functional
 test that stays green with the producing function disabled guards
 nothing, even when its fixture is real. See
-`ai/rules/functional-test-gate.md` "Mutation-Verify the Test Actually Gates".
+`ai/rules/testing.md` "Mutation-Verify the Test Actually Gates".
 
 **Recover if you hit it.** Rebuild the fixture from real production
 output. For `.ci` tests, capture the fixture from a live run, not from

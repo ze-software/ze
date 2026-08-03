@@ -49,7 +49,7 @@ func (rs *RouteServer) processForward(key workerKey, item workItem) {
 	rs.mu.RUnlock()
 	if peerDown {
 		// A guard that neither denies nor speaks does not exist
-		// (ai/rules/fail-closed-guards.md). This arm drops the whole UPDATE --
+		// (ai/rules/evidence.md). This arm drops the whole UPDATE --
 		// every withdrawal and every announcement in it -- and no rail replays
 		// it later, so the silence here hid permanent route loss.
 		logger().Warn("forward dropped: source peer is down",

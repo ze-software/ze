@@ -34,9 +34,9 @@ func dynamicOpenConfirmSession(t *testing.T, localAS, advertisedAS, localID uint
 // so comparing it raw made `PeerAS > LocalAS` false against any real LocalAS, and the
 // tie-break always preserved the local connection whatever the peer's actual AS. The
 // zero silently selected one branch instead of being recognized as "unknown"
-// (ai/rules/fail-closed-guards.md). validateOpenIdentifier one function away already
+// (ai/rules/evidence.md). validateOpenIdentifier one function away already
 // falls back to openAdvertisedAS for exactly this reason; this sibling call site was
-// missed (ai/rules/before-writing-code.md, Sibling Call-Site Audit).
+// missed (ai/rules/architecture.md, Sibling Call-Site Audit).
 //
 // Not an interop change today: dynamic peers are ConnectionPassive, so both colliding
 // connections are peer-initiated and Section 2.3's "connection initiated by the speaker

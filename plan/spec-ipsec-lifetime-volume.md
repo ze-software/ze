@@ -10,9 +10,9 @@
 Anchor refresh (2026-07-22 plan review, design still valid, feature not
 landed): every `rekey.go` cite was off by ~+200 lines (the file grew at the
 top); the citations below are now updated in-body -- `softBytes`/`byteCount`
-`rekey.go:222-223`, `newLifetimeState` `:226`, `softExpired` byte check
-`:255-262`. `ESPGroup` (`types.go:350`) and `leaf lifetime`
-(`ze-ipsec-conf.yang:53`) still exact.
+`rekey.go`, `newLifetimeState` `:226`, `softExpired` byte check
+`:255-262`. `ESPGroup` (`types.go`) and `leaf lifetime`
+(`ze-ipsec-conf.yang`) still exact.
 
 ## Post-Compaction Recovery
 
@@ -41,7 +41,7 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - IKE engine and SA lifecycle.
   → Constraint: reuse the existing `lifetimeState.softExpired` byte path; do not add a parallel timer system.
-- [ ] `ai/rules/config-surface.md` / `ai/rules/config-naming.md` - the new leaves.
+- [ ] `ai/rules/config.md` / `ai/rules/config.md` - the new leaves.
   → Constraint: a byte count can far exceed the uint32 maximum, so the leaf type and Go field MUST be 64-bit.
 
 ### RFC Summaries (MUST for protocol work)
@@ -55,10 +55,10 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/ipsec/types.go` - `ESPGroup{ Name; Lifetime uint32; PFS; Proposals }` (types.go:349-355): the only lifetime is time in seconds; no byte/packet field. `IKEGroup` similarly (types.go:365-372).
-- [ ] `internal/component/ike/engine/rekey.go` - `lifetimeState` has `softBytes uint64` / `byteCount uint64` (rekey.go:222-223) and `softExpired` returns true when `softBytes > 0 && byteCount >= softBytes` (rekey.go:255-262), but `newLifetimeState(lifetimeSec uint32)` only ever sets the time fields (rekey.go:226+) — the byte path is dead.
-- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - esp-group `leaf lifetime { type uint32 { range "0..86400"; } }` (ze-ipsec-conf.yang:53-59); no `life-bytes`/`life-packets` leaves.
-- [ ] `internal/component/ike/ipsec/config.go` - esp-group parser caps lifetime at 86400 (config.go:145,245); no volume parsing.
+- [ ] `internal/component/ike/ipsec/types.go` - `ESPGroup{ Name; Lifetime uint32; PFS; Proposals }` (types.go): the only lifetime is time in seconds; no byte/packet field. `IKEGroup` similarly (types.go).
+- [ ] `internal/component/ike/engine/rekey.go` - `lifetimeState` has `softBytes uint64` / `byteCount uint64` (rekey.go) and `softExpired` returns true when `softBytes > 0 && byteCount >= softBytes` (rekey.go), but `newLifetimeState(lifetimeSec uint32)` only ever sets the time fields (rekey.go+) — the byte path is dead.
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - esp-group `leaf lifetime { type uint32 { range "0..86400"; } }` (ze-ipsec-conf.yang); no `life-bytes`/`life-packets` leaves.
+- [ ] `internal/component/ike/ipsec/config.go` - esp-group parser caps lifetime at 86400 (config.go,245); no volume parsing.
 
 **Behavior to preserve:**
 - Time-based rekey behaviour is unchanged when no volume leaves are set.
@@ -88,8 +88,8 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 | Dataplane ↔ lifetimeState | processed byte/packet count fed to the counter | [ ] |
 
 ### Integration Points
-- `ESPGroup` (`types.go:349-355`) - add `LifeBytes uint64` / `LifePackets uint64`.
-- `newLifetimeState` (`rekey.go:226+`) - populate `softBytes`/`softPackets`.
+- `ESPGroup` (`types.go`) - add `LifeBytes uint64` / `LifePackets uint64`.
+- `newLifetimeState` (`rekey.go+`) - populate `softBytes`/`softPackets`.
 - SA stats source - where processed byte/packet counts are read to feed the counter.
 
 ### Architectural Verification
@@ -178,7 +178,7 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | esp-group `life-bytes`/`life-packets`; `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | esp-group `life-bytes`/`life-packets`; `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | uint64 `range`; sane minimum |
 | Functional test for new behaviour | [ ] yes | `test/plugin/ipsec-life-bytes.ci` |
 | Prometheus counters/metrics | [ ] maybe | rekey-by-volume counter per SA |

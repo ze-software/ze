@@ -16,7 +16,7 @@ package crypto
 // The AEAD verdict comes from the Transform ID, never from the IsAEAD field. A caller
 // that fills the ID and leaves the field at its zero value still gets the salt. The
 // Linux kernel refuses a short key. A short key also makes a peer read the second
-// direction's key at the wrong offset (ai/rules/fail-closed-guards.md).
+// direction's key at the wrong offset (ai/rules/evidence.md).
 func encKeyMaterialLen(enc EncryptionTransform) int {
 	return int(enc.KeyLength)/8 + enc.ID.aeadSalt()
 }

@@ -34,7 +34,7 @@ WHAT COUNTS AS RECOVERING
 WHAT COUNTS AS AN ENGINE CALL
     Derived, not listed: this parses ze_api.py and takes the transitive closure
     of everything that reaches `_call_engine` or `wait_for_shutdown`, the guard's
-    two call sites (ai/rules/derive-not-hardcode.md). A new ze_api helper that
+    two call sites (ai/rules/evidence.md). A new ze_api helper that
     talks to the engine is covered the day it is written.
 
 ESCAPE HATCH

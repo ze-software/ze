@@ -28,5 +28,5 @@ stays green and fast on the dev host while the Linux surface is still validated.
 
 ## Files
 - `internal/test/runner/{record.go,record_parse.go}`, `mk/test-integration.mk`
-  (`ze-qemu-needs-linux-test`), `ai/rules/qemu-testing.md`,
+  (`ze-qemu-needs-linux-test`), `ai/rules/platform-linux.md`,
   `docs/architecture/testing/ci-format.md`.

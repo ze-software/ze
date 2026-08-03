@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- registration over hardcoding
+// Design: ai/rules/plugins.md -- registration over hardcoding
 // The bgp-monitor dashboard live view's registry glue: the activeView instance
 // and the init() registration (view_registry.go). Render/update/state stay in
 // model_dashboard.go (Design 1). Delete this plus model_dashboard.go and the

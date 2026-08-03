@@ -14,7 +14,7 @@ Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-1-ike-packet.md`, 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/naming.md` ("Package-Naming Glossary"), `ai/rules/protocol-skeleton.md`
+3. `ai/rules/go-standards.md` ("Package-Naming Glossary"), `ai/rules/protocol.md`
 4. `internal/component/bgp/wireu/doc.go`, `internal/component/bgp/wireu/split.go`
 
 ## Task
@@ -34,7 +34,7 @@ lines with the `wireu.` qualifier; 17 doc source anchors. Merge evidence:
 zero identifier clashes with `message` across exported (60+81 vs 24+7) and
 unexported (108 vs 34) top-level names, tests included; only `doc.go` and
 `errors.go` collide by filename; `wireu` imports `message`
-(`internal/component/bgp/wireu/split.go:9`), so the fold direction has no
+(`internal/component/bgp/wireu/split.go`), so the fold direction has no
 import cycle.
 
 **BLOCKED on spec-rename-2** (the destination package must exist as
@@ -45,14 +45,14 @@ audit snapshot and implementation.
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. -->
-- [ ] `ai/rules/naming.md` - "Package-Naming Glossary"
+- [ ] `ai/rules/go-standards.md` - "Package-Naming Glossary"
   → Decision: glossary `wireu` row ("kept") is removed by this spec; the keep rationale is superseded by the user's fold decision (2026-07-08)
   → Constraint: glossary edit ships in the same commit as the fold
-- [ ] `ai/rules/protocol-skeleton.md` - BGP probe row lists `wireu` in the pre-SDK codec pair
+- [ ] `ai/rules/protocol.md` - BGP probe row lists `wireu` in the pre-SDK codec pair
   → Constraint: after this spec the BGP row's codec exception reduces to history; only `reactor` remains a named exception
 - [ ] `docs/architecture/wire/messages.md` - Design anchor for wireu files ("wire UPDATE lazy parsing")
   → Constraint: prose describing two packages becomes one-package prose; anchors updated
-- [ ] `ai/rules/buffer-first.md` and `ai/rules/memory-architecture.md` - the zero-copy discipline wireu implements
+- [ ] `ai/rules/performance.md` and `ai/rules/performance.md` - the zero-copy discipline wireu implements
   → Constraint: the fold must not disturb zero-copy iterators; mechanical move only
 
 ### RFC Summaries (MUST for protocol work)
@@ -94,7 +94,7 @@ audit snapshot and implementation.
 ### Integration Points
 - 47 importer files - import path + qualifier rewrite to `packet`
 - former `message.` qualifiers inside wireu files (e.g. split.go) - dropped (now intra-package)
-- `scripts/dev/protocol_skeleton_report.py`, `ai/rules/naming.md`, `ai/rules/protocol-skeleton.md`, `ai/PACKAGE-MAP.md` - rule-surface sync
+- `scripts/dev/protocol_skeleton_report.py`, `ai/rules/go-standards.md`, `ai/rules/protocol.md`, `ai/PACKAGE-MAP.md` - rule-surface sync
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -110,7 +110,7 @@ audit snapshot and implementation.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | Zero identifier clashes between the two packages | comm audit 2026-07-08 (exported 60+81 vs 24+7; unexported 108 vs 34; tests included) | clash needs a rename first; fold design holds otherwise | rerun both comm audits at start | confirmed (2026-07-08 snapshot; MUST rerun at start) |
 | A-2 | Only doc.go and errors.go collide by filename | directory-listing comm 2026-07-08 | more file renames in the move | rerun listing comm at start | confirmed (2026-07-08 snapshot) |
-| A-3 | wireu -> message is the only cross-import between the pair | import grep 2026-07-08 (split.go:9; no reverse edge) | cycle would block the fold | grep both directions at start | confirmed (2026-07-08 snapshot) |
+| A-3 | wireu -> message is the only cross-import between the pair | import grep 2026-07-08 (split.go; no reverse edge) | cycle would block the fold | grep both directions at start | confirmed (2026-07-08 snapshot) |
 | A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `make ze-doc-test` after sweep | confirmed (2026-07-08 snapshot) |
 | A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `make ze-spec-status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
 
@@ -136,7 +136,7 @@ audit snapshot and implementation.
 | AC-2 | repo-wide grep for the old import path and `wireu.` qualifier | zero hits in code and living docs (plan/learned history exempt) |
 | AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary `legacy 1` (only `bgp/reactor`); `--selftest` OK with ("bgp","wireu") fixtures removed |
 | AC-4 | `make ze-doc-test` | green after the 17-anchor + prose sweep |
-| AC-5 | rule surfaces | naming.md glossary `wireu` row removed (decision recorded as superseded); protocol-skeleton.md BGP row updated |
+| AC-5 | rule surfaces | go-standards.md glossary `wireu` row removed (decision recorded as superseded); protocol.md BGP row updated |
 | AC-6 | fuzz | `FuzzRewriteASPath` seed corpus found and passing from its new location |
 | AC-7 | `make ze-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
@@ -178,8 +178,8 @@ audit snapshot and implementation.
 - `internal/component/bgp/wireu/*.go` -> `internal/component/bgp/packet/` (git mv; package clause; `message.` qualifiers dropped; `errors.go` -> collision-free name; doc.go merged)
 - `internal/component/bgp/wireu/testdata/` -> `internal/component/bgp/packet/testdata/` (fuzz corpus)
 - 47 importer files - import path + `wireu.` -> `packet.` qualifiers (~193 lines)
-- `ai/rules/naming.md` - glossary `wireu` row removed
-- `ai/rules/protocol-skeleton.md` - BGP probe row updated
+- `ai/rules/go-standards.md` - glossary `wireu` row removed
+- `ai/rules/protocol.md` - BGP probe row updated
 - `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("bgp","wireu") removed; selftest fixtures updated
 - docs holding the 17 anchors (incl. `docs/architecture/wire/messages.md`) - anchor + prose sweep
 - `ai/PACKAGE-MAP.md` - regenerated
@@ -246,7 +246,7 @@ audit snapshot and implementation.
    - Tests: `go build ./...`, `make ze-unit-test`, fuzz seed pass, report `--selftest` green
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
-4. **Phase: rule + doc sweep** — naming.md, protocol-skeleton.md, 17 anchors + prose, PACKAGE-MAP regen.
+4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 17 anchors + prose, PACKAGE-MAP regen.
    - Tests: `make ze-doc-test`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5

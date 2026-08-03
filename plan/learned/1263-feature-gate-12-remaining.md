@@ -97,7 +97,7 @@ imports (cos/diag -> l2tp, static/ospf -> bfd, the vpp backends).
   contains '='. Filed as HOOK-FRICTION F14.
 - **Regenerate the indexes before verify, not after.** The stale
   `ai/CODE-TO-DOCS.md`/`ai/DOCS-TO-CODE.md` and a digest line-number anchor
-  (`all.go:203` -> `:119` as gated imports left `all.go`) failed five verify
+  (`all.go` -> `:119` as gated imports left `all.go`) failed five verify
   stages; `make ze-doc-index` + `ze-discovery-index` + `generate` clear them.
 
 ## Files
@@ -111,4 +111,4 @@ imports (cos/diag -> l2tp, static/ospf -> bfd, the vpp backends).
   `internal/plugins/static/backend_vpp_off_linux.go`, `internal/component/ike/dataplane/register_vpp.go`.
 - Fail-closed fix: `internal/component/config/loader.go` + `loader_unknown_test.go`.
 - Tests: `cmd/ze/hub/build_tag_{ntp,bfd,ike,vpp,l2tp,gate12*}_*.go`; `ike/dataplane/register_{vpp,novpp}_test.go`.
-- Docs/rules: `docs/features.md` (18 rows), `docs/guide/plugins.md`, `ai/rules/feature-gate-registration.md`.
+- Docs/rules: `docs/features.md` (18 rows), `docs/guide/plugins.md`, `ai/rules/plugins.md`.

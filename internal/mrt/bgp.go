@@ -343,7 +343,7 @@ func ParsePrefixes(data []byte, addPath bool) ([]netip.Prefix, error) {
 // and the offending value, so a caller can both salvage the good entries and
 // tell the operator the record is damaged. Returning the short list alone would
 // make "fewer routes than the file contains" indistinguishable from "the file
-// has fewer routes" (ai/rules/fail-closed-guards.md).
+// has fewer routes" (ai/rules/evidence.md).
 //
 // A prefix length beyond the family width is never emitted: netip's zero Prefix
 // reads downstream as a default route.

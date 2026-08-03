@@ -12,7 +12,7 @@ import (
 // eapmAllModes returns every declared authentication mode. It walks the enum until a
 // value has no name, so a mode added later is covered without this list being
 // edited. A hardcoded list is what lets the engine and the config gate drift apart
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 func eapmAllModes() []ipsec.AuthMode {
 	var out []ipsec.AuthMode
 	for m := ipsec.AuthMode(1); m.String() != "unknown"; m++ {
@@ -59,7 +59,7 @@ const eapmSection216 = "RFC 7296 Section 2.16"
 // EAP defect this test exists to catch. It is unreachable today only because
 // parseAuthConfig never fills PSK for x509 (ipsec/config.go). A later change that filled
 // it would find this test demanding the cross-mode acceptance, and
-// ai/rules/no-test-deletion.md would make the demand hard to remove. The x509 arm now
+// ai/rules/testing.md would make the demand hard to remove. The x509 arm now
 // asserts only that the EAP branch did not fire, which is this test's subject.
 func TestEapmEngineAgreesWithTheCanonicalEAPPredicate(t *testing.T) {
 	modes := eapmAllModes()

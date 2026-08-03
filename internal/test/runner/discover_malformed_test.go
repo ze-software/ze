@@ -163,7 +163,7 @@ func TestParsingDiscoverRecordsBrokenLegacyFixtureAsFailure(t *testing.T) {
 // rotted invisibly: the exact outage, reintroduced by the fix for it.
 //
 // Driving runTest directly (as the earlier tests do) cannot see this class of
-// bug, because runTest is not the entry point -- ai/rules/fail-closed-guards.md
+// bug, because runTest is not the entry point -- ai/rules/evidence.md
 // "Test corollary": a unit test on the guard helper proves the helper, not that
 // the caller ever reaches it with the input that matters.
 //
@@ -313,7 +313,7 @@ const badDecodeTest = "update ipv4/unicast\n"
 // "// Skip malformed test files" comment: the file dropped out of the suite with
 // no warning and no failure record, so its coverage disappeared silently. A
 // guard that neither denies nor speaks does not exist
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // Both discovery paths are covered: .ci (parseCIFile) and .test (parseTestFile).
 //

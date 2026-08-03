@@ -34,7 +34,7 @@ Three resolvers run, strongest evidence first:
 The dead-path set comes from `learned_staleness.check`, and the reduction from
 one backtick span to a concrete path comes from its `candidate_paths`, so the
 repair tool and the gate can never disagree about which citation is dead
-(`ai/rules/derive-not-hardcode.md`).
+(`ai/rules/evidence.md`).
 
 Not rewritten, on purpose:
 

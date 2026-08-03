@@ -21,7 +21,7 @@ Ze's dev setup was split across three Makefile targets (`ze-setup-build`, `ze-se
 ## Gotchas
 
 - `checkE2fsprogs` does NOT use `doctorLookPathFn`. It checks `e2fsDir` which is resolved at package init time via `resolveE2FSDir()` (file stat, not LookPath). Any drift test strategy that only mocks `doctorLookPathFn` will silently miss e2fsprogs.
-- e2fsprogs on macOS is keg-only. `brew install e2fsprogs` does NOT symlink binaries to `/opt/homebrew/sbin`. The Go code handles this via a Cellar glob at `cmd_build.go:52`. Dev-setup needs to install the package but does NOT need to modify PATH.
+- e2fsprogs on macOS is keg-only. `brew install e2fsprogs` does NOT symlink binaries to `/opt/homebrew/sbin`. The Go code handles this via a Cellar glob at `cmd_build.go`. Dev-setup needs to install the package but does NOT need to modify PATH.
 - `uv` is not in Debian/Ubuntu apt repos despite being a common Python tool. The script must print the curl installer URL instead.
 
 ## Files

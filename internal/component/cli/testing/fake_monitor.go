@@ -1,4 +1,4 @@
-// Design: ai/rules/pipe-completeness.md -- functional coverage for | log data-transform pipes
+// Design: ai/rules/cli.md -- functional coverage for | log data-transform pipes
 // Related: runner.go -- option=monitor:ping=fake wires these fakes into the headless model
 //
 // fake_monitor.go provides deterministic, offline stand-ins for the monitor

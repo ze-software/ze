@@ -197,7 +197,7 @@ type OpaqueLSAView struct {
 // OpaqueLSAsByType returns every stored opaque LSA whose Opaque Type matches, across the
 // per-area (Type 10), AS-wide (Type 11), and per-interface (Type 9) stores, with a copy of
 // each body. The carrier interprets no body; this is a generic query a consumer uses to
-// decode its own bodies (ai/rules/plugin-self-containment.md).
+// decode its own bodies (ai/rules/plugins.md).
 func (d *LSDB) OpaqueLSAsByType(opaqueType uint8) []OpaqueLSAView {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

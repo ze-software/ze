@@ -30,27 +30,27 @@ overloaded.
 Four verified defects in scope:
 
 1. **Asymmetric backpressure.** Engine-to-plugin delivery does a blocking send on a 64-slot
-   channel, so a slow plugin stalls the emitter (`process/delivery.go:56-83`, comment:
+   channel, so a slow plugin stalls the emitter (`process/delivery.go`, comment:
    "backpressure propagates naturally"). Plugin-to-engine requests are dropped after a 1-second
-   timeout with only a log line (`pkg/plugin/rpc/mux.go:258-276`, `sendRequest`). Two opposite
+   timeout with only a log line (`pkg/plugin/rpc/mux.go`, `sendRequest`). Two opposite
    policies on one logical channel.
 2. **Synchronous fan-out couples producer latency to the slowest consumer.** Engine
-   subscribers run inline on the emitting goroutine (`server/engine_event.go:95-112`,
-   dispatched via `defer` in `server/dispatch.go:441`). Combined with the redistribution
+   subscribers run inline on the emitting goroutine (`server/engine_event.go`,
+   dispatched via `defer` in `server/dispatch.go`). Combined with the redistribution
    consumer doing one blocking `UpdateRoute` RPC per entry with a 10-second timeout
-   (`redistribute/consumer.go:18,39-55`), a producer emitting a 64-entry batch can block in
+   (`redistribute/consumer.go,39-55`), a producer emitting a 64-entry batch can block in
    `Emit` for N sequential round trips. The batch pool amortizes allocation
-   (`core/redistevents/pool.go:5-13`), but allocation was never the bottleneck; the serialized
+   (`core/redistevents/pool.go`), but allocation was never the bottleneck; the serialized
    synchronous I/O downstream is.
 3. **Ordering quirk.** External plugin subscribers are delivered before in-process engine
-   subscribers because engine dispatch is deferred (`server/dispatch.go:441`, comment: "engine
+   subscribers because engine dispatch is deferred (`server/dispatch.go`, comment: "engine
    handlers run AFTER plugin process delivery"). Correctness reasoning that assumes synchronous
    in-process re-entrancy holds only for the in-process deployment shape.
 4. **Overloaded naming and stale docs.** "Bus" and "hub" each name several unrelated things
    (`ze.EventBus`, the RPC delivery pipeline, `pluginserver.Hub`, `hub.Orchestrator`,
    `cmd/ze/hub`, plus the separate Operational Report Bus). `docs/architecture/core-design.md`
    section 1 still shows a standalone "Bus (notification pub/sub)" component
-   (`core-design.md:28,72`) that `plan/learned/DESIGN-HISTORY.md` records as absorbed into
+   (`core-design.md,72`) that `plan/learned/DESIGN-HISTORY.md` records as absorbed into
    the plugin server ("Plugin system: architecture" -> "Abandoned approaches", the standalone
    Bus entry: "`ze.EventBus` is now backed by `Server.Emit`").
 
@@ -77,9 +77,9 @@ code:
 
 | # | Policy | Producer | Citation |
 |---|--------|----------|----------|
-| 1 | Blocking send, engine to plugin | `Process.Deliver` blocks on the 64-cap `eventChan` (select with only a ctx-cancel escape, no timeout) | `internal/component/plugin/process/delivery.go:66-83`; capacity `eventDeliveryCapacity = 64` at :60 |
-| 2 | Timed drop, plugin to engine | `MuxConn.sendRequest` waits 1s for `requestCh` then drops; readLoop logs "request channel full, dropping inbound request" | `pkg/plugin/rpc/mux.go:269-276`; drop log at :258-261 |
-| 3 | Fail-fast close on stalled write (NEW, 2026-07 wave) | `writeAppended` applies a default 30s write deadline on deadline-capable transports and arms a reusable watchdog timer otherwise; on a stall `fireWatchdog` logs, fires the metric hook, and closes both ends | `pkg/plugin/rpc/conn.go:44` (window), :286-334 (write path, transport selection at :307-315), :191-200 (`fireWatchdog`), :139 (`SetWriteWatchdogHook`); counter `ze_plugin_write_watchdog_total` wired in `internal/component/plugin/server/server.go:188-196` |
+| 1 | Blocking send, engine to plugin | `Process.Deliver` blocks on the 64-cap `eventChan` (select with only a ctx-cancel escape, no timeout) | `internal/component/plugin/process/delivery.go`; capacity `eventDeliveryCapacity = 64` at :60 |
+| 2 | Timed drop, plugin to engine | `MuxConn.sendRequest` waits 1s for `requestCh` then drops; readLoop logs "request channel full, dropping inbound request" | `pkg/plugin/rpc/mux.go`; drop log at :258-261 |
+| 3 | Fail-fast close on stalled write (NEW, 2026-07 wave) | `writeAppended` applies a default 30s write deadline on deadline-capable transports and arms a reusable watchdog timer otherwise; on a stall `fireWatchdog` logs, fires the metric hook, and closes both ends | `pkg/plugin/rpc/conn.go` (window), :286-334 (write path, transport selection at :307-315), :191-200 (`fireWatchdog`), :139 (`SetWriteWatchdogHook`); counter `ze_plugin_write_watchdog_total` wired in `internal/component/plugin/server/server.go` |
 
 The unified policy AC-1 demands must explicitly cover or supersede the watchdog: either the
 watchdog becomes the documented stall backstop under the unified policy (with its metric
@@ -87,7 +87,7 @@ folded into the drop/overflow metric family), or the unified policy replaces it,
 not be left as an undocumented fourth behavior. AC-1's original wording predates the
 watchdog and is struck and superseded in the Acceptance Criteria table below.
 
-Metrics-doc merge note: `docs/plugin-development/metrics.md:198-208` now documents
+Metrics-doc merge note: `docs/plugin-development/metrics.md` now documents
 `ze_plugin_write_watchdog_total`. The drop/overflow metrics this spec adds (Integration
 Checklist "Prometheus counters" row; Documentation Update Checklist row 14) must merge into
 that existing metrics table and its watchdog prose, not open a parallel section.
@@ -141,7 +141,7 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 - Engine-vs-external delivery ordering becomes an explicit, documented contract.
 - core-design.md no longer shows a standalone Bus; a naming glossary is added.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A producer calls `Emit` on `ze.EventBus` (backed by `Server.Emit`) with a typed payload,
@@ -151,19 +151,19 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 
 ### Transformation Path
 1. `Server.dispatch` computes namespace/eventType, optionally decodes the typed payload for
-   engine subscribers (`server/dispatch.go:428-435`).
+   engine subscribers (`server/dispatch.go`).
 2. It `defer`s `dispatchEngineEvent` so engine handlers run after external delivery
-   (`dispatch.go:441`).
+   (`dispatch.go`).
 3. It marshals JSON once and calls `p.Deliver` for each matching external process
-   (`dispatch.go:461-470`); `Deliver` blocks if that process's 64-slot channel is full
-   (`process/delivery.go:74-82`).
+   (`dispatch.go`); `Deliver` blocks if that process's 64-slot channel is full
+   (`process/delivery.go`).
 4. After the function body, the deferred `dispatchEngineEvent` runs engine handlers inline on
-   the emitting goroutine (`engine_event.go:95-112`).
+   the emitting goroutine (`engine_event.go`).
 5. One engine handler is the redistribution consumer, which issues N blocking `UpdateRoute`
-   RPCs, each up to 10s (`redistribute/consumer.go:39-55`), so `Emit` can block for N round
+   RPCs, each up to 10s (`redistribute/consumer.go`), so `Emit` can block for N round
    trips before returning to the producer.
 6. In the reverse direction, a plugin-initiated request enters `mux.readLoop` and is offered to
-   `requestCh`; if full it is dropped after 1s (`mux.go:258-276`).
+   `requestCh`; if full it is dropped after 1s (`mux.go`).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -186,7 +186,7 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 - [ ] No duplicated functionality (one backpressure policy, not a third channel)
 - [ ] Zero-copy preserved where applicable (async drain must respect batch pool release rules)
 - [ ] Registration over hardcoding — new metrics register via the telemetry registry; no
-  per-consumer scheduling special-case added to a core package (`ai/rules/plugin-self-containment.md`)
+  per-consumer scheduling special-case added to a core package (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -194,7 +194,7 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Draining the redistribution batch asynchronously does not violate the batch pool lifetime contract | `core/redistevents/pool.go` recycles entries on `ReleaseBatch`; see `spec-unify-buffer-lifetime.md` | Async drain reads recycled/zeroed data | Snapshot/copy before handing to the async drainer; race test with `-race` | unvalidated |
-| A-2 | The replay coordinator's correctness does not actually depend on external-before-engine ordering | `dispatch.go:441` defer; DESIGN-REVIEW section 4 ordering note | Making ordering explicit changes replay behavior | Trace the replay coordinator; targeted ordering `.ci` | unvalidated |
+| A-2 | The replay coordinator's correctness does not actually depend on external-before-engine ordering | `dispatch.go` defer; DESIGN-REVIEW section 4 ordering note | Making ordering explicit changes replay behavior | Trace the replay coordinator; targeted ordering `.ci` | unvalidated |
 | A-3 | A bounded overflow policy (drop-oldest or block-with-timeout) is acceptable for both directions | `delivery.go`/`mux.go` current opposite policies | Chosen policy loses events some subscriber needs | Per-direction metric + burst `.ci`; confirm with user which policy | unvalidated |
 
 ### Risks
@@ -382,7 +382,7 @@ protocol. Existing BGP/redistribution interop scenarios are the regression gate.
 - **Ordering constraint (hard, verified).** Async fan-out (AC-2) breaks the exact invariant
   the redistevents batch pool depends on: `ReleaseBatch` has no refcount and is safe today
   "only because every subscriber has returned by the time Emit returns"
-  (`internal/core/redistevents/pool.go:65-67,68-87`, confirmed in the DESIGN-REVIEW finding 6
+  (`internal/core/redistevents/pool.go,68-87`, confirmed in the DESIGN-REVIEW finding 6
   review). The same holds for `attrpool.Handle` (no generation tag) and WireUpdate `RawBytes`
   (invalid after handler return). Therefore this spec MUST NOT land before
   `spec-unify-buffer-lifetime.md` enforces those lifetimes (poison/canary + snapshot-on-retain);

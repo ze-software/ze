@@ -11,7 +11,7 @@ Promoted `ze.rs.chan.size` env var to a YANG config leaf at
 3. Add `ConfigRoots`, `Features`, `YANG` to plugin registration
 4. Add `OnConfigure` handler that reads the JSON config tree and applies values
 5. Env var takes precedence: check `env.Get(key) != ""` before applying YANG value
-6. Rename env var to mirror YANG path per `config-naming.md`
+6. Rename env var to mirror YANG path per `config.md`
 
 ## Key decisions
 
@@ -25,7 +25,7 @@ Promoted `ze.rs.chan.size` env var to a YANG config leaf at
 ## Review catch
 
 Initial implementation used `ze.rs.worker-queue-size` which violates the
-`config-naming.md` hierarchy rule (env var path must mirror YANG tree path).
+`config.md` hierarchy rule (env var path must mirror YANG tree path).
 Corrected to `ze.bgp.route-server.worker-queue-size` during review.
 
 ## Files

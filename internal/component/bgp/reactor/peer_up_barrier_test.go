@@ -18,7 +18,7 @@ import (
 // sim.FakeClock alone cannot do this: its After() returns a channel that never
 // fires and cannot be advanced (sim.go:102). Asserting on elapsed time instead
 // would make the test a load detector rather than a behavior test
-// (ai/rules/fix-dont-record.md).
+// (ai/rules/completion.md).
 // It also reports WHEN a wait blocks: After() is evaluated as the select's
 // operand, so a receive on waiting proves the caller reached the wait and has
 // not passed it. That turns "is sendInitialRoutes blocked in the barrier?" into
@@ -181,7 +181,7 @@ func TestPeerUpBarrierTimeoutReleases(t *testing.T) {
 // a config running both bgp-rib (bound, sends routes) and bgp-rs (registers the
 // forward target) would let whichever signaled first cover the other, and the
 // End-of-RIB could again precede registration -- the exact defect, restored in
-// the configuration where it matters most (ai/rules/fail-closed-guards.md).
+// the configuration where it matters most (ai/rules/evidence.md).
 //
 // Each half asserts BOTH directions: the wrong barrier stayed shut AND the
 // right one opened. Absence alone would also pass if the signal were inert.
@@ -252,7 +252,7 @@ func TestPeerUpBarrierResetPerSession(t *testing.T) {
 // both read as expected==0, so without the armed flag a single early signal
 // satisfies `count >= expected`, closes the channel and spends the sync.Once,
 // leaving the session's barrier open for good with no way back
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestPeerUpBarrierSignalBeforeArmDoesNotOpenIt(t *testing.T) {
 	peer := newBarrierPeer(t)
 
@@ -360,7 +360,7 @@ func TestReactorPeerUpBarrierSetRoutesToNonDefaultPort(t *testing.T) {
 // PREVENTS: a stale or typo'd address silently reverting a peer to the
 // unguarded behavior, leaving no evidence at all -- the miss the layer that
 // knows about it is the only one able to report
-// (ai/rules/fail-closed-guards.md, "or say something").
+// (ai/rules/evidence.md, "or say something").
 func TestReactorPeerUpBarrierUnknownPeerWarns(t *testing.T) {
 	rec := &warnRecorder{}
 	old := slog.Default()

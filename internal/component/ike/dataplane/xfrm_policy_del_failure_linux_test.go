@@ -8,7 +8,7 @@
 //
 // It runs where the entry point does. policy_owner_test.go drives the helper on every OS;
 // driving the helper alone would leave the wiring between the two unproven, which is the
-// exact shape ai/rules/fail-closed-guards.md names.
+// exact shape ai/rules/evidence.md names.
 //
 // No kernel is touched: the xfrmPolicyDel seam is swapped for the duration, because no
 // real kernel refuses a well-formed delete on demand for a reason other than ENOENT. That

@@ -61,7 +61,7 @@ var (
 // hubStartupSink (subsystem.go) is minimal: it harvests the plugin's declared
 // commands and schema, delivers nil config and nil registry, and runs a single
 // connection with no barrier. New callers implement this interface rather than
-// the driver growing a per-caller branch (ai/rules/plugin-self-containment.md).
+// the driver growing a per-caller branch (ai/rules/plugins.md).
 type startupSink interface {
 	// conn returns the connection the handshake runs over. Called once, first.
 	conn() *pluginipc.PluginConn

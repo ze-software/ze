@@ -11,7 +11,7 @@ import (
 
 // doctorChecks registers the readiness check for traffic-usage. The plugin owns
 // the traffic-usage config block, so it owns the eBPF availability check (see
-// ai/rules/doctor-checks.md).
+// ai/rules/repo-maintenance.md).
 func doctorChecks() []registry.DoctorCheckDef {
 	return []registry.DoctorCheckDef{{
 		Name:         "traffic-usage-ebpf",

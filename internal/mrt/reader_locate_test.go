@@ -4,7 +4,7 @@
 // the record's own fields ("peer entry 3 ip: mrt: short data"), which on a
 // multi-GB RIB dump locates nothing: the user cannot find the record, cannot
 // trim the file, and cannot tell the collector operator what to look at
-// (ai/rules/error-messages.md, leg 3 "what to do next").
+// (ai/rules/cli.md, leg 3 "what to do next").
 package mrt
 
 import (

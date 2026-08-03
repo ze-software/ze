@@ -20,9 +20,9 @@ every row was done or re-deferred with a destination.
   validates these refs at runtime, not config-load.
 - Item 3 (AS-Confederation OTC, RFC 9234 §5) re-deferred unchanged by user
   decision 2026-07-08 over implementing it: ze is a single-AS speaker
-  (`role.getLocalASN`, role.go:66) with no confederation-member config, so §5's
+  (`role.getLocalASN`, role.go) with no confederation-member config, so §5's
   confederation rules are vacuously satisfied and the existing OTC egress
-  (otc.go:429, checkOTCEgress otc.go:201) is already correct; true confed OTC
+  (otc.go, checkOTCEgress otc.go) is already correct; true confed OTC
   requires building confederation-member support first (future dedicated spec).
 - Item 1 (GR advanced) split by RFC/subsystem to `plan/spec-gr-advanced.md`
   (hard-reset RFC 8538 + selection-deferral RFC 4724 §4.1); VPN ATTR_SET

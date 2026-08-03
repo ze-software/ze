@@ -54,7 +54,7 @@ validation against FRR over raw L2 is pending a Linux execution host (see below)
   `flooding_wiring.go` (matching the existing `lsdb_wiring.go`/`dis_wiring.go`
   split), NOT threaded through circuit/lsdb. It constructs the Flooder, installs the
   dispatcher handlers, runs the flood/PSNP/P2P-CSNP timers, and fires the P2P initial
-  CSNP from the circuit onUp hook (`circuits.go:155`).
+  CSNP from the circuit onUp hook (`circuits.go`).
 - Flooder metrics are held in one immutable struct (`flooderMetrics`) behind an
   atomic pointer. `SetMetrics` publishes the whole handle set with one atomic store;
   the hot path loads it with one atomic load -- cheaper than a per-counter lock and

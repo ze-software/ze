@@ -82,7 +82,7 @@ existing compare functional tests never exercised compare at all.
   code -- nearly recorded a Known Limitation that did not exist.
 - Twice during design a new surface was proposed without grepping for the existing sibling that already
   solved it (config home -> `environment cli format default`; pruning layer -> `PruneInactive`).
-  `ai/rules/design-context.md` already forbids this. The trigger to watch is any "where does this go?"
+  `ai/rules/architecture.md` already forbids this. The trigger to watch is any "where does this go?"
   question.
 
 ## Files

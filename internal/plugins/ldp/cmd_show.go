@@ -11,7 +11,7 @@
 // re-Dispatch the command string, which would re-match this same builtin and
 // recurse until the stack overflows. Owned by the ldp component so that removing
 // it removes the `show ldp ...` command, its schema, and these handlers
-// together. See ai/rules/plugin-self-containment.md and
+// together. See ai/rules/plugins.md and
 // internal/component/bgp/plugins/cmd/rib/rib.go for the canonical proxy.
 
 package ldp

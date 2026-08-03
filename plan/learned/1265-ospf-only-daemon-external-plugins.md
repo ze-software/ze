@@ -38,7 +38,7 @@ hit them.
   (`internal/component/plugin/server/system.go`) called `RequireReactor` +
   `ctx.Reactor().Stop()`. A reactorless daemon could not be stopped by command and
   hung. The trap: `Coordinator.FullReactor` (`internal/component/plugin/
-  coordinator.go:112`) returns the coordinator ITSELF as a no-op fallback, so
+  coordinator.go`) returns the coordinator ITSELF as a no-op fallback, so
   `ctx.Reactor()` is non-nil even without BGP and `RequireReactor` passes -- the
   no-op `coordinator.Stop()` then does nothing. Fix: a reactor-independent
   `Server.shutdownFunc` (wired ungated in `cmd/ze/hub/main.go` to a non-blocking

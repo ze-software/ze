@@ -1,6 +1,6 @@
 //go:build ze_web
 
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able web service
+// Design: ai/rules/plugins.md -- compile-out-able web service
 // Overview: main_servers.go -- shared hub server helpers
 package hub
 

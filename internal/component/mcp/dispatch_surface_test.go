@@ -32,7 +32,7 @@ const dispatchSwitchName = "dispatchMethod"
 //
 // Every step below fails the test rather than returning an empty set. A rename
 // that made this silently find nothing would restore the blind spot it exists to
-// close (ai/rules/fail-closed-guards.md).
+// close (ai/rules/evidence.md).
 func dispatchSwitchMethods(t *testing.T) map[string]struct{} {
 	t.Helper()
 

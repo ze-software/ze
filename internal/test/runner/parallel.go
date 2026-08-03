@@ -287,7 +287,7 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			// correct -- a contradicting directive may sit after the break, or the
 			// marker itself may be what was mis-parsed. Honoring it means
 			// trusting the broken file's own claim that it need not run, which is
-			// the fail-open shape (ai/rules/fail-closed-guards.md).
+			// the fail-open shape (ai/rules/evidence.md).
 			//
 			// The consequences are asymmetric too. A wrongly-SKIPPED malformed
 			// file is invisible forever -- that is exactly how the test/ui suite

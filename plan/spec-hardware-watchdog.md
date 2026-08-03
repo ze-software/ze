@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md`
-3. `ai/rules/qemu-testing.md` - `/dev/watchdog` is a kernel device; QEMU tests mandatory
+3. `ai/rules/platform-linux.md` - `/dev/watchdog` is a kernel device; QEMU tests mandatory
 4. `internal/appliance/kernelreq.go` - the kernel requirement floor
 5. `internal/component/host/doc.go` - the host layer (read-only today)
 
@@ -45,9 +45,9 @@ Add a hardware watchdog:
   -> Constraint: add the watchdog kernel option(s) to the floor so the built kernel actually exposes `/dev/watchdog`.
 - [ ] `internal/component/host/doc.go` - the host layer is documented as read-only, stateless inventory.
   -> Decision: the watchdog is stateful (owns a device fd + a pet timer), so it is a NEW sibling component, not an addition to the read-only host inventory.
-- [ ] `ai/rules/qemu-testing.md` - device behaviour is kernel-level.
+- [ ] `ai/rules/platform-linux.md` - device behaviour is kernel-level.
   -> Constraint: the watchdog arm/pet/reboot behaviour is validated in QEMU, never skipped for "needs hardware".
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - YANG vs env var, kebab-case.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - YANG vs env var, kebab-case.
   -> Constraint: enable + timeout are YANG leaves under a system container.
 
 **Key insights:**
@@ -58,9 +58,9 @@ Add a hardware watchdog:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/appliance/kernelreq.go` - `runtimeKernelRequirements` (kernelreq.go:27-34) lists MODULES/PPP/PPPOE/L2TP options; there is NO `CONFIG_WATCHDOG` or `*_WDT` entry, so the built kernel is not guaranteed to expose `/dev/watchdog`. `enforceKernelRequirements` (kernelreq.go:36) checks the floor.
+- [ ] `internal/appliance/kernelreq.go` - `runtimeKernelRequirements` (kernelreq.go) lists MODULES/PPP/PPPOE/L2TP options; there is NO `CONFIG_WATCHDOG` or `*_WDT` entry, so the built kernel is not guaranteed to expose `/dev/watchdog`. `enforceKernelRequirements` (kernelreq.go) checks the floor.
 - [ ] `internal/component/host/doc.go` - the host package is "read-only, stateless" hardware inventory (doc.go top comment); it never opens a device fd or runs a timer.
-- [ ] `internal/component/bgp/plugins/watchdog/register.go` - the only "watchdog" in the tree registers plugin `bgp-watchdog`, "Watchdog route management plugin" (register.go:19-20). This is BGP route health, NOT `/dev/watchdog`; it is unrelated and untouched.
+- [ ] `internal/component/bgp/plugins/watchdog/register.go` - the only "watchdog" in the tree registers plugin `bgp-watchdog`, "Watchdog route management plugin" (register.go). This is BGP route health, NOT `/dev/watchdog`; it is unrelated and untouched.
 
 **Behavior to preserve:**
 - gokrazy crash-restart of the ze process is unchanged.
@@ -274,5 +274,5 @@ Add a hardware watchdog:
 
 ### Post-wave corrections (2026-07-10)
 
-- New gate obligation: the followup wave added `ze-platform-vet` (`Makefile:337-341`), which vets `./internal/component/host/...`, `./internal/component/iface/...`, and `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd; it runs in the live `ze-verify` stage list in both branches (`scripts/status/verify_run.go:128`, `:141`). The `/dev/watchdog` open/ioctl/pet code is Linux-only, so the new component MUST follow the `_linux.go`/`_other.go` split convention regardless (a macOS dev host builds the tree). Additionally, this spec plans the component as a sibling of `internal/component/host/` (Files to Create: `internal/component/watchdog/`), which is NOT in the gate's current package list -- the design must either extend the `ze-platform-vet` package list to the new tree or place the platform-split code under an already-vetted tree, so the non-Linux stubs cannot rot silently.
-- `ze-system-conf.yang` (Files to Modify) was restructured by the wave: it gained resolver-related leaves including `dnssec-validation` (`internal/component/config/system/yang/ze-system-conf.yang:66`). No `watchdog` symbol exists anywhere in that file (grep 2026-07-10), so there is no conflict, but the planned `watchdog` container edit must rebase onto the current file layout at design time.
+- New gate obligation: the followup wave added `ze-platform-vet` (`Makefile:337-341`), which vets `./internal/component/host/...`, `./internal/component/iface/...`, and `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd; it runs in the live `ze-verify` stage list in both branches (`scripts/status/verify_run.go`, `:141`). The `/dev/watchdog` open/ioctl/pet code is Linux-only, so the new component MUST follow the `_linux.go`/`_other.go` split convention regardless (a macOS dev host builds the tree). Additionally, this spec plans the component as a sibling of `internal/component/host/` (Files to Create: `internal/component/watchdog/`), which is NOT in the gate's current package list -- the design must either extend the `ze-platform-vet` package list to the new tree or place the platform-split code under an already-vetted tree, so the non-Linux stubs cannot rot silently.
+- `ze-system-conf.yang` (Files to Modify) was restructured by the wave: it gained resolver-related leaves including `dnssec-validation` (`internal/component/config/system/yang/ze-system-conf.yang`). No `watchdog` symbol exists anywhere in that file (grep 2026-07-10), so there is no conflict, but the planned `watchdog` container edit must rebase onto the current file layout at design time.

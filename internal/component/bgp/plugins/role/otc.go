@@ -157,7 +157,7 @@ func attrHeaderAt(attrs []byte, off int) (code byte, valStart, hdrLen, attrLen i
 // An UPDATE carrying neither attribute is the RFC 4271 native encoding, whose
 // NLRI and Withdrawn Routes fields are IPv4 unicast by definition. Returning
 // true there is a positive family determination, not an absence-of-evidence
-// default (ai/rules/fail-closed-guards.md).
+// default (ai/rules/evidence.md).
 func isPayloadUnicast(payload []byte) bool {
 	attrs := extractAttrsFromPayload(payload)
 	if attrs == nil {
@@ -246,7 +246,7 @@ func isPayloadUnicast(payload []byte) bool {
 // Both shapes therefore return false here and are forwarded untouched. The
 // guard fires on positive evidence that a route IS carried, so an unreadable
 // or unrecognized payload is never stamped by default
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func payloadAdvertisesNLRI(payload []byte) bool {
 	if len(payload) < 4 {
 		return false
@@ -524,7 +524,7 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 // ingress filter. RelayStoredRoute replays out of the Adj-RIB-In with no
 // ingress metadata, and treating a missing key as "no restriction" silently
 // skipped an RFC 9234 Section 5 leak guard on that path -- the zero-value trap
-// in ai/rules/fail-closed-guards.md, where the absent value selects the
+// in ai/rules/evidence.md, where the absent value selects the
 // permissive branch. A relay path is not the only caller that can lack meta,
 // so the fix is at the read, not at the one caller.
 //
@@ -537,7 +537,7 @@ func resolveSrcRole(meta map[string]any, srcCfg *peerRoleConfig) string {
 		if role, ok := raw.(string); ok && role != "" {
 			return role
 		}
-		// Fail closed AND say so (ai/rules/fail-closed-guards.md). The fallback
+		// Fail closed AND say so (ai/rules/evidence.md). The fallback
 		// below already denies correctly; without this line a producer bug is
 		// unobservable. The risk is real, not theoretical: ingressMeta is one
 		// map shared by every in-process ingress filter
@@ -574,7 +574,7 @@ var peerRoleComplement = map[string]string{
 // 9234 Section 4.2's SHOULD-ignore (validate.go:88-94).
 //
 // Empty then selected the permissive branch of every Section 5 gate. That is
-// the zero-value trap of ai/rules/fail-closed-guards.md, and it was present at
+// the zero-value trap of ai/rules/evidence.md, and it was present at
 // all THREE readers of getFilterConfig, not just the two that sit two lines
 // apart. RFC 9234 Section 4.2 settles which value the procedures take: "The
 // locally configured BGP Role is used for the procedures described in Section
@@ -596,7 +596,7 @@ func resolvePeerRole(capRole string, cfg *peerRoleConfig) string {
 	}
 	role, ok := peerRoleComplement[cfg.role]
 	if !ok && cfg.role != "" {
-		// Fail closed AND say so (ai/rules/fail-closed-guards.md). Unreachable
+		// Fail closed AND say so (ai/rules/evidence.md). Unreachable
 		// while parseRoleContainer rejects any name outside roleValues
 		// (config.go:72), so this fires only if that validation and this table
 		// drift apart -- exactly the case a silent "" would hide.
@@ -715,7 +715,7 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 				logger().Debug("OTC egress stamp mod",
 					"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole, "otc-asn", localASN)
 			} else {
-				// Fail closed and say so (ai/rules/fail-closed-guards.md): a peer
+				// Fail closed and say so (ai/rules/evidence.md): a peer
 				// with no local AS cannot be established (config parsing rejects
 				// it), so a zero here signals a wiring gap, not a valid answer.
 				logger().Warn("OTC egress stamp skipped: no local AS for destination peer",
@@ -751,7 +751,7 @@ func otcAttrModHandler(p *filterapi.AttrPlan) {
 	// discarded a Suppress operation in exactly the silence that let the same
 	// blind spot in the community handler ship a fail-open: the operation was
 	// consumed, the attribute re-emitted, and nothing said so. A guard that
-	// neither denies nor speaks does not exist (ai/rules/fail-closed-guards.md).
+	// neither denies nor speaks does not exist (ai/rules/evidence.md).
 	//
 	// No production producer emits Suppress for code 35 today, so this branch is
 	// latent. It exists so the producer that eventually does gets a line naming

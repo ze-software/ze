@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. Child specs: `spec-improve-1-*` through `spec-improve-6-*`
-4. `ai/rules/comparison-honesty.md` -- rules for cross-project claims
+4. `ai/rules/writing.md` -- rules for cross-project claims
 
 ## Task
 
@@ -44,16 +44,16 @@ any external behavior that shapes a design decision against primary sources dire
 
 | Review finding | Decision | Reason |
 |----------------|----------|--------|
-| 3: uniform typed routing-protocol contract (the reviewed daemon's per-protocol trait shape) | Declined as a standalone registration layer | Ze's generic plugin `Registration` (`internal/component/plugin/registry/registry.go:39`) is load-bearing (see `ai/rules/plugin-self-containment.md`); protocols in Ze are components plus many small plugins, not per-protocol monoliths. The predictability benefit ("a maintainer knows where config, state, RPC, tests live") is delivered instead by the conformance fixture format (improve-4) and the state-provider registry (improve-2). Revisit only if OSPF/IS-IS maturation shows real drift between protocol implementations |
+| 3: uniform typed routing-protocol contract (the reviewed daemon's per-protocol trait shape) | Declined as a standalone registration layer | Ze's generic plugin `Registration` (`internal/component/plugin/registry/registry.go`) is load-bearing (see `ai/rules/plugins.md`); protocols in Ze are components plus many small plugins, not per-protocol monoliths. The predictability benefit ("a maintainer knows where config, state, RPC, tests live") is delivered instead by the conformance fixture format (improve-4) and the state-provider registry (improve-2). Revisit only if OSPF/IS-IS maturation shows real drift between protocol implementations |
 | 4: protocol breadth (RIP, VRRP, IGMP...) | Declined | The review itself recommends against chasing breadth before contracts. Ze's product center (appliance NOS + BGP + growing IGP work) does not need RIP/VRRP/IGMP now. No spec |
-| 9: CI fuzz-target and benchmark buildability checks | Declined | The reviewed daemon is Rust, where fuzz targets are separate crates not built by `cargo test`, so buildability needs its own CI check. In Go, fuzz targets and benchmarks are ordinary `_test.go` functions (e.g. `internal/component/l2tp/avp_fuzz_test.go`, run via `go test -fuzz` in `mk/test-fuzz.mk:14`) compiled by every `make ze-unit-test` run, and `bin/ze-perf` builds from `cmd/ze` + `internal` (`Makefile:184`), covered by lint/build. The buildability gap the review's CI check closes does not exist in Ze. Arm64 smoke coverage may deserve its own future discussion (gokrazy targets) but is unrelated to this set |
+| 9: CI fuzz-target and benchmark buildability checks | Declined | The reviewed daemon is Rust, where fuzz targets are separate crates not built by `cargo test`, so buildability needs its own CI check. In Go, fuzz targets and benchmarks are ordinary `_test.go` functions (e.g. `internal/component/l2tp/avp_fuzz_test.go`, run via `go test -fuzz` in `mk/test-fuzz.mk`) compiled by every `make ze-unit-test` run, and `bin/ze-perf` builds from `cmd/ze` + `internal` (`Makefile:184`), covered by lint/build. The buildability gap the review's CI check closes does not exist in Ze. Arm64 smoke coverage may deserve its own future discussion (gokrazy targets) but is unrelated to this set |
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/comparison-honesty.md` - governs how external claims are cited
+- [ ] `ai/rules/writing.md` - governs how external claims are cited
   → Constraint: unverified claims about other daemons must be labeled as from the review, not asserted
-- [ ] `ai/rules/plugin-self-containment.md` - why finding 3 was declined
+- [ ] `ai/rules/plugins.md` - why finding 3 was declined
   → Constraint: no new per-feature field, switch, or factory in core/shared packages
 
 ### RFC Summaries (MUST for protocol work)
@@ -106,7 +106,7 @@ any external behavior that shapes a design decision against primary sources dire
 - [ ] No bypassed layers (children front existing machinery)
 - [ ] No unintended coupling (children independent except improve-4 -> improve-3)
 - [ ] No duplicated functionality (each child extends, does not recreate)
-- [ ] Registration over hardcoding -- every new provider/handler registers via the existing registry (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding -- every new provider/handler registers via the existing registry (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -175,7 +175,7 @@ Umbrella only: user stories live in child specs.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | All six children exist and are individually schedulable |
-| Registration over hardcoding | Children register providers/handlers via the existing registry; no new core switch/factory (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | Children register providers/handlers via the existing registry; no new core switch/factory (`ai/rules/plugins.md`) |
 | Comparison honesty | No unverified external claim asserted as fact in any child |
 
 ## Mistake Log

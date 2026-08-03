@@ -377,7 +377,7 @@ func TestEvidenceNightlyIsAdvisory(t *testing.T) {
 // home again -- `option=needs-linux:caps=net-admin` makes those tests SKIP on the
 // unprivileged verify runner, so this workflow is the only thing that executes
 // them, and a lost target here converts a redirection into a deletion
-// (ai/rules/no-parking.md); (b) the VM run creeping onto push/pull_request, where
+// (ai/rules/completion.md); (b) the VM run creeping onto push/pull_request, where
 // a 3600s boot-plus-suite budget would sit in front of every merge.
 func TestQemuNightlyIsScheduledAdvisoryAndRunsTheLinuxOnlySuite(t *testing.T) {
 	on := onBlock(t, "qemu-nightly.yml")
@@ -411,7 +411,7 @@ func TestQemuNightlyIsScheduledAdvisoryAndRunsTheLinuxOnlySuite(t *testing.T) {
 // PREVENTS: the silent-coverage-deletion failure mode. A caps= option makes a
 // test skip on every host lacking the capability, INCLUDING the verify runner,
 // so marking tests with it and having no privileged runner would turn a red
-// suite into a green one by removing the coverage (ai/rules/no-parking.md).
+// suite into a green one by removing the coverage (ai/rules/completion.md).
 //
 // The earlier version of this test accepted ANY `ze-qemu-*` target, which was
 // fail-open: `ze-qemu-debug`, `ze-qemu-l2tp-ppp-test` and friends satisfy that

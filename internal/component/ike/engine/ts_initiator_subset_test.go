@@ -185,7 +185,7 @@ func TestTisTransportModeAnswerIsNotRefusedByPolicyPrefixes(t *testing.T) {
 //
 // PREVENTS: the fail-open guard this test exists for. Both exits returned nil, which skipped
 // checkAnswerWithin AND left NegotiatedPairs unset, so the caller read success over an
-// answer that was neither checked nor adopted (ai/rules/fail-closed-guards.md).
+// answer that was neither checked nor adopted (ai/rules/evidence.md).
 func TestTisUndecodableAnswerIsRefusedRatherThanIgnored(t *testing.T) {
 	sa := tisInitiator(t, tisPeer(t))
 

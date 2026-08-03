@@ -9,7 +9,7 @@ vertices and Extended IS Reachability (TLV 22) adjacencies as wide-metric edges,
 runs Dijkstra rooted at self for L1 and L2 with ECMP, honours the overload bit,
 performs RFC 2966 L1<->L2 leaking with the up/down bit, and installs the result by
 INSERTING `locrib.Path` values into the shared cross-protocol Loc-RIB exactly as BGP
-does (`rib_bestchange.go:813`). It layers on isis-5/6/7/8, which already existed
+does (`rib_bestchange.go`). It layers on isis-5/6/7/8, which already existed
 (sibling agents). The whole tree builds (darwin+linux), all spf unit tests pass under
 -race, and golangci-lint is clean. The implementation is DONE; on-the-wire interop
 validation (QEMU + FRR) is pending Linux execution.
@@ -18,7 +18,7 @@ validation (QEMU + FRR) is pending Linux execution.
 - **Install is Loc-RIB INSERTION, not redistevents.** The single most important
   design call: IS-IS becomes a Loc-RIB source like BGP (`install.go` ->
   `loc.InsertForward(fam, pfx, locrib.Path{Source = IS-IS ProtocolID, Instance,
-  NextHop, AdminDistance 115, Metric}, nil)`), mirroring `rib_bestchange.go:813`.
+  NextHop, AdminDistance 115, Metric}, nil)`), mirroring `rib_bestchange.go`.
   `redistevents` feeds the redistribute-orchestrator (redistribution to other
   protocols, isis-11) and NEVER installs to the FIB. The ProtocolID is registered
   once via `redistevents.RegisterProtocol("isis")` and exposed by `ProtocolID()` so

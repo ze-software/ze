@@ -20,7 +20,7 @@ eliminated all `strconv.Itoa` + concat patterns and enhanced the `textbuf` libra
   - Removed hidden `init()` branch from every method call
 - persist/rr plugins: struct-level Buffer field with `Slice()` for per-UPDATE commands
 - Updated `/ze-review` and `/ze-review-deep` to catch these patterns
-- Updated `ai/rules/no-sprintf-alloc.md` to ban single Itoa concat
+- Updated `ai/rules/performance.md` to ban single Itoa concat
 
 ## Lessons
 

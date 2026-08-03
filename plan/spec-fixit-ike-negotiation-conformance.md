@@ -30,15 +30,15 @@ Three MUST-level obligations of RFC 7296, each verified against the producing co
 > If the responder selects a proposal using a different Diffie-Hellman group (other than NONE), the responder MUST reject the request and indicate its preferred Diffie-Hellman group in the INVALID_KE_PAYLOAD Notify payload
 
 `respondIKERekey` checks only that the KEi payload is not empty
-(`internal/component/ike/engine/rekey.go:454`). It negotiates a proposal at `:459`. It then
+(`internal/component/ike/engine/rekey.go`). It negotiates a proposal at `:459`. It then
 builds `crypto.NewDHExchange(chosen.DHGroup.ID)` at `:464`, from the group IT chose, and it
 never compares that against the group the initiator's KEi was computed for.
 
 `NotifyInvalidKEPayload` has exactly ONE use in the tree,
-`internal/component/ike/engine/responder.go:139`, on the IKE_SA_INIT path. The
+`internal/component/ike/engine/responder.go`, on the IKE_SA_INIT path. The
 CREATE_CHILD_SA path builds no Notify at all.
 
-`DHExchange.SharedSecret` (`internal/component/ike/crypto/dh.go:79-87`) accepts any peer
+`DHExchange.SharedSecret` (`internal/component/ike/crypto/dh.go`) accepts any peer
 value in the open interval (1, p-1). A value for another group is read as a big integer and
 exponentiated. The result is a shared secret both sides compute differently. Silent wrong
 keys, where the RFC requires INVALID_KE_PAYLOAD.
@@ -48,8 +48,8 @@ keys, where the RFC requires INVALID_KE_PAYLOAD.
 <!-- ste: ignore -->
 > The new IKE SA containing the lowest nonce SHOULD be deleted by the node that created it, and the other surviving new IKE SA MUST inherit all the Child SAs
 
-`resolveRekeyCollision` (`internal/component/ike/engine/rekey.go:418`) has exactly one
-caller, `internal/component/ike/engine/inbound.go:174`, and that call sits inside the CHILD
+`resolveRekeyCollision` (`internal/component/ike/engine/rekey.go`) has exactly one
+caller, `internal/component/ike/engine/inbound.go`, and that call sits inside the CHILD
 rekey branch. The IKE rekey branch never reads `ps.pendingRekey`, so Ze answers an inbound
 IKE rekey while its own IKE rekey is in flight. No nonce is compared, and no losing SA is
 deleted.
@@ -62,16 +62,16 @@ incidental rather than expressed, and nothing proves it.
 <!-- ste: ignore -->
 > The initiator of an exchange MUST check that the accepted offer is consistent with one of its proposals, and if not MUST terminate the exchange
 
-`crypto.NegotiateIKE` has three call sites. `internal/component/ike/engine/fsm.go:437`
+`crypto.NegotiateIKE` has three call sites. `internal/component/ike/engine/fsm.go`
 re-checks the accepted offer at IKE_SA_INIT and sets `StateDead` on failure.
-`internal/component/ike/engine/responder.go:124` is the responder negotiating.
-`internal/component/ike/engine/rekey.go:459` is the responder re-negotiating on IKE rekey.
+`internal/component/ike/engine/responder.go` is the responder negotiating.
+`internal/component/ike/engine/rekey.go` is the responder re-negotiating on IKE rekey.
 
 The INITIATOR performs no check at IKE_AUTH SAr2
-(`internal/component/ike/engine/fsm.go:561-566`, which takes the SPI only), at
-`applyChildRekeyResponse` (`internal/component/ike/engine/rekey.go:102-135`, which takes
+(`internal/component/ike/engine/fsm.go`, which takes the SPI only), at
+`applyChildRekeyResponse` (`internal/component/ike/engine/rekey.go`, which takes
 keys from `old.ESPGroup.Proposals[0]`), or at `applyIKERekeyResponse`
-(`internal/component/ike/engine/rekey.go:345-414`, which reuses `oldSA.Proposal`).
+(`internal/component/ike/engine/rekey.go`, which reuses `oldSA.Proposal`).
 
 Because `respondIKERekey` genuinely re-negotiates, a responder that picks a different suite
 leaves the two sides deriving the new IKE SA with different algorithms.
@@ -83,7 +83,7 @@ leaves the two sides deriving the new IKE SA with different algorithms.
 | `rfc/short/rfc7296.md` | The three checklist rows this spec unblocks |
 | `rfc/full/rfc7296.txt` sections 1.3, 2.8.2, 3.3.6 | The obligations, verbatim. The file is line-wrapped |
 | `ai/rules/rfc-compliance.md` | Conformance is not negotiable, and who decides a deviation |
-| `ai/rules/no-fabrication.md` | Cite the producing function, never the caller |
+| `ai/rules/evidence.md` | Cite the producing function, never the caller |
 | `plan/spec-fixit-ike-request-window.md` | The pattern this spec follows, and the shared request-window slot that landed with it |
 
 ## Current Behavior (MANDATORY)
@@ -102,7 +102,7 @@ caller. `NotifyInvalidKEPayload` was confirmed to have one use tree-wide.
 `resolveRekeyCollision` was confirmed to have one caller. `crypto.NegotiateIKE` was
 confirmed to have three call sites, only one of which is an initiator re-check.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
@@ -150,14 +150,14 @@ Each row's approach is an owner ruling taken on 2026-07-30.
 `internal/component/ike/engine` and `internal/component/ike/crypto`. The DH hardening is
 the widest edge: `SharedSecret` is on the key-derivation path of every exchange, so a wrong
 length bound would break working handshakes. Bound it by the group's modulus length, which
-`padBigInt` (`crypto/dh.go:105-113`) already produces on the send side.
+`padBigInt` (`crypto/dh.go`) already produces on the send side.
 
 ## Risks & Assumptions
 
 | Id | Statement | Basis | Validation |
 |----|-----------|-------|------------|
-| A-1 | The KE payload carries the group it was computed for | `wire.PayloadKE` has a `DHGroup` field, read at `responder.go:135-142` | Read `wire/payload_ke.go` first, then rely on it |
-| A-2 | `padBigInt` already fixes the send-side length per group | Verified 2026-07-30: `crypto/dh.go:56` pads to 256 for MODP-2048 | A test asserts the length equals the modulus length, derived not hardcoded |
+| A-1 | The KE payload carries the group it was computed for | `wire.PayloadKE` has a `DHGroup` field, read at `responder.go` | Read `wire/payload_ke.go` first, then rely on it |
+| A-2 | `padBigInt` already fixes the send-side length per group | Verified 2026-07-30: `crypto/dh.go` pads to 256 for MODP-2048 | A test asserts the length equals the modulus length, derived not hardcoded |
 | R-1 | A length bound in `SharedSecret` rejects a legitimate peer | Some peers send an unpadded value, which is shorter than the modulus | Decide explicitly whether to accept a SHORT value and left-pad it, or refuse it. Prove the chosen behaviour against a value with a natural short encoding |
 | R-2 | Collision resolution deletes the wrong SA | The nonce comparison decides the winner | Drive both orderings in a test, and assert the survivor from each side |
 
@@ -267,14 +267,14 @@ the same integer that `SetBytes(remotePublic)` produces today. That branch chang
 behaviour, and AC-3 asks for a named refusal. The branch cannot implement AC-3.
 
 The repository already holds the proof. `TestRFC7296MODPShortPublicValueHasNoSecondGuard`
-(`crypto/rfc7296_dh_test.go:111-121`) asserts that the short value and the padded value
+(`crypto/rfc7296_dh_test.go`) asserts that the short value and the padded value
 give the SAME secret. That is the left-pad branch, measured.
 
 Three more reasons support the refusal:
 
 | Reason | Detail |
 |--------|--------|
-| The RFC puts the obligation on the sender | Section 3.4 makes the pad a MUST. A short value is a peer that did not conform, and `ai/rules/fail-closed-guards.md` says deny rather than guess |
+| The RFC puts the obligation on the sender | Section 3.4 makes the pad a MUST. A short value is a peer that did not conform, and `ai/rules/evidence.md` says deny rather than guess |
 | A short value cannot be told apart from another group | An ECP-256 public value is 65 octets. To a MODP-2048 exchange it is "short". Accepting short is therefore accepting the mismatched group the owner ruling exists to close |
 | ECP is already strict | `ecdh.PXXX().NewPublicKey` refuses any length but its own. The refusal makes MODP behave the same way, so the primitive is uniform |
 
@@ -413,6 +413,6 @@ is not authorized to make that change on its own.
 
 `RFC7296-1.4.1-3` and `RFC7296-1.4.1-2` stay unimplemented and are NOT in scope here.
 Both need per-direction Child SA teardown, which Ze does not have. `removeChildSA`
-(`internal/component/ike/engine/child.go:329-347`) always drops both halves together.
-`handleDeletePayload` (`internal/component/ike/engine/inbound.go:305-316`) never reads the
+(`internal/component/ike/engine/child.go`) always drops both halves together.
+`handleDeletePayload` (`internal/component/ike/engine/inbound.go`) never reads the
 Delete payload's SPIs. That is separate machinery and it belongs to its own spec.

@@ -27,7 +27,7 @@ created it.
 
 ### Leak 1: a failed state delete strands the raw ESP socket
 
-`RemoveSA` (`internal/component/ike/dataplane/xfrm_linux.go:163`) calls
+`RemoveSA` (`internal/component/ike/dataplane/xfrm_linux.go`) calls
 `netlink.XfrmStateDel` at `:169` and returns its error immediately. The
 `b.espForms.Forget(spi)` call sits below it at `:175`, so a delete that fails skips
 the forget and the SPI stays in the map forever.
@@ -49,7 +49,7 @@ keeps IKE traffic out of IPsec processing for a daemon that is no longer running
 
 ### Leak 3: an SAUp event with no paired SADown
 
-`runInitiator` emits `SAUp` at `internal/component/ike/engine/fsm.go:238`, then
+`runInitiator` emits `SAUp` at `internal/component/ike/engine/fsm.go`, then
 returns `ps.runEstablished(...)` at `:249`. Nothing on that path emits `SADown`.
 
 `runResponder` is the control that shows this is a defect rather than a design
@@ -72,9 +72,9 @@ lands.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/fail-closed-guards.md` - the early-return shape is the failure mode it names
+- [ ] `ai/rules/evidence.md` - the early-return shape is the failure mode it names
   → Constraint: a cleanup that a miss or an error skips must fail loudly, never silently leave the resource held
-- [ ] `ai/rules/api-contracts.md` - paired-operation documentation
+- [ ] `ai/rules/go-standards.md` - paired-operation documentation
   → Constraint: a paired operation (acquire/release, Emit-up/Emit-down) states the obligation in the godoc using MUST
 
 ### RFC Summaries (Scope: protocol)
@@ -105,7 +105,7 @@ lands.
 - Every `p.Run` error exit removes the IKE bypass policies.
 - The initiator path emits `SADown` when its established loop returns.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Operator teardown, peer Delete, DPD timeout, or daemon stop reaches the IKE engine.
@@ -138,7 +138,7 @@ lands.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -282,7 +282,7 @@ lands.
 5. **Phase: Kernel proof** - the functional test on a real kernel
    - Tests: `ipsec-teardown-leaves-nothing`
    - Files: `test/ipsec/ipsec-teardown-leaves-nothing.ci`
-   - Verify: runs in QEMU per `ai/rules/qemu-testing.md`, and reddens when any fix is reverted
+   - Verify: runs in QEMU per `ai/rules/platform-linux.md`, and reddens when any fix is reverted
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -292,8 +292,8 @@ lands.
 | Correctness | The `RemoveSA` error still propagates unchanged after the forget moves |
 | Naming | The new `.ci` name states the invariant, not the mechanism |
 | Data flow | The bypass removal runs once per process, never per peer |
-| Rule: `ai/rules/fail-closed-guards.md` | No cleanup left below an early return anywhere in the three functions |
-| Rule: `ai/rules/api-contracts.md` | The `SAUp` godoc states the `SADown` pairing obligation |
+| Rule: `ai/rules/evidence.md` | No cleanup left below an early return anywhere in the three functions |
+| Rule: `ai/rules/go-standards.md` | The `SAUp` godoc states the `SADown` pairing obligation |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |

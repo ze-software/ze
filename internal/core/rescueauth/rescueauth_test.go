@@ -76,7 +76,7 @@ func TestValueIsCmdlineSafe(t *testing.T) {
 // VALIDATES: AC-3 -- a malformed ze.rescue-auth never authenticates.
 // PREVENTS: A truncated, re-cased, or attacker-supplied cmdline value being
 // treated as "no credential to check" and opening the shell
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestCheckFailsClosedOnMalformedValue(t *testing.T) {
 	salt := testSalt(t)
 	valid := Value("token", salt)

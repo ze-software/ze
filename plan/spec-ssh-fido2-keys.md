@@ -44,7 +44,7 @@ are the config surface and the per-key policy applied at the auth callback.
   -> Constraint: `ParseAuthorizedKey` already accepts `sk-*` lines; the block is purely the YANG enum, so do not fork the parser.
 - [ ] `internal/component/ssh/ssh.go` - the `wish.WithPublicKeyAuth` callback that returns a bool.
   -> Decision: per-key touch/verify policy is enforced here (or in `matchPublicKey`), the single authorization seam.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - YANG leaf naming.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - YANG leaf naming.
   -> Constraint: new leaves are kebab-case under the existing `public-keys` list.
 - [ ] `plan/learned/648-ssh-pubkey.md` - the original pubkey design; note its forward remark that FIDO keys would need no Go change was only half right (enum + policy are needed).
 
@@ -55,14 +55,14 @@ are the config surface and the per-key policy applied at the auth callback.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ssh/pubkey.go` - `matchPublicKey` (pubkey.go:21) loops configured keys, calls `parseConfiguredKey` (pubkey.go:46) which builds `keyType + " " + keyData` and calls `ssh.ParseAuthorizedKey` (pubkey.go:51), then accepts on `ssh.KeysEqual` (pubkey.go:35). No key-type gating beyond what the enum already permits; no touch/verify policy.
-- [ ] `internal/component/ssh/ssh.go` - `wish.WithPublicKeyAuth` (ssh.go:413) returns `true` when `matchPublicKey` returns non-nil profiles (ssh.go:416-423); no per-key policy is consulted.
+- [ ] `internal/component/ssh/pubkey.go` - `matchPublicKey` (pubkey.go) loops configured keys, calls `parseConfiguredKey` (pubkey.go) which builds `keyType + " " + keyData` and calls `ssh.ParseAuthorizedKey` (pubkey.go), then accepts on `ssh.KeysEqual` (pubkey.go). No key-type gating beyond what the enum already permits; no touch/verify policy.
+- [ ] `internal/component/ssh/ssh.go` - `wish.WithPublicKeyAuth` (ssh.go) returns `true` when `matchPublicKey` returns non-nil profiles (ssh.go); no per-key policy is consulted.
 - [ ] `internal/component/ssh/yang/ze-ssh-conf.yang` - the `type` leaf enum (yang lines 61-70) lists only `ssh-rsa`, `ssh-ed25519`, `ecdsa-sha2-nistp256`, `ecdsa-sha2-nistp384`, `ecdsa-sha2-nistp521`. No `sk-*` value.
 
 **Behavior to preserve:**
 - Every classic key that authenticates today still authenticates (the five enum values are unchanged).
 - Password auth and the auth-failure recording path are unchanged.
-- A parse error on any one configured key is logged and skipped, not fatal (pubkey.go:29-33).
+- A parse error on any one configured key is logged and skipped, not fatal (pubkey.go).
 
 **Behavior to change:**
 - The key-type enum accepts the two `sk-*` types, so a security-key credential can be configured and matched.
@@ -104,8 +104,8 @@ are the config surface and the per-key policy applied at the auth callback.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `ssh.ParseAuthorizedKey` accepts `sk-*` lines unchanged | pubkey.go:51; x/crypto sk key types exist | need a custom sk parser | parse a real `sk-*` key in a unit test | unvalidated |
-| A-2 | The wish / `x/crypto` public-key callback exposes enough to enforce `verify-required` (UV) and to require touch beyond the library default | ssh.go:413 callback signature | `verify-required` cannot be enforced server-side; scope to touch only | inspect the callback/permissions during design | unvalidated |
+| A-1 | `ssh.ParseAuthorizedKey` accepts `sk-*` lines unchanged | pubkey.go; x/crypto sk key types exist | need a custom sk parser | parse a real `sk-*` key in a unit test | unvalidated |
+| A-2 | The wish / `x/crypto` public-key callback exposes enough to enforce `verify-required` (UV) and to require touch beyond the library default | ssh.go callback signature | `verify-required` cannot be enforced server-side; scope to touch only | inspect the callback/permissions during design | unvalidated |
 | A-3 | Touch (user-presence) is enforced by `x/crypto` during signature verify for `sk-*` keys | x/crypto sk key verify path | touch must be enforced manually | craft a no-touch signature test | unvalidated |
 
 ### Risks

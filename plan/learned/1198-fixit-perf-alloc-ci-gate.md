@@ -40,7 +40,7 @@ gate blocks merges; the noisy timing check never does.
   `ze-verify` (`.woodpecker/verify.yml`), so AC-3 is met by the `default` branch of
   `stagesForMode` alone; keeping it out of the `-changed` list honors "do not slow the
   inline dev loop." `TestStagesIncludeAllocGate` asserts BOTH directions.
-- **`make ze-perf` is broken; the nightly uses `make perf`.** `mk/perf.mk:16` builds
+- **`make ze-perf` is broken; the nightly uses `make perf`.** `mk/perf.mk` builds
   `./cmd/ze-perf`, which does not exist (ze-perf is `cmd/ze` + tag `ze_perf`,
   `Makefile:164`). Pre-existing bug, out of this spec's scope; the nightly builds via
   `make perf`.

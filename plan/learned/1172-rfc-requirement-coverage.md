@@ -15,7 +15,7 @@ audit + a test-protection hook, and piloted end-to-end on RFC 7606.
 - Author only the TEST-side tag (`// RFC requirement: <id> <polarity>`); DERIVE the
   requirement->test direction into `ai/RFC-REQUIREMENTS.md`. Chose this over hand-writing the
   back-link into the summary because a hand-written back-link outlives the test it names -- the
-  exact silent rot this exists to stop (`ai/rules/derive-not-hardcode.md`). The tag dies with the test.
+  exact silent rot this exists to stop (`ai/rules/evidence.md`). The tag dies with the test.
 - Every gated MUST needs BOTH polarities. A single-polarity test proves the code CAN produce an
   outcome, never that it does so for the right reason (a negative-only test passes if the code
   rejects everything). Escape `{single-polarity: <p>; why}` is itself gated: reason mandatory,
@@ -97,6 +97,6 @@ audit + a test-protection hook, and piloted end-to-end on RFC 7606.
 - `.claude/hooks/pretool-writeedit.py` (rfc-tagged-test hook), `scripts/dev/audit-test-relaxation.py` (shared detector + branch audit), `scripts/dev/hook-fixture-check.py`.
 - `scripts/status/verify_run.go`, `Makefile`, `mk/inventory.mk` (gate wiring).
 - `internal/component/bgp/message/rfc7606.go` (`ValidateNLRISyntaxAddPath`, `validateMPNLRIField`, MP flag check), `internal/component/bgp/message/rfc7606_withdraw.go` (`SynthesizeWithdraw`), `internal/component/bgp/reactor/session_validation.go` (`enforceRFC7606`, `session_read.go` dispatch) + their tests.
-- `docs/features/rfc-status.md`, `docs/functional-tests.md`, `docs/contributing/rfc-implementation-guide.md`, `ai/rules/{testing,tdd,discovery-updates,hook-mapping}.md`, `ai/INDEX.md`.
+- `docs/features/rfc-status.md`, `docs/functional-tests.md`, `docs/contributing/rfc-implementation-guide.md`, `ai/rules/{testing,repo-maintenance}.md`, `ai/INDEX.md`.
 - `test/plugin/rfc7606-reset.ci`, `test/plugin/rfc7606-withdraw.ci`.
 - Backlog: `plan/spec-followup-rfc-enrollment.md`.

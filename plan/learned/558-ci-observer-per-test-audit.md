@@ -118,7 +118,7 @@ a clean starting point.
   two different Role capabilities in the peer's OPEN and a correct
   `"peer sent multiple different Role capabilities"` rejection per RFC
   9234. Fixed by adding `option=open:value=drop-capability:code=9`
-  before the add, mirroring `role-strict-enforcement.ci:10`. Affects
+  before the add, mirroring `role-strict-enforcement.ci`. Affects
   community-priority (phase 3), role-otc-egress-stamp (phase 12),
   role-otc-ingress-reject (phase 14), role-otc-unicast-scope (phase
   15).

@@ -44,9 +44,9 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
   → Constraint: prefix cohort transfers to DEST; PORT has NO natural cohort (cohort-free scoring). Excludes ASN.
 - [ ] `plan/learned/1048-anomaly-1-detect.md` (via umbrella lines 52-53)
   → Constraint: scoring stays pure in `score.go`; freeze-learn (`scoreEntity` returns pending `baselineUpdate`s, `onTick` folds only when not-anomalous or still warming); any new entity type MUST preserve freeze-learn + warmup.
-- [ ] `ai/rules/memory-architecture.md` + `ai/rules/no-sprintf-alloc.md`
+- [ ] `ai/rules/performance.md` + `ai/rules/performance.md`
   → Constraint: new keyed maps run on the 1s tick (hot-ish). Store typed values (`netip.Addr`, `uint16`), not strings; compare typed. No `fmt`/`.String()` string-building on the tick path; use `textbuf` for any display formatting (cold `show` path only).
-- [ ] `ai/rules/plugin-self-containment.md` + `docs/architecture/core-design.md` (via umbrella line 48)
+- [ ] `ai/rules/plugins.md` + `docs/architecture/core-design.md` (via umbrella line 48)
   → Constraint: no new per-feature switch/field in a core/shared package; the widened entity lives on the existing `trafficfeature.Snapshot` fact surface and the existing `anomalyevent` value contract (value types only, no wire/schema change).
 
 ### RFC Summaries
@@ -55,35 +55,35 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 **Key insights:**
 - Two new keyed feature lists on `trafficfeature.Snapshot` (`Dests`, `Ports`) are the bulk of the work.
 - DEST re-key is small (reuses `entityState`, `buildCohorts`, `cohortPrefix`, `scoreEntity`); PORT re-key needs a new key type, a cohort-free path, and event-contract widening to carry a port.
-- `score.go` needs ZERO change: cohort-free is achieved by passing an empty cohort (its `rarity` already returns 0 when `count-1 < minSize`, `score.go:61-65`).
-- The `anomalyevent` `Entity` is `netip.Prefix` (`event.go:71`); a PORT cannot be expressed as a prefix, so the event value contract must gain an entity-kind tag + a port field. The `shape` responder must be guarded so it never installs a source-address firewall term for a DEST or PORT entity (would throttle the victim).
+- `score.go` needs ZERO change: cohort-free is achieved by passing an empty cohort (its `rarity` already returns 0 when `count-1 < minSize`, `score.go`).
+- The `anomalyevent` `Entity` is `netip.Prefix` (`event.go`); a PORT cannot be expressed as a prefix, so the event value contract must gain an entity-kind tag + a port field. The `shape` responder must be guarded so it never installs a source-address firewall term for a DEST or PORT entity (would throttle the victim).
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/trafficfeature/service.go` - `FeatureEntry` (fields `Addr, FanOut, OutInRatio, PortEntropy, NewPeer, RarePort, Beaconing`) is defined at `service.go:30-50`; `Snapshot` carries ONLY `Sources []FeatureEntry` (`service.go:54-58`); 1s `tickInterval` and ticker at `service.go:25,187,202-210`; `Snapshot()` read surface at `service.go:150-155`.
-  → Constraint: adding `Dests`/`Ports` to `Snapshot` is additive; existing consumers/tests that build `Snapshot{Sources: ...}` (e.g. `detector_test.go:17-19`) keep compiling.
-- [ ] `internal/component/trafficfeature/feature.go` - `maxTrackedKey = 10000` at `feature.go:23`; per-source fan-out/port caps `maxDestsPerSource = 4096`, `maxPortsPerSource = 1024` at `feature.go:28-29`. `sourceState` accumulator (`activity, outBytes, inBytes, dests, ports, firstTick, lastActiveTick, gaps`) at `feature.go:48-57`. ONE shared `sources map[netip.Addr]*sourceState` at `feature.go:70`. `ingest` folds a flow into BOTH roles at `feature.go:102-136`: the SOURCE gets `outBytes`, `dests` fan-out, `ports` histogram (`feature.go:114-128`); the DESTINATION gets ONLY `inBytes += v` (`feature.go:129-135`). `snapshot` emits a `FeatureEntry` ONLY when the entity acted as a source this window (`sent := st.outBytes > 0`, `feature.go:169`); a pure receiver is deliberately NOT emitted (`feature.go:164-172,189`).
-  → Constraint: today a destination exists in the map only to contribute inbound bytes to sources' out/in ratio; it carries NO fan-in, NO per-dest port histogram, NO gaps, and is never surfaced. "port" is not an entity at all -- it is `sourceState.ports` (`feature.go:53`), a per-source destination-port byte histogram feeding `PortEntropy`/`RarePort`.
-  → Constraint: reuse `stats.Entropy` (`entropy.go:11`), `stats.IntervalRegularity` (`beacon.go:19`), `stats.NewWindow` (`window.go:28`), `ratio`/`rarePort`/`portValues` helpers (`feature.go:213-247`); do not re-derive.
-- [ ] `internal/core/observation/observation.go` - `FlowKey{Src, Dst, SrcPort, DstPort, Proto}` at `observation.go:54-60`. The raw fields to key a dest (`Flow.Dst`) and a port (`Flow.DstPort`, `Flow.Proto`) already flow through every `KindFlow`/`FeatureFlowBytes` observation.
+- [ ] `internal/component/trafficfeature/service.go` - `FeatureEntry` (fields `Addr, FanOut, OutInRatio, PortEntropy, NewPeer, RarePort, Beaconing`) is defined at `service.go`; `Snapshot` carries ONLY `Sources []FeatureEntry` (`service.go`); 1s `tickInterval` and ticker at `service.go,187,202-210`; `Snapshot()` read surface at `service.go`.
+  → Constraint: adding `Dests`/`Ports` to `Snapshot` is additive; existing consumers/tests that build `Snapshot{Sources: ...}` (e.g. `detector_test.go`) keep compiling.
+- [ ] `internal/component/trafficfeature/feature.go` - `maxTrackedKey = 10000` at `feature.go`; per-source fan-out/port caps `maxDestsPerSource = 4096`, `maxPortsPerSource = 1024` at `feature.go`. `sourceState` accumulator (`activity, outBytes, inBytes, dests, ports, firstTick, lastActiveTick, gaps`) at `feature.go`. ONE shared `sources map[netip.Addr]*sourceState` at `feature.go`. `ingest` folds a flow into BOTH roles at `feature.go`: the SOURCE gets `outBytes`, `dests` fan-out, `ports` histogram (`feature.go`); the DESTINATION gets ONLY `inBytes += v` (`feature.go`). `snapshot` emits a `FeatureEntry` ONLY when the entity acted as a source this window (`sent := st.outBytes > 0`, `feature.go`); a pure receiver is deliberately NOT emitted (`feature.go,189`).
+  → Constraint: today a destination exists in the map only to contribute inbound bytes to sources' out/in ratio; it carries NO fan-in, NO per-dest port histogram, NO gaps, and is never surfaced. "port" is not an entity at all -- it is `sourceState.ports` (`feature.go`), a per-source destination-port byte histogram feeding `PortEntropy`/`RarePort`.
+  → Constraint: reuse `stats.Entropy` (`entropy.go`), `stats.IntervalRegularity` (`beacon.go`), `stats.NewWindow` (`window.go`), `ratio`/`rarePort`/`portValues` helpers (`feature.go`); do not re-derive.
+- [ ] `internal/core/observation/observation.go` - `FlowKey{Src, Dst, SrcPort, DstPort, Proto}` at `observation.go`. The raw fields to key a dest (`Flow.Dst`) and a port (`Flow.DstPort`, `Flow.Proto`) already flow through every `KindFlow`/`FeatureFlowBytes` observation.
   → Constraint: no new observation field needed; dest/port keys come from the existing `FlowKey`.
-- [ ] `internal/plugins/anomaly/detect/detector.go` - `states map[netip.Addr]*entityState` at `detector.go:105`; `maxTrackedEntities = 10000` at `detector.go:30`; `warmupTicks = 3` at `detector.go:36`. `onTick` iterates ONLY `snap.Sources` (`detector.go:130`) and builds cohorts from `snap.Sources` (`buildCohorts`, `detector.go:185-206`); cohort key is source-prefix (`cohortPrefix`, `detector.go:256-266`). Freeze-learn fold at `detector.go:144-148`. `scoreEntity` (`detector.go:213-254`) reads `fe.FanOut, fe.OutInRatio, fe.PortEntropy, fe.Beaconing, fe.NewPeer, fe.RarePort` and returns pending `baselineUpdate`s. `activate` builds `Entity: netip.PrefixFrom(addr, addr.BitLen())` (`detector.go:287-296`). `tracked` gauge set from `len(d.states)` at `detector.go:345`; gauge registered `ze_anomaly_tracked_entities` at `detector.go:414`.
+- [ ] `internal/plugins/anomaly/detect/detector.go` - `states map[netip.Addr]*entityState` at `detector.go`; `maxTrackedEntities = 10000` at `detector.go`; `warmupTicks = 3` at `detector.go`. `onTick` iterates ONLY `snap.Sources` (`detector.go`) and builds cohorts from `snap.Sources` (`buildCohorts`, `detector.go`); cohort key is source-prefix (`cohortPrefix`, `detector.go`). Freeze-learn fold at `detector.go`. `scoreEntity` (`detector.go`) reads `fe.FanOut, fe.OutInRatio, fe.PortEntropy, fe.Beaconing, fe.NewPeer, fe.RarePort` and returns pending `baselineUpdate`s. `activate` builds `Entity: netip.PrefixFrom(addr, addr.BitLen())` (`detector.go`). `tracked` gauge set from `len(d.states)` at `detector.go`; gauge registered `ze_anomaly_tracked_entities` at `detector.go`.
   → Constraint: the detector reads only `Sources`; scoring dest/port requires iterating the new `Dests`/`Ports` lists and giving each its own keyed `entityState` map (DEST reuses `map[netip.Addr]`, PORT needs a `map[portKey]`). Freeze-learn/warmup logic is reused verbatim per map.
-- [ ] `internal/plugins/anomaly/detect/score.go` - `zScore` (`score.go:26-39`), `cohortStats.rarity` leave-one-out with `+Inf`-safe exclusion and `n < minSize -> 0` (`score.go:61-72`), `combineScore` capped/discounted (`score.go:79-93`).
+- [ ] `internal/plugins/anomaly/detect/score.go` - `zScore` (`score.go`), `cohortStats.rarity` leave-one-out with `+Inf`-safe exclusion and `n < minSize -> 0` (`score.go`), `combineScore` capped/discounted (`score.go`).
   → Constraint: PURE, must not change. Cohort-free PORT scoring is obtained by passing an empty `cohortAgg` so `rarity` returns 0 and only self-deviation drives the port score.
-- [ ] `internal/core/anomalyevent/event.go` - `AnomalyDetected.Entity`, `AnomalyOngoing.Entity`, `AnomalyCleared.Entity` are all `netip.Prefix` (`event.go:69-93`); header comment "Value types only -- no wire or schema change" (`event.go:6`); `Namespace = "anomaly-detect"` (`event.go:19`).
+- [ ] `internal/core/anomalyevent/event.go` - `AnomalyDetected.Entity`, `AnomalyOngoing.Entity`, `AnomalyCleared.Entity` are all `netip.Prefix` (`event.go`); header comment "Value types only -- no wire or schema change" (`event.go`); `Namespace = "anomaly-detect"` (`event.go`).
   → Constraint: a PORT entity cannot be a `netip.Prefix`. The contract must gain an entity-kind tag (source/dest/port) plus `Port`/`Proto` value fields; `Entity` stays for source/dest and is zero for port. Still "value types only" (no wire/schema).
-- [ ] `internal/plugins/anomaly/shape/responder.go` + `match.go` - `onDetected` acts on `e.Entity` (`responder.go:77-107`); `buildSourceTerm` renders `firewall.MatchSourceAddress{Prefix: entity}` (`match.go:36-44`); armed map keyed `map[netip.Prefix]` (`responder.go:55`).
+- [ ] `internal/plugins/anomaly/shape/responder.go` + `match.go` - `onDetected` acts on `e.Entity` (`responder.go`); `buildSourceTerm` renders `firewall.MatchSourceAddress{Prefix: entity}` (`match.go`); armed map keyed `map[netip.Prefix]` (`responder.go`).
   → Constraint: if the detector emits a DEST or PORT incident on the same events, the UNCHANGED responder would install a source-address term on the victim's prefix (or a zero prefix for a port). Child 5 MUST guard `onDetected`/`onOngoing`/`onCleared` to act only on `EntityKind == source`; dest/port incidents are report-only here (a dest/port firewall action is future work).
-- [ ] `internal/plugins/anomaly/detect/show.go` - `handleShowAnomaly` formats `e.Entity.String()` (`show.go:42-48`); cmd YANG `show anomaly detect` unchanged (`cmd/yang/ze-anomaly-cmd.yang`).
+- [ ] `internal/plugins/anomaly/detect/show.go` - `handleShowAnomaly` formats `e.Entity.String()` (`show.go`); cmd YANG `show anomaly detect` unchanged (`cmd/yang/ze-anomaly-cmd.yang`).
   → Constraint: for a PORT incident `e.Entity` is the zero prefix; the show handler must format the entity kind-aware (e.g. dest prefix, or `proto/port`). No YANG change (same `show anomaly detect`).
-- [ ] `internal/component/trafficstat/window.go` - the SIBLING measurement layer already maintains `dests map[netip.Addr]*stats.Window` and `ports map[portKey]*stats.Window` (`window.go:40-41,74-81`) with per-key rate + history and PER-MAP `maxTrackedKey` cap (`getOrCreate`, `window.go:137-147`); `portKey{port uint16, proto uint8}` at `window.go:31-34`.
+- [ ] `internal/component/trafficstat/window.go` - the SIBLING measurement layer already maintains `dests map[netip.Addr]*stats.Window` and `ports map[portKey]*stats.Window` (`window.go,74-81`) with per-key rate + history and PER-MAP `maxTrackedKey` cap (`getOrCreate`, `window.go`); `portKey{port uint16, proto uint8}` at `window.go`.
   → Constraint: `trafficstat` is a SIBLING consumer of the same feed, not upstream of `trafficfeature`; it proves per-dest/per-port keying is already an accepted pattern (reuse `portKey` shape and the per-map cap idiom) but `trafficfeature` must derive its OWN behavioral features (fan-in, entropy, gaps), not read `trafficstat`.
 
 **Behavior to preserve (do NOT regress):**
-- Only source entities that acted as a source are emitted under `Snapshot.Sources` (`feature.go:169`); existing source features unchanged (`feature_test.go` must stay green).
-- `score.go` pure rule byte-for-byte; freeze-learn + warmup in `detector.go:144-149`; `+Inf` ratio exclusion from cohorts (`detector.go:196-201`, `buildCohorts` test `detector_test.go:116-135`).
+- Only source entities that acted as a source are emitted under `Snapshot.Sources` (`feature.go`); existing source features unchanged (`feature_test.go` must stay green).
+- `score.go` pure rule byte-for-byte; freeze-learn + warmup in `detector.go`; `+Inf` ratio exclusion from cohorts (`detector.go`, `buildCohorts` test `detector_test.go`).
 - The `shape` responder invariants (shadow-first default, auto-revert, blast-radius cap, kill-switch, allowlist); it must never install a term for a non-source entity.
 - The anomaly-vs-DDoS domain separation: no shared struct/namespace/detector; no import of `ddos*` from anomaly.
 - Existing metrics `ze_anomaly_incidents_total`, `ze_anomaly_active`, `ze_anomaly_tracked_entities` remain (the last may gain a `dimension` label -- see R-1 mitigation).
@@ -99,22 +99,22 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 - Operator config `anomaly { detect { enabled true } }` (unchanged) attaches the detector to `trafficfeature`. Neutral flow observations (`observation.Feed`, `KindFlow`/`FeatureFlowBytes`) enter `trafficfeature.ingest`.
 
 ### Transformation Path
-1. **Facts widen (bulk):** `trafficfeature.ingest` (`feature.go:102-136`) folds each flow into three accumulators: SOURCE (unchanged), DEST (extend the existing dst branch to also track distinct sources = fan-in, a per-dest destination-port histogram, and active-tick gaps), and PORT (new: keyed by `portKey{DstPort, Proto}`, tracking distinct sources/dests, bytes, gaps, and whether the port itself is uncommon). `snapshot` (`feature.go:141-209`) emits `Sources`, `Dests`, `Ports`.
-2. **Detector re-key:** `onTick` (`detector.go:120-183`) additionally iterates `snap.Dests` (into `destStates map[netip.Addr]`, cohorts by dest-prefix via the existing `buildCohorts`/`cohortPrefix`) and `snap.Ports` (into `portStates map[portKey]`, empty cohort). Each map runs the identical score -> freeze-learn -> confirm/clear pipeline. `activate`/`emit*` tag the event with the entity kind and, for ports, the `Port`/`Proto`.
+1. **Facts widen (bulk):** `trafficfeature.ingest` (`feature.go`) folds each flow into three accumulators: SOURCE (unchanged), DEST (extend the existing dst branch to also track distinct sources = fan-in, a per-dest destination-port histogram, and active-tick gaps), and PORT (new: keyed by `portKey{DstPort, Proto}`, tracking distinct sources/dests, bytes, gaps, and whether the port itself is uncommon). `snapshot` (`feature.go`) emits `Sources`, `Dests`, `Ports`.
+2. **Detector re-key:** `onTick` (`detector.go`) additionally iterates `snap.Dests` (into `destStates map[netip.Addr]`, cohorts by dest-prefix via the existing `buildCohorts`/`cohortPrefix`) and `snap.Ports` (into `portStates map[portKey]`, empty cohort). Each map runs the identical score -> freeze-learn -> confirm/clear pipeline. `activate`/`emit*` tag the event with the entity kind and, for ports, the `Port`/`Proto`.
 3. **Judgment emit:** confirmed dest/port incidents emit on the same `anomaly-detect` events (kind-tagged), land in the recent-incident ring, and surface via `show anomaly detect` (kind-aware formatting).
 4. **Response (guarded):** the `shape` responder ignores dest/port incidents (source-only guard); source behavior is byte-for-byte unchanged.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| observation.Feed -> trafficfeature | `ingest` reads `Flow.Dst`, `Flow.DstPort`, `Flow.Proto` (already present, `observation.go:54-60`) | [ ] |
+| observation.Feed -> trafficfeature | `ingest` reads `Flow.Dst`, `Flow.DstPort`, `Flow.Proto` (already present, `observation.go`) | [ ] |
 | trafficfeature -> detect | `Snapshot.Dests`/`Snapshot.Ports` read on detector tick (additive to `Snapshot.Sources`) | [ ] |
 | detect -> anomalyevent | kind-tagged `AnomalyDetected`/`Ongoing`/`Cleared` value structs | [ ] |
 | detect -> shape | same events; responder guards on `EntityKind == source` | [ ] |
 
 ### Integration Points
-- `trafficfeature.Snapshot` (`service.go:54-58`) - the fact surface, extended with two lists.
-- `anomalyevent.AnomalyDetected` (`event.go:69-93`) - value contract, extended with kind + port.
+- `trafficfeature.Snapshot` (`service.go`) - the fact surface, extended with two lists.
+- `anomalyevent.AnomalyDetected` (`event.go`) - value contract, extended with kind + port.
 - `internal/plugins/anomaly/detect/score.go` - reused unchanged (empty cohort = cohort-free).
 - `internal/plugins/anomaly/shape/responder.go` - guarded, not extended, in this spec.
 
@@ -130,20 +130,20 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Dest carries only inbound bytes and is never emitted today | `feature.go:129-135` (dst branch `inBytes += v` only), `feature.go:169,189` (emit only when `outBytes>0`) | dest features partly exist; scope smaller | re-read `feature.go`; `feature_test.go:69-71` asserts pure-dest absent | confirmed |
-| A-2 | "port" is a per-source histogram, not an entity | `feature.go:53` (`ports` field in `sourceState`) | port work smaller than budgeted | re-read `feature.go`; `feature_test.go:78-102` | confirmed |
-| A-3 | The prefix cohort transfers to DEST unchanged | `cohortPrefix` groups any `netip.Addr` by prefix (`detector.go:256-266`); dest is a `netip.Addr` | dest scoring needs a new cohort model | reuse `buildCohorts` with dest list; unit test dest cohort rarity | unvalidated |
-| A-4 | PORT has no natural cohort; cohort-free = self-deviation only | ports are `uint16`+proto, not addresses; `cohortPrefix` needs an `Addr` | port over-flags or needs a cohort model | pass empty `cohortAgg`; `rarity` returns 0 for `count-1 < minSize` (`score.go:61-65`) | unvalidated |
-| A-5 | Cohort-free scoring needs NO `score.go` change | `rarity` already returns 0 below `minSize` (`score.go:61-65`); `cont` takes `math.Max(self, cohort.rarity(...))` (`detector.go:230`) | must fork the scoring rule (breaks 1048 purity) | drive `scoreEntity` with an empty `cohortAgg`; assert only self-deviation contributes | unvalidated |
-| A-6 | Freeze-learn + warmup are entity-map-agnostic and reuse verbatim | `onTick` freeze fold (`detector.go:144-148`) operates per `entityState`, not per address type | dest/port baselines poison under sustained anomaly | replicate `TestFreezeLearnDuringSustainedAnomaly` for dest + port | unvalidated |
-| A-7 | Adding `Dests`/`Ports` to `Snapshot` is backward-compatible | consumers build `Snapshot{Sources: ...}` (`detector_test.go:17-19`); struct-field add is additive | existing tests break; source path regresses | `go build ./...`; run `feature_test.go`, `detector_test.go` unchanged | unvalidated |
+| A-1 | Dest carries only inbound bytes and is never emitted today | `feature.go` (dst branch `inBytes += v` only), `feature.go,189` (emit only when `outBytes>0`) | dest features partly exist; scope smaller | re-read `feature.go`; `feature_test.go` asserts pure-dest absent | confirmed |
+| A-2 | "port" is a per-source histogram, not an entity | `feature.go` (`ports` field in `sourceState`) | port work smaller than budgeted | re-read `feature.go`; `feature_test.go` | confirmed |
+| A-3 | The prefix cohort transfers to DEST unchanged | `cohortPrefix` groups any `netip.Addr` by prefix (`detector.go`); dest is a `netip.Addr` | dest scoring needs a new cohort model | reuse `buildCohorts` with dest list; unit test dest cohort rarity | unvalidated |
+| A-4 | PORT has no natural cohort; cohort-free = self-deviation only | ports are `uint16`+proto, not addresses; `cohortPrefix` needs an `Addr` | port over-flags or needs a cohort model | pass empty `cohortAgg`; `rarity` returns 0 for `count-1 < minSize` (`score.go`) | unvalidated |
+| A-5 | Cohort-free scoring needs NO `score.go` change | `rarity` already returns 0 below `minSize` (`score.go`); `cont` takes `math.Max(self, cohort.rarity(...))` (`detector.go`) | must fork the scoring rule (breaks 1048 purity) | drive `scoreEntity` with an empty `cohortAgg`; assert only self-deviation contributes | unvalidated |
+| A-6 | Freeze-learn + warmup are entity-map-agnostic and reuse verbatim | `onTick` freeze fold (`detector.go`) operates per `entityState`, not per address type | dest/port baselines poison under sustained anomaly | replicate `TestFreezeLearnDuringSustainedAnomaly` for dest + port | unvalidated |
+| A-7 | Adding `Dests`/`Ports` to `Snapshot` is backward-compatible | consumers build `Snapshot{Sources: ...}` (`detector_test.go`); struct-field add is additive | existing tests break; source path regresses | `go build ./...`; run `feature_test.go`, `detector_test.go` unchanged | unvalidated |
 | A-8 | The umbrella framing ("mostly facts, small detector re-key") is complete | umbrella lines 160,188,290-292 | scope estimate too low | see A-9 (broken) | broken -- see below |
-| A-9 | Emitting a dest/port incident on the existing events is safe for the responder | umbrella scopes child 5 as detect-only | responder throttles the victim / a zero-prefix term | read `responder.go:77-107`, `match.go:36-44` | broken -- responder acts on `Entity` as a source prefix; child 5 MUST add a source-only guard + widen the event value contract (kind + port). The umbrella's "mostly facts + small detector re-key" omits the event-contract widening and the responder guard. |
+| A-9 | Emitting a dest/port incident on the existing events is safe for the responder | umbrella scopes child 5 as detect-only | responder throttles the victim / a zero-prefix term | read `responder.go`, `match.go` | broken -- responder acts on `Entity` as a source prefix; child 5 MUST add a source-only guard + widen the event value contract (kind + port). The umbrella's "mostly facts + small detector re-key" omits the event-contract widening and the responder guard. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Tracked-entity memory blows up: three independent maps in facts AND in the detector (source + dest + port) | `ze_anomaly_tracked_entities` climbs; eviction churn; RSS grows | PER-DIMENSION caps (matches the existing per-map idiom `feature.go:86`, `window.go:141`): sources `10000` (unchanged), dests `10000`, ports `4096`; keep `evictIdleTicks` per map; convert `ze_anomaly_tracked_entities` (`detector.go:414`) to a `GaugeVec` labeled `dimension` (source/dest/port) via `metrics.Registry.GaugeVec` (`metrics.go:61`) so an operator sees WHICH map grows |
+| R-1 | Tracked-entity memory blows up: three independent maps in facts AND in the detector (source + dest + port) | `ze_anomaly_tracked_entities` climbs; eviction churn; RSS grows | PER-DIMENSION caps (matches the existing per-map idiom `feature.go`, `window.go`): sources `10000` (unchanged), dests `10000`, ports `4096`; keep `evictIdleTicks` per map; convert `ze_anomaly_tracked_entities` (`detector.go`) to a `GaugeVec` labeled `dimension` (source/dest/port) via `metrics.Registry.GaugeVec` (`metrics.go`) so an operator sees WHICH map grows |
 | R-2 | Shared cap lets a source flood evict dest/port baselines (or vice-versa) | one dimension's tracked count pinned at cap while others starve | reject the shared-cap option; independent maps + independent caps (the codebase already caps per map) |
 | R-3 | PORT features are semantically thin (a port has no "port entropy" of its own), so reusing `FeatureEntry` fields is misleading | port scores all-zero, or fires on a nonsense feature | dedicated `PortFeatureEntry` type with port-appropriate fields (fan-out = distinct sources on the port; out/in bytes ratio; source-spread entropy; new-port; rare-port = the port itself uncommon; beaconing); score with the same primitives, documented per-dimension meaning |
 | R-4 | Widening the event value contract silently changes JSON emitted on the bus / in the ring | `show anomaly detect` output or bus subscribers see new keys | add `entity-kind` and `port` as `json:",omitempty"` value fields; source incidents keep identical JSON (kind defaults/omits to source); document in `docs/architecture/meta` if applicable |
@@ -193,10 +193,10 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | `TestFeatureDestEntry` | `internal/component/trafficfeature/feature_test.go` | dest `FeatureEntry` emitted with fan-in, in/out ratio, dest-port entropy; pure-source not in `Dests` | |
 | `TestFeaturePortEntry` | `internal/component/trafficfeature/feature_test.go` | port `PortFeatureEntry` emitted with fan-out, rare-port; common port not rare | |
 | `TestFeatureDestPortCapsAndEviction` | `internal/component/trafficfeature/feature_test.go` | dest map <= 10000, port map <= 4096, idle eviction per map | |
-| `TestDetectDestCohortRarity` | `internal/plugins/anomaly/detect/detector_test.go` | dest scored against dest-prefix cohort; `+Inf` ratio excluded (mirror `detector_test.go:116-135`) | |
+| `TestDetectDestCohortRarity` | `internal/plugins/anomaly/detect/detector_test.go` | dest scored against dest-prefix cohort; `+Inf` ratio excluded (mirror `detector_test.go`) | |
 | `TestDetectPortCohortFree` | `internal/plugins/anomaly/detect/detector_test.go` | port scored by self-deviation only; empty cohort -> `rarity` 0; `score.go` untouched | |
 | `TestDestPortConfirmClearLifecycle` | `internal/plugins/anomaly/detect/detector_test.go` | confirm after `ConfirmDuration`, clear after `ClearConsecutive` for dest and port entities | |
-| `TestFreezeLearnDestPort` | `internal/plugins/anomaly/detect/detector_test.go` | sustained dest/port anomaly does not poison its baseline (mirror `detector_test.go:141-168`) | |
+| `TestFreezeLearnDestPort` | `internal/plugins/anomaly/detect/detector_test.go` | sustained dest/port anomaly does not poison its baseline (mirror `detector_test.go`) | |
 | `TestTrackedGaugeByDimension` | `internal/plugins/anomaly/detect/detector_test.go` | `ze_anomaly_tracked_entities` labeled by `dimension` reports per-map counts | |
 | `TestResponderIgnoresNonSourceEntity` | `internal/plugins/anomaly/shape/responder_test.go` | dest/port `AnomalyDetected` installs no term; source unchanged | |
 | `TestEventKindOmitemptyForSource` | `internal/core/anomalyevent/event_test.go` | a source event marshals to identical JSON (kind omitted/defaulted); dest/port carry the new fields | |
@@ -213,24 +213,24 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestChainDestOutlier` | `internal/plugins/anomaly/detect/chain_integration_test.go` | real `trafficfeature.Service` + real detector: a distributed-target cohort with one dest outlier confirms a `kind=dest` incident (extends the `TestChainFactsToResponse` pattern, `chain_integration_test.go:67`) | |
+| `TestChainDestOutlier` | `internal/plugins/anomaly/detect/chain_integration_test.go` | real `trafficfeature.Service` + real detector: a distributed-target cohort with one dest outlier confirms a `kind=dest` incident (extends the `TestChainFactsToResponse` pattern, `chain_integration_test.go`) | |
 | `TestChainPortOutlier` | `internal/plugins/anomaly/detect/chain_integration_test.go` | real chain: one port sees a source-spread outlier and confirms a `kind=port` incident | |
 | `anomaly-show` (existing) | `test/plugin/anomaly-show.ci` | `show anomaly detect` still resolves and returns `incidents` list with the new optional kind field; source path unchanged | |
 | `anomaly-entity-matrix` (optional, if child 4 `fakeflow` has landed) | `test/plugin/anomaly-entity-matrix.ci` | daemon-level: `fakeflow` injects a dest + port outlier; `show anomaly detect` lists a dest and a port incident | conditional on child 4 |
 
 ### Interop Tests
-- N/A. No wire/protocol behavior; `anomalyevent` is value types only (`event.go:6`). Justification: this spec adds no BGP family, capability, attribute, or wire encoding.
+- N/A. No wire/protocol behavior; `anomalyevent` is value types only (`event.go`). Justification: this spec adds no BGP family, capability, attribute, or wire encoding.
 
 ### Future (deferred, requires user approval)
 - Daemon-level `.ci` for dest/port outliers is blocked on a synthetic traffic generator; child 4 (`interop-harness`) builds the `fakeflow` plugin for exactly this. If child 4 lands first, add `anomaly-entity-matrix.ci`; otherwise the Go integration tests (`TestChainDestOutlier`/`TestChainPortOutlier`) are the functional proof.
 
 ## Files to Modify
-- `internal/component/trafficfeature/service.go` - add `Dests []FeatureEntry` and `Ports []PortFeatureEntry` to `Snapshot` (`service.go:54-58`); add the `PortFeatureEntry` type (`Port uint16`, `Proto uint8`, `FanOut int`, `OutInRatio float64`, `SrcEntropy float64`, `NewPort bool`, `RarePort bool`, `Beaconing float64`).
-- `internal/component/trafficfeature/feature.go` - **bulk of the work.** Extend the dst branch of `ingest` (`feature.go:129-135`) to accumulate fan-in (distinct sources), a per-dest destination-port histogram, and gaps; add a per-port accumulator keyed by `portKey{DstPort, Proto}`; emit `Dests`/`Ports` in `snapshot` (`feature.go:141-209`); add per-dimension caps `maxTrackedDest = 10000`, `maxTrackedPort = 4096` (keep `maxTrackedKey` for sources). Reuse `ratio`, `rarePort`, `portValues`, `stats.Entropy`, `stats.IntervalRegularity`, `stats.NewWindow`.
-- `internal/plugins/anomaly/detect/detector.go` - add `destStates map[netip.Addr]*entityState` and `portStates map[<portKey>]*entityState`; iterate `snap.Dests` (dest-prefix cohorts via `buildCohorts`/`cohortPrefix`) and `snap.Ports` (empty cohort) in `onTick` (`detector.go:120-183`); tag `activate`/`emitOngoing`/`emitCleared` with entity kind and `Port`/`Proto`; convert `tracked` gauge to a `dimension`-labeled `GaugeVec` (`detector.go:333-346,407-416`). Reuse `scoreEntity`, freeze-learn, warmup, confirm/clear verbatim. Do NOT edit `score.go`.
-- `internal/core/anomalyevent/event.go` - add `EntityKind` (typed string const: source/dest/port) and `Port uint16`/`Proto uint8` value fields with `json:",omitempty"` to `AnomalyDetected` (and `Ongoing`/`Cleared` as needed) (`event.go:69-93`); keep source JSON identical.
-- `internal/plugins/anomaly/shape/responder.go` - guard `onDetected`/`onOngoing`/`onCleared` (`responder.go:77-125`) to act only on `EntityKind == source`.
-- `internal/plugins/anomaly/detect/show.go` - kind-aware entity formatting in `handleShowAnomaly` (`show.go:41-48`) using `textbuf` (cold path); include `entity-kind` and `port` in the incident map.
+- `internal/component/trafficfeature/service.go` - add `Dests []FeatureEntry` and `Ports []PortFeatureEntry` to `Snapshot` (`service.go`); add the `PortFeatureEntry` type (`Port uint16`, `Proto uint8`, `FanOut int`, `OutInRatio float64`, `SrcEntropy float64`, `NewPort bool`, `RarePort bool`, `Beaconing float64`).
+- `internal/component/trafficfeature/feature.go` - **bulk of the work.** Extend the dst branch of `ingest` (`feature.go`) to accumulate fan-in (distinct sources), a per-dest destination-port histogram, and gaps; add a per-port accumulator keyed by `portKey{DstPort, Proto}`; emit `Dests`/`Ports` in `snapshot` (`feature.go`); add per-dimension caps `maxTrackedDest = 10000`, `maxTrackedPort = 4096` (keep `maxTrackedKey` for sources). Reuse `ratio`, `rarePort`, `portValues`, `stats.Entropy`, `stats.IntervalRegularity`, `stats.NewWindow`.
+- `internal/plugins/anomaly/detect/detector.go` - add `destStates map[netip.Addr]*entityState` and `portStates map[<portKey>]*entityState`; iterate `snap.Dests` (dest-prefix cohorts via `buildCohorts`/`cohortPrefix`) and `snap.Ports` (empty cohort) in `onTick` (`detector.go`); tag `activate`/`emitOngoing`/`emitCleared` with entity kind and `Port`/`Proto`; convert `tracked` gauge to a `dimension`-labeled `GaugeVec` (`detector.go,407-416`). Reuse `scoreEntity`, freeze-learn, warmup, confirm/clear verbatim. Do NOT edit `score.go`.
+- `internal/core/anomalyevent/event.go` - add `EntityKind` (typed string const: source/dest/port) and `Port uint16`/`Proto uint8` value fields with `json:",omitempty"` to `AnomalyDetected` (and `Ongoing`/`Cleared` as needed) (`event.go`); keep source JSON identical.
+- `internal/plugins/anomaly/shape/responder.go` - guard `onDetected`/`onOngoing`/`onCleared` (`responder.go`) to act only on `EntityKind == source`.
+- `internal/plugins/anomaly/detect/show.go` - kind-aware entity formatting in `handleShowAnomaly` (`show.go`) using `textbuf` (cold path); include `entity-kind` and `port` in the incident map.
 - `internal/plugins/anomaly/detect/detector_test.go`, `internal/component/trafficfeature/feature_test.go`, `internal/plugins/anomaly/shape/responder_test.go`, `internal/core/anomalyevent/event_test.go`, `internal/plugins/anomaly/detect/chain_integration_test.go` - new tests per the TDD plan.
 
 ### BGP Family Checklist
@@ -260,7 +260,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | 4 | API/RPC added/changed? | Partial | `docs/architecture/api/commands.md` -- if `show anomaly detect` payload is documented, note the optional `entity-kind`/`port` fields |
 | 5 | Plugin added/changed? | No | Same plugins (`anomaly-detect`, `anomaly-shape`) |
 | 6 | Has a user guide page? | Yes (when it exists) | `docs/guide/anomaly-detection.md` is created by the umbrella after Phase A; when present, add the dest/port entity paragraph |
-| 7 | Wire format changed? | No | Value types only (`event.go:6`) |
+| 7 | Wire format changed? | No | Value types only (`event.go`) |
 | 8 | Plugin SDK/protocol changed? | No | -- |
 | 9 | RFC behavior implemented? | No | -- |
 | 10 | Test infrastructure changed? | No | Reuses existing Go integration + `.ci` harness |
@@ -269,7 +269,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | 13 | Route metadata keys added/changed? | No | -- |
 | 14 | Prometheus counters added/changed? | Yes | Document the `dimension` label on `ze_anomaly_tracked_entities` in the anomaly telemetry doc / `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin/event/command/capability inventory changed? | Partial | `anomalyevent` value contract gains `entity-kind`/`port`; note in `docs/plugin-overview.md` if event payloads are inventoried |
-| 16 | Changed source referenced by doc source anchors? | Yes | Grep `docs/` for `source: internal/component/trafficfeature/feature.go`, `source: internal/plugins/anomaly/detect/detector.go`, `source: internal/core/anomalyevent/event.go`, `source: internal/plugins/anomaly/detect/show.go` (`docs/features.md:78-80`) and update each stale claim |
+| 16 | Changed source referenced by doc source anchors? | Yes | Grep `docs/` for `source: internal/component/trafficfeature/feature.go`, `source: internal/plugins/anomaly/detect/detector.go`, `source: internal/core/anomalyevent/event.go`, `source: internal/plugins/anomaly/detect/show.go` (`docs/features.md`) and update each stale claim |
 | 17 | Docs show config/CLI/API examples for this area? | Yes | Verify `show anomaly detect` example output against the kind-aware `show.go` |
 
 ## Files to Create
@@ -347,7 +347,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
 |-------|-----------------|
-| Resource exhaustion | Per-dimension caps enforced BEFORE map insert (mirror `feature.go:86`, `window.go:141`); a scan across ports cannot exceed `maxTrackedPort`; a fan-in flood cannot exceed `maxTrackedDest`; idle eviction runs per map |
+| Resource exhaustion | Per-dimension caps enforced BEFORE map insert (mirror `feature.go`, `window.go`); a scan across ports cannot exceed `maxTrackedPort`; a fan-in flood cannot exceed `maxTrackedDest`; idle eviction runs per map |
 | Untrusted input | `DstPort`/`Proto`/`Dst` come from the feed (attacker-influenced); they are typed (`uint16`/`uint8`/`netip.Addr`), never formatted into a map key string on the tick path |
 | Victim protection | Source-only responder guard prevents an attacker from weaponizing a spoofed-dest anomaly to make Ze throttle a legitimate server |
 | Error leakage | `show` formatting on the cold path uses `textbuf`; no panic on a zero prefix for a port entity |
@@ -358,7 +358,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | Compilation error | Fix in the phase that introduced it |
 | Dest/port test fails wrong reason | Fix test setup (windowing needs a `snapshot` per tick) |
 | `score.go` changed | STOP -- redesign to pass an empty cohort instead of forking the rule |
-| Source test regresses | Re-read `feature.go:164-189`; the dest/port accumulation must not alter the source branch |
+| Source test regresses | Re-read `feature.go`; the dest/port accumulation must not alter the source branch |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
 ## Mistake Log
@@ -366,7 +366,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| (during research) child 5 is "mostly facts + a small detector re-key" (umbrella) | Also needs an event-contract widening (port cannot be a `netip.Prefix`, `event.go:71`) AND a `shape` responder source-only guard (`responder.go:77-107` acts on `Entity` as a source term) | read `event.go` + `responder.go`/`match.go` | added A-9 (broken), R-5; event widening + responder guard pulled into scope |
+| (during research) child 5 is "mostly facts + a small detector re-key" (umbrella) | Also needs an event-contract widening (port cannot be a `netip.Prefix`, `event.go`) AND a `shape` responder source-only guard (`responder.go` acts on `Entity` as a source term) | read `event.go` + `responder.go`/`match.go` | added A-9 (broken), R-5; event widening + responder guard pulled into scope |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -379,8 +379,8 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | | | | |
 
 ## Design Insights
-- The bulk is in `trafficfeature`: a destination today is a bare inbound-byte counter (`feature.go:129-135`) and a port is only a per-source histogram (`feature.go:53`). Making each a first-class entity means a role-flipped dest accumulator (fan-in, dest-port entropy, gaps) and a brand-new port accumulator, both emitted on the `Snapshot`. That is where the estimate lives, not in the detector.
-- The detector generalizes for free on DEST (same key type, same cohort machinery) but not on PORT: a port has no address and thus no prefix cohort, so it must be scored cohort-free. Elegantly, `score.go` needs no change -- an empty cohort makes `rarity` return 0 (`score.go:61-65`), so port scoring falls back to self-deviation automatically.
+- The bulk is in `trafficfeature`: a destination today is a bare inbound-byte counter (`feature.go`) and a port is only a per-source histogram (`feature.go`). Making each a first-class entity means a role-flipped dest accumulator (fan-in, dest-port entropy, gaps) and a brand-new port accumulator, both emitted on the `Snapshot`. That is where the estimate lives, not in the detector.
+- The detector generalizes for free on DEST (same key type, same cohort machinery) but not on PORT: a port has no address and thus no prefix cohort, so it must be scored cohort-free. Elegantly, `score.go` needs no change -- an empty cohort makes `rarity` return 0 (`score.go`), so port scoring falls back to self-deviation automatically.
 - The umbrella's "mostly facts, small detector re-key" framing is right about the CENTER of mass but omits two edges: a value-contract widening (to carry a port and tag the kind) and a responder guard (so an armed deployment never throttles a victim destination). Both are in scope here.
 
 ## Core Insight
@@ -389,8 +389,8 @@ Widening the entity axis is not "teach the detector new keys" -- it is "teach th
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Per-dimension independent caps (src 10000, dest 10000, port 4096) | One shared 10000 cap across all dimensions | The codebase already caps per map (`feature.go:86`, `window.go:141`); a shared cap lets one dimension evict another's baselines (R-2). Ports have lower natural cardinality, so a smaller ceiling suffices |
-| `ze_anomaly_tracked_entities` becomes a `dimension`-labeled `GaugeVec` | Three separate gauges; keep one summed gauge | `GaugeVec` exists (`metrics.go:61`); one labeled metric keeps the name (R-4) while giving the R-1 early signal per dimension |
+| Per-dimension independent caps (src 10000, dest 10000, port 4096) | One shared 10000 cap across all dimensions | The codebase already caps per map (`feature.go`, `window.go`); a shared cap lets one dimension evict another's baselines (R-2). Ports have lower natural cardinality, so a smaller ceiling suffices |
+| `ze_anomaly_tracked_entities` becomes a `dimension`-labeled `GaugeVec` | Three separate gauges; keep one summed gauge | `GaugeVec` exists (`metrics.go`); one labeled metric keeps the name (R-4) while giving the R-1 early signal per dimension |
 | Dedicated `PortFeatureEntry` type | Reuse `FeatureEntry` with a meaningless `Addr` | A port has no address; a dedicated type documents port-appropriate field meaning and avoids a zero `Addr` masquerading as an entity (R-3) |
 | Cohort-free PORT via empty `cohortAgg` (no `score.go` edit) | Add a port-cohort model; fork the scoring rule | Preserves 1048 purity (AC-10); `rarity` already returns 0 below `minSize` |
 | Same events, kind-tagged; source-only responder guard | New port/dest event types; separate responder | Minimal contract churn; keeps subscribers working; keeps the anomaly domain single-namespace; guard keeps armed mode victim-safe (R-5) |

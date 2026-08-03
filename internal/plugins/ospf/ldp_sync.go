@@ -12,7 +12,7 @@
 // both the OSPFv2 and OSPFv3 engine instances through the shared InterfaceInfo model.
 //
 // This file must NOT import the ldp plugin package: OSPF and LDP are independent
-// plugins (ai/rules/plugin-self-containment.md), so the coupling is only the public
+// plugins (ai/rules/plugins.md), so the coupling is only the public
 // ze.EventBus keyed by the ldp namespace/event-type strings below, and the interface
 // name carried on the (JSON-tagged) session-event payload. Removing the ldp plugin
 // leaves OSPF compiling; with no LDP events an ldp-sync interface simply never leaves

@@ -22,7 +22,7 @@ var errProfileNameCannotBeEmpty = errors.New("profile name cannot be empty")
 
 // authzLogger records authorization decisions so an operator can tell "denied by
 // profile" from "denied because no profile applied", and can see when a
-// break-glass recovery or trusted-internal grant was used (fail-closed-guards.md:
+// break-glass recovery or trusted-internal grant was used (evidence.md:
 // the layer that knows the reason is the one that must say so).
 var authzLogger = slogutil.Logger("authz")
 

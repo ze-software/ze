@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-25 |
+| Phase | 1/3 |
+| Updated | 2026-08-03 |
 
 ## Post-Compaction Recovery
 
@@ -39,9 +39,9 @@ functional regression, and both reviewers established the baseline independently
 
 - The old rail emitted `nlri <fam> add <hex>` with **no** `addpath` keyword (deleted
   `formatHexCommand`), and `parseWireNLRISection` defaults `addPath=false`
-  (`internal/component/bgp/plugins/cmd/update/update_wire.go:272-278`).
+  (`internal/component/bgp/plugins/cmd/update/update_wire.go`).
 - The structured ingest stores bare prefixes: `nlri.NLRIIterator.Next` advances past
-  the 4-byte path-id and returns only the prefix (`internal/core/bgp/nlri/iterator.go:71-96`),
+  the 4-byte path-id and returns only the prefix (`internal/core/bgp/nlri/iterator.go`),
   which `installStructuredNLRIs` hex-encodes verbatim
   (`internal/component/bgp/plugins/adj_rib_in/rib.go`).
 
@@ -121,7 +121,7 @@ returns. Re-deliver post-startup on respawn, or make the claim re-confirmable.
 It replays to `10.0.0.99`, which is not a configured peer, so `RelayStoredRoute`
 returns at destination resolution and the test asserts on the SELECTED route count.
 It passes with the relay entirely dead — it fails the mutation check in
-`ai/rules/functional-test-gate.md`. Give it a second source peer and assert on wire
+`ai/rules/testing.md`. Give it a second source peer and assert on wire
 bytes reaching an established destination, then mutation-verify it.
 
 ### I-6 — smaller relay gaps
@@ -141,6 +141,52 @@ bytes reaching an established destination, then mutation-verify it.
   the delegation is exercised.
 - `relay_payload_test.go` asserts `n <= size` where `n == size` is the real contract.
 
+### R6-1 — an egress filter cannot report "I could not decide", and one already needs to
+
+Homed here from `spec-fixit-bgp-egress-rail-divergence` Run 6. Verified against the
+tree on 2026-08-03.
+
+`filterapi.EgressFilterFunc` returns a bare `bool`, so an in-process egress filter
+can say accept or reject and nothing else. `safeEgressFilter`
+(`internal/component/bgp/reactor/reactor_notify.go`) therefore returns
+`(accept, panicked)` where `panicked` is the only non-decision it can ever report,
+because it is the only one it causes itself. `forwardUpdateCore`
+(`reactor_api_forward.go`) folds that into `egressStepResult{accept, failed}`, and
+a suppression with `failed == false` increments `suppressedCount`, which becomes
+`errAllDestinationsSuppressed`, which `RelayStoredRoute` (`reactor_api_relay.go`)
+counts as `relayed++` — a handled route.
+
+The gap is already live in `OTCEgressFilter` (`role/otc.go`). Its export-set block
+reads `destCapRole` from `getFilterConfig` (`role/role.go`), a bare map read of
+`filterRemoteRoles` whose absent key yields `""`, and maps `""` to `roleUnknown`.
+But `""` means BOTH "this peer's OPEN declared no role" (a decision) and "no OPEN
+was ever recorded for this peer" (a failure). The second is reachable:
+`broadcastValidateOpen` (`internal/component/bgp/server/validate.go`) skips a
+plugin on a nil process manager, a nil conn, or an RPC error and lets the session
+establish regardless; and `setFilterState` (`role/role.go`) nils the whole map on
+every reconfigure, while an already-established peer sends no second OPEN.
+
+Consequence: a source configured `role { export ... }` whose set omits `unknown`,
+plus a destination whose role went unrecorded, suppresses EVERY stored route and
+reports the replay complete. Both halves are required — the signature alone leaves
+the map ambiguous, and the map alone has no channel to report the miss upward.
+
+### R6-2 — a non-decision ACCEPT in the export policy chain
+
+Homed here from the same review. `runEgressPolicyChainASN4`
+(`internal/component/bgp/reactor/filter_ordered.go`) calls
+`decodeFilterRawOverride` (`filter_chain.go`), which returns nil for ANY raw
+shorter than 4 bytes. A raw filter that returns 1..3 bytes has asked for a full
+UPDATE-body replacement that cannot be a valid body; the nil is discarded
+silently and the route is forwarded UNMODIFIED, indistinguishable from "the filter
+accepted it as-is". `PolicyFilterChain` (`filter_chain.go`) makes a raw response
+terminal and returns `Text: current`, so the text-delta branch below does not run
+either. The ingress twin `runIngressPolicyChain` has the identical shape, and
+there the route is cached and dispatched unmodified.
+
+This is the RFC 6996 private-ASN leak class the file exists to prevent: the raw
+seam is what a filter uses for surgery the text delta cannot express.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -149,7 +195,7 @@ bytes reaching an established destination, then mutation-verify it.
      reintroduce a second rail while fixing add-path.
   → Constraint: the stored attribute block is the WHOLE attribute section including
      MP_REACH/MP_UNREACH (assumption A-1, verified), so any reconstruction strips 14/15.
-- [ ] `ai/rules/fail-closed-guards.md`
+- [ ] `ai/rules/evidence.md`
   → Constraint: a guard that cannot deny must speak. The Run 2 blocker was a guard
      that denied something legitimate; both failure modes are in scope.
 
@@ -157,7 +203,11 @@ bytes reaching an established destination, then mutation-verify it.
 - [ ] `rfc/short/rfc7911.md` — ADD-PATH; path-id 0 is legal, and multi-path means
       several path-ids per prefix
 - [ ] `rfc/short/rfc4760.md` — MP_REACH_NLRI encoding
-- [ ] `rfc/short/rfc2545.md` — 32-byte IPv6 next hop (global + link-local)
+- [ ] RFC 2545 — 32-byte IPv6 next hop (global + link-local). **No summary and no
+      full text are in the repository yet.** I-6 cannot be implemented until both
+      are produced through `/ze-rfc` (which also owes enrolment, an extraction
+      sign-off and a `docs/features/rfc-status.md` row). Recorded here so the
+      obligation stays visible; do NOT implement I-6 against memory of the RFC.
 
 ## Current Behavior (MANDATORY)
 

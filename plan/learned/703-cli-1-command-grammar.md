@@ -21,7 +21,7 @@ Ze had two CLI dispatch mechanisms: the YANG show tree (`pluginserver.RegisterRP
 
 ## Gotchas
 
-- The `route-reflector-client` config key is a boolean leaf under `session`, not a `capability` container entry. The YANG schema confirms: `ze-bgp-conf.yang:485` defines `leaf route-reflector-client` under `session`. Existing tests (`rr-basic.ci`) use `route-reflector-client true` at session level.
+- The `route-reflector-client` config key is a boolean leaf under `session`, not a `capability` container entry. The YANG schema confirms: `ze-bgp-conf.yang` defines `leaf route-reflector-client` under `session`. Existing tests (`rr-basic.ci`) use `route-reflector-client true` at session level.
 - BMP `show bmp rib` internally calls `DispatchCommand("bgp rib show-protocol bmp")` back into the engine. It does not read local data. This is an existing design choice, not something introduced by this migration.
 - `show bmp collectors` has no AC in the spec and had zero test coverage before this migration. Added coverage in `show-bmp-sessions.ci`.
 

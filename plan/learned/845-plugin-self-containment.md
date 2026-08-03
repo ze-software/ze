@@ -11,9 +11,9 @@ so `make ze-verify` was red.
 Remove a plugin and ALL its features (commands, schema, help, doctor checks)
 disappear; every OTHER plugin and the core keep working. This is the full
 user-facing version of the Proximity Principle's "delete the folder" test.
-Written up as `ai/rules/plugin-self-containment.md`, wired into
+Written up as `ai/rules/plugins.md`, wired into
 `ai/INSTRUCTIONS.md` (synced to CLAUDE.md/AGENTS.md), `ai/INDEX.md`, and
-cross-referenced from `ai/rules/plugin-design.md`.
+cross-referenced from `ai/rules/plugins.md`.
 
 ## Decisions
 
@@ -22,7 +22,7 @@ cross-referenced from `ai/rules/plugin-design.md`.
   typed selector because a YANG `ArgDef` declares it; it contains no `peer`/
   `bgp`/`bfd` words. The deleted `extractPeerSelector`/`looksLikeIPOrGlob`
   heuristics were the BGP leak 844 warned about.
-- **Grammar is replace-outright (cli-grammar.md "Backward Compatibility").**
+- **Grammar is replace-outright (cli.md "Backward Compatibility").**
   Internal `.ci` / `ze_api.py` callers were migrated to the documented forms:
   `show bgp peer <sel> detail|...`, `show bfd session address <addr>`,
   `show l2tp {tunnel,session} id <id>`, `show subscriber id <id> detail`,
@@ -66,8 +66,8 @@ cross-referenced from `ai/rules/plugin-design.md`.
 
 ## Files
 
-- `ai/rules/plugin-self-containment.md`, `ai/INSTRUCTIONS.md`, `ai/INDEX.md`,
-  `ai/rules/plugin-design.md`
+- `ai/rules/plugins.md`, `ai/INSTRUCTIONS.md`, `ai/INDEX.md`,
+  `ai/rules/plugins.md`
 - `internal/component/cmd/show/{show_policy.go,show_policy_test_cmd.go,ipsec.go}`,
   `internal/component/pki/show.go`, `internal/component/l2tp/cmd/l2tp.go`
 - `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang`,

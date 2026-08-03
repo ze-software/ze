@@ -211,7 +211,7 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densitySta
 // The returned error is non-nil when any section was damaged. The counts are
 // still the best available -- the salvage contract of mrt.ParsePrefixesAFI --
 // but the caller MUST surface the error, or it has reintroduced the same silent
-// under-count in a new place (ai/rules/fail-closed-guards.md).
+// under-count in a new place (ai/rules/evidence.md).
 func countUpdateNLRIs(body []byte) (announced, withdrawn int, err error) {
 	wd, attrs, nlri, serr := mrt.UpdateSections(body)
 	if serr != nil {

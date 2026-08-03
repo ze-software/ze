@@ -119,7 +119,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 		// returned an error, zero tests ran, and the suite read as green. The bad
 		// file is still added as a permanent failure so it fails the suite loudly
 		// instead of silently taking its siblings with it
-		// (ai/rules/fail-closed-guards.md). Mirrors EncodingTests.Discover.
+		// (ai/rules/evidence.md). Mirrors EncodingTests.Discover.
 		test, err := pt.parseCIFile(ciFile)
 		if err != nil {
 			recordLogger().Warn("unparseable .ci file recorded as failure; continuing discovery",

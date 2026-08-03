@@ -13,10 +13,10 @@ files. A sweep found 22 such numbers across the corpus, 26 excess files in all.
 
 `ai/rules/git-safety.md` claimed `learned-next` meant "concurrent sessions cannot
 allocate the same number". That is true only within one working tree.
-`learned_next` (`scripts/dev/commit_helper.py:1120`) computes
+`learned_next` (`scripts/dev/commit_helper.py`) computes
 `number = max(highest + 1, counter)` where `highest` comes from
 `learned_dir.glob("[0-9]*-*.md")` -- the LOCAL filesystem -- then creates the file
-with `O_EXCL` (`:1122`). The exclusive create is what defeats a racing session in
+with `O_EXCL`. The exclusive create is what defeats a racing session in
 the same tree. It says nothing about a branch whose files are not checked out.
 
 So two branches allocate the same number by construction, and the duplicate

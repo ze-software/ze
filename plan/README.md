@@ -22,7 +22,7 @@ Statuses: `skeleton` -> `design` -> `ready` -> `in-progress` -> closed.
 
 `skeleton` is the one status allowed to carry template placeholders: a deferral
 holder fills `## Task` and leaves the rest for whoever picks the work up
-(`ai/rules/deferral-tracking.md`). From `design` onward the placeholder guards in
+(`ai/rules/planning.md`). From `design` onward the placeholder guards in
 `.claude/hooks/validate-spec.sh` block, because the author is then claiming those
 sections are written.
 

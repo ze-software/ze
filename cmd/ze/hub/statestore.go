@@ -1,4 +1,4 @@
-// Design: ai/rules/zefs-persistence.md -- runtime state persists in the managed
+// Design: ai/rules/architecture.md -- runtime state persists in the managed
 // zefs store; this is the CLI/filesystem-path opener for that store.
 // Overview: main.go -- daemon startup, which registers the returned store with
 // internal/core/statestore before any plugin configures.

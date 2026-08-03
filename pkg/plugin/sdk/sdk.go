@@ -166,7 +166,7 @@ func (p *Plugin) IsInternal() bool {
 // An unclaimed role returns false, which must be the fail-closed direction for
 // the caller: it means "no other plugin promised to do this, keep doing it
 // yourself". A role the engine could not resolve is indistinguishable from an
-// unclaimed one on purpose (ai/rules/fail-closed-guards.md).
+// unclaimed one on purpose (ai/rules/evidence.md).
 func (p *Plugin) ClaimActive(role string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()

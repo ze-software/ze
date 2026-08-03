@@ -36,9 +36,9 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 - **Full-surface handlers** - the wave grew the sent-message set to 57 unique requests across five backends (iface, fib, static, traffic, firewall) plus the vpp component session layer; 49 have no handler. See the Message inventory table.
 - **Parity gate** - a static check asserting every binapi request message constructed by ze has a stub handler, so the stub can never silently rot again (this wave is the existence proof of the rot).
-- **`ze-test peer` withdraw directive** - `003-fib-withdraw.ci` needs the peer to send an explicit RFC 4271 withdraw; the peer today only has `send-route` (`internal/test/peer/message.go:129`).
+- **`ze-test peer` withdraw directive** - `003-fib-withdraw.ci` needs the peer to send an explicit RFC 4271 withdraw; the peer today only has `send-route` (`internal/test/peer/message.go`).
 - **Strict mode** - stub flag so a `.ci` run fails when ze sent a message the stub did not explicitly handle.
-- **Event emission** - `sw_interface_event` push after `want_interface_events`, so the ifacevpp monitor path (`internal/plugins/iface/vpp/monitor.go:90`) is CI-testable.
+- **Event emission** - `sw_interface_event` push after `want_interface_events`, so the ifacevpp monitor path (`internal/plugins/iface/vpp/monitor.go`) is CI-testable.
 
 ## Post-Wave Corrections (2026-07-10)
 
@@ -46,18 +46,18 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 
 | # | Skeleton said | Reality after the wave | Evidence |
 |---|--------------|------------------------|----------|
-| 1 | HANDLERS at `test/scripts/vpp_stub.py:517` | HANDLERS dict now at `test/scripts/vpp_stub.py:549` (the wave inserted `handle_classify_add_del_table` at :517-546) | read 2026-07-10 |
+| 1 | HANDLERS at `test/scripts/vpp_stub.py` | HANDLERS dict now at `test/scripts/vpp_stub.py` (the wave inserted `handle_classify_add_del_table` at :517-546) | read 2026-07-10 |
 | 2 | Scope = iface handlers + stats + inject + route dump + 2 `.ci` | Scope EXPANDED: wave added span/wireguard/lcp/gre/gretap/ipip/vxlan/tunnel_types binapi surface and traffic classify/policer messages; vendored govpp binapi packages; 49 of 57 sent request messages unhandled | Message inventory below |
-| 3 | (not stated) | The wave chose real-VPP Docker evidence (`scripts/evidence/effective-vpp-iface.py`, `ze-deployment-vpp-iface-test`) instead of stub coverage for its new surface; the stub gap is this spec's to close | `plan/learned/1098-followup-vpp-iface.md` Consequences; `mk/test-integration.mk:109-115` |
+| 3 | (not stated) | The wave chose real-VPP Docker evidence (`scripts/evidence/effective-vpp-iface.py`, `ze-deployment-vpp-iface-test`) instead of stub coverage for its new surface; the stub gap is this spec's to close | `plan/learned/1098-followup-vpp-iface.md` Consequences; `mk/test-integration.mk` |
 | 4 | `test/vpp` has 001,002,005,006,007 | Confirmed: exactly `001-boot.ci`, `002-fib-route.ci`, `005-mpls-push.ci`, `006-iface-create.ci`, `007-fib-route-lookup.ci`; 003/004/008+ absent | `ls test/vpp/` 2026-07-10 |
 | 5 | (not stated) | `plan/learned/1096` explicitly routes work here: "spec-finish-vpp-stub.md must add sw_interface_dump + policer_add_del handlers before any apply-tier .ci traffic test can run against the stub (A-6 is broken -- only classify_add_del_table was added)" | `plan/learned/1096-followup-vpp-traffic-protocol.md` Consequences |
-| 6 | (not stated) | `test/traffic/020-vpp-accept-dscp-filter.ci:152-153` and `026-vpp-accept-multiclass.ci:182` name this spec as the blocker for apply-tier traffic `.ci` | read 2026-07-10 |
+| 6 | (not stated) | `test/traffic/020-vpp-accept-dscp-filter.ci` and `026-vpp-accept-multiclass.ci` name this spec as the blocker for apply-tier traffic `.ci` | read 2026-07-10 |
 
 ## Required Reading
 
 ### Source files / docs
 
-- [ ] ~~`test/scripts/vpp_stub.py:517` (HANDLERS)~~ `test/scripts/vpp_stub.py:549` (HANDLERS) -- line drifted, see Post-Wave Corrections #1
+- [ ] ~~`test/scripts/vpp_stub.py` (HANDLERS)~~ `test/scripts/vpp_stub.py` (HANDLERS) -- line drifted, see Post-Wave Corrections #1
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10; full file read, see Current Behavior.)
   → Constraint: dispatch is by negotiated message name; unhandled requests hit the generic fallback at :609-617 (retval=0 i32 reply IF `<name>_reply` exists in the scraped table, logged with `"unhandled": true`; dump requests get NO reply so streams end empty at the client's control_ping).
   → Constraint: the stub truncates its JSONL log at startup (:152-154) -- a restarted stub instance on the same log path wipes prior evidence; `004-vpp-restart.ci` must use a distinct log per instance.
@@ -65,19 +65,19 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 - [ ] `test/vpp/*.ci` (functional VPP tests)
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10.)
   → Decision: all five use an embedded Python driver (tmpfs) that spawns vpp_stub + optionally ze-peer + ze and asserts on the stub's JSONL log; new tests follow the same driver pattern.
-  → Constraint: `006-iface-create.ci:268-270` depends on the EMPTY dump behavior ("the dump is empty but the handshake succeeds") -- adding a `sw_interface_dump` handler must keep 006 green (empty table at boot is still a valid dump).
+  → Constraint: `006-iface-create.ci` depends on the EMPTY dump behavior ("the dump is empty but the handshake succeeds") -- adding a `sw_interface_dump` handler must keep 006 green (empty table at boot is still a valid dump).
 - [ ] `internal/plugins/iface/vpp/ifacevpp.go`, `internal/plugins/traffic/vpp/` (code the stub exercises)
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10; message-by-message inventory below.)
 - [ ] `plan/learned/1096-followup-vpp-traffic-protocol.md`, `plan/learned/1097-followup-vpp-traffic.md`, `plan/learned/1098-followup-vpp-iface.md`
   → Decision: the wave's stance: stub-backed `.ci` = wiring proof, real-VPP evidence = correctness proof (1097: "Real-VPP evidence is the authoritative apply-tier validation (A-6: the stub cannot run a full traffic Apply)"). This spec keeps that split and closes the CI side.
   → Constraint: 1097 gotcha: the traffic `.ci` suite is timing/stderr-capture sensitive under load; do NOT raise sleep baselines; poll the stub JSONL with deadlines instead.
-- [ ] `internal/test/cli/cmd_vpp.go`, `mk/test-functional.mk:161-162`, `mk/test-release.mk:73`
-  → Constraint: `ze-test vpp --all` discovers `test/vpp/*.ci` (`cmd_vpp.go:53`); run by `make ze-vpp-test`; the vpp suite is NOT in the gating `ze-functional-test` list (`mk/test-functional.mk:47-48` "platform deps or infra") and runs in `ze-functional-extra-evidence` (release evidence).
-- [ ] `vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go:337-396`
+- [ ] `internal/test/cli/cmd_vpp.go`, `mk/test-functional.mk`, `mk/test-release.mk`
+  → Constraint: `ze-test vpp --all` discovers `test/vpp/*.ci` (`cmd_vpp.go`); run by `make ze-vpp-test`; the vpp suite is NOT in the gating `ze-functional-test` list (`mk/test-functional.mk` "platform deps or infra") and runs in `ze-functional-extra-evidence` (release evidence).
+- [ ] `vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go`
   → Constraint: stats are NOT binary-API messages: the client dials a `unixpacket` (SOCK_SEQPACKET) socket, receives ONE fd via SCM_RIGHTS, fstats + mmaps it read-only, and reads a versioned (1 or 2) stat segment. Emulation = seqpacket listener + memfd with a v1/v2-conformant segment.
 - [ ] `vendor/go.fd.io/govpp/core/connection.go`, `internal/component/vpp/conn.go`, `internal/component/vpp/vpp.go`
-  → Constraint: govpp core auto-reconnects after a connection drop; ze passes maxAttempts=10, retryInterval=1s (`vpp.go:273` via `conn.go:63-67`), so `004-vpp-restart.ci` has a ~10s window to restart the stub on the same socket path.
-  → Constraint: in external mode `runOnce` blocks on ctx (`vpp.go:313-316`); the restart loop and `EventReconnected` never fire, so post-restart re-arming (e.g. monitor re-subscribe) is NOT wired -- 004 scopes to fib re-programming only (see Known Limitations).
+  → Constraint: govpp core auto-reconnects after a connection drop; ze passes maxAttempts=10, retryInterval=1s (`vpp.go` via `conn.go`), so `004-vpp-restart.ci` has a ~10s window to restart the stub on the same socket path.
+  → Constraint: in external mode `runOnce` blocks on ctx (`vpp.go`); the restart loop and `EventReconnected` never fire, so post-restart re-arming (e.g. monitor re-subscribe) is NOT wired -- 004 scopes to fib re-programming only (see Known Limitations).
 
 ## Current Behavior (MANDATORY)
 
@@ -95,7 +95,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 - [ ] `internal/plugins/firewall/vpp/backend_linux.go` -- NOT in the skeleton's list; discovered at design: it sends 13 more unique messages (acl, nat44_ed, classify binding)
 - [ ] `internal/plugins/static/vpp/backend.go` -- sends ip_route_add_del (:61), already handled
 - [ ] `internal/component/vpp/conn.go`, `vpp.go`, `stats_conn.go`, `telemetry.go`
-  -> Constraint: telemetry poller consumes `GetInterfaceStats` / `GetNodeStats` / `GetSystemStats` (`telemetry.go:150-173`) from a `core.StatsConnection` created by `connectStats` (`stats_conn.go:18-19`); stats connect failure only warns and disables telemetry (`vpp.go:293-295`), so today the stub environment always runs with `ze_vpp_stats_up` unset.
+  -> Constraint: telemetry poller consumes `GetInterfaceStats` / `GetNodeStats` / `GetSystemStats` (`telemetry.go`) from a `core.StatsConnection` created by `connectStats` (`stats_conn.go`); stats connect failure only warns and disables telemetry (`vpp.go`), so today the stub environment always runs with `ze_vpp_stats_up` unset.
 - [ ] `vendor/go.fd.io/govpp/codec/codec.go`
   -> Constraint: DecodeMsg recovers from panics (:48), so the fallback's 4-byte retval reply to a message whose reply carries extra fields (e.g. create_loopback_reply) surfaces as a request-level decode ERROR in ze, not a crash. Extra-field replies therefore REQUIRE real handlers.
 
@@ -115,87 +115,87 @@ FIB / routes (fib/vpp = `internal/plugins/fib/vpp`, static/vpp = `internal/plugi
 
 | Message | Constructed at | Reply shape | Stub today |
 |---------|----------------|-------------|------------|
-| ip_route_add_del | fib/vpp/backend.go:71,141,183; mpls.go:79,100; static/vpp/backend.go:61 | retval+stats_index | handled :316 |
-| ip_route_lookup_v2 | iface/fib.go:168 | retval+route | handled :446 |
-| mpls_route_add_del | fib/vpp/mpls.go:131,156 | retval+stats_index | handled :381 |
-| sw_interface_set_mpls_enable | fib/vpp/mpls.go:185 | retval | handled :427 |
-| sr_steering_add_del | fib/vpp/srv6.go:72,95 | retval | MISSING |
-| ip_route_v2_dump | iface/fib.go:93 (ListKernelRoutes) | dump | MISSING |
+| ip_route_add_del | fib/vpp/backend.go,141,183; mpls.go,100; static/vpp/backend.go | retval+stats_index | handled :316 |
+| ip_route_lookup_v2 | iface/fib.go | retval+route | handled :446 |
+| mpls_route_add_del | fib/vpp/mpls.go,156 | retval+stats_index | handled :381 |
+| sw_interface_set_mpls_enable | fib/vpp/mpls.go | retval | handled :427 |
+| sr_steering_add_del | fib/vpp/srv6.go,95 | retval | MISSING |
+| ip_route_v2_dump | iface/fib.go (ListKernelRoutes) | dump | MISSING |
 
 Interface core (iface/vpp):
 
 | Message | Constructed at | Reply shape | Stub today |
 |---------|----------------|-------------|------------|
-| create_loopback | ifacevpp.go:258 (CreateDummy) | retval+sw_if_index | MISSING |
-| delete_loopback | ifacevpp.go:481 | retval | MISSING |
-| create_vlan_subif | ifacevpp.go:312 (CreateVLAN) | retval+sw_if_index | MISSING |
-| delete_subif | ifacevpp.go:489 | retval | MISSING |
-| sw_interface_add_del_address | ifacevpp.go:512,536 | retval | MISSING |
-| sw_interface_set_flags | ifacevpp.go:584,603 (SetAdminUp/Down) | retval | MISSING |
-| sw_interface_set_mtu | ifacevpp.go:627 | retval | MISSING |
-| sw_interface_clear_stats | ifacevpp.go:657 | retval | MISSING |
-| sw_interface_set_mac_address | query.go:181 | retval | MISSING |
-| sw_interface_dump | query.go:34,57; traffic ops_linux.go:33; firewall backend_linux.go:419 | dump (sw_interface_details) | MISSING |
-| want_interface_events | monitor.go:96,134 | retval | MISSING |
-| bridge_domain_add_del_v2 | ifacevpp.go:279 (CreateBridge) | retval+bd_id | MISSING |
-| sw_interface_set_l2_bridge | ifacevpp.go:690,710 (BridgeAdd/DelPort) | retval | MISSING |
-| qos_egress_map_update | ifacevpp.go:359,418 | retval | MISSING |
-| qos_mark_enable_disable | ifacevpp.go:369,428 | retval | MISSING |
-| qos_record_enable_disable | ifacevpp.go:392 | retval | MISSING |
-| ip_neighbor_dump | neighbor.go:59 (ListNeighbors) | dump | MISSING |
+| create_loopback | ifacevpp.go (CreateDummy) | retval+sw_if_index | MISSING |
+| delete_loopback | ifacevpp.go | retval | MISSING |
+| create_vlan_subif | ifacevpp.go (CreateVLAN) | retval+sw_if_index | MISSING |
+| delete_subif | ifacevpp.go | retval | MISSING |
+| sw_interface_add_del_address | ifacevpp.go,536 | retval | MISSING |
+| sw_interface_set_flags | ifacevpp.go,603 (SetAdminUp/Down) | retval | MISSING |
+| sw_interface_set_mtu | ifacevpp.go | retval | MISSING |
+| sw_interface_clear_stats | ifacevpp.go | retval | MISSING |
+| sw_interface_set_mac_address | query.go | retval | MISSING |
+| sw_interface_dump | query.go,57; traffic ops_linux.go; firewall backend_linux.go | dump (sw_interface_details) | MISSING |
+| want_interface_events | monitor.go,134 | retval | MISSING |
+| bridge_domain_add_del_v2 | ifacevpp.go (CreateBridge) | retval+bd_id | MISSING |
+| sw_interface_set_l2_bridge | ifacevpp.go,710 (BridgeAdd/DelPort) | retval | MISSING |
+| qos_egress_map_update | ifacevpp.go,418 | retval | MISSING |
+| qos_mark_enable_disable | ifacevpp.go,428 | retval | MISSING |
+| qos_record_enable_disable | ifacevpp.go | retval | MISSING |
+| ip_neighbor_dump | neighbor.go (ListNeighbors) | dump | MISSING |
 
 Interface tunnels / wireguard / mirror / LCP (iface/vpp, added by the wave):
 
 | Message | Constructed at | Reply shape | Stub today |
 |---------|----------------|-------------|------------|
-| gre_tunnel_add_del | tunnel.go:88 | retval+sw_if_index | MISSING |
-| ipip_add_tunnel | tunnel.go:119 | retval+sw_if_index | MISSING |
-| ipip_del_tunnel | tunnel.go:135 | retval | MISSING |
-| vxlan_add_del_tunnel_v3 | vxlan.go:46 | retval+sw_if_index | MISSING |
-| wireguard_interface_create | wireguard.go:98 | retval+sw_if_index | MISSING |
-| wireguard_interface_delete | wireguard.go:118 | retval | MISSING |
-| wireguard_peer_add | wireguard.go:158 | retval+peer_index | MISSING |
-| wireguard_peer_remove | wireguard.go:62 | retval | MISSING |
-| wireguard_interface_dump | wireguard.go:177 | dump | MISSING |
-| wireguard_peers_dump | wireguard.go:192 | dump | MISSING |
-| sw_interface_span_enable_disable | mirror.go:83 | retval | MISSING |
-| lcp_itf_pair_add_del | lcp.go:88 | retval | MISSING |
+| gre_tunnel_add_del | tunnel.go | retval+sw_if_index | MISSING |
+| ipip_add_tunnel | tunnel.go | retval+sw_if_index | MISSING |
+| ipip_del_tunnel | tunnel.go | retval | MISSING |
+| vxlan_add_del_tunnel_v3 | vxlan.go | retval+sw_if_index | MISSING |
+| wireguard_interface_create | wireguard.go | retval+sw_if_index | MISSING |
+| wireguard_interface_delete | wireguard.go | retval | MISSING |
+| wireguard_peer_add | wireguard.go | retval+peer_index | MISSING |
+| wireguard_peer_remove | wireguard.go | retval | MISSING |
+| wireguard_interface_dump | wireguard.go | dump | MISSING |
+| wireguard_peers_dump | wireguard.go | dump | MISSING |
+| sw_interface_span_enable_disable | mirror.go | retval | MISSING |
+| lcp_itf_pair_add_del | lcp.go | retval | MISSING |
 
 Traffic (traffic/vpp = `internal/plugins/traffic/vpp/ops_linux.go`):
 
 | Message | Constructed at | Reply shape | Stub today |
 |---------|----------------|-------------|------------|
-| policer_add_del | ops_linux.go:104 (also firewall :729) | retval+policer_index | MISSING |
-| policer_del | ops_linux.go:90 | retval | MISSING |
-| policer_dump | ops_linux.go:55 | dump | MISSING |
-| policer_output | ops_linux.go:119 | retval | MISSING |
-| classify_add_del_table | ops_linux.go:142 (also firewall :637) | retval+new_table_index | handled :517 |
-| classify_add_del_session | ops_linux.go:173 (also firewall :658) | retval | MISSING |
-| policer_classify_set_interface | ops_linux.go:199 (also firewall :701) | retval | MISSING |
+| policer_add_del | ops_linux.go (also firewall :729) | retval+policer_index | MISSING |
+| policer_del | ops_linux.go | retval | MISSING |
+| policer_dump | ops_linux.go | dump | MISSING |
+| policer_output | ops_linux.go | retval | MISSING |
+| classify_add_del_table | ops_linux.go (also firewall :637) | retval+new_table_index | handled :517 |
+| classify_add_del_session | ops_linux.go (also firewall :658) | retval | MISSING |
+| policer_classify_set_interface | ops_linux.go (also firewall :701) | retval | MISSING |
 
 Firewall (firewall/vpp = `internal/plugins/firewall/vpp/backend_linux.go`; NOT in skeleton scope, discovered at design):
 
 | Message | Constructed at | Reply shape | Stub today |
 |---------|----------------|-------------|------------|
-| acl_add_replace | backend_linux.go:226 | acl_index+retval | MISSING |
-| acl_del | backend_linux.go:448 | retval | MISSING |
-| acl_dump | backend_linux.go:460 | dump | MISSING |
-| acl_interface_list_dump | backend_linux.go:482 | dump | MISSING |
-| acl_interface_set_acl_list | backend_linux.go:503 | retval | MISSING |
-| classify_set_interface_ip_table | backend_linux.go:682 | retval | MISSING |
-| nat44_ed_plugin_enable_disable | backend_linux.go:520 | retval | MISSING |
-| nat44_add_del_address_range | backend_linux.go:535 | retval | MISSING |
-| nat44_add_del_static_mapping_v2 | backend_linux.go:551 | retval | MISSING |
-| nat44_ed_add_del_output_interface | backend_linux.go:572 | retval | MISSING |
-| nat44_interface_add_del_feature | backend_linux.go:591 | retval | MISSING |
-| nat44_static_mapping_dump | backend_linux.go:607 | dump | MISSING |
+| acl_add_replace | backend_linux.go | acl_index+retval | MISSING |
+| acl_del | backend_linux.go | retval | MISSING |
+| acl_dump | backend_linux.go | dump | MISSING |
+| acl_interface_list_dump | backend_linux.go | dump | MISSING |
+| acl_interface_set_acl_list | backend_linux.go | retval | MISSING |
+| classify_set_interface_ip_table | backend_linux.go | retval | MISSING |
+| nat44_ed_plugin_enable_disable | backend_linux.go | retval | MISSING |
+| nat44_add_del_address_range | backend_linux.go | retval | MISSING |
+| nat44_add_del_static_mapping_v2 | backend_linux.go | retval | MISSING |
+| nat44_ed_add_del_output_interface | backend_linux.go | retval | MISSING |
+| nat44_interface_add_del_feature | backend_linux.go | retval | MISSING |
+| nat44_static_mapping_dump | backend_linux.go | dump | MISSING |
 
-**Totals: 57 unique request messages; 8 handled, 49 missing.** All reply shapes above verified against the vendored binapi structs 2026-07-10 (e.g. CreateLoopbackReply `vendor/go.fd.io/govpp/binapi/interface/interface.ba.go:240-243`, PolicerAddDelReply `policer.ba.go:218-221`, ACLAddReplaceReply `acl.ba.go:145-148`, LcpItfPairAddDelReply retval-only `lcp.ba.go:408-410`; the 25 remaining "retval" replies batch-verified retval-only).
+**Totals: 57 unique request messages; 8 handled, 49 missing.** All reply shapes above verified against the vendored binapi structs 2026-07-10 (e.g. CreateLoopbackReply `vendor/go.fd.io/govpp/binapi/interface/interface.ba.go`, PolicerAddDelReply `policer.ba.go`, ACLAddReplaceReply `acl.ba.go`, LcpItfPairAddDelReply retval-only `lcp.ba.go`; the 25 remaining "retval" replies batch-verified retval-only).
 
 Beyond requests, two non-request surfaces are unemulated:
 
-- **sw_interface_event** (server push, consumed at `monitor.go:90` via SubscribeNotification; enabled by want_interface_events) -- the stub never emits it, so the VPP-to-EventBus monitor path has zero CI coverage.
-- **Stats segment** (seqpacket socket + SCM_RIGHTS fd + mmap, `statsclient.go:337-396`) -- a different protocol from the binary API; consumed by the telemetry poller (`telemetry.go:150-173`). No emulation; `vpp.go:293-295` degrades to a warning.
+- **sw_interface_event** (server push, consumed at `monitor.go` via SubscribeNotification; enabled by want_interface_events) -- the stub never emits it, so the VPP-to-EventBus monitor path has zero CI coverage.
+- **Stats segment** (seqpacket socket + SCM_RIGHTS fd + mmap, `statsclient.go`) -- a different protocol from the binary API; consumed by the telemetry poller (`telemetry.go`). No emulation; `vpp.go` degrades to a warning.
 
 ### .ci coverage today (verified 2026-07-10)
 
@@ -204,14 +204,14 @@ Beyond requests, two non-request surfaces are unemulated:
 | test/vpp (stub-backed runtime) | 001-boot, 002-fib-route, 005-mpls-push, 006-iface-create, 007-fib-route-lookup | handshake; ip_route_add_del add path (plain + MPLS label); backend load with EMPTY dump; route lookup | 006 is load-only despite its name (comment :268-270: dump empty by design); no create/withdraw/restart/event/dump/fault/traffic/firewall/telemetry coverage |
 | test/parse (offline) | iface-vpp-*.ci (11), fib-vpp-config-valid.ci, vpp-config-*.ci (8) | `ze config validate -` commit-gate accept/reject only; no daemon, no stub, no messages | parse-only by construction |
 | test/traffic (runtime, NO stub) | 011-vpp-reject-hfsc, 012-vpp-not-connected, 020-vpp-accept-dscp-filter, 020-vpp-reject-dscp-filter, 024-vpp-reject-prio, 025-vpp-reject-mark, 026-vpp-accept-multiclass | verify-tier accept/reject; "accept" is proven by the 5s WaitConnected timeout logging "vpp not connected" (e.g. 020-accept:139-156) | apply tier never runs; the accept signal is the ABSENCE of VPP -- explicitly "blocked on A-6 stub work in plan/spec-finish-vpp-stub.md" (020:152-153) |
-| test/firewall | none for vpp | -- | firewall/vpp has unit (fakeOps) + QEMU `go test -tags integration ./internal/plugins/firewall/vpp/...` (`mk/test-integration.mk:277-285`) but no functional `.ci` at all |
-| real-VPP evidence (Docker, not CI) | `ze-deployment-vpp-test` -> `scripts/evidence/effective-vpp.py`; `ze-deployment-vpp-iface-test` -> `scripts/evidence/effective-vpp-iface.py` (`mk/test-integration.mk:109-115`) | semantic correctness on VPP 25.10 (policer/classify/dscp/multiclass; GRE + SPAN + wireguard) | requires Docker; not run per-commit |
+| test/firewall | none for vpp | -- | firewall/vpp has unit (fakeOps) + QEMU `go test -tags integration ./internal/plugins/firewall/vpp/...` (`mk/test-integration.mk`) but no functional `.ci` at all |
+| real-VPP evidence (Docker, not CI) | `ze-deployment-vpp-test` -> `scripts/evidence/effective-vpp.py`; `ze-deployment-vpp-iface-test` -> `scripts/evidence/effective-vpp-iface.py` (`mk/test-integration.mk`) | semantic correctness on VPP 25.10 (policer/classify/dscp/multiclass; GRE + SPAN + wireguard) | requires Docker; not run per-commit |
 
 ### Stub wiring (how .ci runs reach the stub)
 
 - The drivers embedded in each `test/vpp/*.ci` locate `test/scripts/vpp_stub.py` via the repo root and spawn it per-test with `--socket <tmp>/api.sock --log <tmp>/vpp-requests.jsonl --deadline N -v`.
-- `ze-test vpp` (registered `internal/test/cli/register.go:39`, implemented `cmd_vpp.go:53`) discovers `test/vpp/*.ci`; `make ze-vpp-test` = `bin/ze-test vpp --all` (`mk/test-functional.mk:161-162`).
-- The vpp suite is non-gating: absent from the `ze-functional-test` suite list (`mk/test-functional.mk:54`), present in `ze-functional-extra-evidence` (`mk/test-release.mk:73`).
+- `ze-test vpp` (registered `internal/test/cli/register.go`, implemented `cmd_vpp.go`) discovers `test/vpp/*.ci`; `make ze-vpp-test` = `bin/ze-test vpp --all` (`mk/test-functional.mk`).
+- The vpp suite is non-gating: absent from the `ze-functional-test` suite list (`mk/test-functional.mk`), present in `ze-functional-extra-evidence` (`mk/test-release.mk`).
 
 **Behavior to preserve:**
 - All existing behaviour of the listed files; this backlog work only adds the missing pieces named in the Task work items.
@@ -222,7 +222,7 @@ Beyond requests, two non-request surfaces are unemulated:
 **Behavior to change:**
 - Only the specific gaps enumerated in the Task work items: add handlers/state/events/fault-injection/stats emulation to the stub, add the missing `test/vpp/*.ci`, add the parity gate, add the peer withdraw directive.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - `test/vpp/*.ci` running `ze` against the Python `vpp_stub.py` binary-API emulator
@@ -234,7 +234,7 @@ Beyond requests, two non-request surfaces are unemulated:
 3. The test asserts the VPP-facing behaviour end-to-end
 4. (design 2026-07-10) Stateful flows: handler mutates stub state (interface table / route table / policer + classify registry / acl-nat registry / wireguard peers) -> later dump handlers stream that state back -> `ze` renders it (e.g. ListKernelRoutes) -> driver asserts on ze output AND on the JSONL log
 5. (design 2026-07-10) Event flow: `want_interface_events` arms the connection -> a subsequent `sw_interface_set_flags` handler emits an `sw_interface_event` EventMessage frame -> govpp SubscribeNotification -> `monitor.go` translates to EventBus -> driver asserts the ze log line
-6. (design 2026-07-10) Stats flow: stub serves a seqpacket socket, passes a memfd with a v1/v2 stat segment via SCM_RIGHTS -> `connectStats` (`stats_conn.go:18`) -> telemetry poller (`telemetry.go:150`) -> Prometheus metrics endpoint -> driver scrapes `ze_vpp_stats_up` + `ze_vpp_interface_*`
+6. (design 2026-07-10) Stats flow: stub serves a seqpacket socket, passes a memfd with a v1/v2 stat segment via SCM_RIGHTS -> `connectStats` (`stats_conn.go`) -> telemetry poller (`telemetry.go`) -> Prometheus metrics endpoint -> driver scrapes `ze_vpp_stats_up` + `ze_vpp_interface_*`
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -242,7 +242,7 @@ Beyond requests, two non-request surfaces are unemulated:
 | `ze` -> stub | GoVPP binary API over the stub socket | [ ] |
 | stub -> test | stats segment / route dump responses | [ ] |
 | stub -> `ze` (push) | sw_interface_event EventMessage frames (6-byte header, `build_reply` EventMessage branch :245) | [ ] |
-| stub -> `ze` (shared memory) | SOCK_SEQPACKET + SCM_RIGHTS fd + mmap stat segment (`statsclient.go:337-396`) | [ ] |
+| stub -> `ze` (shared memory) | SOCK_SEQPACKET + SCM_RIGHTS fd + mmap stat segment (`statsclient.go`) | [ ] |
 | source tree -> parity gate | `scripts/checks/vpp_stub_parity.go` scans non-test Go for binapi request constructions and vpp_stub.py for HANDLERS keys | [ ] |
 
 ### Integration Points
@@ -256,7 +256,7 @@ Beyond requests, two non-request surfaces are unemulated:
 - [ ] No bypassed layers (data flows through intended path)
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
-- [ ] Registration over hardcoding - new commands/views/families/handlers register and are core-discovered, not hardcoded into a core/shared package (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding - new commands/views/families/handlers register and are core-discovered, not hardcoded into a core/shared package (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -264,14 +264,14 @@ Beyond requests, two non-request surfaces are unemulated:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The verified `file:line` evidence in the Task items still holds at design time | 2026-07-06 backlog triage | Re-scope the item | grep/LSP at design time | confirmed (2026-07-10 full re-inventory; only drift: HANDLERS :517 -> :549, scope grew per Post-Wave Corrections) |
-| A-2 | Extra-field fallback replies fail the request in ze without crashing it (decode error, not panic) | `vendor/go.fd.io/govpp/codec/codec.go:48` recover in DecodeMsg | Fallback would crash ze; handlers become even more urgent but tests must guard crashes | read of codec.go 2026-07-10 | confirmed |
-| A-3 | Stub message IDs are stable across stub restart (same binapi -> same sorted assignment), so govpp reconnect works against a NEW stub process | `test/scripts/vpp_stub.py:143-149` deterministic assignment; govpp re-runs sockclnt_create on reconnect | 004-vpp-restart infeasible against a fresh process; would need in-process socket re-listen instead | read of stub + `connection.go` reconnect loop | confirmed (code-read; runtime-proven by 004 itself) |
-| A-4 | The govpp reconnect window under ze's settings is ~10s (10 attempts x 1s), enough for a driver to restart the stub | `internal/component/vpp/vpp.go:273` Connect(ctx, 10, 1s); `conn.go:63-67` passes both to core.AsyncConnect | 004 flaky; driver must restart faster or the test is redesigned around a held socket | 004 driver logs reconnect timing; run under load | unvalidated |
-| A-5 | With sw_interface_dump + policer/classify handlers, the traffic vpp Apply path completes against the stub (WaitConnected satisfied, name resolution finds the seeded interface) | 1096 Consequences names exactly these handlers as the A-6 blocker; Apply gates on `Connector.WaitConnected` + interface dump (`ops_linux.go:33`) | Apply needs more than listed; extend stub state until Apply completes; scope unchanged (parity list is closed) | 016-traffic-apply.ci green | unvalidated |
-| A-6 | Python on CI supports SOCK_SEQPACKET + `socket.send_fds` (3.9+) for the stats emulation | statsclient requires seqpacket + SCM_RIGHTS (`statsclient.go:338-356`); repo CI uses modern python3 | Implement fd-passing via `sendmsg` ancillary data manually (works on any 3.x) | `python3 -c` probe in the 012 driver; implementation-time check | unvalidated |
+| A-2 | Extra-field fallback replies fail the request in ze without crashing it (decode error, not panic) | `vendor/go.fd.io/govpp/codec/codec.go` recover in DecodeMsg | Fallback would crash ze; handlers become even more urgent but tests must guard crashes | read of codec.go 2026-07-10 | confirmed |
+| A-3 | Stub message IDs are stable across stub restart (same binapi -> same sorted assignment), so govpp reconnect works against a NEW stub process | `test/scripts/vpp_stub.py` deterministic assignment; govpp re-runs sockclnt_create on reconnect | 004-vpp-restart infeasible against a fresh process; would need in-process socket re-listen instead | read of stub + `connection.go` reconnect loop | confirmed (code-read; runtime-proven by 004 itself) |
+| A-4 | The govpp reconnect window under ze's settings is ~10s (10 attempts x 1s), enough for a driver to restart the stub | `internal/component/vpp/vpp.go` Connect(ctx, 10, 1s); `conn.go` passes both to core.AsyncConnect | 004 flaky; driver must restart faster or the test is redesigned around a held socket | 004 driver logs reconnect timing; run under load | unvalidated |
+| A-5 | With sw_interface_dump + policer/classify handlers, the traffic vpp Apply path completes against the stub (WaitConnected satisfied, name resolution finds the seeded interface) | 1096 Consequences names exactly these handlers as the A-6 blocker; Apply gates on `Connector.WaitConnected` + interface dump (`ops_linux.go`) | Apply needs more than listed; extend stub state until Apply completes; scope unchanged (parity list is closed) | 016-traffic-apply.ci green | unvalidated |
+| A-6 | Python on CI supports SOCK_SEQPACKET + `socket.send_fds` (3.9+) for the stats emulation | statsclient requires seqpacket + SCM_RIGHTS (`statsclient.go`); repo CI uses modern python3 | Implement fd-passing via `sendmsg` ancillary data manually (works on any 3.x) | `python3 -c` probe in the 012 driver; implementation-time check | unvalidated |
 | A-7 | The v1/v2 stat segment layout is implementable from the vendored statsclient sources alone (no VPP source needed) | `vendor/go.fd.io/govpp/adapter/statsclient/statseg_v1.go` / `statseg_v2.go` are the exact parser the emulation must satisfy | Ground-truth against real VPP via the Docker evidence env instead | 012-telemetry.ci green (GetInterfaceStats/GetSystemStats/GetNodeStats return the canned counters) | unvalidated |
-| A-8 | Adding a `send-withdraw` update directive to ze-test peer is a modest extension of the existing send-route path | `internal/test/peer/message.go:128-144` RouteToSend + BuildRouteMsg pattern; `peer.go:123` SendRoutes plumbing | Fall back to session-down purge for 003 (peer disconnect withdraws routes) and file the directive as its own item | unit test on the new builder + 003 green | unvalidated |
-| A-9 | An `sw_interface_event` emitted by the stub on admin-flag change reaches `monitor.go:90` via govpp SubscribeNotification with the 6-byte EventMessage framing the stub already produces | `build_reply` EventMessage branch (:245); monitor SubscribeNotification (`monitor.go:90-105`) | Adjust framing per govpp codec expectations for events; the reference is `codec.go` getOffset | 013-iface-monitor-event.ci green | unvalidated |
+| A-8 | Adding a `send-withdraw` update directive to ze-test peer is a modest extension of the existing send-route path | `internal/test/peer/message.go` RouteToSend + BuildRouteMsg pattern; `peer.go` SendRoutes plumbing | Fall back to session-down purge for 003 (peer disconnect withdraws routes) and file the directive as its own item | unit test on the new builder + 003 green | unvalidated |
+| A-9 | An `sw_interface_event` emitted by the stub on admin-flag change reaches `monitor.go` via govpp SubscribeNotification with the 6-byte EventMessage framing the stub already produces | `build_reply` EventMessage branch (:245); monitor SubscribeNotification (`monitor.go`) | Adjust framing per govpp codec expectations for events; the reference is `codec.go` getOffset | 013-iface-monitor-event.ci green | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -281,7 +281,7 @@ Beyond requests, two non-request surfaces are unemulated:
 | R-3 | 004-vpp-restart flakiness: reconnect window vs stub restart latency | reconnect logs show attempts exhausted | Driver starts the replacement stub BEFORE the old socket's clients notice (unlink+bind is instant); assert via JSONL of the new instance; A-4 timing check |
 | R-4 | Stub state model drifts from real VPP semantics (e.g. retval conventions, index reuse), giving false confidence | Stub-green test but real-VPP evidence red for the same flow | Recorded split: stub = wiring/regression proof only; real-VPP Docker evidence stays the correctness gate (Key Design Decisions); evidence scripts unchanged by this spec |
 | R-5 | Parity gate false positives/negatives: message constructions in helpers, aliased imports, or reply/details/event structs miscounted as requests | Gate flags a non-request type, or misses a new message | Map Go type -> wire name via the vendored `GetMessageName`/`GetMessageType` (only RequestMessage types count); scan non-test files only; fixture-tested like `scripts/checks/iface_resolution.go`; `--selftest` mode |
-| R-6 | Monitor re-arm after external-mode VPP restart is not wired (no EventReconnected in external mode, `vpp.go:313-316`), so a restart test asserting monitor behavior would fail for a reason outside this spec | 004 extended to events fails post-restart | 004 scopes to fib re-programming; monitor-after-restart recorded in Known Limitations as a candidate ze bug/follow-up, NOT silently absorbed into this spec |
+| R-6 | Monitor re-arm after external-mode VPP restart is not wired (no EventReconnected in external mode, `vpp.go`), so a restart test asserting monitor behavior would fail for a reason outside this spec | 004 extended to events fails post-restart | 004 scopes to fib re-programming; monitor-after-restart recorded in Known Limitations as a candidate ze bug/follow-up, NOT silently absorbed into this spec |
 | R-7 | Config commit-gates reject some kinds under vpp (bridge, veth), so their messages are stub-handled but not `.ci`-drivable from config | 008+ cannot produce bridge_domain_add_del_v2 | Parity covers the handler's existence; Known Limitations records which messages have no config-reachable driver today (bridge/l2 pair) |
 
 ## Wiring Test (MANDATORY)
@@ -327,18 +327,18 @@ Beyond requests, two non-request surfaces are unemulated:
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | configures a loopback with an address under `backend vpp` | config -> iface config_apply CreateDummy (`config_apply.go:363`) -> ifacevpp create_loopback/set_flags/add_del_address -> stub | 008-iface-loopback.ci |
+| 1 | configures a loopback with an address under `backend vpp` | config -> iface config_apply CreateDummy (`config_apply.go`) -> ifacevpp create_loopback/set_flags/add_del_address -> stub | 008-iface-loopback.ci |
 | 2 | BGP peer withdraws a route | peer UPDATE -> RIB -> sysrib best-change -> fib-vpp ip_route_add_del is_add=false -> stub | 003-fib-withdraw.ci |
 | 3 | VPP restarts under ze (external supervisor) | socket drop -> govpp auto-reconnect (`connection.go` loop) -> new sockclnt_create -> route re-programmable | 004-vpp-restart.ci |
-| 4 | inspects the VPP FIB via ze | show route dispatch -> ListKernelRoutes (`fib.go:73`) -> ip_route_v2_dump -> render | 014-route-dump.ci |
+| 4 | inspects the VPP FIB via ze | show route dispatch -> ListKernelRoutes (`fib.go`) -> ip_route_v2_dump -> render | 014-route-dump.ci |
 | 5 | VPP rejects a route (error path) | ip_route_add_del retval=-1 -> fib-vpp logs error, no install | 015-fault-injection.ci |
-| 6 | configures gre/ipip/vxlan tunnels | config -> CreateTunnel (`tunnel.go:29`) -> gre/ipip/vxlan add -> stub sw_if_index | 009-iface-tunnel.ci |
-| 7 | configures wireguard under vpp | config -> ConfigureWireguardDevice (`wireguard.go:53`) -> create + peer add -> stub | 010-iface-wireguard.ci |
-| 8 | mirrors a port + shadows a loopback via LCP | config -> SetupMirror (`mirror.go:28`) / SetupLCPPair (`lcp.go:43`) -> stub | 011-iface-mirror-lcp.ci |
-| 9 | watches interface state | VPP event -> monitor (`monitor.go:148`) -> EventBus consumers | 013-iface-monitor-event.ci |
+| 6 | configures gre/ipip/vxlan tunnels | config -> CreateTunnel (`tunnel.go`) -> gre/ipip/vxlan add -> stub sw_if_index | 009-iface-tunnel.ci |
+| 7 | configures wireguard under vpp | config -> ConfigureWireguardDevice (`wireguard.go`) -> create + peer add -> stub | 010-iface-wireguard.ci |
+| 8 | mirrors a port + shadows a loopback via LCP | config -> SetupMirror (`mirror.go`) / SetupLCPPair (`lcp.go`) -> stub | 011-iface-mirror-lcp.ci |
+| 9 | watches interface state | VPP event -> monitor (`monitor.go`) -> EventBus consumers | 013-iface-monitor-event.ci |
 | 10 | applies per-class traffic policy | traffic Apply -> policer + classify chain + binding (`classify_linux.go`) -> stub | 016-traffic-apply.ci |
 | 11 | applies firewall + NAT | firewall Apply -> acl/nat44 messages -> stub | 017-firewall-acl-nat.ci |
-| 12 | monitors VPP telemetry | stats segment -> poller (`telemetry.go:150`) -> Prometheus endpoint | 012-telemetry.ci |
+| 12 | monitors VPP telemetry | stats segment -> poller (`telemetry.go`) -> Prometheus endpoint | 012-telemetry.ci |
 
 ## 🧪 TDD Test Plan
 
@@ -372,7 +372,7 @@ Beyond requests, two non-request surfaces are unemulated:
 Not applicable with justification: the VPP binary API is not a wire protocol between routing daemons; there is no third-party peer to interop against. The interop analog for this surface is the real-VPP Docker evidence (`ze-deployment-vpp-test`, `ze-deployment-vpp-iface-test`), which stays authoritative for semantic correctness (see Key Design Decisions).
 
 ### Future (if deferring any tests)
-- None planned. Any discovered-at-implementation deferral needs explicit user approval and a destination per `ai/rules/deferral-tracking.md`.
+- None planned. Any discovered-at-implementation deferral needs explicit user approval and a destination per `ai/rules/planning.md`.
 
 ## Files to Modify
 
@@ -410,8 +410,8 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 | Pipe completeness | no | no ze command output added |
 | Env var registration | no | none |
 | Doctor check for runtime dependencies | no | stub is test-only; no ze runtime dependency added |
-| Prometheus counters/metrics | no | 012 consumes EXISTING `ze_vpp_*` metrics (`telemetry.go:74-93`); none added |
-| Discovery updates (`ai/rules/discovery-updates.md`) | yes | new gate + suite tests documented in `docs/functional-tests.md`; Makefile help lists the new target |
+| Prometheus counters/metrics | no | 012 consumes EXISTING `ze_vpp_*` metrics (`telemetry.go`); none added |
+| Discovery updates (`ai/rules/repo-maintenance.md`) | yes | new gate + suite tests documented in `docs/functional-tests.md`; Makefile help lists the new target |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -440,7 +440,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 | D-5: Stub-backed `.ci` = CI-runnable WIRING/REGRESSION proof; real-VPP Docker evidence = CORRECTNESS proof. Both required; neither replaces the other | (a) stub as the only gate; (b) real-VPP in CI | The stub cannot validate VPP semantics (R-4; 1096's INVALID_VALUE lesson was only findable on real VPP); Docker VPP is not per-commit-runnable in CI. The wave chose real-VPP evidence for its new surface; this spec closes the CI half of the split |
 | D-6: Stats-segment emulation lives in `vpp_stub.py` behind `--stats-socket` (off by default) | (a) separate `vpp_stats_stub.py`; (b) Go helper inside ze-test | One VPP emulator process keeps `.ci` orchestration single-spawn; (b) would put VPP-protocol serving inside ze's own test binary, coupling emulator to consumer. Layout ground-truthed against vendored `statseg_v1.go`/`statseg_v2.go` (A-7); version choice (v1 vs v2) is an implementation detail so long as govpp accepts it |
 | D-7: 003-fib-withdraw uses an explicit RFC 4271 withdraw via a new `send-withdraw` peer directive | Session-drop purge (peer disconnects; RIB withdraws all) | Explicit withdraw exercises the UPDATE-withdraw decode -> RIB remove -> sysrib -> fib path distinctly; session-drop conflates it with purge logic. Purge-on-drop can be asserted opportunistically in 004 (post-kill) if stable |
-| D-8: 004-vpp-restart = external-mode stub process restart on the same socket, relying on govpp auto-reconnect (10x1s per `vpp.go:273`) | (a) in-stub socket bounce (drop + re-listen, same process); (b) ze-side vpp manager restart (non-external) | (a) doesn't prove message-table renegotiation with a fresh process (the real restart shape); (b) requires a real VPP binary. Distinct JSONL per instance avoids the startup truncation (:152-154) |
+| D-8: 004-vpp-restart = external-mode stub process restart on the same socket, relying on govpp auto-reconnect (10x1s per `vpp.go`) | (a) in-stub socket bounce (drop + re-listen, same process); (b) ze-side vpp manager restart (non-external) | (a) doesn't prove message-table renegotiation with a fresh process (the real restart shape); (b) requires a real VPP binary. Distinct JSONL per instance avoids the startup truncation (:152-154) |
 | D-9: sw_interface_event is emitted organically on every sw_interface_set_flags while armed (mirrors real VPP), not via a scripted trigger API | driver-triggered event injection endpoint on the stub | Zero new stub control surface; ze's own SetAdminUp during apply produces the trigger; deterministic for 013 |
 | D-10: vpp suite stays NON-gating in `ze-functional-test`; the parity check IS gating in `ze-verify` | Promote the suite to gating now | R-2 (load sensitivity, 1097 gotcha) makes daemon-timing tests a bad commit gate today; the parity check is cheap, static, and catches the rot class. Revisit promotion once the grown suite proves stable in release evidence runs |
 | D-11: Handlers decode and log the request fields ze's tests assert on (prefix, sw_if_index, state, indices), not full-message decoding | Full generic decode via scraping binapi field layouts | Field-offsets are hand-verified per message today (existing style, e.g. ip_route_add_del :316-378); full generic decode is a large correctness surface with no consumer; log what tests assert, extend per test need |
@@ -449,7 +449,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 
 - The stub proves WIRING, not VPP semantics: retvals are scripted, no dataplane, no index-exhaustion/reuse realism. Real-VPP evidence (`ze-deployment-vpp-*`) remains the correctness gate (D-5).
 - bridge/veth/xfrm under backend vpp are commit-gate rejected (`test/parse/iface-vpp-rejects-bridge.ci`, `-rejects-veth.ci`), so `bridge_domain_add_del_v2` / `sw_interface_set_l2_bridge` handlers are parity-covered but not config-drivable in a `.ci` today (R-7).
-- Monitor re-arm after an external-mode VPP restart is not wired in ze (no EventReconnected in external mode, `vpp.go:313-316`); 004 scopes to fib re-programming. If 004's implementation confirms the monitor stays dead after reconnect, that is a ze bug to report + route to its own spec, not to fix silently here.
+- Monitor re-arm after an external-mode VPP restart is not wired in ze (no EventReconnected in external mode, `vpp.go`); 004 scopes to fib re-programming. If 004's implementation confirms the monitor stays dead after reconnect, that is a ze bug to report + route to its own spec, not to fix silently here.
 - The vpp suite remains outside the gating `ze-functional-test` list (D-10).
 - `qos_*` messages fire only for VLAN identity qos-maps (non-identity rejected, `test/parse/iface-vpp-rejects-nonidentity-qos.ci`); their `.ci` coverage rides on the vlan leg of 008/009 only if a vlan unit is config-drivable there, else parity-only (record at implementation which).
 
@@ -674,6 +674,6 @@ Each phase: write test -> fail -> implement -> pass. Each ends with a self-criti
 - [ ] Tests PASS (paste output)
 
 ## Notes
-- Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
+- Skeleton = captured intent, not a designed spec (see `ai/rules/planning.md`). Moves to `design` when someone picks it up.
 - Design filled 2026-07-10 from firsthand re-verification of every producer cited above.
 - user instruction 2026-07-10 authorized conversion to ready; goal statement: implement VPP correctly and fully.

@@ -23,7 +23,7 @@ always did.
 
 A base is only usable if it gives a real comparison. "Clean" must mean "I
 compared things and found nothing", never "I compared nothing"
-(ai/rules/fail-closed-guards.md).
+(ai/rules/evidence.md).
 
 Exit 0 = a comparison ran and found no test deletion/weakening/relaxation.
 Exit 1 = findings reported (review them).
@@ -87,7 +87,7 @@ def load_rfc_detector(repo_root):
     The only backstop against one is `grep -rn 'rfc-test-change-approved:'` plus human
     review of each hit, which the hook's own block message already instructs. Do not read
     this audit as catching a token an agent wrote for itself; it cannot
-    (ai/rules/no-fabrication.md, ai/rules/fail-closed-guards.md).
+    (ai/rules/evidence.md, ai/rules/evidence.md).
     """
     mod = load_hook_module(repo_root)
     return getattr(mod, "_rfc_tagged_change_err", None) if mod else None
@@ -130,7 +130,7 @@ def resolve_anchor(base, cwd):
     empty finding list, which report() then printed as a clean bill of health.
     The empty list is the zero-value trap -- it cannot distinguish "compared and
     found nothing" from "compared nothing" -- so the miss is made explicit here,
-    at the only layer that knows it happened (ai/rules/fail-closed-guards.md).
+    at the only layer that knows it happened (ai/rules/evidence.md).
     """
     head = git(["rev-parse", "--verify", "HEAD^{commit}"], cwd)
     if head.returncode != 0:

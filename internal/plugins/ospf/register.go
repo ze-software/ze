@@ -148,7 +148,7 @@ func init() { registerOSPF() }
 // ospfDiagnosticCodes is the explanation metadata for the two OSPF config-sanity codes
 // this component OWNS (spec-ospf-13). Deliberately NOT in the central
 // diagnostic.builtinCodes slice -- owning them here removes them with the component
-// (ai/rules/plugin-self-containment.md). The doctor-ospf-raw-socket code is owned by
+// (ai/rules/plugins.md). The doctor-ospf-raw-socket code is owned by
 // ospf-3 and registered there.
 var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 	{

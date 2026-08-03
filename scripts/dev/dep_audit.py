@@ -9,7 +9,7 @@ A directory is a "plugin candidate" when its only importers are registration
 blank-imports (the generated composition root internal/component/plugin/all/all.go
 and the cmd/ze dispatch files) plus tests. Nothing in the core or any sibling
 calls into it directly -- it is reachable only through the registry, so it already
-passes the "delete the folder" test (ai/rules/plugin-self-containment.md) and could
+passes the "delete the folder" test (ai/rules/plugins.md) and could
 live under internal/plugins/ unchanged. Directories WITH external importers are
 genuine core/shared code (the daemon wires them, siblings call them).
 
@@ -32,7 +32,7 @@ engine, stale baseline entry, illegal/unclassified non-engine placement, manifes
 error, pluginDirs parse failure, or a new/stale internal/core upward import
 (core import-direction gate, baseline: scripts/dev/core_import_baseline.txt).
 
-Module-tier rule (see ai/rules/module-tiers.md): a config-driven engine
+Module-tier rule (see ai/rules/architecture.md): a config-driven engine
 (`sdk.NewWithConn`) at a top-level subsystem MUST live in internal/component/ if a
 feature depends on it, else in internal/plugins/. Nested sub-plugin namespaces
 (from the generator's pluginDirs) are excluded. Non-engine packages that are not
@@ -194,7 +194,7 @@ def classify(area: str, root: str, module: str, edges: dict, engines: set) -> li
 # feature-gate manifest (feature-gates.txt), the single source of truth shared
 # with the generator, the Makefile, and the test runner. Add a gate by adding
 # one line to that file. See plan/spec-feature-gate-0-umbrella.md,
-# ai/rules/feature-gate-registration.md, and ai/rules/module-tiers.md.
+# ai/rules/plugins.md, and ai/rules/architecture.md.
 FEATURE_GATES_MANIFEST = "feature-gates.txt"
 GOLANGCI = ".golangci.yml"
 # Non-feature build tags that legitimately appear in .golangci.yml build-tags
@@ -320,7 +320,7 @@ def disableable_gate(root: str, module: str, edges: dict) -> int:
         print(f"  {imp} imports {pkg} without //go:build {tag}", file=sys.stderr)
     print(
         "  Rule: a compile-out-able feature is reached ONLY via build-tag-gated "
-        "registration (ai/rules/module-tiers.md). Gate the importer with "
+        "registration (ai/rules/architecture.md). Gate the importer with "
         "//go:build <tag> or route it through the service construction registry.",
         file=sys.stderr,
     )
@@ -566,7 +566,7 @@ def write_baseline(root: str, mis: dict) -> None:
         "# Each row is a misplaced engine scheduled to move; the gate FAILS on a NEW",
         "# misplacement and on a STALE entry (one no longer misplaced). An empty file",
         "# means full engine-placement enforcement with zero exceptions.",
-        "# See ai/rules/module-tiers.md and plan/spec-tiers-0-umbrella.md.",
+        "# See ai/rules/architecture.md and plan/spec-tiers-0-umbrella.md.",
         "# columns: <current-dir>\\t<expected-area>\\t<resolving-child-spec>",
     ]
     for eng in sorted(mis):
@@ -765,7 +765,7 @@ def non_engine_category_gate(root: str, module: str, edges: dict) -> int:
         for err in errors:
             print(f"  {err}", file=sys.stderr)
         print(
-            "  Rule: ai/rules/module-tiers.md (non-engine categories are manifest-backed).",
+            "  Rule: ai/rules/architecture.md (non-engine categories are manifest-backed).",
             file=sys.stderr,
         )
         return 2
@@ -780,7 +780,7 @@ def non_engine_category_gate(root: str, module: str, edges: dict) -> int:
 # Core import-direction gate (internal/core must not import upward)
 # ---------------------------------------------------------------------------
 #
-# internal/core is the leaf library tier (ai/rules/module-tiers.md): it may not
+# internal/core is the leaf library tier (ai/rules/architecture.md): it may not
 # import internal/component or internal/plugins. The grandfathered violations
 # live in a shrink-only baseline at PAIR granularity (importer file + imported
 # package), each row annotated with its fix route, so a fixed pair left behind
@@ -858,7 +858,7 @@ def core_direction_gate(root: str, module: str, edges: dict) -> int:
             print(f"  {imp} imports {pkg}", file=sys.stderr)
         print(
             "  Rule: internal/core is the leaf tier and imports neither "
-            "internal/component nor internal/plugins (ai/rules/module-tiers.md).",
+            "internal/component nor internal/plugins (ai/rules/architecture.md).",
             file=sys.stderr,
         )
         print(
@@ -911,7 +911,7 @@ def engine_placement_gate(root: str, module: str, edges: dict) -> int:
         for eng in sorted(new):
             print(f"  {eng}  must move to {mis[eng]}/", file=sys.stderr)
         print(
-            "  Rule: ai/rules/module-tiers.md (engine -> component if a feature "
+            "  Rule: ai/rules/architecture.md (engine -> component if a feature "
             "depends on it, else plugins).",
             file=sys.stderr,
         )

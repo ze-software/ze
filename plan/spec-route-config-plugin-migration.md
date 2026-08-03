@@ -12,8 +12,8 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/plugin-self-containment.md` - the rule being enforced
-4. `ai/rules/plugin-design.md` - registration patterns
+3. `ai/rules/plugins.md` - the rule being enforced
+4. `ai/rules/plugins.md` - registration patterns
 5. `internal/component/bgp/message/update_build_plugin.go` - generic target
 6. `internal/component/bgp/plugins/nlri/srpolicy/config.go` - reference implementation
 
@@ -37,9 +37,9 @@ code for any of these four families.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/plugin-self-containment.md` - the invariant being restored
+- [ ] `ai/rules/plugins.md` - the invariant being restored
   -> Constraint: remove plugin folder + blank import = build green, all features gone
-- [ ] `ai/rules/plugin-design.md` - registration patterns, InProcessConfigRouteParser
+- [ ] `ai/rules/plugins.md` - registration patterns, InProcessConfigRouteParser
   -> Constraint: plugins register via init(), core discovers through registries
 - [ ] `docs/architecture/config/syntax.md` - config tree structure for routes
 - [ ] `ai/patterns/bgp-family.md` - BGP family integration checklist
@@ -105,7 +105,7 @@ code for any of these four families.
 - `BuildPlugin` (`bgp/message/update_build_plugin.go`) - already exists; the generic UPDATE builder (SR-Policy is the proof)
 
 ### Current (Hardcoded) Transformation Path
-1. `bgp_routes.go:162` - `switch famName` dispatches to hardcoded parser (e.g. `parseFlowSpecNLRILine`)
+1. `bgp_routes.go` - `switch famName` dispatches to hardcoded parser (e.g. `parseFlowSpecNLRILine`)
 2. Parser returns family-specific config type (e.g. `FlowSpecRouteConfig`)
 3. `UpdateBlockRoutes` stores in per-family typed slice (e.g. `FlowSpecRoutes`)
 4. `peers.go:patchRoutes` calls family-specific converter (e.g. `convertFlowSpecRoute`)
@@ -152,8 +152,8 @@ code for any of these four families.
 ### Layer 2: Config Parsing (`bgp/config/bgp_routes*.go`)
 | File | Functions | Status |
 |------|-----------|--------|
-| `bgp_routes.go:122-129` | `UpdateBlockRoutes` 4 typed slices | hardcoded struct |
-| `bgp_routes.go:162-195` | `switch famName` 4 cases | hardcoded dispatch |
+| `bgp_routes.go` | `UpdateBlockRoutes` 4 typed slices | hardcoded struct |
+| `bgp_routes.go` | `switch famName` 4 cases | hardcoded dispatch |
 | `bgp_routes_flowspec.go` | `parseFlowSpecNLRILine`, `extractFlowSpecRoutes`, `parseFlowSpecRoute` | entire file is plugin code |
 | `bgp_routes_vpls.go` | `parseVPLSNLRILine`, `extractVPLSRoutes`, `parseVPLSRoute` | entire file is plugin code |
 | `bgp_routes_mvpn.go` | `parseMVPNNLRILine`, `extractMVPNRoutes`, `parseMVPNRoute` | entire file is plugin code |
@@ -162,15 +162,15 @@ code for any of these four families.
 ### Layer 3: Config-to-Reactor Conversion (`bgp/config/loader_routes.go`, `peers.go`)
 | Function | Lines | Status |
 |----------|-------|--------|
-| `convertMVPNRoute` | loader_routes.go:23-123 | hardcoded |
-| `convertVPLSRoute` | loader_routes.go:126-218 | hardcoded |
-| `convertFlowSpecRoute` | loader_routes.go:224-301 | hardcoded |
-| `convertMUPRoute` | loader_routes.go:375-438 | hardcoded |
-| `patchRoutes` per-family loops | peers.go:434-509 | hardcoded |
-| `extractMVPNRoutes` call | peers.go:475 | hardcoded legacy |
-| `extractVPLSRoutes` call | peers.go:484 | hardcoded legacy |
-| `extractFlowSpecRoutes` call | peers.go:493 | hardcoded legacy |
-| `extractMUPRoutes` call | peers.go:502 | hardcoded legacy |
+| `convertMVPNRoute` | loader_routes.go | hardcoded |
+| `convertVPLSRoute` | loader_routes.go | hardcoded |
+| `convertFlowSpecRoute` | loader_routes.go | hardcoded |
+| `convertMUPRoute` | loader_routes.go | hardcoded |
+| `patchRoutes` per-family loops | peers.go | hardcoded |
+| `extractMVPNRoutes` call | peers.go | hardcoded legacy |
+| `extractVPLSRoutes` call | peers.go | hardcoded legacy |
+| `extractFlowSpecRoutes` call | peers.go | hardcoded legacy |
+| `extractMUPRoutes` call | peers.go | hardcoded legacy |
 
 ### Layer 4: Reactor Types (`bgp/reactor/peersettings.go`)
 | Type/Field | Lines | Status |
@@ -187,14 +187,14 @@ code for any of these four families.
 ### Layer 5: Reactor Sending (`bgp/reactor/peer_initial_sync.go`, `peer_static_routes.go`)
 | Function | Lines | Status |
 |----------|-------|--------|
-| `sendMVPNRoutesVia` | peer_initial_sync.go:417-499 | hardcoded, ~83 lines |
-| `sendVPLSRoutesVia` | peer_initial_sync.go:578-606 | hardcoded |
-| `sendFlowSpecRoutesVia` | peer_initial_sync.go:610-676 | hardcoded |
-| `sendMUPRoutesVia` | peer_initial_sync.go:679-743 | hardcoded |
-| `toVPLSParams` | peer_static_routes.go:19-27 | hardcoded |
-| `toFlowSpecParams` | peer_static_routes.go:29-35 | hardcoded |
-| `toMUPParams` | peer_static_routes.go:37-43 | hardcoded |
-| `toMVPNParams` | peer_static_routes.go:52-67 | hardcoded |
+| `sendMVPNRoutesVia` | peer_initial_sync.go | hardcoded, ~83 lines |
+| `sendVPLSRoutesVia` | peer_initial_sync.go | hardcoded |
+| `sendFlowSpecRoutesVia` | peer_initial_sync.go | hardcoded |
+| `sendMUPRoutesVia` | peer_initial_sync.go | hardcoded |
+| `toVPLSParams` | peer_static_routes.go | hardcoded |
+| `toFlowSpecParams` | peer_static_routes.go | hardcoded |
+| `toMUPParams` | peer_static_routes.go | hardcoded |
+| `toMVPNParams` | peer_static_routes.go | hardcoded |
 
 ### Layer 6: Message Builders (`bgp/message/update_build_*.go`)
 | File | Types | Status |

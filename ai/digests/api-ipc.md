@@ -24,146 +24,146 @@ runtime request, see the gotcha below.
 
 **A. Request path: external client → dispatch → handler**
 
-1. **Composition.** `buildAPIEngine` (`cmd/ze/hub/api.go:107`) builds one `*api.APIEngine`
-   (`api.NewAPIEngine`, `engine.go:57`) shared by REST and gRPC: `serverDispatcher(server, "")`
-   (`cmd/ze/hub/api.go:108`, defined `cmd/ze/hub/main_servers.go:36`) becomes the `Executor` --
+1. **Composition.** `buildAPIEngine` (`cmd/ze/hub/api.go`) builds one `*api.APIEngine`
+   (`api.NewAPIEngine`, `engine.go`) shared by REST and gRPC: `serverDispatcher(server, "")`
+   (`cmd/ze/hub/api.go`, defined `cmd/ze/hub/main_servers.go`) becomes the `Executor` --
    the single unified `plugin.CommandDispatcher` every surface shares; `apiCommandLister(server)`
-   (`cmd/ze/hub/api.go:281`) the `CommandSource`, and `apiStreamSource(server)` (`cmd/ze/hub/api.go:123`)
+   (`cmd/ze/hub/api.go`) the `CommandSource`, and `apiStreamSource(server)` (`cmd/ze/hub/api.go`)
    the `StreamSource`.
-2. **HTTP entry.** `POST /api/v1/execute` → `RESTServer.handleExecute` (`rest/server.go:508`)
+2. **HTTP entry.** `POST /api/v1/execute` → `RESTServer.handleExecute` (`rest/server.go`)
    decodes `{"command":"...","params":{...}}`, then `fromRESTExecuteRequest`
-   (`rest/convert.go:11`) calls `api.BuildCommand` (`requests.go:69`) to append each JSON
+   (`rest/convert.go`) calls `api.BuildCommand` (`requests.go`) to append each JSON
    param as `" key value"` onto the command string, JSON becomes CLI-style tokens before
    anything is parsed. Convenience routes (`GET /api/v1/peers/*`, `/rib/*`, `/system/*`)
-   build a fixed command string directly (e.g. `rest/server.go:558`, `:578`, `:620`) instead of
+   build a fixed command string directly (e.g. `rest/server.go`, `:578`, `:620`) instead of
    accepting one from the client.
-3. **gRPC entry.** `zeServiceImpl.Execute` (`grpc/server.go:508`) builds the same domain
-   request via `fromProtoExecuteRequest` (`grpc/convert.go:12`); auth interceptors
-   (`authUnaryInterceptor`, `grpc/server.go:414`; `checkAuth`, `:436`) inject username/read-only
+3. **gRPC entry.** `zeServiceImpl.Execute` (`grpc/server.go`) builds the same domain
+   request via `fromProtoExecuteRequest` (`grpc/convert.go`); auth interceptors
+   (`authUnaryInterceptor`, `grpc/server.go`; `checkAuth`, `:436`) inject username/read-only
    into the context before the handler runs.
-4. **Engine gate + execute.** Both transports call `APIEngine.Execute` (`engine.go:96`): a
+4. **Engine gate + execute.** Both transports call `APIEngine.Execute` (`engine.go`): a
    read-only caller (`CallerIdentity.ReadOnly`; `CallerIdentity` is now an alias of
-   `plugin.CallerIdentity`, `types.go:54`) is rejected unless
-   `commandReadOnly(req.Command)` (`engine.go:145`), a longest-registered-name prefix scan
+   `plugin.CallerIdentity`, `types.go`) is rejected unless
+   `commandReadOnly(req.Command)` (`engine.go`), a longest-registered-name prefix scan
    over `CommandSource`, says the command is safe; an optional `AuthChecker` is consulted
-   next (`engine.go:104`); only then is `e.executor(ctx, caller, command)` invoked
-   (`engine.go:111`). The executor is the unified `plugin.CommandDispatcher`, so it returns a
-   typed `*plugin.Response` directly; `Execute` returns it unchanged (`engine.go:124`) with NO
+   next (`engine.go`); only then is `e.executor(ctx, caller, command)` invoked
+   (`engine.go`). The executor is the unified `plugin.CommandDispatcher`, so it returns a
+   typed `*plugin.Response` directly; `Execute` returns it unchanged (`engine.go`) with NO
    marshal-to-string then re-parse round trip -- typed `Data` flows to the transport edge
    (DESIGN-REVIEW finding 3).
-5. **Executor → Dispatcher.** `serverDispatcher` (`cmd/ze/hub/main_servers.go:36`) builds a
+5. **Executor → Dispatcher.** `serverDispatcher` (`cmd/ze/hub/main_servers.go`) builds a
    `pluginserver.CommandContext{Server, Username, RemoteAddr, Surface}`
-   (`cmd/ze/hub/main_servers.go:46`; it sets `RequestContext` only for a genuine per-request ctx,
+   (`cmd/ze/hub/main_servers.go`; it sets `RequestContext` only for a genuine per-request ctx,
    not for a text surface's `context.Background()`) and calls `d.Dispatch(cmdCtx, command)`
-   (`cmd/ze/hub/main_servers.go:63`, `Server.Dispatcher()` at
-   `internal/component/plugin/server/server.go:305`), the single shared command dispatcher used
+   (`cmd/ze/hub/main_servers.go`, `Server.Dispatcher()` at
+   `internal/component/plugin/server/server.go`), the single shared command dispatcher used
    by REST, gRPC, SSH/CLI, web, mcp, lg, and plugin-to-plugin calls alike. `serverDispatcher`
    replaced the former per-surface `apiExecutor`/`serverDispatcherWithSurface` pair.
-6. **Tokenize + match.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go:538`)
-   calls `tokenize` (`internal/component/plugin/server/command.go:867`, quote-aware, rejects backslashes) then
-   `matchBuiltinTokens` (`internal/component/plugin/server/command.go:552`, defined `:356`), which walks `sortedKeys`, builtin
-   command names sorted longest-first, via `matchCommandTokens` (`internal/component/plugin/server/command.go:370`) to extract
+6. **Tokenize + match.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
+   calls `tokenize` (`internal/component/plugin/server/command.go`, quote-aware, rejects backslashes) then
+   `matchBuiltinTokens` (`internal/component/plugin/server/command.go`), which walks `sortedKeys`, builtin
+   command names sorted longest-first, via `matchCommandTokens` (`internal/component/plugin/server/command.go`) to extract
    inline typed selectors (e.g. `peer <addr> update ...`) against YANG-derived `ArgDef`s.
    Matched selectors are copied onto the context by `applyExtractedSelectors`
-   (`internal/component/plugin/server/command.go:451`, called at `:554`).
-7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go:503`, checked at
-   `:565`), then two-phase YANG arg validation (`validateCommandArgs`, `internal/component/plugin/server/command.go:628`, called
-   at `:574`), then `matchedCmd.Handler(ctx, args)` (`internal/component/plugin/server/command.go:592`). Example: `peer <sel>
+   (`internal/component/plugin/server/command.go`, called at `:554`).
+7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go`, checked at
+   `:565`), then two-phase YANG arg validation (`validateCommandArgs`, `internal/component/plugin/server/command.go`, called
+   at `:574`), then `matchedCmd.Handler(ctx, args)` (`internal/component/plugin/server/command.go`). Example: `peer <sel>
    update text nhop set ... nlri ipv4/unicast add ...` resolves to `handleUpdate`
-   (`internal/component/bgp/plugins/cmd/update/update_text.go:677`, registered with
-   `WireMethod: "ze-bgp:peer-update"` at `internal/component/bgp/plugins/cmd/update/update_text.go:670`), which dispatches by encoding
-   to `handleUpdateText` (`internal/component/bgp/plugins/cmd/update/update_text.go:706`) → `ParseUpdateText` → reactor
+   (`internal/component/bgp/plugins/cmd/update/update_text.go`, registered with
+   `WireMethod: "ze-bgp:peer-update"` at `internal/component/bgp/plugins/cmd/update/update_text.go`), which dispatches by encoding
+   to `handleUpdateText` (`internal/component/bgp/plugins/cmd/update/update_text.go`) → `ParseUpdateText` → reactor
    `AnnounceRoute`/`WithdrawRoute` batch calls (see `bgp-reactor.md` for that half).
 8. **Plugin-command fallback.** No builtin match → subsystem handlers checked
-   (`internal/component/plugin/server/command.go:605`), else `dispatchPlugin` (`internal/component/plugin/server/command.go:617`, defined `:779`) longest-prefix
+   (`internal/component/plugin/server/command.go`), else `dispatchPlugin` (`internal/component/plugin/server/command.go`) longest-prefix
    matches a `CommandRegistry` entry a plugin registered at startup, extracts remaining
-   `args`, and calls `routeToProcess` (`internal/component/plugin/server/command.go:824`, defined `:828`).
+   `args`, and calls `routeToProcess` (`internal/component/plugin/server/command.go`).
 
 **B. IPC transport underneath a plugin-routed command**
 
-9. **Wire call.** `routeToProcess` (`internal/component/plugin/server/command.go:828`) gets the target plugin's
-   `PluginConn` (`proc.Conn()`, `internal/component/plugin/server/command.go:834`) and calls `conn.SendExecuteCommand(rpcCtx,
-   "", cmd.Name, args, peerSelector)` (`internal/component/plugin/server/command.go:847`).
-10. **SendExecuteCommand** (`internal/component/plugin/ipc/rpc.go:268`): for an in-process
+9. **Wire call.** `routeToProcess` (`internal/component/plugin/server/command.go`) gets the target plugin's
+   `PluginConn` (`proc.Conn()`, `internal/component/plugin/server/command.go`) and calls `conn.SendExecuteCommand(rpcCtx,
+   "", cmd.Name, args, peerSelector)` (`internal/component/plugin/server/command.go`).
+10. **SendExecuteCommand** (`internal/component/plugin/ipc/rpc.go`): for an in-process
     plugin with an active `DirectBridge` and `HasExecuteCommand()`, calls
-    `bridge.ExecuteCommand` directly (`internal/component/plugin/ipc/rpc.go:269`, no serialization, no wire I/O, see
+    `bridge.ExecuteCommand` directly (`internal/component/plugin/ipc/rpc.go`, no serialization, no wire I/O, see
     `plugin-transport.md`); otherwise builds `rpc.ExecuteCommandInput{Serial, Command, Args,
     Peer}` and calls `pc.CallRPC(ctx, "ze-plugin-callback:execute-command", input)`
-    (`internal/component/plugin/ipc/rpc.go:272`).
-11. **CallRPC routing.** `PluginConn.CallRPC` (`internal/component/plugin/ipc/rpc.go:79`) tries bridge, then `MuxConn`, then
+    (`internal/component/plugin/ipc/rpc.go`).
+11. **CallRPC routing.** `PluginConn.CallRPC` (`internal/component/plugin/ipc/rpc.go`) tries bridge, then `MuxConn`, then
     a direct `Conn`. External (subprocess) plugins always take the `MuxConn` branch:
-    `MuxConn.CallRPC` (`pkg/plugin/rpc/mux.go:110`) takes the next correlation ID
-    (`Conn.NextID`, `pkg/plugin/rpc/conn.go:165`), registers a buffered response channel keyed
-    by that id (`pkg/plugin/rpc/mux.go:121`), and writes the request line via `conn.writeAppended`
-    (`pkg/plugin/rpc/conn.go:178`) + `AppendRequest` (`pkg/plugin/rpc/message.go:101`), which
+    `MuxConn.CallRPC` (`pkg/plugin/rpc/mux.go`) takes the next correlation ID
+    (`Conn.NextID`, `pkg/plugin/rpc/conn.go`), registers a buffered response channel keyed
+    by that id (`pkg/plugin/rpc/mux.go`), and writes the request line via `conn.writeAppended`
+    (`pkg/plugin/rpc/conn.go`) + `AppendRequest` (`pkg/plugin/rpc/message.go`), which
     produces `#<id> ze-plugin-callback:execute-command {"command":...}` with no trailing
-    newline; `FrameWriter.Write` (`pkg/plugin/rpc/framing.go:122`) appends the `\n` terminator
-    on the actual socket/pipe write (max message size 16 MB, `pkg/plugin/rpc/framing.go:66`). The caller then
-    blocks on the response channel, `ctx.Done()`, or mux shutdown (`pkg/plugin/rpc/mux.go:145-157`).
-12. **Plugin side.** The plugin's own `MuxConn.readLoop` (`pkg/plugin/rpc/mux.go:171`) reads a line via
-    `Conn.readFrame` (`pkg/plugin/rpc/conn.go:142`), splits the `#<id>` prefix from `<verb> [<payload>]`
-    (`pkg/plugin/rpc/mux.go:196`); since the verb is a method name (not `ok`/`error`) it is an inbound
-    request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go:258`, channel defined `:44`). The
+    newline; `FrameWriter.Write` (`pkg/plugin/rpc/framing.go`) appends the `\n` terminator
+    on the actual socket/pipe write (max message size 16 MB, `pkg/plugin/rpc/framing.go`). The caller then
+    blocks on the response channel, `ctx.Done()`, or mux shutdown (`pkg/plugin/rpc/mux.go`).
+12. **Plugin side.** The plugin's own `MuxConn.readLoop` (`pkg/plugin/rpc/mux.go`) reads a line via
+    `Conn.readFrame` (`pkg/plugin/rpc/conn.go`), splits the `#<id>` prefix from `<verb> [<payload>]`
+    (`pkg/plugin/rpc/mux.go`); since the verb is a method name (not `ok`/`error`) it is an inbound
+    request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go`, channel defined `:44`). The
     plugin SDK's event loop reads it, runs the plugin's registered command handler, and
-    replies with `Conn.SendResult`/`SendError` (`pkg/plugin/rpc/conn.go:293`, `:315`), `#<id> ok {...}` or
+    replies with `Conn.SendResult`/`SendError` (`pkg/plugin/rpc/conn.go`, `:315`), `#<id> ok {...}` or
     `#<id> error {...}`.
 13. **Response routing back.** The engine-side `readLoop` sees verb `ok`/`error`, looks up the
-    pending channel by id and delivers the raw body (`pkg/plugin/rpc/mux.go:213-233`); `interpretResponse`
-    (`pkg/plugin/rpc/mux.go:280`) splits verb from payload and returns `json.RawMessage` (success) or an
-    `*RPCCallError` (`pkg/plugin/rpc/message.go:23`) built by `parseRPCError`. `SendExecuteCommand` unmarshals
-    the payload into `rpc.ExecuteCommandOutput` (`internal/component/plugin/ipc/rpc.go:277`). `routeToProcess` wraps the
-    result into `plugin.Response{Status, Data: plugin.RawJSON(...)}` (`internal/component/plugin/server/command.go:852-857`),
+    pending channel by id and delivers the raw body (`pkg/plugin/rpc/mux.go`); `interpretResponse`
+    (`pkg/plugin/rpc/mux.go`) splits verb from payload and returns `json.RawMessage` (success) or an
+    `*RPCCallError` (`pkg/plugin/rpc/message.go`) built by `parseRPCError`. `SendExecuteCommand` unmarshals
+    the payload into `rpc.ExecuteCommandOutput` (`internal/component/plugin/ipc/rpc.go`). `routeToProcess` wraps the
+    result into `plugin.Response{Status, Data: plugin.RawJSON(...)}` (`internal/component/plugin/server/command.go`),
     which is what `Dispatch` returns to the executor (`serverDispatcher`).
 14. **Back up to the client.** `serverDispatcher` returns the typed `*plugin.Response` unchanged;
-    `APIEngine.Execute` returns it directly (`engine.go:124`) with NO marshal-to-string then
+    `APIEngine.Execute` returns it directly (`engine.go`) with NO marshal-to-string then
     re-parse (finding 3), so the REST/gRPC envelope carries the typed `Data` to its edge and
-    marshals it once: REST via `writeJSON` (`rest/server.go:930`), gRPC via `execResultToProto`
-    (`grpc/convert.go:74`). Because the re-parse is gone, REST/gRPC JSON now preserves the
+    marshals it once: REST via `writeJSON` (`rest/server.go`), gRPC via `execResultToProto`
+    (`grpc/convert.go`). Because the re-parse is gone, REST/gRPC JSON now preserves the
     plugin's object key order and full int64 fidelity rather than the old sorted-keys/float64 form.
 
 **C. Streaming / monitor event path**
 
 15. **Entry.** `GET /api/v1/execute/stream?command=...` → `RESTServer.handleStream`
-    (`rest/server.go:839`); gRPC `zeServiceImpl.Stream` (`grpc/server.go:523`). Both call
-    `APIEngine.Stream` (`engine.go:130`), which re-applies the same read-only/auth gates as
+    (`rest/server.go`); gRPC `zeServiceImpl.Stream` (`grpc/server.go`). Both call
+    `APIEngine.Stream` (`engine.go`), which re-applies the same read-only/auth gates as
     `Execute` before invoking the `StreamSource`.
-16. **Handler resolution.** `apiStreamSource` (`cmd/ze/hub/api.go:123`) requires authorization up front
-    (`d.IsAuthorized`, `cmd/ze/hub/api.go:147`, exported at `internal/component/plugin/server/command.go:485`), resolves a handler via
-    `pluginserver.GetStreamingHandlerForCommand(command)` (`cmd/ze/hub/api.go:133`, defined
-    `internal/component/plugin/server/handler.go:112`), e.g. `monitor event` was registered
-    as `pluginserver.StreamEventMonitor` (`internal/component/plugin/server/event_monitor.go:49`)
-    by `internal/component/bgp/plugins/cmd/monitor/monitor.go:46`, then runs it in a goroutine
-    (`cmd/ze/hub/api.go:155`) writing into an `apiStreamLineWriter` (`cmd/ze/hub/api.go:193`, `Write` at `:201`) that
+16. **Handler resolution.** `apiStreamSource` (`cmd/ze/hub/api.go`) requires authorization up front
+    (`d.IsAuthorized`, `cmd/ze/hub/api.go`, exported at `internal/component/plugin/server/command.go`), resolves a handler via
+    `pluginserver.GetStreamingHandlerForCommand(command)` (`cmd/ze/hub/api.go`, defined
+    `internal/component/plugin/server/handler.go`), e.g. `monitor event` was registered
+    as `pluginserver.StreamEventMonitor` (`internal/component/plugin/server/event_monitor.go`)
+    by `internal/component/bgp/plugins/cmd/monitor/monitor.go`, then runs it in a goroutine
+    (`cmd/ze/hub/api.go`) writing into an `apiStreamLineWriter` (`cmd/ze/hub/api.go`, `Write` at `:201`) that
     buffers partial writes and emits one channel message per full line (max 1 MiB/line,
-    `cmd/ze/hub/api.go:119`).
+    `cmd/ze/hub/api.go`).
 17. **Delivery.** REST relays each channel line as an SSE frame, `data: <line>\n\n`
-    (`rest/server.go:875`); gRPC relays each line as `CommandResponse{Status: done, Data:
-    []byte(line)}` (`grpc/server.go:546-552`). Both loops select on the channel and
-    `ctx.Done()` (`rest/server.go:869-881`, `grpc/server.go:540-555`) and call the handler's
+    (`rest/server.go`); gRPC relays each line as `CommandResponse{Status: done, Data:
+    []byte(line)}` (`grpc/server.go`). Both loops select on the channel and
+    `ctx.Done()` (`rest/server.go`, `grpc/server.go`) and call the handler's
     `cancel()` on exit.
 
 **D. Config session side-channel (bypasses the Dispatcher entirely)**
 
 18. Config edit routes (`/api/v1/config/sessions/*`, gRPC `ZeConfigService`) never touch
-    `api.APIEngine`/`Dispatcher`, they call `api.ConfigSessionManager` (`config_session.go:64`)
-    directly: `Enter` (`:146`) creates a per-user session wrapping a `ConfigEditor`
+    `api.APIEngine`/`Dispatcher`, they call `api.ConfigSessionManager` (`config_session.go`)
+    directly: `Enter` creates a per-user session wrapping a `ConfigEditor`
     (`:23`) built by the daemon's `ConfigEditorFactory`; `Set`/`Delete`/`Diff` (`:172`,
-    `:211`, `:221`) mutate the session's candidate tree; `Commit` (`:231`) runs the
+    `:211`, `:221`) mutate the session's candidate tree; `Commit` runs the
     `ConfigValidationHook` then either the `ConfigCommitHook` (daemon reload path,
-    wired at `cmd/ze/hub/api.go:65`) or a plain `Editor.Save()`. Idle sessions are reaped by
-    `RunCleanup`/`CleanExpired` (`config_session.go:132`, `:101`) on `DefaultSessionTimeout`
+    wired at `cmd/ze/hub/api.go`) or a plain `Editor.Save()`. Idle sessions are reaped by
+    `RunCleanup`/`CleanExpired` (`config_session.go`, `:101`) on `DefaultSessionTimeout`
     (30 min, `:57`).
 
 **E. `internal/core/ipc`'s actual (narrow) role**
 
-19. `ParseMethod`/`FormatMethod` (`method.go:20`, `:52`) convert between the wire form
+19. `ParseMethod`/`FormatMethod` (`method.go`, `:52`) convert between the wire form
     `module:rpc-name` and its parts; the only production callers are
-    `internal/component/plugin/server/schema.go:147` and `:171`, which label RPCs in the
+    `internal/component/plugin/server/schema.go` and `:171`, which label RPCs in the
     plugin schema registry for introspection/YANG display, not for dispatch.
-20. `RPCDispatcher.Register` (`dispatch.go:48`) is called once per builtin RPC at startup
-    (`internal/component/plugin/server/server.go:201`) with a `wrapHandler`-adapted
-    `RPCHandler` (`internal/component/plugin/server/server.go:110`), this is pure fail-fast validation (rejects a malformed
-    or duplicate wire method, `internal/component/plugin/server/server.go:202`), not a live call path (see gotcha).
+20. `RPCDispatcher.Register` (`dispatch.go`) is called once per builtin RPC at startup
+    (`internal/component/plugin/server/server.go`) with a `wrapHandler`-adapted
+    `RPCHandler` (`internal/component/plugin/server/server.go`), this is pure fail-fast validation (rejects a malformed
+    or duplicate wire method, `internal/component/plugin/server/server.go`), not a live call path (see gotcha).
 
 ## Key files
 | File | Role |
@@ -193,51 +193,51 @@ runtime request, see the gotcha below.
 
 ## Invariants & gotchas
 - **`internal/core/ipc`'s runtime dispatch surface is dormant.** `RPCDispatcher.Dispatch`
-  (`dispatch.go:82`) and `HasMethod` (`:65`) are never called anywhere outside their own unit
-  tests; `MapResponse` (`message.go:15`) and the `DispatchResult`/`DispatchError` types it
+  (`dispatch.go`) and `HasMethod` are never called anywhere outside their own unit
+  tests; `MapResponse` (`message.go`) and the `DispatchResult`/`DispatchError` types it
   builds are likewise only constructed inside the `ipc` package and in `dispatch_test.go`/
-  `message_test.go`. Confirmed by a whole-repo grep: `s.rpcDispatcher` (`internal/component/plugin/server/server.go:66`) is
+  `message_test.go`. Confirmed by a whole-repo grep: `s.rpcDispatcher` (`internal/component/plugin/server/server.go`) is
   referenced only in `server.go` itself (construction `:161`, one `Register` loop `:201`), 
   no code path ever calls `.Dispatch()` on it. Every real request (REST, gRPC, SSH/CLI,
   plugin-to-plugin) routes through `plugin/server.Dispatcher.Dispatch` (token parser,
-  `internal/component/plugin/server/command.go:538`), not through this wire-method exact-match dispatcher. Treat
+  `internal/component/plugin/server/command.go`), not through this wire-method exact-match dispatcher. Treat
   `RPCDispatcher` as a startup-time registration validator (catches a duplicate or malformed
-  `WireMethod` early, `internal/component/plugin/server/server.go:202`) rather than as a live call path.
+  `WireMethod` early, `internal/component/plugin/server/server.go`) rather than as a live call path.
 - **`docs/architecture/api/architecture.md`'s "Socket Clients" section is stale.** It
   describes a flow `acceptLoop() → handleClient() → clientLoop() → processCommand()` with a
   `Client` struct; none of those symbols exist in `internal/component/plugin/server` today.
   The only two ways into the shared `Dispatcher` are the REST/gRPC engine path documented
   above and the SSH/CLI editor path (`cli-editor.md`).
-- **JSON params become CLI tokens, not a typed payload.** `api.BuildCommand` (`requests.go:69`)
+- **JSON params become CLI tokens, not a typed payload.** `api.BuildCommand` (`requests.go`)
   appends `"key value"` pairs onto the command string; any key or value containing whitespace
-  is rejected (`requests.go:76-84`). There is no structured params channel into the
+  is rejected (`requests.go`). There is no structured params channel into the
   dispatcher, everything downstream of `BuildCommand` is the same tokenizer the CLI uses
-  (`internal/component/plugin/server/command.go:867`), so REST/gRPC commands are exactly as expressive, and exactly as
+  (`internal/component/plugin/server/command.go`), so REST/gRPC commands are exactly as expressive, and exactly as
   string-shaped, as an SSH command.
 - **Identity is transport-injected, never client-supplied.** `CallerIdentity.Username`
-  (`CallerIdentity` = `plugin.CallerIdentity`, `types.go:54`) comes from the REST bearer-token authenticator (`rest/server.go:425`) or
-  gRPC metadata interceptor (`grpc/server.go:414`), never from the request body/proto; the
+  (`CallerIdentity` = `plugin.CallerIdentity`, `types.go`) comes from the REST bearer-token authenticator (`rest/server.go`) or
+  gRPC metadata interceptor (`grpc/server.go`), never from the request body/proto; the
   RPC path enforces the same rule (`RPCParams` has no username field,
-  `internal/component/plugin/server/server.go:56-58`).
+  `internal/component/plugin/server/server.go`).
 - **Read-only enforcement is a longest-prefix scan, done twice.** `commandReadOnly`
-  (`engine.go:144`) at the engine layer and `IsReadOnlyPath`
-  (`internal/component/plugin/server/command.go:106`) at the dispatcher layer both classify
+  (`engine.go`) at the engine layer and `IsReadOnlyPath`
+  (`internal/component/plugin/server/command.go`) at the dispatcher layer both classify
   by verb/name prefix; they must stay consistent or a REST caller marked read-only could
   reach a mutating dispatcher handler (or vice versa, spuriously blocking a safe one).
 - **REST has no TLS transport by design.** `NewRESTServer` rejects any non-loopback
-  `ListenAddrs` entry (`rest/server.go:110-114`); gRPC allows non-loopback only with both
-  authentication and TLS configured (`grpc/server.go:101-109`).
-- **Plugin-routed commands go stateful per-process.** `routeToProcess` (`internal/component/plugin/server/command.go:828`)
+  `ListenAddrs` entry (`rest/server.go`); gRPC allows non-loopback only with both
+  authentication and TLS configured (`grpc/server.go`).
+- **Plugin-routed commands go stateful per-process.** `routeToProcess` (`internal/component/plugin/server/command.go`)
   fails fast with `ErrPluginProcessNotRunning`/`ErrPluginConnectionClosed` if the target
-  plugin process is down or its connection is gone (`internal/component/plugin/server/command.go:830-836`), an API client
+  plugin process is down or its connection is gone (`internal/component/plugin/server/command.go`), an API client
   never blocks waiting for a plugin to restart.
 - **`MuxConn` fails closed on protocol garbage.** More than 100 consecutive malformed or
-  orphaned response lines closes the connection (`maxConsecutiveBadLines`, `pkg/plugin/rpc/mux.go:24`,
+  orphaned response lines closes the connection (`maxConsecutiveBadLines`, `pkg/plugin/rpc/mux.go`,
   enforced throughout `readLoop`) rather than looping forever on a corrupted stream.
 - **Config sessions are a separate authority path.** `ConfigSessionManager` methods
   (`config_session.go`) are reachable only through REST/gRPC-specific routes with their own
-  `requireWriteAccess` checks (`rest/server.go:474`, `grpc/server.go:592`) using
-  `ConfigAuth*` command strings (`types.go:65-69`) as the authorization subject, they never
+  `requireWriteAccess` checks (`rest/server.go`, `grpc/server.go`) using
+  `ConfigAuth*` command strings (`types.go`) as the authorization subject, they never
   pass through `Dispatcher.Dispatch` or the plugin registry at all.
 
 ## See also
@@ -249,4 +249,4 @@ runtime request, see the gotcha below.
 - `ai/digests/plugin-transport.md`, engine↔plugin event/RPC layer (DirectBridge, EventBus, 5-stage startup) that this digest's IPC hop builds on
 - `ai/digests/cli-editor.md`, SSH/CLI editor path into the same `Dispatcher`, and the `cli.Editor`/`ConfigEditor` type this digest's config sessions wrap
 - `ai/digests/mcp.md`, a third transport (MCP) sharing the same command metadata source
-- `ai/rules/architecture-summary.md`, one-page component map and boundaries
+- `ai/rules/architecture.md`, one-page component map and boundaries

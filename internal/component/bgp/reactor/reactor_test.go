@@ -2495,7 +2495,7 @@ func TestEmitCongestionEvent_CallbacksWired(t *testing.T) {
 // reactor that otherwise started fine (reactor.go:586, sole caller register.go).
 //
 // VALIDATES: AC-3. Handed a non-*pluginserver.Server it logs (the miss is made
-// explicit at the producer, per fail-closed-guards.md "make the miss explicit at
+// explicit at the producer, per evidence.md "make the miss explicit at
 // the producer") and does not set api to a bogus value.
 // PREVENTS: a wiring bug (wrong concrete type from bgp/plugin) silently leaving
 // r.api nil, feeding the now-fail-closed egress/ingress guards forever with no

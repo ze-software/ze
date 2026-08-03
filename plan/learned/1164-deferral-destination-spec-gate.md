@@ -2,7 +2,7 @@
 
 ## Context
 
-`ai/rules/deferral-tracking.md` required every open deferral to name a destination, but the
+`ai/rules/planning.md` required every open deferral to name a destination, but the
 commit gate only rejected a literal placeholder (`""`, `-`, `unassigned`, `tbd`, `none`). A row
 saying `none yet (future confederation spec)` therefore passed: it named a home that did not
 exist and nobody had committed to. Owner direction was to make the rule absolute (deferred work
@@ -35,12 +35,12 @@ gate that never fired was worth.
 - The pre-existing `commit-gate-deferral-assigned-ok` fixture asserted the OLD contract (a destination naming a nonexistent spec passes). A tightening gate makes such a fixture fail; the fix is to make the fixture create the spec, not to loosen the gate back.
 - Two sessions implemented this rule concurrently in the same working tree and produced duplicate deferral specs for the same two ddos rows under different `<source>` conventions. With a shared tree and a shared single-file log this is structural, not misconduct (see `ai/rules/git-safety.md`).
 - **A row's Status answers "is the work outstanding", not "does it have a home".** Filing work in a spec is not finishing it, so a homed row stays `deferred` and keeps being destination-checked until the work lands. The old "moved to another spec -> `done`" line read as "filing closes the row" and I believed it: I closed 9 rows on filing, which hid them from the only thing checking them, and then wrote a rule saying every row is "born `done`" that would have routed ALL future rows into the unchecked terminal state. The gate would have gone from checking 51 rows to checking 0 while looking healthy.
-- The tell was in the tree the whole time: 42 live rows all named real specs and the gate was clean, and the sibling test called them "correctly-homed live rows" (`commit_helper_test.py:292`). A rule that declares 42 existing correct rows to be violations is wrong about the rule, not about the rows. Read what the code and the data already agree on before writing down what they "should" do.
+- The tell was in the tree the whole time: 42 live rows all named real specs and the gate was clean, and the sibling test called them "correctly-homed live rows" (`commit_helper_test.py`). A rule that declares 42 existing correct rows to be violations is wrong about the rule, not about the rows. Read what the code and the data already agree on before writing down what they "should" do.
 - The gate skips terminal rows entirely, so `done` plus a prose destination sails through. That is tolerable ONLY under the correct semantics, where `done` means the work landed: nobody is routed toward it while work is outstanding, and its Destination is legitimately a commit SHA. The same blind spot under "born done" would have been the main road. A blind spot's severity depends entirely on whether the rule steers people into it.
 
 ## Files
 
-- `ai/rules/deferral-tracking.md` - destination-spec requirement, naming convention, closed-source clause, status vocabulary
+- `ai/rules/planning.md` - destination-spec requirement, naming convention, closed-source clause, status vocabulary
 - `ai/rules/planning.md` - Deferred Work section points at the same contract
 - `ai/rules/INDEX.md` - regenerated
 - `scripts/dev/commit_helper.py` - `deferral_destination_paths`, `deferral_destination_problem`, `deferral_unassigned_problems`

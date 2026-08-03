@@ -4,7 +4,7 @@
 // Related: registry_integration_linux_test.go -- the address-registry sibling
 // Related: config_apply.go -- reconcileOwnedDevices (the pass under test)
 //
-// These run in the QEMU Alpine VM (ai/rules/qemu-testing.md): they drive the
+// These run in the QEMU Alpine VM (ai/rules/platform-linux.md): they drive the
 // real reconcile device pass (reconcileOnReady) against a live netlink backend
 // in a throwaway network namespace, exercising create-before-address ordering,
 // VIP install via the address registry, delete-on-unregister, retry when the

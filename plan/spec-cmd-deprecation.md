@@ -11,11 +11,11 @@ STALE BASELINE -- corrected in-body (2026-07-22 plan review; Migration
 table corrected 2026-07-22): all three originally cited ad-hoc deprecation
 sites are GONE (`show.go` and `clear.go` carry no deprecation pattern;
 `cache.go`'s `dispatchCacheByID` no longer takes a `deprecated` bool -- now
-`dispatchCacheByID(ctx, action, idStr, extraArgs)`, `cache.go:84`). The only
+`dispatchCacheByID(ctx, action, idStr, extraArgs)`, `cache.go`). The only
 surviving ad-hoc site is the local `withDeprecation` closure at
-`internal/component/bgp/plugins/cmd/commit/commit.go:149`. The Migration
+`internal/component/bgp/plugins/cmd/commit/commit.go`. The Migration
 table below is now corrected: the vanished show/clear/cache rows are struck
-through and a row for the `commit.go:149` closure is added. Other sections
+through and a row for the `commit.go` closure is added. Other sections
 (Current Behavior, Files to Modify, AC-9, TDD plan, Deliverables) still name
 the vanished sites; retarget them to `commit.go` during implementation.
 The framework itself (`internal/component/command/deprecation.go`,
@@ -49,12 +49,12 @@ Design consequences to rework before this spec leaves `design`:
   rewrite it. The state table's `Removed` row, AC-2, AC-6, AC-12, and the
   removed-command tests must be redesigned around transparent rewrite.
 - The already-shipped `withDeprecation` closure
-  (`internal/component/bgp/plugins/cmd/commit/commit.go:144-158`) is the
+  (`internal/component/bgp/plugins/cmd/commit/commit.go`) is the
   model: the legacy `commit <name> <action>` grammar still executes,
   re-routed to the current dispatch with a warning attached.
 - This ruling equally constrains the future config child spec
   (`spec-deprecation-config-migration`) and matches
-  `ai/rules/config-design.md`: "No version numbers in config. Design for
+  `ai/rules/config.md`: "No version numbers in config. Design for
   machine-transformable migration."
 
 ## Post-Compaction Recovery
@@ -89,7 +89,7 @@ Design constraint: ze uses date-based versioning, so `Since` is simply the date 
   → Constraint: Deprecation must follow same pattern
 - [ ] `ai/patterns/cli-command.md` - CLI command structure
   → Constraint: deprecation must work with both static dispatch and registry dispatch
-- [ ] `ai/rules/derive-not-hardcode.md` - derive from registry
+- [ ] `ai/rules/evidence.md` - derive from registry
   → Constraint: deprecation status must be derivable from the registry, not hardcoded in help text
 
 **Key insights:**
@@ -191,7 +191,7 @@ Solution: add `LookupLocalMeta(words) (handler, args, *Meta)` as a new function.
 
 ### Static Dispatch Commands (ISSUE-2)
 
-Commands in the `switch arg` block of main.go (`bgp`, `config`, `cli`, etc.) bypass cmdregistry and cannot carry registration-level deprecation. These commands are not currently deprecated. When one needs deprecation, it should be migrated to cmdregistry first (register a local handler that calls the existing Run function). The existing `ze run` removal (main.go:457) is a hardcoded message that predates this system; it can be migrated as a follow-up.
+Commands in the `switch arg` block of main.go (`bgp`, `config`, `cli`, etc.) bypass cmdregistry and cannot carry registration-level deprecation. These commands are not currently deprecated. When one needs deprecation, it should be migrated to cmdregistry first (register a local handler that calls the existing Run function). The existing `ze run` removal (main.go) is a hardcoded message that predates this system; it can be migrated as a follow-up.
 
 ### Architectural Verification
 - [ ] No bypassed layers (deprecation flows through dispatch or response, not patched into Data)
@@ -310,8 +310,8 @@ All existing deprecation sites are handler-level: the same RPC handler receives 
 | ~~show interface detail~~ | ~~`internal/component/cmd/show/show.go`~~ | ~~`withDeprecation(resp, "show interface detail "+args[0])`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- site removed; `show.go` carries no deprecation pattern) |
 | ~~show interface counters~~ | ~~`internal/component/cmd/show/show.go`~~ | ~~`withDeprecation(resp, "show interface counters "+args[0])`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- site removed; `show.go` carries no deprecation pattern) |
 | ~~clear interface counters~~ | ~~`internal/component/iface/cmd/clear.go`~~ | ~~`deprecated` bool + manual injection~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- site removed; `clear.go` carries no deprecation pattern) |
-| ~~cache actions~~ | ~~`internal/component/bgp/plugins/cmd/cache/cache.go`~~ | ~~`dispatchCacheByID(ctx, action, id, args, true)`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- `dispatchCacheByID(ctx, action, idStr, extraArgs)` at `cache.go:84` no longer takes a deprecated flag) |
-| commit actions (legacy `commit <name> <action>` grammar) | `internal/component/bgp/plugins/cmd/commit/commit.go` | local `withDeprecation` closure at `commit.go:149` inside `dispatchCommitAction(ctx, action, name, extraArgs, deprecated bool)` (`:148`); injects `data["deprecated"] = "use: commit <action> <name>"` (`:156`) when the legacy grammar was used (`:130`, `:144`) | Handler sets `resp.Deprecated` with Replacement: command=`commit <action>`, arg 0=name; the closure and the `deprecated` bool parameter are deleted |
+| ~~cache actions~~ | ~~`internal/component/bgp/plugins/cmd/cache/cache.go`~~ | ~~`dispatchCacheByID(ctx, action, id, args, true)`~~ | ~~Handler sets `resp.Deprecated` ...~~ (gone as of 2026-07-22 -- `dispatchCacheByID(ctx, action, idStr, extraArgs)` at `cache.go` no longer takes a deprecated flag) |
+| commit actions (legacy `commit <name> <action>` grammar) | `internal/component/bgp/plugins/cmd/commit/commit.go` | local `withDeprecation` closure at `commit.go` inside `dispatchCommitAction(ctx, action, name, extraArgs, deprecated bool)`; injects `data["deprecated"] = "use: commit <action> <name>"` when the legacy grammar was used | Handler sets `resp.Deprecated` with Replacement: command=`commit <action>`, arg 0=name; the closure and the `deprecated` bool parameter are deleted |
 
 After migration: the local `withDeprecation` closure and the `deprecated` bool
 parameter of `dispatchCommitAction` in `commit.go` are deleted. No transition

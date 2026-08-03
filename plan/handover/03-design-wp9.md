@@ -3,12 +3,12 @@
 # WP-9 design -- Configuration payload, remote access
 
 Rows (17): `RFC7296-2.19-1..-6`, `2.20-1`, `3.15.1-1..-7`, `4-2`, `4-3`, `1.7-1`.
-Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 15 (`:723-729`).
+Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 15.
 
 **Naming collision, read this first.** The 2026-07-30 re-triage renumbered the work
 packages. "WP-9" now names "Crypto suite policy and management facility" (6 rows), and
 these 17 rows sit in the new **WP-11, "Configuration payload and remote access"**
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1573-1575`). The brief and the phase list use the
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). The brief and the phase list use the
 OLD numbering. The rows are what matter. Say which numbering a commit message uses.
 
 **Read-only design.** No tracked file was modified. Every `file:line` below was read in
@@ -49,13 +49,13 @@ test-writing exercise** -- see section 11 for the phase breakdown and the honest
 ## 1. The finding that reframes this package
 
 The spec says `wire.PayloadCP` is "a dead codec" with "no consumer and no producer"
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:190`). **That is true, and it is only half the
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). **That is true, and it is only half the
 story. The other half is worse and better at the same time.**
 
 An exhaustive grep (28 hits over `internal/`, `cmd/`, `pkg/`, `test/`, `scripts/`)
 confirms the codec claim: the only non-test construction of `PayloadCP` is the generic
 decoder arm `case PayloadTypeCP: p = &PayloadCP{}` in FUNCTION `decodePayload`
-(`internal/component/ike/wire/payload.go:147-148`). Nothing type-switches on it. Nothing
+(`internal/component/ike/wire/payload.go`). Nothing type-switches on it. Nothing
 builds one.
 
 **But the rest of the feature already exists and is also dead.** Reading the producing
@@ -63,24 +63,24 @@ functions:
 
 | Layer | State | Producing function, `file:line` |
 |-------|-------|--------------------------------|
-| YANG | **exists** -- `list pool { name; range; range6; dns; domain; }`, whose own description cites "IKEv2 Configuration Payload, RFC 7296 Section 2.19" | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:268-296` |
-| Config parse | **exists** | FUNCTION `parseVirtualIPPool`, `internal/component/ike/ipsec/config.go:513`; FUNCTION `parseRemoteAccess`, `:474` |
-| Config struct | **exists** -- `VirtualIPPool{Name, Range, Range6, DNS, Domain}` | `internal/component/ike/ipsec/types.go:408-415` |
-| Validation | **exists and is wired** -- IPv4 `/8../30`, IPv6 `/48../126` | FUNCTION `validatePoolPrefix`, `internal/component/ike/ipsec/validate.go:231-241`, called from FUNCTION `ValidateRemoteAccess`, `:190`, reached from `internal/component/ike/engine/config.go:152` |
-| Address pool | **exists, mutex-safe, with `Allocate`, `Release`, `Available`** | `internal/component/ike/eap/pool.go:89`, `:126`, `:191` |
-| Pool construction | **exists and RUNS on every config apply** | `internal/component/ike/engine/register.go:337`, inside FUNCTION `runEngine`'s `OnConfigure` closure |
-| Pool consumption | **NONE.** The object is explicitly discarded | **`internal/component/ike/engine/register.go:393`: `_ = ipPool`** |
-| Notify constants | **exist, zero referents each** | `NotifyInternalAddressFailure = 36` and `NotifyFailedCPRequired = 37`, `internal/component/ike/wire/payload_notify.go:43-44` |
+| YANG | **exists** -- `list pool { name; range; range6; dns; domain; }`, whose own description cites "IKEv2 Configuration Payload, RFC 7296 Section 2.19" | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` |
+| Config parse | **exists** | FUNCTION `parseVirtualIPPool`, `internal/component/ike/ipsec/config.go`; FUNCTION `parseRemoteAccess`, `:474` |
+| Config struct | **exists** -- `VirtualIPPool{Name, Range, Range6, DNS, Domain}` | `internal/component/ike/ipsec/types.go` |
+| Validation | **exists and is wired** -- IPv4 `/8../30`, IPv6 `/48../126` | FUNCTION `validatePoolPrefix`, `internal/component/ike/ipsec/validate.go`, called from FUNCTION `ValidateRemoteAccess`, `:190`, reached from `internal/component/ike/engine/config.go` |
+| Address pool | **exists, mutex-safe, with `Allocate`, `Release`, `Available`** | `internal/component/ike/eap/pool.go`, `:126`, `:191` |
+| Pool construction | **exists and RUNS on every config apply** | `internal/component/ike/engine/register.go`, inside FUNCTION `runEngine`'s `OnConfigure` closure |
+| Pool consumption | **NONE.** The object is explicitly discarded | **`internal/component/ike/engine/register.go`: `_ = ipPool`** |
+| Notify constants | **exist, zero referents each** | `NotifyInternalAddressFailure = 36` and `NotifyFailedCPRequired = 37`, `internal/component/ike/wire/payload_notify.go` |
 
 `_ = ipPool` is the single line that proves the feature is inert. An operator can today
 configure a virtual IP pool, have it parsed, validated against prefix bounds, constructed
 into a live `eap.Pool`, and logged as `"ike: virtual IP pool created"`
-(`register.go:341`) -- and no client will ever receive an address, because the pool is
+(`register.go`) -- and no client will ever receive an address, because the pool is
 blanked to satisfy the compiler four lines before the engine shuts down.
 
 **This is a shipped config surface with no behaviour**, which is what
-`ai/rules/integration-completeness.md` exists to prevent and what
-`ai/rules/no-parking.md` calls "an inert config surface ... wire it, delete it, or reject
+`ai/rules/completion.md` exists to prevent and what
+`ai/rules/completion.md` calls "an inert config surface ... wire it, delete it, or reject
 the config -- pick one and do it".
 
 **What it changes for WP-9.** The package is not "build virtual IP assignment from
@@ -91,9 +91,9 @@ call sites that must feed it.**
 
 ### Corroborating comment, not relied upon
 
-`internal/component/ike/engine/config.go:113-115` says the remote-access gateway surface
+`internal/component/ike/engine/config.go` says the remote-access gateway surface
 "is inert today and is owned by `plan/spec-ipsec-remote-access.md`". Per
-`ai/rules/no-fabrication.md` a comment is its author's belief, not a decision record. It
+`ai/rules/evidence.md` a comment is its author's belief, not a decision record. It
 is cited here only because it agrees with what the code does. **Read
 `plan/spec-ipsec-remote-access.md` and `plan/learned/744-ipsec-9-ikev2-eap-nat.md` before
 implementing** -- neither was read in this pass, and either may already hold design
@@ -119,7 +119,7 @@ decisions this document would otherwise re-litigate. That is risk R-WP9-9.
 `rfc/full/rfc7296.txt:6860-6861`.
 
 **What Ze does today.** FUNCTION `buildAuthRequest`
-(`internal/component/ike/engine/auth.go:91-146`) builds the initiator's IKE_AUTH: IDi,
+(`internal/component/ike/engine/auth.go`) builds the initiator's IKE_AUTH: IDi,
 optional CERTREQ or CERT+AUTH, INITIAL_CONTACT notify, then SAi2/TSi/TSr. **No CP payload
 is constructed anywhere in the tree** (section 1). Ze never takes the IRAC role.
 
@@ -130,7 +130,7 @@ subject does not exist. This is RFC-sanctioned, not a scope reduction.
 the instant anyone adds a client-side virtual-IP request. The tagged pair therefore
 asserts the property the code HAS (no builder emits CP) rather than the absence of a
 guard, which is the shape that expired for `RFC7296-3.4-1`
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1843-1863`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 **Owner item OI-1.** Implementing the IRAC role is on the table, and
 `ai/rules/rfc-compliance.md` forbids me from choosing the narrower answer. See section 14.
@@ -142,7 +142,7 @@ guard, which is the shape that expired for `RFC7296-3.4-1`
 `rfc/full/rfc7296.txt:3143`. Appendix A quotes this exactly. No change needed.
 
 **What Ze does today.** FUNCTION `buildAuthResponse`
-(`internal/component/ike/engine/responder.go:581`) builds the inner chain at `:641-651`:
+(`internal/component/ike/engine/responder.go`) builds the inner chain at `:641-651`:
 
     inner := make([]wire.PayloadEntry, 0, 6)
     inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, false)})
@@ -157,15 +157,15 @@ guard, which is the shape that expired for `RFC7296-3.4-1`
     )
 
 Order: IDr, [CERT...], AUTH, SAr2, TSi, TSr. No CP. `buildEncryptedMessageEx`
-(`internal/component/ike/engine/auth.go:185`) chains `NextPayload` in slice order, so the
+(`internal/component/ike/engine/auth.go`) chains `NextPayload` in slice order, so the
 slice order IS the wire order.
 
-**Verdict: absent.** Design: the CP entry is appended **between `responder.go:647`
+**Verdict: absent.** Design: the CP entry is appended **between `responder.go`
 (AUTH) and `:648` (SAr2)**, which requires splitting the single variadic append. Raise
 the capacity hint at `:641` from 6 to 7 so the insert does not realloc.
 
 **Note the asymmetry, and do not "fix" it.** Ze's own parser does not enforce payload
-order, deliberately: the comment at `responder.go:373-374` says "RFC 7296 Section 2.5
+order, deliberately: the comment at `responder.go` says "RFC 7296 Section 2.5
 forbids rejecting a message over payload order, so this walk only collects and every
 check runs after it." `RFC7296-2.5-13` ("Implementations MUST NOT reject as invalid a
 message with those payloads in any other order") is already gated. **`2.19-2` is a SEND
@@ -180,8 +180,8 @@ obligation only.** An implementer who adds a receive-side order check to "enforc
 `rfc/full/rfc7296.txt:3144-3146`.
 
 **This row is not hypothetical for Ze. EAP is exactly that variation, and Ze implements
-it.** FUNCTION `startResponderEAP` (`internal/component/ike/engine/responder_eap.go:116`)
-and FUNCTION `handleResponderEAP` (`:192`) run the multi-round EAP flow, and the SA
+it.** FUNCTION `startResponderEAP` (`internal/component/ike/engine/responder_eap.go`)
+and FUNCTION `handleResponderEAP` run the multi-round EAP flow, and the SA
 payload appears only in the FINAL IKE_AUTH response, built by `buildAuthResponse` with
 `fromEAP == true`.
 
@@ -189,14 +189,14 @@ payload appears only in the FINAL IKE_AUTH response, built by `buildAuthResponse
 
 | # | Site | Producing function | What it does with a CP payload |
 |---|------|--------------------|--------------------------------|
-| 1 | `responder.go:375-410` | `handleAuthRequest` | Type switch with cases for `PayloadID`, `PayloadAUTH`, `PayloadCERT`, `PayloadNotify`, `PayloadSA`, `PayloadTS`. **No `*wire.PayloadCP` case, no `default:` arm.** A CP payload is collected into `inner`, matches nothing, and is garbage-collected |
-| 2 | `responder_eap.go:116` | `startResponderEAP` | Receives `remoteSAi2, tsi, tsr` already extracted by site 1. It does not re-walk the chain, so a CP seen in the first EAP IKE_AUTH must be threaded through this signature |
-| 3 | `responder_eap.go:201-209` | `handleResponderEAP` | Walks `inner` with **only** `case *wire.PayloadEAP:` and `case *wire.PayloadAUTH:`. **A CP payload in the final, post-EAP-Success IKE_AUTH request is dropped here.** This is the site a strongSwan road warrior actually uses |
+| 1 | `responder.go` | `handleAuthRequest` | Type switch with cases for `PayloadID`, `PayloadAUTH`, `PayloadCERT`, `PayloadNotify`, `PayloadSA`, `PayloadTS`. **No `*wire.PayloadCP` case, no `default:` arm.** A CP payload is collected into `inner`, matches nothing, and is garbage-collected |
+| 2 | `responder_eap.go` | `startResponderEAP` | Receives `remoteSAi2, tsi, tsr` already extracted by site 1. It does not re-walk the chain, so a CP seen in the first EAP IKE_AUTH must be threaded through this signature |
+| 3 | `responder_eap.go` | `handleResponderEAP` | Walks `inner` with **only** `case *wire.PayloadEAP:` and `case *wire.PayloadAUTH:`. **A CP payload in the final, post-EAP-Success IKE_AUTH request is dropped here.** This is the site a strongSwan road warrior actually uses |
 
 **Verdict: absent.** Design: all three sites gain CP handling, and site 3 is the one whose
 omission would make the feature silently not work against real clients. This is the
 second-producer shape the spec has now recorded three times
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1778-1783`), and here it is a THIRD-producer
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`), and here it is a THIRD-producer
 shape.
 
 **The placement rule that falls out.** In an EAP session the CFG_REPLY goes in the FINAL
@@ -221,7 +221,7 @@ assertion.
 **Do not confuse this with `4-2`.** `2.19-4` binds the SENDER of a CFG_REQUEST. `4-2`
 binds the RECEIVER to recognize the same attribute. Ze owes `4-2` and not `2.19-4`. The
 two tags must say which side they are on, or a reviewer cannot tell them apart -- the
-`1.4.1-4` trap (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1816-1841`).
+`1.4.1-4` trap (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 ### 2.5 `RFC7296-2.19-5` -- no CFG_REPLY without a CFG_REQUEST (AUTHORIZATION)
 
@@ -253,16 +253,16 @@ load-bearing:
 **What Ze does today.**
 
 - No config leaf anywhere expresses "CP is required for this identity". The YANG
-  `remote-access` container (`ze-ipsec-conf.yang:220-317`) has `ike-group`, `esp-group`,
+  `remote-access` container (`ze-ipsec-conf.yang`) has `ike-group`, `esp-group`,
   `authentication`, `list pool`, `list eap-user` and nothing else.
-- `NotifyFailedCPRequired uint16 = 37` (`internal/component/ike/wire/payload_notify.go:44`)
+- `NotifyFailedCPRequired uint16 = 37` (`internal/component/ike/wire/payload_notify.go`)
   has **zero referents**, test or production.
-- FUNCTION `buildAuthResponse` installs the Child SA at `responder.go:623` via
+- FUNCTION `buildAuthResponse` installs the Child SA at `responder.go` via
   `createFirstChildSA`, **before** the payload list is built at `:641`. A CP-required
   failure that runs after `:623` would leak an installed Child SA and derived keys.
 
 **Verdict: absent.** Needs a new YANG leaf, a new guard, the first use of notify 37, and
-a short-circuit ordered before `responder.go:623`. Full design in section 8.2.
+a short-circuit ordered before `responder.go`. Full design in section 8.2.
 
 ---
 
@@ -311,7 +311,7 @@ RFC explicitly permits ignoring.
 
 `rfc/full/rfc7296.txt:6378-6381`. The MUST is on `:6380`.
 
-**What Ze does today.** FUNCTION `ReadFrom` (`payload_cp.go:65-85`) enforces **no
+**What Ze does today.** FUNCTION `ReadFrom` (`payload_cp.go`) enforces **no
 cardinality of any kind**: every attribute is appended at `:81` with no comparison
 against previous types. Duplicates of any type all survive. There is no consumer to apply
 the rule.
@@ -319,7 +319,7 @@ the rule.
 **Verdict: absent.** Two-sided design:
 - **Send.** The CFG_REPLY builder emits at most one `INTERNAL_IP4_NETMASK`, and only when
   it also emits an `INTERNAL_IP4_ADDRESS`. The netmask is derived from the pool's
-  configured `range` prefix, never from a separate leaf (`ai/rules/derive-not-hardcode.md`).
+  configured `range` prefix, never from a separate leaf (`ai/rules/evidence.md`).
 - **Receive.** A request carrying two netmasks, or a netmask with no address, is not a
   reason to abort -- `3.15.1-4` and `2.5-13` both push toward tolerance. Ze ignores the
   surplus and proceeds. The receive-side rule is "ignore", not "reject".
@@ -349,7 +349,7 @@ request it was meant to be.
 `rfc/full/rfc7296.txt:6425-6431`. The MUST is on `:6426`.
 
 **What Ze does today.** `SUPPORTED_ATTRIBUTES` is attribute type 14. **The constant does
-not exist.** `payload_cp.go:16-26` defines nine constants -- 1, 2, 3, 4, 6, 7, 8, 10, 12
+not exist.** `payload_cp.go` defines nine constants -- 1, 2, 3, 4, 6, 7, 8, 10, 12
 -- and omits 13 (`INTERNAL_IP4_SUBNET`), 14 (`SUPPORTED_ATTRIBUTES`) and 15
 (`INTERNAL_IP6_SUBNET`).
 
@@ -359,7 +359,7 @@ responder, ANSWERS a SUPPORTED_ATTRIBUTES query. That is **owner item OI-3**: an
 is strictly more compliance and needs no permission; declining it is narrower and does.
 
 If answered, the derivation must come from the constant table itself, not a hand-written
-list (`ai/rules/derive-not-hardcode.md`): a `supportedAttributes()` accessor over the set
+list (`ai/rules/evidence.md`): a `supportedAttributes()` accessor over the set
 Ze actually handles, so the reply cannot drift from the handler.
 
 ### 4.4 `RFC7296-3.15.1-4` -- unrecognized attributes MUST be ignored
@@ -393,7 +393,7 @@ nothing acts on anything.
 
 FUNCTION `ReadFrom` reads **all sixteen bits** into the type:
 
-    atype := binary.BigEndian.Uint16(data[off:])     // payload_cp.go:73
+    atype := binary.BigEndian.Uint16(data[off:])     // payload_cp.go
 
 So a peer that sets the Reserved bit on `INTERNAL_IP4_ADDRESS` yields `atype == 0x8001`
 instead of `1`. Ze would classify a perfectly ordinary address request as an unrecognized
@@ -518,7 +518,7 @@ answer with an IPv4 address. §3.15.4 gives the correct behaviour:
 Erratum 5056 (Held for Document Update, Technical) reports that "proposals" is wrong: a
 configuration attribute belongs to a Configuration payload, not to an SA proposal. The
 verifier's words, as recorded by phase 2a: `only the attribute type should be ignored, not
-the entire proposal` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1280-1282`).
+the entire proposal` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 The spec's constraint is explicit: **the row keeps the verbatim text, and WP-9 implements
 the CORRECTED semantics** (`:1284`). Implementing the literal text would discard an entire
@@ -527,7 +527,7 @@ a self-evidently wrong behaviour that would break interoperability.
 
 ### The duplication question, settled
 
-`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1289-1291` asks WP-9 to settle whether `1.7-1`
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` asks WP-9 to settle whether `1.7-1`
 duplicates `3.15.1-4` ("Unrecognized or unsupported attributes MUST be ignored"), and says
 that if they are one obligation the sign-off excludes one site as `duplicate-of` the other.
 
@@ -546,7 +546,7 @@ the rule that catches that case. They are one line apart in the code and two dif
 obligations.
 
 **What Ze does today.** No consumer, so nothing is ignored and nothing is acted on.
-`CPAttrInternalAddressExpiry` (5) is not even declared (`payload_cp.go:16-26` jumps 4 → 6).
+`CPAttrInternalAddressExpiry` (5) is not even declared (`payload_cp.go` jumps 4 → 6).
 
 **Verdict: absent.** Design: declare the constant and have the attribute dispatcher drop
 type 5 before the unknown-attribute default arm, so the two rules are visibly distinct
@@ -558,7 +558,7 @@ and separately mutable.
 
 ### 7.1 Codec: `internal/component/ike/wire/payload_cp.go`
 
-Eight findings from reading `WriteTo` (`:42-55`), `Len` (`:57-63`) and `ReadFrom`
+Eight findings from reading `WriteTo`, `Len` and `ReadFrom`
 (`:65-85`). D1, D2, D6 and D7 are required by the rows; the rest are correctness work in
 the same file.
 
@@ -581,7 +581,7 @@ a peer's odd-but-harmless payload into a parse failure for the whole message, wh
 
 ### 7.2 The consumer: `internal/component/ike/engine/cp.go` (new)
 
-The file the spec's phase list already names (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:543`).
+The file the spec's phase list already names (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 | Function | Responsibility | Rows |
 |----------|----------------|------|
@@ -592,10 +592,10 @@ The file the spec's phase list already names (`plan/learned/1313-rfcgate-1b-rfc7
 | `cpPolicyFor(sa *SA) (required, resolved bool)` | The `2.19-6` policy lookup, with an explicit `resolved` so a miss cannot read as "not required" | `2.19-6` |
 
 **Where the lease is taken, and why the order is forced.** `createFirstChildSA` runs at
-`responder.go:623`, and `buildChildSAResponsePayloads` at `:613` produces the responder's
+`responder.go`, and `buildChildSAResponsePayloads` at `:613` produces the responder's
 TSi/TSr. `4-3`'s address must narrow `sa.NegotiatedTSi` to the leased address, so
-**allocation must happen before `responder.go:613`**. Otherwise the responder echoes the
-selectors the client proposed (set at `responder.go:598-603`) and the leased address never
+**allocation must happen before `responder.go`**. Otherwise the responder echoes the
+selectors the client proposed (set at `responder.go`) and the leased address never
 reaches the traffic selectors, producing a session that negotiates an address and then
 routes as if it had not. The `2.19-6` refusal must short-circuit before `:623` for the
 same reason: no Child SA, no keys.
@@ -603,10 +603,10 @@ same reason: no Child SA, no keys.
 ### 7.3 Config surface
 
 Everything below attaches under the existing
-`vpn/ipsec/remote-access` container (`ze-ipsec-conf.yang:220`).
+`vpn/ipsec/remote-access` container (`ze-ipsec-conf.yang`).
 
-**New container**, following `ai/rules/config-naming.md` (kebab-case, no abbreviations,
-noun phrases, positive booleans) and `ai/rules/yang-structure.md` (`units` on every
+**New container**, following `ai/rules/config.md` (kebab-case, no abbreviations,
+noun phrases, positive booleans) and `ai/rules/config.md` (`units` on every
 dimensioned leaf, protocol-sane defaults, no boolean-as-enum):
 
     container configuration-payload {
@@ -660,8 +660,8 @@ A default would make the zero value a wrong answer.
 
 | Fix | Site | Why |
 |-----|------|-----|
-| `leaf dns` → `leaf-list dns` | `ze-ipsec-conf.yang:287` | `INTERNAL_IP4_DNS` is multi-valued per `rfc/full/rfc7296.txt:6346`, and `VirtualIPPool.DNS` is already `[]string` (`types.go:412`). FUNCTION `parseVirtualIPPool` appends a single `t.Get("dns")` at `config.go:526-528`, so **only one DNS server can be configured today** while the struct and the RFC both allow many |
-| `list pool` -- read all, or reject more than one | FUNCTION `parseRemoteAccess`, `config.go:494-501` | It takes `pools[0]` and **silently discards every other pool**. That is an `ai/rules/exact-or-reject.md` violation: the operator's config is not applied and nothing says so. Minimum acceptable fix is a validation error naming the count; the better fix is per-peer pool selection |
+| `leaf dns` → `leaf-list dns` | `ze-ipsec-conf.yang` | `INTERNAL_IP4_DNS` is multi-valued per `rfc/full/rfc7296.txt:6346`, and `VirtualIPPool.DNS` is already `[]string` (`types.go`). FUNCTION `parseVirtualIPPool` appends a single `t.Get("dns")` at `config.go`, so **only one DNS server can be configured today** while the struct and the RFC both allow many |
+| `list pool` -- read all, or reject more than one | FUNCTION `parseRemoteAccess`, `config.go` | It takes `pools[0]` and **silently discards every other pool**. That is an `ai/rules/protocol.md` violation: the operator's config is not applied and nothing says so. Minimum acceptable fix is a validation error naming the count; the better fix is per-peer pool selection |
 
 `range6` is inconsistent with the no-abbreviation convention, but it is existing surface
 and renaming it is out of scope for the rows. Flagged, not changed.
@@ -670,15 +670,15 @@ and renaming it is out of scope for the rows. Flagged, not changed.
 
 | Id | Finding | Site | Design |
 |----|---------|------|--------|
-| **P1** | The pool is constructed and then discarded | `runEngine`, `register.go:337` then `:393` `_ = ipPool` | Hang it off the `PeerSession` / SA-table so `buildAuthResponse` can reach it. `activeTablePtr` (`register.go:205`) is the existing precedent for engine-scoped shared state |
-| **P2** | `Allocate()` takes no identity, so there is no reuse and no per-identity quota | `pool.go:89` | New signature carrying the authenticated identity. Enables `maximum-leases-per-identity` and address reuse across rekeys, which `rfc/full/rfc7296.txt:6374-6375` calls for ("valid as long as this IKE SA (or its rekeyed successors) ... is valid") |
-| **P3** | `Release` has **no non-test caller**, and no lease/expiry concept exists anywhere in `internal/component/ike/` | `pool.go:126` | A lease table keyed by identity plus SA, released on SA teardown and on `lease-lifetime` expiry. **Without this the pool leaks monotonically until exhaustion under nothing worse than normal client churn** |
-| **P4** | `p.size4 = (1 << uint(bits-ones)) - 2` underflows for a very short prefix | `NewPool`, `pool.go:53` | For a `/0`, `bits-ones` is 32; a `uint32` shift by 32 yields 0 and `0 - 2` wraps to 4294967294, which the guard at `:54` (`p.size4 == 0 \|\| bits-ones < 1`) does not catch. **Unreachable today** because `validatePoolPrefix` bounds IPv4 to `/8../30` (`validate.go:197`) and that validation IS wired (`engine/config.go:152`). Defence in depth: `NewPool` must bound itself rather than trust its caller (`ai/rules/fail-closed-guards.md`, "make the miss explicit at the producer"). **This claim is a reading of the source plus Go's defined shift semantics; it was not executed. The boundary test in section 9 is what settles it** |
-| **P5** | `allocateV4` scans linearly from offset 1 on every call | `pool.go:136-147` | At the `/8` the validator permits, that is up to 16,777,214 probes and a map of the same order. Add a rotating cursor like the IPv6 path's `next6` (`:152-156`) |
-| **P6** | `allocateV6` writes the host ID into `ip6[8:]` only | `pool.go:161` | That assumes a prefix no longer than `/64`, but `validatePoolPrefix` permits `/48../126` (`validate.go:202`). **A `/96` pool clobbers prefix bits and hands out addresses outside the configured range.** Either narrow the validator to `/48../64` or make `allocateV6` prefix-aware |
+| **P1** | The pool is constructed and then discarded | `runEngine`, `register.go` then `:393` `_ = ipPool` | Hang it off the `PeerSession` / SA-table so `buildAuthResponse` can reach it. `activeTablePtr` (`register.go`) is the existing precedent for engine-scoped shared state |
+| **P2** | `Allocate()` takes no identity, so there is no reuse and no per-identity quota | `pool.go` | New signature carrying the authenticated identity. Enables `maximum-leases-per-identity` and address reuse across rekeys, which `rfc/full/rfc7296.txt:6374-6375` calls for ("valid as long as this IKE SA (or its rekeyed successors) ... is valid") |
+| **P3** | `Release` has **no non-test caller**, and no lease/expiry concept exists anywhere in `internal/component/ike/` | `pool.go` | A lease table keyed by identity plus SA, released on SA teardown and on `lease-lifetime` expiry. **Without this the pool leaks monotonically until exhaustion under nothing worse than normal client churn** |
+| **P4** | `p.size4 = (1 << uint(bits-ones)) - 2` underflows for a very short prefix | `NewPool`, `pool.go` | For a `/0`, `bits-ones` is 32; a `uint32` shift by 32 yields 0 and `0 - 2` wraps to 4294967294, which the guard at `:54` (`p.size4 == 0 \|\| bits-ones < 1`) does not catch. **Unreachable today** because `validatePoolPrefix` bounds IPv4 to `/8../30` (`validate.go`) and that validation IS wired (`engine/config.go`). Defence in depth: `NewPool` must bound itself rather than trust its caller (`ai/rules/evidence.md`, "make the miss explicit at the producer"). **This claim is a reading of the source plus Go's defined shift semantics; it was not executed. The boundary test in section 9 is what settles it** |
+| **P5** | `allocateV4` scans linearly from offset 1 on every call | `pool.go` | At the `/8` the validator permits, that is up to 16,777,214 probes and a map of the same order. Add a rotating cursor like the IPv6 path's `next6` |
+| **P6** | `allocateV6` writes the host ID into `ip6[8:]` only | `pool.go` | That assumes a prefix no longer than `/64`, but `validatePoolPrefix` permits `/48../126` (`validate.go`). **A `/96` pool clobbers prefix bits and hands out addresses outside the configured range.** Either narrow the validator to `/48../64` or make `allocateV6` prefix-aware |
 
 P6 is a live bug reachable from a valid config today. It has no row of its own, and
-`ai/rules/no-parking.md` makes it in scope the moment WP-9 becomes the entry point that
+`ai/rules/completion.md` makes it in scope the moment WP-9 becomes the entry point that
 allocates from this pool.
 
 ### 7.5 Files that change
@@ -693,8 +693,8 @@ allocates from this pool.
 | `internal/component/ike/eap/pool.go` | P2, P3, P4, P5, P6 |
 | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` | `container configuration-payload`; `leaf dns` → `leaf-list dns` |
 | `internal/component/ike/ipsec/config.go`, `types.go`, `validate.go` | parse, hold and validate the new leaves; the multi-pool decision |
-| `internal/core/diagnostic/codes.go` | a `doctor-ipsec-virtual-ip-pool` code (`ai/rules/doctor-checks.md`: the pool is a config-declared resource) |
-| `docs/features.md`, `docs/guide/`, `docs/architecture/wire/`, `docs/features/rfc-status.md` | `ai/rules/documentation.md` and `ai/rules/discovery-updates.md` |
+| `internal/core/diagnostic/codes.go` | a `doctor-ipsec-virtual-ip-pool` code (`ai/rules/repo-maintenance.md`: the pool is a config-declared resource) |
+| `docs/features.md`, `docs/guide/`, `docs/architecture/wire/`, `docs/features/rfc-status.md` | `ai/rules/writing.md` and `ai/rules/repo-maintenance.md` |
 
 ---
 
@@ -721,7 +721,7 @@ natural Go idiom is:
 
 **That fails open on condition 2.** A peer sending `CP(CFG_SET)` -- which the RFC
 explicitly permits Ze to ignore, `rfc/full/rfc7296.txt:6477` -- would receive a CFG_REPLY
-carrying a leased address it never asked for. `ai/rules/fail-closed-guards.md` is exact
+carrying a leased address it never asked for. `ai/rules/evidence.md` is exact
 about this: on "an unmapped input" the guard must deny, and "a present-but-empty value
 passes `ok`". A nil test satisfies neither condition 2 nor condition 3.
 
@@ -746,7 +746,7 @@ where instinct puts them. The **permissive** branch is "proceed without CP". The
 **Why `map[string]bool` is banned here.** A policy lookup written as
 `required := policy[identity]` returns `false` on a miss, and `false` means "CP not
 required", which is the permissive branch. The zero value would read as a valid answer --
-exactly what `ai/rules/fail-closed-guards.md` forbids. The explicit `resolved` return is
+exactly what `ai/rules/evidence.md` forbids. The explicit `resolved` return is
 what stops it.
 
 **Two behavioural details the RFC pins and an implementer will get wrong.**
@@ -756,7 +756,7 @@ what stops it.
    response is an IKE_AUTH response carrying `N(FAILED_CP_REQUIRED)` and **no SA and no TS
    payloads**, with the IKE SA established. Tearing down the IKE SA is a violation.
 2. **No Child SA may be installed.** The refusal must short-circuit before
-   `createFirstChildSA` at `responder.go:623`, or Ze installs kernel state and derives keys
+   `createFirstChildSA` at `responder.go`, or Ze installs kernel state and derives keys
    for a Child SA it is simultaneously refusing.
 
 `FAILED_CP_REQUIRED` carries no data: "There is no associated data in the
@@ -768,9 +768,9 @@ FAILED_CP_REQUIRED error" (`rfc/full/rfc7296.txt:3187-3188`).
 
 | Bound | Exists? | Where |
 |-------|---------|-------|
-| Pool prefix `/8../30` (IPv4), `/48../126` (IPv6) | **yes, and wired** | `validatePoolPrefix`, `validate.go:231-241`, via `ValidateRemoteAccess` `:190`, reached from `engine/config.go:152` |
-| IPv6 allocation hard cap of 65536 | **yes** | `allocateV6`, `pool.go:150` |
-| Per-identity lease quota | **no** | `Allocate()` takes no identity (`pool.go:89`) |
+| Pool prefix `/8../30` (IPv4), `/48../126` (IPv6) | **yes, and wired** | `validatePoolPrefix`, `validate.go`, via `ValidateRemoteAccess` `:190`, reached from `engine/config.go` |
+| IPv6 allocation hard cap of 65536 | **yes** | `allocateV6`, `pool.go` |
+| Per-identity lease quota | **no** | `Allocate()` takes no identity (`pool.go`) |
 | Lease release on SA teardown | **no** | `Release` has zero non-test callers |
 | Lease expiry | **no** | no lease concept exists anywhere in `internal/component/ike/` |
 | Attribute count per CP payload | **no** | `ReadFrom`, `pool` is not involved; roughly 16k attributes per 65535-byte body |
@@ -801,7 +801,7 @@ identity is what `rfc/full/rfc7296.txt:6374-6375` already asks for.
   allocation (P5).
 - Fix `allocateV6` for prefixes longer than `/64`, or narrow the validator (P6).
 - A `doctor-ipsec-virtual-ip-pool` check reporting configured size and current
-  utilisation, so exhaustion is visible before it is total (`ai/rules/doctor-checks.md`).
+  utilisation, so exhaustion is visible before it is total (`ai/rules/repo-maintenance.md`).
 
 ### 8.4 One correctness obligation the row set does not contain
 
@@ -818,7 +818,7 @@ identity is what `rfc/full/rfc7296.txt:6374-6375` already asks for.
 required for the feature to be correct: without it, pool exhaustion produces an
 unexplained failure rather than the diagnosable notification the RFC specifies.
 `NotifyInternalAddressFailure = 36` already exists with zero referents
-(`payload_notify.go:43`). **Implement it, and raise with the owner whether §3.15.4 should
+(`payload_notify.go`). **Implement it, and raise with the owner whether §3.15.4 should
 gain rows** -- an unextracted obligation is still an obligation
 (`ai/rules/rfc-compliance.md`, Extraction Completeness). This is owner item OI-4.
 
@@ -828,13 +828,13 @@ gain rows** -- an unextracted obligation is still an obligation
 
 ### 9.1 Where a tag may live
 
-`CARRIERS` (`scripts/dev/rfc_requirements.py:784`) admits four carriers, and the choice
+`CARRIERS` (`scripts/dev/rfc_requirements.py`) admits four carriers, and the choice
 is not free:
 
 | Carrier | Cell | Tier | Usable here? |
 |---------|------|------|--------------|
 | `*_test.go` | `unit/verify` | every push | **yes** |
-| `*.ci` in a suite `ze-functional-test` names | `functional/verify` | every push | **yes** -- `ipsec` is in the `all_suites` line (`mk/test-functional.mk:192`) |
+| `*.ci` in a suite `ze-functional-test` names | `functional/verify` | every push | **yes** -- `ipsec` is in the `all_suites` line (`mk/test-functional.mk`) |
 | `*.et` | `editor/verify` | every push | not applicable |
 | `test/interop/scenarios/*/check.py` | `interop/nightly` | scheduled, advisory | not applicable |
 
@@ -844,7 +844,7 @@ runs those suites automatically and a tag nothing executes is an absence of evid
 rather than weak evidence".
 
 **Consequence for WP-9.** The strongSwan scenario `14-remote-access-cp`
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:502`) is **goal-validation evidence, not tagged
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`) is **goal-validation evidence, not tagged
 evidence**. It proves the feature works against a real peer, and it earns no row a
 polarity. Every one of the 34 tags below lives in a `_test.go` or in
 `test/ipsec/ipsec-remote-access-cp.ci`. An implementer who tags the interop `check.py`
@@ -855,30 +855,30 @@ will fail `make ze-rfc-check` with an error naming the file.
 | File | Layer | Holds |
 |------|-------|-------|
 | `internal/component/ike/wire/rfc7296_cp_test.go` (new) | codec | `3.15.1-1..-4`, `1.7-1` codec halves; the R-bit defect |
-| `internal/component/ike/engine/cp_test.go` (new) | engine | `2.19-*`, `4-2`, `4-3`, `2.20-1`, `3.15.1-5..-7`; the spec names `TestConfigurationPayloadExchange` here (`:466`) |
+| `internal/component/ike/engine/cp_test.go` (new) | engine | `2.19-*`, `4-2`, `4-3`, `2.20-1`, `3.15.1-5..-7`; the spec names `TestConfigurationPayloadExchange` here |
 | `internal/component/ike/eap/pool_test.go` (exists) | pool | P4 boundary, P6 prefix, quota and release |
-| `test/ipsec/ipsec-remote-access-cp.ci` (new) | functional | the operator path end to end (`:493`) |
+| `test/ipsec/ipsec-remote-access-cp.ci` (new) | functional | the operator path end to end |
 | `test/ipsec-interop/scenarios/14-remote-access-cp/` (new) | interop | goal validation only, **no tags** |
 
 ### 9.3 The pairs, and the mutation that must redden each
 
 | Row | Positive asserts | Negative asserts | Mutation that must redden |
 |-----|------------------|------------------|---------------------------|
-| `2.19-1` | Over every message Ze builds as initiator, no payload is a `*wire.PayloadCP` | The builder CAN carry one: a `PayloadEntry{Payload: &wire.PayloadCP{}}` inserted into `buildAuthRequest`'s list does reach the wire, so the absence is a decision, not an encoder limit | add a CP entry in `buildAuthRequest` (`auth.go:144`) → positive reddens |
-| `2.19-2` | In every IKE_AUTH response carrying both, the CP index is strictly less than the SA index | The harness can tell the order apart: a fixture with CP after SA is detected by the same assertion | swap the two appends at `responder.go:647-648` → positive reddens |
+| `2.19-1` | Over every message Ze builds as initiator, no payload is a `*wire.PayloadCP` | The builder CAN carry one: a `PayloadEntry{Payload: &wire.PayloadCP{}}` inserted into `buildAuthRequest`'s list does reach the wire, so the absence is a decision, not an encoder limit | add a CP entry in `buildAuthRequest` (`auth.go`) → positive reddens |
+| `2.19-2` | In every IKE_AUTH response carrying both, the CP index is strictly less than the SA index | The harness can tell the order apart: a fixture with CP after SA is detected by the same assertion | swap the two appends at `responder.go` → positive reddens |
 | `2.19-3` | In an **EAP** session, the CFG_REPLY appears in the response carrying SAr2 (the final IKE_AUTH), not the first | In a non-EAP session the same rule puts it in the only response. Assert both flows in one test so "the message carrying SA" is proven to be the rule, not "the first response" | make the reply site "first response" → the EAP half reddens, the non-EAP half stays green. **That asymmetry is the proof the negative exists for** |
 | `2.19-4` | Ze emits no CFG_REQUEST at all (shares `2.19-1`'s sweep) | Tag states the side: this is a SENDER obligation Ze does not incur, distinct from `4-2` which it does | same as `2.19-1` |
 | `2.19-5` | A request with **no** CP gets a response with no CP. A request whose CP is `CFGTypeSet`, `CFGTypeReply` or `CFGTypeACK` gets a response with no CP. A CP with zero attributes gets none | A well-formed `CFGTypeRequest` **does** get a CFG_REPLY, so the guard is not refusing everything | in `cpRequestFrom`, drop the `CFGType` check → the CFG_SET case reddens. Drop the attribute-presence check → the empty-CP case reddens. **Run both separately** |
-| `2.19-6` | `required=true` plus no CP ⇒ response carries `N(FAILED_CP_REQUIRED)`, **no SA payload, no TS payload**, and the IKE SA is still `StateEstablished`, and **no Child SA was installed** | `required=false` plus no CP ⇒ normal establishment. And `required=true` plus a valid CP ⇒ normal establishment. The guard fires on the conjunction, not on either half | make `cpPolicyFor` return `required` from a bare map lookup → the unresolved-profile case must redden. Move the short-circuit after `responder.go:623` → the "no Child SA installed" assertion reddens |
+| `2.19-6` | `required=true` plus no CP ⇒ response carries `N(FAILED_CP_REQUIRED)`, **no SA payload, no TS payload**, and the IKE SA is still `StateEstablished`, and **no Child SA was installed** | `required=false` plus no CP ⇒ normal establishment. And `required=true` plus a valid CP ⇒ normal establishment. The guard fires on the conjunction, not on either half | make `cpPolicyFor` return `required` from a bare map lookup → the unresolved-profile case must redden. Move the short-circuit after `responder.go` → the "no Child SA installed" assertion reddens |
 | `2.20-1` | With `application-version` unset, no `APPLICATION_VERSION` attribute is emitted, in any exchange | With it set, the configured string IS emitted, so the absence is a decline rather than a missing code path | make the unset case emit `APPLICATION_VERSION("ze")` → positive reddens |
 | `3.15.1-1` | A CFG_REPLY carries at most one netmask, and carries one only when it also carries `INTERNAL_IP4_ADDRESS` | An IPv6-only lease produces **no** netmask, so the pairing is conditional rather than always-on | emit the netmask unconditionally in `buildCFGReply` → the IPv6-only case reddens |
 | `3.15.1-2` | Ze emits no CFG_REQUEST, so it emits no non-empty netmask in one | Receive-side tolerance: a request carrying a **non-empty** netmask still yields a normal CFG_REPLY and no teardown | make the consumer error on a non-empty request netmask → negative reddens |
 | `3.15.1-3` | Per OI-3. If answered: a zero-length `SUPPORTED_ATTRIBUTES` request yields a reply whose value length is a multiple of 2 and whose contents are derived from the handler set. If declined: no `SUPPORTED_ATTRIBUTES` is emitted | If answered: a **non**-zero-length `SUPPORTED_ATTRIBUTES` in a request is ignored rather than answered | hardcode the supported list instead of deriving it, then remove an attribute from the handler → the derived assertion reddens, a hardcoded one would not |
-| `3.15.1-4` | A CFG_REQUEST containing types 9, 11, 99 and 65535 alongside `INTERNAL_IP4_ADDRESS` still yields a correct CFG_REPLY; the unknown types appear in neither the reply nor any state | **The R-bit case.** `INTERNAL_IP4_ADDRESS` with the Reserved bit set (`0x8001`) is recognized as type 1 and answered. This is the D1 fix, and it is the half that gates a real defect | revert the D1 mask at `payload_cp.go:73` → the negative reddens and the positive stays green |
+| `3.15.1-4` | A CFG_REQUEST containing types 9, 11, 99 and 65535 alongside `INTERNAL_IP4_ADDRESS` still yields a correct CFG_REPLY; the unknown types appear in neither the reply nor any state | **The R-bit case.** `INTERNAL_IP4_ADDRESS` with the Reserved bit set (`0x8001`) is recognized as type 1 and answered. This is the D1 fix, and it is the half that gates a real defect | revert the D1 mask at `payload_cp.go` → the negative reddens and the positive stays green |
 | `3.15.1-5` | A `CP(CFG_SET)` in an INFORMATIONAL exchange produces a response with **no** CP payload and **no** configuration state change | The same exchange **does** produce a response (the request is answered, just without a CFG_ACK), so the absence is a choice rather than a dropped message | make the CFG_SET path emit an empty `CFGTypeACK` → positive reddens |
 | `3.15.1-6` | No CFG_ACK is ever built, so no unaccepted attribute can appear in one | The builder could produce one: a hand-built `CFGTypeACK` encodes and decodes, so the absence is a decision | shared with `3.15.1-5` |
 | `3.15.1-7` | A `CP(CFG_SET)` yields "a response message without a CFG_ACK payload", the RFC's own second option | The response exists and is well-formed | shared with `3.15.1-5` |
-| `4-2` | A CFG_REQUEST in the **first** IKE_AUTH request is parsed and its `INTERNAL_IP4_ADDRESS` / `INTERNAL_IP6_ADDRESS` recognized, in **both** the direct and the EAP flow | A CFG_REQUEST arriving only in the **final** EAP IKE_AUTH is also recognized (drop site 3, `responder_eap.go:201-209`) | remove the CP case from `handleAuthRequest` → positive reddens. Remove it from `handleResponderEAP` → **negative only** reddens, which is what proves the third producer is covered |
+| `4-2` | A CFG_REQUEST in the **first** IKE_AUTH request is parsed and its `INTERNAL_IP4_ADDRESS` / `INTERNAL_IP6_ADDRESS` recognized, in **both** the direct and the EAP flow | A CFG_REQUEST arriving only in the **final** EAP IKE_AUTH is also recognized (drop site 3, `responder_eap.go`) | remove the CP case from `handleAuthRequest` → positive reddens. Remove it from `handleResponderEAP` → **negative only** reddens, which is what proves the third producer is covered |
 | `4-3` | A client requesting IPv4 receives an IPv4 address from the configured range; a client requesting IPv6 receives IPv6 | **Type fidelity.** A client requesting **only** IPv6 against an IPv4-only pool receives no address of the wrong family, and the session still completes per `rfc/full/rfc7296.txt:6674-6678` | make `buildCFGReply` answer with whatever the pool has → negative reddens |
 | `1.7-1` | Attribute type 5 in a CFG_REQUEST is ignored: it appears in no reply and changes no state | **The scope proof.** The rest of the payload, and the SA proposal in the same message, are processed normally. The literal reading ("ignore proposals") would discard the proposal; the corrected reading discards one attribute | make `attributeDisposition` return `handled` for 5 → positive reddens. Make the type-5 branch abort the message → negative reddens |
 
@@ -895,7 +895,7 @@ will fail `make ze-rfc-check` with an error naming the file.
 ### 9.4 Pool tests
 
 Not row-tagged (they prove no RFC obligation), but required by
-`ai/rules/no-partial-completion.md` for the code WP-9 changes:
+`ai/rules/completion.md` for the code WP-9 changes:
 
 | Test | Asserts | Mutation |
 |------|---------|----------|
@@ -908,7 +908,7 @@ Not row-tagged (they prove no RFC obligation), but required by
 
 ## 10. Id allocation
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py:477-510`) refuses a new id whose
+`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses a new id whose
 ordinal is at or below its section's high-water mark. The mark comes from the **committed
 HEAD** summaries, and **a section with no mark at all is skipped entirely** (`:500-502`).
 
@@ -927,7 +927,7 @@ allocation does not arise here: the marks are the same read either way.
 | `RFC7296-3.15.1` | none | **none** | `-1` .. `-7` accepted as written |
 | `RFC7296-4` | none | **none** | `-2`, `-3` accepted **only if the landing order is right** -- see below |
 
-`_head_of` keys on the section STRING (`rfc_requirements.py:454-457`), so `RFC7296-3.15`
+`_head_of` keys on the section STRING (`rfc_requirements.py`), so `RFC7296-3.15`
 and `RFC7296-3.15.1` are distinct scopes and do not share a mark. Appendix A holds no
 `RFC7296-3.15-*` row, so §3.15 is not in play.
 
@@ -936,7 +936,7 @@ and `RFC7296-3.15.1` are distinct scopes and do not share a mark. Appendix A hol
 `1.7-1` lands as **`RFC7296-1.7-3`**. WP-9 is the sole claimant of §1.7's remaining row
 (`1.7-2` is already at HEAD), so nothing can move the mark first. Correct Appendix A in
 the same commit, on the precedent set for `1.4-2` → `1.4-5`
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1399-1414`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 ### §2.19, §2.20, §3.15.1: safe, WP-9 owns every row
 
@@ -1003,14 +1003,14 @@ code, and the code they need is a user-facing feature with a config surface, an
 authorization model, a resource allocator and an interop obligation.** It is the largest
 remaining package for a reason.
 
-The spec anticipated this. Risk R-8 (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:296`) says WP-9
+The spec anticipated this. Risk R-8 (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`) says WP-9
 "adds a whole operator-facing feature surface ... If it turns out to be a spec-sized
 feature in its own right, that is a scope question for Thomas -- raised as a question,
 never resolved by dropping the rows."
 
 **Raising it: this is a spec-sized feature.** It should probably be its own spec, with the
 17 rows as its acceptance criteria, rather than a phase item inside the compliance-gate
-pilot. `plan/spec-ipsec-remote-access.md` is named by `engine/config.go:115` as the owner
+pilot. `plan/spec-ipsec-remote-access.md` is named by `engine/config.go` as the owner
 of this surface and may already be that spec. That is owner item OI-5.
 
 The mitigating fact from section 1 is real: the YANG, the config parse, the validation and
@@ -1024,7 +1024,7 @@ from nothing.
 | A | **Codec correctness** | D1, D2, D3, D4, D6, D7 in `payload_cp.go`, plus codec-layer tests. Independent of everything else, lands first, and D1 is a live `2.5-7` defect | none directly; unblocks `3.15.1-4`, `4-2`, `1.7-1` | 0.5 day |
 | B | **Pool hardening** | P2, P4, P5, P6 in `eap/pool.go`; identity-bound allocation; the lease table and expiry (P3). Independent of the CP wire path | none directly; unblocks `4-3` | 1 day |
 | C | **Config surface** | `container configuration-payload`; `leaf dns` → `leaf-list dns`; the multi-pool decision; parse, validate, doctor check, completion | `2.19-6`, `2.20-1` | 0.5 day |
-| D | **The consumer** | `engine/cp.go`; the CP case at all **three** drop sites; the `startResponderEAP` signature; the reply insertion at `responder.go:647-648`; TS narrowing before `:613`; P1 (`_ = ipPool` → real wiring) | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
+| D | **The consumer** | `engine/cp.go`; the CP case at all **three** drop sites; the `startResponderEAP` signature; the reply insertion at `responder.go`; TS narrowing before `:613`; P1 (`_ = ipPool` → real wiring) | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
 | E | **Authorization and error paths** | The two fail-closed guards (8.1, 8.2); `FAILED_CP_REQUIRED` emission and its pre-`:623` short-circuit; `INTERNAL_ADDRESS_FAILURE` (8.4) | `2.19-5`, `2.19-6` | 0.5 day |
 | F | **Tests** | 34 tagged tests, every mutation in 9.3 run and reverted, the pool tests in 9.4, `test/ipsec/ipsec-remote-access-cp.ci`, and the strongSwan scenario `14-remote-access-cp` | all 17 proven | 1.5 days |
 | G | **Discovery and closure** | `docs/features.md`, the guide, `docs/architecture/wire/`, `docs/features/rfc-status.md` rows, the 17 summary rows, `make ze-rfc-index`, the R-8 Integration Checklist re-answer | -- | 0.5 day |
@@ -1041,14 +1041,14 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 
 | Invariant | Why it is at risk | The guard |
 |-----------|-------------------|-----------|
-| **`RFC7296-2.5-13`: a message MUST NOT be rejected over payload order** | An implementer enforcing `2.19-2` adds a receive-side order check. `2.19-2` is a **send** obligation only. The comment at `responder.go:373-374` says the walk collects and checks afterward, deliberately | `2.19-2`'s tag says "send side only". The existing `2.5-13` pair reddens. **WP-9 adds no receive-side order check of any kind** |
+| **`RFC7296-2.5-13`: a message MUST NOT be rejected over payload order** | An implementer enforcing `2.19-2` adds a receive-side order check. `2.19-2` is a **send** obligation only. The comment at `responder.go` says the walk collects and checks afterward, deliberately | `2.19-2`'s tag says "send side only". The existing `2.5-13` pair reddens. **WP-9 adds no receive-side order check of any kind** |
 | **`RFC7296-3.15.1-4` tolerance is not turned into rejection** | The same instinct that adds an order check adds "reject unknown attribute". The RFC says ignore | `3.15.1-4`'s positive drives a request carrying four unknown types and asserts the session still completes |
-| **`RFC7296-2.5-9` / `-11`: critical-bit handling for the CP payload type** | Type 47 decodes successfully today, so `ErrUnsupportedCrit` (`wire/chain.go:35-40`) never fires for it. Adding a consumer must not change that | The existing `2.5-9` and `2.5-11` pairs stay green. WP-9 touches neither parser's critical branch |
+| **`RFC7296-2.5-9` / `-11`: critical-bit handling for the CP payload type** | Type 47 decodes successfully today, so `ErrUnsupportedCrit` (`wire/chain.go`) never fires for it. Adding a consumer must not change that | The existing `2.5-9` and `2.5-11` pairs stay green. WP-9 touches neither parser's critical branch |
 | **The IKE SA survives a FAILED_CP_REQUIRED** | The natural implementation of "fail the request" tears the session down | `2.19-6`'s positive asserts `StateEstablished` after the refusal |
-| **No Child SA or key material is installed on a refusal** | `createFirstChildSA` runs at `responder.go:623`, before the payload list | `2.19-6`'s positive asserts no Child SA was installed. The mutation that moves the short-circuit after `:623` must redden it |
-| **EAP sessions still establish** | Phase D changes `startResponderEAP`'s signature (`responder_eap.go:116`) and `handleResponderEAP`'s walk (`:201-209`) | `TestResponderEAPSessionWired` (`internal/component/ike/engine/responder_test.go:492`) stays green |
+| **No Child SA or key material is installed on a refusal** | `createFirstChildSA` runs at `responder.go`, before the payload list | `2.19-6`'s positive asserts no Child SA was installed. The mutation that moves the short-circuit after `:623` must redden it |
+| **EAP sessions still establish** | Phase D changes `startResponderEAP`'s signature (`responder_eap.go`) and `handleResponderEAP`'s walk | `TestResponderEAPSessionWired` (`internal/component/ike/engine/responder_test.go`) stays green |
 | **Site-to-site peers are unaffected** | `cpPolicyFor` must return a determined `required=false` for a site-to-site profile, not a miss | `2.19-6`'s negative drives a site-to-site peer and asserts normal establishment |
-| **Every `test/ipsec/` `.ci` and `test/ipsec-interop/` scenario stays green** | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:204-206` | WP-9 changes no wire byte for a peer that sends no CP: the reply is emitted only when `cpRequestFrom` returns `ok` |
+| **Every `test/ipsec/` `.ci` and `test/ipsec-interop/` scenario stays green** | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` | WP-9 changes no wire byte for a peer that sends no CP: the reply is emitted only when `cpRequestFrom` returns `ok` |
 | **`RFC7296-2.5-6` / `-7` (RESERVED)** | D1 and D2 are literally `2.5-7` and `2.5-6` fixes for this payload | Both existing pairs stay green; the CP codec joins the set of producers they range over |
 
 ---
@@ -1059,13 +1059,13 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 |----|------|--------------|------------|
 | R-WP9-1 | **The `2.19-5` guard fails open on `CFGType`.** The idiomatic `if cpReq != nil` hands a leased address to a peer that sent `CP(CFG_SET)` | none: the happy path passes, and the CFG_SET case is never exercised by an ordinary client | Section 8.1's four conditions in **one** function returning explicit `ok`. The `CFGType` mutation in 9.3 is mandatory and must be run separately from the attribute-presence mutation |
 | R-WP9-2 | **Leases are never released, and the pool exhausts under normal churn.** `Release` has no non-test caller and no lease concept exists | `Available()` decreases monotonically; the first report is a user who cannot connect | P3 in phase B. `TestLeaseReleasedOnSATeardown`. The doctor check surfaces utilisation before exhaustion is total |
-| R-WP9-3 | **Only the direct IKE_AUTH drop site is wired, and the feature silently does not work against real clients.** Road warriors send CFG_REQUEST in the final EAP IKE_AUTH, which is `handleResponderEAP` (`responder_eap.go:201-209`) | the unit tests pass; the strongSwan scenario fails or hangs | `4-2`'s negative drives the EAP path specifically, and its mutation reddens ONLY the negative. The anti-vacuity guard in 9.3 requires the sample to contain both flows |
-| R-WP9-4 | **The leased address never reaches the traffic selectors.** Allocation placed after `buildChildSAResponsePayloads` (`responder.go:613`) leaves `sa.NegotiatedTSi` as the client's proposal | the client gets an address and cannot route; interop scenario fails at the traffic stage, not the negotiation stage | Section 7.2 fixes the ordering. The interop scenario must assert traffic flows, not merely that a CFG_REPLY arrived |
+| R-WP9-3 | **Only the direct IKE_AUTH drop site is wired, and the feature silently does not work against real clients.** Road warriors send CFG_REQUEST in the final EAP IKE_AUTH, which is `handleResponderEAP` (`responder_eap.go`) | the unit tests pass; the strongSwan scenario fails or hangs | `4-2`'s negative drives the EAP path specifically, and its mutation reddens ONLY the negative. The anti-vacuity guard in 9.3 requires the sample to contain both flows |
+| R-WP9-4 | **The leased address never reaches the traffic selectors.** Allocation placed after `buildChildSAResponsePayloads` (`responder.go`) leaves `sa.NegotiatedTSi` as the client's proposal | the client gets an address and cannot route; interop scenario fails at the traffic stage, not the negotiation stage | Section 7.2 fixes the ordering. The interop scenario must assert traffic flows, not merely that a CFG_REPLY arrived |
 | R-WP9-5 | **§4 ids are stranded because WP-10 lands `4-4` first.** The spec's own phase list schedules it that way | `check_id_allocation` fails naming `4-2` | Section 10. Recompute at landing; prefer deferring `4-4` |
 | R-WP9-6 | **The R-bit defect (D1) is not fixed, and `3.15.1-4` is proven by a test that never sets the bit.** The row goes green while a conforming peer is misparsed | none; a peer that never sets the bit interoperates fine | `3.15.1-4`'s negative IS the R-bit case, and its mutation is "revert the D1 mask" |
 | R-WP9-7 | **`2.19-6` tears down the IKE SA.** "Fail the request" reads as "kill the session" | the client retries in a loop; `rfc/full/rfc7296.txt:3185` is violated | `2.19-6`'s positive asserts `StateEstablished` after the refusal |
 | R-WP9-8 | **An authenticated client drains the pool through parallel IKE SAs.** `Allocate()` has no identity and no quota | pool utilisation spikes from one identity | `maximum-leases-per-identity`, default 1, plus address reuse per `rfc/full/rfc7296.txt:6374-6375` |
-| R-WP9-9 | **`plan/spec-ipsec-remote-access.md` already holds decisions this design re-litigates.** It is named by `engine/config.go:115` as the owner of this surface and was NOT read in this pass | the implementer finds a conflicting design mid-phase | **Read it and `plan/learned/744-ipsec-9-ikev2-eap-nat.md` before phase A.** If it is the real owner, OI-5 answers itself |
+| R-WP9-9 | **`plan/spec-ipsec-remote-access.md` already holds decisions this design re-litigates.** It is named by `engine/config.go` as the owner of this surface and was NOT read in this pass | the implementer finds a conflicting design mid-phase | **Read it and `plan/learned/744-ipsec-9-ikev2-eap-nat.md` before phase A.** If it is the real owner, OI-5 answers itself |
 | R-WP9-10 | **The interop scenario is tagged and `make ze-rfc-check` refuses it.** `test/ipsec-interop/` is not a carrier | the gate fails naming the file | Section 9.1. Every tag lives in a `_test.go` or in `test/ipsec/*.ci` |
 | R-WP9-11 | **P6 hands out addresses outside the configured prefix.** `allocateV6` writes the host ID into `ip6[8:]` only, while the validator permits `/48../126` | a `/96` pool leases addresses in a different subnet | Phase B, `TestAllocateV6RespectsPrefixLongerThan64`. This bug is live today |
 | R-WP9-12 | **Engine line numbers move under a concurrent agent.** `internal/component/ike/engine/` is being edited now | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name before quoting a line |
@@ -1083,7 +1083,7 @@ question is which way the obligation is discharged.
 §4 says "Implementations are not required to support requesting temporary IP addresses"
 (`rfc/full/rfc7296.txt:6860-6861`), so declining the client role is RFC-sanctioned. Ze
 declines it today by having no CP producer at all in `buildAuthRequest`
-(`internal/component/ike/engine/auth.go:91-146`). **Cost of implementing it:** a CP
+(`internal/component/ike/engine/auth.go`). **Cost of implementing it:** a CP
 producer in `buildAuthRequest`, an initiator-side CFG_REPLY consumer, and a way for the
 operator to say "this peer needs a virtual IP" -- roughly phase D again, on the initiator
 side, about 1.5 days. Ask: "do you want Ze to be an IRAC as well as an IRAS, or is
@@ -1101,7 +1101,7 @@ are discharged by that choice rather than by absence."
 **OI-3 -- answering SUPPORTED_ATTRIBUTES (`RFC7296-3.15.1-3`).**
 The row binds the sender of a request, which Ze is not. Whether Ze ANSWERS the query as
 responder is open. **Answering is strictly more compliance and needs no permission**
-(`ai/rules/no-asking.md`); it costs about half a day, given the constant (type 14) does not
+(`ai/rules/completion.md`); it costs about half a day, given the constant (type 14) does not
 exist yet. Ask only if you intend to decline.
 
 **OI-4 -- §3.15.4 has no rows (`INTERNAL_ADDRESS_FAILURE`).**
@@ -1112,7 +1112,7 @@ conformance. WP-9 implements it either way. Ask: "should §3.15.4 gain checklist
 this package, or is that the extraction sign-off's business?"
 
 **OI-5 -- is this a spec of its own?**
-Section 11 and R-8 (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:296`). Six days, a new operator
+Section 11 and R-8 (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`). Six days, a new operator
 config surface, an authorization model and a resource allocator inside what is otherwise a
 compliance-gate pilot. `plan/spec-ipsec-remote-access.md` may already own it. Ask: "does
 WP-9 stay a phase of the pilot, or become its own spec with these 17 rows as acceptance

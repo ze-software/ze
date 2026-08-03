@@ -58,9 +58,9 @@ confidently-wrong output on rules the session never opened.
 `scripts/dev/rules_lint.py` (validator), `scripts/dev/rules_condensed.py`
 (digest generator), `scripts/dev/rules_reformat.py` (one-shot migration),
 `scripts/dev/rules_index.py` (skip `CONDENSED.md`).
-**Eager load:** `ai/INSTRUCTIONS.md` (`@ai/rules/CONDENSED.md` import).
-**Generated:** `ai/rules/CONDENSED.md`, `ai/rules/INDEX.md`, and all 89 rule files
+**Eager load:** `ai/INSTRUCTIONS.md` (a CONDENSED.md import, since removed).
+**Generated:** CONDENSED.md (deleted 2026-08-03), `ai/rules/INDEX.md`, and all 89 rule files
 (metadata block).
 **Wiring:** `Makefile` + `mk/inventory.mk` (`ze-rules-condensed`, `ze-rules-lint`
 targets; wired into `ze-doc-test`, `ze-regen`, `ze-regen-check-readonly`,
-`ze-regen-check`), `ai/rules/canonical-sources.md` (CONDENSED generated-file note).
+`ze-regen-check`), `ai/rules/repo-maintenance.md` (CONDENSED generated-file note).

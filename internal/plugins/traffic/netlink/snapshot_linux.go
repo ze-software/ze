@@ -1,6 +1,6 @@
 // Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore
 // Related: ops_linux.go -- tc operation seam used by snapshot checks
-// Related: ai/rules/zefs-persistence.md -- the original-qdisc snapshot persists in
+// Related: ai/rules/architecture.md -- the original-qdisc snapshot persists in
 // the shared zefs store (database.zefs) via internal/core/statestore, not a loose
 // file, so appliance state lives inside the managed, backed-up store.
 
@@ -157,7 +157,7 @@ func newQdiscSnapshot(qdisc netlink.Qdisc) (tcQdiscSnapshot, error) {
 		// backend tc` -- which is every container and VM deployment.
 		//
 		// Other GenericQdisc types (mq, clsact, ...) stay rejected: those DO carry
-		// state, and this backend cannot reproduce it (ai/rules/exact-or-reject.md).
+		// state, and this backend cannot reproduce it (ai/rules/protocol.md).
 		if generic.Type() != qdiscTypeNoqueue {
 			return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be snapshotted exactly by backend tc", qdisc.Type())
 		}

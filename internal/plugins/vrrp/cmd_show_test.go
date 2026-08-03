@@ -99,7 +99,7 @@ func TestShowInterfaceRequiresSelector(t *testing.T) {
 }
 
 // TestSelectorValue pins the grammar `show vrrp interface name <name>`
-// (ai/rules/cli-grammar.md: a typed keyword before any free-form value).
+// (ai/rules/cli.md: a typed keyword before any free-form value).
 func TestSelectorValue(t *testing.T) {
 	cases := []struct {
 		name string
@@ -149,7 +149,7 @@ func TestClearStatisticsPreservesState(t *testing.T) {
 	// Master through the instance goroutine, so `before` could still read
 	// "initialize" while `after` reads "master" -- the assertion below then
 	// fires on scheduling rather than on behavior, which is what made this fail
-	// only inside a loaded full run (ai/rules/fix-dont-record.md: wait for the
+	// only inside a loaded full run (ai/rules/completion.md: wait for the
 	// condition, never for a duration).
 	before := waitSettled(t, eng)
 	if len(before) != 1 {

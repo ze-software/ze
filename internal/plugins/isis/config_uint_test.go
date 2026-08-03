@@ -8,7 +8,7 @@ import "testing"
 // into a different in-range one. The config file parser already rejects
 // out-of-range leaves against their YANG type, but relying on a guard three
 // layers up fails OPEN for any entry point that skips it
-// (ai/rules/fail-closed-guards.md). OSPF has the identical helpers and test;
+// (ai/rules/evidence.md). OSPF has the identical helpers and test;
 // IS-IS got the helpers with no test until this file.
 func TestConfigUintRejectsAboveMax(t *testing.T) {
 	if _, ok := configUint8("255"); !ok {

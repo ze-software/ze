@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_radius AAA composition root gating
+// Design: ai/rules/plugins.md -- ze_radius AAA composition root gating
 //
 // RADIUS backend registration for the AAA composition root, gated on
 // ze_radius. This is the hand-written sibling of the generated

@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- always-on command metadata
+// Design: ai/rules/plugins.md -- always-on command metadata
 //
 // Neutral, always-on command metadata shared by the API and MCP command
 // listers. Both surfaces need the same dispatcher traversal + YANG-derived

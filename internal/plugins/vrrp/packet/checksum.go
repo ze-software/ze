@@ -78,7 +78,7 @@ func pseudoSumV4Legacy(src, dst netip.Addr, vrrpLen int) uint32 {
 
 // FillChecksum computes the version/family-correct VRRP checksum over
 // buf[off:off+n] and backfills bytes off+6..7 (skip-and-backfill,
-// ai/rules/buffer-first.md). The version is read from the message; the family
+// ai/rules/performance.md). The version is read from the message; the family
 // is inferred from src (an IPv6 source selects the RFC 8200 pseudo-header).
 //
 // RFC 9568 Section 5.2.8: for IPv4 "the checksum computation only includes the

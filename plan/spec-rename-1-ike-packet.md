@@ -14,7 +14,7 @@ Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-2-bgp-packet.md`, 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/naming.md` ("Package-Naming Glossary"), `ai/rules/protocol-skeleton.md`
+3. `ai/rules/go-standards.md` ("Package-Naming Glossary"), `ai/rules/protocol.md`
 4. `internal/component/ike/wire/doc.go`, `scripts/dev/protocol_skeleton_report.py`
 
 ## Task
@@ -22,7 +22,7 @@ Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-2-bgp-packet.md`, 
 `internal/component/ike/wire` is a full IKEv2 codec (parse + encode of
 messages, headers, payloads) that the glossary names `packet`; its `wire`
 name is one of the four documented legacy exceptions
-(`scripts/dev/protocol_skeleton_report.py:56-61`). Rename the package and
+(`scripts/dev/protocol_skeleton_report.py`). Rename the package and
 directory to `internal/component/ike/packet`, package identifier `wire` ->
 `packet`, and retire the exception from every rule surface. Pure rename: no
 logic edits, no API change, one atomic commit pair.
@@ -36,10 +36,10 @@ identifiers in any importer.
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. -->
-- [ ] `ai/rules/naming.md` - "Package-Naming Glossary"
+- [ ] `ai/rules/go-standards.md` - "Package-Naming Glossary"
   → Decision: `packet` is the glossary term for a protocol wire codec; the `wire` row's "ike exception" clause is removed by this spec
   → Constraint: glossary edit ships in the same commit as the rename
-- [ ] `ai/rules/protocol-skeleton.md` - IKE probe row + exceptions
+- [ ] `ai/rules/protocol.md` - IKE probe row + exceptions
   → Constraint: after this spec, IKE maps cleanly with no exceptions; probe row and exceptions table both change
 - [ ] `docs/architecture/bfd.md` is NOT affected; the 2 anchors into `ike/wire` live elsewhere - grep `source: internal/component/ike/wire` to locate them at implementation time
   → Constraint: `make ze-doc-test` gates the anchor sweep (`scripts/dev/code_to_docs.py` does literal path-exists checks)
@@ -83,7 +83,7 @@ identifiers in any importer.
 ### Integration Points
 - `ike/engine` (17 files) - import path + qualifier rewrite
 - `scripts/dev/protocol_skeleton_report.py` - exception row removed, selftest updated
-- `ai/rules/naming.md`, `ai/rules/protocol-skeleton.md` - rows updated
+- `ai/rules/go-standards.md`, `ai/rules/protocol.md` - rows updated
 - `ai/PACKAGE-MAP.md` - regenerated
 
 ### Architectural Verification
@@ -124,7 +124,7 @@ identifiers in any importer.
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ (living surfaces); history under plan/learned/ exempt |
 | AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary shows `legacy 3`; `--verbose` shows `ike: ... packet=canonical`; `--selftest` OK with ("ike", "wire") fixtures removed and `ospf/wire == domain` retained |
 | AC-4 | `make ze-doc-test` | green after the 2 anchors (and any prose mentions) are updated |
-| AC-5 | rule surfaces | `ai/rules/naming.md` `wire` row no longer carries an ike exception; `ai/rules/protocol-skeleton.md` IKE probe row says "none" under Exceptions |
+| AC-5 | rule surfaces | `ai/rules/go-standards.md` `wire` row no longer carries an ike exception; `ai/rules/protocol.md` IKE probe row says "none" under Exceptions |
 | AC-6 | `make ze-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -162,8 +162,8 @@ identifiers in any importer.
 ## Files to Modify
 - `internal/component/ike/wire/` -> `internal/component/ike/packet/` (git mv; package clause in 34 files)
 - `internal/component/ike/engine/*.go` - 17 files: import path + `wire.` -> `packet.` qualifiers (~408 lines)
-- `ai/rules/naming.md` - glossary `wire` row: drop the ike exception clause
-- `ai/rules/protocol-skeleton.md` - IKE probe row exceptions -> none; exceptions table row removed
+- `ai/rules/go-standards.md` - glossary `wire` row: drop the ike exception clause
+- `ai/rules/protocol.md` - IKE probe row exceptions -> none; exceptions table row removed
 - `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("ike","wire") removed; selftest fixtures updated
 - docs with the 2 source anchors into `ike/wire` (locate by grep at implementation time) - anchor + prose sweep
 - `ai/PACKAGE-MAP.md` - regenerated (`make ze-discovery-index`)
@@ -226,7 +226,7 @@ identifiers in any importer.
    - Tests: `go build ./...`, `go test ./internal/component/ike/...`, report `--selftest` green
    - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `scripts/dev/protocol_skeleton_report.py`
    - Verify: AC-1, AC-2 (code), AC-3
-3. **Phase: rule + doc sweep** — naming.md, protocol-skeleton.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
+3. **Phase: rule + doc sweep** — go-standards.md, protocol.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
    - Tests: `make ze-doc-test`, `make ze-rules-index` if rule headers changed
    - Files: per Files to Modify
    - Verify: AC-4, AC-5

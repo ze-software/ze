@@ -43,14 +43,14 @@ DEFER/KEEP buckets by adding the missing infrastructure.
 - [ ] `docs/architecture/testing/ci-format.md` — `.ci` directive + embedded-observer model
   -> Constraint: observer Python imports `ze_api`; the ci-sleep ratchet counts `time.sleep(` in `test/**/*.ci` only (sleeps inside `ze_api.py` are exempt), so polling helpers may sleep internally.
 - [ ] `ai/rules/testing.md` — Observer API table + sleep-ratchet rule
-- [ ] `ai/rules/no-test-deletion.md` — `# // test-relax:` token semantics
-  -> Constraint: the `.ci` line-count hook (`.claude/hooks/pretool-writeedit.py:1648-1653`) blocks any edit reducing non-comment/non-`option=`/non-blank lines; a `// test-relax:` token in the new content exempts the edit AND creates the audit trail (`grep -rn 'test-relax:'`). Every conversion carries one.
+- [ ] `ai/rules/testing.md` — `# // test-relax:` token semantics
+  -> Constraint: the `.ci` line-count hook (`.claude/hooks/pretool-writeedit.py`) blocks any edit reducing non-comment/non-`option=`/non-blank lines; a `// test-relax:` token in the new content exempts the edit AND creates the audit trail (`grep -rn 'test-relax:'`). Every conversion carries one.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] N/A — test infrastructure, no wire-protocol behaviour change.
 
 **Key insights:**
-- The engine quiesce barrier is OUTBOUND-only (`reactor_api.go:891` FlushForwardPool, `:922` DrainPeerSync). Inbound route processing (peer sends UPDATE -> ze -> adj-rib-in) is NOT covered; inbound assertions MUST use `dispatch_until` on a `show`, not `quiesce`.
+- The engine quiesce barrier is OUTBOUND-only (`reactor_api.go` FlushForwardPool, `:922` DrainPeerSync). Inbound route processing (peer sends UPDATE -> ze -> adj-rib-in) is NOT covered; inbound assertions MUST use `dispatch_until` on a `show`, not `quiesce`.
 - DrainPeerSync DOES wait on a still-establishing peer that already has routes queued (they drain when it comes up), but returns immediately when nothing is queued yet — so an outbound test whose work is triggered by a not-yet-arrived inbound route needs a `dispatch_until` anchor first (vacuous-barrier race, R-1).
 - Reject/negative tests drop the route so there is no positive edge to poll — they DEFER (need a fence-route or an event subscription).
 
@@ -59,7 +59,7 @@ DEFER/KEEP buckets by adding the missing infrastructure.
 **Source files read (this session, via 8 sub-agents + direct reads):**
 - [ ] `internal/component/bgp/reactor/reactor_api.go` — FlushForwardPool(:891)/DrainPeerSync(:922) both outbound; peersSynced(:937) polls PendingSync.
   -> Constraint: no inbound/adj-rib-in drain exists in any quiescer.
-- [ ] `internal/component/bgp/reactor/forward_pool_barrier.go:18` — fwdPool.Barrier drains route-forwarding workers keyed by fwdKey; control messages (KEEPALIVE/ROUTE-REFRESH) do NOT go through it.
+- [ ] `internal/component/bgp/reactor/forward_pool_barrier.go` — fwdPool.Barrier drains route-forwarding workers keyed by fwdKey; control messages (KEEPALIVE/ROUTE-REFRESH) do NOT go through it.
   -> Constraint: `api-raw`/`api-route-refresh` (control-message flush) are NOT clean-quiesce; defer/verify.
 - [ ] `test/scripts/ze_api.py` — all 8 primitives above exist (verified line numbers). `dispatch_until` predicate receives the inner RPC "result" dict; returns first-match-or-last.
 - [ ] `test/plugin/prefix-filter-accept.ci` — converted reference; 3x green.
@@ -300,7 +300,7 @@ N/A.
 - Remaining 91 real sleeps are all legitimate DEFER (~35: fib-kernel/vpp async EventBus, external-warn no-stderr-visibility, reject/negative no-positive-edge, RS reflection inbound-gap, control-message path, bgp-redistribute forward-pool 10s block) or KEEP (~56: raw-UDP peer-driver pacing, deliberate timers, standalone-driver stderr backoffs). Worklist records each with its reason. -> follow-on spec.
 ### Bugs Found/Fixed
 - Removing blind sleeps surfaced 4 genuinely under-synchronized tests (the sleep was masking a real race): `bfd-show-profile` (lacked `wait_for_post_startup`), `nexthop-self`, `nexthop-unchanged`, `rr-basic` (single-shot RIB read before the UPDATE landed). All fixed at the source with a deterministic `dispatch_until` poll (or the readiness barrier) -- never by re-adding a sleep. This is the intended `feedback_sleep_hides_races` outcome.
-- Ratchet-counting correctness: `verify_wiring_docs.py:213` counts `time.sleep(` across full file text INCLUDING comments; test-relax notes quoting the removed call inflated the count. Rephrased all such comments (78 files) so the ratchet reflects only real sleep calls (raw == real == 91 in test/plugin).
+- Ratchet-counting correctness: `verify_wiring_docs.py` counts `time.sleep(` across full file text INCLUDING comments; test-relax notes quoting the removed call inflated the count. Rephrased all such comments (78 files) so the ratchet reflects only real sleep calls (raw == real == 91 in test/plugin).
 ### Documentation Updates
 - Primitives already documented by Layer 2 (payload-predicate-waits). A note in `docs/functional-tests.md` that plugin tests use deterministic waits is optional (not blocking).
 ### Deviations from Plan

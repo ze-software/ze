@@ -9,20 +9,20 @@ unrelated spec (`spec-fixit-authz-admin-fallthrough`), not by looking for them.
 
 An authenticated user whose profile set resolved to EMPTY was granted admin.
 
-`aaa.RecordLoginProfiles` (`login_profiles.go:45-48`) early-returns on
+`aaa.RecordLoginProfiles` (`login_profiles.go`) early-returns on
 `len(profiles) == 0`, so an empty set records **nothing** -- not an empty entry,
 *no* entry. `authz.Store.Authorize` then finds no assignment and no login
 profiles and, when no config user exists (`hasUsers == false`), returns
-`BuiltinAdminProfile()` (`authz.go:385-390`). "No profiles" and "never seen"
+`BuiltinAdminProfile()` (`authz.go`). "No profiles" and "never seen"
 are indistinguishable downstream, and the latter means admin.
 
 Two ways in, both reaching that same tail:
 
-- **TACACS+**: `handlePass` (`authenticator.go:88`) did `profiles, ok := a.privLvlMap[privLvl]`.
+- **TACACS+**: `handlePass` (`authenticator.go`) did `profiles, ok := a.privLvlMap[privLvl]`.
   A level mapped to an *empty* list is still PRESENT, so `ok` is true and the
   unmapped-denies guard is skipped. Needs an operator to write
   `tacacs-profile { level 15; }` with no `profile` entries -- which the YANG accepts.
-- **RADIUS**: `mapProfiles` (`authenticator.go:150-161`) falls back to
+- **RADIUS**: `mapProfiles` (`authenticator.go`) falls back to
   `defaultProfiles`, nil when `default-profile` is unset. An Access-Accept
   carrying no `Filter-Id` then authenticates with nothing. Needs **no
   misconfiguration at all**: it is the default config shape.
@@ -33,7 +33,7 @@ One invariant, enforced at the authenticator: **authenticated implies at least
 one profile**. `if !ok || len(profiles) == 0` (tacacs) / `if len(profiles) == 0`
 (radius) -> WARN + `aaa.ErrAuthRejected`, reusing each component's existing
 reject path. `len()==0` also covers a second route into the empty shape:
-`Tree.GetSlice` (`tree.go:186-190`) returns nil when a leaf-list is absent **or
+`Tree.GetSlice` (`tree.go`) returns nil when a leaf-list is absent **or
 when every member is deactivated**.
 
 The general case (what a profile-less user gets when the set is empty for any

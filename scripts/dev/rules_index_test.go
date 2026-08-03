@@ -49,7 +49,7 @@ func TestRulesIndexCoversEveryRule(t *testing.T) {
 		// comment records that the two-name list this mirrors is exactly what made
 		// TRIGGERS.md and CORE.md land in the index by mistake. The same rule is
 		// applied here rather than a second list of names, so the next digest needs
-		// no edit in either place (ai/rules/derive-not-hardcode.md).
+		// no edit in either place (ai/rules/evidence.md).
 		if e.IsDir() || !strings.HasSuffix(name, ".md") || isGeneratedDigest(name) {
 			continue
 		}

@@ -17,7 +17,7 @@ lifecycle and race-safety.
   route; a binary that never enables the fast path must pay nothing. `onChange` is a single
   `enabled.Load()` when disabled.
 - **AddRef under the RIB write lock, process off-lock in a worker.** The `OnChange` handler
-  runs under the lock (`locrib/change.go:89-98`), so the handler does only the bounded
+  runs under the lock (`locrib/change.go`), so the handler does only the bounded
   copy-out (AddRef) + a non-blocking enqueue; a worker reads `Bytes()` and Releases off-lock.
   This honours the "copy out under lock, process off-lock" rule and never contends the
   tracker mutex under the RIB lock.
@@ -44,7 +44,7 @@ lifecycle and race-safety.
 - `-race` requires cgo. The `ze-unit-test-changed` make target forces `CGO_ENABLED=0`, so run
   `CGO_ENABLED=1 go test -race ./...` directly to exercise the race detector.
 - `request bgp rib inject` produces NO `Change.Forward` (injected routes carry no wire bytes,
-  `rib_bestchange.go:1185`), so the `.ci` needs a real peer-announced route to exercise the
+  `rib_bestchange.go`), so the `.ci` needs a real peer-announced route to exercise the
   handle.
 - `protocol_test.go` guards the exact bgp-rib command count; adding a command bumps it (18→19).
 

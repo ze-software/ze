@@ -8,7 +8,7 @@ import (
 // TestUpdateShowCmdSchemaOwnsSystemUpdate is the owner half of the
 // self-containment invariant: the central show schema must NOT declare
 // show system update commands, and this package MUST.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestUpdateShowCmdSchemaOwnsSystemUpdate(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:system-update"`,
@@ -25,7 +25,7 @@ func TestUpdateShowCmdSchemaOwnsSystemUpdate(t *testing.T) {
 // TestUpdateFirmwareCmdSchemaOwnsFirmware is the owner half of the
 // self-containment invariant: the central update schema must NOT declare
 // firmware commands, and this package MUST.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestUpdateFirmwareCmdSchemaOwnsFirmware(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-update:system-firmware-check"`,

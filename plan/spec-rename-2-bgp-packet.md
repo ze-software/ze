@@ -20,7 +20,7 @@ Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-1-ike-packet.md`, 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/naming.md` ("Package-Naming Glossary"), `ai/rules/protocol-skeleton.md`
+3. `ai/rules/go-standards.md` ("Package-Naming Glossary"), `ai/rules/protocol.md`
 4. `internal/component/bgp/message/message.go`, `scripts/dev/protocol_skeleton_report.py`
 
 ## Task
@@ -29,7 +29,7 @@ Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-1-ike-packet.md`, 
 NOTIFICATION, KEEPALIVE, ROUTE-REFRESH parse + encode; Message interface and
 writeHeader in `message.go`). The glossary names a protocol codec `packet`;
 `message` is a documented legacy exception
-(`scripts/dev/protocol_skeleton_report.py:56-61`). Rename directory and
+(`scripts/dev/protocol_skeleton_report.py`). Rename directory and
 package to `internal/component/bgp/packet`, retire the exception. Pure
 rename: no logic edits, one atomic commit pair. Sibling spec-rename-3 then
 folds `wireu` into the renamed package.
@@ -39,7 +39,7 @@ tests), including outside the BGP tree (`internal/perf`,
 `internal/chaos/peer`, `test/integration`); ~1101 lines with the `message.`
 qualifier; 34 doc source anchors; zero aliased imports; zero local `packet`
 identifiers in any importer; hardcoded fixture paths in
-`scripts/dev/hook-parity-check.py:151` and `:232`.
+`scripts/dev/hook-parity-check.py` and `:232`.
 
 **BLOCKED until the rib-arch spec set closes:** rib-arch reworks the NLRI and
 decode paths that import this package (`plan/spec-rib-arch-8-nlri-rewrite.md`
@@ -50,14 +50,14 @@ Check `make ze-spec-status` before starting.
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. -->
-- [ ] `ai/rules/naming.md` - "Package-Naming Glossary"
+- [ ] `ai/rules/go-standards.md` - "Package-Naming Glossary"
   → Decision: `packet` = protocol wire codec; the glossary's BGP-legacy row (`message` kept as historical) is updated by this spec
   → Constraint: glossary edit ships in the same commit as the rename
-- [ ] `ai/rules/protocol-skeleton.md` - BGP probe row lists `message`+`wireu` as the pre-SDK codec pair
+- [ ] `ai/rules/protocol.md` - BGP probe row lists `message`+`wireu` as the pre-SDK codec pair
   → Constraint: probe row + exceptions table change here (message) and again in spec-rename-3 (wireu)
 - [ ] `docs/architecture/wire/messages.md` - the `// Design:` anchor for this package's files
   → Constraint: prose + anchors updated in the same commit; `make ze-doc-test` gates
-- [ ] `ai/rules/buffer-first.md` - the encoding architecture this package implements
+- [ ] `ai/rules/performance.md` - the encoding architecture this package implements
   → Constraint: rename must not disturb WriteTo(buf, off) patterns; mechanical hunks only
 
 ### RFC Summaries (MUST for protocol work)
@@ -99,7 +99,7 @@ Check `make ze-spec-status` before starting.
 ### Integration Points
 - 124 importer files across bgp, perf, chaos, integration trees - import path + qualifier rewrite
 - `scripts/dev/hook-parity-check.py` fixtures - path strings updated
-- `scripts/dev/protocol_skeleton_report.py`, `ai/rules/naming.md`, `ai/rules/protocol-skeleton.md`, `ai/PACKAGE-MAP.md` - per-child rule-surface sync
+- `scripts/dev/protocol_skeleton_report.py`, `ai/rules/go-standards.md`, `ai/rules/protocol.md`, `ai/PACKAGE-MAP.md` - per-child rule-surface sync
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -142,7 +142,7 @@ Check `make ze-spec-status` before starting.
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ living surfaces (plan/learned history exempt) |
 | AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary `legacy 2` (after spec-1's 3); `--verbose` shows `bgp: ... packet=canonical`; `--selftest` OK with fixtures updated |
 | AC-4 | `make ze-doc-test` | green after the 34-anchor + prose sweep |
-| AC-5 | rule surfaces | naming.md `message` row marked retired/historical; protocol-skeleton.md BGP row no longer lists `message` |
+| AC-5 | rule surfaces | go-standards.md `message` row marked retired/historical; protocol.md BGP row no longer lists `message` |
 | AC-6 | `scripts/dev/hook-parity-check.py` | passes with fixture paths updated to `bgp/packet/` |
 | AC-7 | `make ze-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
@@ -183,8 +183,8 @@ Check `make ze-spec-status` before starting.
 - `internal/component/bgp/message/` -> `internal/component/bgp/packet/` (git mv; package clause in 42 files)
 - 124 importer files (list via import grep at start) - import path + `message.` -> `packet.` qualifiers (~1101 lines), including `internal/perf/`, `internal/chaos/peer/`, `test/integration/`
 - `scripts/dev/hook-parity-check.py` - fixture paths at :151 and :232
-- `ai/rules/naming.md` - glossary `message` row -> retired/historical
-- `ai/rules/protocol-skeleton.md` - BGP probe row + exceptions table
+- `ai/rules/go-standards.md` - glossary `message` row -> retired/historical
+- `ai/rules/protocol.md` - BGP probe row + exceptions table
 - `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("bgp","message") removed; selftest fixtures updated
 - `docs/architecture/wire/messages.md` and the other docs holding the 34 anchors - anchor + prose sweep
 - `ai/PACKAGE-MAP.md` - regenerated
@@ -251,7 +251,7 @@ Check `make ze-spec-status` before starting.
    - Tests: `go build ./...`, `make ze-unit-test`, report `--selftest` green, hook-parity check green
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
-4. **Phase: rule + doc sweep** — naming.md, protocol-skeleton.md, 34 anchors + prose, PACKAGE-MAP regen.
+4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 34 anchors + prose, PACKAGE-MAP regen.
    - Tests: `make ze-doc-test`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5

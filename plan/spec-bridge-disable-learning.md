@@ -31,9 +31,9 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/features/interfaces.md` - bridge interface management (referenced by `bridge_linux.go:1`).
+- [ ] `docs/features/interfaces.md` - bridge interface management (referenced by `bridge_linux.go`).
   → Constraint: bridge port state is set via netlink/sysfs on the port, keyed by the member interface name.
-- [ ] `ai/rules/config-surface.md` and `ai/rules/config-naming.md` - the new per-member leaf.
+- [ ] `ai/rules/config.md` and `ai/rules/config.md` - the new per-member leaf.
   → Constraint: restructuring `member` from a leaf-list to a per-member container is a schema change; preserve existing member semantics.
 
 **Key insights:**
@@ -43,9 +43,9 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/iface/netlink/bridge_linux.go` - backend implements only `BridgeAddPort` (bridge_linux.go:22, `LinkSetMaster`), `BridgeDelPort` (:46, `LinkSetNoMaster`), and `BridgeSetSTP` (:60, sysfs `bridge/stp_state`). No per-port learning attribute is set anywhere.
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - bridge exposes `name`, `stp` (boolean), and `member` as a bare `leaf-list` of interface-name strings (ze-iface-conf.yang:586-614); there is no per-member container, so no place for a `learning` leaf.
-- [ ] `internal/component/iface/config.go` - `bridgeEntry` / `Members` model the flat membership (config.go:174-178).
+- [ ] `internal/plugins/iface/netlink/bridge_linux.go` - backend implements only `BridgeAddPort` (bridge_linux.go, `LinkSetMaster`), `BridgeDelPort` (:46, `LinkSetNoMaster`), and `BridgeSetSTP` (:60, sysfs `bridge/stp_state`). No per-port learning attribute is set anywhere.
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - bridge exposes `name`, `stp` (boolean), and `member` as a bare `leaf-list` of interface-name strings (ze-iface-conf.yang); there is no per-member container, so no place for a `learning` leaf.
+- [ ] `internal/component/iface/config.go` - `bridgeEntry` / `Members` model the flat membership (config.go).
 
 **Behavior to preserve:**
 - Existing bridge membership (add/remove ports) and STP behaviour unchanged.
@@ -156,7 +156,7 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (changed config) | [ ] yes | `ze-iface-conf.yang` bridge member container; `ai/rules/config-naming.md` |
+| YANG schema (changed config) | [ ] yes | `ze-iface-conf.yang` bridge member container; `ai/rules/config.md` |
 | Config migration | [ ] yes | leaf-list → container migration + test |
 | Functional test for new behaviour | [ ] yes | `test/qemu/bridge-disable-learning.ci` |
 
@@ -271,7 +271,7 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 
 Core evidence re-verified current after the followup-vpp-iface wave; no design change, but the member restructure now lands in a file set with NEW guard tests:
 
-- Verified-current evidence: `bridgeEntry` at `internal/component/iface/config.go:175` with `Members` at :178 (the spec's :174-178 range still holds); YANG `list bridge` at `internal/component/iface/yang/ze-iface-conf.yang:589` with `leaf-list member` at :608 (the spec's :586-614 range still holds). The bridge list remains `ze:backend "netlink"` (ze-iface-conf.yang:592), untouched by the wave's VPP gate widening, so this spec stays netlink-only.
+- Verified-current evidence: `bridgeEntry` at `internal/component/iface/config.go` with `Members` at :178 (the spec's :174-178 range still holds); YANG `list bridge` at `internal/component/iface/yang/ze-iface-conf.yang` with `leaf-list member` at :608 (the spec's :586-614 range still holds). The bridge list remains `ze:backend "netlink"` (ze-iface-conf.yang), untouched by the wave's VPP gate widening, so this spec stays netlink-only.
 - NEW constraints from the wave the implementation must satisfy:
   - The iface YANG schema snapshot test widened during the wave; restructuring `member` from a leaf-list to a per-member container changes the schema and must update/pass `internal/component/iface/schema_test.go`.
   - The VPP backend gate test `internal/component/iface/backend_gate_vpp_test.go` asserts which iface features are permitted per backend; the new per-member `disable-learning` leaf must be classified there (netlink-only) so a vpp-backend config is rejected cleanly rather than silently ignored.

@@ -96,7 +96,7 @@ func encapOwnProcess(t *testing.T) bool {
 // encapNetnsUsable fails the probe when loopback is not carrying traffic in the namespace
 // it just entered. Without it a broken fixture reads as "the kernel accepted nothing",
 // because datagrams that die before XFRM move no counter at all
-// (ai/rules/fail-closed-guards.md). netlink answers for the CALLING thread's namespace,
+// (ai/rules/evidence.md). netlink answers for the CALLING thread's namespace,
 // which is the one the probe runs in.
 func encapNetnsUsable(t *testing.T) {
 	t.Helper()

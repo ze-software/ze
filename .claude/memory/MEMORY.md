@@ -24,7 +24,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Moved to ai/rules/ or .claude/rules/
 
-- feedback_autonomous_work -> ai/rules/no-asking.md. Enforced at Stop by block-premature-stop.sh, which blocks a stop on permission-seeking phrases (exit 2). It sat unregistered from 2026-06-29 (`41e5fa44f`) to 2026-07-31
+- feedback_autonomous_work -> ai/rules/completion.md. Enforced at Stop by block-premature-stop.sh, which blocks a stop on permission-seeking phrases (exit 2). It sat unregistered from 2026-06-29 (`41e5fa44f`) to 2026-07-31
 - feedback_memory_is_in_repo -> derivable from project structure
 - feedback_no_em_dashes -> ~/.claude/CLAUDE.md global rule
 - feedback_no_taskoutput_polling -> ai/rules/git-safety.md (verify section)
@@ -33,7 +33,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - feedback_read_before_overwrite -> ai/rules/never-destroy-work.md
 - feedback_workflow_cycle -> /ze-implement and /ze-review skill definitions
 - feedback_never_strip_context_param -> ai/rules/go-standards.md (Context)
-- feedback_no_cross_boundary_pointers -> ai/rules/plugin-design.md (Cross-Boundary Value Types)
+- feedback_no_cross_boundary_pointers -> ai/rules/plugins.md (Cross-Boundary Value Types)
 - feedback_verify_specs_against_code -> ai/rules/planning.md (Verify Specs Against Code)
 - feedback_aliased_imports -> rules/go-standards.md (Aliased Imports)
 - feedback_python_not_shell -> rules/go-standards.md (Scripts: Python Only)
@@ -51,7 +51,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - feedback_test_failures_always_report -> rules/anti-rationalization.md
 - feedback_never_disable_gpg -> CLAUDE.md
 - feedback_consistency_predictability -> implicit in all BLOCKING rules
-- project_cli_dispatch_discovery -> ai/rules/project-knowledge.md (CLI dispatch discoverability gaps)
-- project_no_filtered_routes -> ai/rules/project-knowledge.md (No filtered/noexport route tracking)
-- project_gokrazy_appliance -> ai/rules/project-knowledge.md (Gokrazy appliance owns process lifecycle)
-- project_stress_injector -> ai/rules/project-knowledge.md (Stress injector is in-memory Go)
+- project_cli_dispatch_discovery -> ai/rules/repo-maintenance.md (CLI dispatch discoverability gaps)
+- project_no_filtered_routes -> ai/rules/repo-maintenance.md (No filtered/noexport route tracking)
+- project_gokrazy_appliance -> ai/rules/repo-maintenance.md (Gokrazy appliance owns process lifecycle)
+- project_stress_injector -> ai/rules/repo-maintenance.md (Stress injector is in-memory Go)

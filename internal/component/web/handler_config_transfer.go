@@ -24,7 +24,7 @@ const maxConfigUploadBytes = 4 << 20 // 4 MiB
 // configDownloadFilename is the attachment name offered to the browser when the
 // committed configuration is downloaded; configDownloadDisposition is the
 // precomputed Content-Disposition header value (constant to avoid runtime
-// string concatenation per ai/rules/no-sprintf-alloc.md).
+// string concatenation per ai/rules/performance.md).
 const (
 	configDownloadFilename    = "ze.conf"
 	configDownloadDisposition = `attachment; filename="ze.conf"`

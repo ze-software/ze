@@ -25,27 +25,27 @@ only and does not own this topic.
 Two pieces of deferred work, verified against the producing code on 2026-07-16:
 
 1. **accept-mode is not enforced on the dataplane.** The leaf is parsed
-   (`groups.go:411-416`), cross-leaf validated (rejected under version 2,
-   `groups.go:531-532`), carried into the FSM config (`instance.go:420`) and
-   reported in the `show vrrp` payload (`instance.go:530` into the
-   `accept-mode` JSON field, `vrrp.go:95`). Nothing consumes it beyond the
-   snapshot: `fsm/events.go:45-47` says so in the config struct itself, and the
-   FSM emits `InstallVIPs{VIPs: i.cfg.VIPs}` (`fsm/fsm.go:146`, `:359`, `:378`)
+   (`groups.go`), cross-leaf validated (rejected under version 2,
+   `groups.go`), carried into the FSM config (`instance.go`) and
+   reported in the `show vrrp` payload (`instance.go` into the
+   `accept-mode` JSON field, `vrrp.go`). Nothing consumes it beyond the
+   snapshot: `fsm/events.go` says so in the config struct itself, and the
+   FSM emits `InstallVIPs{VIPs: i.cfg.VIPs}` (`fsm/fsm.go`, `:359`, `:378`)
    without consulting `cfg.AcceptMode`. The executor's `doInstallVIPs`
-   (`instance.go:369-374`) then registers the full VIP set through the iface
+   (`instance.go`) then registers the full VIP set through the iface
    address-owner registry unconditionally. That is the function that would have
    to differentiate, and it does not. Result: an Active non-owner holds the VIPs
    as ordinary kernel addresses on the macvlan and answers traffic addressed to
    them whichever way the leaf is set, violating RFC 9568 R030/R031
-   (`rfc/short/rfc9568.md:228-229`). Work: install real filtering, keeping the
+   (`rfc/short/rfc9568.md`). Work: install real filtering, keeping the
    owner exemption (Section 6.1) and the IPv6 NS/NA carve-out (R014,
-   `rfc/short/rfc9568.md:212`), and stop the YANG description
-   (`yang/ze-vrrp-conf.yang:121-129`) from having to disclaim the gap.
+   `rfc/short/rfc9568.md`), and stop the YANG description
+   (`yang/ze-vrrp-conf.yang`) from having to disclaim the gap.
 
 2. **Priority-decrement tracking is not implemented.** No interface, route or
    health tracking object exists: the vrrp YANG has no tracking leaf
    (`yang/ze-vrrp-conf.yang` group list stops at `accept-mode`), and the only
-   priority producer is `GroupSpec.EffectivePriority` (`groups.go:141-146`),
+   priority producer is `GroupSpec.EffectivePriority` (`groups.go`),
    which returns 255 for an owner and the configured constant otherwise, with no
    decrement input. Junos, Nokia and VyOS offer it; ze does not.
 
@@ -57,21 +57,21 @@ the "Active router behavior beyond the election" theme.
 ### Architecture Docs
 - [ ] `docs/guide/vrrp.md` - the operator-facing statement of the current limitation
   → Constraint: whatever ships here must retire the documented caveat, not add a second one
-- [ ] `ai/rules/design-principles.md` - exact or reject
+- [ ] `ai/rules/architecture.md` - exact or reject
   → Constraint: a leaf ze cannot enforce exactly must fail verify, never approximate silently
 - [ ] `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md` - the macvlan/vmac recipe the filter must not break
   → Constraint: the ARP/ND sysctl recipe makes the macvlan the sole responder; a filter that drops ARP or ND breaks virtual-MAC ownership
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc9568.md` - the conformance target
-  → Constraint: R030/R031 (§6.4.3, `rfc/short/rfc9568.md:228-229`): Active accepts packets to the virtual addresses only if owner or Accept_Mode is True, otherwise MUST NOT accept them
-  → Constraint: R014 (§6.1/§6.4.3, `rfc/short/rfc9568.md:212`): IPv6 NS/NA are never dropped, even with Accept_Mode False
+  → Constraint: R030/R031 (§6.4.3, `rfc/short/rfc9568.md`): Active accepts packets to the virtual addresses only if owner or Accept_Mode is True, otherwise MUST NOT accept them
+  → Constraint: R014 (§6.1/§6.4.3, `rfc/short/rfc9568.md`): IPv6 NS/NA are never dropped, even with Accept_Mode False
 - [ ] `rfc/short/rfc3768.md` - v2 has no Accept_Mode concept
-  → Constraint: the v2 rejection at `groups.go:531-532` stays; this spec changes v3 behavior only
+  → Constraint: the v2 rejection at `groups.go` stays; this spec changes v3 behavior only
 
 **Key insights:**
 - The FSM is not the gap. The FSM already carries the flag; the dataplane never reads it.
-- Accept_Mode False is the RFC default (`rfc/short/rfc9568.md:375`), so today's default configuration is the non-conforming one.
+- Accept_Mode False is the RFC default (`rfc/short/rfc9568.md`), so today's default configuration is the non-conforming one.
 
 ## Current Behavior (MANDATORY)
 
@@ -85,11 +85,11 @@ the "Active router behavior beyond the election" theme.
 - [ ] `internal/plugins/vrrp/yang/ze-vrrp-conf.yang` - `accept-mode` leaf, boolean, default false, description discloses "not dataplane-enforced this pass" (:121-129)
 
 **Behavior to preserve:**
-- Owner semantics: an address owner accepts regardless of the leaf (`EffectiveAcceptMode`, `groups.go:148-154`) and advertises priority 255 (`EffectivePriority`, `groups.go:141-146`)
-- The v2 plus accept-mode config rejection and its message (`groups.go:531-532`, `test/vrrp/vrrp-config-invalid.ci:185-208`)
-- The doctor check that reports the same cross-leaf violation (`internal/plugins/vrrp/doctor.go:32`, `test/vrrp/vrrp-doctor-fires.ci`)
-- The `accept-mode` field in the `show vrrp` payload (`vrrp.go:95`)
-- The virtual-MAC ARP/ND recipe and its refcounted save/restore (`dataplane_linux.go:120-183`)
+- Owner semantics: an address owner accepts regardless of the leaf (`EffectiveAcceptMode`, `groups.go`) and advertises priority 255 (`EffectivePriority`, `groups.go`)
+- The v2 plus accept-mode config rejection and its message (`groups.go`, `test/vrrp/vrrp-config-invalid.ci`)
+- The doctor check that reports the same cross-leaf violation (`internal/plugins/vrrp/doctor.go`, `test/vrrp/vrrp-doctor-fires.ci`)
+- The `accept-mode` field in the `show vrrp` payload (`vrrp.go`)
+- The virtual-MAC ARP/ND recipe and its refcounted save/restore (`dataplane_linux.go`)
 - Election, timers and failover behavior: this spec touches what an Active router accepts, never who wins
 
 **Behavior to change:**
@@ -97,47 +97,47 @@ the "Active router behavior beyond the election" theme.
 - Retire the YANG description disclaimer and the `docs/guide/vrrp.md` caveat once enforced
 - Priority tracking: new config surface and a decrement path into the advertised priority (design phase decides the shape)
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Config: `interface ... unit ... ipv4|ipv6 vrrp group <name> accept-mode <bool>`, parsed at `groups.go:411-416` into `GroupSpec.AcceptMode`
-- Runtime: the FSM's transition into Active emits `InstallVIPs` (`fsm/fsm.go:146`, `:359`, `:378`), executed at `instance.go:312-313`
+- Config: `interface ... unit ... ipv4|ipv6 vrrp group <name> accept-mode <bool>`, parsed at `groups.go` into `GroupSpec.AcceptMode`
+- Runtime: the FSM's transition into Active emits `InstallVIPs` (`fsm/fsm.go`, `:359`, `:378`), executed at `instance.go`
 - Wire: unicast or multicast frames arriving at the macvlan addressed to a virtual address (the traffic this spec must gate)
 
 ### Transformation Path
-1. Config tree to `GroupSpec.AcceptMode` (`groups.go:411-416`), then cross-leaf verify rejects the v2 combination (`groups.go:531-532`)
-2. `GroupSpec.EffectiveAcceptMode` folds in ownership (`groups.go:148-154`) and `instance.fsmConfig` projects it onto `fsm.Config` (`instance.go:410-422`)
-3. FSM reaches Active and emits `InstallVIPs`; `instance.doInstallVIPs` registers the VIP CIDRs with the iface address-owner registry (`instance.go:369-374`), which reconciles them onto the macvlan
+1. Config tree to `GroupSpec.AcceptMode` (`groups.go`), then cross-leaf verify rejects the v2 combination (`groups.go`)
+2. `GroupSpec.EffectiveAcceptMode` folds in ownership (`groups.go`) and `instance.fsmConfig` projects it onto `fsm.Config` (`instance.go`)
+3. FSM reaches Active and emits `InstallVIPs`; `instance.doInstallVIPs` registers the VIP CIDRs with the iface address-owner registry (`instance.go`), which reconciles them onto the macvlan
 4. Today the chain ends there: the kernel answers for the VIP as for any local address. The missing stage is a per-instance acceptance filter installed and torn down alongside the VIPs, keyed on the effective accept-mode
-5. `show vrrp` reads the flag back out of the FSM snapshot (`instance.go:530`, `vrrp.go:95`)
+5. `show vrrp` reads the flag back out of the FSM snapshot (`instance.go`, `vrrp.go`)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config tree ↔ vrrp plugin | `GroupSpec` extraction and cross-leaf verify | [ ] |
-| vrrp plugin ↔ FSM | `fsm.Config` projection (`instance.go:410-422`) | [ ] |
+| vrrp plugin ↔ FSM | `fsm.Config` projection (`instance.go`) | [ ] |
 | vrrp plugin ↔ iface address owner | `RegisterOwnedAddresses` via `deps.installVIPs` | [ ] |
 | vrrp plugin ↔ kernel filtering | to be decided at design (nftables via the firewall component, socket filter, or per-device sysctl) | [ ] |
 
 ### Integration Points
-- `instance.doInstallVIPs` / `doRemoveVIPs` (`instance.go:369-384`): the filter's install and teardown must share their lifetime, or a demoted Backup keeps a stale rule
+- `instance.doInstallVIPs` / `doRemoveVIPs` (`instance.go`): the filter's install and teardown must share their lifetime, or a demoted Backup keeps a stale rule
 - `dataplane_linux.go` sysctl recipe: the filter must sit above ARP/ND resolution so the virtual MAC still answers
 - `internal/component/firewall/`: the existing rule-installation surface, if the design chooses nftables rather than a socket-level filter
-- `GroupSpec.EffectivePriority` (`groups.go:141-146`): the single point a tracking decrement would feed
+- `GroupSpec.EffectivePriority` (`groups.go`): the single point a tracking decrement would feed
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Filtering can be installed without breaking the virtual-MAC ARP/ND recipe | `dataplane_linux.go:120-183` operates on sysctls only, orthogonal to a packet filter | The recipe and the filter must be co-designed; QEMU proof needed early | QEMU lab: VIP unreachable with accept-mode false, ARP still answered from the virtual MAC | unvalidated |
+| A-1 | Filtering can be installed without breaking the virtual-MAC ARP/ND recipe | `dataplane_linux.go` operates on sysctls only, orthogonal to a packet filter | The recipe and the filter must be co-designed; QEMU proof needed early | QEMU lab: VIP unreachable with accept-mode false, ARP still answered from the virtual MAC | unvalidated |
 | A-2 | The existing firewall component can express a per-device destination-address drop | `internal/component/firewall/` installs rules today (surface not yet read for this spec) | A vrrp-owned filter path is needed instead | Design phase: read the firewall install path | unvalidated |
-| A-3 | Interop scenarios that ping the VIP set accept-mode true and so keep passing | `scripts/evidence/effective-vrrp-keepalived.py:747-760` sets accept-mode true for QS-1 | Enforcing the flag reds the interop lab | Run the keepalived lab after enforcement | unvalidated |
+| A-3 | Interop scenarios that ping the VIP set accept-mode true and so keep passing | `scripts/evidence/effective-vrrp-keepalived.py` sets accept-mode true for QS-1 | Enforcing the flag reds the interop lab | Run the keepalived lab after enforcement | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Enforcement makes the VIP unpingable and looks like a regression to operators | Support reports "ping to VIP stopped working after upgrade" | Release note plus the RFC 9568 §6.1 ping guidance (`rfc/short/rfc9568.md:406`) |
+| R-1 | Enforcement makes the VIP unpingable and looks like a regression to operators | Support reports "ping to VIP stopped working after upgrade" | Release note plus the RFC 9568 §6.1 ping guidance (`rfc/short/rfc9568.md`) |
 | R-2 | Dropping IPv6 NS/NA with the filter breaks ND (violates R014) | IPv6 failover leaves stale neighbor entries | Explicit NS/NA carve-out with a dedicated test |
 | R-3 | Tracking grows into a large config surface (objects, groups, weights) and stalls the accept-mode fix | Design phase expands past the accept-mode work | Split tracking into its own spec |
 

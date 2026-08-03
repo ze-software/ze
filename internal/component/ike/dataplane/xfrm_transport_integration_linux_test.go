@@ -153,7 +153,7 @@ func TestXFRMTransportPolicyCarriesNoTunnelEndpoints(t *testing.T) {
 
 // TestXFRMSinglePortSelectorReachesTheKernel proves a port-restricted policy is programmed
 // exactly, which is what lets ipsec.ValidateTrafficSelectors accept one port and refuse
-// every other range (ai/rules/exact-or-reject.md).
+// every other range (ai/rules/protocol.md).
 func TestXFRMSinglePortSelectorReachesTheKernel(t *testing.T) {
 	b := &xfrmBackend{}
 	sel := SPParams{

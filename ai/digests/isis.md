@@ -5,155 +5,155 @@
 <!-- digest-base: internal/plugins/isis -->
 
 ## What it is
-IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implemented as one Ze plugin, `internal/plugins/isis/`, with no protocol logic in the engine core. A single `engine` (`server.go:142`) owns everything: the L2 transport, a PDU-type `dispatcher`, one `*circuit.Circuit` per enabled interface (adjacency FSM + Hello timers), the two-level LSDB (`lsdb` package: store, origination, flooding, CSNP/PSNP sync), the DIS election glue, and the SPF computer that installs routes into the shared Loc-RIB. Concurrency is goroutine-per-circuit (Hello send + hold-timer sweep) plus a handful of engine-wide loops (receive fan, LSP aging, flood/PSNP/CSNP timers, DIS loop); the adjacency FSM (`adjacency` package) and the DIS election (`circuit/dis.go`) are pure state machines with no I/O, mutated only by their single-writer circuit goroutine. A received PDU flows: transport → dispatcher → circuit (IIH) or LSDB/Flooder (LSP/CSNP/PSNP) → origination/SPF re-trigger → Loc-RIB → sysrib/fibkernel.
+IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implemented as one Ze plugin, `internal/plugins/isis/`, with no protocol logic in the engine core. A single `engine` (`server.go`) owns everything: the L2 transport, a PDU-type `dispatcher`, one `*circuit.Circuit` per enabled interface (adjacency FSM + Hello timers), the two-level LSDB (`lsdb` package: store, origination, flooding, CSNP/PSNP sync), the DIS election glue, and the SPF computer that installs routes into the shared Loc-RIB. Concurrency is goroutine-per-circuit (Hello send + hold-timer sweep) plus a handful of engine-wide loops (receive fan, LSP aging, flood/PSNP/CSNP timers, DIS loop); the adjacency FSM (`adjacency` package) and the DIS election (`circuit/dis.go`) are pure state machines with no I/O, mutated only by their single-writer circuit goroutine. A received PDU flows: transport → dispatcher → circuit (IIH) or LSDB/Flooder (LSP/CSNP/PSNP) → origination/SPF re-trigger → Loc-RIB → sysrib/fibkernel.
 
 ## Flow
-1. **Registration + lifecycle.** `registerISIS` (`register.go:90`) registers the plugin
-   (`registry.Registration{RunEngine: runISISEngine}`, `register.go:121`) and the config-sanity
-   diagnostics/doctor check; `init()` calls it at `register.go:153`. `runISISEngine`
-   (`register.go:213`) builds the SDK plugin, constructs `newEngine` (`server.go:308`) over a
+1. **Registration + lifecycle.** `registerISIS` (`register.go`) registers the plugin
+   (`registry.Registration{RunEngine: runISISEngine}`, `register.go`) and the config-sanity
+   diagnostics/doctor check; `init()` calls it at `register.go`. `runISISEngine`
+   (`register.go`) builds the SDK plugin, constructs `newEngine` (`server.go`) over a
    `transport.New(transport.NewBackend())`, and wires
-   `OnConfigVerify`/`OnConfigure`/`OnConfigApply`/`OnStarted` (`register.go:248-339`).
-   `OnStarted` wires redistribution (`register.go:306-318`), then `eng.setConfig` +
-   `eng.openCircuits()` (`register.go:327-333`).
-2. **Engine construction.** `newEngine` (`server.go:308`) builds the dispatcher, then
-   `e.initLSDB()` (`lsdb_wiring.go:39`), `e.initFlooding()` (`flooding_wiring.go:55`),
-   `e.initSPF()` (`spf_wiring.go:38`), `e.installStubHandlers()` (`server.go:417`, IIH →
+   `OnConfigVerify`/`OnConfigure`/`OnConfigApply`/`OnStarted` (`register.go`).
+   `OnStarted` wires redistribution (`register.go`), then `eng.setConfig` +
+   `eng.openCircuits()` (`register.go`).
+2. **Engine construction.** `newEngine` (`server.go`) builds the dispatcher, then
+   `e.initLSDB()` (`lsdb_wiring.go`), `e.initFlooding()` (`flooding_wiring.go`),
+   `e.initSPF()` (`spf_wiring.go`), `e.installStubHandlers()` (`server.go`, IIH →
    `e.handleIIH`; LSP/CSNP/PSNP → no-op stubs), then `e.installFloodHandlers()`
-   (`flooding_wiring.go:125`) overwrites the LSP/CSNP/PSNP stubs with the real flooding
+   (`flooding_wiring.go`) overwrites the LSP/CSNP/PSNP stubs with the real flooding
    handlers.
-3. **Circuit open + receive fan.** `openCircuits` (`server.go:484`) starts `startReceiveLoop`
-   (`server.go:539`, drains `transport.Receive()` and calls `e.dispatch.dispatch(rf)` at
-   `server.go:550`), `startAgingLoop` (`lsdb_wiring.go:69`), `startFloodLoops`
-   (`flooding_wiring.go:233`), `startDISLoop` (`dis_wiring.go:476`), opens each configured
-   interface (`openCircuit`, `server.go:523` → `launchCircuitGoroutine`, `circuits.go:38`),
-   then `refreshConnectedPrefixes` (`redist_wiring.go:126`) and an initial `e.originate()`
-   (`server.go:516`) so an idle adjacency set still produces fragment 0.
-4. **PDU dispatch.** `dispatcher.dispatch` (`server.go:95`) reads the 5-bit PDU type at
-   `offPDUType` (`server.go:46,100`), authenticates via the optional `verify` hook installed by
-   `auth_wiring.go:64` (a failed check drops the frame before any adjacency/LSDB/SNP
+3. **Circuit open + receive fan.** `openCircuits` (`server.go`) starts `startReceiveLoop`
+   (`server.go`, drains `transport.Receive()` and calls `e.dispatch.dispatch(rf)` at
+   `server.go`), `startAgingLoop` (`lsdb_wiring.go`), `startFloodLoops`
+   (`flooding_wiring.go`), `startDISLoop` (`dis_wiring.go`), opens each configured
+   interface (`openCircuit`, `server.go` → `launchCircuitGoroutine`, `circuits.go`),
+   then `refreshConnectedPrefixes` (`redist_wiring.go`) and an initial `e.originate()`
+   (`server.go`) so an idle adjacency set still produces fragment 0.
+4. **PDU dispatch.** `dispatcher.dispatch` (`server.go`) reads the 5-bit PDU type at
+   `offPDUType` (`server.go,100`), authenticates via the optional `verify` hook installed by
+   `auth_wiring.go` (a failed check drops the frame before any adjacency/LSDB/SNP
    processing), then calls the registered handler. IIH types route to `e.handleIIH`
-   (`server.go:437`) which maps `rf.IfIndex` to a `*circuit.Circuit` and calls `c.Receive(SNPA,
+   (`server.go`) which maps `rf.IfIndex` to a `*circuit.Circuit` and calls `c.Receive(SNPA,
    pdu)`.
-5. **IIH → adjacency FSM.** `Circuit.Receive` (`circuit/runtime.go:32`) decodes the PDU and
-   dispatches `handleLANHello` (`circuit/runtime.go:50`) or `handleP2PHello`
-   (`circuit/runtime.go:75`) by level, builds a `HelloInput` (`circuit/runtime.go:111`), and
-   calls `applyHello` (`circuit/runtime.go:171`) which drives the pure FSM under the table
-   write lock: `c.table.Update` → `adjacency.ReceiveHello` (`circuit/runtime.go:179`, FSM at
-   `adjacency/fsm.go:133`). The FSM rejects a Hello carrying our own System ID
-   (`adjacency/fsm.go:139`), enforces the L1 area-overlap rule (`adjacency/fsm.go:154`,
+5. **IIH → adjacency FSM.** `Circuit.Receive` (`circuit/runtime.go`) decodes the PDU and
+   dispatches `handleLANHello` (`circuit/runtime.go`) or `handleP2PHello`
+   (`circuit/runtime.go`) by level, builds a `HelloInput` (`circuit/runtime.go`), and
+   calls `applyHello` (`circuit/runtime.go`) which drives the pure FSM under the table
+   write lock: `c.table.Update` → `adjacency.ReceiveHello` (`circuit/runtime.go`, FSM at
+   `adjacency/fsm.go`). The FSM rejects a Hello carrying our own System ID
+   (`adjacency/fsm.go`), enforces the L1 area-overlap rule (`adjacency/fsm.go`,
    `adjacency/adjacency.go` `Level1`), and reaches `StateUp` only once bidirectionality is
-   proven, LAN: our SNPA echoed in the neighbor's TLV 6 (`adjacency/fsm.go:207-225`); P2P: TLV
+   proven, LAN: our SNPA echoed in the neighbor's TLV 6 (`adjacency/fsm.go`); P2P: TLV
    240 three-way state + System ID echo, or the legacy implicit fall-back when the neighbor
    never sent TLV 240.
-6. **Timeout + teardown.** The circuit goroutine (`circuits.go:38-95`) also runs a
-   `sweepInterval` (`server.go:42`, 1s) ticker calling `c.Sweep()` (`circuit/runtime.go:367`) →
-   `adjacency.Expire` (`adjacency/fsm.go:281`) per adjacency, and a Hello ticker calling
-   `c.SendHello()` (`circuit/runtime.go:237`, builds LAN or P2P IIH + Padding TLV 8 via
-   `circuit/hello.go:181/204/239`, then signs via `auth_wiring.go`). `onCircuitDown`
-   (`circuits.go:173`) calls `c.Teardown()` (`circuit/runtime.go:387`, forces every adjacency
+6. **Timeout + teardown.** The circuit goroutine (`circuits.go`) also runs a
+   `sweepInterval` (`server.go`, 1s) ticker calling `c.Sweep()` (`circuit/runtime.go`) →
+   `adjacency.Expire` (`adjacency/fsm.go`) per adjacency, and a Hello ticker calling
+   `c.SendHello()` (`circuit/runtime.go`, builds LAN or P2P IIH + Padding TLV 8 via
+   `circuit/hello.go/204/239`, then signs via `auth_wiring.go`). `onCircuitDown`
+   (`circuits.go`) calls `c.Teardown()` (`circuit/runtime.go`, forces every adjacency
    Down) then `clearCircuitFlags`/`clearCircuitDIS`/`e.originate()`.
-7. **Session transition → reaction.** `buildCircuit` (`circuits.go:101`) installs transition
-   hooks (`circuits.go:147`): on Up, `publishAdjMetrics` → `e.runElection(c)` (DIS,
+7. **Session transition → reaction.** `buildCircuit` (`circuits.go`) installs transition
+   hooks (`circuits.go`): on Up, `publishAdjMetrics` → `e.runElection(c)` (DIS,
    broadcast-only) → `e.originate()` → `e.onAdjacencyUpFlood` (P2P initial CSNP,
-   `flooding_wiring.go:291,296`); on Down, the same minus the initial CSNP. This is the "Wiring
+   `flooding_wiring.go,296`); on Down, the same minus the initial CSNP. This is the "Wiring
    Test": adjacency Up/Down → DIS re-elect → own-LSP origination → flood arm.
-8. **DIS election (broadcast circuits only).** `Circuit.RunElection` (`circuit/dis.go:275`)
-   gathers candidates (`circuit/dis.go:246`, local + Up LAN neighbors) and calls
-   `DISState.Elect` (`circuit/dis.go:138`, priority-then-SNPA comparison at
-   `circuit/dis.go:76`, damped by `disDampWindow`=3s). The engine's `runElection`
-   (`dis_wiring.go:77`, serialized by `e.electMu`) reacts per level: `GainedRole` →
-   `allocatePseudonodeID` + `originatePseudonode` (`dis_wiring.go:113-114`); `LostRole` →
+8. **DIS election (broadcast circuits only).** `Circuit.RunElection` (`circuit/dis.go`)
+   gathers candidates (`circuit/dis.go`, local + Up LAN neighbors) and calls
+   `DISState.Elect` (`circuit/dis.go`, priority-then-SNPA comparison at
+   `circuit/dis.go`, damped by `disDampWindow`=3s). The engine's `runElection`
+   (`dis_wiring.go`, serialized by `e.electMu`) reacts per level: `GainedRole` →
+   `allocatePseudonodeID` + `originatePseudonode` (`dis_wiring.go`); `LostRole` →
    `purgeLocalPseudonode` + `recordElectedPseudonode` for the new DIS
-   (`dis_wiring.go:120-121`); unchanged role still re-records the elected pseudo-node and
-   re-originates on a membership change (`dis_wiring.go:123-140`).
-9. **Own-LSP origination.** `originate()` (`lsdb_wiring.go:161`, serialized by `e.origMu`)
-   builds `NodeInfo` (`lsdb_wiring.go:402`) and, per level, `LevelState` (`lsdb_wiring.go:419`):
+   (`dis_wiring.go`); unchanged role still re-records the elected pseudo-node and
+   re-originates on a membership change (`dis_wiring.go`).
+9. **Own-LSP origination.** `originate()` (`lsdb_wiring.go`, serialized by `e.origMu`)
+   builds `NodeInfo` (`lsdb_wiring.go`) and, per level, `LevelState` (`lsdb_wiring.go`):
    TLV 22 neighbors (a broadcast circuit's Up neighbors collapse to ONE star entry pointing
-   at the elected pseudo-node, `lsdb_wiring.go:465-483`), TLV 132/232 interface addresses, and
+   at the elected pseudo-node, `lsdb_wiring.go`), TLV 132/232 interface addresses, and
    TLV 135/236 connected + redistributed + RFC 2966-leaked prefixes. `originationUnchanged`
-   (`lsdb_wiring.go:217`) skips a no-op re-origination unless a refresh is due
-   (`refreshInterval`, `lsdb_wiring.go:238`). `Originator.Originate`
-   (`lsdb/origination.go:250`) packs TLVs across fragments 0..255 (`fragmentTLVs`,
-   `lsdb/origination.go:421`), assigns sequence numbers (wraparound purge+suspend at
-   `lsdb/origination.go:325-334`), and calls `LSDB.Insert` (`lsdb/lsdb.go:266`). The DIS's
-   pseudo-node LSP reuses the same path via `OriginatePseudonode` (`lsdb/pseudonode.go:79`) /
-   `PurgePseudonode` (`lsdb/pseudonode.go:145`). Every (re)originated or purged fragment ID is
-   returned so the engine calls `armFlood` (`lsdb_wiring.go:677`, sets SRM on every circuit
-   forming that level) and `emitLSPChange` (`lsdb_wiring.go:738`).
+   (`lsdb_wiring.go`) skips a no-op re-origination unless a refresh is due
+   (`refreshInterval`, `lsdb_wiring.go`). `Originator.Originate`
+   (`lsdb/origination.go`) packs TLVs across fragments 0..255 (`fragmentTLVs`,
+   `lsdb/origination.go`), assigns sequence numbers (wraparound purge+suspend at
+   `lsdb/origination.go`), and calls `LSDB.Insert` (`lsdb/lsdb.go`). The DIS's
+   pseudo-node LSP reuses the same path via `OriginatePseudonode` (`lsdb/pseudonode.go`) /
+   `PurgePseudonode` (`lsdb/pseudonode.go`). Every (re)originated or purged fragment ID is
+   returned so the engine calls `armFlood` (`lsdb_wiring.go`, sets SRM on every circuit
+   forming that level) and `emitLSPChange` (`lsdb_wiring.go`).
 10. **Aging + refresh.** `startAgingLoop` ticks once a second into `ageOnce`
-    (`lsdb_wiring.go:95`) → `LSDB.Tick` (`lsdb/aging.go:78`, per-level `tickLevelLocked` at
-    `lsdb/aging.go:90`): decrements Remaining Lifetime, transitions a zero-lifetime entry to
-    `purged` (retained `ZeroAgeLifetime`=60s, `lsdb/aging.go:142`) rather than deleting it, and
+    (`lsdb_wiring.go`) → `LSDB.Tick` (`lsdb/aging.go`, per-level `tickLevelLocked` at
+    `lsdb/aging.go`): decrements Remaining Lifetime, transitions a zero-lifetime entry to
+    `purged` (retained `ZeroAgeLifetime`=60s, `lsdb/aging.go`) rather than deleting it, and
     garbage-collects after the grace window. `ageOnce` re-floods any freshly purged LSP
-    (`refloodPurge`, `lsdb_wiring.go:128`) and calls `refreshOwnLSPs`/`refreshPseudonodes`
-    (`lsdb_wiring.go:262`, `dis_wiring.go:536`) so a quiescent node's own and pseudo-node LSPs
+    (`refloodPurge`, `lsdb_wiring.go`) and calls `refreshOwnLSPs`/`refreshPseudonodes`
+    (`lsdb_wiring.go`, `dis_wiring.go`) so a quiescent node's own and pseudo-node LSPs
     are re-stamped before `MaxAge` (clause 7.3.16.1) and never age out.
-11. **Reliable flooding (receive).** `handleLSP` (`flooding_wiring.go:159`) decodes the LSP,
-    verifies its Fletcher checksum BEFORE touching the LSDB (`flooding_wiring.go:170`), then
-    `Flooder.ReceiveLSP` (`lsdb/flooding.go:247`) calls `LSDB.Receive` (`lsdb/lsdb.go:176`,
-    freshness compare `compareFreshness` at `lsdb/entry.go:191`: sequence first, then a
+11. **Reliable flooding (receive).** `handleLSP` (`flooding_wiring.go`) decodes the LSP,
+    verifies its Fletcher checksum BEFORE touching the LSDB (`flooding_wiring.go`), then
+    `Flooder.ReceiveLSP` (`lsdb/flooding.go`) calls `LSDB.Receive` (`lsdb/lsdb.go`,
+    freshness compare `compareFreshness` at `lsdb/entry.go`: sequence first, then a
     same-sequence purge tiebreak). A `Newer` LSP arms SRM on every OTHER circuit
-    (`armSRMExcept`, `lsdb/flooding.go:324`) and SSN on the arrival circuit; `Equal` sets SSN
+    (`armSRMExcept`, `lsdb/flooding.go`) and SSN on the arrival circuit; `Equal` sets SSN
     only (ack); `Older` triggers `handleOlderLSP` (send-back or request via SSN). Only `Newer`
-    re-triggers SPF (`flooding_wiring.go:184-193`).
-12. **Reliable flooding (transmit) + CSNP/PSNP sync.** `FloodTick` (`lsdb/flooding.go:358`,
+    re-triggers SPF (`flooding_wiring.go`).
+12. **Reliable flooding (transmit) + CSNP/PSNP sync.** `FloodTick` (`lsdb/flooding.go`,
     every `floodInterval`=5s) drains SRM per circuit/level via `floodCircuitLevel`
-    (`lsdb/flooding.go:376`), leaving SRM set until an ack clears it (a true resend bumps
+    (`lsdb/flooding.go`), leaving SRM set until an ack clears it (a true resend bumps
     `ze_isis_srm_resends_total`). CSNP/PSNP synchronize LSDBs: `buildCSNPs`/`ReceiveCSNP`
-    (`lsdb/snp.go:127,224`) reconcile a neighbor's TLV-9 list against the LSDB per entry
-    (`reconcileCSNPEntry`, `lsdb/snp.go:245`) and per gap range (`reconcileCSNPRange`,
-    `lsdb/snp.go:275`, recording a per-circuit `pendingReq` for an unheld LSP,
-    `lsdb/snp.go:52`); `buildPSNP`/`ReceivePSNP` (`lsdb/snp.go:305,378`) ack SSN-flagged
+    (`lsdb/snp.go,224`) reconcile a neighbor's TLV-9 list against the LSDB per entry
+    (`reconcileCSNPEntry`, `lsdb/snp.go`) and per gap range (`reconcileCSNPRange`,
+    `lsdb/snp.go`, recording a per-circuit `pendingReq` for an unheld LSP,
+    `lsdb/snp.go`); `buildPSNP`/`ReceivePSNP` (`lsdb/snp.go,378`) ack SSN-flagged
     entries and request pending ones. The DIS sources the LAN CSNP (`lanCSNPTick`,
-    `dis_wiring.go:604`, every 10s); a P2P circuit gets one initial CSNP at adjacency-Up
-    (`InitialCSNP`, `lsdb/snp.go:197`, `flooding_wiring.go:296`) plus a slower periodic one
-    (`periodicCSNPTick`, `flooding_wiring.go:271`).
+    `dis_wiring.go`, every 10s); a P2P circuit gets one initial CSNP at adjacency-Up
+    (`InitialCSNP`, `lsdb/snp.go`, `flooding_wiring.go`) plus a slower periodic one
+    (`periodicCSNPTick`, `flooding_wiring.go`).
 13. **SPF trigger.** Every topology-changing LSDB event funnels through `emitLSPChange`
-    (`lsdb_wiring.go:738`) → `triggerSPF` (`spf_wiring.go:67`) → `Computer.Trigger`
-    (`spf/computer.go:280`), which debounces (`DefaultDebounce`=200ms, `spf/computer.go:34`) a
+    (`lsdb_wiring.go`) → `triggerSPF` (`spf_wiring.go`) → `Computer.Trigger`
+    (`spf/computer.go`), which debounces (`DefaultDebounce`=200ms, `spf/computer.go`) a
     burst of changes into one `Run` per level.
-14. **SPF run.** `Computer.Run` (`spf/computer.go:316`) calls `BuildGraph` (`spf/graph.go:162`,
-    reads the LSDB once via the `Source` interface at `spf_wiring.go:113,128`, merging TLV
-    22/135/132 across an originator's fragments) then `Compute` (`spf/spf.go:134`, Dijkstra
-    with a binary heap; ECMP first-hops merged at equal cost, `spf/spf.go:229`; an overloaded
-    node's outgoing edges are never relaxed, `spf/spf.go:175`). `BuildRoutes`
-    (`spf/route.go:125`) attaches each reachable node's TLV 135 prefixes at
+14. **SPF run.** `Computer.Run` (`spf/computer.go`) calls `BuildGraph` (`spf/graph.go`,
+    reads the LSDB once via the `Source` interface at `spf_wiring.go,128`, merging TLV
+    22/135/132 across an originator's fragments) then `Compute` (`spf/spf.go`, Dijkstra
+    with a binary heap; ECMP first-hops merged at equal cost, `spf/spf.go`; an overloaded
+    node's outgoing edges are never relaxed, `spf/spf.go`). `BuildRoutes`
+    (`spf/route.go`) attaches each reachable node's TLV 135 prefixes at
     node-distance+prefix-metric, resolves next-hops via `engineNextHopResolver`/`V6`
-    (`spf_wiring.go:162,217`, reading the live adjacency table's `Snapshot()`), and arbitrates
+    (`spf_wiring.go,217`, reading the live adjacency table's `Snapshot()`), and arbitrates
     a multi-level-reachable prefix by RFC 5308 sec 5 preference (`preferenceRank`,
-    `spf/route.go:69`: L1-up > L2-up > L2-down > L1-down).
-15. **Inter-level leak + install.** `LeakPrefixes` (`spf/leak.go:90`) computes the RFC 2966
+    `spf/route.go`: L1-up > L2-up > L2-down > L1-down).
+15. **Inter-level leak + install.** `LeakPrefixes` (`spf/leak.go`) computes the RFC 2966
     L1↔L2 leak set over the same SPF tree; `Computer.SetOnLeak` wires `e.applyLeak`
-    (`spf_wiring.go:60`, `lsdb_wiring.go:569`), which re-originates only on a real change (the
-    leaked-down bit makes the loop a fixpoint). `Installer.Apply` (`spf/install.go:150`) diffs
-    the new route set against the previous one (`DiffRoutes`, `spf/route.go:252`) and calls
-    `loc.InsertForward`/`loc.Remove` (`spf/install.go:195,210`) on the shared Loc-RIB with
-    `AdminDistance`=115 (`spf/install.go:54`); sysrib/fibkernel consume the Loc-RIB downstream
+    (`spf_wiring.go`, `lsdb_wiring.go`), which re-originates only on a real change (the
+    leaked-down bit makes the loop a fixpoint). `Installer.Apply` (`spf/install.go`) diffs
+    the new route set against the previous one (`DiffRoutes`, `spf/route.go`) and calls
+    `loc.InsertForward`/`loc.Remove` (`spf/install.go,210`) on the shared Loc-RIB with
+    `AdminDistance`=115 (`spf/install.go`); sysrib/fibkernel consume the Loc-RIB downstream
     exactly as the BGP RIB does, IS-IS owns no second FIB path.
 16. **Redistribution import/export.** `OnStarted` wires `isisredistribute.NewConsumer(eng)`
-    (`register.go:306`) as the engine's `LSPInjector`; `Consumer.InjectRoute`
-    (`redistribute/consumer.go:159`) validates the prefix and calls
-    `e.SetRedistPrefix`/`SetRedistPrefixV6` (`redist_wiring.go:50,78`) then `e.Originate()`
-    (`redist_wiring.go:110`, bumps `ze_isis_lsp_reoriginations_total` and calls
+    (`register.go`) as the engine's `LSPInjector`; `Consumer.InjectRoute`
+    (`redistribute/consumer.go`) validates the prefix and calls
+    `e.SetRedistPrefix`/`SetRedistPrefixV6` (`redist_wiring.go,78`) then `e.Originate()`
+    (`redist_wiring.go`, bumps `ze_isis_lsp_reoriginations_total` and calls
     `e.originate()`) so an imported connected/static/BGP route becomes a TLV 135/236 entry
-    merged into `levelState` (`lsdb_wiring.go:509-526`). The reverse direction:
-    `wireRedistProducer` (`redist_wiring.go:204`) wires `Computer.SetOnChange`/`SetOnChangeV6`
-    to `isisredistribute.Source.OnSPFChange` (`redistribute/source.go:83`), so every SPF route
+    merged into `levelState` (`lsdb_wiring.go`). The reverse direction:
+    `wireRedistProducer` (`redist_wiring.go`) wires `Computer.SetOnChange`/`SetOnChangeV6`
+    to `isisredistribute.Source.OnSPFChange` (`redistribute/source.go`), so every SPF route
     delta is emitted as a redistevents batch (export IS-IS → BGP), a read-only seam that never
     touches the FIB.
-17. **Authentication gate.** `setKeyStore` (`auth_wiring.go:38`, called from `setConfig`)
+17. **Authentication gate.** `setKeyStore` (`auth_wiring.go`, called from `setConfig`)
     rebuilds the key store and installs `Originator.SetSigner`/`Flooder.SetSigner`
     (LSP/CSNP/PSNP are signed once at origination/build time, since the LSDB re-floods raw
-    bytes verbatim) plus, per circuit, `installCircuitSigner` (`auth_wiring.go:73`, the
+    bytes verbatim) plus, per circuit, `installCircuitSigner` (`auth_wiring.go`, the
     per-interface IIH chain). When any chain is configured this also installs the dispatcher's
-    single verify chokepoint, `e.dispatch.setVerify(e.verifyFrame)` (`auth_wiring.go:64`,
-    `verifyFrame` at `auth_wiring.go:139`), a P2P Hello tries both the L1 and L2 IIH chains
+    single verify chokepoint, `e.dispatch.setVerify(e.verifyFrame)` (`auth_wiring.go`,
+    `verifyFrame` at `auth_wiring.go`), a P2P Hello tries both the L1 and L2 IIH chains
     (RFC 5303: level-agnostic on the wire); a failed verify bumps `ze_isis_auth_failures_total`
     and the frame is dropped before step 4's handler ever sees it.
-18. **Shutdown.** `engine.shutdown` (`server.go:662`) cancels the context, calls `e.spf.Stop()`
-    (`spf/computer.go:470`, forward-removes every installed route and drains any in-flight
-    debounced `Run` before returning) BEFORE `e.transport.Close()` (`server.go:669`), then
+18. **Shutdown.** `engine.shutdown` (`server.go`) cancels the context, calls `e.spf.Stop()`
+    (`spf/computer.go`, forward-removes every installed route and drains any in-flight
+    debounced `Run` before returning) BEFORE `e.transport.Close()` (`server.go`), then
     waits on `e.wg`.
 
 ## Key files
@@ -197,64 +197,64 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
 
 ## Invariants & gotchas
 - **Single writer per scope.** The circuit goroutine is the sole writer of its adjacency table
-  (`adjacency/table.go:75` `Update`); the LSDB's single `sync.RWMutex` (`lsdb/lsdb.go:83`)
+  (`adjacency/table.go` `Update`); the LSDB's single `sync.RWMutex` (`lsdb/lsdb.go`)
   makes it the sole writer across origination, receive, and aging. Reading
   `*Adjacency`/`*Entry` fields outside these paths without the lock races the writer.
 - **origMu / electMu collapse re-origination amplification.** `originate()`
-  (`lsdb_wiring.go:161`) and `runElection()` (`dis_wiring.go:77`) are each serialized by their
+  (`lsdb_wiring.go`) and `runElection()` (`dis_wiring.go`) are each serialized by their
   own mutex because many goroutines (transition hooks, DIS loop, redistribution, SPF leak) call
   them for the same resulting state; `originationUnchanged`/`pnOriginationUnchanged`
-  (`lsdb_wiring.go:217`, `dis_wiring.go:320`) compare against the last-originated input so an
+  (`lsdb_wiring.go`, `dis_wiring.go`) compare against the last-originated input so an
   unchanged state is a no-op, and a real change or elapsed refresh interval always re-floods.
 - **Purge lifecycle is retain-then-delete, never delete-on-zero.** An LSP at Remaining Lifetime
-  0 becomes `purged` and stays in the LSDB for `ZeroAgeLifetime` (60s, `lsdb/aging.go:35`) so a
+  0 becomes `purged` and stays in the LSDB for `ZeroAgeLifetime` (60s, `lsdb/aging.go`) so a
   slow neighbor still converges; `ReceivedPurge` (wire-arrived) vs a local expiry are flooded
-  identically but are logically distinct (`lsdb/entry.go:126`).
-- **Buffer-first / lazy TLVs.** `Entry.raw` is a single owned copy (`lsdb/lsdb.go:220`, never
+  identically but are logically distinct (`lsdb/entry.go`).
+- **Buffer-first / lazy TLVs.** `Entry.raw` is a single owned copy (`lsdb/lsdb.go`, never
   an alias of a reused receive buffer); TLVs are parsed on demand via `Entry.Decode`
-  (`lsdb/entry.go:146`), so an LSP carrying an unrecognized TLV re-floods byte-for-byte (clause
+  (`lsdb/entry.go`), so an LSP carrying an unrecognized TLV re-floods byte-for-byte (clause
   7.3.14).
-- **SRM/SSN never re-flood on the arrival circuit** (`lsdb/flooding.go:324` `armSRMExcept`
+- **SRM/SSN never re-flood on the arrival circuit** (`lsdb/flooding.go` `armSRMExcept`
   skips `skip`); SRM stays SET after a transmit until an explicit ack (PSNP at our sequence, or
   an equal CSNP entry), clearing on send-without-ack would silently drop a lost first
   transmission.
 - **The broadcast-circuit star encoding is a P3 step, not automatic.** `levelState`
-  (`lsdb_wiring.go:419`) only collapses a LAN's neighbors into one TLV 22 pseudo-node entry
-  once a DIS is elected AND at least one adjacency is Up (`lsdb_wiring.go:474`); before the
+  (`lsdb_wiring.go`) only collapses a LAN's neighbors into one TLV 22 pseudo-node entry
+  once a DIS is elected AND at least one adjacency is Up (`lsdb_wiring.go`); before the
   first election it falls through to per-peer entries.
 - **A malformed/checksum-bad LSP never reaches the LSDB.** `handleLSP`
-  (`flooding_wiring.go:159`) verifies the Fletcher checksum before `ReceiveLSP` is even called
-  (`flooding_wiring.go:170`); a bad checksum only bumps a drop counter.
-- **SPF Stop() must precede transport.Close().** `Computer.Stop` (`spf/computer.go:470`) sets a
+  (`flooding_wiring.go`) verifies the Fletcher checksum before `ReceiveLSP` is even called
+  (`flooding_wiring.go`); a bad checksum only bumps a drop counter.
+- **SPF Stop() must precede transport.Close().** `Computer.Stop` (`spf/computer.go`) sets a
   `stopped` flag checked both before AND after the lock-free compute phase of `Run`
-  (`spf/computer.go:317-380`), and drains the debounce-timer goroutine, so no in-flight run can
-  re-install routes into the Loc-RIB after shutdown started (`server.go:662-670` calls
+  (`spf/computer.go`), and drains the debounce-timer goroutine, so no in-flight run can
+  re-install routes into the Loc-RIB after shutdown started (`server.go` calls
   `spf.Stop()` before `transport.Close()`).
 - **Route install has no second FIB path.** `spf/install.go` inserts directly into the shared
   cross-protocol Loc-RIB (`InsertForward`, mirroring
-  `internal/component/bgp/plugins/rib/rib_bestchange.go:813`); IS-IS relies on sysrib/fibkernel
+  `internal/component/bgp/plugins/rib/rib_bestchange.go`); IS-IS relies on sysrib/fibkernel
   downstream, exactly one `AdminDistance`=115 `locrib.Path` per next-hop (ECMP via distinct
   `Instance`).
-- **Overload (RFC 3787) excludes transit, not destination.** `Compute` (`spf/spf.go:175`) never
+- **Overload (RFC 3787) excludes transit, not destination.** `Compute` (`spf/spf.go`) never
   relaxes an overloaded node's outgoing edges, but the node's own prefixes still attach at
   whatever distance was already reached.
-- **Resource caps fail closed (security review).** `adjacency/table.go:27` `MaxNeighbors`=1024
-  per circuit, `lsdb/lsdb.go:51` `MaxLSPsPerLevel`=16384 per level, and `lsdb/snp.go:37`
+- **Resource caps fail closed (security review).** `adjacency/table.go` `MaxNeighbors`=1024
+  per circuit, `lsdb/lsdb.go` `MaxLSPsPerLevel`=16384 per level, and `lsdb/snp.go`
   `maxPendingPerCircuit`=4096 all reject a new entry (never grow unbounded) under a flood of
   distinct System IDs or LSP IDs from a misbehaving or hostile peer.
 - **Circuit goroutine lifetime is bounded by a stop channel, not `e.ctx` alone.**
-  `launchCircuitGoroutine` (`circuits.go:38`) selects on a per-circuit `stop` channel closed by
+  `launchCircuitGoroutine` (`circuits.go`) selects on a per-circuit `stop` channel closed by
   `onCircuitDown`/`closeCircuit`; without it a reopened interface (link flap or reconcile)
   would stack a second Hello/sweep goroutine on the same circuit.
 - **IPv6 shares the SPF tree; it is not a second Dijkstra run.** `Computer.Run`
-  (`spf/computer.go:316`) computes `Compute` once per level; the IPv6 pass (`BuildRoutesV6`)
+  (`spf/computer.go`) computes `Compute` once per level; the IPv6 pass (`BuildRoutesV6`)
   only re-extracts TLV 236 leaves and resolves IPv6 next-hops (`engineNextHopResolverV6`,
-  `spf_wiring.go:217`) over the same `graphs`/`results`, so dual-stack costs one Dijkstra run
+  `spf_wiring.go`) over the same `graphs`/`results`, so dual-stack costs one Dijkstra run
   per level, not two.
 - **Metrics ownership is one-row-per-spec.** Each subsystem registers only the Prometheus
-  series it owns (adjacency gauges `server.go:341`, DIS counters `server.go:360`, LSDB series
-  `lsdb/lsdb.go:124`, flooding series `lsdb/flooding.go:189`, SPF series `spf/computer.go:178`,
-  install gauge `spf/install.go:121`), no cross-registration, so deleting a subsystem's file
+  series it owns (adjacency gauges `server.go`, DIS counters `server.go`, LSDB series
+  `lsdb/lsdb.go`, flooding series `lsdb/flooding.go`, SPF series `spf/computer.go`,
+  install gauge `spf/install.go`), no cross-registration, so deleting a subsystem's file
   removes exactly its rows.
 
 ## See also

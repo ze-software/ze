@@ -10,7 +10,7 @@ Ze had no per-interface rate computation. Operators could see cumulative counter
 - Uses raw backend stats (bypassing baseline-delta from counters.go) over baseline-adjusted stats, because rate computation needs monotonic kernel counters and the baseline mechanism is for "since last clear" display.
 - 12 GaugeVec metrics (4 rates + 8 raw counters) over fewer, because Netdata collector covers different metrics (netdata_net_*) at a different interval (10s) with different naming.
 - Hardcoded 1s interval over configurable, because SONiC and Arista precedent is 1-2s and YAGNI applies.
-- `show interface rate [<name>]` grammar (action before identifier) over `show interface <name> rate`, following the cli-grammar.md rule that eliminates keyword/name ambiguity.
+- `show interface rate [<name>]` grammar (action before identifier) over `show interface <name> rate`, following the cli.md rule that eliminates keyword/name ambiguity.
 - atomic.Pointer for metrics registry injection (BFD pattern) over passing registry through function args, for consistency with existing plugin patterns.
 - Counter wrap returns 0 over attempting wrap-around math, matching the existing safeDelta convention in telemetry/collector/delta_linux.go.
 

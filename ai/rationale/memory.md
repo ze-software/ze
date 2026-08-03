@@ -30,7 +30,7 @@ When ANY test fails then passes on retry:
 - `TestProcessWriteEvent`, `TestProcessReadCommand`, `TestProcessSendRequest` -- GONE: removed during plugin RPC migration refactoring
 - `TestInvokePluginForkPath` -- NO LONGER FLAKY: 0/10 failures under full load (stabilized by RPC migration)
 - Functional test "refresh" suite -- NO LONGER FLAKY: passes consistently (stabilized by RPC migration)
-- `custom-flowspec-plugin` functional test -- FIXED: capability ordering was non-deterministic due to Go map iteration in `parseFamiliesFromTree` (config.go:164). Added `slices.Sort` on family keys before iterating.
+- `custom-flowspec-plugin` functional test -- FIXED: capability ordering was non-deterministic due to Go map iteration in `parseFamiliesFromTree` (config.go). Added `slices.Sort` on family keys before iterating.
 
 ## Config Pipeline (post-BGPConfig removal)
 - BGPConfig struct fully eliminated -- spec 226 done

@@ -46,7 +46,7 @@ independent review pass found eleven more the author had missed.
 
 ## Consequences
 
-- `ai/rules/critical-review.md`'s "a different context" requirement is not a
+- `ai/rules/planning.md`'s "a different context" requirement is not a
   formality. The author's own review pass found one real BLOCKER. Three
   independent subagents then found five more BLOCKERs and six ISSUEs in the same
   diff, including a config-verify path that mutated live process state and four
@@ -74,7 +74,7 @@ independent review pass found eleven more the author had missed.
   **Correction (2026-07-23, spec-fixit-ipsec-verify-siblings).** This bullet
   originally called the `eapTLSServerConfig` swallow a "fail-open". It is not one,
   and the error matters because it points the fix in the wrong direction.
-  `newTLSMethod` (`ike/eap/eap_tls.go:150-174`) passes crypto/tls a **non-nil but
+  `newTLSMethod` (`ike/eap/eap_tls.go`) passes crypto/tls a **non-nil but
   empty** `x509.CertPool` as `ClientCAs` together with
   `ClientAuth: tls.RequireAndVerifyClientCert`, and an empty non-nil pool REJECTS
   every chain -- only a `nil` Roots falls back to the host root store. The
@@ -82,14 +82,14 @@ independent review pass found eleven more the author had missed.
   late*, refusing every client at handshake with an opaque "certificate signed by
   unknown authority" that names neither the peer nor the CA that failed to load.
   A guard that denies correctly while saying nothing is still a bug
-  (`ai/rules/fail-closed-guards.md`, "or say something"), which is why it was worth
+  (`ai/rules/evidence.md`, "or say something"), which is why it was worth
   fixing -- but it was never an authentication bypass. Now pinned by
   `TestEAPTLSAuthenticatorWithoutCARejectsEveryClient` and `TestEmptyClientCAPoolRejects`
   (`ike/eap/eap_tls_trust_anchor_test.go`), so the distinction cannot rot again.
 
   The same follow-up work found that `vpn ipsec remote-access` is **inert**, which is
   a much larger defect than the unvalidated references named above: the virtual IP
-  pool is built and then discarded (`ike/engine/register.go:372` is `_ = ipPool`),
+  pool is built and then discarded (`ike/engine/register.go` is `_ = ipPool`),
   `ra.Auth` and every `eap-user` have no consumer at all, and the responder admits
   only sources that `matchResponderPeer` resolves to a configured site-to-site peer,
   so a road-warrior client can never establish. Being implemented under its own spec.

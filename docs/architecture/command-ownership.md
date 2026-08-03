@@ -1,6 +1,6 @@
 # Command Ownership and Plugin Structure
 
-<!-- source: ai/rules/plugin-self-containment.md -- full rule -->
+<!-- source: ai/rules/plugins.md -- full rule -->
 <!-- source: internal/component/plugin/all/all.go -- blank imports that wire init() -->
 <!-- source: scripts/codegen/plugin_imports.go -- generates all.go from directory scan -->
 

@@ -14,7 +14,7 @@ The actual root cause was a race condition in the Python SDK's TLS muxing layer 
 
 - **Fixed the SDK race condition in `read_line()`** over restructuring the engine's startup ordering. The engine's ordering (`SignalAPIReady` before sending ready OK) is architecturally correct -- it ensures the reactor doesn't wait for plugins that are already ready. The bug is that the Python SDK doesn't handle the consequence: callbacks arriving before the ready OK on the shared TLS connection.
 
-- **Added TCP_NODELAY on plugin TLS connections** over leaving default Nagle behavior. Plugin IPC uses small request-response messages (typically under 1KB). Nagle's algorithm delays these by up to 200ms waiting for batching that never comes. While Nagle was not the 5s root cause, it added unnecessary latency to every plugin RPC. The BGP session code already set TCP_NODELAY (`session_connection.go:230`); plugin connections were the gap.
+- **Added TCP_NODELAY on plugin TLS connections** over leaving default Nagle behavior. Plugin IPC uses small request-response messages (typically under 1KB). Nagle's algorithm delays these by up to 200ms waiting for batching that never comes. While Nagle was not the 5s root cause, it added unnecessary latency to every plugin RPC. The BGP session code already set TCP_NODELAY (`session_connection.go`); plugin connections were the gap.
 
 - **Chose `setTCPNoDelay` helper with `NetConn()` unwrap** over raw syscall access. TLS connections wrap the underlying TCP socket. Go's `tls.Conn` exposes `NetConn()` (since Go 1.18) to access the raw `*net.TCPConn`. This is cleaner than `SyscallConn().Control()` with `setsockopt`.
 
@@ -26,7 +26,7 @@ The actual root cause was a race condition in the Python SDK's TLS muxing layer 
 
 - **TCP_NODELAY on plugin connections reduces latency for all plugin RPCs.** Event delivery, command dispatch, filter evaluation -- every RPC round-trip is faster. The improvement is most visible on localhost (where kernel buffering dominates) but also matters for remote plugins over LAN.
 
-- **The `OnMessageSent` synchronous wait pattern remains unchanged.** The function at `events.go:697-702` still waits for all delivery results before returning. This is correct for the cache consumer pattern (where the caller needs to know if the cache consumed the event). The fix ensures the plugin responds promptly, making the wait short rather than eliminating it.
+- **The `OnMessageSent` synchronous wait pattern remains unchanged.** The function at `events.go` still waits for all delivery results before returning. This is correct for the cache consumer pattern (where the caller needs to know if the cache consumed the event). The fix ensures the plugin responds promptly, making the wait short rather than eliminating it.
 
 - **The timing infrastructure adds negligible overhead in production.** The debug logs are filtered by log level (default WARN). The Prometheus metrics use pre-allocated histograms with no per-observation allocation. The `time.Now()` calls add ~25ns each.
 
@@ -44,7 +44,7 @@ The actual root cause was a race condition in the Python SDK's TLS muxing layer 
 
 - **The test runner captures ze's stderr but only shows it on failure.** To see debug timing from a passing test, we had to use `ze_log=debug` in the parent environment and grep the runner's stderr for `clientOutput`. The `-s` (save) flag didn't work for the new cmd-based test format. This cost ~15 minutes of investigation overhead.
 
-- **`SignalAPIReady()` before `SendResult()` is intentional.** The comment at startup.go:510-513 explains: "Move the barrier BEFORE the OK response below. This ensures all plugins in the tier have registered their commands and reached StageReady before any of them receive OK and start their runtime event loop." The engine deliberately releases the reactor before the plugin knows it's released. The SDK must handle this.
+- **`SignalAPIReady()` before `SendResult()` is intentional.** The comment at startup.go explains: "Move the barrier BEFORE the OK response below. This ensures all plugins in the tier have registered their commands and reached StageReady before any of them receive OK and start their runtime event loop." The engine deliberately releases the reactor before the plugin knows it's released. The SDK must handle this.
 
 ## Files
 

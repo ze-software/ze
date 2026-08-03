@@ -34,8 +34,8 @@ spec stays open.
   `gnmiBuild != nil`, API on `restBuild != nil || grpcBuild != nil`.
 - Auth predicate MUST mirror the producer, not a proxy for it. The subtle
   fail-open caught in review: MCP `auth-mode none` WITH a token. The server
-  (internal/component/mcp: `NewStreamable` streamable.go:169 + `buildAuthenticator`
-  bearer.go:151) only lets a token infer bearer when the mode is UNSPECIFIED; an
+  (internal/component/mcp: `NewStreamable` streamable.go + `buildAuthenticator`
+  bearer.go) only lets a token infer bearer when the mode is UNSPECIFIED; an
   explicit `none` builds the accept-all `noneAuthenticator` and ignores the token.
   A naive `mcpToken != ""` therefore reads "authenticated" while the server is
   wide open. Fix: `mcpListenerAuthenticated(cfgOK, authMode, token)` -- explicit

@@ -41,7 +41,7 @@ import (
 const maxSAInitRetries = 3
 
 // retryCause names why an IKE_SA_INIT is being retried. Typed rather than a string, so a
-// metric label and a switch cannot disagree (ai/rules/enum-over-string.md).
+// metric label and a switch cannot disagree (ai/rules/go-standards.md).
 type retryCause uint8
 
 const (
@@ -73,11 +73,11 @@ func (c retryCause) String() string {
 //
 // It returns a bool rather than a bare group, because ipsec.DHGroup's zero means "no
 // Diffie-Hellman". A bare return would make a truncated body read as a successful parse
-// of group 0 (ai/rules/fail-closed-guards.md). The caller MUST test the bool.
+// of group 0 (ai/rules/evidence.md). The caller MUST test the bool.
 //
 // It denies a body of any other length, a value that does not fit the octet-wide group
 // number, and a group outside the valid range. It never narrows a wide value into a
-// small one (ai/rules/exact-or-reject.md).
+// small one (ai/rules/protocol.md).
 func parseInvalidKEGroup(data []byte) (ipsec.DHGroup, bool) {
 	if len(data) != 2 {
 		return 0, false

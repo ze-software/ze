@@ -29,40 +29,40 @@ none. Phase 4 landed the day after and wired all three. Re-verified at the produ
 
 | Row claim | Verdict | Producer checked |
 |-----------|---------|------------------|
-| `state_changed` implemented | HOLDS | `stateChangedString` sets the row key, `cmd/peer/summary.go:62-67`, emitted at `summary.go:239` |
-| `last_error` implemented | HOLDS | `lastErrorString`, `cmd/peer/summary.go:48-57`, emitted at `summary.go:240` |
-| Only `routes_received` has a source | **STALE** | `mergeRibRouteCounts` (`cmd/peer/summary.go:140-148`) emits `routes-received`, `routes-accepted` and `routes-sent` |
-| Source is `adj_rib_in/rib_commands.go` | **WRONG** | Counts come from `RIBManager.status` (`bgp/plugins/rib/rib_commands.go:668-705`), the `bgp-rib` plugin. `bgp-adj-rib-in` is a different plugin (learned 1158, "Traps") |
-| `routes_filtered` untracked repo-wide | HOLDS | No producer emits `routes-filtered`; deliberate, `cmd/peer/summary.go:137-138`. Reject gate drops the route at `bgp/reactor/reactor_notify.go:449` |
-| Counts are config-conditional | HOLDS, and it is the live bug | `fetchRibRouteCounts` returns nil when `bgp-rib` is absent (`summary.go:87-105`) |
+| `state_changed` implemented | HOLDS | `stateChangedString` sets the row key, `cmd/peer/summary.go`, emitted at `summary.go` |
+| `last_error` implemented | HOLDS | `lastErrorString`, `cmd/peer/summary.go`, emitted at `summary.go` |
+| Only `routes_received` has a source | **STALE** | `mergeRibRouteCounts` (`cmd/peer/summary.go`) emits `routes-received`, `routes-accepted` and `routes-sent` |
+| Source is `adj_rib_in/rib_commands.go` | **WRONG** | Counts come from `RIBManager.status` (`bgp/plugins/rib/rib_commands.go`), the `bgp-rib` plugin. `bgp-adj-rib-in` is a different plugin (learned 1158, "Traps") |
+| `routes_filtered` untracked repo-wide | HOLDS | No producer emits `routes-filtered`; deliberate, `cmd/peer/summary.go`. Reject gate drops the route at `bgp/reactor/reactor_notify.go` |
+| Counts are config-conditional | HOLDS, and it is the live bug | `fetchRibRouteCounts` returns nil when `bgp-rib` is absent (`summary.go`) |
 
 **The four fields are present-but-always-zero, never absent.** `transformProtocols`
-(`lg/handler_api.go:521-568`) always writes all four keys (`:552-555`) from `getNum`
-(`:537-540`), and `getNum` returns 0 for a missing key (`lg/handler_api.go:823-827`).
+(`lg/handler_api.go`) always writes all four keys from `getNum`
+(`:537-540`), and `getNum` returns 0 for a missing key (`lg/handler_api.go`).
 So the remaining work is three specific gaps, not the "route counts are missing" the row describes:
 
 | ID | Gap | Evidence |
 |----|-----|----------|
-| G-1 | The producer deliberately OMITS the count keys when `bgp-rib` is not loaded, "never faked to 0" (`summary.go:85-86, 139`). The LG then converts absent to `0` at `getNum` (`handler_api.go:823-827`) and publishes it. The consumer destroys the producer's honesty: Alice-LG cannot distinguish "this peer sent no routes" from "Ze cannot tell you" |
-| G-2 | `routes_imported` equals `routes_received` by construction: both are the Adj-RIB-In size (`summary.go:145-146`). Ze drops rejects before storage, so there is no separate pre-policy count. Alice-LG shows two identical numbers where BIRD shows received >= imported |
-| G-3 | `transformBMPProtocols` hardcodes all four fields to literal `0` for BMP-monitored peers (`handler_api.go:235-244`), with no source consulted at all |
+| G-1 | The producer deliberately OMITS the count keys when `bgp-rib` is not loaded, "never faked to 0" (`summary.go, 139`). The LG then converts absent to `0` at `getNum` (`handler_api.go`) and publishes it. The consumer destroys the producer's honesty: Alice-LG cannot distinguish "this peer sent no routes" from "Ze cannot tell you" |
+| G-2 | `routes_imported` equals `routes_received` by construction: both are the Adj-RIB-In size (`summary.go`). Ze drops rejects before storage, so there is no separate pre-policy count. Alice-LG shows two identical numbers where BIRD shows received >= imported |
+| G-3 | `transformBMPProtocols` hardcodes all four fields to literal `0` for BMP-monitored peers (`handler_api.go`), with no source consulted at all |
 
 `routes_filtered` is **out of scope**: `plan/spec-bgp-filtered-route-storage.md` (status
 `design`) already owns it end to end (AC-1..AC-8), so this spec must not duplicate it
-(`ai/rules/deferral-tracking.md`, "Choosing the Destination Spec"). Per "Verify Before
+(`ai/rules/planning.md`, "Choosing the Destination Spec"). Per "Verify Before
 Deferring", the missing infrastructure was grepped for and is genuinely absent: no
-filtered-route store exists (`ai/rules/project-knowledge.md` line 15), and the specific
+filtered-route store exists (`ai/rules/repo-maintenance.md` line 15), and the specific
 thing that would need adding is retention at the reject gate, which is that spec's design.
 
-Fix G-1 first. It is the `ai/rules/fail-closed-guards.md` failure mode exactly: a zero
+Fix G-1 first. It is the `ai/rules/evidence.md` failure mode exactly: a zero
 that reads as a valid answer.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/api/json-format.md` - birdwatcher snake_case is the documented exception
-- [ ] `ai/rules/fail-closed-guards.md` - why an absent count must not surface as 0
-- [ ] `ai/rules/plugin-self-containment.md` - `cmd/peer` must not import the RIB plugin
+- [ ] `ai/rules/evidence.md` - why an absent count must not surface as 0
+- [ ] `ai/rules/plugins.md` - `cmd/peer` must not import the RIB plugin
 
 ### Decision Records
 - [ ] `plan/learned/1158-cross-plugin-count-aggregation-via-dispatch.md` - the dispatch pattern, the "honest zero" decision, the race that killed the pre-policy source
@@ -70,7 +70,7 @@ that reads as a valid answer.
 - [ ] `plan/spec-bgp-filtered-route-storage.md` - owns `routes_filtered`; read before touching it
 
 **Key insights:**
-- `handler_api.go:823-827`: `getNum` cannot express "absent". Any fix to G-1 lives here or at the call site.
+- `handler_api.go`: `getNum` cannot express "absent". Any fix to G-1 lives here or at the call site.
 - Phase 4 chose one owner (the RIB) for all counts, accepting `received == accepted`, because the pre-policy counter races the session write loop (learned 1158, "Trap").
 - `bgp-rib` only fills its per-peer Adj-RIB-In when wired `receive [ update ]`. A functional test that forgets this gets empty counts.
 
@@ -83,10 +83,10 @@ that reads as a valid answer.
 - [ ] `internal/component/lg/handler_api_test.go` - existing assertions on the four fields (:106-137)
 
 **Behavior to preserve:**
-- `state_changed` and `last_error` keep their current values and empty-string semantics for a peer that never transitioned or never errored (`summary.go:49-51, 63-65`).
+- `state_changed` and `last_error` keep their current values and empty-string semantics for a peer that never transitioned or never errored (`summary.go, 63-65`).
 - The producer keeps omitting count keys when the RIB plugin is absent. The fix belongs at the consumer; do not make the producer fake a 0.
 - `cmd/peer` gains no compile-time edge to `bgp/plugins/rib` (`make ze-plugin-boundary-check` stays green).
-- Family-scoped counts under a family-filtered summary (`rib_commands.go:681-695`).
+- Family-scoped counts under a family-filtered summary (`rib_commands.go`).
 - `/routes/filtered/{name}` and `/routes/noexport/{name}` keep returning empty lists until the filtered-storage spec lands.
 
 **Behavior to change:**
@@ -94,7 +94,7 @@ that reads as a valid answer.
 - `routes_imported` must stop being an alias of `routes_received`, or be documented as one at the API surface (G-2).
 - BMP peer rows must source their counts or omit them (G-3).
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - HTTP GET `/api/looking-glass/protocols/bgp` on the LG port, served by the birdwatcher API handler in `internal/component/lg/handler_api.go`.
@@ -131,7 +131,7 @@ that reads as a valid answer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Alice-LG tolerates an omitted or null count field | birdwatcher clients treat protocols entries as loosely typed | Must emit a sentinel instead of omitting | Read Alice-LG's own source, not a binding stub (`ai/rules/no-fabrication.md`) | unvalidated |
+| A-1 | Alice-LG tolerates an omitted or null count field | birdwatcher clients treat protocols entries as loosely typed | Must emit a sentinel instead of omitting | Read Alice-LG's own source, not a binding stub (`ai/rules/evidence.md`) | unvalidated |
 | A-2 | `received == accepted` is acceptable to operators if documented | learned 1158 accepted it deliberately | G-2 needs the racy pre-policy plumbing after all | Ask the user; re-read the race in `session_prefix.go` | unvalidated |
 
 ### Risks

@@ -53,7 +53,7 @@ configuration.md already uses `ze config migrate`. Original report was stale.
 ~~features.md: "IPv4 VPN" (ambiguous)~~
 
 Resolved: vpn plugin's `types.go` now registers `mpls-vpn` as the canonical
-SAFI name to align with the YANG schema (`ze-types.yang:261`) and
+SAFI name to align with the YANG schema (`ze-types.yang`) and
 configuration/architecture docs. All `.go`, `.ci`, and `.md` references
 collapsed to `ipv4/mpls-vpn`/`ipv6/mpls-vpn` in the family-registry refactor.
 

@@ -33,8 +33,8 @@ func probeCaps(bits ...int) bool {
 	if err != nil {
 		// Unreadable procfs: assume the capabilities are present rather than
 		// skip. Over-skipping silently removes coverage, which is the worse
-		// failure (ai/rules/no-test-deletion.md). But a guard that cannot
-		// evaluate must SAY so (ai/rules/fail-closed-guards.md): without this
+		// failure (ai/rules/testing.md). But a guard that cannot
+		// evaluate must SAY so (ai/rules/evidence.md): without this
 		// line a broken probe is indistinguishable from a genuine failure, and
 		// the next agent re-derives the root cause from a hang.
 		capsWarn("cannot read /proc/self/status", err)

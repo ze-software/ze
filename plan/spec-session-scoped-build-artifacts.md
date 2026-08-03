@@ -13,7 +13,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/core/paths/paths.go` - `ConfigDirFromBinary` (the constraint that shaped the design)
-4. `mk/test-functional.mk:52-136` - the existing isolated-test-binary mechanism
+4. `mk/test-functional.mk` - the existing isolated-test-binary mechanism
 5. `.claude/hooks/lib/session_id.py` - the ONE session-id resolver
 
 ## Task
@@ -33,7 +33,7 @@ and its lock, `tmp/qemu/`, `tmp/mutation-*`) — those are per-tree, not per-ses
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `mk/test-functional.mk:52-136` - the existing per-invocation isolated binary set
+- [ ] `mk/test-functional.mk` - the existing per-invocation isolated binary set
   → Decision: test binaries MUST keep canonical bare names (`ze`) inside a `bin/` subdir,
     because `.ci` tests exec them by bare name and the runner puts that dir first on PATH.
   → Constraint: the throwaway root's `bin/` subdir is deliberate — `ze` derives its
@@ -48,7 +48,7 @@ N/A — no protocol behavior changes.
   Bash via the `_session_id` shim. Inventing a second derivation is banned (it drifted for
   weeks before being consolidated — see spec-fixit-session-id-collision).
 - `tmp/s/<session-id>/` already exists as the per-session scratch root
-  (`scripts/dev/session-scratch.sh:78`) and is already reaped at SessionEnd with a 24h
+  (`scripts/dev/session-scratch.sh`) and is already reaped at SessionEnd with a 24h
   `--reap` backstop. This spec routes new artifacts INTO it rather than inventing a root.
 
 ## Current Behavior (MANDATORY)
@@ -59,12 +59,12 @@ N/A — no protocol behavior changes.
   → Constraint: relocating a binary MOVES its config/DB dir. The repo `etc/ze` holds live
     state (`database.zefs`), so dev binaries must stay under `<repo>/bin/` to keep resolving
     to `<repo>/etc/ze`. This is why dev binaries take a NAME suffix, not a new directory.
-- [ ] `internal/test/runner/runner.go:145-180,216-263` - `NewRunner` defaults
+- [ ] `internal/test/runner/runner.go,216-263` - `NewRunner` defaults
       `zePath=<base>/bin/ze`, `testPath=<base>/bin/ze-test` (env `ze.bin`/`ze.test.bin`
       override); `Build` compiles into those fixed paths with NO lock; `tmpDir` is
       `os.MkdirTemp("", "ze-functional-*")` (system temp).
-- [ ] `internal/test/cli/cmd_bgp.go:459-482` - `buildZe` same shared default.
-- [ ] `mk/test-functional.mk:94-136` - auto mode already isolates via
+- [ ] `internal/test/cli/cmd_bgp.go` - `buildZe` same shared default.
+- [ ] `mk/test-functional.mk` - auto mode already isolates via
       `tmp/testbin-pid-<make-PID>-<target>/bin/`, keyed on PID (not session).
 
 **Behavior to preserve:**
@@ -111,10 +111,10 @@ N/A — no protocol behavior changes.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Relocating a binary moves its config/DB dir | `internal/core/paths/paths.go:32-60,70-86` | dev binaries could move freely | read the producer | confirmed |
-| A-2 | `CLAUDE_CODE_SESSION_ID` reaches make/go subprocesses | `session_id.py:21-26` | need process-tree walk | resolver has 4-source fallback incl. minted cache | confirmed |
+| A-1 | Relocating a binary moves its config/DB dir | `internal/core/paths/paths.go,70-86` | dev binaries could move freely | read the producer | confirmed |
+| A-2 | `CLAUDE_CODE_SESSION_ID` reaches make/go subprocesses | `session_id.py` | need process-tree walk | resolver has 4-source fallback incl. minted cache | confirmed |
 | A-3 | Go build cache is keyed by source, not `-o` path, so per-session binaries only re-link | Go toolchain behavior | per-session builds would be expensive | timing of second build | unvalidated |
-| A-4 | `.ci` tests exec `ze` by bare name from the dir first on PATH | `mk/test-functional.mk:72-74`, `runner_exec.go:180-186` | suffixed test binaries would break tests | functional suite run | confirmed |
+| A-4 | `.ci` tests exec `ze` by bare name from the dir first on PATH | `mk/test-functional.mk`, `runner_exec.go` | suffixed test binaries would break tests | functional suite run | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -187,7 +187,7 @@ N/A — build/test plumbing only, no wire-visible behavior.
   `internal/test/runner/parsing.go` - scratch under session root
 - `scripts/dev/session-scratch.sh` - reap `bin/*-<sid>`
 - `.claude/hooks/pretool-bash.py` - accept session bin paths in `check_root_build`
-- `ai/rules/bash-output.md`, `ai/rules/testing.md`, `ai/INDEX.md` - discovery
+- `ai/rules/commands.md`, `ai/rules/testing.md`, `ai/INDEX.md` - discovery
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -202,7 +202,7 @@ N/A — build/test plumbing only, no wire-visible behavior.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | build-plumbing only |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if it names binary paths |
-| 12 | Internal architecture changed? | Yes | `ai/rules/testing.md` (Temporary Files), `ai/rules/bash-output.md` |
+| 12 | Internal architecture changed? | Yes | `ai/rules/testing.md` (Temporary Files), `ai/rules/commands.md` |
 | 16 | Changed files referenced by doc source anchors? | Yes | grep `docs/` for anchors on changed files |
 
 ## Files to Create
@@ -277,8 +277,8 @@ N/A — build/test plumbing only, no wire-visible behavior.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| Dev binaries could move to `tmp/s/<id>/bin/` freely | Binary location determines config/DB dir; repo `etc/ze` holds a live database | Read `paths.go:32-60,70-86` before implementing | Design changed to a NAME suffix for dev binaries; owner chose this trade-off |
-| Make could resolve the id by calling `session_id.py` | `session_id()` ALWAYS returns an id -- source 4 MINTS one keyed on the topmost ancestor when no CLI ancestor exists (`session_id.py:198-217,278-286`). A human's `make ze` would have invented a session and suffixed their binaries | Read the resolver before wiring `mk/session.mk` | Make keys off the exported `CLAUDE_CODE_SESSION_ID` only. Side-effect-free, and risk R-3 (subprocess latency) disappears |
+| Dev binaries could move to `tmp/s/<id>/bin/` freely | Binary location determines config/DB dir; repo `etc/ze` holds a live database | Read `paths.go,70-86` before implementing | Design changed to a NAME suffix for dev binaries; owner chose this trade-off |
+| Make could resolve the id by calling `session_id.py` | `session_id()` ALWAYS returns an id -- source 4 MINTS one keyed on the topmost ancestor when no CLI ancestor exists (`session_id.py,278-286`). A human's `make ze` would have invented a session and suffixed their binaries | Read the resolver before wiring `mk/session.mk` | Make keys off the exported `CLAUDE_CODE_SESSION_ID` only. Side-effect-free, and risk R-3 (subprocess latency) disappears |
 | `CLAUDE_PROJECT_DIR` is available to anchor the scratch root | It is exported to hooks but NOT into the shell that runs make (`python3 -c` in a Bash tool call prints unset) | Ran the suite, then checked where scratch actually landed | `DefaultScratchRoot` gained a go.mod repo-root walk; without it the scratch routing was silently inert |
 | Session scoping should apply to the pre-built binary LOOKUP as well as the build | Scoping exists to stop one session's build overwriting another's binary; reading an existing binary clobbers nothing. Scoping the lookup broke `ZE_TEST_NO_BUILD` for a binary pre-built into the shared `bin/` | `TestBuildZeNoBuild` + `TestBuildNoBuildSkip` went red | `FindPrebuilt` tries the session bin/ then the shared bin/; an explicit `ZE_BIN`/`ZE_TEST_BIN` stays exempt so a miss there is still fatal. The two tests were left untouched -- they were right |
 
@@ -311,7 +311,7 @@ question, which is why dev binaries take a suffix and test binaries take a direc
 
 ## Known Limitations
 - Shared-by-design artifacts stay shared (timings, verify logs/lock, qemu, mutation caches).
-- `ZE_SUFFIX=<name>` remains explicitly non-isolated (documented at `mk/test-functional.mk:100-108`).
+- `ZE_SUFFIX=<name>` remains explicitly non-isolated (documented at `mk/test-functional.mk`).
 - Port-allocation locks stay global by design (`internal/test/runner/ports.go`).
 
 ## RFC Documentation
@@ -341,7 +341,7 @@ N/A — no protocol behavior.
   a session id for humans, and the scratch anchor being silently inert (both in Mistake Log).
 
 ### Documentation Updates
-- `ai/rules/bash-output.md`: new section on session-suffixed binaries (use the `ze-path`
+- `ai/rules/commands.md`: new section on session-suffixed binaries (use the `ze-path`
   target, never hardcode the shared binary name).
 - `ai/rules/testing.md` Temporary Files: session scratch dir is the preferred location, and
   the runner now roots its working dirs there.
@@ -372,7 +372,7 @@ N/A — no protocol behavior.
 | AC-4 | Done | `TestSessionBinDirIsolatesSessions` | two ids, two paths |
 | AC-5 | Done | `NewRunner` uses `sessionpath.BinDir`; suites built under the session root | |
 | AC-6 | Done | `TestSessionPathsFallBackToShared` | |
-| AC-7 | Done | override branches left intact (`runner.go:155-167`) | |
+| AC-7 | Done | override branches left intact (`runner.go`) | |
 | AC-8 | Done | live `ze-functional-*` dir observed under the session root during the encode run; `TestDefaultScratchRootFallsBackToRepoRoot` | |
 | AC-9 | Done | reaper fixture: dead session's binary + scratch removed, shared and live preserved | |
 | AC-10 | Done | `TestSessionPathsRejectUnsafeID`; unsafe id falls back to the shared path | |
@@ -398,7 +398,7 @@ N/A — no protocol behavior.
 | `Makefile`, `mk/test-functional.mk`, `mk/test-integration.mk` | Modified | |
 | `internal/test/runner/{runner,parsing,runner_exec}.go`, `internal/test/cli/{cmd_bgp,cmd_web}.go`, `internal/test/tmpfs/{tmpfs,cleanup}.go` | Modified | |
 | `scripts/dev/session-scratch.sh`, `.claude/hooks/session-end-scratch.sh`, `.claude/hooks/pretool-bash.py` | Modified | |
-| `ai/rules/bash-output.md`, `ai/rules/testing.md` | Modified | |
+| `ai/rules/commands.md`, `ai/rules/testing.md` | Modified | |
 
 ### Audit Summary
 - **Total items:** 24 (4 requirements, 10 ACs, 9 tests, 1 placement decision)
@@ -422,23 +422,23 @@ N/A — no protocol behavior.
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | QEMU netns driver hardcodes the unsuffixed DUT binary name while the make target now builds a suffixed one, so it execs a path that never exists under a session. No CI covers `ze-qemu-*` | `scripts/evidence/netns_qemu.py:151,157` vs `mk/test-integration.mk:385-387` | fixed: driver takes the paths from `ZE_QEMU_*`; target passes and exports them; new mutation-verified gate |
-| 2 | BLOCKER | `make ze-validate` red (exit 2), a structural gate that blocks commits. 3 unwired exports mine, 10 pre-existing pulled into scope because the checker is changed-file scoped (`validate.py:430`) | `internal/test/{sessionpath,cli,runner,tmpfs}` | fixed via 3, 4 and the dead-code removals; gate now exits 0 |
-| 3 | ISSUE | `BinName` was dead code -- dev-binary suffixing lives in `mk/session.mk`, so the Go twin had no production caller | `internal/test/sessionpath/sessionpath.go:127` | fixed: deleted, with its test |
+| 1 | BLOCKER | QEMU netns driver hardcodes the unsuffixed DUT binary name while the make target now builds a suffixed one, so it execs a path that never exists under a session. No CI covers `ze-qemu-*` | `scripts/evidence/netns_qemu.py,157` vs `mk/test-integration.mk` | fixed: driver takes the paths from `ZE_QEMU_*`; target passes and exports them; new mutation-verified gate |
+| 2 | BLOCKER | `make ze-validate` red (exit 2), a structural gate that blocks commits. 3 unwired exports mine, 10 pre-existing pulled into scope because the checker is changed-file scoped (`validate.py`) | `internal/test/{sessionpath,cli,runner,tmpfs}` | fixed via 3, 4 and the dead-code removals; gate now exits 0 |
+| 3 | ISSUE | `BinName` was dead code -- dev-binary suffixing lives in `mk/session.mk`, so the Go twin had no production caller | `internal/test/sessionpath/sessionpath.go` | fixed: deleted, with its test |
 | 4 | ISSUE | `SharedBinDir`, `ScratchRoot` exported with no cross-package caller | same file | fixed: unexported |
 | 5 | ISSUE | Binary reaping inherited the 24h-idle heuristic that was safe only for scratch: scratch is recreated by `mkdir -p`, a binary is not, so a live-but-idle session could lose the binary it is about to run | `scripts/dev/session-scratch.sh` `reap_binaries` | fixed: `--reap` also requires the BINARY to be idle; `--clean`/SessionEnd stay unconditional |
 | 6 | ISSUE | New make target undiscoverable: absent from `ai/INDEX.md` and `make help` | `ai/INDEX.md`, `Makefile` | fixed: Dev Tools row + help line |
 | 7 | NOTE | `verifyPrebuilt` resolved each binary independently, so `ze` and `ze-test` could come from different directories while `.ci` tests exec siblings by bare name off one PATH entry | `internal/test/runner/runner.go` | fixed: `FindPrebuiltDir` resolves ONE directory holding every name |
 | 8 | NOTE | Id validation guarded only the env source; `make ZE_SESSION_ID=../../etc` still reached the `-o` path (command-line vars outrank file assignments) | `mk/session.mk` | fixed: validation on the resolved id + `override` |
-| 9 | NOTE | QEMU copy-paste hint printed unsuffixed names | `scripts/evidence/qemu-run.py:426` | fixed: prints the exported `ZE_QEMU_*` paths |
-| 10 | NOTE | 10 `docs/` files reference `bin/ze` | `docs/` | acknowledged, no change: correct for humans and CI (off-session); agents covered by the new `ai/rules/bash-output.md` section |
+| 9 | NOTE | QEMU copy-paste hint printed unsuffixed names | `scripts/evidence/qemu-run.py` | fixed: prints the exported `ZE_QEMU_*` paths |
+| 10 | NOTE | 10 `docs/` files reference `bin/ze` | `docs/` | acknowledged, no change: correct for humans and CI (off-session); agents covered by the new `ai/rules/commands.md` section |
 
 ### Fixes applied
 - `scripts/evidence/netns_qemu.py`: `_qemu_bin()` resolves each DUT binary from `ZE_QEMU_BIN` / `ZE_QEMU_STRIPPED_BIN` / `ZE_QEMU_TEST_BIN`; the literal survives only as the standalone default. `setcap_binaries` and `run_suite` use them.
 - `mk/test-integration.mk`: the netns target passes the three paths, and all three are exported for helper scripts.
 - `scripts/dev/qemu_binary_paths_test.py` (new, 6 tests): built names carry `$(ZE_BIN_SUFFIX)`, the target passes them, the driver reads them, no hardcoded literal outside the fallback, env override wins, default preserved. Mutation-verified: reintroducing the literal turns it red.
 - `internal/test/sessionpath`: `BinName` deleted; `SharedBinDir`/`ScratchRoot` unexported; `FindPrebuilt` replaced by directory-resolving `FindPrebuiltDir`.
-- Dead code removed with owner approval: `internal/test/tmpfs/cleanup.go` (117 lines, zero external refs; the live twin is `WriteToTemp`, used at `runner_exec.go:75`), `Tmpfs.AddFileWithMode`, `(*Runner).Timings`.
+- Dead code removed with owner approval: `internal/test/tmpfs/cleanup.go` (117 lines, zero external refs; the live twin is `WriteToTemp`, used at `runner_exec.go`), `Tmpfs.AddFileWithMode`, `(*Runner).Timings`.
 - Unexported in-package-only symbols: `getNicks` (`internal/test/cli`), `resolveTmpfsPaths` / `defaultLimits` / `parseWithLimits` (`internal/test/tmpfs`).
 - `scripts/dev/session-scratch.sh`: idle guard on `reap_binaries`; `session_scratch_test.py` gained 4 tests. Its `unittest.main()` block sat mid-file, so appended classes were never discovered -- moved to the end (that is why the first run reported 14 tests, not 18).
 - `mk/session.mk`: `ZE_SESSION_ID ?=` + validation on the resolved id + `override`.
@@ -447,10 +447,10 @@ N/A — no protocol behavior.
 ### Run 2 (fresh pass over the fixes themselves)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 11 | ISSUE | Deleting `cleanup.go` left it named in the GENERATED discovery index; `commit_helper.py`'s discovery-index gate blocks a commit that leaves one stale | `ai/DOCS-TO-CODE.md:1471` | fixed: `make ze-discovery-index` (also added the new `internal/test/sessionpath` row to `ai/PACKAGE-MAP.md`) |
-| 12 | ISSUE | Same deletion left a stale row in hand-written docs | `docs/functional-tests.md:1692` | fixed: row removed |
+| 11 | ISSUE | Deleting `cleanup.go` left it named in the GENERATED discovery index; `commit_helper.py`'s discovery-index gate blocks a commit that leaves one stale | `ai/DOCS-TO-CODE.md` | fixed: `make ze-discovery-index` (also added the new `internal/test/sessionpath` row to `ai/PACKAGE-MAP.md`) |
+| 12 | ISSUE | Same deletion left a stale row in hand-written docs | `docs/functional-tests.md` | fixed: row removed |
 | 13 | ISSUE | Editing two rule files left the generated rules digest stale, failing `make ze-doc-test` (exit 2) | `ai/rules/CONDENSED.md` | fixed: `make ze-rules-condensed`; `ze-doc-test` now exits 0 |
-| 14 | NOTE | `ze-qemu-debug` passed only `ZE_BIN`, so the runner's own `testPath` fell back to a default that is not what the target cross-compiled (pre-existing; the suffix turns an accidental match into a permanent divergence) | `mk/test-integration.mk:334` | fixed: passes `ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)"` |
+| 14 | NOTE | `ze-qemu-debug` passed only `ZE_BIN`, so the runner's own `testPath` fell back to a default that is not what the target cross-compiled (pre-existing; the suffix turns an accidental match into a permanent divergence) | `mk/test-integration.mk` | fixed: passes `ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)"` |
 
 ### Run 3 (fresh full-diff pass, different lens: validators and name collisions)
 | # | Severity | Finding | Location | Action |

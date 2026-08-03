@@ -68,7 +68,7 @@ one line above escaped the one check written to stop that.
    middle state had correct-looking code, a passing fixture named for the property,
    and a docstring asserting a fallback that could never fire. The fixture only
    exercised the one sub-case that worked (a table before the FIRST func). The next
-   author would have built on the claim. `ai/rules/no-fabrication.md` applies to
+   author would have built on the claim. `ai/rules/evidence.md` applies to
    comments about your own code, not only to claims about someone else's.
 
 5. **Fixture ORDER can hide the bug the fixture is named for.** The G1 fixture file

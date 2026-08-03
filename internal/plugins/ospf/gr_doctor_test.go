@@ -1,6 +1,6 @@
 // VALIDATES: the Graceful Restart NVS readiness doctor check warns only when the restarter is
 // enabled AND the non-volatile restart-fact store is unwritable, and stays silent otherwise
-// (spec-ospf-ext-9, ai/rules/doctor-checks.md).
+// (spec-ospf-ext-9, ai/rules/repo-maintenance.md).
 // PREVENTS: a spurious GR NVS warning when GR is off or the store is fine, or a missed warning
 // that a planned restart cannot persist its grace deadline.
 package ospf

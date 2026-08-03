@@ -30,7 +30,7 @@ built the integration layer that connects them to the `flowexport.Exporter`.
   logged no-op. This means the whole `flowexport` package compiles and unit-tests
   on darwin while the netlink paths are exercised on Linux/CI.
 - **BGP enrichment uses the typed `ribevents.BestChange` handle** (per
-  plugin-design.md: no raw bus.Subscribe). The in-process EventBus is captured via
+  plugins.md: no raw bus.Subscribe). The in-process EventBus is captured via
   `Registration.ConfigureEventBus`. A `bgpEnrichBuilder` folds best-change batches
   into a `map[Prefix]ASEntry` and a 1s ticker rebuilds an immutable radix tree,
   swapped atomically into the `enrich.Enricher` so per-flow readers never see a

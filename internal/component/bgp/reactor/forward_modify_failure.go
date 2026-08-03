@@ -21,7 +21,7 @@ import (
 // a modification that did not fit was indistinguishable at the call site from
 // a route that needed no modification, and every caller forwarded the route
 // UNMODIFIED. That leaks whatever the policy exists to strip
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // The set is CLOSED. Every value is a compile-time constant and reaches
 // Prometheus as the `reason` label of ze_bgp_update_modify_failed_total, so a
@@ -66,7 +66,7 @@ const (
 // modifySite names the rail that could not apply a modification. It is an
 // attribute of the shared warning rather than a different message per call
 // site, because a log scanner matches on the leading phrase and rewording it
-// per site breaks that (ai/rules/error-messages.md).
+// per site breaks that (ai/rules/cli.md).
 //
 // The set is closed and every value is a compile-time constant, so it never
 // allocates and a peer cannot drive it.
@@ -153,7 +153,7 @@ const (
 
 // String returns the stable Prometheus label for the failure. Every branch
 // returns a compile-time constant, so this never allocates
-// (ai/rules/no-sprintf-alloc.md). The default keeps the label set closed
+// (ai/rules/performance.md). The default keeps the label set closed
 // against a value no constant above produced.
 func (f modifyFailure) String() string {
 	switch f {
@@ -216,7 +216,7 @@ func (f modifyFailure) failed() bool { return f != modifyFailureNone }
 // the same failure on two lines per destination (this one and the one
 // buildModifiedPayload emits from inside), reworded five ways, at the peer's
 // send rate. Folding them here leaves one rate-limited line with a stable
-// leading phrase a scanner can match (ai/rules/error-messages.md).
+// leading phrase a scanner can match (ai/rules/cli.md).
 //
 // Safe on a nil receiver and a nil registry, which is the state whenever
 // metrics are not configured.
@@ -231,7 +231,7 @@ func (r *Reactor) recordModifyFailure(f modifyFailure, site, peer string) {
 // peer is already a netip.Addr.
 //
 // It exists so those rails do not pay an addr.String() allocation per
-// destination per failing UPDATE (ai/rules/no-sprintf-alloc.md). slog formats
+// destination per failing UPDATE (ai/rules/performance.md). slog formats
 // the value through its Stringer inside the handler, so the conversion happens
 // only on the roughly one line per second that is actually emitted -- never on
 // the ones the limiter swallows.
@@ -244,7 +244,7 @@ func (r *Reactor) recordModifyFailureAddr(f modifyFailure, site string, peer net
 
 // modifyFailurePhrase is the one leading phrase every modify failure carries, so
 // a log scanner or an alert matches one string rather than five site-specific
-// rewordings (ai/rules/error-messages.md). The rail is the "site" attribute.
+// rewordings (ai/rules/cli.md). The rail is the "site" attribute.
 const modifyFailurePhrase = "modification failed, suppressing route"
 
 // countModifyFailure increments the counter and asks the rate limiter whether

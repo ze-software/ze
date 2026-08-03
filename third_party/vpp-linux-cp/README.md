@@ -41,7 +41,7 @@ Ze talks to VPP's `linux-cp` plugin through generated Go bindings
 (`vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go`). **A generated binding stub tells
 you a field exists. It cannot tell you what the foreign system does with it.**
 Reading the stub and inferring VPP's behaviour is fabrication, banned by
-`ai/rules/no-fabrication.md`.
+`ai/rules/evidence.md`.
 
 This is not a hypothetical. Twice in one day (2026-07-16) and across three
 earlier sessions, agents read `lcp.ba.go` and inferred VPP's netns semantics from
@@ -158,6 +158,6 @@ shasum -a 256 third_party/vpp-linux-cp/LICENSE third_party/vpp-linux-cp/src/*
 | `internal/plugins/iface/vpp/lcp.go` | Ze's caller: `SetupLCPPair` via `lcp_itf_pair_add_del`. |
 | `internal/component/vpp/startupconf.go` | Emits the `linux-cp { default netns ... }` stanza parsed by `lcp_itf_pair_config` (`src/lcp_interface.c:575-616`), which calls `lcp_set_default_ns` (`src/lcp.c:50`). |
 | `docs/guide/vpp.md` | The operator guide, corrected against this source. |
-| `ai/rules/no-fabrication.md` | The rule this directory serves. |
+| `ai/rules/evidence.md` | The rule this directory serves. |
 </content>
 </invoke>

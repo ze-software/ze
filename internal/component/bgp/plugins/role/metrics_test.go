@@ -134,7 +134,7 @@ func clearFilterState(t *testing.T) {
 // VALIDATES: every path where OTCIngressFilter/OTCEgressFilter refuses a route
 // increments its reason-labeled counter, so the drop is observable.
 // PREVENTS: role-based route suppression being silently invisible to operators
-// (ai/rules/fail-closed-guards.md: a guard must deny AND say something).
+// (ai/rules/evidence.md: a guard must deny AND say something).
 func TestRoleDropsAreCounted(t *testing.T) {
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)

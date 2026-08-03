@@ -83,7 +83,7 @@ removes; this spec is their home):
 **Behavior to change:** (only if user explicitly requested)
 - [list changes user asked for, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - The gokrazy make target (`mk/gokrazy.mk`, `ze-gokrazy` recipe): operator supplies USER/PASS, or ZEFS, or neither.
@@ -112,7 +112,7 @@ removes; this spec is their home):
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
-- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — new commands, CLI/monitor views, families, and handlers register via the existing registry and the core discovers them; no new per-feature field, switch case, or factory is added to a core/shared package (small-core/registration; `ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -238,16 +238,16 @@ removes; this spec is their home):
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | [ ] | Every leaf MUST have maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | [ ] | If native YANG constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for tab-completion. Register in `validators_register.go` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (action before identifier) | [ ] | `ai/rules/cli-grammar.md` |
+| CLI grammar (action before identifier) | [ ] | `ai/rules/cli.md` |
 | Editor autocomplete | [ ] | Automatic for YANG enum/type leaves. For dynamic values: `CompleteFn` in custom validator returns valid options |
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/pipe-completeness.md` |
-| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()`. Read `ai/rules/config-surface.md` before adding env-only settings |
-| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/doctor-checks.md`) |
+| Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/cli.md` |
+| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()`. Read `ai/rules/config.md` before adding env-only settings |
+| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | [ ] | If feature has observable state: define counters, register in telemetry, list metric names and labels in this spec |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -265,7 +265,7 @@ removes; this spec is their home):
 | 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | [ ] | `rfc/short/rfcNNNN.md` (summary) and `docs/features/rfc-status.md` (status ledger row with source anchors) |
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
@@ -344,9 +344,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | [feature-specific: e.g., "merge order correct", "error messages accurate"] |
 | Naming | [feature-specific: e.g., "JSON keys use kebab-case", "YANG uses kebab-case"] |
 | Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
-| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli-grammar.md` |
-| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugin-self-containment.md` |
-| Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/doctor-checks.md` |
+| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli.md` |
+| Registration over hardcoding | New command/view/family/handler is registry-registered and core-discovered; no new per-feature field, switch case, or factory added to a core/shared struct (incl. the CLI `Model`). See `ai/rules/plugins.md` |
+| Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/repo-maintenance.md` |
 | YANG validation | If YANG leaves added: every leaf has max native constraints (`range`/`length`/`pattern`/`enum`). Bare `type string` is a red flag. Custom validator + `CompleteFn` where native is insufficient |
 | Prometheus counters | If observable state exists: counters defined, registered, metric names listed |
 | Rule: no-layering | [if replacing something: "old code fully deleted"] |

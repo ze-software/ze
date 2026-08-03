@@ -5,7 +5,7 @@
 // the PXE boot options (RFC 4578 / RFC 2132) the installer relies on, plus the
 // device-filtering behavior the option provides. They require root (ports 67/68
 // are privileged) and, for the negative case, CAP_NET_ADMIN. Both are present in
-// the QEMU Alpine VM (see ai/rules/qemu-testing.md); otherwise the tests t.Skip.
+// the QEMU Alpine VM (see ai/rules/platform-linux.md); otherwise the tests t.Skip.
 //
 // See socket_integration_linux_test.go in ../tftpserver for why the positive
 // round-trip binds to "lo": locally-routed traffic ingresses on the loopback

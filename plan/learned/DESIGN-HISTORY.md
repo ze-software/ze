@@ -1349,7 +1349,7 @@ for benchmarks.
 | `cmd=api` lines in `.ci` files are documentation metadata, not execution directives | `internal/test/runner/` | The route must come from the plugin. (362, [414](414-forward-barrier.md), [483](483-exabgp-bridge-muxconn.md)) |
 | `expect=stderr:contains=` only fires inside `ExpectExitCode != nil` branch | `runner_exec.go` | Without `expect=exit:code=`, runner falls through to peer-wait path. ([623](623-fw-9-traffic-lifecycle.md)) |
 | Plugin subprocess stderr is consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's stderr match. ([451](451-rib-show-filters.md)) |
-| Background `.ci` processes do NOT get `ZE_READY_FILE` | `runner_exec.go:705-717` | Only foreground path writes daemon.pid + daemon.ready. ([623](623-fw-9-traffic-lifecycle.md)) |
+| Background `.ci` processes do NOT get `ZE_READY_FILE` | `runner_exec.go` | Only foreground path writes daemon.pid + daemon.ready. ([623](623-fw-9-traffic-lifecycle.md)) |
 | `parse/` test runner only extracts `stdin=config` and runs `ze validate` | `internal/test/runner/` | `cmd=foreground`, `tmpfs=`, `expect=stdout:contains=` are silently skipped. ([449](449-strip-private.md)) |
 | Python test library (`test/scripts/ze_api.py`) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. (291, 397, [497](497-check-ci-slowness.md)) |
 | Stored test state (registry, `sync.Once`) must Snapshot/Restore | `t.Cleanup` | `Reset` empties all globally registered decoders; fresh registry breaks tests. (240, [533](533-bgp-boundary-cleanup.md)) |

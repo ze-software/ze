@@ -5,7 +5,7 @@ package main
 // The tool's logic and unit tests live in migrate_module.py (--selftest); this
 // runs the real script and asserts a clean exit.
 //
-// Rule: ai/rules/module-tiers.md. Umbrella: plan/spec-tiers-0-umbrella.md.
+// Rule: ai/rules/architecture.md. Umbrella: plan/spec-tiers-0-umbrella.md.
 
 import (
 	"context"

@@ -51,10 +51,10 @@ race-instrumented, 64 burners on 32 cores) never reproduced it.
   `.Truncate`, `O_TRUNC` are all banned, since each reuses the inode. Every
   on-disk replacement goes through `atomicWrite`.
 - The deeper defect is UNFIXED and separate: OSPF opens a second `*BlobStore`
-  over the same file (`internal/plugins/ospf/auth_keystore.go:143`,
-  `internal/plugins/ospf/gr_nvs.go:71`), bypassing the `ze.config.dir` gate that
+  over the same file (`internal/plugins/ospf/auth_keystore.go`,
+  `internal/plugins/ospf/gr_nvs.go`), bypassing the `ze.config.dir` gate that
   exists so the functional suite does not contend on one store, while
-  `internal/core/statestore/statestore.go:11-20` documents that exact pattern as
+  `internal/core/statestore/statestore.go` documents that exact pattern as
   forbidden. That is what creates the precondition; this change removes the
   crash, not the contention.
 

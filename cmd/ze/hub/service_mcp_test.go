@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_mcp-gated MCP factory tests
+// Design: ai/rules/plugins.md -- ze_mcp-gated MCP factory tests
 //
 //go:build ze_mcp
 

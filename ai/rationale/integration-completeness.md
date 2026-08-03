@@ -1,6 +1,6 @@
 # Integration Completeness Rationale
 
-Why: `ai/rules/integration-completeness.md`
+Why: `ai/rules/completion.md`
 
 ## The "Bridge to Nowhere" Pattern
 

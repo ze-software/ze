@@ -11,7 +11,7 @@ Four checks:
      (`(none ...)` placeholders are allowed).
   3. Pointer budget: an entry in the curated `ai/LEARNED-INDEX.md` says what
      its target answers and stops, under 120 characters after the link
-     (`ai/rules/detail-budget.md`).
+     (`ai/rules/writing.md`).
   4. Dead names: a backticked `*.sh` filename or `c_*`/`check_*` function name
      in the hook-describing documents must name something in the tree. Check 1
      cannot see these: a bare `foo.sh` carries no `/`, so `candidate_paths`
@@ -123,7 +123,7 @@ SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
 LEARNED_NUMBER = re.compile(r"^plan/learned/(\d+)$")
 DESIGN = re.compile(r"^// Design:\s*(.+)$")
 
-# --- Check 3: pointer budget (ai/rules/detail-budget.md) --------------------
+# --- Check 3: pointer budget (ai/rules/writing.md) --------------------
 POINTER_BUDGET = 120
 INDEX_FILE = "ai/LEARNED-INDEX.md"
 # `- [760](plan/learned/760-name.md) -- description`: the budget governs the
@@ -139,7 +139,7 @@ INDEX_BUDGET_BLOCKING = True
 NAME_LINT_FILES = (
     "plan/learned/HOOK-FRICTION.md",
     "plan/learned/RECURRING-PATTERNS.md",
-    "ai/rules/hook-mapping.md",
+    "ai/rules/repo-maintenance.md",
 )
 # Every check these documents describe is a top-level def in one of these.
 # Resolution reads `def` names, NEVER the `CHECKS` registry tuples: the guard
@@ -214,7 +214,7 @@ def gitignored(paths: list[str]) -> set[str]:
     """Of `paths`, the ones git ignores (generated / local-state artifacts).
 
     One batched `git check-ignore --stdin` call, never one fork per path
-    (ai/rules/no-fork-loops.md). Exit status 1 means "none ignored", which is
+    (ai/rules/commands.md). Exit status 1 means "none ignored", which is
     not an error here, so the call is unchecked.
     """
     if not paths:
@@ -528,7 +528,7 @@ def main() -> int:
             print(
                 f"{len(over_budget)} index entr(ies) over the "
                 f"{POINTER_BUDGET}-character pointer budget "
-                f"(report-only; see ai/rules/detail-budget.md)",
+                f"(report-only; see ai/rules/writing.md)",
                 file=sys.stderr,
             )
 

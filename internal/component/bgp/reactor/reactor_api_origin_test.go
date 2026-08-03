@@ -88,7 +88,7 @@ func TestAnnounceAS4PathFromSharedResolver(t *testing.T) {
 // VALIDATES: buildBatchAnnounceUpdate and buildRIBRouteUpdate return nil, having
 // written nothing, and each logs a line naming the route or its family.
 // PREVENTS: a truncated UPDATE going out, and a silent drop with nothing said
-// (ai/rules/fail-closed-guards.md: fail closed OR say something -- both, here).
+// (ai/rules/evidence.md: fail closed OR say something -- both, here).
 func TestAnnounceOversizeDropsWithNamedLog(t *testing.T) {
 	// A COMMUNITIES attribute far larger than the 256-byte region below.
 	comms := make(attribute.Communities, 200) // 800 octets

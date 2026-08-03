@@ -153,7 +153,7 @@ func gcmWireProposal(protocolID uint8) wire.Proposal {
 // VALIDATES: the readers of a wire SA payload fill IsAEAD from the Transform ID they
 // read. wireProposalsToESP and wireProposalsToIKE both go through
 // crypto.NewEncryptionTransform.
-// PREVENTS: the zero-value trap of ai/rules/fail-closed-guards.md. Both readers once
+// PREVENTS: the zero-value trap of ai/rules/evidence.md. Both readers once
 // set the ID and the key length alone, so every proposal they built reported "not
 // AEAD" whatever cipher the peer named.
 func TestWireProposalReadersFillAEAD(t *testing.T) {

@@ -30,8 +30,8 @@ Points to complete:
 | 2 | "strip" — needs a **rebuild**, not an in-place mask (see the constraint below) |
 | 3 | "propagate" — set the Transitive bit if clear, and clear the Partial bit |
 | 4 | "inherit" — already the shipped behavior; it becomes the explicit default of the new leaf |
-| 5 | (re-homed 2026-07-22 from `spec-fixit-tombstone-ebgp-transitive`, closed as learned 1239) **eBGP RS-clients bypass the prepend funnel**, so Section 5.3's Transitive-clear does not reach them: `forward_rs.go:351-360` and `reactor_api_forward.go:526-535` hand out `update.WireUpdate` (the received wire) with no per-destination buffer; clearing the bit there would corrupt the shared wire for every other peer. Honoring 5.3 for RS-clients needs a third pooled slot mirroring `ebgpSlotASN4` plus release plumbing at `recent_cache.go:461,527` — a performance-versus-conformance decision for Thomas |
-| 6 | (re-homed 2026-07-22 from the same source; RULED by Thomas 2026-07-16, edit not yet applied) **Apply the input-side LOCAL_PREF precedent to `test/plugin/remove-private-as-export.ci`**: remove the RFC-invalid LOCAL_PREF from the source frame instead of blessing the tombstone marker in the expectation (`:51` still carries `C0FC0405010000`). Byte-mechanical; the target frame shape is proven at `remove-private-as-replace-peer.ci:39`. The full ruling and before/after hex table are in git history of the closed spec and in `plan/deferrals/fixit-tombstone-ebgp-transitive.md` |
+| 5 | (re-homed 2026-07-22 from `spec-fixit-tombstone-ebgp-transitive`, closed as learned 1239) **eBGP RS-clients bypass the prepend funnel**, so Section 5.3's Transitive-clear does not reach them: `forward_rs.go` and `reactor_api_forward.go` hand out `update.WireUpdate` (the received wire) with no per-destination buffer; clearing the bit there would corrupt the shared wire for every other peer. Honoring 5.3 for RS-clients needs a third pooled slot mirroring `ebgpSlotASN4` plus release plumbing at `recent_cache.go,527` — a performance-versus-conformance decision for Thomas |
+| 6 | (re-homed 2026-07-22 from the same source; RULED by Thomas 2026-07-16, edit not yet applied) **Apply the input-side LOCAL_PREF precedent to `test/plugin/remove-private-as-export.ci`**: remove the RFC-invalid LOCAL_PREF from the source frame instead of blessing the tombstone marker in the expectation (`:51` still carries `C0FC0405010000`). Byte-mechanical; the target frame shape is proven at `remove-private-as-replace-peer.ci`. The full ruling and before/after hex table are in git history of the closed spec and in `plan/deferrals/fixit-tombstone-ebgp-transitive.md` |
 
 → Constraint: **"strip" needs a rebuild rather than an in-place mask.** The draft
 allows either a real removal or a Transitive-clear, but is explicit that they are not
@@ -41,7 +41,7 @@ forwarded path attributes (requires rebuild), or by clearing the Transitive bit
 RFC 4271 Section 5). Note that clearing the Transitive bit does not remove the marker
 from the wire; a recognizing peer will still see it. If complete removal is required,
 the implementation MUST rebuild the path attributes." Ze's egress path masks bits in a
-pooled per-destination buffer (`clearTombstoneTransitive`, `wireu/tombstone.go:50`,
+pooled per-destination buffer (`clearTombstoneTransitive`, `wireu/tombstone.go`,
 reached from `rewriteASPathPrepend`); it does not rebuild there. So "strip" as an
 operator would read the word (the marker is gone) is a new capability at that seam, not
 a flag on the existing one.
@@ -106,9 +106,9 @@ Section 5 requires Partial only for unrecognized attributes) is not specific to
 inherit bullet is describing what a *non-recognizing* speaker does.
 
 **Ze sets Partial nowhere.** Verified 2026-07-16: `attrDiscardFlags`
-(`internal/component/bgp/message/attr_discard.go:60-62`) computes
+(`internal/component/bgp/message/attr_discard.go`) computes
 `0x80 | (originalFlags & 0x50)`; the mask `0x50` keeps only Transitive (0x40) and
-Extended Length (0x10), so Partial (0x20, `attribute.FlagPartial`, `attribute.go:133`)
+Extended Length (0x10), so Partial (0x20, `attribute.FlagPartial`, `attribute.go`)
 is **cleared** at generation. Its own doc comment at `:53` says so: "Sets Optional bit,
 preserves Transitive and Extended Length bits, clears Partial." No other producer in
 `wireu/`, `message/`, or `attribute/` sets 0x20 on a marker.
@@ -137,7 +137,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 ### Architecture Docs
 - [ ] `docs/architecture/route-selection.md` - names the draft at `:54`
   → Constraint: a marker does not change route selection; the route continues.
-- [ ] `ai/rules/config-surface.md` + `ai/rules/config-naming.md` - the policy leaf is operator-facing per-neighbor config
+- [ ] `ai/rules/config.md` + `ai/rules/config.md` - the policy leaf is operator-facing per-neighbor config
   → Constraint: YANG, not env var; kebab-case; an `enumeration`, never a bare string.
 
 ### RFC Summaries (MUST for protocol work)
@@ -154,9 +154,9 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` (`:50`) masks the Transitive bit in a pooled per-destination buffer; ~~`isTombstoneCode` (`:29-31`) recognises 252 and 253~~ (superseded 2026-07-22: learned 1237 deleted `isTombstoneCode` and the dual-recognition shim; the single code point is `attribute.AttrTombstone = 252` and the egress funnel gates on it directly, `aspath_rewrite.go:528`); `WriteTombstone` writes the marker. This is the whole of ze's Section 5.3 implementation: mask-only, no rebuild, no policy selection
-- [ ] `internal/component/bgp/message/attr_discard.go` - `attrDiscardFlags` (`:60-62`) is `0x80 | (originalFlags & 0x50)`, clearing Partial; comment at `:53` states it. Comment at `:55-59` records the architectural reason the egress rule lives in `wireu` and not here: "The marker is stamped at receive time, where the destination is not yet known ... Section 5.3's egress rule ... is enforced per destination on the EBGP wire path, in wireu.rewriteASPathPrepend, not here"
-- [ ] `internal/core/bgp/attribute/attribute.go` - `FlagPartial = 0x20` (`:133`), `IsPartial` (`:147`); `AttrTombstone = 252` (`:66`)
+- [ ] `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` masks the Transitive bit in a pooled per-destination buffer; ~~`isTombstoneCode` recognises 252 and 253~~ (superseded 2026-07-22: learned 1237 deleted `isTombstoneCode` and the dual-recognition shim; the single code point is `attribute.AttrTombstone = 252` and the egress funnel gates on it directly, `aspath_rewrite.go`); `WriteTombstone` writes the marker. This is the whole of ze's Section 5.3 implementation: mask-only, no rebuild, no policy selection
+- [ ] `internal/component/bgp/message/attr_discard.go` - `attrDiscardFlags` is `0x80 | (originalFlags & 0x50)`, clearing Partial; comment at `:53` states it. Comment at `:55-59` records the architectural reason the egress rule lives in `wireu` and not here: "The marker is stamped at receive time, where the destination is not yet known ... Section 5.3's egress rule ... is enforced per destination on the EBGP wire path, in wireu.rewriteASPathPrepend, not here"
+- [ ] `internal/core/bgp/attribute/attribute.go` - `FlagPartial = 0x20`, `IsPartial`; `AttrTombstone = 252`
 - [ ] `internal/component/bgp/wireu/aspath_rewrite.go` - `rewriteASPathPrepend`, the single eBGP egress funnel where the mask is applied per destination
 
 **Behavior to preserve:** (unless user explicitly said to change)
@@ -168,7 +168,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 **Behavior to change:** (only if user explicitly requested)
 - None until D-1 and D-2 are answered. Under D-1 reading (a), the default path gains a rebuild for non-transitive markers, which is a behavior change to the shipped default.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Per-neighbor / per-peer-group configuration selecting a forwarding policy (does not exist today — this is the surface to build).
@@ -178,7 +178,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 1. Config: a new YANG leaf under the neighbor / peer-group container resolves into the peer's runtime config
 2. Receive: the marker is stamped in place (`message/attr_discard.go`) or arrives from upstream, in the shared received wire
 3. Forward decision: per destination, the eBGP funnel `rewriteASPathPrepend` (`wireu/aspath_rewrite.go`) copies attributes into a pooled per-destination buffer
-4. Policy application: `isTombstoneCode` (`tombstone.go:29`) identifies the marker; today `clearTombstoneTransitive` (`:50`) unconditionally masks Transitive (the "inherit" eBGP rule)
+4. Policy application: `isTombstoneCode` (`tombstone.go`) identifies the marker; today `clearTombstoneTransitive` unconditionally masks Transitive (the "inherit" eBGP rule)
 5. Policy branch to build: inherit → mask (today); strip → **omit the attribute entirely, requiring a rebuild of the attributes section**; propagate → set Transitive, clear Partial
 6. The pooled buffer goes on the wire; the shared received wire is untouched
 
@@ -191,24 +191,24 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 
 ### Integration Points
 - `rewriteASPathPrepend` (`wireu/aspath_rewrite.go`) - the single eBGP egress funnel; the natural policy application point.
-- `clearTombstoneTransitive` (`wireu/tombstone.go:50`) - today's inherit implementation; becomes one branch of three.
-- `rebuildWithAttrDiscard` (`message/attr_discard.go:163`) - an EXISTING rebuild, but on the receive path, not the per-destination egress path. Study it before writing a second rebuild; do not duplicate it.
+- `clearTombstoneTransitive` (`wireu/tombstone.go`) - today's inherit implementation; becomes one branch of three.
+- `rebuildWithAttrDiscard` (`message/attr_discard.go`) - an EXISTING rebuild, but on the receive path, not the per-destination egress path. Study it before writing a second rebuild; do not duplicate it.
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
-- [ ] Registration over hardcoding — the policy is peer config resolved through the existing config path, not a new per-feature switch in a core struct (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — the policy is peer config resolved through the existing config path, not a new per-feature switch in a core struct (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Ze sets the Partial bit nowhere | `attrDiscardFlags` masks `0x50`, excluding `0x20` (`attr_discard.go:60-62`); no other 0x20 writer found in `wireu/`, `message/`, `attribute/` | D-2 already has a de-facto answer in code and the question changes shape | `grep -rn "0x20\|FlagPartial" internal/component/bgp/ internal/core/bgp/` | unvalidated |
+| A-1 | Ze sets the Partial bit nowhere | `attrDiscardFlags` masks `0x50`, excluding `0x20` (`attr_discard.go`); no other 0x20 writer found in `wireu/`, `message/`, `attribute/` | D-2 already has a de-facto answer in code and the question changes shape | `grep -rn "0x20\|FlagPartial" internal/component/bgp/ internal/core/bgp/` | unvalidated |
 | A-2 | `rewriteASPathPrepend` is the only eBGP egress funnel where policy can apply | `706b77b7d` states it, gated on `facts.isEBGP && !facts.rsClient` | Policy is unenforceable on some paths | Read `received_update.go`, `forward_rs.go`, `reactor_api_forward.go` | unvalidated |
-| A-3 | eBGP RS-clients bypass this funnel entirely | Recorded in `plan/spec-fixit-tombstone-ebgp-transitive.md` Known Limitations and its deferrals row: `forward_rs.go:351-360` and `reactor_api_forward.go:526-535` hand out `update.WireUpdate` with no per-destination buffer | Policy silently does not apply to RS-clients, an operator-visible hole | Read those two call sites | unvalidated |
+| A-3 | eBGP RS-clients bypass this funnel entirely | Recorded in `plan/spec-fixit-tombstone-ebgp-transitive.md` Known Limitations and its deferrals row: `forward_rs.go` and `reactor_api_forward.go` hand out `update.WireUpdate` with no per-destination buffer | Policy silently does not apply to RS-clients, an operator-visible hole | Read those two call sites | unvalidated |
 | A-4 | "inherit" as shipped is conformant for transitive markers | `706b77b7d` implemented the Section 5.3 MUST | The default is wrong, raising priority | Re-read Section 5.3 against `clearTombstoneTransitive` | unvalidated |
 
 ### Risks
@@ -280,7 +280,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 - AC-6 and AC-7 have no tests until D-2 and D-1 are answered. This is a blocker, not a deferral.
 
 ## Files to Modify
-- `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` (`:50`) becomes one branch of a three-way policy
+- `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` becomes one branch of a three-way policy
 - `internal/component/bgp/wireu/aspath_rewrite.go` - `rewriteASPathPrepend`, the funnel that must consult per-destination policy
 - BGP peer config resolution - carry the policy into the per-destination forwarding facts (alongside `isEBGP` / `rsClient`)
 - The BGP neighbor / peer-group YANG - the new policy leaf
@@ -288,7 +288,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs/config) | [ ] | BGP neighbor + peer-group containers. Read `ai/rules/config-surface.md` and `ai/rules/config-naming.md` |
+| YANG schema (new RPCs/config) | [ ] | BGP neighbor + peer-group containers. Read `ai/rules/config.md` and `ai/rules/config.md` |
 | YANG validation constraints | [ ] | `enumeration` (inherit/strip/propagate). A bare `type string` is a red flag |
 | Editor autocomplete | [ ] | Automatic for a YANG enum leaf |
 | Functional test for new RPC/API | [ ] | `test/plugin/tombstone-policy-*.ci` |
@@ -301,7 +301,7 @@ deliverable of this spec may be a **draft revision**, not a Go change.
 | 2 | Config syntax changed? | [ ] | `docs/guide/configuration.md` |
 | 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` — strip changes the attributes section length |
 | 9 | RFC behavior implemented, changed, or newly proven? | [ ] | `docs/features/rfc-status.md` if it carries a draft row |
-| 12 | Internal architecture changed? | [ ] | `docs/architecture/route-selection.md:54` |
+| 12 | Internal architecture changed? | [ ] | `docs/architecture/route-selection.md` |
 
 ## Files to Create
 - `test/plugin/tombstone-policy-strip.ci`
@@ -336,7 +336,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Tests: `TestForwardPolicyPropagateSetsTransitive`, `TestForwardPolicyPropagateClearsPartial`
    - Files: `tombstone.go`
    - Verify: red → implement → green
-4. **Phase: strip** — the rebuild branch; study `rebuildWithAttrDiscard` (`message/attr_discard.go:163`) first and do not duplicate it
+4. **Phase: strip** — the rebuild branch; study `rebuildWithAttrDiscard` (`message/attr_discard.go`) first and do not duplicate it
    - Tests: `TestForwardPolicyStripRebuilds`, `TestForwardPolicyNoMarkerNoRebuild`
    - Files: `tombstone.go`, `aspath_rewrite.go`, pooled buffer plumbing
    - Verify: the no-marker fast path allocates nothing new (AC-8)
@@ -358,7 +358,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Performance | No rebuild and no new allocation when the UPDATE carries no marker (AC-8) |
 | Naming | YANG kebab-case; the enum values match the draft's words exactly (inherit/strip/propagate) |
 | YANG validation | `enumeration`, not a bare string |
-| Registration over hardcoding | Policy rides the existing peer-config resolution; no new per-feature field bolted onto a core reactor struct (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | Policy rides the existing peer-config resolution; no new per-feature field bolted onto a core reactor struct (`ai/rules/plugins.md`) |
 | Rule: no-fabrication | Every Section 5.3 claim in the code comments quotes the draft verbatim |
 
 ### Deliverables Checklist (/implement stage 10)

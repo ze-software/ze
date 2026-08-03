@@ -57,7 +57,7 @@ only requires the row to be non-"Supported", it cannot count.
 3. **"Implemented" and "the MUST is met" are different claims, and the gate knows.**
    The §5.1-2 work made every UPDATE ze RE-CHUNKS compliant, and ze already
    originated only compliant UPDATEs. But two relay paths still reproduce a
-   received mixed shape (`forward_body.go:63-65` verbatim, `:99` whole emit), so
+   received mixed shape (`forward_body.go` verbatim, `:99` whole emit), so
    the MUST is not met. Tagging the new tests as `RFC requirement: RFC7606-5.1-2`
    was an overclaim, and `make ze-rfc-check` caught it within seconds: "annotated
    {gap} but IS tested". The annotation was narrowed and the tags removed.
@@ -102,12 +102,12 @@ only requires the row to be non-"Supported", it cannot count.
   correcting the seven-versus-eight under-count.
 - Codes 24, 25 and 128 are now validated on every received UPDATE. ze's own
   encoder cannot trip them: `IPv6ExtendedCommunities.Len()` is `len(e)*20`
-  (`core/bgp/attribute/community.go:486`), and nothing in ze emits 24 or 128.
+  (`core/bgp/attribute/community.go`), and nothing in ze emits 24 or 128.
 - Two pre-existing defects found and NOT fixed here, both reported:
   `message.Splitter.splitUpdateWithMP` silently drops IPv4 withdrawn/NLRI when an
-  UPDATE also carries an MP attribute (`update_split.go:344-348`), and
+  UPDATE also carries an MP attribute (`update_split.go`), and
   `EVPNGeneric.Len()` over-reports by 2 versus what `WriteTo` writes
-  (`plugins/nlri/evpn/types.go:915,917-919`).
+  (`plugins/nlri/evpn/types.go,917-919`).
 - §5.4 stays open by owner decision. The analysis behind it: ze has no EVPN
   forwarding plane, so it is only ever a relay for those routes; discarding
   unrecognized types would remove function from the PEs on either side while

@@ -35,7 +35,7 @@ exist and were confirmed on 2026-08-02:
 |------------|----------|
 | `modify-oversize-suppress.ci` | `test/plugin/modify-oversize-suppress.ci` |
 | `wire-edit-api-origin-order.ci` | `test/plugin/wire-edit-api-origin-order.ci` |
-| `TestModifyPathZeroAlloc` | `internal/component/bgp/reactor/forward_build_merge_test.go:235` |
+| `TestModifyPathZeroAlloc` | `internal/component/bgp/reactor/forward_build_merge_test.go` |
 
 The closure also recorded a reason the second planned file could not be written
 as specified. `plan/learned/1318-wire-edit-2-edit-apply.md` states it as a
@@ -50,7 +50,7 @@ injects 2, 3 and 5 before the caller's 8 and 32. That is why
 | Answer | Consequence |
 |--------|-------------|
 | Accepted | Nothing to build. Record the acceptance in `plan/learned/1318-wire-edit-2-edit-apply.md` so the next reader is not left to re-derive it, close the deferral row, and delete this spec. |
-| Rejected | Child 2 closed with an unmet wiring row, which `ai/rules/integration-completeness.md` says is never deferrable. The three planned `.ci` files must be written, and the closure record corrected to say the spec closed early. |
+| Rejected | Child 2 closed with an unmet wiring row, which `ai/rules/completion.md` says is never deferrable. The three planned `.ci` files must be written, and the closure record corrected to say the spec closed early. |
 
 Two of child 2's five wiring rows named EXISTING tests
 (`bgp-rs-community-strip-multi.ci`, `bgp-rs-fastpath-ebgp-shared.ci`) and are not
@@ -62,7 +62,7 @@ agent's.
 
 ## Required Reading
 
-- [ ] `ai/rules/integration-completeness.md` - "Wiring Tests (BLOCKING -- NEVER deferrable)"
+- [ ] `ai/rules/completion.md` - "Wiring Tests (BLOCKING -- NEVER deferrable)"
   → Constraint: a wiring row that cannot be written means the feature is blocked, not done.
 - [ ] `ai/rules/interop-and-goal-validation.md` - "Prove the test discriminates"
   → Constraint: a test that passes whether or not the behavior is present is not evidence. This is the exact argument behind the RR substitution.
@@ -76,14 +76,14 @@ agent's.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/reactor/forward_build_merge_test.go:235` - `TestModifyPathZeroAlloc`, the unit-test substitute
+- [ ] `internal/component/bgp/reactor/forward_build_merge_test.go` - `TestModifyPathZeroAlloc`, the unit-test substitute
 - [ ] `internal/component/bgp/reactor/forward_build.go` - `buildModifiedPayload`, the materialization the planned single-materialise test would have counted
 
 **Behavior to preserve:** every substitute test keeps passing whichever way the decision goes. No test is deleted to tidy the record.
 
 **Behavior to change:** none, unless Thomas rejects the substitution. Then three `.ci` files are added and no production code moves.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 A reader opening `plan/learned/1318-wire-edit-2-edit-apply.md` to find out what proved child 2's acceptance criteria.
@@ -111,7 +111,7 @@ A reader opening `plan/learned/1318-wire-edit-2-edit-apply.md` to find out what 
 | No unintended coupling | N-A | no production code in scope |
 | No duplicated functionality | No | fill during design: a new `.ci` must not duplicate what `modify-oversize-suppress.ci` already covers |
 | Zero-copy preserved where applicable | N-A | no code path touched |
-| Registration over hardcoding (`ai/rules/plugin-self-containment.md`) | N-A | no command, view, family, or handler added |
+| Registration over hardcoding (`ai/rules/plugins.md`) | N-A | no command, view, family, or handler added |
 
 ## Risks & Assumptions
 
@@ -120,7 +120,7 @@ A reader opening `plan/learned/1318-wire-edit-2-edit-apply.md` to find out what 
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The RR discrimination argument is sound: an RR `.ci` genuinely cannot tell merge-insert from append. | `plan/learned/1318-wire-edit-2-edit-apply.md` gotcha, and the attribute type codes it cites. | The RR test IS writable and must be written. | re-derive the type-code ordering from RFC 4271 Section 5 before asking | unvalidated |
 | A-2 | `modify-oversize-suppress.ci` covers everything `wire-edit-oversize-suppress.ci` would have. | Both name the same behavior. | The oversize row is unmet and the planned file is owed. | read the `.ci` and compare it against the planned wiring row | unvalidated |
-| A-3 | `TestModifyPathZeroAlloc` is an acceptable substitute for a `.ci`. | The closure recorded it as one. | A unit test is not a `.ci` (`ai/rules/functional-test-gate.md`), so the single-materialise row is unmet. | ask Thomas; this is the weakest of the three substitutions | unvalidated |
+| A-3 | `TestModifyPathZeroAlloc` is an acceptable substitute for a `.ci`. | The closure recorded it as one. | A unit test is not a `.ci` (`ai/rules/testing.md`), so the single-materialise row is unmet. | ask Thomas; this is the weakest of the three substitutions | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -181,7 +181,7 @@ A reader opening `plan/learned/1318-wire-edit-2-edit-apply.md` to find out what 
 ## Implementation Steps
 
 1. Validate A-1, A-2 and A-3 by reading the substitutes against the planned wiring rows. Do not ask before the evidence is assembled.
-2. Put the question to Thomas with the two tables above and the three assumption verdicts. Ask which way he wants it, never whether it may be skipped (`ai/rules/rfc-compliance.md`, `ai/rules/no-parking.md`).
+2. Put the question to Thomas with the two tables above and the three assumption verdicts. Ask which way he wants it, never whether it may be skipped (`ai/rules/rfc-compliance.md`, `ai/rules/completion.md`).
 3. Record his answer verbatim.
 4. Take the branch his answer selects.
 
@@ -190,7 +190,7 @@ A reader opening `plan/learned/1318-wire-edit-2-edit-apply.md` to find out what 
 |-------|------------------------------|
 | Completeness | All three substitutions judged, not only the RR one that has a recorded argument |
 | Correctness | The recorded reason is the argument, not the outcome |
-| Rule: `ai/rules/no-fabrication.md` | The answer is Thomas's, and is not inferred from the closure report |
+| Rule: `ai/rules/evidence.md` | The answer is Thomas's, and is not inferred from the closure report |
 | Registration over hardcoding | N-A |
 
 ## Known Limitations

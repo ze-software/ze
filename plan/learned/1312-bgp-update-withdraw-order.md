@@ -24,7 +24,7 @@ example, a reviewer checked the quotation against the RFC, and the quotation was
   prefix withdrawn in the legacy field and announced through MP_REACH.
 - **Annotated the MUST `{single-polarity: positive}`.** The obligation is to ACCEPT a
   message shape, so no input exists that must be rejected, and a negative test would
-  have to assert the absence of an error, which proves nothing (`ai/rules/tdd.md`).
+  have to assert the absence of an error, which proves nothing (`ai/rules/testing.md`).
 
 ## Consequences
 

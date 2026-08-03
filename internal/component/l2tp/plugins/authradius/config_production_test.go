@@ -134,7 +134,7 @@ func TestParseConfigCoAPortAbsentDisablesListener(t *testing.T) {
 }
 
 // TestParseConfigCoAPortBounds checks the YANG range at its edges, per
-// ai/rules/tdd.md boundary testing: last valid, first invalid below, first
+// ai/rules/testing.md boundary testing: last valid, first invalid below, first
 // invalid above.
 //
 // VALIDATES: the schema rejects out-of-range ports at parse time rather than

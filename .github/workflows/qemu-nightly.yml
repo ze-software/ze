@@ -11,7 +11,7 @@ name: qemu-nightly
 # `option=needs-linux:caps=...`, which makes them skip cleanly when the
 # capability is absent -- and THIS workflow is the place the capabilities are
 # present, so the skip is a redirection rather than a deletion
-# (ai/rules/qemu-testing.md, ai/rules/no-parking.md).
+# (ai/rules/platform-linux.md, ai/rules/completion.md).
 # TestCapabilityGatedTestsHaveAQemuHome fails if that redirection is ever
 # broken, either by dropping this target or by a gated test opting out of it.
 #

@@ -136,7 +136,7 @@ func (o *policyOwners) release(p SPParams) error {
 // caller that released first and then asked the kernel held no record over a policy that
 // was still installed whenever the kernel refused. That is a guard failing OPEN: the next
 // foreign peer's claim finds no owner, succeeds, and upserts over a LIVE tunnel's policy
-// -- the takeover SPParams.Owner exists to refuse (ai/rules/fail-closed-guards.md).
+// -- the takeover SPParams.Owner exists to refuse (ai/rules/evidence.md).
 //
 // Checking without releasing closes that window rather than compensating for it. The
 // record outlives the kernel policy, never the other way round, so there is no instant at

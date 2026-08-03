@@ -87,7 +87,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 // this marker exists to kill -- while reporting green.
 //
 // Keep it stable and keep it non-colliding: .ci tests fence with
-// `await=stderr:contains=sighup reload complete` (ai/rules/error-messages.md --
+// `await=stderr:contains=sighup reload complete` (ai/rules/cli.md --
 // one stable phrase per outcome, and no phrase a prefix of another).
 const reloadCompleteLine = "sighup reload complete\n"
 

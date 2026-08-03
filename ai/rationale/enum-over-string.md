@@ -1,6 +1,6 @@
 # Typed-Numeric-Over-String Rationale
 
-Why: `ai/rules/enum-over-string.md` (mechanical reference)
+Why: `ai/rules/go-standards.md` (mechanical reference)
 Related: `ai/rationale/memory.md`, `ai/rationale/buffer-first.md`
 
 ## Two concerns, different scope
@@ -45,7 +45,7 @@ scattered across learned summaries:
 
 1. Event payloads crossing component seams must be value-typed
    (`memory_feedback_no_cross_boundary_pointers`).
-2. Wire-facing paths must not allocate (`ai/rules/buffer-first.md`).
+2. Wire-facing paths must not allocate (`ai/rules/performance.md`).
 3. Registered names used for dispatch must be constants, not literals
    (`memory.md` "Constants for Command/Status Names").
 

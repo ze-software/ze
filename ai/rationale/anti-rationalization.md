@@ -1,6 +1,6 @@
 # Anti-Rationalization Rationale
 
-Why: `ai/rules/anti-rationalization.md`
+Why: `ai/rules/completion.md`
 
 ## Why Pre-Address Excuses
 

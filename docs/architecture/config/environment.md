@@ -34,7 +34,7 @@ An existing OS env var is NEVER overwritten by the config file value.
 | PROMOTE | Should be YANG config but currently env-only |
 | DEPR | Deprecated, superseded by another var |
 
-See `ai/rules/config-surface.md` for the YANG vs env-only decision framework.
+See `ai/rules/config.md` for the YANG vs env-only decision framework.
 
 ---
 
@@ -198,7 +198,7 @@ time. Calling `env.Get()` with an unregistered key aborts the process.
 abbreviated env var key stays for backward compatibility and the new
 YANG-aligned key is registered as an alias (or vice versa). `Get()` and
 `Set()` resolve aliases to the canonical key transparently. Precedence:
-canonical key value > alias key value. See `ai/rules/config-naming.md`.
+canonical key value > alias key value. See `ai/rules/config.md`.
 
 **Deprecation:** When an env var is superseded (e.g., `ze.fwd.pool.size` by
 `ze.fwd.pool.maxbytes`), mark it with `Deprecated: "replacement.key"`.
@@ -253,7 +253,7 @@ in `9a951f717`.
 
 Naming fixes are paired with PROMOTE work: when a var gets a YANG leaf, register
 the YANG-aligned name as an alias and mark the old abbreviated name deprecated.
-See `ai/rules/config-naming.md`.
+See `ai/rules/config.md`.
 
 ### Deprecation
 

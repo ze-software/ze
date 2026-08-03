@@ -32,7 +32,7 @@ resolved spec-fixit-ci-schedule-evidence AC-2, which the fuzz-only fallback coul
 
 ## Meta-lesson: editing a canonical source stales its generated mirror
 
-Editing `ai/rules/qemu-testing.md` silently staled the GENERATED `ai/rules/CONDENSED.md`
+Editing `ai/rules/platform-linux.md` silently staled the GENERATED `ai/rules/CONDENSED.md`
 (built by `rules_condensed.py`), tripping `ze-rules-condensed-check` -> the structural
 `ze-regen-check-readonly` gate -> a local `make ze-verify` red. Regenerate derived files
 after editing their source. Compounding trap: that generator + `CONDENSED.md` were

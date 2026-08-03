@@ -5,7 +5,7 @@
 // through the iface backend (iface.ListInterfaces / GetInterface /
 // DiscoverInterfaces). Relocated from the central cmd/show package so that
 // removing iface removes the whole `show interface` surface. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 
 package cmd
 

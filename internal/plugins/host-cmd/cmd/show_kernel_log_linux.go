@@ -135,7 +135,7 @@ const kmsgDeniedPrefix = "kernel log unavailable"
 // world-readable on a stock kernel, but a reader without CAP_SYSLOG is refused
 // while kernel.dmesg_restrict is 1 (the default on Debian/Ubuntu, and on the
 // GitHub runners). "open /dev/kmsg: operation not permitted" states the syscall
-// and hides both remedies, which is the failure ai/rules/error-messages.md is
+// and hides both remedies, which is the failure ai/rules/cli.md is
 // about; every other errno keeps its bare form because there is no remedy to
 // name.
 func kmsgOpenError(err error) error {

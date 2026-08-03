@@ -36,9 +36,9 @@ is a Ze strength to preserve.
 ### Architecture Docs
 - [ ] `docs/architecture/api/architecture.md` - gNMI server design
   → Constraint: (fill during design)
-- [ ] `ai/rules/plugin-self-containment.md` - providers must self-register
+- [ ] `ai/rules/plugins.md` - providers must self-register
   → Constraint: gnmi core discovers providers; no per-plugin switch in the gnmi package
-- [ ] `ai/rules/plugin-process-boundary.md` - how gnmi may call plugin state producers
+- [ ] `ai/rules/plugins.md` - how gnmi may call plugin state producers
   → Constraint: (fill during design -- in-process callback vs RPC dispatch)
 
 ### RFC Summaries (MUST for protocol work)
@@ -72,7 +72,7 @@ is a Ze strength to preserve.
   more YANG paths.
 
 ### Transformation Path
-1. `Get` parses paths as today (`get.go:40-49`).
+1. `Get` parses paths as today (`get.go`).
 2. DataType CONFIG: existing config-tree walk, unchanged.
 3. DataType STATE/OPERATIONAL: the path is matched against the provider registry; each matching provider returns its state subtree; results are encoded as TypedValue.
 4. DataType ALL: provider state fetched, config subtree fetched, merged (state wins on leaf conflicts, per gNMI convention decided during design).
@@ -87,14 +87,14 @@ is a Ze strength to preserve.
 
 ### Integration Points
 - `registry.Registration` - carries the state-provider registration.
-- `Get` (`get.go:21`) - dispatch point on `req.GetType()`.
+- `Get` (`get.go`) - dispatch point on `req.GetType()`.
 - Existing show/RPC state producers (BGP summary, interface state) - first providers.
 
 ### Architectural Verification
 - [ ] No bypassed layers (gnmi calls providers through the registry, not plugin packages)
 - [ ] No unintended coupling (gnmi package imports no plugin implementation)
 - [ ] No duplicated functionality (providers wrap existing state producers)
-- [ ] Registration over hardcoding -- providers register; no path switch inside gnmi (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding -- providers register; no path switch inside gnmi (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -182,7 +182,7 @@ is a Ze strength to preserve.
 |-------|------------------------------|
 | Completeness | AC-1..AC-6 with file:line |
 | Correctness | CONFIG output byte-identical to before; merge rule documented |
-| Registration over hardcoding | no per-plugin path switch in gnmi (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | no per-plugin path switch in gnmi (`ai/rules/plugins.md`) |
 | Data flow | gnmi -> registry -> provider only; no plugin imports in gnmi |
 
 ### Security Review Checklist

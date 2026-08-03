@@ -167,7 +167,7 @@ errors -- the schema simply is not there.
   found 2 BLOCKERs in the original work. Round 2 found a BLOCKER *introduced by a
   round-1 fix*. Round 3 found a BLOCKER in a DOC LINE round 2 had added. Round 4
   found that round 3's guard covered `-n` but not `-t`, which forges the same
-  green state more quietly. `ai/rules/critical-review.md`'s "every fix is new code
+  green state more quietly. `ai/rules/planning.md`'s "every fix is new code
   that needs a fresh pass" is not ceremony: three of the four BLOCKERs were
   introduced by fixes, all on a path that gates every commit. Budget for the loop,
   not for one review.

@@ -34,7 +34,7 @@ Fix: gate the direct startup on `!hasBGPBlock`, derived from `configTree["bgp"]`
 
 ### Bug 3: option=env inside stdin=peer block silently dropped (fixes 89, exposes fix for 88)
 
-`test/plugin/gr-marker-restart.ci` had `option=env:var=ze.log.bgp.gr:value=info` sitting inside the `stdin=peer:terminator=EOF_PEER` block. The test runner at `internal/test/runner/record_parse.go:96-110` only parses `expect=` and `action=` lines from peer blocks; `option=` lines are silently dropped. The env var had been a no-op since the test was written, and the same was true for `test/plugin/gr-marker-expired.ci`.
+`test/plugin/gr-marker-restart.ci` had `option=env:var=ze.log.bgp.gr:value=info` sitting inside the `stdin=peer:terminator=EOF_PEER` block. The test runner at `internal/test/runner/record_parse.go` only parses `expect=` and `action=` lines from peer blocks; `option=` lines are silently dropped. The env var had been a no-op since the test was written, and the same was true for `test/plugin/gr-marker-expired.ci`.
 
 With blob storage as the default backend, the shell-script-created marker at `<tmpfs>/meta/bgp/gr-marker` was invisible to ze (blob store resolves `meta/bgp/gr-marker` to a key inside `database.zefs` at the binary-relative configDir, not the test's tmpfs cwd). `89 gr-marker-restart` failed because ze never read the marker and sent R=0 in the GR capability instead of R=1. `88 gr-marker-expired` was passing vacuously: the `reject=stderr:pattern=GR restart marker found` matched because no marker code path ran AT ALL, not because the expired-marker code path correctly rejected the stale timestamp.
 
@@ -52,7 +52,7 @@ Fix: move the env options OUTSIDE the peer block and add `option=env:var=ze.stor
 - The 5 listed tests + the 2 gr-marker neighbors (87 cold-start, 88 expired) now exercise their documented code paths. 88 was previously green-but-wrong; it is now green-and-right.
 - `gr-marker-expired.ci` previously could not distinguish "marker expired and discarded" from "marker never read" -- it is now a real test.
 - A wide class of tests that were previously broken-but-passing because blob storage silently swallowed their filesystem setup now have an explicit opt-out via `ze.storage.blob=false`.
-- The `option=env` parser gap in `stdin=peer` blocks is now a known friction with a specific fix location (`record_parse.go:96-110`).
+- The `option=env` parser gap in `stdin=peer` blocks is now a known friction with a specific fix location (`record_parse.go`).
 
 ## Gotchas
 
@@ -79,7 +79,7 @@ Fix: move the env options OUTSIDE the peer block and add `option=env:var=ze.stor
 
 ### Reference
 
-- `internal/test/runner/record_parse.go:96-110` -- the peer-block parser that silently drops `option=` lines. Candidate for follow-up hardening.
+- `internal/test/runner/record_parse.go` -- the peer-block parser that silently drops `option=` lines. Candidate for follow-up hardening.
 
 ## Verification
 

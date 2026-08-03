@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc5880.md -- Section 6.7.3 (sequence persistence across restart)
-// Design: ai/rules/zefs-persistence.md -- runtime state lives in the managed zefs
+// Design: ai/rules/architecture.md -- runtime state lives in the managed zefs
 // store (<config-dir>/database.zefs), never as loose files.
 //
 // Sequence-number persistence for Meticulous Keyed authentication.

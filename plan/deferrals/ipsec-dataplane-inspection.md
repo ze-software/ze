@@ -1,6 +1,6 @@
 # Deferrals -- spec-ipsec-dataplane-inspection
 
-Source: `plan/spec-ipsec-dataplane-inspection.md`. Format: `ai/rules/deferral-tracking.md`.
+Source: `plan/spec-ipsec-dataplane-inspection.md`. Format: `ai/rules/planning.md`.
 
 Created 2026-08-02, at the same time as the spec. The spec's metadata table names this shard,
 and its Goal Gate "Deferral shard resolved: no live row without a destination" cannot be
@@ -35,5 +35,5 @@ it into the table above without a decision.
   agrees with an independent reader. `ai/rules/interop-and-goal-validation.md` makes it
   mandatory for the goal, not optional.
 - The `checkKernelModules` built-in false positive (`internal/component/doctor/checks_linux.go`)
-  is a live defect this spec walks into, so `ai/rules/no-parking.md` makes it in scope. It is
+  is a live defect this spec walks into, so `ai/rules/completion.md` makes it in scope. It is
   AC-10, not a deferral.

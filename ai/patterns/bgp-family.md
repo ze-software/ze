@@ -10,7 +10,7 @@ Related: `ai/patterns/plugin.md` (general plugin), `ai/patterns/registration.md`
 ## Why This Exists
 
 Adding a BGP family touches 10+ integration points across the codebase. The generic
-rules (`wiring-completeness.md`, `discovery-updates.md`) say "wire everything" but
+rules (`completion.md`, `repo-maintenance.md`) say "wire everything" but
 don't enumerate the family-specific touchpoints. Result: features ship in 2-3 commits
 instead of 1, with lint failures, missing JSON paths, unregistered decoders, and
 broken snapshot tests discovered after the fact.

@@ -5,7 +5,7 @@
 // diagnostic.RegisterDoctorCheck from init(). The transport is a
 // platform-specific raw-socket backend, not its own plugin Registration (the
 // single IS-IS component Registration is owned by isis-4), so it uses the
-// component-style registration path (ai/rules/doctor-checks.md "Components that
+// component-style registration path (ai/rules/repo-maintenance.md "Components that
 // are not plugins"). This keeps the entire check self-contained under transport/.
 
 package transport

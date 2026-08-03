@@ -86,7 +86,7 @@ func acceptedCertEncoding(sa *SA, p *wire.PayloadCERT) bool {
 //
 // Ze writes nothing to the SA until it accepts the whole chain. A refused message
 // therefore leaves RemoteCertRaw and RemoteCertChainRaw empty rather than half-filled
-// (ai/rules/fail-closed-guards.md, ai/rules/exact-or-reject.md).
+// (ai/rules/evidence.md, ai/rules/protocol.md).
 func storeRemoteCerts(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) error {
 	if len(certs) == 0 {
 		return nil
@@ -215,7 +215,7 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 	// self-signed certificate passes.
 	//
 	// Refuse it here. The caller treats what this function returns as the peer's
-	// identity (ai/rules/fail-closed-guards.md). ValidatePKIRefs refuses the same
+	// identity (ai/rules/evidence.md). ValidatePKIRefs refuses the same
 	// config at verify time. A peer that reaches this error changed its mode on the
 	// wire, or was never meant to send one.
 	caName := sa.PeerCfg.Auth.CACertificate
@@ -264,7 +264,7 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 		// The count is the actionable part. "signed by unknown authority" with no
 		// intermediate offered means the peer must send its chain. The same text with
 		// intermediates offered means the chain does not reach ca-certificate
-		// (ai/rules/error-messages.md).
+		// (ai/rules/cli.md).
 		return nil, fmt.Errorf(
 			"ike auth: remote certificate validation against ca-certificate %q, "+
 				"with %d intermediate certificate(s) supplied by peer %q: %w",
@@ -275,7 +275,7 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 	// certificate speaks for the peer ze configured. An authority that issues to many
 	// clients therefore authenticates every one of them as this peer, because the peer
 	// chooses the identity its signature covers. remote-id closes that, and this is the
-	// certificate half of it (ai/rules/fail-closed-guards.md).
+	// certificate half of it (ai/rules/evidence.md).
 	asserted, _ := assertedIdentity(sa.RemoteIDPayload)
 	want := sa.PeerCfg.Auth.RemoteID
 	if want == "" {
@@ -314,7 +314,7 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 // Ze does not truncate the chain here. ValidateCertificateChains refuses at commit a peer
 // whose certificate-count is smaller than the chain its PKI entry holds. The operator
 // therefore learns the bound is too small. Without that check the operator would watch a
-// peer fail to build a path (ai/rules/exact-or-reject.md).
+// peer fail to build a path (ai/rules/protocol.md).
 func localCertChain(entry *pki.CertificateEntry) [][]byte {
 	chain := make([][]byte, 0, 1+len(entry.RawIntermediates))
 	chain = append(chain, entry.Raw)

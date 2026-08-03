@@ -83,7 +83,7 @@ var errNoReplyDestination = errors.New("ike: reply has no destination")
 // The marker follows the ARRIVAL socket. The role is read from the transport, never
 // compared against a port number. Under the ze.test.ike.port override neither socket
 // carries a well-known port, so a comparison picks the wrong framing in every
-// functional test (ai/rules/fail-closed-guards.md).
+// functional test (ai/rules/evidence.md).
 func sendReply(tr *transport.UDPTransport, data []byte, remote *net.UDPAddr) error {
 	if tr == nil || remote == nil {
 		return errNoReplyDestination

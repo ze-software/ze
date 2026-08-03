@@ -49,7 +49,7 @@ on receipt (`sa.InitialContact`, `handleAuthRequest`).
   is NOT the drop cause -- by reading the call site's log string, not the function.
   It is the FIRST statement of `runResponder`, run once per cycle before any handshake,
   and the gate is freed only after `runEstablished` RETURNS (teardown). The gate WAS
-  the drop cause. Textbook `ai/rules/no-fabrication.md`: read the producer, not the caller.
+  the drop cause. Textbook `ai/rules/evidence.md`: read the producer, not the caller.
 - **The RFC forbids the obvious fix.** "Responder sees a new init, drops the old SA,
   accepts" is an unauthenticated remote teardown primitive (RFC 7296 Section 2.4:
   "MUST NOT conclude ... failed based on ... messages that arrive without cryptographic

@@ -60,8 +60,8 @@ rows in one commit, in ascending order.
 
 Ze satisfies all four MUST NOT obligations today by non-participation, and RFC 7296 makes
 non-participation legal. Offering is a MAY (`rfc/full/rfc7296.txt:3406-3409`). Accepting is a
-MAY (`:3411-3413`). Ignoring an unrecognized status notification is mandatory (`:5625-5628`),
-and IPCOMP_SUPPORTED is 16387 (`:5745-5746`), above the 16383 error ceiling, so it is a status
+MAY. Ignoring an unrecognized status notification is mandatory,
+and IPCOMP_SUPPORTED is 16387, above the 16383 error ceiling, so it is a status
 type. The owner chose the feature over the four tests.
 
 Once Ze negotiates IPComp, the four obligations become active constraints on real code. They
@@ -75,15 +75,15 @@ get harder, not easier. The tests written for them must assert over a real negot
     `RFC7296-3.10.1-2` and breaks strongSwan interoperability. Declining is expressed by
     omission from the response, never by an error notification.
   → Constraint: `test/ipsec-interop/` is `TIER_UNRUN`, so a tagged test there is refused.
-- [ ] `ai/rules/exact-or-reject.md` - backend translation honesty
+- [ ] `ai/rules/protocol.md` - backend translation honesty
   → Constraint: a backend that cannot apply the operator's compression config must fail at
     `ze config verify` with a clear error, never approximate it.
-- [ ] `ai/rules/design-context.md` - both dataplanes
+- [ ] `ai/rules/architecture.md` - both dataplanes
   → Constraint: a netlink-only feature creates drift. The VPP backend needs the feature or an
     explicit refusal in the same work.
-- [ ] `ai/rules/qemu-testing.md` - Linux-only code needs QEMU coverage
+- [ ] `ai/rules/platform-linux.md` - Linux-only code needs QEMU coverage
   → Constraint: the XFRM half is `//go:build linux`, so it needs a QEMU integration test.
-- [ ] `ai/rules/doctor-checks.md` - runtime dependency readiness
+- [ ] `ai/rules/repo-maintenance.md` - runtime dependency readiness
   → Constraint: a kernel module dependency needs a registered `ze doctor` check with a
     diagnostic code, a unit test, and a functional test.
 
@@ -92,7 +92,7 @@ get harder, not easier. The tests written for them must assert over a real negot
   → Constraint: the compression association has no life outside the ESP or AH SA that
     contains it, and it disappears when that SA goes away (`rfc/full/rfc7296.txt:3399-3403`).
   → Constraint: a message that proposes an SA CAN carry multiple IPCOMP_SUPPORTED
-    notifications. A message that accepts an SA carries at most one (`:3426-3428`).
+    notifications. A message that accepts an SA carries at most one.
   → Constraint: an IPCOMP_SUPPORTED notification is legal in an IKE_AUTH request and response,
     and in a CREATE_CHILD_SA request and response, and nowhere else
     (`rfc/full/rfc7296.txt:7718`, `:7738`, `:7807`, `:7815`).
@@ -110,45 +110,45 @@ get harder, not easier. The tests written for them must assert over a real negot
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (verified in the working tree on 2026-07-31)
-- [ ] `internal/component/ike/wire/payload_notify.go:53` - declares
+- [ ] `internal/component/ike/wire/payload_notify.go` - declares
   `NotifyIPCompSupported uint16 = 16387`. A case-insensitive search for `ipcomp` across
   `internal/`, `pkg/` and `cmd/` returns this line and nothing else. The same search across
   `test/` returns nothing.
-- [ ] `internal/component/ike/engine/responder.go:360` - `(*PeerSession).handleAuthRequest`
+- [ ] `internal/component/ike/engine/responder.go` - `(*PeerSession).handleAuthRequest`
   consumes an IKE_AUTH request. Its notify branch at `:387-399` tests two constants,
   `NotifyInitialContact` and `NotifySetWindowSize`. It has no default branch. It stores no
   notification that neither constant matches.
-- [ ] `internal/component/ike/engine/responder.go:581` - `(*PeerSession).buildAuthResponse`
+- [ ] `internal/component/ike/engine/responder.go` - `(*PeerSession).buildAuthResponse`
   builds the IKE_AUTH response inner chain. It emits no notification of any type.
-- [ ] `internal/component/ike/engine/rekey.go:175` - `respondChildRekey` builds the
+- [ ] `internal/component/ike/engine/rekey.go` - `respondChildRekey` builds the
   CREATE_CHILD_SA response. It emits no notification of any type.
-- [ ] `internal/component/ike/engine/rekey.go:74` - `initiateChildRekey` emits REKEY_SA only.
-- [ ] `internal/component/ike/engine/auth.go:91` - `buildAuthRequest` emits INITIAL_CONTACT
+- [ ] `internal/component/ike/engine/rekey.go` - `initiateChildRekey` emits REKEY_SA only.
+- [ ] `internal/component/ike/engine/auth.go` - `buildAuthRequest` emits INITIAL_CONTACT
   only.
-- [ ] `internal/component/ike/engine/child.go:232` - `installChildSA` programs the dataplane.
+- [ ] `internal/component/ike/engine/child.go` - `installChildSA` programs the dataplane.
   It sets `Proto: protoESP` at `:256`, `:285`, `:316` and `:332`, with `protoESP = 50` at
   `:51`.
-- [ ] `internal/component/ike/engine/child.go:58` - `type ChildSA struct` carries no
+- [ ] `internal/component/ike/engine/child.go` - `type ChildSA struct` carries no
   compression state.
-- [ ] `internal/component/ike/dataplane/dataplane.go:161` - `type SAParams struct` has no
+- [ ] `internal/component/ike/dataplane/dataplane.go` - `type SAParams struct` has no
   compression field. The `Proto` field at `:166` is documented as ESP (50) or AH (51), and
   those two constants are declared at `:30-31`.
-- [ ] `internal/component/ike/dataplane/dataplane.go:257` - `type Dataplane interface`
+- [ ] `internal/component/ike/dataplane/dataplane.go` - `type Dataplane interface`
   declares `InstallSA`, `RemoveSA`, `InstallPolicy`, `RemovePolicy`, `RemovePolicyParams`,
   `ListSAs` and `Close`.
-- [ ] `internal/component/ike/dataplane/xfrm_linux.go:21` - the Linux backend `InstallSA`.
-- [ ] `internal/component/ike/dataplane/vpp.go:36` - the VPP backend `InstallSA`.
-- [ ] `internal/component/ike/ipsec/types.go:343` - `type ESPProposal struct` carries Number,
+- [ ] `internal/component/ike/dataplane/xfrm_linux.go` - the Linux backend `InstallSA`.
+- [ ] `internal/component/ike/dataplane/vpp.go` - the VPP backend `InstallSA`.
+- [ ] `internal/component/ike/ipsec/types.go` - `type ESPProposal struct` carries Number,
   Encryption and Hash. `type ESPGroup struct` at `:350` carries Name, Lifetime, PFS and
   Proposals.
-- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:56` - `list esp-group`, with
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `list esp-group`, with
   `list proposal` at `:82`. This is the Child SA parameter group.
-- [ ] `internal/component/ike/engine/register.go:176` - the IKE plugin's existing
+- [ ] `internal/component/ike/engine/register.go` - the IKE plugin's existing
   `Registration.DoctorChecks` declaration.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - Every `test/ipsec/*.ci` stays green. The suite runs inside `ze-verify`
-  (`mk/test-functional.mk:192` lists it in `all_suites`, and `:217` carries its `run_suite`
+  (`mk/test-functional.mk` lists it in `all_suites`, and `:217` carries its `run_suite`
   line).
 - Every scenario under `test/ipsec-interop/scenarios/` stays green. The directory holds
   `01`, `02`, `03`, `04`, `05`, `07`, `08`, `09`, `10` and `11`.
@@ -161,7 +161,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 - Ze accepts at most one offered algorithm as a responder, and only one it proposed.
 - Ze programs a compression association in the dataplane when negotiation succeeds.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Config: the operator sets a compression container under an ESP group in the config file.
@@ -170,25 +170,25 @@ get harder, not easier. The tests written for them must assert over a real negot
 
 ### Transformation Path
 1. Config parse. The YANG tree yields the compression settings into `ipsec.ESPGroup`
-   (`internal/component/ike/ipsec/types.go:350`).
-2. Offer construction. `buildAuthRequest` (`internal/component/ike/engine/auth.go:91`) and
-   `initiateChildRekey` (`internal/component/ike/engine/rekey.go:74`) append one
+   (`internal/component/ike/ipsec/types.go`).
+2. Offer construction. `buildAuthRequest` (`internal/component/ike/engine/auth.go`) and
+   `initiateChildRekey` (`internal/component/ike/engine/rekey.go`) append one
    IPCOMP_SUPPORTED payload for each proposed algorithm, each carrying a locally allocated
    CPI and the transform identifier.
 3. Offer consumption. `(*PeerSession).handleAuthRequest`
-   (`internal/component/ike/engine/responder.go:360`) and the CREATE_CHILD_SA request path
+   (`internal/component/ike/engine/responder.go`) and the CREATE_CHILD_SA request path
    collect the offered set.
 4. Acceptance. The responder selects at most one algorithm from the intersection of the
    offered set and the locally configured set, and records the peer CPI.
 5. Response construction. `buildAuthResponse`
-   (`internal/component/ike/engine/responder.go:581`) and `respondChildRekey`
-   (`internal/component/ike/engine/rekey.go:175`) append exactly one IPCOMP_SUPPORTED payload
+   (`internal/component/ike/engine/responder.go`) and `respondChildRekey`
+   (`internal/component/ike/engine/rekey.go`) append exactly one IPCOMP_SUPPORTED payload
    when an algorithm was accepted, and none otherwise.
 6. Child SA binding. The negotiated algorithm and the CPI pair are stored on `ChildSA`
-   (`internal/component/ike/engine/child.go:58`).
-7. Dataplane. `installChildSA` (`internal/component/ike/engine/child.go:232`) programs the
+   (`internal/component/ike/engine/child.go`).
+7. Dataplane. `installChildSA` (`internal/component/ike/engine/child.go`) programs the
    compression association through the `Dataplane` interface
-   (`internal/component/ike/dataplane/dataplane.go:257`).
+   (`internal/component/ike/dataplane/dataplane.go`).
 8. Teardown. The compression association is removed with the Child SA, because it has no life
    outside that SA (`rfc/full/rfc7296.txt:3399-3403`).
 
@@ -204,7 +204,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 ### Integration Points
 - `wire.PayloadNotify` (`internal/component/ike/wire/payload_notify.go`) already parses and
   writes the payload shape. The codec needs a CPI and transform accessor, not a new payload.
-- `dataplane.Dataplane` (`internal/component/ike/dataplane/dataplane.go:257`) is the single
+- `dataplane.Dataplane` (`internal/component/ike/dataplane/dataplane.go`) is the single
   seam both backends implement.
 
 ### Architectural Verification
@@ -214,7 +214,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -224,9 +224,9 @@ get harder, not easier. The tests written for them must assert over a real negot
 | A-1 | Section 2.22 still has no committed identifier when the four rows land | `git show HEAD:rfc/short/rfc7296.md`, empty result, 2026-07-31 | The ordinals shift upward and lose document order | Rerun the allocation command at landing time | unvalidated |
 | A-2 | The Linux kernel supports IPComp through XFRM with the `xfrm_ipcomp` and `deflate` modules | Not yet read | The XFRM backend cannot deliver the feature and the whole spec changes shape | Read the vendored netlink library and probe a QEMU guest | unvalidated |
 | A-3 | The VPP binary API exposes no IPComp SA type usable from Ze | `internal/component/ike/dataplane/vpp.go`, not yet read for this purpose | The VPP backend implements the feature rather than refusing it | Read the vendored VPP binary API definitions | unvalidated |
-| A-4 | `wire.PayloadNotify` carries the CPI and transform identifier without a codec change | `internal/component/ike/wire/payload_notify.go:53` declares the type constant only | The wire layer needs new accessors and new tests | Read `ReadFrom` and `WriteTo` and write a round-trip test | unvalidated |
+| A-4 | `wire.PayloadNotify` carries the CPI and transform identifier without a codec change | `internal/component/ike/wire/payload_notify.go` declares the type constant only | The wire layer needs new accessors and new tests | Read `ReadFrom` and `WriteTo` and write a round-trip test | unvalidated |
 | A-5 | strongSwan offers IPComp when its config sets a compression option | Not yet read | The interop scenario cannot exercise the negotiation | Read the strongSwan config reference and build scenario `20-ipcomp` | unvalidated |
-| A-6 | `test/ipsec-interop/` remains `TIER_UNRUN` | `scripts/dev/rfc_requirements.py:654`, `:876-878`, refusal at `:952` and `:1004` | An interop tag becomes legal evidence and the test plan gains an option | Rerun `make ze-rfc-check` at landing time | unvalidated |
+| A-6 | `test/ipsec-interop/` remains `TIER_UNRUN` | `scripts/dev/rfc_requirements.py`, `:876-878`, refusal at `:952` and `:1004` | An interop tag becomes legal evidence and the test plan gains an option | Rerun `make ze-rfc-check` at landing time | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -235,11 +235,11 @@ get harder, not easier. The tests written for them must assert over a real negot
 | R-2 | A declined offer fails the whole Child SA. RFC 7296 states the pattern for a sibling notification: the responder omits the notification from its response and does not reject the Child SA creation (`rfc/full/rfc7296.txt:826-828`) | A peer that offers IPComp gets no Child SA at all | Assert establishment, not merely the absence of an acceptance |
 | R-3 | Ze accepts more than one algorithm, or one it did not propose. This is the direct `2.22-2` and `2.22-3` violation | A response carries two IPCOMP_SUPPORTED payloads, or one whose transform is not in the offered set | Select from the intersection, cap the response at one payload, and test both cases with the counter proven to see the payloads it counts |
 | R-4 | The CPI outlives its Child SA, or leaks on rekey. RFC 7296 requires the compression association to disappear with the SA (`rfc/full/rfc7296.txt:3399-3403`) | A long-running session accumulates CPI allocations | A CPI allocator owned by the Child SA lifecycle, with a release path proven by a rekey test |
-| R-5 | The feature lands on XFRM only, and the VPP backend silently ignores the compression request. `ai/rules/exact-or-reject.md` forbids silent approximation | `ze config verify` accepts a compression config that the active backend cannot apply | The VPP backend refuses at verify time with an error naming the backend and the unsupported setting |
+| R-5 | The feature lands on XFRM only, and the VPP backend silently ignores the compression request. `ai/rules/protocol.md` forbids silent approximation | `ze config verify` accepts a compression config that the active backend cannot apply | The VPP backend refuses at verify time with an error naming the backend and the unsupported setting |
 | R-6 | The tests pass over an empty sample. A test that asserts an absence over zero collected messages is green either way | None. The test is green | Every absence assertion carries a non-empty count assertion beside it |
-| R-7 | The four tagged tests are placed under `test/ipsec-interop/`, which is `TIER_UNRUN`. A tag there is refused by `_refuse_unrun` (`scripts/dev/rfc_requirements.py:952`, raised at `:1004`) | `make ze-rfc-check` fails naming the file | Place the tags in `_test.go` or in `test/ipsec/*.ci`. Build the interop scenario as untagged coverage |
+| R-7 | The four tagged tests are placed under `test/ipsec-interop/`, which is `TIER_UNRUN`. A tag there is refused by `_refuse_unrun` (`scripts/dev/rfc_requirements.py`, raised at `:1004`) | `make ze-rfc-check` fails naming the file | Place the tags in `_test.go` or in `test/ipsec/*.ci`. Build the interop scenario as untagged coverage |
 | R-8 | Engine line numbers move. Other agents edit `internal/component/ike/engine/` concurrently | A tag cites a line holding different code | Every citation in this spec names its function. Relocate by function name before you quote a line |
-| R-9 | The XFRM half is Linux-only and ships without QEMU coverage. No `ze-qemu-*-ipsec` target exists today | The feature is unproven on a real kernel | A QEMU integration test and a make target, per `ai/rules/qemu-testing.md` |
+| R-9 | The XFRM half is Linux-only and ships without QEMU coverage. No `ze-qemu-*-ipsec` target exists today | The feature is unproven on a real kernel | A QEMU integration test and a make target, per `ai/rules/platform-linux.md` |
 | R-10 | Compression expands small or already compressed packets. RFC 3173 requires the sender to discard the compressed form when it is not smaller | Throughput drops on a compressed tunnel | Read RFC 3173 during design and record the size decision as an acceptance criterion |
 
 ## Blast Radius
@@ -254,11 +254,11 @@ get harder, not easier. The tests written for them must assert over a real negot
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Config file sets compression on an ESP group | → | The compression set reaches `ipsec.ESPGroup` and then `buildAuthRequest` (`internal/component/ike/engine/auth.go:91`) | `test/ipsec/ipsec-ipcomp-offer.ci` |
-| An inbound IKE_AUTH request carries IPCOMP_SUPPORTED | → | `(*PeerSession).handleAuthRequest` (`internal/component/ike/engine/responder.go:360`) records the offered set | `TestIPCompOfferRecordedOnAuthRequest` |
-| An accepted algorithm reaches the dataplane | → | `installChildSA` (`internal/component/ike/engine/child.go:232`) | `TestInstallChildSAProgramsCompressionAssociation` |
-| The VPP backend receives a compression request | → | `(*vppBackend).InstallSA` (`internal/component/ike/dataplane/vpp.go:36`) | `TestVPPBackendRefusesCompression` |
-| `ze doctor` runs on a host without the kernel IPComp module | → | The IKE plugin doctor check (`internal/component/ike/engine/register.go:176`) | `TestDoctorReportsMissingIPCompModule` |
+| Config file sets compression on an ESP group | → | The compression set reaches `ipsec.ESPGroup` and then `buildAuthRequest` (`internal/component/ike/engine/auth.go`) | `test/ipsec/ipsec-ipcomp-offer.ci` |
+| An inbound IKE_AUTH request carries IPCOMP_SUPPORTED | → | `(*PeerSession).handleAuthRequest` (`internal/component/ike/engine/responder.go`) records the offered set | `TestIPCompOfferRecordedOnAuthRequest` |
+| An accepted algorithm reaches the dataplane | → | `installChildSA` (`internal/component/ike/engine/child.go`) | `TestInstallChildSAProgramsCompressionAssociation` |
+| The VPP backend receives a compression request | → | `(*vppBackend).InstallSA` (`internal/component/ike/dataplane/vpp.go`) | `TestVPPBackendRefusesCompression` |
+| `ze doctor` runs on a host without the kernel IPComp module | → | The IKE plugin doctor check (`internal/component/ike/engine/register.go`) | `TestDoctorReportsMissingIPCompModule` |
 
 ## Acceptance Criteria
 
@@ -324,7 +324,7 @@ count assertion beside it. A counter is proven over a chain that holds the paylo
 | `ipsec-ipcomp-vpp-reject` | `test/ipsec/ipsec-ipcomp-vpp-reject.ci` | The operator commits compression with VPP active and gets a clear error | |
 | `ipsec-show-sa-ipcomp` | `test/ipsec/ipsec-show-sa-ipcomp.ci` | The operator reads the negotiated algorithm and CPI | |
 
-The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk:192` and `:217`), so a
+The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk` and `:217`), so a
 `.ci` there earns a verify tier. A `.ci` that drives a crafted IKEv2 inner payload chain needs
 a scripted IKEv2 peer, and `internal/test/cli/` has none today. Building one is in scope for
 the design phase, and it serves many other rows in `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
@@ -343,7 +343,7 @@ The package needs a make target. No `ze-qemu-*` IPsec target exists today.
 | `21-ipcomp-declined` | `test/ipsec-interop/scenarios/` | strongSwan | A strongSwan peer that offers IPComp against a Ze with compression disabled still establishes its Child SA | |
 
 **These scenarios cannot carry an RFC tag.** `test/ipsec-interop/` is declared `TIER_UNRUN`
-(`scripts/dev/rfc_requirements.py:876-878`), and a tag there raises `_refuse_unrun`
+(`scripts/dev/rfc_requirements.py`), and a tag there raises `_refuse_unrun`
 (`:952`, raised at `:1004`). Nothing runs the suite automatically, so a tag there would be
 evidence nothing executes. Compliance evidence for the four rows must be unit tier or
 functional tier. Write that reason into each scenario header, so a later reader does not add
@@ -351,27 +351,27 @@ a tag.
 
 ## Files to Modify
 - `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - the compression container under
-  `list esp-group` (`:56`)
-- `internal/component/ike/ipsec/types.go` - `ESPGroup` (`:350`) gains the compression set
+  `list esp-group`
+- `internal/component/ike/ipsec/types.go` - `ESPGroup` gains the compression set
 - `internal/component/ike/wire/payload_notify.go` - CPI and transform accessors beside the
-  existing constant (`:53`)
-- `internal/component/ike/engine/auth.go` - `buildAuthRequest` (`:91`) offers
-- `internal/component/ike/engine/responder.go` - `handleAuthRequest` (`:360`) collects,
-  `buildAuthResponse` (`:581`) accepts at most one
-- `internal/component/ike/engine/rekey.go` - `initiateChildRekey` (`:74`) offers,
-  `respondChildRekey` (`:175`) accepts at most one
+  existing constant
+- `internal/component/ike/engine/auth.go` - `buildAuthRequest` offers
+- `internal/component/ike/engine/responder.go` - `handleAuthRequest` collects,
+  `buildAuthResponse` accepts at most one
+- `internal/component/ike/engine/rekey.go` - `initiateChildRekey` offers,
+  `respondChildRekey` accepts at most one
 - `internal/component/ike/engine/fsm.go` - the initiator validates the response acceptance
-- `internal/component/ike/engine/child.go` - `ChildSA` (`:58`) carries the negotiated state,
-  `installChildSA` (`:232`) programs it
-- `internal/component/ike/engine/register.go` - the doctor check (`:176`)
-- `internal/component/ike/dataplane/dataplane.go` - `SAParams` (`:161`) gains compression
+- `internal/component/ike/engine/child.go` - `ChildSA` carries the negotiated state,
+  `installChildSA` programs it
+- `internal/component/ike/engine/register.go` - the doctor check
+- `internal/component/ike/dataplane/dataplane.go` - `SAParams` gains compression
   fields
-- `internal/component/ike/dataplane/xfrm_linux.go` - `InstallSA` (`:21`) programs the state
-- `internal/component/ike/dataplane/vpp.go` - `InstallSA` (`:36`) refuses
+- `internal/component/ike/dataplane/xfrm_linux.go` - `InstallSA` programs the state
+- `internal/component/ike/dataplane/vpp.go` - `InstallSA` refuses
 - `internal/core/diagnostic/codes.go` - the doctor diagnostic code
 - `mk/test-integration.mk` - the QEMU target
 - `rfc/short/rfc7296.md` - the four checklist rows and the Section Index entry
-- `docs/features/rfc-status.md` - RFC 7296 row (`:229`)
+- `docs/features/rfc-status.md` - RFC 7296 row
 - `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index`
 
 ## Files to Create
@@ -396,11 +396,11 @@ shape is a design-phase decision.
 | `vpn ipsec esp-group <name> compression enabled` | boolean | `false` | - | Offer and accept IPComp on Child SAs from this group |
 | `vpn ipsec esp-group <name> compression algorithm` | leaf-list, enumeration `deflate`, `lzs`, `lzjh` | `deflate` | - | The proposed set, in preference order |
 
-The names follow `ai/rules/config-naming.md`: kebab-case, no abbreviations, and a positive
+The names follow `ai/rules/config.md`: kebab-case, no abbreviations, and a positive
 boolean named `enabled`. Neither leaf carries a dimension, so neither needs a `units`
 statement. `compression` is a container under the existing `esp-group`, because IPComp is a
 Child SA property and `esp-group` is the Child SA parameter group
-(`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:56`).
+(`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`).
 
 Design phase must answer two open questions. First, whether a minimum packet size leaf is
 needed, which would carry `units bytes`. Second, whether the algorithm enumeration belongs in
@@ -433,7 +433,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 | 6 | Has a user guide page? | Yes | `docs/guide/vpn/ipsec-compression.md` (new) |
 | 7 | Wire format changed? | Yes | The IKEv2 notification surface. Confirm the target page during the design phase |
 | 8 | Plugin SDK/protocol changed? | No | No SDK surface changes |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7296.md` and `docs/features/rfc-status.md:229` |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7296.md` and `docs/features/rfc-status.md` |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, for the QEMU target and any scripted IKEv2 peer |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`. strongSwan and libreswan both support IPComp |
 | 12 | Internal architecture changed? | Yes | The IPsec subsystem architecture page. Confirm the path during the design phase |
@@ -511,8 +511,8 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 | Mutation: `installChildSA` compresses with an unnegotiated algorithm | `RFC7296-2.22-4` positive reddens |
 | Naming | YANG leaves are kebab-case with no abbreviations. The boolean is a positive `enabled`. JSON keys are kebab-case |
 | Data flow | The CPI allocator is owned by the Child SA lifecycle, and no other component holds a reference |
-| Rule: `ai/rules/exact-or-reject.md` | The VPP backend refuses at verify time, not at install time, and the error names the backend and the setting |
-| Rule: `ai/rules/qemu-testing.md` | The Linux-only backend code has a QEMU integration test and a make target |
+| Rule: `ai/rules/protocol.md` | The VPP backend refuses at verify time, not at install time, and the error names the backend and the setting |
+| Rule: `ai/rules/platform-linux.md` | The Linux-only backend code has a QEMU integration test and a make target |
 | Rule: `ai/rules/rfc-compliance.md` | No answer narrower than full implementation with full proof was chosen. Thomas answered every such question |
 
 ### Deliverables Checklist
@@ -569,8 +569,8 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Implement the feature, rather than prove non-participation with eight tests | Prove non-participation. The four rows are conformant today by non-participation, at a cost of roughly one day | Owner decision, 2026-07-31 |
-| Place the compression container under `esp-group` | A per-peer container under `site-to-site peer` | IPComp is a Child SA property, and `esp-group` is the Child SA parameter group (`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:56`) |
-| Compliance evidence is unit tier or functional tier, never interop tier | Tag the strongSwan scenario | `test/ipsec-interop/` is `TIER_UNRUN` and a tag there is refused (`scripts/dev/rfc_requirements.py:876-878`, `:952`) |
+| Place the compression container under `esp-group` | A per-peer container under `site-to-site peer` | IPComp is a Child SA property, and `esp-group` is the Child SA parameter group (`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`) |
+| Compliance evidence is unit tier or functional tier, never interop tier | Tag the strongSwan scenario | `test/ipsec-interop/` is `TIER_UNRUN` and a tag there is refused (`scripts/dev/rfc_requirements.py`, `:952`) |
 
 ## Known Limitations
 

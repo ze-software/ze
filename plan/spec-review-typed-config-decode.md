@@ -26,17 +26,17 @@ Two verified defects in scope:
 
 1. **Type coarsening then string round-trip.** YANG (fully typed) is coarsened into a Go
    schema where `uint64` collapses to `uint32` and every enum becomes a string
-   (`internal/component/config/yang_schema.go:886-893`), then everything becomes strings in
-   `Tree` (`tree.go:27-37`), then `map[string]any` still holding strings (`tree.go:800-838`,
+   (`internal/component/config/yang_schema.go`), then everything becomes strings in
+   `Tree` (`tree.go`), then `map[string]any` still holding strings (`tree.go`,
    `ToMap`), and only `PeersFromTree` hand-parses back into typed fields via `mapUint32` /
-   `mapString` / `netip.ParseAddr` (`config.go:472-537`). Each consumer re-derives the types
+   `mapString` / `netip.ParseAddr` (`config.go`). Each consumer re-derives the types
    the YANG schema already knew.
 
 2. **BGP discards the computed diff and re-reads the file (the worst single instance).**
    In production `VerifyConfig` and `ApplyConfigDiff` ignore the resolved `bgpTree` they are
    handed and call `reloadFunc(configPath)`, re-reading the whole config file from disk
-   through the full pipeline (`reactor_api.go:404-445`, `loadPeersFullOrTree`). The
-   transaction machinery computes precise per-root deltas (`transaction/types.go:161-166`,
+   through the full pipeline (`reactor_api.go`, `loadPeersFullOrTree`). The
+   transaction machinery computes precise per-root deltas (`transaction/types.go`,
    `DiffSection` with string `Added`/`Removed`/`Changed`) that then serve only as a
    participation gate, not as the data BGP applies.
 
@@ -63,9 +63,9 @@ removed for the BGP subtree, establishing the pattern for other consumers.
   ResolveBGPTree -> map[string]any -> PeersFromTree flows
   → Decision: config is YANG-modeled; the canonical typed source is the YANG schema, not the Tree.
   → Constraint: plugin config delivery format (`{"bgp":{...}}` JSON) is a wire contract; do not change it here.
-- [ ] `ai/rules/config-surface.md` - YANG vs env var, typed leaf expectations
+- [ ] `ai/rules/config.md` - YANG vs env var, typed leaf expectations
   → Constraint: every leaf should carry maximal native YANG typing; string is a fallback, not a default.
-- [ ] `ai/rules/data-flow-tracing.md` - required for the Data Flow section below
+- [ ] `ai/rules/architecture.md` - required for the Data Flow section below
   → Constraint: no bypassed layers; the resolved tree must reach BGP through the transaction path, not a side disk read.
 
 **Key insights:** the YANG schema already knows every leaf's type; the string coarsening and
@@ -103,7 +103,7 @@ resolved tree handed to BGP was historically not fully resolved (templates/defau
 - BGP config values are obtained via typed accessors backed by the YANG schema, not by
   ad-hoc string parsing; `uint64` leaves consumed by BGP are no longer silently truncated.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A config change arrives via the CLI commit / config transaction: the resolved config Tree
@@ -112,15 +112,15 @@ resolved tree handed to BGP was historically not fully resolved (templates/defau
 
 ### Transformation Path
 1. YANG modules load into a coarse Go `Schema`; `yangKindToType` maps `Yuint64 -> TypeUint32`
-   and `Yenum -> TypeString` (`yang_schema.go:878-896`).
-2. Parsed config populates a `Tree` whose `values` are strings (`tree.go:27-37`).
-3. `Tree.ToMap()` produces `map[string]any` still holding those strings (`tree.go:800-838`).
+   and `Yenum -> TypeString` (`yang_schema.go`).
+2. Parsed config populates a `Tree` whose `values` are strings (`tree.go`).
+3. `Tree.ToMap()` produces `map[string]any` still holding those strings (`tree.go`).
 4. The transaction layer computes per-root `DiffSection`s with string bodies
-   (`transaction/types.go:158-166`) and drives verify/apply.
+   (`transaction/types.go`) and drives verify/apply.
 5. BGP `VerifyConfig`/`ApplyConfigDiff` receive the resolved `bgpTree` but, in production,
-   discard it and call `reloadFunc(configPath)` to re-read the file (`reactor_api.go:404-445`).
+   discard it and call `reloadFunc(configPath)` to re-read the file (`reactor_api.go`).
 6. `PeersFromTree`/`parsePeerFromTree` hand-parse strings back into typed `PeerSettings`
-   (`config.go:472-537`).
+   (`config.go`).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -142,15 +142,15 @@ resolved tree handed to BGP was historically not fully resolved (templates/defau
 - [ ] No duplicated functionality (extends the schema/decode path, does not add a parallel one)
 - [ ] Zero-copy preserved where applicable (typed subtree references, avoid re-stringify)
 - [ ] Registration over hardcoding — typed decode is schema-driven; no per-leaf switch case
-  or per-consumer factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`)
+  or per-consumer factory is added to a core/shared package (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The resolved `bgpTree` handed to `ApplyConfigDiff` can be made as complete as the disk re-read (templates + defaults applied) | `reactor_api.go:427-431` comment says the re-read exists to avoid false diffs from incomplete settings | Diff consumption yields false diffs; must resolve the tree fully before parse | Compare `PeerSettings` parsed from tree vs from disk for a fixture config | unvalidated |
-| A-2 | No BGP-consumed leaf that is semantically uint64 currently relies on the uint32 coarsening (e.g. AIGP metric) | `yang_schema.go:888` collapses uint64; AIGP is 64-bit | A real truncation bug exists and the fix changes behavior (must add boundary test + note) | grep YANG for uint64 leaves consumed by BGP; boundary test | unvalidated |
+| A-1 | The resolved `bgpTree` handed to `ApplyConfigDiff` can be made as complete as the disk re-read (templates + defaults applied) | `reactor_api.go` comment says the re-read exists to avoid false diffs from incomplete settings | Diff consumption yields false diffs; must resolve the tree fully before parse | Compare `PeerSettings` parsed from tree vs from disk for a fixture config | unvalidated |
+| A-2 | No BGP-consumed leaf that is semantically uint64 currently relies on the uint32 coarsening (e.g. AIGP metric) | `yang_schema.go` collapses uint64; AIGP is 64-bit | A real truncation bug exists and the fix changes behavior (must add boundary test + note) | grep YANG for uint64 leaves consumed by BGP; boundary test | unvalidated |
 | A-3 | Plugin config delivery JSON can stay string-valued while internal BGP decode is typed | `transaction/types.go`, plugin protocol docs | Delivery format change leaks to plugins (contract break) | Diff emitted plugin JSON before/after; `.ci` byte compare | unvalidated |
 
 ### Risks
@@ -158,7 +158,7 @@ resolved tree handed to BGP was historically not fully resolved (templates/defau
 |----|------|--------------|----------------------|
 | R-1 | Removing the disk re-read changes apply semantics under concurrent edits | reload `.ci` tests differ | Keep the resolved tree the single source; add a concurrent-edit `.ci` test |
 | R-2 | Typed decode scope creeps into every consumer | diff touches unrelated packages | Scope to the BGP subtree first; land the pattern, defer broad rollout in Known Limitations |
-| R-3 | uint64 fix silently changes an existing (accidentally relied-upon) truncation | interop/config test flips | Boundary test + explicit note; treat as bug fix per `ai/rules/no-workarounds-for-missing-behavior.md` |
+| R-3 | uint64 fix silently changes an existing (accidentally relied-upon) truncation | interop/config test flips | Boundary test + explicit note; treat as bug fix per `ai/rules/completion.md` |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 

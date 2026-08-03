@@ -23,7 +23,7 @@ reproduction, with `make ze-race-reactor` clean and no new lock-order edge.
   outside `f.mu`, enqueue never blocks) **over** (a) holding `f.mu` across the callback
   (self-deadlocks on any `State()` in the callback path -- RWMutex is non-reentrant), (b)
   blocking ticket order (deadlocks: the hold-timer fires `fsm.Event` while holding `s.mu`,
-  session.go:433-435, while the to-Established callback needs `s.mu.RLock` via
+  session.go, while the to-Established callback needs `s.mu.RLock` via
   `Negotiated()`), (c) making the 110-line callback idempotent (fragile, still reorders
   observers). Uncontended transitions keep today's synchronous semantics; only the contended
   case (today's corruption window) becomes ordered-async.

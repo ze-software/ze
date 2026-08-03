@@ -1,18 +1,18 @@
 # Pattern: Plugin
 
 Structural template for creating a Ze plugin.
-Rules: `ai/rules/plugin-design.md`. Architecture: `docs/architecture/core-design.md`.
+Rules: `ai/rules/plugins.md`. Architecture: `docs/architecture/core-design.md`.
 
 ## Also Read
 
 | Rule | When it applies |
 |------|----------------|
 | `ai/rules/goroutine-lifecycle.md` | OnStarted goroutines, worker patterns, cleanup |
-| `ai/rules/plugin-design.md` (Cross-Boundary Value Types) | Any data crossing plugin boundaries |
-| `ai/rules/plugin-design.md` (DirectBridge) | Sync request/response to/from engine |
-| `ai/rules/plugin-design.md` (EventBus Typed Payloads) | Async broadcast events |
-| `ai/rules/plugin-process-boundary.md` | Calling another `internal/component/*` package's function directly instead of through DirectBridge/DispatchCommand |
-| `ai/rules/naming.md` | Plugin name, YANG prefix, log subsystem |
+| `ai/rules/plugins.md` (Cross-Boundary Value Types) | Any data crossing plugin boundaries |
+| `ai/rules/plugins.md` (DirectBridge) | Sync request/response to/from engine |
+| `ai/rules/plugins.md` (EventBus Typed Payloads) | Async broadcast events |
+| `ai/rules/plugins.md` | Calling another `internal/component/*` package's function directly instead of through DirectBridge/DispatchCommand |
+| `ai/rules/go-standards.md` | Plugin name, YANG prefix, log subsystem |
 | Full navigation: `ai/INDEX.md` | |
 
 ## File Structure
@@ -197,7 +197,7 @@ The engine routes by prefix to the owning plugin's CLIHandler.
 ## Core-to-Plugin Communication
 
 For choosing between EventBus and DirectBridge, see
-`ai/rules/plugin-design.md` "DirectBridge: Choosing the Right Communication Pattern".
+`ai/rules/plugins.md` "DirectBridge: Choosing the Right Communication Pattern".
 Short version: EventBus for async broadcast, DirectBridge for sync request/response.
 
 ## Optional Capabilities

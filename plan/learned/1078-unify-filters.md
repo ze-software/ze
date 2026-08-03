@@ -23,10 +23,10 @@ A received BGP UPDATE was run through two independent filtering systems back-to-
 
 ## Gotchas
 
-- The original spec characterized the order as `loop -> community -> policy-chain -> OTC` and told the implementer to place the policy-chain step at Policy stage. The CODE does the opposite: `r.ingressFilters` runs the WHOLE in-process pass (including OTC at Annotation) in System 1, THEN the policy chain in System 2. Reading the producer (`reactor_notify.go:415` loops all filters before `:466`), not the spec's prose, caught it. A `TestUnifiedIngressReproducesLegacyOrder` locking `... -> OTC -> policy-chain` guards against re-introducing the wrong order.
+- The original spec characterized the order as `loop -> community -> policy-chain -> OTC` and told the implementer to place the policy-chain step at Policy stage. The CODE does the opposite: `r.ingressFilters` runs the WHOLE in-process pass (including OTC at Annotation) in System 1, THEN the policy chain in System 2. Reading the producer (`reactor_notify.go` loops all filters before `:466`), not the spec's prose, caught it. A `TestUnifiedIngressReproducesLegacyOrder` locking `... -> OTC -> policy-chain` guards against re-introducing the wrong order.
 - The registered filter set is 5, not the 4 the spec enumerated: `bgp-redistribute` (Policy, ingress) and `bgp-gr` (Annotation, egress LLGR) were missing from the spec's list. Always grep `filterapi.Register` for the complete set.
 - Egress is NOT symmetric with ingress: egress in-process filters defer into `ModAccumulator` and the export policy chain reads the ORIGINAL payload (not the mods-adjusted one), so the two are independent contributors combined at the end (`peerBaseWire = exportWireOverride ?? original`, then mods applied). Merging them "like ingress" (sequential payload rewrite) would be wrong.
-- `forwardUpdateCore` interleaves other `ModAccumulator` writers around the two filter blocks (RS community strip before; RR CLUSTER_LIST/ORIGINATOR_ID injection, next-hop, send-community after). The unified pass must replace ONLY the two adjacent filter blocks (`reactor_api_forward.go:474-528`), leaving those surrounding writers exactly in place, or the emitted bytes change.
+- `forwardUpdateCore` interleaves other `ModAccumulator` writers around the two filter blocks (RS community strip before; RR CLUSTER_LIST/ORIGINATOR_ID injection, next-hop, send-community after). The unified pass must replace ONLY the two adjacent filter blocks (`reactor_api_forward.go`), leaving those surrounding writers exactly in place, or the emitted bytes change.
 - Reactor tests build `&Reactor{egressFilters: ...}` by hand, bypassing `startAPIServer`. Moving forwarding to read `orderedEgressSteps` broke those tests until they also set `orderedEgressSteps` (added a test helper). The field a hand-built reactor must populate changed.
 - The filter slices are built in `startAPIServer` (`reactor.go`), not the constructor `New` -- convenient, because `r.api` (needed to bind the policy-chain step) is available there.
 
@@ -37,6 +37,6 @@ A received BGP UPDATE was run through two independent filtering systems back-to-
 - `internal/component/bgp/reactor/filter_ordered.go` (new) -- ordered step types, `build*` functions, `runIngressPolicyChain`/`runEgressPolicyChain`.
 - `internal/component/bgp/reactor/reactor.go` -- removed `ingressFilters` field; added `orderedIngressSteps`/`orderedEgressSteps`, built in `startAPIServer`.
 - `internal/component/bgp/reactor/reactor_notify.go` -- unified ingress pass; second block deleted.
-- `internal/component/bgp/reactor/reactor_api_forward.go` -- unified egress pass in `forwardUpdateCore` (`:474-528`).
+- `internal/component/bgp/reactor/reactor_api_forward.go` -- unified egress pass in `forwardUpdateCore`.
 - `internal/component/bgp/reactor/unified_filter_order_test.go` (new), `forward_update_test.go` -- order tests + harness update.
 - `docs/architecture/core-design.md`, `ai/digests/bgp-reactor.md` -- filter-pipeline docs and digest anchors.

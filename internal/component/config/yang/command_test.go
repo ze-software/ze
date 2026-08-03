@@ -1169,7 +1169,7 @@ func navigateTree(root *command.Node, path string) *command.Node {
 //
 // VALIDATES: BuildCommandTree propagates EnsureExists (rollback wire method) to command.Node,
 // on the typed `name` selector node that carries the executable create command
-// (create interface dummy name <name>), per cli-grammar.md R6.
+// (create interface dummy name <name>), per cli.md R6.
 // PREVENTS: Compound commands silently losing auto-ensure behavior.
 func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	loader := NewLoader()
@@ -1187,7 +1187,7 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	ifc := create.Children["interface"]
 	require.NotNil(t, ifc)
 
-	// Typed name selector (cli-grammar.md, R6): the executable create command lives
+	// Typed name selector (cli.md, R6): the executable create command lives
 	// on the `name` selector node (`create interface dummy name <name>`), not on the
 	// `dummy` grouping container. The ensure-exists rollback handler travels with it.
 	dummy := ifc.Children["dummy"]

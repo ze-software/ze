@@ -115,7 +115,7 @@ class SleepRatchetDeltaTest(unittest.TestCase):
 
 
 class KnownFailureLoadExcuseTest(unittest.TestCase):
-    """The gate behind ai/rules/fix-dont-record.md.
+    """The gate behind ai/rules/completion.md.
 
     A shard blaming host load is stating a diagnosis (the test asserts on elapsed
     time) and calling it a mystery. The gate rejects the excuse, NOT the shard: a

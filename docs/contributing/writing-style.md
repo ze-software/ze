@@ -16,7 +16,7 @@ construction per idea make a text easier to translate. That covers a human
 translator, a machine translation engine, and the agents that read this
 repository.
 
-The rule that makes this blocking is `ai/rules/simplified-technical-english.md`.
+The rule that makes this blocking is `ai/rules/writing.md`.
 The checker is `scripts/dev/ste_check.py`.
 <!-- source: scripts/dev/ste_check.py -- review, ratchet -->
 
@@ -182,7 +182,7 @@ Words to delete: `powerful`, `seamless`, `robust`, `blazing`, `effortless`,
 `stunning`.
 
 `docs/comparison.md` has its own rule for this: every capability claim carries
-evidence or an explicit "unclear" (`ai/rules/comparison-honesty.md`).
+evidence or an explicit "unclear" (`ai/rules/writing.md`).
 
 ### 5. Run-ons
 
@@ -477,7 +477,7 @@ meaning and never a count.
 |---------|-----|
 | RFC 2119 keywords (MUST, MUST NOT, SHOULD, MAY) naming an RFC obligation level | The keyword IS the requirement. Every `RFC requirement:` test tag reads the exact word. The `should` to MUST replacement never applies to a quoted normative term |
 | Quoted external text: RFC prose, vendor output, peer daemon logs | A quotation is evidence. An edited quotation is false evidence |
-| Go identifiers, YANG leaf names, JSON keys, env var keys, CLI tokens | `ai/rules/naming.md`, `ai/rules/config-naming.md`, `ai/rules/yang-structure.md`, and `ai/rules/cli-grammar.md` own these names |
+| Go identifiers, YANG leaf names, JSON keys, env var keys, CLI tokens | `ai/rules/go-standards.md`, `ai/rules/config.md`, `ai/rules/config.md`, and `ai/rules/cli.md` own these names |
 | Technical nouns of this domain: `peer`, `prefix`, `NLRI`, `netlink`, `teardown` | A domain noun is precise. Keep it, and keep one spelling |
 | Fenced code blocks, hex dumps, config samples, fixture data | These are data, not prose |
 
@@ -485,11 +485,11 @@ meaning and never a count.
 
 | Writing | Extra requirement |
 |---------|-------------------|
-| A `docs/` page | Verify each factual claim against the source, then add a `<!-- source: -->` anchor (`ai/rules/documentation.md`) |
-| An error message | Name what failed, the offending value, and the next action. Keep the leading phrase stable so it stays greppable (`ai/rules/error-messages.md`) |
-| A code comment | Say why, and state a caller obligation with MUST (`ai/rules/api-contracts.md`) |
-| A YANG `description` | One sentence on what the leaf MEANS. Never prescribe a CLI spelling (`ai/rules/yang-structure.md`) |
-| A commit message | Procedural limits apply: 20 words in a sentence, and an imperative subject (`ai/rules/fix-dont-record.md`) |
+| A `docs/` page | Verify each factual claim against the source, then add a `<!-- source: -->` anchor (`ai/rules/writing.md`) |
+| An error message | Name what failed, the offending value, and the next action. Keep the leading phrase stable so it stays greppable (`ai/rules/cli.md`) |
+| A code comment | Say why, and state a caller obligation with MUST (`ai/rules/go-standards.md`) |
+| A YANG `description` | One sentence on what the leaf MEANS. Never prescribe a CLI spelling (`ai/rules/config.md`) |
+| A commit message | Procedural limits apply: 20 words in a sentence, and an imperative subject (`ai/rules/completion.md`) |
 | A spec or a learned summary | The same limits. A spec is read by the next agent under time pressure |
 | A guide step | Imperative, one instruction, 20 words |
 
@@ -498,7 +498,7 @@ meaning and never a count.
 US English, with no exceptions in the repository: `color`, `behavior`,
 `initialize`, `license`, `analyze`. The one exception is prose in Thomas's own
 voice, which keeps UK English and which this page does not govern
-(`ai/rules/language-and-spelling.md`).
+(`ai/rules/writing.md`).
 
 ## How to check your writing
 
@@ -528,5 +528,5 @@ controlled-language standard ASD-STE100. The aerospace industry wrote it for
 maintenance documentation that a non-native reader must understand the first
 time. The rules are restated in Ze's words, and every example is written for Ze's own
 surfaces. Where a question is not answered here, the
-published standard is the authority, and `ai/rules/simplified-technical-english.md`
+published standard is the authority, and `ai/rules/writing.md`
 records where to get it.

@@ -127,18 +127,28 @@ func (d *detector) characterizeAndEmit(gen uint64, ifaceName string, peakPps, pe
 	d.characterizeFromFlows(ctx, gen, ifaceName, target.DstPrefix, peakPps, peakBps, threshold, severity)
 }
 
-// emitDetected emits AttackDetected iff the attack generation is still gen,
-// holding d.mu across the check AND the (synchronous) emit. Returns false when
-// stale. The lock is what makes the generation guard sound: emitCleared runs its
-// Cleared emit under d.mu on the rate tick, so holding d.mu here prevents a
-// Cleared from slipping between the check and the emit -- which would otherwise
-// leave ddos-local with a drop and no matching Cleared (a permanent stuck rule,
-// since max-mitigation-duration is not enforced there). The slow source queries
-// already ran off the lock, so this critical section is just the emit.
+// emitDetected emits AttackDetected iff the attack generation was still gen at
+// the check, holding emitMu across the check AND the (synchronous) emit. Returns
+// false when stale.
+//
+// What emitMu guarantees, exactly: DELIVERY ORDER, not a frozen generation. The
+// generation CAN advance between the check and the emit, because genCurrent
+// releases d.mu before returning -- the fan-out reaches ddos-local's netlink
+// reconcile, and holding d.mu across it froze the detector's rate loop. So this
+// can publish a Detected for an attack that cleared mid-emit. That is benign,
+// and only because the rate tick advances attackGen under d.mu but publishes the
+// matching Cleared under emitMu: a Cleared either got there first (the check
+// drops this emit) or waits for emitMu and lands AFTER. ddos-local is never left
+// with a drop and no matching Cleared -- a permanent stuck rule, since
+// max-mitigation-duration is not enforced there.
+//
+// What emitMu does NOT guarantee is that the flag can be set unconditionally
+// afterwards; markDetectedEmitted owns that, and it re-checks the generation.
+// See the emitMu field doc for the lock order.
 func (d *detector) emitDetected(gen uint64, ifaceName string, target ddosevent.VectorTuple, severity ddosevent.Severity, direction ddosevent.Direction, suppressMitigation bool, peakPps, peakBps float64) bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.attackGen != gen {
+	d.emitMu.Lock()
+	defer d.emitMu.Unlock()
+	if !d.genCurrent(gen) {
 		return false
 	}
 	if _, err := ddosevent.Detected.Emit(d.bus, &ddosevent.AttackDetected{
@@ -155,17 +165,37 @@ func (d *detector) emitDetected(gen uint64, ifaceName string, target ddosevent.V
 		logger().Warn("ddos-detect: emit detected failed", "error", err)
 	}
 	// Detected has now reached subscribers; allow onRate to emit Ongoing.
-	d.detectedEmitted.Store(true)
+	d.markDetectedEmitted(gen)
 	return true
 }
 
-// emitCharacterized emits AttackCharacterized iff the attack generation is still
-// gen, holding d.mu across the check and the emit (see emitDetected for why the
-// lock is load-bearing). Returns false when stale or the emit errored.
-func (d *detector) emitCharacterized(gen uint64, ev *ddosevent.AttackCharacterized) bool {
+// markDetectedEmitted records that gen's AttackDetected has reached subscribers,
+// so applyTick may start staging AttackOngoing for it. Caller must NOT hold d.mu.
+//
+// The generation is re-checked HERE, under the same d.mu the flag is written in,
+// and that pairing is the whole point: the fan-out above runs with d.mu released,
+// so a clear can land inside it -- emitCleared advances attackGen and clears the
+// flag under d.mu, then blocks on emitMu to publish its Cleared. Setting the flag
+// unconditionally afterwards would put it back to true for an attack that has
+// ended, and it would stay true through the next activation: applyTick would then
+// stage an AttackOngoing before that attack's AttackDetected had fanned out,
+// which is the one thing the flag exists to prevent.
+func (d *detector) markDetectedEmitted(gen uint64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.attackGen != gen {
+		return // cleared or superseded during the fan-out: the flag stays down
+	}
+	d.detectedEmitted = true
+}
+
+// emitCharacterized emits AttackCharacterized iff the attack generation is still
+// gen, holding emitMu across the check and the emit (see emitDetected for why the
+// lock is load-bearing). Returns false when stale or the emit errored.
+func (d *detector) emitCharacterized(gen uint64, ev *ddosevent.AttackCharacterized) bool {
+	d.emitMu.Lock()
+	defer d.emitMu.Unlock()
+	if !d.genCurrent(gen) {
 		return false
 	}
 	if _, err := ddosevent.Characterized.Emit(d.bus, ev); err != nil {
@@ -303,6 +333,7 @@ func (d *detector) awaitClassifiableFlows(ctx context.Context, gen uint64, victi
 
 // genCurrent reports whether the attack generation is still gen, read under d.mu
 // so it observes emitCleared/onAttackStart's advance of attackGen consistently.
+// Callers may hold emitMu (the emitters do); they must never hold d.mu.
 func (d *detector) genCurrent(gen uint64) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()

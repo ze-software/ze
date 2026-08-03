@@ -167,7 +167,7 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateIdentities(); err != nil {
 		return err
 	}
-	// ai/rules/exact-or-reject.md: a traffic selector the dataplane cannot program
+	// ai/rules/protocol.md: a traffic selector the dataplane cannot program
 	// byte for byte is refused HERE, at ze config verify and ze config commit, never
 	// approximated at negotiation time. The peer's own proposal never reaches this
 	// function, so ts_narrow.go applies the same predicate to attacker-controlled

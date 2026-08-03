@@ -11,7 +11,7 @@ directory structure gave no signal about which packages form isolated domains.
 
 ## Decisions
 
-- Resolved B-3 by expanding `ai/rules/module-tiers.md` with four non-engine
+- Resolved B-3 by expanding `ai/rules/architecture.md` with four non-engine
   categories (framework, host-service, domain-library, planned-violation) and a
   machine-readable manifest (`scripts/dev/tier_non_engine_categories.txt`) that
   `dep_audit.py --check` enforces. This replaces the advisory-only report with
@@ -74,7 +74,7 @@ directory structure gave no signal about which packages form isolated domains.
 
 ## Files
 
-- `ai/rules/module-tiers.md` (expanded with non-engine categories and clustering)
+- `ai/rules/architecture.md` (expanded with non-engine categories and clustering)
 - `scripts/dev/dep_audit.py` (non-engine gate + setup_features recognition)
 - `scripts/dev/tier_non_engine_categories.txt` (28-row manifest, created)
 - `scripts/dev/migrate_module.py` (core + nested move support)

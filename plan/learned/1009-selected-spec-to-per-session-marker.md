@@ -13,7 +13,7 @@ heuristic that claimed a spec from the shared list into a per-session marker was
 `tmp/session/.session-<SID>` markers; `selected-spec` was a redundant, manually
 maintained seed for them. Its one enforcement consumer, the `check_spec_audit` commit
 gate, only fired on a literal `git commit` from Bash, which `check_destructive_git`
-blocks first, so it ran on a dead path (plan/deferrals.md:234). Goal: remove the shared
+blocks first, so it ran on a dead path (plan/deferrals.md). Goal: remove the shared
 file and its bookkeeping rule without losing per-session recovery or auto status
 transition.
 
@@ -64,7 +64,7 @@ transition.
 - `.claude/hooks/subagent-context.sh`: dropped the spec line
 - `.claude/hooks/pretool-bash.py`: removed dead `check_spec_audit` + helpers
 - `.claude/rules/planning.md`, `session-start.md`, `post-compaction.md`: helper-based steps
-- `ai/rationale/session-start.md`, `ai/rules/impact-analysis.md`: updated references
+- `ai/rationale/session-start.md`, `ai/rules/architecture.md`: updated references
 - `ai/skills/ze-spec.md`, `ze-implement.md`, `ze-status.md`, `ze-progress.md`,
   `ze-audit.md`, `ze-debrief.md`, `ze-handoff.md`, `ze-review-spec.md`, `ze-review-deep.md`
 - `plan/README.md`: updated tracking description

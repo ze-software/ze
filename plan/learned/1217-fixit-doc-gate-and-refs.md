@@ -62,7 +62,7 @@ closed `spec-vrrp-0-umbrella` -> the live `internal/plugins/vrrp/`). Intentional
 gaps marked `doc-links: ignore` (illustrative spec-name examples, worktree-only
 paths, runtime archive dirs, cross-repo gh-pages tooling, module-cache submodule
 shorthand, an intentionally-absent deferred `.ci`). Deleted `test/stress/bgpgen.py`
-dropped from `project-knowledge.md` and both `.claude/memory/` files.
+dropped from `repo-maintenance.md` and both `.claude/memory/` files.
 
 ## Verification without ze-verify
 

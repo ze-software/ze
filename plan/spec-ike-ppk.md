@@ -8,10 +8,10 @@
 | Updated | 2026-07-04 |
 
 Anchor refresh (2026-07-22 plan review, design still valid, feature not
-landed): the key-derive call site cited as `fsm.go:303-321` moved ~150 lines
-to `fsm.go:457-475` (`DeriveSKKeys` `:464`, `sa.SKKeys=` `:475`).
-`payload_notify.go:39` and `keys.go:28/45` still hold. Re-read by symbol name,
-not cited line; also re-verify the `engine/rekey.go:180,189` rekey site at
+landed): the key-derive call site cited as `fsm.go` moved ~150 lines
+to `fsm.go` (`DeriveSKKeys` `:464`, `sa.SKKeys=` `:475`).
+`payload_notify.go` and `keys.go/45` still hold. Re-read by symbol name,
+not cited line; also re-verify the `engine/rekey.go,189` rekey site at
 implementation start.
 
 ## Post-Compaction Recovery
@@ -44,7 +44,7 @@ Add RFC 8784 PPK:
 ### Architecture Docs
 - [ ] `internal/component/ike/` - IKE component structure and engine flow.
   → Constraint: Ze's IKEv2 is a native implementation; PPK must be built on the wire/crypto/engine layers, not delegated.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - the new PPK config.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new PPK config.
   → Constraint: the PPK secret is a `$9$`-encoded secret leaf like the existing PSK.
 
 ### RFC Summaries (MUST for protocol work)
@@ -59,9 +59,9 @@ Add RFC 8784 PPK:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/wire/payload_notify.go` - the notify-type constant block ends at `NotifySignatureHashAlgorithms uint16 = 16431` (payload_notify.go:39). None of USE_PPK/PPK_IDENTITY/NO_PPK_AUTH (16435/16436/16437) exist.
-- [ ] `internal/component/ike/crypto/keys.go` - `DeriveSKKeys` (keys.go:45) expands SKEYSEED into SK_d..SK_pr via `PRFPlus` with no PPK argument and no post-derivation mix; `DeriveSKEYSEED` (keys.go:28) is plain RFC 7296.
-- [ ] `internal/component/ike/engine/fsm.go` - `DeriveSKEYSEED`/`DeriveSKKeys` are called and the result stored to `sa.SKKeys` during IKE_AUTH (fsm.go:457-475, `DeriveSKKeys` :464, `sa.SKKeys=` :475); the rekey path mirrors it at `engine/rekey.go` (cited :180,:189 -- re-verify by symbol, the file grew ~200 lines).
+- [ ] `internal/component/ike/wire/payload_notify.go` - the notify-type constant block ends at `NotifySignatureHashAlgorithms uint16 = 16431` (payload_notify.go). None of USE_PPK/PPK_IDENTITY/NO_PPK_AUTH (16435/16436/16437) exist.
+- [ ] `internal/component/ike/crypto/keys.go` - `DeriveSKKeys` (keys.go) expands SKEYSEED into SK_d..SK_pr via `PRFPlus` with no PPK argument and no post-derivation mix; `DeriveSKEYSEED` (keys.go) is plain RFC 7296.
+- [ ] `internal/component/ike/engine/fsm.go` - `DeriveSKEYSEED`/`DeriveSKKeys` are called and the result stored to `sa.SKKeys` during IKE_AUTH (fsm.go, `DeriveSKKeys` :464, `sa.SKKeys=` :475); the rekey path mirrors it at `engine/rekey.go` (cited :180,:189 -- re-verify by symbol, the file grew ~200 lines).
 
 **Behavior to preserve:**
 - Non-PPK sessions negotiate and derive keys exactly as today.
@@ -95,7 +95,7 @@ Add RFC 8784 PPK:
 ### Integration Points
 - `internal/component/ike/wire/payload_notify.go` - add USE_PPK/PPK_IDENTITY/NO_PPK_AUTH constants (after :39) and any parse/marshal helpers.
 - `internal/component/ike/engine/initiator.go` / responder - build/parse the PPK notifies in SA_INIT and AUTH.
-- `internal/component/ike/crypto/keys.go` - a PPK-mix helper; invoked at the `engine/fsm.go:457-475` call site and the rekey path.
+- `internal/component/ike/crypto/keys.go` - a PPK-mix helper; invoked at the `engine/fsm.go` call site and the rekey path.
 - `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - PPK config under `authentication` (:330); threaded through `ipsec/types.go` and `ipsec/config.go`.
 
 ### Architectural Verification
@@ -110,7 +110,7 @@ Add RFC 8784 PPK:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | PPK mix only touches SK_d/SK_pi/SK_pr | RFC 8784 Section 3 | wrong keys mixed → auth/interop failure | interop test vs strongSwan PPK | unvalidated |
-| A-2 | `DeriveSKKeys` is the sole SK_* producer for initial + rekey | keys.go:45, fsm.go:464, rekey.go:189 (rekey cite unverified after file growth; re-check by symbol) | a mix site is missed | audit both call sites | unvalidated |
+| A-2 | `DeriveSKKeys` is the sole SK_* producer for initial + rekey | keys.go, fsm.go, rekey.go (rekey cite unverified after file growth; re-check by symbol) | a mix site is missed | audit both call sites | unvalidated |
 | A-3 | USE_PPK belongs in IKE_SA_INIT, PPK_IDENTITY in IKE_AUTH | RFC 8784 Section 3 | negotiation fails | interop test | unvalidated |
 
 ### Risks
@@ -186,7 +186,7 @@ Add RFC 8784 PPK:
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | `ze-ipsec-conf.yang` PPK list; `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | `ze-ipsec-conf.yang` PPK list; `ai/rules/config.md` |
 | Functional test | [ ] yes | `test/ci/ike-ppk.ci` |
 | Interop test | [ ] yes | strongSwan PPK peer |
 

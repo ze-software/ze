@@ -9,11 +9,11 @@
 
 Staleness note (2026-07-22 plan review): substantial phases have landed since
 2026-05-27 without this header moving -- the SRv6 phase CLOSED (learned 1113:
-both FIB backends program SRv6, `nexthop_linux.go:169` SEG6 + `fib/vpp/srv6.go`,
+both FIB backends program SRv6, `nexthop_linux.go` SEG6 + `fib/vpp/srv6.go`,
 with tests and interop `35-srv6-frr`), and ECMP (learned 774) and VPP parity
 (learned 798) also landed. The spec's own Current Behavior table still says
 Ze SRv6 = "no", which shipped code contradicts. The live remainder includes
-best-path step 6 (IGP cost: `BestStepIGPCost` deferred at `bestpath.go:49,182`,
+best-path step 6 (IGP cost: `BestStepIGPCost` deferred at `bestpath.go,182`,
 `lookupIGPCost` returns 0). Next session on this spec: recount the phases
 against the three learned closures before trusting 7/12, and refresh Current
 Behavior.
@@ -36,7 +36,7 @@ Behavior.
 Finish the routing decision process and deepen FIB programming beyond prefix+next-hop.
 
 Two gaps:
-1. **Best-path step 6 (IGP cost to NEXT_HOP)** is a comment placeholder (`bestpath.go:346`).
+1. **Best-path step 6 (IGP cost to NEXT_HOP)** is a comment placeholder (`bestpath.go`).
    Recursive next-hop resolution is required before IGP cost comparison can work.
 2. **FIB programming** installs only `(prefix, gateway)` tuples. Real FIBs carry route type,
    metric, ECMP groups, VRF table ID, blackhole/prohibit, MPLS labels, and SRv6 SIDs.

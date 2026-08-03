@@ -240,7 +240,7 @@ func TestRccTwoLevelChainAuthenticates(t *testing.T) {
 // PREVENTS: the untruthful remediation. A peer that sent leaf and intermediate used to
 // read back "issue a certificate whose subject alternative name or common name is X",
 // which was false: the certificate carried that name and the chain was the problem
-// (ai/rules/error-messages.md, leg 3).
+// (ai/rules/cli.md, leg 3).
 func TestRccMissingIntermediateNamesTheChain(t *testing.T) {
 	leafDER, _, leafKey := rccPKI(t)
 

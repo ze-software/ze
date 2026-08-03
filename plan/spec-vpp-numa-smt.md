@@ -27,9 +27,9 @@ Split from vpp-host-tuning because every candidate item binds to surfaces that
 do not exist yet (verified 2026-07-10):
 
 1. **Host facts.** The inventory has no NUMA or SMT data: `CoreInfo` carries
-   only CPU/CoreID/PhysicalPackage (internal/component/host/inventory.go:203-212,
+   only CPU/CoreID/PhysicalPackage (internal/component/host/inventory.go,
    SMT siblings derivable but not exposed), `readNICSysfs` does not read
-   `device/numa_node` (internal/component/host/nic_linux.go:75-95), and nothing
+   `device/numa_node` (internal/component/host/nic_linux.go), and nothing
    under `internal/` reads `/sys/devices/system/node` (grep `numa`, 2026-07-10).
    New facts needed: per-CPU NUMA node, NIC NUMA node, SMT sibling map.
 2. **NIC/worker NUMA alignment.** Doctor check (moved AC-5 of vpp-host-tuning):
@@ -47,13 +47,13 @@ do not exist yet (verified 2026-07-10):
    seam (`internal/appliance/kernelargs.go`) that vpp-host-tuning creates.
 5. **Automatic NUMA balancing.** `kernel.numa_balancing` fights explicit
    pinning. The sysctl profile surface is interface-scoped
-   (internal/core/sysctl/profiles.go:14-15, :91-100), so disabling a global key
+   (internal/core/sysctl/profiles.go, :91-100), so disabling a global key
    needs its own surface decision (global profile, boot cmdline `numa_balancing=disable`,
    or doctor-only warning).
 
 Ze-shape note: all of it lands in host inventory, config validation, the
 appliance image build, and `ze doctor` -- not in a deploy script. Reference
-hardware today is single-socket (docs/research/vpp-deployment-reference.md:242-247),
+hardware today is single-socket (docs/research/vpp-deployment-reference.md),
 so this spec is about correctness on bigger iron, not the common path.
 
 ## Required Reading
@@ -61,8 +61,8 @@ so this spec is about correctness on bigger iron, not the common path.
 ### Architecture Docs
 - [ ] `plan/spec-vpp-isolated-cpus.md` - worker-core selection helper this spec validates against.
 - [ ] `plan/spec-vpp-host-tuning.md` (or its learned summary after closure) - kernel-args seam, hugepage doctor check to extend.
-- [ ] `ai/rules/doctor-checks.md` - ownership + diagnostic codes for the new checks.
-- [ ] `ai/rules/qemu-testing.md` - QEMU can emulate NUMA topologies (`-numa` options) for evidence.
+- [ ] `ai/rules/repo-maintenance.md` - ownership + diagnostic codes for the new checks.
+- [ ] `ai/rules/platform-linux.md` - QEMU can emulate NUMA topologies (`-numa` options) for evidence.
 - [ ] `docs/research/vpp-deployment-reference.md` - production placement guidance.
 
 ## Current Behavior (MANDATORY)
@@ -103,7 +103,7 @@ so this spec is about correctness on bigger iron, not the common path.
 ### Integration Points
 - `internal/component/host/` detectors - new facts.
 - `internal/appliance/kernelargs.go` - per-node arguments (seam from spec-vpp-host-tuning).
-- `ze doctor` - new checks per `ai/rules/doctor-checks.md`.
+- `ze doctor` - new checks per `ai/rules/repo-maintenance.md`.
 
 ### Architectural Verification
 - [ ] No bypassed layers (doctor reads inventory facts, not raw sysfs)
@@ -118,7 +118,7 @@ so this spec is about correctness on bigger iron, not the common path.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | QEMU can present multi-node NUMA + SMT topologies good enough for evidence | QEMU `-numa node` / `-smp threads=` options | evidence needs real hardware; scope shrinks to unit tests over fixture sysfs | prototype a `-numa` boot in the evidence harness | unvalidated |
 | A-2 | `hugepages=<node>:<count>` boot syntax is supported by the runtime kernel version | kernel 7.1.1 pinned (internal/appliance/kernel.version) is far above the syntax's introduction | fall back to early-boot per-node sysfs writes | kernel docs for the pinned version + QEMU evidence | unvalidated |
-| A-3 | SMT sibling map is derivable from existing cpuinfo fields (core id + package id) without new sysfs reads | `CoreInfo` already carries both (inventory.go:203-212) | read `topology/thread_siblings_list` from sysfs instead | unit test against a hyperthreaded fixture | unvalidated |
+| A-3 | SMT sibling map is derivable from existing cpuinfo fields (core id + package id) without new sysfs reads | `CoreInfo` already carries both (inventory.go) | read `topology/thread_siblings_list` from sysfs instead | unit test against a hyperthreaded fixture | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

@@ -1,4 +1,4 @@
-// VALIDATES: the reverse-engineered CLI grammar rules R1-R9 (ai/rules/cli-grammar.md)
+// VALIDATES: the reverse-engineered CLI grammar rules R1-R9 (ai/rules/cli.md)
 // as pure functions over command paths and command.Node structure.
 // PREVENTS: grammar drift -- a new command that is noun-first, uses a --flag,
 // carries an untyped value slot, mis-orders value-before-keyword, uses a config

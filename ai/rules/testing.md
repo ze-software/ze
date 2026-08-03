@@ -1,12 +1,92 @@
 # Testing
 
-**When:** writing tests, or when a test fails and you are tempted to weaken it
+**When:** writing, changing, or deleting any test, and before writing implementation code for new behavior
 **Severity:** blocking
+**Related:** completion, platform-linux, rfc-compliance
 
 ## Directives
 
-Rationale: `ai/rationale/testing.md`
+Rationale: `ai/rationale/testing.md`, `ai/rationale/tdd.md`, `ai/rationale/no-test-deletion.md`
 Structural template: `ai/patterns/functional-test.md`
+
+- **Tests must exist and fail before implementation.**
+- **Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature works end-to-end through the daemon. Both are required. Neither substitutes for the other.**
+- **A red test means the CODE is wrong by default. Diagnose the failure and fix the source. Do NOT weaken the test to make it green. ASK the user before deleting OR weakening any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries). Exception: the user already explicitly requested it.**
+- **A test that cannot run on every OS MUST either carry a build tag (`//go:build linux`) on its file, or skip (`t.Skip`) with a reason on the OSes where it cannot run. Never weaken the assertion to accept both outcomes.**
+- **Every `time.sleep(` call in a `.ci` test MUST have an explanatory comment on the line directly above it, or trailing it on the same line. A bare sleep with no comment is rejected.**
+- **A load-dependent failure is DIAGNOSED, and the outcome is always a fix. Load-dependence is the diagnosis (the test asserts on elapsed time instead of on state), and `ai/rules/completion.md` bans recording it as a `plan/known-failures/` shard, bans "passes in isolation" as a conclusion, and bans raising the timeout. Reproduce it with the stress reproducer, then go fix the timing assumption.**
+
+## Test-Driven Development
+
+### Cycle
+
+1. Write test with `VALIDATES:` and `PREVENTS:` comments
+2. Run → MUST FAIL (paste output)
+3. Minimum implementation
+4. Run → MUST PASS (paste output)
+5. Refactor while green
+
+### RFC-Enforcing Tests
+
+A test that enforces an RFC obligation carries a third tag beside `VALIDATES:`/`PREVENTS:`:
+
+```go
+// RFC requirement: RFC7606-7.1-1 negative: ORIGIN length != 1 is treated as withdraw.
+```
+
+One id per line, polarity mandatory (`positive`/`negative`), placed INLINE at the table
+case when one function covers many requirements. `make ze-rfc-check` binds it to
+`rfc/short/*.md`; the tag is the only authored half, so it dies with the test. Once
+tagged, the test may not change behavior without user approval (see "RFC-Tagged Tests"
+below). Full rules: `ai/skills/ze-rfc.md`.
+
+### Patterns
+
+- **Table-driven:** `tests := []struct{...}` with `t.Run(tt.name, ...)`
+- **Round-trip:** `original → packed → unpacked == original`
+- **Fuzz (MANDATORY for wire format):** All external input parsing
+- **Non-default params:** Always test with non-default/non-zero values
+
+### Boundary Testing (MANDATORY)
+
+All numeric ranges MUST test: last valid, first invalid below, first invalid above.
+
+| Range | Last Valid | Invalid Below | Invalid Above |
+|-------|------------|---------------|---------------|
+| Port 1-65535 | 65535 | 0 | 65536 |
+| Hold time 0,3+ | 0, 3 | 1, 2 | N/A |
+| Prefix IPv4 0-32 | 32 | N/A | 33 |
+| Message len 19-4096 | 4096 | 18 | 4097 |
+
+### Coverage
+
+| Code Type | Target |
+|-----------|--------|
+| Wire format (pack/unpack) | 90%+ |
+| Public functions | 100% |
+| Error paths | 100% |
+
+### AC-Linked Tests (BLOCKING)
+
+Every AC-N MUST have a test whose assertion directly verifies the AC's **expected behavior**, not just the mechanism used to achieve it.
+
+| AC text says | Test MUST assert | Test MUST NOT assert |
+|-------------|-----------------|---------------------|
+| "rejected" / "not installed" | Route is absent from delivery / RIB | No error returned (mechanism) |
+| "session torn down" | Connection closed + NOTIFICATION sent | NOTIFICATION struct returned (mechanism) |
+| "warning logged" | Log entry exists (or counter incremented) | No teardown (absence of something) |
+| "rejected at parse time" | Error returned with specific message | Generic error returned |
+
+**The test:** Quote the AC expected behavior in the `VALIDATES:` comment. Read the test assertion. Does it verify that exact behavior? If the assertion would still pass with a stub implementation that does nothing, the test is invalid.
+
+**Red flag:** Test that asserts the ABSENCE of an action ("no NOTIFICATION", "no error") as proof that a DIFFERENT action happened ("routes rejected"). Absence of X does not prove Y.
+
+### Rules (test-first)
+
+- If you debug something, add a test so it's never re-investigated
+- Implementation before test exists → delete impl, write test
+- Test passes immediately → invalid test, add failing assertion
+- Claiming "done" without test output → run it, paste it
 
 ## Draft a Functional Test Before It Is Live (BLOCKING)
 
@@ -37,6 +117,162 @@ When a test fails, fix the code to make the test pass. NEVER weaken or simplify 
 
 NEVER modify test data (golden files, expected output, fixtures, `.ci` expectations) to make a failing test pass without explicit user authorization. When output changes, the default assumption is that the code is wrong, not the test data. Ask the user before updating any test data, even if the new output looks plausible.
 
+## Test Deletion and Weakening
+
+**Legitimate:** testing removed functionality, duplicating another test, fundamentally wrong, replacing with better coverage.
+**Not legitimate:** failing and hard to fix, slow, "annoying", don't understand what it checks.
+
+### Mechanically blocked (c_test_weakening in pretool-writeedit.py)
+
+Blocked on Edit / Write / MultiEdit to a test file (exit 2):
+
+- adding `t.Skip` / `t.Skipf` / `t.SkipNow` (the test stops running)
+- removing assertions (any net drop, not only all-removed)
+- downgrading fatal assertions to non-fatal (`require` -> `assert`, `t.Fatal` -> `t.Error`)
+- commenting out assertions
+- adding an `ignore` build tag (file dropped from the build)
+- deleting a `Test`/`Fuzz`/`Benchmark` func, `t.Run` cases, or table rows
+- removing `.ci` test lines
+
+**Not detected (by design, to avoid false positives):** changing an expected
+value in place while the assertion structure stays (e.g. `Equal(t, 1, x)` ->
+`Equal(t, 2, x)`). This is the one weakening the hook cannot see; treat it with
+the same discipline manually. Adjusting an expected value to match broken code is
+the same violation as removing the assertion.
+
+### Test Rewrite as Replacement (BLOCKING)
+
+When fixing a new issue that happens to touch an area with existing tests, ADD a
+new test case or function for the new issue. Do not repurpose an existing test to
+cover the new behavior. The old test verified a behavior that still needs coverage.
+
+| Scenario | Correct | Wrong |
+|----------|---------|-------|
+| New bug in `parsePeer`, existing `TestParsePeer` | Add `TestParsePeerRejectsEmpty` alongside `TestParsePeer` | Rewrite `TestParsePeer` to test the new edge case |
+| Table-driven test, new case needed | Add a row to the table | Replace an existing row with the new case |
+| Existing test fails because code changed | Fix the code so both old test and new test pass | Rewrite the old test to match the changed (broken) code |
+
+**Why the hook cannot catch this:** the rewrite maintains the same structural
+shape (same function count, same assertion count), so the mechanical check sees
+no weakening. The coverage loss is semantic, not structural.
+
+**Detection:** `/ze-review` step 0 (`audit-test-relaxation.py`) flags structural
+changes. For semantic replacement, `/ze-review` step 7 (removed-behavior audit)
+must verify that every assertion the diff replaces still has coverage elsewhere.
+When reviewing a test edit that changes WHAT is asserted (not just adding new
+assertions), ask: "is the old behavior still tested?"
+
+### Escape hatch (auditable)
+
+When relaxation IS legitimate, document the reason on or above the changed line:
+
+```
+// test-relax: <why this test/assertion no longer applies>
+```
+
+The token unblocks the edit and leaves an audit trail. Review all relaxations with:
+`grep -rn 'test-relax:' --include='*_test.go'`. Using the token without a real
+reason is a violation, not a bypass.
+
+## Functional Test Gate
+
+### The Rule
+
+When you add or change user-facing behavior, a corresponding functional test MUST
+exist in the correct `test/` directory. "User-facing" means: reachable via CLI command,
+config option, API call, web endpoint, plugin event, or wire protocol exchange.
+
+### Required Test Type by Change
+
+| Change type | Required functional test | Directory |
+|-------------|------------------------|-----------|
+| New/changed BGP wire behavior | `.ci` with `expect=bgp:` hex match | `test/encode/` or `test/decode/` |
+| New/changed plugin behavior | `.ci` with API commands + expectations | `test/plugin/` |
+| New/changed config option | `.ci` with parse success/failure | `test/parse/` |
+| New/changed CLI subcommand | `.ci` with `cmd=foreground` + `expect=stdout` | `test/ui/` |
+| New/changed web endpoint | `.ci` with HTTP expectations | `test/web/` |
+| New/changed editor behavior | `.et` with input/expect directives | `test/editor/` |
+| Config reload behavior | `.ci` with `action=sighup` | `test/reload/` |
+| Managed/fleet behavior | `.ci` | `test/managed/` |
+| Cross-component integration | `.ci` | `test/integration/` |
+| Interoperability | `.ci` | `test/interop/` |
+
+If the change does not fit any row (pure internal refactor, no user-visible effect),
+no functional test is required. But if you are unsure, write one.
+
+### When Unit Tests Alone Are Sufficient
+
+Unit tests (`_test.go`) without a functional test are acceptable ONLY when:
+
+| Condition | Example |
+|-----------|---------|
+| Pure internal logic with no user entry point | Helper function, data structure, algorithm |
+| Existing functional test already covers the path | Bug fix where the `.ci` test already exercises the scenario |
+| Wire encoding internals tested via round-trip | `pack -> unpack == original` in `_test.go`, AND a `.ci` encode test covers the message type |
+
+In all other cases, both unit tests AND a functional test are required.
+
+### Mechanical Check (MANDATORY before claiming done)
+
+For every new or changed user-facing behavior in the diff:
+
+```
+# 1. Identify the feature's test directory from the table above
+# 2. Check for a functional test covering the behavior
+find test/<directory>/ -name "*.ci" -o -name "*.et" | xargs grep -l '<feature-keyword>'
+```
+
+If no functional test exists for a user-facing behavior, that is a BLOCKER.
+
+### Mutation-Verify the Test Actually Gates (MANDATORY for behavior-guarding tests)
+
+A functional test that EXISTS is not the same as one that GATES. A `.ci`/`.et` can
+pass whether or not the feature works (a **false-pass**) when the observed effect
+reaches the assertion by a path OTHER than the one under test. Real example: three
+`redistribute-late-join*.ci` tests kept passing with the late-join replay
+(`handleReplayBatch`) disabled, so the route reached the peer by some path other than
+the replay: they guarded nothing and shipped green
+(`plan/learned/1062-redistribute-late-join-replay.md`).
+
+For every NEW or CHANGED `.ci`/`.et` that is meant to guard a SPECIFIC behavior:
+
+1. Disable the producing function (the code the test exists to prove): an early
+   `return`, a no-op, or `if true { return }` at the top of the function.
+2. Re-run the test. It MUST flip to RED. If it still passes, the test does not gate
+   on the feature: find the alternate delivery path and design it out (inject with no
+   peers, remove the fallback store, use a genuinely-new peer instead of a reconnect),
+   or the test is worthless: delete it, do not ship it.
+3. Revert the mutation immediately and confirm the test is green again.
+
+This is a MANUAL discipline. `make ze-mutation-test` / `ze-mutation-changed` (gomu,
+see "Mutation Testing" below) mutates Go source and runs only `go test` UNIT tests: it
+never executes `.ci`/`.et`, so it cannot catch a functional false-pass. Nothing else in
+the pipeline does either.
+
+If a test genuinely cannot be made to fail under mutation because the behavior is not
+observable end-to-end (e.g. the reactor suppresses a duplicate announce, so per-peer
+targeting is wire-indistinguishable), guard it with a UNIT test that inspects the
+producing value directly, and say so in the test comment. Do NOT keep a `.ci` that
+passes with the feature disabled.
+
+### Common Violations
+
+| Pattern | Why it's wrong |
+|---------|----------------|
+| "Unit tests cover this" | Unit tests prove the function works in isolation. They do not prove the daemon exposes the feature to users. |
+| "The wiring test passes" | Wiring proves reachability. Functional tests prove correct behavior through the full path. |
+| "The `.ci` is green" | A test that passes with the feature DISABLED (false-pass) guards nothing. Mutation-verify it: disable the producing function, confirm the test goes red. |
+| "I'll add the .ci test later" | Later never comes. The feature ships without end-to-end coverage. |
+| "The behavior is too simple to need a functional test" | Simple behaviors break when config parsing, CLI dispatch, or plugin registration changes. The functional test catches that. |
+| "There's no test infrastructure for this path" | Build the infrastructure or flag it as blocked. Do not skip the test. |
+
+### Relationship to Other Rules
+
+- `completion.md` requirement #2 requires both unit AND functional tests per AC
+- `completion.md` checks that code is reachable; this rule checks that the reachable path is tested end-to-end
+- "Test-Driven Development" (above) governs the test-first cycle; this section governs test completeness at the feature level
+- "No Throw-Away Tests" (below) has the directory table and iteration workflow; this section makes the directory mapping a gate
+
 ## RFC-Tagged Tests (BLOCKING)
 
 A test carrying an `RFC requirement: <id> <polarity>` tag is the proof behind a public
@@ -63,7 +299,7 @@ that proof. Editing it to match the code retires the evidence while the claim st
 
 - **Prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-verify` on every push, interop does not (owner decision, umbrella D3).
 - A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
-- **An interop tier is DERIVED, never declared.** A tree earns `interop/nightly` when a SCHEDULED workflow under `.github/workflows/` names its runner, which `scheduled_workflow_targets()` reads. So adding the job IS the whole fix and `CARRIERS` needs no edit, and deleting the job takes the tier away again rather than leaving a stale claim behind (`ai/rules/derive-not-hardcode.md`).
+- **An interop tier is DERIVED, never declared.** A tree earns `interop/nightly` when a SCHEDULED workflow under `.github/workflows/` names its runner, which `scheduled_workflow_targets()` reads. So adding the job IS the whole fix and `CARRIERS` needs no edit, and deleting the job takes the tier away again rather than leaving a stale claim behind (`ai/rules/evidence.md`).
 - **A tag in `test/l2tp-interop/`, `test/pppoe-interop/`, or any other `check.py` tree is REFUSED** with an error naming the file, because no scheduled workflow runs those suites and a tag nothing executes is an absence of evidence rather than weak evidence. The l2tp and pppoe labs need host kernel modules (`l2tp_ppp`, `pppoe`, `/dev/ppp`) that no runner is yet confirmed to provide, so the sequence stays wire, observe one green run, then the tier follows on its own.
 - **A QEMU sibling is not that pipeline.** `ze-qemu-l2tp-ppp-test` and `ze-qemu-pppoe-accel-test` run `scripts/evidence/effective-*.py`, never the trees' `check.py`, so they execute no tagged carrier and cannot justify a tier for one.
 - **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `make ze-rfc-check`, and no annotation satisfies it.
@@ -72,7 +308,7 @@ that proof. Editing it to match the code retires the evidence while the claim st
 `// test-relax:` does **not** authorize changing a tagged test: it is your own
 justification, not the user's approval. Enforced by the `rfc-tagged-test` hook, which runs
 before `test-weakening` precisely so the relax token cannot pre-empt it
-(`ai/rules/hook-mapping.md`). Once the USER approves, record what they approved:
+(`ai/rules/repo-maintenance.md`). Once the USER approves, record what they approved:
 `// rfc-test-change-approved: <date> <what and why>`.
 
 Every gated requirement needs BOTH a positive and a negative test. A negative-only test
@@ -107,7 +343,7 @@ counts may only go DOWN, following the `test/.ci-sleep-baseline` convention.
 | tag-orphan | A `_test.go` build constraint needs a `ze_*` tag that no `go test -tags` in `Makefile` or `mk/*.mk` supplies | Add the tag to a `go test` invocation, or delete the file |
 
 Benchmarks and fuzz targets are deliberately exempt: a benchmark measures, and a
-fuzz target delegates its oracle to the engine. Raising a floor is forbidden --
+fuzz target delegates its oracle to the engine. Raising a floor is forbidden:
 `make ze-test-health` only lowers one, so a regression cannot be laundered into
 the baseline by regenerating.
 
@@ -141,7 +377,7 @@ Never write temporary test code. Add functional or unit tests that run in CI.
 | Editor/TUI behavior | `test/editor/` | `.et` with `input=`/`expect=` directives |
 | Internal logic | `internal/<pkg>/<file>_test.go` | Go test file |
 
-Each `test/<subdir>/` has its own runner and format — they are not interchangeable. `test/parse/` only accepts config-parse `.ci` files (config text + `expect=exit:code=`). Putting a BGP-plugin scenario there will be rejected; put it in `test/plugin/`. Pure-logic, reactor-free code (encoders, parsers, state machines exercised directly) belongs in Go unit tests (`internal/<pkg>/<file>_test.go`), not in any `.ci` directory — `.ci` tests exist to prove a user entry point works end-to-end through the daemon.
+Each `test/<subdir>/` has its own runner and format, and they are not interchangeable. `test/parse/` only accepts config-parse `.ci` files (config text + `expect=exit:code=`). Putting a BGP-plugin scenario there will be rejected; put it in `test/plugin/`. Pure-logic, reactor-free code (encoders, parsers, state machines exercised directly) belongs in Go unit tests (`internal/<pkg>/<file>_test.go`), not in any `.ci` directory: `.ci` tests exist to prove a user entry point works end-to-end through the daemon.
 
 ## Make Targets
 
@@ -205,7 +441,7 @@ How to read contended failures:
 
 ### Linux-Only Tests (QEMU)
 
-**Full rule: `ai/rules/qemu-testing.md`** (build tags, virtual substitutes,
+**Full rule: `ai/rules/platform-linux.md`** (build tags, virtual substitutes,
 Makefile wiring, reference implementations). Read it before writing any
 `//go:build linux` code.
 
@@ -344,7 +580,7 @@ subset that still carries a numeric selector -- a nick had already drifted there
 with firewall `"17"` resolving to `command-owner-firewall-root.ci` rather than to
 any `017-*.ci`.
 
-**Always spell `--pattern` in full: `-p` is a DIFFERENT flag in most suites.** `-p` is `--parallel` (an int) for `ze-test bgp <type>`, `ze-test exabgp`, `ze-test vpp` and every `.ci` suite on the shared runner (`internal/test/cli/cmd_bgp.go:560`, `cmd_exabgp.go:201`, `cmd_vpp.go:148`, `ci_runner.go:47`), and `--pattern` (a string) only for `ze-test editor` and `ze-test web` (`cmd_editor.go:31`, `cmd_web.go:80`); `--pattern` itself has no short form anywhere. So `ze-test bgp plugin -p rfc7606-relay-one-field` is not a filtered run, it is a parse failure -- exit 2, no output, no tests -- and it reads as "nothing to report" rather than as an error.
+**Always spell `--pattern` in full: `-p` is a DIFFERENT flag in most suites.** `-p` is `--parallel` (an int) for `ze-test bgp <type>`, `ze-test exabgp`, `ze-test vpp` and every `.ci` suite on the shared runner (`internal/test/cli/cmd_bgp.go`, `cmd_exabgp.go`, `cmd_vpp.go`, `ci_runner.go`), and `--pattern` (a string) only for `ze-test editor` and `ze-test web` (`cmd_editor.go`, `cmd_web.go`); `--pattern` itself has no short form anywhere. So `ze-test bgp plugin -p rfc7606-relay-one-field` is not a filtered run, it is a parse failure -- exit 2, no output, no tests -- and it reads as "nothing to report" rather than as an error.
 
 **A `ze.log.<subsystem>` key in a `.ci` test must name a real slog subsystem.**
 An internal plugin's logger name is `CanonicalSubsystemName` of its registry name
@@ -396,7 +632,7 @@ After 3 samples, the baseline is used for two things:
 - `ze-test`: Test runner. Common suite syntax is `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`; `--list` prints `N/TOTAL id name` with one-based ids, and runs print one completion line per test plus periodic progress.
 
 When adding a test runner, test format, make target, or verification gate, update
-`ai/rules/discovery-updates.md` paths in the same change: `ai/INDEX.md` for the
+`ai/rules/repo-maintenance.md` paths in the same change: `ai/INDEX.md` for the
 tool, `ai/INDEX.md` (task navigation) if it changes task selection, this file for required
 usage, and `docs/architecture/testing/` or `docs/contributing/` for detailed
 operator documentation.
@@ -423,12 +659,12 @@ the glob is what stops the next file from rotting.
 
 ## Temporary Files
 
-Use project `tmp/` (gitignored) for scratch files — never `/tmp`.
+Use project `tmp/` (gitignored) for scratch files, never `/tmp`.
 Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep artifacts isolated.
 
 **Prefer your session's own directory**: `dir=$(scripts/dev/session-scratch.sh)` gives
 `tmp/s/<session-id>/`, which is removed at SessionEnd, so scratch cannot outlive its
-owner or collide with a sibling session (`ai/rules/bash-output.md`).
+owner or collide with a sibling session (`ai/rules/commands.md`).
 
 The functional-test runner already writes there: its per-run and per-test working
 directories (configs, sockets, daemon pid/ready files) root at
@@ -519,6 +755,18 @@ Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with
 
 Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifecycle/`, `mode/`, `navigation/`, `pipe/`, `session/`, `validation/`, `workflow/`.
 
+## OS-Specific Tests
+
+| Situation | Do |
+|-----------|-----|
+| Whole file is OS-specific | `//go:build linux` on the file |
+| One test in a mixed file | `if runtime.GOOS != "linux" { t.Skip(...) }` at the top of that test |
+| `.ci` / `.et` test | Split or gate in the runner; do not land an always-failing .ci |
+
+A darwin `FAIL` caused by a `_other.go` stub returning `ErrUnsupported`
+is a test-setup bug, not a real failure. Keep the failure list
+meaningful.
+
 ## Common Flaky Test Causes
 
 | Symptom | Root Cause | Fix |
@@ -531,6 +779,68 @@ Flake-shape catalogue (locked-write/unlocked-read, subscribe-before-broadcast,
 gate-handler queue state, barrier FIFO, cleanup-drains-work, fixed-port
 SO_REUSEPORT gate, test-fake pool IDs): `plan/learned/608-concurrent-test-patterns.md`.
 Read it before investigating a new race or isolation flake.
+
+## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
+
+Some failures only surface under the scheduling and GC pressure of the full
+~22-suite run (many concurrent `ze` daemons on all cores). Rerunning the single
+suite never triggers them, and looping the full suite to hunt the bug is
+impractical (minutes per run, low hit rate). The verify aggregator also
+truncates the crashing daemon's goroutine stack to ~2 lines, so the crash site
+is usually lost.
+
+### Use the stress reproducer, not the full suite
+
+`scripts/dev/stress-repro.py <suite>` recreates that pressure cheaply: CPU + GC
+"burner" processes oversubscribe every core while many concurrent copies of one
+suite loop, and it captures the FIRST failure's complete, untruncated output.
+
+```
+python3 scripts/dev/stress-repro.py rsvpte --iterations 80         # hunt + capture the stack
+python3 scripts/dev/stress-repro.py rsvpte --race                  # data race self-reports its two accesses
+python3 scripts/dev/stress-repro.py bgp --burners 32 --parallel 8  # more pressure
+python3 scripts/dev/stress-repro.py "bgp plugin" --test 97 --any-failure  # sub-suite, one test, assertion flake
+```
+
+`<suite>` and `--test` are both split on whitespace, so a sub-suite and a
+multi-token selector reach `ze-test` exactly as you would type them by hand.
+
+**A crash is not the only reproduction.** By default only a CRASH signature
+(panic / `DATA RACE` / runtime error) counts, and everything else is discarded
+down to the last 500 bytes. An assertion flake (a test whose `expect=` pattern
+is merely missed under load) exits non-zero with no crash signature, so pass
+`--any-failure` or the run reports "not reproduced" while quietly throwing the
+evidence away.
+
+It sets `GOTRACEBACK=all` so a panic dumps every goroutine (the one racing on
+the corrupt buffer shows up next to the crasher), reuses the prebuilt
+`bin/ze`/`bin/ze-test` via `ze.bin` + `ZE_TEST_NO_BUILD` (no rebuilds under
+load), and writes the full capture to `tmp/stress-repro/<slug>-<ts>.log`. Exit
+0 = reproduced, 1 = not reproduced, 2 = setup error.
+
+**`ZE_TEST_NO_BUILD=1` means the run tests whatever `bin/ze` already is.** After
+changing daemon source, rebuild before you trust a verdict, otherwise a fixed
+bug still "reproduces" against the stale binary. `bin/ze-test <suite> <test>`
+once (no `ZE_TEST_NO_BUILD`) rebuilds both binaries.
+
+### Rules (stress reproduction)
+
+- **Never loop `make ze-functional-test` / `make ze-verify` to hunt a flake.**
+  Use the stress reproducer against the suspected suite.
+- **Static-clear the hypothesized site before trusting it.** Read the function
+  that PRODUCES the crash (the reslice, the buffer allocation), not a byte-count
+  inference (`ai/rules/evidence.md`). The `rsvpte-lsp` "cap-512
+  share-registry" diagnosis in `plan/known-failures/` was inference from the
+  5448-byte payload size and did not survive reading the producers: the send
+  path is `json.Marshal` + `append` with no 512-cap buffer.
+- **If it will not reproduce under stress AND the site is statically clear,**
+  suspect misattribution (the aggregator tagged another concurrent suite's crash
+  to this one) or an already-landed fix, rather than "fixing" a phantom. That is
+  the one case a shard may record, and only while you are still driving it
+  (`ai/rules/completion.md`). It does not apply once you can name load as
+  the cause: that is a mechanism, and it gets fixed.
+- A genuine reproduction's log (`tmp/stress-repro/…`) carries the real stack:
+  attach it when filing or fixing the bug.
 
 ## Reactor Concurrency Code (BLOCKING)
 
@@ -595,11 +905,58 @@ hide real races). When your change removes sleeps, lower the baseline in the sam
 change. Known violations are tracked in `plan/known-failures/`
 and must be migrated.
 
-**Sleep justification (BLOCKING):** every `time.sleep(` that the ratchet tolerates
-MUST carry a comment (on the line above, or trailing) explaining why it is there /
-why it was not converted to a deterministic wait. `make ze-verify-wiring-docs`
-fails on any unjustified sleep in a changed `.ci`. See
-`ai/rules/ci-sleep-justification.md`.
+Every sleep the ratchet tolerates must also be justified: see "CI Sleep
+Justification" below.
+
+## CI Sleep Justification
+
+This is the qualitative companion to the **Sleep ratchet** (above), which caps how
+MANY sleeps exist: this section caps how many are unexplained. Two reasons:
+
+1. A blind sleep hides real races. A reader cannot tell whether it is safe (a
+   bounded poll interval that already blocks on a real condition) or a guessed
+   duration that will flake under load.
+2. When a sleep is deliberately left un-converted, the reason (deliberate timer,
+   a Linux-only effect verifiable only under QEMU, an effect with no queryable
+   readiness signal) is knowledge that must live next to the code, not in a
+   reviewer's head.
+
+Prefer converting the sleep to a deterministic wait
+(`ze_api` `wait_until` / `wait_for_event` / `dispatch_until`, see
+"Python Observer API" below). Only when conversion is not possible
+does the sleep stay, and then it MUST be justified.
+
+### What counts as justified
+
+The comment must state which of these the sleep is:
+
+| Kind | What the comment should say |
+|------|-----------------------------|
+| Bounded poll interval | Name the real condition the enclosing loop breaks/returns on ("poll interval; the loop above breaks when the nft table appears"). This is already a deterministic wait; the sleep is only its granularity. |
+| Deliberate timer | The delay itself IS the behaviour under test ("the 3s verify hold IS the concurrency race window; do NOT convert"). |
+| Timeout under test | The sleep waits out a fixed internal timeout that the test asserts ("the 5s vpp WaitConnected timeout IS the behaviour under test"). |
+| needs-linux effect | A dataplane effect (tc/qdisc/nft/kernel FIB) with no readback in the driver, convertible only after a QEMU run ("needs-linux; no queryable signal that the qdisc was programmed"). |
+| No readiness signal | The awaited effect exposes no queryable state to this driver ("backgrounded ze gets no ZE_READY_FILE marker; hold until OnConfigure emits the asserted log line"). |
+
+Placement (mechanical): one `#` comment line directly above the sleep, indented to
+match the sleep exactly (these are Python heredocs; wrong indentation is a syntax
+error). No em dashes in the comment text.
+
+### Enforcement
+
+- **Blocking gate:** `check_ci_sleep_justification` in
+  `scripts/dev/verify_wiring_docs.py`, run by `make ze-verify-wiring-docs` (and the
+  inventory make gate). Scoped to CHANGED `.ci` files: a session is responsible for
+  the sleeps in the tests it touches. Fails (exit 1) listing every unjustified
+  `file:line`.
+- **Edit-time nudge:** `c_ci_sleep_justification` in
+  `.claude/hooks/pretool-writeedit.py` warns (non-blocking) when a Write/Edit of a
+  `.ci` introduces a `time.sleep(` with no comment on the line above or trailing it.
+
+### Related (CI sleep)
+
+- `plan/spec-fixit-redistribute-establishment-stall.md` -- the P0 that blocks converting the redistribute establishment sleeps.
+- `plan/learned/1232-fixit-reject-fence-observability.md` -- the missing signal behind the external-plugin refuse/warn sleeps.
 
 ## Python Observer API (`test/scripts/ze_api.py`)
 

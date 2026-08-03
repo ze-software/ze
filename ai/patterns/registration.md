@@ -377,7 +377,7 @@ optionally CLI local command registry (if also offline).
 
 ### New env var
 Touch: env var registry (`env.MustRegister()`), YANG module (leaf under environment/).
-See `ai/rules/config-design.md`: every YANG environment leaf = matching env var.
+See `ai/rules/config.md`: every YANG environment leaf = matching env var.
 
 ### New YANG module
 Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `make generate`.
@@ -425,7 +425,7 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No duplicate plugin names | `registry.Register()` returns error |
 | No circular plugin deps | Dependency resolver rejects cycles |
 | No missing plugin deps | Resolver checks all declared deps exist |
-| Plugins never import siblings | `ai/rules/plugin-design.md` import rules + code review |
+| Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |
 | No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
 | All blank imports auto-generated | `make generate` + `scripts/codegen/plugin_imports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

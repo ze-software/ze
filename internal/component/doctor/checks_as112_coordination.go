@@ -10,7 +10,7 @@
 // Neither check can live in the as112 plugin nor the bgp component: the
 // as112-3 spec's own Key Design Decisions required that neither the as112
 // plugin read BGP config nor BGP hardcode AS112 knowledge. internal/component/doctor
-// is the neutral third home per ai/rules/doctor-checks.md ("dependency with
+// is the neutral third home per ai/rules/repo-maintenance.md ("dependency with
 // no narrower owner") -- it already reads the whole config.Tree generically
 // (see checkConfigReferences, checkBGPMD5) without importing either package.
 // The AS112 plugin's own (unrelated) port-53 bind-capability check lives at

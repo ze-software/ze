@@ -31,7 +31,7 @@ Commit preparation had become repetitive and error-prone: agents had to invent o
 - `scripts/dev/commit_helper.py`
 - `scripts/dev/commit_helper_test.go`
 - `ai/rules/git-safety.md`
-- `ai/rules/agent-tooling.md`
+- `ai/rules/cli.md`
 - `ai/skills/ze-commit.md`
 - `ai/skills/ze-commit-check.md`
 - `ai/skills/ze-implement.md`

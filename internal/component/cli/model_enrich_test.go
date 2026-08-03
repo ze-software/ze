@@ -1,4 +1,4 @@
-// Design: ai/rules/pipe-completeness.md -- enrichAddr applies | resolve / | origin in | log render paths
+// Design: ai/rules/cli.md -- enrichAddr applies | resolve / | origin in | log render paths
 // VALIDATES: enrichAddr adds PTR names (| resolve) and ASN data (| origin) to addresses,
 // origin wins over resolve, and "*"/"" pass through unchanged.
 // PREVENTS: | log render paths silently dropping data-transform pipes (pipe-completeness).

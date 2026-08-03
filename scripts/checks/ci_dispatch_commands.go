@@ -1,4 +1,4 @@
-// Design: ai/rules/cli-grammar.md -- dispatch-key migration leaves dead callers
+// Design: ai/rules/cli.md -- dispatch-key migration leaves dead callers
 //
 // ci_dispatch_commands enforces the invariant the verb-first CLI migration broke
 // without anything noticing: EVERY command string a test, script, or Go call
@@ -6,7 +6,7 @@
 //
 // The dispatcher registers each built-in under its YANG PATH, so moving a
 // container in the command tree deletes the old dispatch key outright
-// (ai/rules/cli-grammar.md, "Migrating a Built-in Command's Path"). The
+// (ai/rules/cli.md, "Migrating a Built-in Command's Path"). The
 // declaration side is gated -- `make ze-cli-grammar-check` proves every DECLARED
 // command is verb-first -- but nothing checked the CALL SITES, so eleven
 // emitters kept sending `peer <n> detail`, `summary`, `bgp health` and
@@ -18,7 +18,7 @@
 // RPC set and calls Dispatcher.Resolves, the matching half of Dispatch. There is
 // deliberately no second copy of matchCommandTokens here -- a checker that
 // reimplemented inline-selector matching would drift from the dispatcher and
-// start lying (ai/rules/derive-not-hardcode.md).
+// start lying (ai/rules/evidence.md).
 //
 // Fail-closed on ambiguity: a command string this checker cannot evaluate
 // statically (concatenation, an f-string interpolation, a variable) is reported
@@ -483,7 +483,7 @@ func leadingLiteral(arg string) string {
 // resolves reports whether the dispatcher could route cmd.
 //
 // It asks the REAL dispatcher rather than reimplementing matchCommandTokens
-// (ai/rules/derive-not-hardcode.md), through already-exported API only: every
+// (ai/rules/evidence.md), through already-exported API only: every
 // command is registered here with a nil handler, so a matched command returns
 // StatusDone and an unmatched one returns ErrUnknownCommand. Any OTHER error --
 // "requires a selector", an argument-validation complaint -- means the command

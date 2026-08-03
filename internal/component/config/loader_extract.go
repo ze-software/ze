@@ -274,7 +274,7 @@ func (c MCPListenConfig) Validate() error {
 // returned ok=false, so every caller skipped the config. AuthMode then stayed
 // zero, and the mode inference in NewStreamable selected AuthNone. The daemon
 // discarded the operator's explicit instruction, which
-// ai/rules/exact-or-reject.md forbids.
+// ai/rules/protocol.md forbids.
 //
 // Callers that need "did config ask for a listener" must use ExtractMCPConfig.
 // Callers that need "how does this listener authenticate" must use

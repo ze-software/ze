@@ -52,7 +52,7 @@ endif
 #
 # DERIVED from feature-gates.txt -- the single source of truth shared with the
 # generator, dep_audit.py, and the test runner. Add a gate by adding one line
-# there, NOT here. See ai/rules/feature-gate-registration.md.
+# there, NOT here. See ai/rules/plugins.md.
 ZE_FEATURES := $(shell awk '$$1 ~ /^ze_/ {print $$1}' $(CURDIR)/feature-gates.txt | sort -u)
 
 # Version: YY.MM.DD from current date, injected via ldflags.
@@ -371,7 +371,7 @@ ze-unit-test-changed: ze-ensure-links
 # (c_format_alloc, validate-spec.sh, the commit_helper.py commit-time gates, and
 # session-id agreement between lib/session-id.sh and pretool-writeedit.py -- the
 # shell WRITES the markers Python READS, and a mismatch fails CLOSED).
-# See ai/rules/hook-mapping.md.
+# See ai/rules/repo-maintenance.md.
 ze-hook-test:
 	@echo "Hook dispatcher parity (golden exit codes)..."
 	@python3 scripts/dev/hook-parity-check.py
@@ -415,7 +415,7 @@ ze-verify-list:
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed; rc=$$?; python3 scripts/dev/perf-suggest.py || true; exit $$rc
 
-# Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
+# Module-tier placement gate (ai/rules/architecture.md): a config-driven engine
 # must live in internal/component/ if a feature depends on it, else internal/plugins/.
 # --selftest runs the gate's own isolated fixtures (engine placement + the B-1
 # wired-vs-core classification) before checking the live tree.
@@ -428,7 +428,7 @@ ze-tier-check:
 # requirement of an ENROLLED RFC (rfc/enrolled.txt) must be bound to a positive AND a
 # negative test via an `RFC requirement: <ID> <polarity>` tag, or carry a reasoned
 # annotation. Requirement text lives in rfc/short/*.md; the test links are derived from the
-# tags, never hand-written (ai/rules/derive-not-hardcode.md).
+# tags, never hand-written (ai/rules/evidence.md).
 # --selftest proves the gate against its own fixtures before it judges the live tree.
 #
 # Wired into `make ze-verify` via stagesForMode() in scripts/status/verify_run.go (BOTH
@@ -483,7 +483,7 @@ ze-rfc-extraction-status:
 ze-iface-resolution-check:
 	@$(GO) run scripts/checks/iface_resolution.go
 
-# Plugin process-boundary gate (ai/rules/plugin-process-boundary.md): a
+# Plugin process-boundary gate (ai/rules/plugins.md): a
 # plugin calling another in-process package's same-process-effect function
 # directly (bypassing DirectBridge/DispatchCommand) must guard with
 # IsInternal()/warnIfExternal() so it does not silently no-op when run as an
@@ -657,8 +657,7 @@ ze-regen: generate ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index
 #   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
 #   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-check-stale
 #   rules_index.py    -> ai/rules/INDEX.md                   -> ze-rules-index-check
-#   rules_condensed.py-> ai/rules/CONDENSED.md, TRIGGERS.md,
-#                        ai/rules/CORE.md                    -> ze-rules-condensed-check
+#   rules_condensed.py-> ai/rules/TRIGGERS.md, ai/rules/CORE.md -> ze-rules-condensed-check
 #   arch_map.py       -> arch lists in ai/INSTRUCTIONS.md    -> ze-arch-map-check
 #   package_map.py    -> ai/PACKAGE-MAP.md                   \
 #   docs_to_code.py   -> ai/DOCS-TO-CODE.md                   > ze-discovery-index-check
@@ -690,9 +689,9 @@ ze-regen-check-readonly: ze-plugin-imports-check ze-yang-glue-check ze-feature-t
 	@echo "All generated files are up to date"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/rules/CONDENSED.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/rules/CONDENSED.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check

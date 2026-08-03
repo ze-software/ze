@@ -232,7 +232,7 @@ class UnreadableSummaryTest(GateTestCase):
 
     An empty finding list must mean "every summary was read and every reference
     resolved", never "nothing could be read"
-    (`ai/rules/fail-closed-guards.md`).
+    (`ai/rules/evidence.md`).
     """
 
     def test_gate_skips_missing_files_section(self):
@@ -268,7 +268,7 @@ class QualifiedSectionTest(GateTestCase):
 
     Three summaries (677, 678, 817) keep a second `## Files Modified` section
     holding 12 paths. The fix belongs in this parser rather than in those three
-    files (`ai/rules/no-workarounds-for-missing-behavior.md`).
+    files (`ai/rules/completion.md`).
     """
 
     def test_files_modified_section_is_read(self):
@@ -347,7 +347,7 @@ class PathSafetyTest(GateTestCase):
     def test_brace_range_is_a_template_not_traversal(self):
         # `test/firewall/{001..011}.ci` is a range, and calling its `..`
         # traversal would send a reader after the wrong bug
-        # (`ai/rules/error-messages.md`).
+        # (`ai/rules/cli.md`).
         root = self._root()
         write(
             root,

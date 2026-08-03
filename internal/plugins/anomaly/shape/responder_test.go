@@ -11,6 +11,7 @@ package shape
 
 import (
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -235,5 +236,104 @@ func TestRevertedCounterCountsClearAndAutoRevert(t *testing.T) {
 	tr.timers[len(tr.timers)-1].fn()
 	if rev.n != 2 {
 		t.Errorf("reverted after auto-revert = %d, want 2", rev.n)
+	}
+}
+
+// TestShapeStatusDuringSlowApply is the anomaly-shape counterpart of
+// TestResponderStatusDuringSlowApply.
+// VALIDATES: spec-fixit-firewall-concurrency-deadlock D-4 -- show.go
+// handleShowAnomalyShape calls statusSnapshot(), which used to take the same mu
+// that onDetected/withdraw/revertAll hold across applyAll.
+// PREVENTS: `show anomaly-shape` blocking for a whole netlink round trip.
+func TestShapeStatusDuringSlowApply(t *testing.T) {
+	tr := newTestResponder(t, armedCfg())
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	applyAll = func() error {
+		close(entered)
+		<-release
+		return nil
+	}
+
+	var wg sync.WaitGroup
+	wg.Go(func() { tr.r.onDetected(det("198.51.100.5/32")) })
+	<-entered // the reconcile is in flight and mu is held
+
+	done := make(chan struct{})
+	go func() {
+		tr.r.statusSnapshot()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		close(release)
+		wg.Wait()
+		t.Fatal("statusSnapshot() blocked behind the in-flight reconcile: show anomaly-shape is hostage to kernel latency")
+	}
+
+	close(release)
+	wg.Wait()
+
+	st := tr.r.statusSnapshot()
+	if len(st.ArmedList) != 1 || st.ArmedList[0] != "198.51.100.5/32" {
+		t.Fatalf("statusSnapshot() after arming = %+v, want the armed source listed", st)
+	}
+}
+
+// TestKillSwitchRepublishesStatus covers the kill-switch half of the snapshot
+// contract. Arming is proven by TestShapeStatusDuringSlowApply; the kill-switch
+// was proven nowhere, so deleting its publishStatus left every test in the
+// package green -- gauge's republish inside revertAll runs BEFORE killed is set,
+// so it publishes the OLD flag and the extra call is what makes the new one
+// visible.
+//
+// VALIDATES: killSwitch republishes AFTER setting killed, so the lock-free
+// snapshot carries the flag that stopped the responder acting.
+// PREVENTS: a permanently stale, fail-open report -- `show anomaly-shape`
+// answering "kill-switch: false" after the kill-switch fired, telling an
+// operator the responder is still armed to act when it has been forced to
+// shadow.
+func TestKillSwitchRepublishesStatus(t *testing.T) {
+	tr := newTestResponder(t, armedCfg())
+	tr.r.onDetected(det("198.51.100.1/32"))
+	if st := tr.r.statusSnapshot(); st.Killed || len(st.ArmedList) != 1 {
+		t.Fatalf("before the kill-switch statusSnapshot() = %+v, want one armed source and killed=false", st)
+	}
+
+	tr.r.killSwitch()
+
+	st := tr.r.statusSnapshot()
+	if !st.Killed {
+		t.Fatalf("statusSnapshot() = %+v after the kill-switch fired: show anomaly-shape reports kill-switch: false while the responder is forced to shadow", st)
+	}
+	if len(st.ArmedList) != 0 {
+		t.Errorf("statusSnapshot() = %+v after the kill-switch, want no armed source", st)
+	}
+}
+
+// TestStatusSnapshotDoesNotAliasPublished pins that the returned view owns its
+// ArmedList. shapeStatus is the one published snapshot type carrying a slice, so
+// returning *s by value hands every concurrent reader the same backing array
+// while the published pointer still references it.
+//
+// VALIDATES: statusSnapshot copies the list, so "never mutated after Store"
+// holds for readers too, not only for the writer.
+// PREVENTS: a reader (a future show formatter that sorts or truncates in place)
+// silently rewriting what every other reader and the published snapshot report.
+func TestStatusSnapshotDoesNotAliasPublished(t *testing.T) {
+	tr := newTestResponder(t, armedCfg())
+	tr.r.onDetected(det("198.51.100.1/32"))
+
+	st := tr.r.statusSnapshot()
+	if len(st.ArmedList) != 1 {
+		t.Fatalf("statusSnapshot() = %+v, want one armed source", st)
+	}
+	st.ArmedList[0] = "0.0.0.0/0"
+
+	if again := tr.r.statusSnapshot(); again.ArmedList[0] != "198.51.100.1/32" {
+		t.Fatalf("a reader's write reached the published snapshot: statusSnapshot() now reports %+v", again)
 	}
 }

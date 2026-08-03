@@ -192,7 +192,7 @@ func TestCuaStalledLookupDoesNotHoldTheCallerGoroutine(t *testing.T) {
 // PREVENTS: the goroutine-growth primitive the asynchronous hand-off would otherwise be. An
 // unauthenticated peer chooses the hashes, and every dropped IKE_AUTH is sent again. An
 // unbounded pending set trades one blocked goroutine for an unbounded number of them
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestCuaPendingLookupsAreDedupedAndBounded(t *testing.T) {
 	wpcFreshCache(t)
 	chain := wpcChain(t, 0)

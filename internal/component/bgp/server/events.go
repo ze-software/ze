@@ -569,7 +569,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	//
 	// A nil reactor holds no peers and so has no End-of-RIB to gate, but a
 	// barrier plugin whose registration cannot be tracked is worth saying out
-	// loud rather than dropping in silence (ai/rules/fail-closed-guards.md).
+	// loud rather than dropping in silence (ai/rules/evidence.md).
 	barrier := countPeerUpBarrier(procs, state)
 	reactor := s.Reactor()
 	if reactor == nil {
@@ -637,7 +637,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		// The result is the plugin's acknowledgement that its handler ran and
 		// returned without error: for bgp-rs that is the critical section which
 		// sets Up and captures the peer-up cut. A failed delivery is not an
-		// acknowledgement, so it is not counted (ai/rules/fail-closed-guards.md).
+		// acknowledgement, so it is not counted (ai/rules/evidence.md).
 		if barrier > 0 && r.Err == nil && registry.RequiresPeerUpBarrier(proc.Name()) {
 			reactor.SignalPeerUpBarrier(peerAddr)
 			acknowledged++

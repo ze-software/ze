@@ -28,7 +28,7 @@ Update: future ownership placement is superseded by [838](838-doctor-check-owner
 - A test that only asserts `doctor-plugin-external-builtin` appears can pass through the old direct call, so the runner test temporarily installs a registry-backed plugin check and uses an internal plugin config the old check would not warn on.
 - `make ze-lint-changed` flags classic byte-index loops with `intrange`; use `for i := range len(value)` for byte validation helpers.
 - Do not add production registry introspection just for tests; same-package tests can inspect unexported registry state without creating unwired production helpers.
-- Documentation for future agents lives in both `ai/rules/doctor-checks.md` and `ai/patterns/registration.md`; updating only one leaves discovery split.
+- Documentation for future agents lives in both `ai/rules/repo-maintenance.md` and `ai/patterns/registration.md`; updating only one leaves discovery split.
 
 ## Files
 
@@ -37,6 +37,6 @@ Update: future ownership placement is superseded by [838](838-doctor-check-owner
 - `internal/component/doctor/doctor.go`
 - `internal/component/doctor/registry_test.go`
 - `internal/component/doctor/doctor_test.go`
-- `ai/rules/doctor-checks.md`
+- `ai/rules/repo-maintenance.md`
 - `ai/patterns/registration.md`
 - `ai/CODE-TO-DOCS.md`

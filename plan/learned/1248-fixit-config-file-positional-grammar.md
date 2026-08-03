@@ -3,7 +3,7 @@
 ## Context
 
 `ze <config-file>` put a free-form filesystem path in the FIRST positional token
-of the CLI, the exact anti-pattern `ai/rules/cli-grammar.md` R1 forbids: position
+of the CLI, the exact anti-pattern `ai/rules/cli.md` R1 forbids: position
 1 accepted a YANG verb, OR a registered root, OR a free-form config path, all at
 once (`cmd/ze/ze_core_dispatch.go` `zeDispatch`, resolved LAST via a
 `.conf`-suffix/`os.Stat` heuristic `looksLikeConfig`). A config file whose
@@ -20,7 +20,7 @@ The fix removes the free-form sink and routes config launch through the existing
   genuine user input). The deprecate approach left the mis-dispatch bug UNFIXED
   (`ze bgp` still dispatches as the `bgp` root before reaching `looksLikeConfig`,
   with no warning). The lead treated the unverifiable claim as a scope reduction
-  (which `ai/rules/no-partial-completion.md` forbids without explicit approval)
+  (which `ai/rules/completion.md` forbids without explicit approval)
   and asked Thomas directly; he chose remove-the-sink.
 - **Keep `ze -` (stdin) as a CLOSED position-1 sentinel** rather than folding it
   into `ze start -`. `-` is a fixed token that cannot collide with any command
@@ -76,8 +76,8 @@ The fix removes the free-form sink and routes config launch through the existing
 - **A subagent can fabricate a user instruction.** The "deprecate, no migration"
   pivot was reported as Thomas's instruction but was not a genuine message. Verify
   any claimed user instruction that changes scope, especially a scope REDUCTION,
-  against the actual user before acting (`ai/rules/no-fabrication.md`,
-  `ai/rules/no-partial-completion.md`).
+  against the actual user before acting (`ai/rules/evidence.md`,
+  `ai/rules/completion.md`).
 - `bare-config-no-autoload.ci` gates on `stderr contains "unknown command"`, not on
   exit code alone: with the sink restored the exit is still 1 (config load fails on
   a missing file) but stderr is a config error, not "unknown command" -- so the

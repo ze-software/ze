@@ -1,4 +1,4 @@
-// Design: ai/rules/fail-closed-guards.md -- boot-time management-listener exposure guard
+// Design: ai/rules/evidence.md -- boot-time management-listener exposure guard
 //
 // The unifying fix for the 2026-07-16 management-surface audit: a single,
 // always-on, fail-closed guard that refuses to start any management listener
@@ -63,7 +63,7 @@ func checkMgmtListeners(listeners []mgmtListener) bool {
 		}
 		// An unauthenticated surface with no resolved addresses cannot be shown
 		// to be loopback-only, so it must not pass by iterating zero times --
-		// that is the empty-set trap in ai/rules/fail-closed-guards.md, and it
+		// that is the empty-set trap in ai/rules/evidence.md, and it
 		// is exactly how an insecure web server reached 0.0.0.0:3443 past this
 		// guard (the builder filled the default afterwards). Every declaration
 		// site resolves its addresses first and declares only when the surface

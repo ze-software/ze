@@ -52,7 +52,7 @@ BASH_CMDS = [
     "go test ./... 2>&1 |\n  grep -c FAIL",
     "make ze-verify \\\n  | tail -40",
     "./bin/ze-test bgp plugin | grep FAIL",
-    # "any test/verify/build command" (bash-output.md): the repo's own gates count,
+    # "any test/verify/build command" (commands.md): the repo's own gates count,
     # cheap utilities in the same directory do not.
     "python3 scripts/dev/hook-parity-check.py | tail -25",
     "python3 scripts/dev/spec-session.sh wip | head -5",
@@ -84,7 +84,7 @@ BASH_CMDS = [
     # ... and the launcher must still resolve to the REAL command word: a cheap
     # command behind the same operands stays allowed.
     "timeout 240s ls | head -5",
-    # A wait loop is judged on whether it can END (ai/rules/no-poll-loops.md).
+    # A wait loop is judged on whether it can END (ai/rules/commands.md).
     # Unbounded blocks; a `timeout` in front of the loop passes, and so does a
     # loop that terminates by construction or a one-shot pgrep.
     "until ! pgrep -f qemu; do sleep 5; done",
@@ -276,7 +276,7 @@ WE_CASES = [
     ),
 ]
 
-# 700 lines is UNDER the only file-size threshold (1000) -- see ai/rules/file-modularity.md.
+# 700 lines is UNDER the only file-size threshold (1000) -- see ai/rules/go-standards.md.
 # It stays in the corpus to pin that the removed 600-line tier does not come back.
 _BIG700 = "package x\n" + "\n".join(f"var v{i} = {i}" for i in range(700))
 _BIG1100 = "package x\n" + "\n".join(f"var v{i} = {i}" for i in range(1200))
@@ -540,7 +540,7 @@ BASH_GOLDEN = {
     "go build ./...": 0,
     "go build ./cmd/ze": 2,
     "grep -n x f.log": 0,
-    # A lossy pipe is blocked on an EXPENSIVE producer only (bash-output.md).
+    # A lossy pipe is blocked on an EXPENSIVE producer only (commands.md).
     # `grep x | tail` and `git log | tail` are cheap: blocking them was a false
     # positive that taught sessions to route around the hook.
     "grep x | tail -5": 0,

@@ -8,7 +8,7 @@ import "testing"
 // PREVENTS: per-call heap churn on CLI list / log hot paths (spec risk R-3).
 //
 // String() returns an owned string, so the result copy is one allocation by
-// definition (ai/rules/no-sprintf-alloc.md "Tier 1: one allocation"). Hot paths
+// definition (ai/rules/performance.md "Tier 1: one allocation"). Hot paths
 // use AppendTo into a caller-owned buffer, which is asserted zero-alloc here.
 func TestStringNoAlloc(t *testing.T) {
 	sysID := SystemID{0x00, 0x01, 0x00, 0x02, 0x00, 0x03}

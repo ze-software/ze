@@ -208,7 +208,7 @@ func TestReplayEmptyRibOut(t *testing.T) {
 // calling replayRoutesWithCursor(addr, nil) directly: the bug was never in the
 // helper, it was that no caller ever reached it with an empty collection. A test
 // on the helper stays green through the entire bug (see
-// TestReplayReadySignalUsesRequestPeer, which did). Per ai/rules/fail-closed-guards.md
+// TestReplayReadySignalUsesRequestPeer, which did). Per ai/rules/evidence.md
 // "Test corollary": drive the guard from the entry point that triggers it.
 //
 // VALIDATES: a fresh peer with no routes to replay signals ready promptly, so its

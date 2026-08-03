@@ -9,7 +9,7 @@
 | Updated | 2026-08-02 |
 
 Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
-(`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
+(`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
@@ -33,7 +33,7 @@ The cost is the digest that nothing can amortize when no two destinations share 
 group. Allocations per operation are identical in both arms at every point.
 
 **No adaptive threshold was added, on purpose.** Any cutoff L silently disables
-sharing for G >= L, which is the silent cap `ai/rules/no-parking.md` and the
+sharing for G >= L, which is the silent cap `ai/rules/completion.md` and the
 wire-edit umbrella both ban. The trade is +3% worst case for -29% best case.
 
 The work here is to find a recovery that does not introduce a silent cap: a
@@ -44,7 +44,7 @@ or a group-count signal the forward loop already has.
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
-- [ ] `ai/rules/no-parking.md` - why a silent cap is banned
+- [ ] `ai/rules/completion.md` - why a silent cap is banned
 - [ ] `plan/learned/1321-wire-edit-5-fanout-dedup.md` - the measurement and why no threshold was added
 
 ## Current Behavior (MANDATORY)

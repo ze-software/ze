@@ -16,7 +16,7 @@ import (
 // PREVENTS: the regression this function exists to fix -- an unprivileged ze
 // with an interface{} block exited 1 with only "plugin interface failed during
 // startup at stage Config", giving the operator no offending object, no reason
-// and no corrective action (ai/rules/error-messages.md).
+// and no corrective action (ai/rules/cli.md).
 func TestStartupFailureErrorWrapsCause(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "interface"})
 	proc.SetStage(plugin.StageConfig)
@@ -52,7 +52,7 @@ func TestStartupFailureErrorWrapsCause(t *testing.T) {
 // failure, naming the plugin and the stage.
 // PREVENTS: fail-OPEN behavior -- a missing cause must never turn a failed
 // startup into a nil error, because the absence of a diagnosis is not evidence
-// that startup succeeded (ai/rules/fail-closed-guards.md).
+// that startup succeeded (ai/rules/evidence.md).
 func TestStartupFailureErrorWithoutCauseStillFails(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "vrrp"})
 	proc.SetStage(plugin.StageInit)

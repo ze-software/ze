@@ -32,7 +32,7 @@ func sortedPeerNames(peers map[string]SiteToSitePeer) []string {
 //
 // RFC 7296 Section 3.13.1 gives three encodings and they are not interchangeable.
 // The zero value is deliberately invalid, so a field nobody filled can never read as
-// a valid form (ai/rules/fail-closed-guards.md). parseTrafficSelectorPort normalizes
+// a valid form (ai/rules/evidence.md). parseTrafficSelectorPort normalizes
 // an absent leaf to PortAny, which is the RFC's own default and today's behavior.
 type PortForm uint8
 
@@ -235,9 +235,9 @@ func parsePortSelector(peerName, number, side, v string) (PortSelector, error) {
 // ValidateTrafficSelectors refuses any configured selector the dataplane cannot
 // program byte for byte, and any selector that contradicts the peer's negotiated mode.
 //
-// ai/rules/exact-or-reject.md: a backend that cannot apply the operator's config
+// ai/rules/protocol.md: a backend that cannot apply the operator's config
 // EXACTLY must fail at verify, never approximate at run time. Every rejection below
-// names the offending value and the accepted alternatives (ai/rules/error-messages.md).
+// names the offending value and the accepted alternatives (ai/rules/cli.md).
 //
 // It is one of two homes for the rule. The peer's PROPOSAL never passes through here,
 // because it is attacker-controlled and arrives after commit, so the narrowing engine
@@ -313,7 +313,7 @@ func checkPortProgrammable(peerName, number, side string, p PortSelector, proto 
 		}
 		return nil
 	case PortOpaque:
-		// ai/rules/exact-or-reject.md. RFC 7296 Section 3.13.1 gives OPAQUE ports the
+		// ai/rules/protocol.md. RFC 7296 Section 3.13.1 gives OPAQUE ports the
 		// encoding start 65535 / end 0, and Ze can PARSE that from a peer. It cannot
 		// PROGRAM it: the kernel policy selector derives its port mask from the port
 		// value, so a request for exactly port 0 installs as any-port, which protects

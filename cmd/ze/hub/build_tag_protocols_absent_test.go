@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- protocols absent symbol-drop proof
+// Design: ai/rules/plugins.md -- protocols absent symbol-drop proof
 //
 //go:build !ze_isis && !ze_ldp && !ze_ospf && !ze_rsvpte && !ze_vrrp && !ze_bgp
 

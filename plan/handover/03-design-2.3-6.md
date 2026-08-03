@@ -28,12 +28,12 @@ MUST NOT be acknowledged") is already landed and proven by
 
 | Fact | Producing function | `file:line` |
 |------|--------------------|-------------|
-| An established-SA message is classified BEFORE it is decrypted | `handleOwnedInbound` | `internal/component/ike/engine/inbound.go:46`, decrypt at `:75` |
-| An out-of-window message is dropped with no datagram | `handleOwnedInbound`, `inboundInvalid` arm | `internal/component/ike/engine/inbound.go:68-71` |
-| Exactly ONE out-of-window path decrypts today | same arm, INFORMATIONAL **response** only | `internal/component/ike/engine/inbound.go:59-67` |
-| `NotifyInvalidMessageID` is declared and has no non-test referent | -- | `internal/component/ike/wire/payload_notify.go:36` |
-| A token-bucket limiter exists, inbound only | `newInboundRateLimiter` | `internal/component/ike/engine/register.go:416-445` |
-| Originating an INFORMATIONAL request takes the one request window | `sendDPD` | `internal/component/ike/engine/dpd.go:132` |
+| An established-SA message is classified BEFORE it is decrypted | `handleOwnedInbound` | `internal/component/ike/engine/inbound.go`, decrypt at `:75` |
+| An out-of-window message is dropped with no datagram | `handleOwnedInbound`, `inboundInvalid` arm | `internal/component/ike/engine/inbound.go` |
+| Exactly ONE out-of-window path decrypts today | same arm, INFORMATIONAL **response** only | `internal/component/ike/engine/inbound.go` |
+| `NotifyInvalidMessageID` is declared and has no non-test referent | -- | `internal/component/ike/wire/payload_notify.go` |
+| A token-bucket limiter exists, inbound only | `newInboundRateLimiter` | `internal/component/ike/engine/register.go` |
+| Originating an INFORMATIONAL request takes the one request window | `sendDPD` | `internal/component/ike/engine/dpd.go` |
 
 The answer to the handover's research question: **no path decrypts an out-of-window
 REQUEST.** The single decrypting path at `:59-67` is guarded by
@@ -87,7 +87,7 @@ REQUEST branch:
    NotifyMsgType: wire.NotifyInvalidMessageID, NotificationData: data[:]}}},
    sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))`.
    On a build error call `sa.releaseRequestWindow()` and return, exactly as `sendDPD` does
-   at `dpd.go:145-148`.
+   at `dpd.go`.
 5. `sendRaw`, then `sa.advanceMsgID()`.
 
 Check `wire.PayloadNotify`'s ProtocolID and SPI fields before writing step 4. For a notify
@@ -96,7 +96,7 @@ about the IKE SA itself the Protocol ID is 0 and the SPI is empty. Read
 
 **The limiter.** Add a small per-SA token bucket. Do NOT reuse `inboundRateLimiter`: that
 one carries a mutex it does not need here, because the SA's state is owned solely by the
-maintainSA goroutine (`ai/rules/design-principles.md`, A-5 in the spec). One token per
+maintainSA goroutine (`ai/rules/architecture.md`, A-5 in the spec). One token per
 second with a burst of three is enough: the notification is a courtesy to a peer that is
 already confused, and a conforming peer draws at most one.
 
@@ -137,7 +137,7 @@ Row text, one physical line:
 
     - [ ] [RFC7296-2.3-9] [MUST] Sending this notification is OPTIONAL, and notifications of this type MUST be rate limited (§2.3)
 
-Correct the Appendix A row at `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1071` to `2.3-9` in
+Correct the Appendix A row at `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` to `2.3-9` in
 the same change, and drop its "held for an owner ruling" note.
 
 ## 7. What must not break

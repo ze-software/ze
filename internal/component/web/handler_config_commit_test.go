@@ -84,7 +84,7 @@ func TestParentFromCurrentURLKeepsLegitimateParent(t *testing.T) {
 // VALIDATES: AC-10 -- POST /config/discard/ with a hostile HX-Current-URL redirects
 // same-origin, driven from the handler entry point rather than the helper.
 // PREVENTS: A future caller reaching htmxRedirect with an unsanitized target
-// (ai/rules/fail-closed-guards.md: test the guard from its entry point).
+// (ai/rules/evidence.md: test the guard from its entry point).
 func TestConfigDiscardRedirectIsSameOrigin(t *testing.T) {
 	for _, tc := range hostileRedirectHeaders {
 		t.Run(tc.name, func(t *testing.T) {

@@ -58,7 +58,7 @@ paths cannot drift. Behavior-preserving internal refactor.
   mechanism (command.go), NOT `ze-plugin-engine:*` dispatch.** They are two unrelated registries.
   The `ze-plugin-engine:*` ops were never in `AllBuiltinRPCs`. Built the correct guard
   `TestPluginRPCRegistryCoversAllPaths`; the cited test passes unchanged.
-- **`RPCCallError.Error()` prepends `"rpc error: "`** (`pkg/plugin/rpc/message.go:28`). Sending
+- **`RPCCallError.Error()` prepends `"rpc error: "`** (`pkg/plugin/rpc/message.go`). Sending
   `err.Error()` for an RPCCallError double-prefixes on the wire. Send the raw `.Message`.
 - **`return nil, nil` from a `(any,error)` handler trips the `nilnil` linter** (unlike a
   `(json.RawMessage,error)` slice return). No-content ops need `//nolint:nilnil // ... success-with-

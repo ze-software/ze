@@ -149,7 +149,7 @@ func runEngine(conn net.Conn) int {
 			// complete", and the old value kept mitigating -- with nothing logged at
 			// any level to say so. Reject instead, so the reload fails loudly and
 			// rolls back rather than reporting success over stale config.
-			// See ai/rules/fail-closed-guards.md.
+			// See ai/rules/evidence.md.
 			return errApplyWithoutVerify
 		}
 		unsubscribe()
@@ -163,7 +163,7 @@ func runEngine(conn net.Conn) int {
 		// Mirrors the "configured" line OnConfigure emits. Without it a reload that
 		// reached the responder and one that never did looked identical in the log,
 		// which is what made the forward-mitigation reload failure undiagnosable
-		// from a QEMU run (ai/rules/error-messages.md -- one stable phrase per
+		// from a QEMU run (ai/rules/cli.md -- one stable phrase per
 		// outcome).
 		log.Info("ddos-local: reconfigured", "response-level", cfg.ResponseLevel,
 			"forward-mitigation", cfg.ForwardMitigation)

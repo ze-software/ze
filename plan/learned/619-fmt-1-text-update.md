@@ -46,7 +46,7 @@ string-returning peer helpers fmt-1 was going to displace).
   `closeEnvelope bool` parameter into `appendFilterResultJSON` -- explicit
   is better than implicit.
 - **Deleted `FormatNegotiated` wrapper.** It was a one-line pass-through
-  to `encoder.Negotiated`; `server/events.go:575` now calls the encoder
+  to `encoder.Negotiated`; `server/events.go` now calls the encoder
   directly. One fewer function in the API, one fewer indirection for grep.
 - **Deleted `format/peer_json.go` entirely.** fmt-0 created it specifically
   so the UPDATE-path string-returning callers could keep compiling while

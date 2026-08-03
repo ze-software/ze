@@ -34,7 +34,7 @@ import (
 // mrtrLogger carries the guard warnings. A rejected `requestState` and a
 // suppressed input-required result are both protocol violations that must be
 // visible to an operator, not silently absorbed. Both guards satisfy
-// ai/rules/fail-closed-guards.md's "fail closed or say something" twice over,
+// ai/rules/evidence.md's "fail closed or say something" twice over,
 // by answering the caller with an error AND logging.
 var mrtrLogger = slogutil.Logger("mcp.mrtr")
 
@@ -78,7 +78,7 @@ const elicitPromptCommand = "Which ze command should be run? For example: show b
 //
 // The zero value is inputMissing, which re-asks. That is the safe default: a
 // zero-valued outcome can never dispatch, only prompt again
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 type inputOutcome uint8
 
 const (
@@ -125,7 +125,7 @@ func (o inputOutcome) String() string {
 // The message names the failure class and the offending field, and it carries
 // NO part of the supplied value. That value is attacker-controlled input, and
 // an error that echoes it becomes a reflection surface
-// (ai/rules/error-messages.md).
+// (ai/rules/cli.md).
 var errUnsolicitedRequestState = errors.New(
 	`invalid params: params.requestState is not accepted; this server issues no requestState, so a retry must not carry one`)
 
@@ -366,7 +366,7 @@ func (s *Streamable) guardInputRequired(method string, resp *response) *response
 //
 // With no key and no minting path, verification fails vacuously for every
 // value. Rejection is therefore the conformant answer as well as the
-// fail-closed one (ai/rules/fail-closed-guards.md). A guard that ignored the
+// fail-closed one (ai/rules/evidence.md). A guard that ignored the
 // field would leave a silent accept path, and a future implementation can
 // inherit that path unnoticed.
 //

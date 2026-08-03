@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: ai/rules/doctor-checks.md -- kernel macvlan capability probe
+// Design: ai/rules/repo-maintenance.md -- kernel macvlan capability probe
 // Overview: ifacenetlink.go -- package hub
 //
 // probeMacvlanCapability proves the kernel can create a bridge-mode macvlan by

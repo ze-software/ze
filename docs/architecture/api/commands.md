@@ -29,7 +29,7 @@ identity is injected only by trusted transport wiring.
 | Multi-session filters | Supported (draft) | Not supported |
 | Forward command | Not available | `request cache forward <id> <selector>` for route reflection |
 
-See [json-format.md](json-format.md#exabgp-differences) for output format differences.
+See [cli.md](cli.md#exabgp-differences) for output format differences.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher -->
 
 ---
@@ -92,7 +92,7 @@ in the YANG tree therefore renames the command and breaks anything that sends th
 path. Operator commands are safe to migrate; commands a plugin sends by their bare
 path (over `dispatch-command` or an interactive plugin CLI session) are a wire break.
 Before a verb-first migration of a noun-first built-in, grep for senders. See
-`ai/rules/cli-grammar.md` "Migrating a Built-in Command's Path".
+`ai/rules/cli.md` "Migrating a Built-in Command's Path".
 <!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath -->
 
 ### Offline fallback (read-only commands without a daemon)

@@ -241,7 +241,7 @@ type Peer struct {
 	// ShouldQueue(), i.e. on sendingInitialRoutes still being non-zero; when the
 	// route-server replay finished after that flag cleared, the guard failed open
 	// and the peer received the same family's EoR twice
-	// (ai/rules/fail-closed-guards.md). Whether the marker is already on the wire
+	// (ai/rules/evidence.md). Whether the marker is already on the wire
 	// is a FACT about this session, not a question about how long ago something
 	// started, so it is recorded as one.
 	//
@@ -261,7 +261,7 @@ type Peer struct {
 	// sent" implies "every such plugin has registered this peer". Distinct from
 	// apiSync above, which counts plugins that SEND routes: a route sender
 	// signaling early must not satisfy a registrar's obligation, so the two
-	// barriers never share a counter (ai/rules/fail-closed-guards.md).
+	// barriers never share a counter (ai/rules/evidence.md).
 	//
 	// Guarded by mu, reset per session establishment before plugins are notified.
 	//

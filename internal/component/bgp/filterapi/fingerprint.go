@@ -56,7 +56,7 @@ const (
 // accumulator with no modification has no rebuild), when a generator cannot
 // answer its length, or when the encoding would exceed EditDigestMax. Every one
 // of those is a refusal to dedup, which costs a rebuild and never a wrong byte
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // The encoding is self-delimiting: every variable-length value is preceded by
 // its length, so two different edit sets cannot encode to one byte string by
@@ -103,7 +103,7 @@ func (a *ModAccumulator) AppendEditDigest(dst []byte) ([]byte, bool) {
 			// the generator's own size-then-write contract, used here for the
 			// same reason the rebuild uses it: the value exists in no buffer, so
 			// staging it in a scratch slice would copy it twice
-			// (ai/rules/buffer-first.md).
+			// (ai/rules/performance.md).
 			dst = slices.Grow(dst, n)
 			base := len(dst)
 			dst = dst[:base+n]
@@ -196,7 +196,7 @@ func EditFingerprint(digest []byte) uint64 {
 //
 // This is the authorization, and it has no fast path. A caller MUST NOT share a
 // rebuild on a fingerprint match alone: the fingerprint says where to look and
-// this says whether to act (ai/rules/fail-closed-guards.md).
+// this says whether to act (ai/rules/evidence.md).
 func EditDigestEqual(a, b []byte) bool {
 	return bytes.Equal(a, b)
 }

@@ -93,7 +93,7 @@ func TestParseExaBGPCIRejectsMissingConfig(t *testing.T) {
 // where this session's bin/ is or which build tags a binary carries, and the
 // version that guessed reached a stale root-level ./ze with no ze_exabgp
 // command -- all 42 encoding tests red on "unknown command: exabgp"
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestExaBGPSuiteCallsBuildZe(t *testing.T) {
 	src, err := os.ReadFile(filepath.Join(".", "cmd_exabgp.go"))
 	if err != nil {
@@ -107,7 +107,7 @@ func TestExaBGPSuiteCallsBuildZe(t *testing.T) {
 // VALIDATES: the resolved path reaches the wrapper process as ZE_BIN, last, so
 // it beats any value inherited from the parent shell.
 // PREVENTS: the wrapper guessing again because the runner resolved a binary and
-// then never told it (ai/rules/fail-closed-guards.md, "make the miss explicit at
+// then never told it (ai/rules/evidence.md, "make the miss explicit at
 // the producer").
 func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 	t.Setenv("ZE_BIN", "/inherited/ze")

@@ -144,7 +144,7 @@ func TestTranscriptEnvPlumbing(t *testing.T) {
 // TestApplyEnvConfigOSWins verifies a pre-existing OS env var is NOT
 // overwritten by a config-file value (same rule as slogutil.ApplyLogConfig).
 //
-// VALIDATES: config-design.md "OS env > config > default" priority.
+// VALIDATES: config.md "OS env > config > default" priority.
 func TestApplyEnvConfigOSWins(t *testing.T) {
 	t.Setenv("ze.bgp.openwait", "180")
 	resetEnvCache(t)

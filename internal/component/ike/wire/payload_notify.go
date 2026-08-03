@@ -72,7 +72,7 @@ const NotifyStatusFloor uint16 = 16384
 // notifyTypeNames is the registry of every notify message type this implementation
 // understands. It is the single source for recognition and for log text, so a new
 // constant is registered here beside its declaration and nowhere else
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 var notifyTypeNames = map[uint16]string{
 	NotifyUnsupportedCriticalPayload: "UNSUPPORTED_CRITICAL_PAYLOAD",
 	NotifyInvalidIKESPI:              "INVALID_IKE_SPI",
@@ -119,7 +119,7 @@ func NotifyIsError(t uint16) bool { return t < NotifyStatusFloor }
 // message type.
 //
 // It fails closed. A type absent from the registry reads false, so an unknown value
-// can never pass as understood (ai/rules/fail-closed-guards.md).
+// can never pass as understood (ai/rules/evidence.md).
 func NotifyTypeRecognized(t uint16) bool {
 	_, ok := notifyTypeNames[t]
 	return ok

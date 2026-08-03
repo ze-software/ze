@@ -27,12 +27,12 @@ Route enrichment for `show bgp rib` (and its JSON pipe) builds, for EVERY route
 displayed, fresh `[]string` slices with one `String()` allocation per community
 element:
 
-- `enrichRouteMapFromRoute` (`rib_attr_format.go:84-104`): three `make([]string, ...)` blocks (communities, large-communities, extended-communities), each element materialized via `Community.String()` / `LargeCommunity.String()` / `textbuf.StringHex`.
-- `formatCommunities` (`rib_attr_format.go:176-186`): `make([]string, 0, n)` + per-element `String()`, called from the Adj-RIB-In enrichment (`rib_attr_format.go:60`), the community match filter (`rib_pipeline.go:672`), and the looking-glass template (`internal/component/lg/render.go:42`).
+- `enrichRouteMapFromRoute` (`rib_attr_format.go`): three `make([]string, ...)` blocks (communities, large-communities, extended-communities), each element materialized via `Community.String()` / `LargeCommunity.String()` / `textbuf.StringHex`.
+- `formatCommunities` (`rib_attr_format.go`): `make([]string, 0, n)` + per-element `String()`, called from the Adj-RIB-In enrichment (`rib_attr_format.go`), the community match filter (`rib_pipeline.go`), and the looking-glass template (`internal/component/lg/render.go`).
 
-Hot callers: `serializeRouteItem` (`rib_pipeline.go:1014`) inside
-`jsonTerminal.drain` (`rib_pipeline.go:929-987`) which walks every route of the
-query, and the best-path terminal (`rib_pipeline_best.go:452`). On a full-table
+Hot callers: `serializeRouteItem` (`rib_pipeline.go`) inside
+`jsonTerminal.drain` (`rib_pipeline.go`) which walks every route of the
+query, and the best-path terminal (`rib_pipeline_best.go`). On a full-table
 query (hundreds of thousands of routes, 2-4 communities each) this is millions
 of short-lived string allocations per request, plus matching GC work, on the
 operator-facing latency path.
@@ -45,33 +45,33 @@ a hard gate (tests + pipes depend on it).
 
 ### Design (chosen: dossier Option C, marshaler wrappers)
 
-1. **Attribute package gap:** `LargeCommunity` has `AppendText` (`text_append.go:43-49`); `ExtendedCommunity` has `AppendText` (`text_append.go:53-54`); `Community` only has the unexported helper `appendCommunityText` (`text_append.go:60-98`) used by `Community.String()` (`community.go:150-156`). Add an exported `AppendText` method on `Community` delegating to the helper (it must keep the well-known-name substitution, e.g. no-export, exactly as `String()` does).
+1. **Attribute package gap:** `LargeCommunity` has `AppendText` (`text_append.go`); `ExtendedCommunity` has `AppendText` (`text_append.go`); `Community` only has the unexported helper `appendCommunityText` (`text_append.go`) used by `Community.String()` (`community.go`). Add an exported `AppendText` method on `Community` delegating to the helper (it must keep the well-known-name substitution, e.g. no-export, exactly as `String()` does).
 2. **Wrapper list types in the rib plugin:** three small types over `[]Community` / `[]LargeCommunity` / `[]ExtendedCommunity` (and a byte-backed variant over the attribute-pool data used by `formatCommunities`'s enrichment caller) implementing MarshalJSON. Each builds the JSON array directly into an appended buffer: bracket, quoted elements via AppendText, commas. Strings must be JSON-escaped identically to encoding/json; community text is ASCII-safe by construction (digits, colon, lowercase names), assert that in tests rather than escaping.
 3. **Enrichment switch:** `enrichRouteMapFromRoute` and the Adj-RIB-In path in `enrichRouteMapFromEntry` put the wrapper (inside the existing `attrWithFlags` envelope) into the route map instead of `[]string`. The `attrWithFlags` value field is `any`; no signature change.
-4. **Non-JSON consumers keep strings:** the community match filter (`rib_pipeline.go:672`) and the looking-glass template (`lg/render.go:42`) consume `[]string` semantics; they keep `formatCommunities` (or a slim variant) untouched. Only the JSON-bound enrichment path switches. If the text/table pipe renderers stringify the wrapper, the wrapper also implements the standard text interface (fmt.Stringer or encoding.TextMarshaler, whichever the pipe layer uses; determine during audit) producing the same representation as today.
+4. **Non-JSON consumers keep strings:** the community match filter (`rib_pipeline.go`) and the looking-glass template (`lg/render.go`) consume `[]string` semantics; they keep `formatCommunities` (or a slim variant) untouched. Only the JSON-bound enrichment path switches. If the text/table pipe renderers stringify the wrapper, the wrapper also implements the standard text interface (fmt.Stringer or encoding.TextMarshaler, whichever the pipe layer uses; determine during audit) producing the same representation as today.
 
 ### Out of scope (negative findings, recorded in the umbrella)
-- `prefixToWire` (`rib_nlri.go:109,117`): CLI inject/withdraw one-shots, cold.
+- `prefixToWire` (`rib_nlri.go,117`): CLI inject/withdraw one-shots, cold.
 - Caching formatted strings on Route entries (dossier Option B): memory bloat + invalidation risk, rejected.
 - Origin/as-path/med enrichment fields (already cheap or singular).
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/memory-architecture.md` - AppendTo pattern + textbuf guidance
+- [ ] `ai/rules/performance.md` - AppendTo pattern + textbuf guidance
   → Constraint: per-element String() in loops is the listed anti-pattern this spec removes
-- [ ] `ai/rules/json-format.md`
+- [ ] `ai/rules/cli.md`
   → Constraint: kebab-case keys; community / large-community / extended-community keys must not change
-- [ ] `ai/rules/pipe-completeness.md`
+- [ ] `ai/rules/cli.md`
   → Constraint: every pipe operator must keep working on `show bgp rib` output; wrapper types must render identically through `| json`, `| text`, `| table`, `| match` |
-- [ ] `ai/rules/no-sprintf-alloc.md`
+- [ ] `ai/rules/performance.md`
   → Constraint: build via append/AppendText, not Sprintf
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] None: no protocol behavior; community text forms are display-layer only (well-known names per existing communityNames table, preserved byte-for-byte).
 
 **Key insights:**
-- `Communities.AppendText` already benchmarks at 0 allocs/op (`text_append_bench_test.go:11-25`); the machinery exists, only the display path ignores it.
+- `Communities.AppendText` already benchmarks at 0 allocs/op (`text_append_bench_test.go`); the machinery exists, only the display path ignores it.
 - The JSON value shape is `{"value": [..strings..], "optional": .., "transitive": .., "partial": ..}` via attrWithFlags; only the inner array's construction changes.
 
 ## Current Behavior (MANDATORY)
@@ -86,15 +86,15 @@ a hard gate (tests + pipes depend on it).
 
 **Behavior to preserve:**
 - JSON output byte-identical for every show rib variant: keys, attrWithFlags envelope, array-of-strings inner values, element order, well-known community names (e.g. no-export), hex form of extended communities (16 lowercase hex chars via current textbuf.StringHex behavior).
-- `| match` community filtering semantics (`rib_pipeline.go:672`) unchanged.
+- `| match` community filtering semantics (`rib_pipeline.go`) unchanged.
 - `| text`, `| table`, `| yaml`, all other pipe operators render identically.
 - Looking-glass template output unchanged.
-- Existing test expectations: TestFormatCommunities (`rib_attr_format_test.go:137-180`), TestShowRIB / TestShowRIBReceived / TestShowRIBSent (`rib_pipeline_test.go:358-447`).
+- Existing test expectations: TestFormatCommunities (`rib_attr_format_test.go`), TestShowRIB / TestShowRIBReceived / TestShowRIBSent (`rib_pipeline_test.go`).
 
 **Behavior to change:**
 - None user-visible. Allocation profile of the enrichment path only.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - CLI/API `show bgp rib [received|sent|best] ... | json` (and web/LG consumers of the same pipeline).
@@ -129,7 +129,7 @@ a hard gate (tests + pipes depend on it).
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | json.Marshal on the route maps invokes MarshalJSON on nested values inside attrWithFlags | encoding/json contract | Wrapper never fires; output breaks | Unit test marshaling one enriched map, compare bytes to current output | unvalidated |
 | A-2 | Community text is JSON-safe ASCII (no escaping needed) | communityNames values + digit:digit format in community.go / text_append.go | Output corruption for some community | Test iterating ALL communityNames entries + numeric edge values through the wrapper vs encoding/json of the String() form | unvalidated |
-| A-3 | Wire bytes from pool.Communities.Get remain valid until marshal completes (drain holds entries until Marshal at rib_pipeline.go:987) | jsonTerminal.drain structure | Use-after-free style stale read | Trace Get copy-vs-reference semantics in the attrpool package during audit; if reference, confirm retention across drain | unvalidated |
+| A-3 | Wire bytes from pool.Communities.Get remain valid until marshal completes (drain holds entries until Marshal at rib_pipeline.go) | jsonTerminal.drain structure | Use-after-free style stale read | Trace Get copy-vs-reference semantics in the attrpool package during audit; if reference, confirm retention across drain | unvalidated |
 | A-4 | Non-JSON pipes (`text`, `table`) stringify via a single interface the wrapper can implement | pipe renderer code | Pipe output changes shape | Read the pipe renderers during audit; add wrapper text method accordingly; .ci suite is the backstop | unvalidated |
 
 ### Risks
@@ -143,9 +143,9 @@ a hard gate (tests + pipes depend on it).
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `show bgp rib sent \| json` | → | serializeRouteItem -> enrichRouteMapFromRoute -> wrapper MarshalJSON | TestShowRIBSent (existing, rib_pipeline_test.go:419-447) |
-| `show bgp rib received \| json` | → | enrichRouteMapFromEntry -> byte-backed wrapper | TestShowRIBReceived (existing, rib_pipeline_test.go:390-417) |
-| `show bgp rib \| match <community>` | → | communityFilter.Match via formatCommunities (unchanged path) | TestShowRIB (existing, rib_pipeline_test.go:358-388) |
+| `show bgp rib sent \| json` | → | serializeRouteItem -> enrichRouteMapFromRoute -> wrapper MarshalJSON | TestShowRIBSent (existing, rib_pipeline_test.go) |
+| `show bgp rib received \| json` | → | enrichRouteMapFromEntry -> byte-backed wrapper | TestShowRIBReceived (existing, rib_pipeline_test.go) |
+| `show bgp rib \| match <community>` | → | communityFilter.Match via formatCommunities (unchanged path) | TestShowRIB (existing, rib_pipeline_test.go) |
 | Golden byte-identity | → | wrapper output vs current []string output | TestEnrichCommunityJSONByteIdentical (new) |
 
 ## Acceptance Criteria
@@ -244,7 +244,7 @@ Not applicable: display-layer only, no wire protocol behavior.
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | Golden byte-identity across the full corpus; well-known names preserved |
-| Naming | JSON keys untouched (kebab-case per ai/rules/json-format.md) |
+| Naming | JSON keys untouched (kebab-case per ai/rules/cli.md) |
 | Data flow | Filter + LG paths untouched (scope fence) |
 | Rule: no-sprintf-alloc | Wrappers use append/AppendText only |
 | Rule: stale-comments | rib_attr_format.go comments describing []string construction updated |
@@ -306,13 +306,13 @@ the existing communityNames table (RFC 1997 values), unchanged.
 ## Implementation Summary
 
 ### What Was Implemented
-- `Community.AppendText` method (text_append.go:57-59) delegating to appendCommunityText
-- `communityList` wrapper over `[]Community` with MarshalJSON (rib_attr_format.go:21-39)
-- `largeCommunityList` wrapper over `[]LargeCommunity` with MarshalJSON (rib_attr_format.go:42-59)
-- `extCommunityList` wrapper over `[]ExtendedCommunity` with MarshalJSON (rib_attr_format.go:62-79)
-- `communityByteList` wrapper over `[]byte` (pool data copy) with MarshalJSON (rib_attr_format.go:84-103)
-- `enrichRouteMapFromRoute` switched from `[]string` to typed wrappers (rib_attr_format.go:84-92)
-- `enrichRouteMapFromEntry` switched from `formatCommunities` to `communityByteList` with byte copy (rib_attr_format.go:59-65)
+- `Community.AppendText` method (text_append.go) delegating to appendCommunityText
+- `communityList` wrapper over `[]Community` with MarshalJSON (rib_attr_format.go)
+- `largeCommunityList` wrapper over `[]LargeCommunity` with MarshalJSON (rib_attr_format.go)
+- `extCommunityList` wrapper over `[]ExtendedCommunity` with MarshalJSON (rib_attr_format.go)
+- `communityByteList` wrapper over `[]byte` (pool data copy) with MarshalJSON (rib_attr_format.go)
+- `enrichRouteMapFromRoute` switched from `[]string` to typed wrappers (rib_attr_format.go)
+- `enrichRouteMapFromEntry` switched from `formatCommunities` to `communityByteList` with byte copy (rib_attr_format.go)
 
 ### Bugs Found/Fixed
 - None
@@ -330,7 +330,7 @@ the existing communityNames table (RFC 1997 values), unchanged.
 |-------------|--------|----------|-------|
 | Eliminate per-element String() on JSON path | done | rib_attr_format.go wrappers | MarshalJSON uses AppendText directly |
 | Byte-identical JSON output | done | TestEnrichCommunityJSONByteIdentical | 6 corpus cases all pass |
-| Keep formatCommunities for filter/LG | done | rib_attr_format.go:176-186 | unchanged, still called from rib_pipeline.go:672 and lg/render.go:42 |
+| Keep formatCommunities for filter/LG | done | rib_attr_format.go | unchanged, still called from rib_pipeline.go and lg/render.go |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -345,10 +345,10 @@ the existing communityNames table (RFC 1997 values), unchanged.
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestCommunityAppendText (new) | pass | text_append_test.go:195 | 19 values |
-| TestEnrichCommunityJSONByteIdentical (new) | pass | rib_attr_format_test.go:136 | 6 corpus cases |
-| TestFormatCommunities (existing) | pass | rib_attr_format_test.go:237 | unchanged |
-| BenchmarkEnrichRouteCommunities (new) | pass | rib_attr_format_bench_test.go:16 | 19 allocs/op |
+| TestCommunityAppendText (new) | pass | text_append_test.go | 19 values |
+| TestEnrichCommunityJSONByteIdentical (new) | pass | rib_attr_format_test.go | 6 corpus cases |
+| TestFormatCommunities (existing) | pass | rib_attr_format_test.go | unchanged |
+| BenchmarkEnrichRouteCommunities (new) | pass | rib_attr_format_bench_test.go | 19 allocs/op |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -408,8 +408,8 @@ the existing communityNames table (RFC 1997 values), unchanged.
 |----|--------------|----------|
 | A-1 | confirmed | TestEnrichCommunityJSONByteIdentical passes: json.Marshal invokes MarshalJSON on wrapper inside attrWithFlags map |
 | A-2 | confirmed | TestCommunityAppendText: all 15 well-known + 4 numeric values produce ASCII-only text (digits, colons, lowercase letters, hyphens) |
-| A-3 | confirmed (mitigated) | pool.Get returns reference to shard internal buffer (attrpool/pool.go:409); communityByteList copies bytes at enrichment time to avoid stale-reference risk from concurrent compaction |
-| A-4 | confirmed (not applicable) | serializeRouteItem is only called from jsonTerminal.drain (rib_pipeline.go:952); no non-JSON terminal consumes the enrichment maps; wrapper only needs MarshalJSON |
+| A-3 | confirmed (mitigated) | pool.Get returns reference to shard internal buffer (attrpool/pool.go); communityByteList copies bytes at enrichment time to avoid stale-reference risk from concurrent compaction |
+| A-4 | confirmed (not applicable) | serializeRouteItem is only called from jsonTerminal.drain (rib_pipeline.go); no non-JSON terminal consumes the enrichment maps; wrapper only needs MarshalJSON |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |

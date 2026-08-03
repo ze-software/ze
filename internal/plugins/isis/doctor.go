@@ -8,7 +8,7 @@
 // System ID derivable from the first NET). The CAP_NET_RAW / raw-socket check
 // and its doctor-isis-raw-socket code are OWNED by isis-3 (transport/doctor.go)
 // and only surfaced by `ze doctor`; this file MUST NOT re-register them
-// (ai/rules/doctor-checks.md, one code one owner). The check gates on the `isis`
+// (ai/rules/repo-maintenance.md, one code one owner). The check gates on the `isis`
 // container being present so a BGP-only node sees no spurious IS-IS warning. The
 // init() that registers this check lives in register.go (registerISISDoctor).
 

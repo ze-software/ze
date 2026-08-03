@@ -37,10 +37,10 @@ implementation.
 - [ ] `rfc/short/rfc4304.md` - Extended Sequence Numbers (ESN) for IPsec
 
 **Key insights:**
-- `crypto/transform.go:48-52`: DH registry has 3 entries (groups 14, 19, 20)
-- `crypto/dh.go:43`: `NewDHExchange()` returns `ErrUnsupportedGroup` for unknown groups
+- `crypto/transform.go`: DH registry has 3 entries (groups 14, 19, 20)
+- `crypto/dh.go`: `NewDHExchange()` returns `ErrUnsupportedGroup` for unknown groups
 - `engine/initiator.go`: explicitly comments "ESN not used for IKE proposals", hardcodes ID 0
-- `TransformTypeESN` constant exists in `transform.go:16` and `wire/payload_sa.go`
+- `TransformTypeESN` constant exists in `transform.go` and `wire/payload_sa.go`
 
 ## Current Behavior (MANDATORY)
 
@@ -60,7 +60,7 @@ implementation.
 - Enable ESN negotiation when peer supports it
 - Expose PQ and ESN options in YANG config
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - IKE SA negotiation (initiator and responder)

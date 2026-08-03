@@ -29,7 +29,7 @@ func kcsAssertReported(t *testing.T, where string, buf *bytes.Buffer) {
 // PREVENTS: the report existing only as a helper nobody calls. Deleting the
 // logKeyLengthUpgrade line from responder.go left every test green, because the one test
 // that covered the message called the helper directly with a hand-built proposal
-// (ai/rules/fail-closed-guards.md: drive the guard from its entry point).
+// (ai/rules/evidence.md: drive the guard from its entry point).
 func TestKcsSAInitResponderReportsTheAcceptedKey(t *testing.T) {
 	// The initiator offers aes256. The responder policy names aes128, and RFC 7296
 	// Section 3.3.5 lets it accept the longer key.

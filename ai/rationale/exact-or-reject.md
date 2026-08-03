@@ -1,6 +1,6 @@
 # Rationale: Exact Or Reject
 
-Short rule: `ai/rules/exact-or-reject.md`.
+Short rule: `ai/rules/protocol.md`.
 
 ## Why
 

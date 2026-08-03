@@ -36,7 +36,7 @@ internals.
   `update text origin incomplete nhop <self|addr> nlri <fam> add <prefix>`
   for adds, `update text nlri <fam> del <prefix>` for withdraws. The
   `nhop self` token triggers the reactor's per-peer `LocalAddress`
-  substitution (`internal/component/bgp/reactor/peer.go:562-591`); explicit
+  substitution (`internal/component/bgp/reactor/peer.go`); explicit
   next-hops pass through verbatim.
 - **`OnStarted` (not `OnAllPluginsReady`)** for subscription -- consumer
   does not DispatchCommand to other plugins at startup, only subscribes to

@@ -26,18 +26,18 @@ Two verified defects in scope:
 
 1. **Producer/consumer registration asymmetry (latent silent drop).** The orchestrator
    enumerates producers exactly once at startup via `redistevents.Producers()`
-   (`redistribute.go:141-156`, call at `:142`) and then blocks on `<-ctx.Done()`
+   (`redistribute.go`, call at `:142`) and then blocks on `<-ctx.Done()`
    (`:136`), so the subscription set is fixed. But consumers are read live on every event
-   via `configredist.ConsumerNames()` (`redistribute.go:204`). A producer that registers its
+   via `configredist.ConsumerNames()` (`redistribute.go`). A producer that registers its
    ProtocolID after the orchestrator's `run` has started is never subscribed to and its
    route-change events are silently dropped, with no log and no metric.
 
 2. **`skipIDs` is dead machinery.** `skipIDs` is computed at startup
-   (`redistribute.go:127`), threaded through `subscribe` (`:128`), the subscription closure
-   (`:152`), and `handleBatch` (`:158`), but its only use is a debug log
-   (`redistribute.go:186-188`); it skips nothing. The real skip (do not dispatch a batch back
+   (`redistribute.go`), threaded through `subscribe`, the subscription closure
+   (`:152`), and `handleBatch`, but its only use is a debug log
+   (`redistribute.go`); it skips nothing. The real skip (do not dispatch a batch back
    to the consumer of its own source protocol) is a live per-consumer recompute at
-   `redistribute.go:215` (`redistevents.ProtocolIDOf(cname) == b.Protocol`) that never
+   `redistribute.go` (`redistevents.ProtocolIDOf(cname) == b.Protocol`) that never
    consults `skipIDs`. So the parameter is both dead-for-skipping and, because it is a startup
    snapshot while consumers are read live, potentially stale for its one logging use.
 
@@ -49,7 +49,7 @@ dispatch behavior.
 
 **Explicitly out of scope (referenced, not duplicated):**
 - Removing `ReplayID`/`ReplayRequest` (BGP-peer semantics) from the `redistevents` leaf
-  payload (`events.go:64-68,161-168`): adjacent to `spec-unify-replay.md`, which converges the
+  payload (`events.go,161-168`): adjacent to `spec-unify-replay.md`, which converges the
   replay-request vocabulary. This spec cross-references it and does not redesign replay. See
   Known Limitations for the framing (the leaf stays type-clean via an opaque value token; the
   coupling is semantic, not structural).
@@ -63,9 +63,9 @@ dispatch behavior.
   producer -> EventBus -> orchestrator -> consumer path
   → Decision: the orchestrator is the single EventBus subscriber turning producer route-change events into consumer dispatches.
   → Constraint: producers and consumers each build LOCAL typed handles; no handle pointer crosses a plugin boundary.
-- [ ] `ai/rules/plugin-self-containment.md` - registration-over-hardcoding for producers/consumers
+- [ ] `ai/rules/plugins.md` - registration-over-hardcoding for producers/consumers
   → Constraint: producer discovery must go through the registry; do not hardcode a producer list.
-- [ ] `ai/rules/data-flow-tracing.md` - required for the Data Flow section
+- [ ] `ai/rules/architecture.md` - required for the Data Flow section
   → Constraint: no silent drop of a registered producer; a gap must be observable (log + metric).
 
 **Key insights:** producers are enumerated once and subscribed; consumers are looked up live.
@@ -84,7 +84,7 @@ The `skipIDs` snapshot duplicates (staler) information the live path already com
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - Actual dispatch outcome unchanged: a batch is never dispatched back to the consumer of its
-  own source protocol (`:215`); all other consumers still receive it (BGP best-path into OSPF,
+  own source protocol; all other consumers still receive it (BGP best-path into OSPF,
   etc.), subject to the evaluator `Accept` check.
 - Metric names and semantics for `filteredProtocolTotal`, `filteredRuleTotal`,
   `eventsReceived`, `announcements`, `withdrawals`, `replayTotal` unchanged.
@@ -97,7 +97,7 @@ The `skipIDs` snapshot duplicates (staler) information the live path already com
 - `skipIDs` is removed from the function-signature chain; the debug log (if retained) is
   derived live, not from a startup snapshot.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A protocol producer (L2TP, connected, static, OSPF, ...) emits a
@@ -105,14 +105,14 @@ The `skipIDs` snapshot duplicates (staler) information the live path already com
 - Format at entry: a pooled value-typed `*RouteChangeBatch` delivered as `any` by the bus.
 
 ### Transformation Path
-1. At startup `run` computes `skipIDs := consumerProtocolIDs()` (`redistribute.go:127`).
-2. `subscribe` enumerates `redistevents.Producers()` ONCE (`:142`) and registers one local
-   handle + subscription per producer (`:150-153`); `run` then blocks on ctx (`:136`).
-3. Per event, `handleBatch` validates the batch, branches replay vs incremental (`:176`), then
-   reads consumers live via `configredist.ConsumerNames()` (`:204`).
-4. For each consumer it applies the real self-consumer skip live (`:215`) and the evaluator
-   `Accept` check (`:221`), then dispatches each entry (`:231-234`).
-5. `skipIDs` is consulted only to emit a debug log (`:186-188`); it drives no dispatch.
+1. At startup `run` computes `skipIDs := consumerProtocolIDs()` (`redistribute.go`).
+2. `subscribe` enumerates `redistevents.Producers()` ONCE and registers one local
+   handle + subscription per producer; `run` then blocks on ctx.
+3. Per event, `handleBatch` validates the batch, branches replay vs incremental, then
+   reads consumers live via `configredist.ConsumerNames()`.
+4. For each consumer it applies the real self-consumer skip live and the evaluator
+   `Accept` check, then dispatches each entry.
+5. `skipIDs` is consulted only to emit a debug log; it drives no dispatch.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -133,7 +133,7 @@ The `skipIDs` snapshot duplicates (staler) information the live path already com
 - [ ] No duplicated functionality (`skipIDs` snapshot removed; single live skip)
 - [ ] Zero-copy preserved where applicable (payload handling unchanged)
 - [ ] Registration over hardcoding — late producers are handled via the registry seam or
-  loudly surfaced; no hardcoded producer list is introduced (`ai/rules/plugin-self-containment.md`)
+  loudly surfaced; no hardcoded producer list is introduced (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -155,7 +155,7 @@ The `skipIDs` snapshot duplicates (staler) information the live path already com
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a source protocol that is also a consumer emits a batch | → | live self-consumer skip fires (`:215`); no `skipIDs` param | `test/plugin/redistribute-consumer-skip.ci` |
+| a source protocol that is also a consumer emits a batch | → | live self-consumer skip fires; no `skipIDs` param | `test/plugin/redistribute-consumer-skip.ci` |
 | a producer ProtocolID registered after `run` starts emits a batch | → | subscribed-or-surfaced, never silently dropped | `TestLateProducerNotSilentlyDropped` |
 
 ## Acceptance Criteria
@@ -302,7 +302,7 @@ Existing OSPF/IS-IS redistribution `.ci` scenarios are the regression gate.
 
 ## Known Limitations
 - `ReplayID`/`ReplayRequest` carrying BGP-peer semantics in the `redistevents` leaf
-  (`events.go:64-68,161-168`) is NOT resolved here. It is a deliberate, documented trade-off:
+  (`events.go,161-168`) is NOT resolved here. It is a deliberate, documented trade-off:
   the token is opaque and value-typed and the orchestrator alone holds the token->peer map, so
   the leaf stays type-clean; the coupling is semantic. Vocabulary convergence is owned by
   `spec-unify-replay.md`; a fuller redesign (orchestrator-side correlation without a payload

@@ -74,7 +74,7 @@ func TestKlnInitiatorRefusesLongerAcceptedKey(t *testing.T) {
 
 // VALIDATES: the responder states every key length it accepts above its own policy. RFC
 // 7296 Section 3.3.5 lets it accept a key that supplies greater security, and
-// ai/rules/exact-or-reject.md makes that choice visible to the operator.
+// ai/rules/protocol.md makes that choice visible to the operator.
 // PREVENTS: an operator who configures aes128, runs AES-256, and reads nothing about it.
 func TestKlnResponderReportsAcceptedLongerKey(t *testing.T) {
 	var buf bytes.Buffer

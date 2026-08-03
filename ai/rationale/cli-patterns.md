@@ -1,6 +1,6 @@
 # CLI Patterns Rationale
 
-Why: `ai/rules/cli-patterns.md`
+Why: `ai/rules/cli.md`
 
 ## Why FlagSet Per Subcommand
 

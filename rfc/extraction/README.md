@@ -47,7 +47,7 @@ never claims to judge the rendering.
 Only **dispositions, reasons and the two relocation fields** are authored. `sites`,
 `sections`, `quote`, `register`, `source-path`, `source-sha` and every published count are
 DERIVED from the source text at check time and compared against what the artifact records
-(`ai/rules/derive-not-hardcode.md`). A hand-typed "sites seen" number would be a claim,
+(`ai/rules/evidence.md`). A hand-typed "sites seen" number would be a claim,
 and claims are what this programme exists to remove; editing a derived field to make a red
 go green fails the check naming the field and the locator.
 
@@ -94,7 +94,7 @@ classifies; quote the occurrence figure only when talking about raw keyword pres
 <!-- source: scripts/dev/rfc_requirements.py — _sites_for, _BOILERPLATE_RE, source_keyword_count -->
 
 *(Corrected 2026-07-29: this paragraph previously read "168 gated MUSTs", which is neither
-denominator's answer. Re-measured against the producing code, `ai/rules/documentation.md`
+denominator's answer. Re-measured against the producing code, `ai/rules/writing.md`
 Source Anchors.)*
 
 ## Fields
@@ -154,7 +154,7 @@ shape. `ai/rules/rfc-compliance.md` names those three as NOT a compliance decisi
 procedure, and this kind may not become one.
 
 **A closing spec turns the site red, and that is correct.** A completed spec is deleted
-(`ai/rules/spec-preservation.md`), so the tripwire fires the day the work lands. By then the
+(`ai/rules/planning.md`), so the tripwire fires the day the work lands. By then the
 requirement is in `rfc/short/<stem>.md`, so the site is a mapping now and must be
 re-classified as one. The red is the reminder, not a defect.
 

@@ -45,7 +45,7 @@ import (
 // reslices into the neighboring session's memory rather than panicking, and the
 // attribute writes themselves could reach the NLRI region and corrupt the prefix
 // the UPDATE was announcing. Both rails now take that bound as an explicit region
-// argument to announceAttrs.emit (ai/rules/fail-closed-guards.md).
+// argument to announceAttrs.emit (ai/rules/evidence.md).
 func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
 	// The destination encoding context for AS_PATH (RFC 6793 ASN width). Shared
 	// rather than built per route: it is a pure function of asn4 and is immutable.
@@ -183,7 +183,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	// One bound for every contribution: the region ENDS where the NLRI begins.
 	// Passing attrBuf here instead of attrBuf[:nlriOff] would stop the out-of-slot
 	// write and still let the attributes overwrite the prefix being announced
-	// (ai/rules/fail-closed-guards.md). attrBuf is backing[off:off+4096] out of a
+	// (ai/rules/evidence.md). attrBuf is backing[off:off+4096] out of a
 	// 128-slot slab (session.go), so its CAP runs into the next peer's buffer.
 	n, ok := plan.emit(nil, attrBuf[:nlriOff])
 	if !ok {
@@ -200,7 +200,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 // logRIBRouteTooLarge records a queued-rail build this buffer could not hold. The
 // caller drops the route rather than sending a truncated or out-of-slot UPDATE, so
 // without this line the route would simply never arrive
-// (ai/rules/fail-closed-guards.md, ai/rules/error-messages.md).
+// (ai/rules/evidence.md, ai/rules/cli.md).
 func logRIBRouteTooLarge(n nlri.NLRI, bufLen int, stage string) {
 	routesLogger().Warn("queued route rejected: does not fit the build buffer",
 		"family", n.Family(), "nlri", n.String(),

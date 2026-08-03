@@ -6,7 +6,7 @@ Thomas reported that reports were over-precise. Line numbers and exhaustive
 detail cost tokens and give no benefit, because a reader recovers a detail by
 opening the code. The habit had reached the rules themselves. `CONDENSED.md`
 had grown to 99k tokens, loaded by every session before any work starts, and
-one table row in `hook-mapping.md` was 1,327 tokens.
+one table row in `repo-maintenance.md` was 1,327 tokens.
 
 ## Decisions
 
@@ -19,8 +19,8 @@ one table row in `hook-mapping.md` was 1,327 tokens.
 ## Consequences
 
 - The digest costs 671 fewer tokens per session, and that number already carries the new rule. The trims paid for it and for 1.8k more.
-- `ai/rules/detail-budget.md` holds the budgets that `fix-dont-record.md` used to carry. That rule keeps the fix-don't-record half and points here for length.
-- The largest remaining win is untaken. `hook-mapping.md` is a pull-model lookup table whose own trigger is "looking up which check enforces a rule", and 7,379 digest tokens of it load eagerly in every session. A `Digest: pointer` mode in `rules_condensed.py` would recover them, at the risk of hiding a directive that sits inside a reference rule.
+- `ai/rules/writing.md` holds the budgets that `completion.md` used to carry. That rule keeps the fix-don't-record half and points here for length.
+- The largest remaining win is untaken. `repo-maintenance.md` is a pull-model lookup table whose own trigger is "looking up which check enforces a rule", and 7,379 digest tokens of it load eagerly in every session. A `Digest: pointer` mode in `rules_condensed.py` would recover them, at the risk of hiding a directive that sits inside a reference rule.
 
 ## Gotchas
 
@@ -30,8 +30,8 @@ one table row in `hook-mapping.md` was 1,327 tokens.
 
 ## Files
 
-- `ai/rules/detail-budget.md` -- new: the standard, the per-artifact budgets, the banned list
+- `ai/rules/writing.md` -- new: the standard, the per-artifact budgets, the banned list
 - `ai/rules/rule-format.md` -- body budget, one example for one point, no gate narration
-- `ai/rules/no-fabrication.md`, `fix-dont-record.md`, and seven further rules -- verification split from citation
+- `ai/rules/evidence.md`, `completion.md`, and seven further rules -- verification split from citation
 - `ai/INSTRUCTIONS.md`, `.claude/hooks/verify-claim-reminder.sh`, `ai/skills/*.md` -- the per-session and per-turn statements, and the shared delegation preamble
-- `ai/rules/hook-mapping.md`, `planning.md`, `spec-delegation.md`, `plan/learned/1308-stop-hook-reregistration.md` -- trimmed
+- `ai/rules/repo-maintenance.md`, `planning.md`, `planning.md`, `plan/learned/1308-stop-hook-reregistration.md` -- trimmed

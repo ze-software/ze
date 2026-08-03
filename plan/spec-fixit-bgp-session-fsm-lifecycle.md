@@ -25,80 +25,80 @@ the timer set on teardown, the connection on teardown) is released or re-armed b
 different path, and that path is missed on a branch.
 
 1. **[BLOCKER] Hold timer permanently disarms after its first expiry.** The hold-expiry
-   closure clears `holdRunning` before invoking the session callback (`fsm/timer.go:186-195`,
+   closure clears `holdRunning` before invoking the session callback (`fsm/timer.go`,
    flag cleared at `:188`, callback invoked at `:192-194`; the `ResetHoldTimer` twin closure
    at `:223-232` has the identical shape). The session's grace branch ("recent read
-   activity / CPU congestion") then calls `ResetHoldTimer` (`reactor/session.go:425-431`),
-   which early-returns because `!holdRunning` (`fsm/timer.go:216-218`) and never re-arms.
+   activity / CPU congestion") then calls `ResetHoldTimer` (`reactor/session.go`),
+   which early-returns because `!holdRunning` (`fsm/timer.go`) and never re-arms.
    `StartHoldTimer`'s only non-test caller is `connectionEstablished` on a fresh connection
-   (`reactor/session_connection.go:359`), so within a session no path re-arms. The FSM's
-   own Event 26/27 restarts (`fsm/fsm.go:431-433`, `:448-450`, wired via `SetTimers` at
-   `reactor/session.go:413`) all funnel through the same disabled `ResetHoldTimer`.
-   Because `recentRead` is set on every read (`reactor/session_read.go:92`, coalesced twin
-   `reactor/session_coalesce.go:82`) and cleared only by the expiry callback
-   (`reactor/session.go:425` is the sole `Swap(false)`), the first hold expiry of
+   (`reactor/session_connection.go`), so within a session no path re-arms. The FSM's
+   own Event 26/27 restarts (`fsm/fsm.go`, `:448-450`, wired via `SetTimers` at
+   `reactor/session.go`) all funnel through the same disabled `ResetHoldTimer`.
+   Because `recentRead` is set on every read (`reactor/session_read.go`, coalesced twin
+   `reactor/session_coalesce.go`) and cleared only by the expiry callback
+   (`reactor/session.go` is the sole `Swap(false)`), the first hold expiry of
    essentially every Established session takes the grace branch (the last message before
    silence left the flag true), no-ops, and permanently disables dead-peer detection: a
    peer that later goes silent is never torn down and its routes are never withdrawn.
-   The "extend by 10s" comment at `reactor/session.go:421-424` describes code that does
+   The "extend by 10s" comment at `reactor/session.go` describes code that does
    not exist.
 
 2. **[HIGH] Established-stage validation teardowns skip `StopAll`, leaking the Session.**
-   The keepalive timer re-arms itself while `keepaliveRunning` (`fsm/timer.go:293-313`);
+   The keepalive timer re-arms itself while `keepaliveRunning` (`fsm/timer.go`);
    only `StopAll`/`StopKeepaliveTimer` clears it. Several Established error returns call
-   `closeConn` (which stops only the send-hold timer, `reactor/session_connection.go:461-500`,
-   at `:463`) but not `StopAll`: bad message length (`reactor/session_read.go:114` and the
-   coalesced twin `reactor/session_coalesce.go:101`), family-not-negotiated
-   (`session_read.go:192`), prefix-limit (`session_read.go:209`), unknown type
-   (`reactor/session_handlers.go:33`), bad ROUTE-REFRESH length (`session_handlers.go:303`,
-   reachable from `session_read.go:225` and `session_handlers.go:323`). Design-phase
+   `closeConn` (which stops only the send-hold timer, `reactor/session_connection.go`,
+   at `:463`) but not `StopAll`: bad message length (`reactor/session_read.go` and the
+   coalesced twin `reactor/session_coalesce.go`), family-not-negotiated
+   (`session_read.go`), prefix-limit (`session_read.go`), unknown type
+   (`reactor/session_handlers.go`), bad ROUTE-REFRESH length (`session_handlers.go`,
+   reachable from `session_read.go` and `session_handlers.go`). Design-phase
    sibling audit found three more members of the same family: RFC 7606 session-reset
-   (`reactor/session_validation.go:156`), the policy-teardown path
-   (`session_read.go:242-250`, also defect 4), and the hold-expiry/ctx-cancel exit itself
-   (the cancel goroutine calls only `closeConn`, `reactor/session.go:736-738`, so even a
+   (`reactor/session_validation.go`), the policy-teardown path
+   (`session_read.go`, also defect 4), and the hold-expiry/ctx-cancel exit itself
+   (the cancel goroutine calls only `closeConn`, `reactor/session.go`, so even a
    correctly detected dead peer leaves its keepalive timer re-arming). `Peer.runOnce`
-   creates a fresh `Session` per connection cycle (`reactor/peer_run.go:193`) and drops
-   the old one (`:249-251`) without `StopAll`, so the self-re-arming keepalive closure
-   (which references the Session via `onKeepaliveExpires`, `reactor/session.go:442-456`)
+   creates a fresh `Session` per connection cycle (`reactor/peer_run.go`) and drops
+   the old one without `StopAll`, so the self-re-arming keepalive closure
+   (which references the Session via `onKeepaliveExpires`, `reactor/session.go`)
    keeps the abandoned `Session` reachable forever: bufio.Reader 64 KB
-   (`session_connection.go:334`), bufio.Writer 16 KB (`:335`), `writeBuf` 4 KB (or 64 KB
-   after RFC 8654 resize, `session_negotiate.go:38-41`), plus the struct -- roughly
+   (`session_connection.go`), bufio.Writer 16 KB, `writeBuf` 4 KB (or 64 KB
+   after RFC 8654 resize, `session_negotiate.go`), plus the struct -- roughly
    85-150 KB per reconnect cycle, unbounded, rate-capped by backoff.
 
 3. **[MEDIUM] An OPEN received in Established zombifies the session with no NOTIFICATION.**
-   `handleOpen` has no FSM-state gate (`reactor/session_handlers.go:39`): a second OPEN
+   `handleOpen` has no FSM-state gate (`reactor/session_handlers.go`): a second OPEN
    re-runs negotiation (`negotiateWith` at `:132` rewrites `s.negotiated` and calls
-   `SetHoldTime`, `session_negotiate.go:27-62`), fires `EventBGPOpen` (`:170`), and
+   `SetHoldTime`, `session_negotiate.go`), fires `EventBGPOpen`, and
    returns nil, never `closeConn`. In Established, `EventBGPOpen` hits the FSM
-   `default -> change(StateIdle)` (`fsm/fsm.go:487-491`; `handleEstablished` has no
+   `default -> change(StateIdle)` (`fsm/fsm.go`; `handleEstablished` has no
    `EventBGPOpen` case), the Established->Idle transition fires the peer callback route
    withdrawal, but the connection stays open and the read loop keeps delivering to an
    Idle FSM. RFC 4271 Section 6.6 / 8.2.2 requires an FSM error: send NOTIFICATION
    (Finite State Machine Error, code 5, subcode 0) and drop the connection.
    Same shape in OpenConfirm: a second OPEN on the *same* connection hits
-   `handleOpenConfirm`'s default arm (`fsm/fsm.go:406-408`). (Cross-connection collision
+   `handleOpenConfirm`'s default arm (`fsm/fsm.go`). (Cross-connection collision
    is a different, already-handled path: `DetectCollision` / `AcceptWithOpen`.)
 
-4. **[LOW, enabling] `FSM.Event` always returns nil** (`fsm/fsm.go:153-173`, `return nil`
+4. **[LOW, enabling] `FSM.Event` always returns nil** (`fsm/fsm.go`, `return nil`
    at `:172`), so the illegal-transition warning path in `logFSMEvent`
-   (`reactor/session.go:689-698`) is dead code and callers cannot detect a rejected
+   (`reactor/session.go`) is dead code and callers cannot detect a rejected
    transition. Fixing defect 3 cleanly needs a real return value here. Also fold in the
-   policy-teardown path (`reactor/session_read.go:242-250`) that returns nil without
+   policy-teardown path (`reactor/session_read.go`) that returns nil without
    signalling `errChan` or `setCloseReason`, leaving `Run` to spin in the `conn == nil`
-   10 ms sleep loop (`reactor/session.go:763-770`) until an external event arrives.
+   10 ms sleep loop (`reactor/session.go`) until an external event arrives.
 
 ### Adjacent gap found during design (needs Thomas's scope decision)
 
 Error paths that return from the read loop **without** calling `closeConn` leave the TCP
 connection open after `Run` exits: the cancel goroutine wakes on `<-s.done` and returns
-without closing (`reactor/session.go:733-734`). Verified members: `handleOpen` unpack
-error (`session_handlers.go:43-47`), openValidator rejection (`:98-115`, sends a
-NOTIFICATION but never closes), local-capability parse error (`:121-124`). A
+without closing (`reactor/session.go`). Verified members: `handleOpen` unpack
+error (`session_handlers.go`), openValidator rejection (`:98-115`, sends a
+NOTIFICATION but never closes), local-capability parse error. A
 `defer s.closeConn()` in `Run` (same shape as the defect-2 fix) closes them all. Held as
 proposed AC-7 pending approval; it is NOT silently folded into defect 2.
 **Resolved Q-2 (2026-07-17): AC-7 approved and in scope** (three leak sites above re-verified
-against source: `session_handlers.go:43-47`, `:98-115`, `:121-124`; cancel-goroutine
-`<-s.done` exit at `session.go:733-734`).
+against source: `session_handlers.go`, `:98-115`, `:121-124`; cancel-goroutine
+`<-s.done` exit at `session.go`).
 
 ## Implementation Status (audited 2026-07-27) -- THIS SPEC CANNOT BE CLOSED
 
@@ -110,7 +110,7 @@ The closure
 sections (`## Implementation Audit`, `## Goal Validation`, `## Pre-Commit Verification`)
 are deliberately ABSENT from this spec rather than filled with "Partial" rows. Filling
 them would satisfy `commit_helper.py`'s `pre_commit_verification_gaps` gate over work that
-is not done, which is the false completion `ai/rules/no-partial-completion.md` forbids:
+is not done, which is the false completion `ai/rules/completion.md` forbids:
 "deferred is not done", and "you may not claim work is done while any in-scope acceptance
 criterion remains unimplemented". They are owed to the session that closes AC-6 and AC-7.
 
@@ -128,13 +128,13 @@ as evidence that the spec is closeable; read its first paragraph instead.
 
 | AC | State | Producing code | Test |
 |----|-------|----------------|------|
-| AC-1 (graced expiry re-arms; next expiry tears down) | **Met at the timer, wired in the session, untested at the session level** | `Timers.GraceRearmHoldTimer` (`fsm/timer.go:283-309`), called from the session's hold-expiry callback at `reactor/session.go:472` with `holdGraceExtension` (a fixed 10s, `session.go:188`, per Q-1). The teardown branch signals `errChan` at `session.go:479-482` | `TestHoldTimerRearmsAfterGracedExpiry` (`fsm/timer_test.go:456`) asserts `fireCount == 2` and `IsHoldTimerRunning() == false` after the second expiry. It models the grace branch with its own callback; nothing drives `Session`'s real callback, and `test/parse/deadpeer-holddown.ci` does not exist |
-| AC-2 (`IsHoldTimerRunning` true after a graced expiry) | **Met** | same | `fsm/timer_test.go:477-478`, explicit `require.True(..., "AC-2: hold timer must still be armed after a graced expiry")` |
-| AC-3 (`StopAll` on every teardown path; keepalive stops; Session collectable) | **Code met; named test LANDED 2026-07-27; heap-reachability assertion still absent** | `defer s.timers.StopAll()` at `reactor/session.go:855`, plus `defer s.stopSendHoldTimer()` at `:854`. The single defer covers all eight dirty paths, as D-3 intended | `TestSessionRunStopsTimersOnValidationTeardown` (`reactor/session_run_exit_test.go`), table-driven over two dirty paths reachable without a handshake (`session_read.go:107-119` bad length, `session_handlers.go:33` unknown type), asserting BOTH `IsKeepaliveTimerRunning` and `IsHoldTimerRunning` are false once `Run` has returned. Mutation-verified: deleting `defer s.timers.StopAll()` turns both subtests red. The heap-reachability assertion the spec asks for is still NOT written -- timers-stopped is the observable proxy for it |
-| AC-4a (second OPEN gets Cease, session leaves Established, capabilities not rebuilt) | **Met** | `reactor/session_handlers.go:61-82`: state gate on `Established`/`OpenConfirm`, `NotifyCease` code 6, `logFSMEvent(EventBGPOpen)` so the peer-closed cascade runs, then `closeConn` | `TestSecondOpenOnEstablishedSessionIsRefused` and `TestSecondOpenInOpenConfirmIsRefused` (`reactor/session_handlers_test.go:518,652`) -- both PASS 2026-07-27, and the WARN they emit (`FSM event failed ... state=IDLE`) shows the FSM transition really fired. Plus `test/plugin/open-in-established.ci` (7.2K, present) |
-| AC-5 (`FSM.Event` returns a sentinel on a default arm; `logFSMEvent`'s warn branch is live) | **Met** | `fsm.ErrFSMError` (`fsm/fsm.go:51`) returned from five error default arms (`:339,391,442,502,603`); consumed by `logFSMEvent` (`reactor/session.go:797-806`) | `TestFSMEventReturnsErrorOnIllegalTransition` (`fsm/fsm_test.go:568`), 14 subtests, all PASS 2026-07-27. It covers BOTH polarities, including the deliberate Idle ignores that must return nil |
-| **AC-6 (policy teardown exits `Run` promptly with a deliberate reconnect class)** | **MET 2026-07-27** | `reactor/session.go:783` declares `ErrPolicyTeardown`, deliberately distinct from `ErrTeardown` so `peer_run.go:78`'s immediate-reconnect arm is NOT taken and the session falls through to exponential backoff (D-7 / Q-4). The teardown branch (`reactor/session_read.go:301-303`) now calls `setCloseReason(ErrPolicyTeardown)` BEFORE `closeConn` and returns the sentinel, which both read rails propagate (`readAndProcessMessage` `:137-139`, and every `processMessage` call site in `session_coalesce.go`). Was: `return nil, kept` with no close reason, so `Run` reached its `conn == nil` branch (`session.go:901`), found `closeReason` empty (`:903`) and slept 10 ms (`:906`) round the loop forever | `TestPolicyTeardownExitsRun` (`reactor/session_run_exit_test.go`): drives the real callback path, asserts `Run` returns `ErrPolicyTeardown` inside 5 s, asserts `NotErrorIs(ErrTeardown)` for the D-7 reconnect class, and asserts the Cease / Connection-Rejected NOTIFICATION on the wire. Mutation-verified: restoring `return nil, kept` fails it with "Run did not return within 5s ... spinning on the conn == nil branch" |
-| **AC-7 (TCP connection closed by the time `Run` returns)** | **MET 2026-07-27** | One `defer s.closeConn()` in `Run` (`reactor/session.go:868`), beside D-3's `defer s.timers.StopAll()` (`:855`), exactly the D-8 shape. `closeConn` is idempotent (nil-checked under `s.mu`, `session_connection.go:481`), so the paths that already close are unaffected | `TestRunClosesConnectionOnEveryExit` (`reactor/session_run_exit_test.go`), one subtest per Q-2-approved leak site: OPEN unpack error (`session_handlers.go:87-91`), openValidator rejection (`session_open_validation.go:115-116`), local-capability parse error (`session_handlers.go:150-153`). Each asserts the peer's read ends in EOF/closed-pipe rather than a deadline. Mutation-verified: deleting the defer turns all three red with "the connection was STILL OPEN after Run returned" |
+| AC-1 (graced expiry re-arms; next expiry tears down) | **Met at the timer, wired in the session, untested at the session level** | `Timers.GraceRearmHoldTimer` (`fsm/timer.go`), called from the session's hold-expiry callback at `reactor/session.go` with `holdGraceExtension` (a fixed 10s, `session.go`, per Q-1). The teardown branch signals `errChan` at `session.go` | `TestHoldTimerRearmsAfterGracedExpiry` (`fsm/timer_test.go`) asserts `fireCount == 2` and `IsHoldTimerRunning() == false` after the second expiry. It models the grace branch with its own callback; nothing drives `Session`'s real callback, and `test/parse/deadpeer-holddown.ci` does not exist |
+| AC-2 (`IsHoldTimerRunning` true after a graced expiry) | **Met** | same | `fsm/timer_test.go`, explicit `require.True(..., "AC-2: hold timer must still be armed after a graced expiry")` |
+| AC-3 (`StopAll` on every teardown path; keepalive stops; Session collectable) | **Code met; named test LANDED 2026-07-27; heap-reachability assertion still absent** | `defer s.timers.StopAll()` at `reactor/session.go`, plus `defer s.stopSendHoldTimer()` at `:854`. The single defer covers all eight dirty paths, as D-3 intended | `TestSessionRunStopsTimersOnValidationTeardown` (`reactor/session_run_exit_test.go`), table-driven over two dirty paths reachable without a handshake (`session_read.go` bad length, `session_handlers.go` unknown type), asserting BOTH `IsKeepaliveTimerRunning` and `IsHoldTimerRunning` are false once `Run` has returned. Mutation-verified: deleting `defer s.timers.StopAll()` turns both subtests red. The heap-reachability assertion the spec asks for is still NOT written -- timers-stopped is the observable proxy for it |
+| AC-4a (second OPEN gets Cease, session leaves Established, capabilities not rebuilt) | **Met** | `reactor/session_handlers.go`: state gate on `Established`/`OpenConfirm`, `NotifyCease` code 6, `logFSMEvent(EventBGPOpen)` so the peer-closed cascade runs, then `closeConn` | `TestSecondOpenOnEstablishedSessionIsRefused` and `TestSecondOpenInOpenConfirmIsRefused` (`reactor/session_handlers_test.go,652`) -- both PASS 2026-07-27, and the WARN they emit (`FSM event failed ... state=IDLE`) shows the FSM transition really fired. Plus `test/plugin/open-in-established.ci` (7.2K, present) |
+| AC-5 (`FSM.Event` returns a sentinel on a default arm; `logFSMEvent`'s warn branch is live) | **Met** | `fsm.ErrFSMError` (`fsm/fsm.go`) returned from five error default arms (`:339,391,442,502,603`); consumed by `logFSMEvent` (`reactor/session.go`) | `TestFSMEventReturnsErrorOnIllegalTransition` (`fsm/fsm_test.go`), 14 subtests, all PASS 2026-07-27. It covers BOTH polarities, including the deliberate Idle ignores that must return nil |
+| **AC-6 (policy teardown exits `Run` promptly with a deliberate reconnect class)** | **MET 2026-07-27** | `reactor/session.go` declares `ErrPolicyTeardown`, deliberately distinct from `ErrTeardown` so `peer_run.go`'s immediate-reconnect arm is NOT taken and the session falls through to exponential backoff (D-7 / Q-4). The teardown branch (`reactor/session_read.go`) now calls `setCloseReason(ErrPolicyTeardown)` BEFORE `closeConn` and returns the sentinel, which both read rails propagate (`readAndProcessMessage` `:137-139`, and every `processMessage` call site in `session_coalesce.go`). Was: `return nil, kept` with no close reason, so `Run` reached its `conn == nil` branch (`session.go`), found `closeReason` empty and slept 10 ms round the loop forever | `TestPolicyTeardownExitsRun` (`reactor/session_run_exit_test.go`): drives the real callback path, asserts `Run` returns `ErrPolicyTeardown` inside 5 s, asserts `NotErrorIs(ErrTeardown)` for the D-7 reconnect class, and asserts the Cease / Connection-Rejected NOTIFICATION on the wire. Mutation-verified: restoring `return nil, kept` fails it with "Run did not return within 5s ... spinning on the conn == nil branch" |
+| **AC-7 (TCP connection closed by the time `Run` returns)** | **MET 2026-07-27** | One `defer s.closeConn()` in `Run` (`reactor/session.go`), beside D-3's `defer s.timers.StopAll()`, exactly the D-8 shape. `closeConn` is idempotent (nil-checked under `s.mu`, `session_connection.go`), so the paths that already close are unaffected | `TestRunClosesConnectionOnEveryExit` (`reactor/session_run_exit_test.go`), one subtest per Q-2-approved leak site: OPEN unpack error (`session_handlers.go`), openValidator rejection (`session_open_validation.go`), local-capability parse error (`session_handlers.go`). Each asserts the peer's read ends in EOF/closed-pipe rather than a deadline. Mutation-verified: deleting the defer turns all three red with "the connection was STILL OPEN after Run returned" |
 
 ### Also owed, beyond the ACs
 
@@ -161,7 +161,7 @@ fsm slice and still accurate for it -- reads as though none of the reactor work 
 ### Verification run for this audit (2026-07-27)
 
 Full default-on feature tags (`ze_core` + every `ze_*` in `feature-gates.txt`), per
-`ai/rules/bash-output.md`:
+`ai/rules/commands.md`:
 
 - `go test -race ./internal/component/bgp/fsm/` -> `ok ... 5.818s`
 - `go test -race -run 'TestSecondOpenOnEstablishedSessionIsRefused|TestSecondOpenInOpenConfirmIsRefused' ./internal/component/bgp/reactor/` -> both `--- PASS`
@@ -175,7 +175,7 @@ No verification was run for AC-6 or AC-7 because there is nothing to run.
    Landed as `ErrPolicyTeardown` + `setCloseReason` + sentinel return, with
    `TestPolicyTeardownExitsRun`. One deliberate deviation from this step's wording:
    `errChan` is NOT signalled. Its only consumer is the cancel goroutine
-   (`session.go:870-896`), whose job is to close the connection so a blocked
+   (`session.go`), whose job is to close the connection so a blocked
    `io.ReadFull` returns -- but this path already runs ON the read goroutine with the
    connection closed, so the signal would wake a goroutine only to have it repeat a
    `setCloseReason` that CAS-loses and a `closeConn` that no-ops. Returning the sentinel
@@ -196,7 +196,7 @@ No verification was run for AC-6 or AC-7 because there is nothing to run.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/behavior/fsm.md` - BGP FSM design (referenced by `fsm/timer.go:1`)
+- [ ] `docs/architecture/behavior/fsm.md` - BGP FSM design (referenced by `fsm/timer.go`)
   → Constraint: hold timer detects dead peers; it MUST be restarted on KEEPALIVE/UPDATE receipt in Established (doc lines 178-187: negotiated, 0 disables, keepalive = hold/3).
 - [ ] `docs/architecture/testing/ci-format.md` - `.ci` grammar for the functional tests
   → Constraint: `action=send:conn=N:seq=N:hex=...` injects raw bytes mid-session; `expect=bgp:conn=N:seq=N:hex=...` asserts received wire bytes -- sufficient to script "second OPEN in Established, expect NOTIFICATION code 5".
@@ -204,71 +204,71 @@ No verification was run for AC-6 or AC-7 because there is nothing to run.
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4271.md` - hold timer, keepalive timer, FSM events (Sections 8, 10)
   → Constraint: Section 8.2.2 -- an OPEN in Established is an FSM error; send NOTIFICATION and release resources. NOTIFICATION Error Code 5 (Finite State Machine Error) has no subcodes; subcode MUST be 0 (Section 6).
-  → Constraint: Section 4.4 -- a negotiated hold time of zero disables both timers (this is deliberate and must be preserved; it is distinct from defect 1). Producer: `fsm/timer.go:180-182` (StartHoldTimer) and `:216` (ResetHoldTimer).
-  → Constraint: Section 4.2 -- negotiated hold = min(local, peer), floor 3 s. Producer: `session_negotiate.go:50-62`.
+  → Constraint: Section 4.4 -- a negotiated hold time of zero disables both timers (this is deliberate and must be preserved; it is distinct from defect 1). Producer: `fsm/timer.go` (StartHoldTimer) and `:216` (ResetHoldTimer).
+  → Constraint: Section 4.2 -- negotiated hold = min(local, peer), floor 3 s. Producer: `session_negotiate.go`.
 
 **Key insights:**
-- Defect 1 (the `holdRunning` lifecycle bug) and the deliberate `holdTime == 0` clause both flow through the single guard `fsm/timer.go:216`; fixing one must not regress the other.
+- Defect 1 (the `holdRunning` lifecycle bug) and the deliberate `holdTime == 0` clause both flow through the single guard `fsm/timer.go`; fixing one must not regress the other.
 - The `!holdRunning` guard in `ResetHoldTimer` is ALSO what keeps late FSM events (a KEEPALIVE processed after `StopAll`) from resurrecting timers on a torn-down session. The fix must NOT weaken that guard; the grace re-arm needs its own, generation-checked entry point (see Key Design Decisions).
 - Ze's FSM deliberately does not send messages (`fsm/fsm.go` header, VIOLATIONS note 3), so the defect-3 NOTIFICATION belongs in `handleOpen` (reactor), not in the FSM.
-- ROUTE-REFRESH receipt does not restart the hold timer (`handleRouteRefresh` fires no FSM event, `session_handlers.go:322-375`). This matches RFC 4271, whose FSM restarts HoldTimer on KeepAliveMsg (26) and UpdateMsg (27) only (`rfc/short/rfc4271.md:504-505`); RFC 2918 adds no hold-timer rule. It does mean `recentRead` can legitimately be true at expiry for a live, refresh-only peer -- one more reason the grace branch must actually re-arm.
+- ROUTE-REFRESH receipt does not restart the hold timer (`handleRouteRefresh` fires no FSM event, `session_handlers.go`). This matches RFC 4271, whose FSM restarts HoldTimer on KeepAliveMsg (26) and UpdateMsg (27) only (`rfc/short/rfc4271.md`); RFC 2918 adds no hold-timer rule. It does mean `recentRead` can legitimately be true at expiry for a live, refresh-only peer -- one more reason the grace branch must actually re-arm.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
 - [ ] `internal/component/bgp/fsm/timer.go` (401L) - hold/keepalive/connect timers.
-  → Constraint: every expiry closure clears its `*Running` flag before invoking the callback (hold `:186-195`, reset-twin `:223-232`, connectRetry `:357-366`); the keepalive `timerFunc` (`:293-310`) instead checks-and-re-arms under lock while `keepaliveRunning`. `stopHoldTimerLocked` (`:243-249`) ignores `Timer.Stop()`'s fired/not-fired return, so a fired-but-not-yet-run closure cannot be distinguished from a stopped one -- the ABA seed for A-2. `StopAll` (`:393-400`) is idempotent (nil-checked stops).
+  → Constraint: every expiry closure clears its `*Running` flag before invoking the callback (hold `:186-195`, reset-twin `:223-232`, connectRetry `:357-366`); the keepalive `timerFunc` instead checks-and-re-arms under lock while `keepaliveRunning`. `stopHoldTimerLocked` ignores `Timer.Stop()`'s fired/not-fired return, so a fired-but-not-yet-run closure cannot be distinguished from a stopped one -- the ABA seed for A-2. `StopAll` is idempotent (nil-checked stops).
 - [ ] `internal/component/bgp/reactor/session.go` (799L) - Session struct, callbacks, `Run` loop.
-  → Constraint: `OnHoldTimerExpires` callback (`:420-440`): grace branch `:425-431`, teardown branch `:433-439` signals `errChan`. Cancel goroutine (`:713-739`): closes conn only for ctx-cancel/errChan reasons (`:736-738`); on `<-s.done` (read-loop error return) it exits WITHOUT closing (`:733-734`). `conn == nil` poll loop `:763-770` exits only when `closeReason` is set. `logFSMEvent` `:689-698`. FSM wired to timers at `:413`. `Stop()` at `:641-644` calls `StopAll`.
+  → Constraint: `OnHoldTimerExpires` callback: grace branch `:425-431`, teardown branch `:433-439` signals `errChan`. Cancel goroutine: closes conn only for ctx-cancel/errChan reasons; on `<-s.done` (read-loop error return) it exits WITHOUT closing. `conn == nil` poll loop `:763-770` exits only when `closeReason` is set. `logFSMEvent` `:689-698`. FSM wired to timers at `:413`. `Stop()` at `:641-644` calls `StopAll`.
 - [ ] `internal/component/bgp/reactor/session_read.go` (294L) - read loop, error returns.
-  → Constraint: `recentRead.Store(true)` at `:92` on every header read. EOF/reset path is CLEAN: `handleConnectionClose` (`:271-275`) does `StopAll` + FSM event + `closeConn`. Dirty paths: `:114` (bad length), `:192` (family), `:209` (prefix limit), `:242-250` (policy teardown; also returns nil error).
+  → Constraint: `recentRead.Store(true)` at `:92` on every header read. EOF/reset path is CLEAN: `handleConnectionClose` does `StopAll` + FSM event + `closeConn`. Dirty paths: `:114` (bad length), `:192` (family), `:209` (prefix limit), `:242-250` (policy teardown; also returns nil error).
 - [ ] `internal/component/bgp/reactor/session_coalesce.go` - coalesced read twin.
   → Constraint: duplicates the read-loop preamble: `recentRead` at `:82`, bad-length `closeConn` at `:101`. Any read-loop fix must NOT need per-site edits here (exit-discipline fix in `Run` covers both).
 - [ ] `internal/component/bgp/reactor/session_handlers.go` (387L) - per-message handlers.
-  → Constraint: `handleOpen` (`:39-183`) has no state gate and is reachable in every state from `processMessage` (`session_read.go:256-257`). `handleNotification` (`:275`) and `handleConnectionClose` are the only handler-level `StopAll` callers. `handleKeepalive` (`:211-222`) starts keepalive + send-hold timers on OpenConfirm->Established.
+  → Constraint: `handleOpen` has no state gate and is reachable in every state from `processMessage` (`session_read.go`). `handleNotification` and `handleConnectionClose` are the only handler-level `StopAll` callers. `handleKeepalive` starts keepalive + send-hold timers on OpenConfirm->Established.
 - [ ] `internal/component/bgp/reactor/session_connection.go` (507L) - connect/accept/teardown.
-  → Constraint: `connectionEstablished` arms the hold timer once per connection with the openwait value (`:357-359`); negotiation later shrinks it via `SetHoldTime` (`session_negotiate.go:62`) + `ResetHoldTimer` (`session_handlers.go:180`, `session_connection.go:232`). `Close`/`CloseWithNotification`/`Teardown` all `StopAll` (`:366`, `:390`, `:416`); `closeConn` (`:461-500`) does not (send-hold only, `:463`).
+  → Constraint: `connectionEstablished` arms the hold timer once per connection with the openwait value; negotiation later shrinks it via `SetHoldTime` (`session_negotiate.go`) + `ResetHoldTimer` (`session_handlers.go`, `session_connection.go`). `Close`/`CloseWithNotification`/`Teardown` all `StopAll`; `closeConn` does not (send-hold only, `:463`).
 - [ ] `internal/component/bgp/reactor/session_validation.go` - RFC 7606 + capability-mode validation.
   → Constraint: RFC 7606 session-reset does `closeConn` without `StopAll` at `:156` (Established; keepalive leak). Capability/ADD-PATH mode rejects at `:265/:279/:300/:311` are pre-Established (keepalive not yet started; hold closure fires once then the Session is garbage -- bounded, acceptable).
 - [ ] `internal/component/bgp/fsm/fsm.go` (494L) - state machine.
-  → Constraint: `Event` (`:153-173`) always returns nil. Established handler restarts hold timer on Events 26/27 (`:431-433`, `:448-450`). No `EventBGPOpen` case in `handleEstablished` or `handleOpenConfirm`; both fall to `default -> change(StateIdle)` (`:487-491`, `:406-408`).
+  → Constraint: `Event` always returns nil. Established handler restarts hold timer on Events 26/27. No `EventBGPOpen` case in `handleEstablished` or `handleOpenConfirm`; both fall to `default -> change(StateIdle)`.
 - [ ] `internal/component/bgp/reactor/peer_run.go` (539L) - reconnect loop, Session lifecycle consumer.
-  → Constraint: `runOnce` creates a NEW Session each cycle (`:193`) and abandons the old one without `StopAll` (`:249-251`); `run()` classifies `Session.Run`'s error: `ErrTeardown` reconnects immediately (`:78-84`), everything else backs off exponentially (`:118-151`). `cleanup()` (`:517-538`) calls `session.Close()` only if `p.session` is still non-nil -- it never is after `runOnce`'s defer, so peer stop does NOT stop an abandoned session's timers either.
+  → Constraint: `runOnce` creates a NEW Session each cycle and abandons the old one without `StopAll`; `run()` classifies `Session.Run`'s error: `ErrTeardown` reconnects immediately, everything else backs off exponentially. `cleanup()` calls `session.Close()` only if `p.session` is still non-nil -- it never is after `runOnce`'s defer, so peer stop does NOT stop an abandoned session's timers either.
 - [ ] `internal/test/sim/sim.go` - FakeClock for the timer unit tests.
-  → Constraint: `advanceTo` (`:67-95`) releases the clock lock before each callback and documents that callbacks "may take other locks or schedule new timers" (`:63-66`) -- re-arming via `AfterFunc` from inside a fired callback is supported, so A-1's test is writable.
+  → Constraint: `advanceTo` releases the clock lock before each callback and documents that callbacks "may take other locks or schedule new timers" (`:63-66`) -- re-arming via `AfterFunc` from inside a fired callback is supported, so A-1's test is writable.
 
 **Behavior to preserve:**
 - Negotiated hold-time 0 disables both timers (RFC 4271 Section 4.4) -- the single spurious "hold timer extended" log at hold-time 0 is unreachable (timer never armed) and stays that way.
 - `ResetHoldTimer`'s no-op after a deliberate stop (`StopAll`, `StopHoldTimer`): late FSM events on a torn-down session must not resurrect timers.
 - The EOF/reset close path (`handleConnectionClose`), `handleNotification`, `Close`, `CloseWithNotification`, `Teardown`, `Stop`: already correct, must not double-teardown (they may now overlap with a `Run`-exit `StopAll`; `StopAll` is idempotent, A-3).
 - The per-peer panic failure domain (`safeRunOnce`, cancel-goroutine recover) and existing teardown reason plumbing (`closeReason` first-wins CAS).
-- `ErrTeardown` => immediate reconnect vs error => backoff classification in `peer_run.go:76-151`.
+- `ErrTeardown` => immediate reconnect vs error => backoff classification in `peer_run.go`.
 - Existing timer API surface: `StartHoldTimer`, `ResetHoldTimer`, `StopHoldTimer`, `StopAll`, `IsHoldTimerRunning` signatures unchanged (callers grepped: reactor + fsm + tests only).
-- Openwait arming (`ze.bgp.openwait`, `session_connection.go:357-359`) borrowing the hold-timer plumbing.
+- Openwait arming (`ze.bgp.openwait`, `session_connection.go`) borrowing the hold-timer plumbing.
 
 **Behavior to change:**
 - Defects 1-4 above; AC-7 (conn-close on Run exit) ~~only if Thomas approves~~ (approved 2026-07-17, Q-2; in scope); nothing else.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A hold-timer `AfterFunc` fires after `holdTime` with no intervening KEEPALIVE/UPDATE; or a peer sends a second OPEN post-Establishment; or an Established validation error triggers `closeConn`.
 
 ### Transformation Path
-1. `connectionEstablished` arms the hold timer via `StartHoldTimer` (`session_connection.go:359`), duration = openwait; negotiation then shrinks it (`session_negotiate.go:62` + `ResetHoldTimer` at `session_handlers.go:180`).
-2. Each received message: read loop sets `recentRead` (`session_read.go:92`), fires the FSM event, and the FSM handler calls `ResetHoldTimer` (`fsm/fsm.go:431-433`, `:448-450`) -- works only while `holdRunning`.
-3. On expiry the `AfterFunc` closure sets `holdRunning = false`, unlocks, then calls `onHoldExpires` (`timer.go:186-195`).
-4. `onHoldExpires` grace branch swaps `recentRead` and calls `ResetHoldTimer` (`session.go:425-431`), which no-ops (`timer.go:216-218`).
-5. From then, every FSM-event `ResetHoldTimer` no-ops; dead-peer detection is off for the session's life. The teardown branch (`session.go:433-439`) is reached only if the peer was silent for the ENTIRE session before the first expiry.
-6. On a validation teardown, the read loop calls `closeConn` + returns an error; `Run` returns it (`session.go:788-796`); the cancel goroutine exits via `<-s.done` without further cleanup; `runOnce` abandons the Session (`peer_run.go:249-251`); the keepalive `timerFunc` keeps re-arming (`timer.go:305-309`) and pins the Session.
+1. `connectionEstablished` arms the hold timer via `StartHoldTimer` (`session_connection.go`), duration = openwait; negotiation then shrinks it (`session_negotiate.go` + `ResetHoldTimer` at `session_handlers.go`).
+2. Each received message: read loop sets `recentRead` (`session_read.go`), fires the FSM event, and the FSM handler calls `ResetHoldTimer` (`fsm/fsm.go`, `:448-450`) -- works only while `holdRunning`.
+3. On expiry the `AfterFunc` closure sets `holdRunning = false`, unlocks, then calls `onHoldExpires` (`timer.go`).
+4. `onHoldExpires` grace branch swaps `recentRead` and calls `ResetHoldTimer` (`session.go`), which no-ops (`timer.go`).
+5. From then, every FSM-event `ResetHoldTimer` no-ops; dead-peer detection is off for the session's life. The teardown branch (`session.go`) is reached only if the peer was silent for the ENTIRE session before the first expiry.
+6. On a validation teardown, the read loop calls `closeConn` + returns an error; `Run` returns it (`session.go`); the cancel goroutine exits via `<-s.done` without further cleanup; `runOnce` abandons the Session (`peer_run.go`); the keepalive `timerFunc` keeps re-arming (`timer.go`) and pins the Session.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Timer goroutine ↔ Session | `AfterFunc` closure invokes `onHoldExpires`/`onKeepaliveExpires` callbacks with no lock held (`timer.go:190` unlocks first) | [ ] |
-| Session ↔ FSM | `FSM.Event` drives state transitions; return value is currently always nil (`fsm.go:172`); FSM calls back into `Timers` for Events 26/27 (lock order f.mu -> t.mu, never reversed) | [ ] |
-| Session ↔ Peer | `Run`'s returned error selects reconnect class (`peer_run.go:76-151`); `errChan`/`closeReason` carry teardown reasons into `Run` | [ ] |
-| Session ↔ RIB | route withdrawal on peer-down rides the FSM Established->Idle callback (`peer_run.go:399-434`); depends on the session actually tearing down | [ ] |
+| Timer goroutine ↔ Session | `AfterFunc` closure invokes `onHoldExpires`/`onKeepaliveExpires` callbacks with no lock held (`timer.go` unlocks first) | [ ] |
+| Session ↔ FSM | `FSM.Event` drives state transitions; return value is currently always nil (`fsm.go`); FSM calls back into `Timers` for Events 26/27 (lock order f.mu -> t.mu, never reversed) | [ ] |
+| Session ↔ Peer | `Run`'s returned error selects reconnect class (`peer_run.go`); `errChan`/`closeReason` carry teardown reasons into `Run` | [ ] |
+| Session ↔ RIB | route withdrawal on peer-down rides the FSM Established->Idle callback (`peer_run.go`); depends on the session actually tearing down | [ ] |
 
 ### Integration Points
 - `fsm.Timers` (hold/keepalive lifecycle) - gains the generation guard + grace re-arm entry point.
@@ -280,19 +280,19 @@ No verification was run for AC-6 or AC-7 because there is nothing to run.
 - [ ] No bypassed layers (timer re-arm goes through the `Timers` API, not a private field poke)
 - [ ] No unintended coupling (session teardown discipline stays in `Session.Run`; FSM still sends no messages)
 - [ ] No duplicated functionality (grace re-arm reuses the arm path via a shared locked helper, not a third copy of the closure)
-- [ ] Registration over hardcoding — no new per-feature field/switch added to a core/shared struct (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — no new per-feature field/switch added to a core/shared struct (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The grace branch re-arm can call back into the `Timers` API from within the expiry callback without deadlock | closure unlocks `t.mu` before invoking cb (`timer.go:190`); callback runs on the timer goroutine holding no session/FSM locks; FakeClock releases its lock before callbacks and supports AfterFunc-from-callback (`sim.go:63-94`) | Re-arm deadlocks | design-time read of both producers (done); targeted unit test with fake clock at implementation | confirmed (code read) |
-| A-2 | A generation counter is needed to stop a stale fired-closure clobbering `holdRunning` under a freshly armed timer | audit V7 note; confirmed by reading the producer: the closure captures no arming identity, `stopHoldTimerLocked` ignores `Stop()`'s return (`timer.go:243-249`), so fire -> re-arm -> stale-closure-runs leaves `holdRunning=false` under an armed timer | Narrow ABA race remains; `ResetHoldTimer` no-ops until next fire | race test stopping+rearming across expiry (implementation); shape verified from source | confirmed (code read) |
-| A-3 | Adding a `defer StopAll()` in `Session.Run` does not double-stop timers already stopped on the clean path | `StopAll` is idempotent: `stop*Locked` nil-check their timer fields (`timer.go:243-249`, `:323-329`, `:377-383`) | Harmless double-stop | read `stop*Locked` (done) | confirmed |
+| A-1 | The grace branch re-arm can call back into the `Timers` API from within the expiry callback without deadlock | closure unlocks `t.mu` before invoking cb (`timer.go`); callback runs on the timer goroutine holding no session/FSM locks; FakeClock releases its lock before callbacks and supports AfterFunc-from-callback (`sim.go`) | Re-arm deadlocks | design-time read of both producers (done); targeted unit test with fake clock at implementation | confirmed (code read) |
+| A-2 | A generation counter is needed to stop a stale fired-closure clobbering `holdRunning` under a freshly armed timer | audit V7 note; confirmed by reading the producer: the closure captures no arming identity, `stopHoldTimerLocked` ignores `Stop()`'s return (`timer.go`), so fire -> re-arm -> stale-closure-runs leaves `holdRunning=false` under an armed timer | Narrow ABA race remains; `ResetHoldTimer` no-ops until next fire | race test stopping+rearming across expiry (implementation); shape verified from source | confirmed (code read) |
+| A-3 | Adding a `defer StopAll()` in `Session.Run` does not double-stop timers already stopped on the clean path | `StopAll` is idempotent: `stop*Locked` nil-check their timer fields (`timer.go`, `:323-329`, `:377-383`) | Harmless double-stop | read `stop*Locked` (done) | confirmed |
 | A-4 | A `.ci` scripted-peer test can deliver a second OPEN mid-session and assert the NOTIFICATION | `docs/architecture/testing/ci-format.md`: `action=send:conn=N:seq=N:hex=` (raw bytes), `expect=bgp:...:hex=`; framework already has `send-unknown-message` post-OPEN precedent | Functional test for AC-4 needs new runner support (small `expect.go` extension) | write the `.ci` in Phase 1 and watch it fail for the right reason | unvalidated (doc-verified only) |
 | A-5 | A stock reference daemon cannot be made to send a second in-session OPEN, so interop for defect 3 must validate the regression direction (normal reconnect still works), while defect 1 gets a real dead-peer interop scenario | FRR/BIRD reconnect by opening a new TCP connection; no knob sends OPEN twice on one connection | Interop table as written in the skeleton is unimplementable | interop scenario design below; harness `check.py` structure read (`test/interop/scenarios/*/check.py`) | unvalidated (needs harness pause/SIGSTOP capability check at implementation) |
-| A-6 | The keepalive `timerFunc` flag-check under lock is NOT sufficient against its own stale-chain race (old fired closure re-arms with the old interval and clobbers `t.keepaliveTimer`), but stopping still works because both chains gate on `keepaliveRunning` | read of `timer.go:293-313` | Duplicate keepalive chains until next stop; harmless for correctness, noisy on the wire | extend the generation guard to all three timers, or document why keepalive is flag-safe; decided in Phase 2 | confirmed (code read) |
+| A-6 | The keepalive `timerFunc` flag-check under lock is NOT sufficient against its own stale-chain race (old fired closure re-arms with the old interval and clobbers `t.keepaliveTimer`), but stopping still works because both chains gate on `keepaliveRunning` | read of `timer.go` | Duplicate keepalive chains until next stop; harmless for correctness, noisy on the wire | extend the generation guard to all three timers, or document why keepalive is flag-safe; decided in Phase 2 | confirmed (code read) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -323,7 +323,7 @@ No verification was run for AC-6 or AC-7 because there is nothing to run.
 | AC-4a | Established (or OpenConfirm) peer sends a second OPEN on the same connection | A NOTIFICATION with Cease (code 6) is sent, the connection is closed, the session leaves Established (so the peer-closed cascade runs), and `s.negotiated` is not rebuilt |
 
 **AC-4a evidence (2026-07-27), all mutation-verified.** Implemented at
-`reactor/session_handlers.go:61-82`:
+`reactor/session_handlers.go`:
 
 | Test | Covers | Mutation that turns it red |
 |------|--------|----------------------------|
@@ -367,7 +367,7 @@ Asserting on the transient state would have shipped a flaky test, not a strict o
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| holdTime | 0 or 3-65535 s | 65535 | 1-2 s rejected (`ValidateHoldTime`; negotiation floors to 3 s, `session_negotiate.go:56-58`) | N/A (0 disables, deliberate) |
+| holdTime | 0 or 3-65535 s | 65535 | 1-2 s rejected (`ValidateHoldTime`; negotiation floors to 3 s, `session_negotiate.go`) | N/A (0 disables, deliberate) |
 | grace extension (if D-2 picks bounded) | > 0, <= holdTime | holdTime | N/A (constant/env-derived) | clamp to holdTime |
 
 ### Functional Tests
@@ -376,7 +376,7 @@ Asserting on the transient state would have shipped a flaky test, not a strict o
 | `open-in-established` | `test/parse/open-in-established.ci` | peer that re-OPENs mid-session gets NOTIFICATION code 5, session closes, next connection re-establishes cleanly | |
 | `deadpeer-holddown` | `test/parse/deadpeer-holddown.ci` | silent peer (conn held open, no FIN, no keepalives) after a busy period is torn down within hold time + grace window; NOTIFICATION code 4 observed | |
 
-(The skeleton placed these in `test/bgp/*.ci`; that directory does not exist. `ze-test bgp parse` runs `test/parse/*.ci` (`mk/test-functional.mk:72,123-124`); the scripted peer (`internal/test/peer/`) loads `.ci` expectations (`expect.go`).)
+(The skeleton placed these in `test/bgp/*.ci`; that directory does not exist. `ze-test bgp parse` runs `test/parse/*.ci` (`mk/test-functional.mk,123-124`); the scripted peer (`internal/test/peer/`) loads `.ci` expectations (`expect.go`).)
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -396,13 +396,13 @@ Asserting on the transient state would have shipped a flaky test, not a strict o
 - `internal/component/bgp/reactor/session_handlers.go` - `handleOpen` FSM-state gate + NOTIFICATION code 5 + close
 - `internal/component/bgp/fsm/fsm.go` - `FSM.Event` returns a sentinel when a default arm fires; handled events return nil
 
-Sibling audit result (no edits needed, covered by the `Run` defer): `session_coalesce.go:101`, `session_validation.go:156/:265/:279/:300/:311`, `session_handlers.go:33/:61/:78/:154/:201/:303`, `session_read.go:114/:192/:209`, cancel-goroutine exits. Each stays responsible for its own NOTIFICATION + `closeReason`; none gains a per-site `StopAll`.
+Sibling audit result (no edits needed, covered by the `Run` defer): `session_coalesce.go`, `session_validation.go/:265/:279/:300/:311`, `session_handlers.go/:61/:78/:154/:201/:303`, `session_read.go/:192/:209`, cancel-goroutine exits. Each stays responsible for its own NOTIFICATION + `closeReason`; none gains a per-site `StopAll`.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | Prometheus counters/metrics | [ ] | proposed: `ze_bgp_hold_expiry_graced_total`, `ze_bgp_open_in_established_total` (peer-labeled) in `reactor` metrics; ~~decide at implementation with Thomas~~ RESOLVED 2026-07-17 (Q-5): add both, in `reactor_metrics.go` (peer-labeled) |
-| YANG schema / env var | [ ] | ~~only if D-2 picks a tunable grace duration; then `ai/rules/config-surface.md` + `ai/rules/config-naming.md` first~~ N/A per Q-1 (2026-07-17): grace extension is a fixed 10 s, not tunable; no leaf/env added |
+| YANG schema / env var | [ ] | ~~only if D-2 picks a tunable grace duration; then `ai/rules/config.md` + `ai/rules/config.md` first~~ N/A per Q-1 (2026-07-17): grace extension is a fixed 10 s, not tunable; no leaf/env added |
 | Doctor check | [ ] | N/A - no new runtime dependency |
 | CLI grammar | [ ] | N/A - no new commands |
 
@@ -416,7 +416,7 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | D-1: Grace re-arm goes through a NEW generation-checked `Timers` entry point called only by the expiry callback | (a) delete the `!holdRunning` guard from `ResetHoldTimer`; (b) call `StartHoldTimer` from the grace branch | (a) would let late FSM events resurrect timers on a torn-down session (the guard is load-bearing for `StopAll` semantics); (b) `StartHoldTimer` re-arms unconditionally and would equally resurrect after a concurrent `StopAll` (R-3). The expiry closure captures its arming generation; the re-arm proceeds only if the generation is unchanged (i.e., no `Stop*`/re-arm happened since this fire). |
-| D-2: Extension duration -- RECOMMEND bounded 10 s (clamped to holdTime), matching the call-site comment | (a) full `holdTime` re-arm; (b) tunable via env | Full holdTime doubles worst-case dead-peer detection to 2x holdTime and makes the `.ci` slower; the bounded window caps it at holdTime + 10 s while genuine congestion keeps extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via the FSM). The 10 s figure has no decision record (searched `plan/learned/`, none); it exists only in the comment at `session.go:421-424`, so this is a fresh decision for Thomas, not a restoration. Env-tunable only if Thomas wants it (config-surface rules apply). **Resolved Q-1 (2026-07-17): fixed 10 s, clamped to holdTime; not env-tunable.** |
+| D-2: Extension duration -- RECOMMEND bounded 10 s (clamped to holdTime), matching the call-site comment | (a) full `holdTime` re-arm; (b) tunable via env | Full holdTime doubles worst-case dead-peer detection to 2x holdTime and makes the `.ci` slower; the bounded window caps it at holdTime + 10 s while genuine congestion keeps extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via the FSM). The 10 s figure has no decision record (searched `plan/learned/`, none); it exists only in the comment at `session.go`, so this is a fresh decision for Thomas, not a restoration. Env-tunable only if Thomas wants it (config-surface rules apply). **Resolved Q-1 (2026-07-17): fixed 10 s, clamped to holdTime; not env-tunable.** |
 | D-3: Teardown discipline is a single `defer s.timers.StopAll()` in `Session.Run` | per-site `StopAll` at each of the 8+ dirty paths | The defer covers current and future exits (this bug class already recurred 8 times); per-site fixes are exactly the missed-sibling shape that caused the defect. Idempotent by A-3. NOTIFICATION-sending and `closeReason` stay per-site (R-5). |
 | D-4: `FSM.Event` returns a package-level sentinel (e.g. `fsm.ErrFSMError`) when a default arm fires; handled events (including deliberate ignores like ManualStop-in-Idle, which have explicit cases) return nil | boolean return; error per state+event pair | Callers need exactly one bit ("did the FSM treat this as an error transition"); a sentinel keeps `errors.Is` composable and `logFSMEvent` trivial. Explicit-case ignores are RFC-mandated non-errors and must stay nil. |
 | D-5: Defect-3 gate lives in `handleOpen` (reactor), keyed on `s.fsm.State()` | inside the FSM | Ze's FSM deliberately sends no messages (`fsm/fsm.go` header note 3); the NOTIFICATION + close is session I/O. Gate: OpenSent proceeds (normal path); Established (and OpenConfirm, D-6) get NOTIFICATION code 5 subcode 0 + `closeConn` + error return; negotiation is NOT re-run on the rejected path (no live capability rewrite). |
@@ -431,7 +431,7 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 2. **Phase: hold-timer re-arm (defect 1)** -- generation counter in `Timers` (bumped on every arm and stop, checked by fired closures before clearing `holdRunning`); shared locked arm helper; generation-checked grace re-arm API; grace branch in `session.go` uses it with the D-2 duration; preserve `holdTime == 0` and post-`StopAll` no-op (tests `TestResetHoldTimerStillNoOpsAfterStop`, `TestHoldTimeZeroStaysDisabled`). Decide A-6 treatment (extend guard to keepalive/connectRetry or document). RFC comment per RFC Documentation section.
 3. **Phase: StopAll discipline (defect 2)** -- single `defer s.timers.StopAll()` at the top of `Session.Run`; if AC-7 approved, `defer s.closeConn()` beside it; table-driven `TestSessionRunStopsTimersOnValidationTeardown` walks all 8 dirty paths; heap-reachability assertion for the abandoned-Session claim.
 4. **Phase: FSM.Event sentinel (defect 4a)** -- default arms return `fsm.ErrFSMError`; `logFSMEvent` warn branch becomes live; audit ALL `fsm.Event(...)` call sites (grep) for ones that must now branch on the sentinel vs merely log.
-5. **Phase: policy-teardown exit (defect 4b)** -- `session_read.go:242-250` also calls `setCloseReason` + signals `errChan` with the D-7 sentinel; `TestPolicyTeardownExitsRun`.
+5. **Phase: policy-teardown exit (defect 4b)** -- `session_read.go` also calls `setCloseReason` + signals `errChan` with the D-7 sentinel; `TestPolicyTeardownExitsRun`.
 6. **Phase: OPEN-in-Established (defect 3)** -- state gate at the top of `handleOpen` per D-5/D-6; NOTIFICATION code 5 subcode 0; unit test both states; `test/parse/open-in-established.ci` goes green.
 7. **Functional + interop tests** -- `deadpeer-holddown.ci`; `47-holdtime-deadpeer-frr` scenario; re-run reconnect interop scenarios for R-2.
 8. **Full verification** -- `make ze-verify`.
@@ -444,7 +444,7 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 | Correctness | `holdTime == 0` still disables; post-`StopAll` `ResetHoldTimer` still no-ops; re-arm interval matches D-2 as approved |
 | Sibling call-site audit | Every `closeConn`-without-`StopAll` path (8 listed + cancel goroutine) is covered by the `Run` defer; every `fsm.Event` caller re-audited after the sentinel lands |
 | Lock ordering | No new path acquires t.mu while holding it (grace re-arm runs on the timer goroutine, lock-free entry); f.mu -> t.mu order preserved |
-| Registration over hardcoding | No new per-feature field/switch added to a core/shared struct (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | No new per-feature field/switch added to a core/shared struct (`ai/rules/plugins.md`) |
 | No workaround | Timer fix is at the producer (`Timers`), not a session-side re-arm hack around a broken API |
 
 ### Deliverables Checklist (/implement stage 10)
@@ -476,10 +476,10 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| (skeleton) functional tests live in `test/bgp/*.ci` | no such directory; `ze-test bgp parse` runs `test/parse/*.ci` | `ls test/`; `mk/test-functional.mk:72` | test locations corrected in design |
+| (skeleton) functional tests live in `test/bgp/*.ci` | no such directory; `ze-test bgp parse` runs `test/parse/*.ci` | `ls test/`; `mk/test-functional.mk` | test locations corrected in design |
 | (skeleton) interop scenario "FRR/BIRD sends second OPEN in-session" | stock daemons cannot emit that; only the scripted peer can | A-5 reasoning + framework read | interop table redefined (dead-peer + regression direction) |
 | AC-4: a second OPEN in Established should raise FSM Error (code 5, subcode 0) | RFC 4271 Section 8.2.2 EXCLUDES BGPOpen (Event 19) from the FSM-Error branch in both states that can see it -- Established scopes that branch to "Events 9, 12-13, 20-22" and OpenConfirm to "Events 9, 12-13, 20, 27-28". Both route Event 19 through collision detection, whose termination action is "sends a NOTIFICATION with a Cease". Implementing AC-4 as written would have ADDED an RFC deviation | read `rfc/full/rfc4271.txt` Established + OpenConfirm state text (2026-07-27) while preparing to implement | AC-4 dropped by Thomas; replaced by AC-4a with Cease |
-| That the code already matched Section 8.2.2, so dropping AC-4 was a no-op | It did not. `handleOpen` (`session_handlers.go:41`) had NO state gate at all, and the production path reaches it: `session_coalesce.go` -> `processMessage` (`session_read.go:300-304`) -> `handleOpen`. (`ReadAndProcess` has only test callers, which is why reading it first was misleading.) A second OPEN on a live session re-ran the whole path, overwriting `s.peerOpen` and calling `negotiateWith` | claimed to Thomas without reading the producer, then caught by reading it (`ai/rules/no-fabrication.md`: read the producer, not the caller) | a peer could REWRITE the negotiated capability set of an established session. Proven by mutation: with the gate removed, `peerCodes` goes from `{0x1, 0x41}` to `{0x1, 0x41, 0x45}` -- the peer injects AddPath mid-session. Fixed with the Cease gate; `TestSecondOpenOnEstablishedSessionIsRefused` asserts the capability set is unchanged BEFORE asserting the error, because the FSM errors either way and a fatal error assertion first would hide the rewrite |
+| That the code already matched Section 8.2.2, so dropping AC-4 was a no-op | It did not. `handleOpen` (`session_handlers.go`) had NO state gate at all, and the production path reaches it: `session_coalesce.go` -> `processMessage` (`session_read.go`) -> `handleOpen`. (`ReadAndProcess` has only test callers, which is why reading it first was misleading.) A second OPEN on a live session re-ran the whole path, overwriting `s.peerOpen` and calling `negotiateWith` | claimed to Thomas without reading the producer, then caught by reading it (`ai/rules/evidence.md`: read the producer, not the caller) | a peer could REWRITE the negotiated capability set of an established session. Proven by mutation: with the gate removed, `peerCodes` goes from `{0x1, 0x41}` to `{0x1, 0x41, 0x45}` -- the peer injects AddPath mid-session. Fixed with the Cease gate; `TestSecondOpenOnEstablishedSessionIsRefused` asserts the capability set is unchanged BEFORE asserting the error, because the FSM errors either way and a fatal error assertion first would hide the rewrite |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -499,8 +499,8 @@ Sibling audit result (no edits needed, covered by the `Run` defer): `session_coa
 A timer flag cleared by the expiry closure BEFORE the owner decides what the expiry means makes "decide to keep running" unimplementable; the armed-state must survive until the decision, which is what the generation token provides.
 
 ## Known Limitations
-- ROUTE-REFRESH does not restart the hold timer (no FSM event fired, `session_handlers.go:322-375`), so a refresh-only peer survives via repeated graced re-arms rather than a proper reset. **Not a gap, and no work is owed:** RFC 4271's FSM restarts HoldTimer on KeepAliveMsg (26) and UpdateMsg (27) only (`rfc/short/rfc4271.md:504-505`), and RFC 2918 says nothing about the hold timer, so a peer sending ROUTE-REFRESH but no KEEPALIVE is meant to time out. Ze already does the RFC-shaped thing here. Ruled by Thomas 2026-07-16; recorded cancelled in `plan/deferrals.md`.
-- `handleUpdate`'s second `validateUpdateFamilies` call (`session_handlers.go:238`) is redundant with `processMessage`'s (`session_read.go:181`) and its error return path differs; not touched here.
+- ROUTE-REFRESH does not restart the hold timer (no FSM event fired, `session_handlers.go`), so a refresh-only peer survives via repeated graced re-arms rather than a proper reset. **Not a gap, and no work is owed:** RFC 4271's FSM restarts HoldTimer on KeepAliveMsg (26) and UpdateMsg (27) only (`rfc/short/rfc4271.md`), and RFC 2918 says nothing about the hold timer, so a peer sending ROUTE-REFRESH but no KEEPALIVE is meant to time out. Ze already does the RFC-shaped thing here. Ruled by Thomas 2026-07-16; recorded cancelled in `plan/deferrals.md`.
+- `handleUpdate`'s second `validateUpdateFamilies` call (`session_handlers.go`) is redundant with `processMessage`'s (`session_read.go`) and its error return path differs; not touched here.
 - Cross-connection collision behavior (`DetectCollision`, `AcceptWithOpen`) is unchanged.
 
 ## RFC Documentation
@@ -539,15 +539,15 @@ Add `// RFC 4271 Section 8.2.2: "<quoted requirement>"` above the OPEN-in-Establ
 
 ### Resolutions (APPEND-ONLY: all five adopt the spec's own recommendation, the conservative choice)
 
-→ AUTONOMOUS DEFAULT (2026-07-17): **Q-1 grace extension = fixed 10 s, clamped to holdTime** (adopts D-2). Rationale: a full-holdTime re-arm doubles worst-case dead-peer detection to 2x holdTime and slows the `.ci`; 10 s caps it at holdTime + 10 s while genuine congestion keeps re-extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via FSM Events 26/27). Verified against source: the grace branch at `session.go:425-431` currently calls `ResetHoldTimer()`, which re-arms to FULL `t.holdTime` (`timer.go:223`), contradicting the "extend by 10s" comment at `session.go:421-424`, so the fix must re-arm to the 10 s clamp (min(10 s, holdTime)), not full holdTime. NOT env-tunable, so no YANG/env leaf is added (Integration Checklist YANG row → N/A). Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-1 grace extension = fixed 10 s, clamped to holdTime** (adopts D-2). Rationale: a full-holdTime re-arm doubles worst-case dead-peer detection to 2x holdTime and slows the `.ci`; 10 s caps it at holdTime + 10 s while genuine congestion keeps re-extending (each expiry re-checks `recentRead`, and any processed message resets to full holdTime via FSM Events 26/27). Verified against source: the grace branch at `session.go` currently calls `ResetHoldTimer()`, which re-arms to FULL `t.holdTime` (`timer.go`), contradicting the "extend by 10s" comment at `session.go`, so the fix must re-arm to the 10 s clamp (min(10 s, holdTime)), not full holdTime. NOT env-tunable, so no YANG/env leaf is added (Integration Checklist YANG row → N/A). Thomas: override if wrong.
 
-→ AUTONOMOUS DEFAULT (2026-07-17): **Q-2 AC-7 (conn-close on `Run` exit) = IN SCOPE** (adopts D-8). Rationale: same one-defer shape and same file as D-3: a `defer s.closeConn()` beside `defer s.timers.StopAll()` at the top of `Session.Run`. Three leak sites verified returning without `closeConn`: `handleOpen` unpack error (`session_handlers.go:43-47`), openValidator rejection (`session_handlers.go:98-115`, sends a NOTIFICATION but never closes), local-capability parse error (`session_handlers.go:121-124`); the cancel goroutine also exits on `<-s.done` without closing (`session.go:733-734`). AC-7 row below de-gated; "Behavior to change" note updated. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-2 AC-7 (conn-close on `Run` exit) = IN SCOPE** (adopts D-8). Rationale: same one-defer shape and same file as D-3: a `defer s.closeConn()` beside `defer s.timers.StopAll()` at the top of `Session.Run`. Three leak sites verified returning without `closeConn`: `handleOpen` unpack error (`session_handlers.go`), openValidator rejection (`session_handlers.go`, sends a NOTIFICATION but never closes), local-capability parse error (`session_handlers.go`); the cancel goroutine also exits on `<-s.done` without closing (`session.go`). AC-7 row below de-gated; "Behavior to change" note updated. Thomas: override if wrong.
 
-→ AUTONOMOUS DEFAULT (2026-07-17): **Q-3 OpenConfirm same-connection second OPEN = FSM error** (not collision semantics; adopts D-6). **[STAKES: protocol]** Rationale: RFC 6.8 collision handling is about two *TCP connections* (already covered by `DetectCollision`/`AcceptWithOpen`); a duplicate OPEN on ONE connection is not a collision. Verified: `handleOpenConfirm` has no `EventBGPOpen` case and falls to `default -> change(StateIdle)` (`fsm.go:406-408`), producing a silent zombie strictly worse than an explicit FSM error. Treat identically to Established: NOTIFICATION code 5 subcode 0 + `closeConn`. This is a judgment call on RFC 4271 §8.2.2 OpenConfirm Event 19 wording; the conservative default (explicit FSM error over silent zombie) is the more-reversible choice. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-3 OpenConfirm same-connection second OPEN = FSM error** (not collision semantics; adopts D-6). **[STAKES: protocol]** Rationale: RFC 6.8 collision handling is about two *TCP connections* (already covered by `DetectCollision`/`AcceptWithOpen`); a duplicate OPEN on ONE connection is not a collision. Verified: `handleOpenConfirm` has no `EventBGPOpen` case and falls to `default -> change(StateIdle)` (`fsm.go`), producing a silent zombie strictly worse than an explicit FSM error. Treat identically to Established: NOTIFICATION code 5 subcode 0 + `closeConn`. This is a judgment call on RFC 4271 §8.2.2 OpenConfirm Event 19 wording; the conservative default (explicit FSM error over silent zombie) is the more-reversible choice. Thomas: override if wrong.
 
-→ AUTONOMOUS DEFAULT (2026-07-17): **Q-4 policy-teardown reconnect class = BACKOFF** (not immediate `ErrTeardown`; adopts D-7). **[STAKES: protocol]** Rationale: after a policy tear-down the peer's config still violates policy, so it re-offends immediately; routing through `ErrTeardown`'s immediate-reconnect arm (`peer_run.go:78-84`) would produce a NOTIFICATION storm. A distinct sentinel that is NOT `errors.Is ErrTeardown` falls through to the exponential-backoff arm (`peer_run.go:118-151`), the lower-wire-churn, more-reversible option. This changes observable flap cadence for `filter_family` tear-down users. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-4 policy-teardown reconnect class = BACKOFF** (not immediate `ErrTeardown`; adopts D-7). **[STAKES: protocol]** Rationale: after a policy tear-down the peer's config still violates policy, so it re-offends immediately; routing through `ErrTeardown`'s immediate-reconnect arm (`peer_run.go`) would produce a NOTIFICATION storm. A distinct sentinel that is NOT `errors.Is ErrTeardown` falls through to the exponential-backoff arm (`peer_run.go`), the lower-wire-churn, more-reversible option. This changes observable flap cadence for `filter_family` tear-down users. Thomas: override if wrong.
 
-→ AUTONOMOUS DEFAULT (2026-07-17): **Q-5 Prometheus counters = ADD BOTH, peer-labeled** (adopts recommendation). `ze_bgp_hold_expiry_graced_total` (incremented in the grace branch, `session.go:425-431`) and `ze_bgp_open_in_established_total` (incremented at the defect-3 gate in `handleOpen`). Home verified: the reactor `rmetrics` struct lives in `reactor_metrics.go` and is already peer-labeled via `peerLabel()` / `.With(peerLabel).Inc()` (`peer_run.go:42-49`); the session reaches it through `session.prefixMetrics = p.reactor.rmetrics` (`peer_run.go:204-206`). Cheap counters, no new runtime dependency. Integration Checklist Prometheus row → resolved (add). Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17): **Q-5 Prometheus counters = ADD BOTH, peer-labeled** (adopts recommendation). `ze_bgp_hold_expiry_graced_total` (incremented in the grace branch, `session.go`) and `ze_bgp_open_in_established_total` (incremented at the defect-3 gate in `handleOpen`). Home verified: the reactor `rmetrics` struct lives in `reactor_metrics.go` and is already peer-labeled via `peerLabel()` / `.With(peerLabel).Inc()` (`peer_run.go`); the session reaches it through `session.prefixMetrics = p.reactor.rmetrics` (`peer_run.go`). Cheap counters, no new runtime dependency. Integration Checklist Prometheus row → resolved (add). Thomas: override if wrong.
 
 ## Review Gate
 
@@ -580,6 +580,6 @@ Scoped verification (unit only; NO large/functional/QEMU suites, NO `ze-verify*`
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit. Deepened to design 2026-07-16: every `file:line` re-verified against the working tree.
-- **Citation drift (skeleton -> verified 2026-07-16):** `session.go:424-430` -> `:425-431` (grace branch); `session.go:421-423` -> `:421-424` (10 s comment); `session.go:688-697` -> `:689-698` (logFSMEvent); `fsm.go:487-492` -> `:487-491` (Established default arm); `timer.go:392-400` -> `:393-400` (StopAll). All other skeleton citations exact. No skeleton claim failed verification; two skeleton TEST-PLAN premises were wrong and corrected (Mistake Log): `test/bgp/` does not exist, and the defect-3 interop scenario is not implementable with a stock daemon.
-- Additions found during design (not in the skeleton, all verified): RFC 7606 session-reset leak site (`session_validation.go:156`); hold-expiry/ctx-cancel exits leave keepalive running (`session.go:736-738`); `ResetHoldTimer`'s twin closure shares the clear-before-callback shape (`timer.go:223-232`); keepalive stale-chain race (A-6); conn-leak paths without `closeConn` (AC-7 / Q-2).
+- **Citation drift (skeleton -> verified 2026-07-16):** `session.go` -> `:425-431` (grace branch); `session.go` -> `:421-424` (10 s comment); `session.go` -> `:689-698` (logFSMEvent); `fsm.go` -> `:487-491` (Established default arm); `timer.go` -> `:393-400` (StopAll). All other skeleton citations exact. No skeleton claim failed verification; two skeleton TEST-PLAN premises were wrong and corrected (Mistake Log): `test/bgp/` does not exist, and the defect-3 interop scenario is not implementable with a stock daemon.
+- Additions found during design (not in the skeleton, all verified): RFC 7606 session-reset leak site (`session_validation.go`); hold-expiry/ctx-cancel exits leave keepalive running (`session.go`); `ResetHoldTimer`'s twin closure shares the clear-before-callback shape (`timer.go`); keepalive stale-chain race (A-6); conn-leak paths without `closeConn` (AC-7 / Q-2).
 - Related in-progress work: `plan/spec-bgp-session-ready-contract.md` (EOR readiness) touches the same `Session` but a different concern; coordinate but do not merge. `plan/spec-fixit-redistribute-establishment-stall.md` touches reactor establishment flow; no file overlap with this spec's Files to Modify except `session.go` (watch for merge friction).

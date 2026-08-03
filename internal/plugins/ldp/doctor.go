@@ -23,7 +23,7 @@ var ldpPortProbe = probeLDPPort
 
 // checkLDPPort warns when ldp is configured but port 646 cannot be bound. ldp
 // owns the ldp config block, so it owns this readiness check
-// (ai/rules/doctor-checks.md "Where to Register Checks").
+// (ai/rules/repo-maintenance.md "Where to Register Checks").
 func checkLDPPort(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {

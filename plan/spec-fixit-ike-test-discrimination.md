@@ -26,7 +26,7 @@ not there.
 
 ### Item 1: the RFC 2759 one-octet guard survives its own revert
 
-`mschapv2Method.Process` (`internal/component/ike/eap/eap_mschapv2.go:82`) refuses
+`mschapv2Method.Process` (`internal/component/ike/eap/eap_mschapv2.go`) refuses
 an empty response at `:89`, guarding the `response.TypeData[0]` read at `:93`. Its
 comment explains the floor carefully, including why a blanket four-octet floor was
 wrong.
@@ -37,7 +37,7 @@ prevents. MEASURED on 2026-08-02.
 
 ### Item 2: the pendingRekey clear defer survives its own revert
 
-`runEstablished` (`internal/component/ike/engine/established.go:56`) clears the
+`runEstablished` (`internal/component/ike/engine/established.go`) clears the
 session rekey slot in a deferred call at `:71`, with a comment stating it is safe
 there and only there.
 
@@ -75,7 +75,7 @@ It is recorded here so the next author of an xfrm probe reads it before choosing
 interface, and so that author pairs any counter assertion with a positive control
 that is known to move the counter.
 
-`ai/rules/qemu-testing.md` is arguably the better long-term home for this
+`ai/rules/platform-linux.md` is arguably the better long-term home for this
 constraint. Moving it there is a rule change and belongs to the owner, so this spec
 records it and does not edit the rule.
 
@@ -86,7 +86,7 @@ records it and does not edit the rule.
   → Constraint: revert the behavior under test and confirm the test FAILS, before claiming it validates anything
 - [ ] `ai/rules/testing.md` - test sensitivity ratchets and the assert-nothing detector
   → Constraint: a test whose oracle is implicit needs the `// test-asserts-nothing:` annotation, so silence is never the answer
-- [ ] `ai/rules/qemu-testing.md` - what the Alpine VM provides and the virtual substitutes
+- [ ] `ai/rules/platform-linux.md` - what the Alpine VM provides and the virtual substitutes
   → Constraint: a dataplane assertion needs an interface that actually carries the traffic, which is why item 4 exists
 
 ### RFC Summaries (Scope: protocol)
@@ -122,7 +122,7 @@ records it and does not edit the rule.
 - Extend scenarios `04` and `06` to assert ESP is accepted, following scenario `07`.
 - Record the loopback constraint where a probe author will read it.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - An EAP-MSCHAPv2 response arrives from a peer, carrying an attacker-controlled `TypeData` length.
@@ -155,7 +155,7 @@ records it and does not edit the rule.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -163,7 +163,7 @@ records it and does not edit the rule.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | An empty-`TypeData` MSCHAPv2 response is reachable from the wire, not only from a constructed unit input | read, the EAP receive path | Item 1 is a defensive guard with no reachable trigger, which lowers severity but still leaves it unproven | trace the EAP packet path from the transport to `Process` | unvalidated |
-| A-2 | Reverting each guard really does leave the package green, and the run was not scoped too narrowly | measured 2026-08-02, both packages | The coverage exists and one of the two items closes immediately | re-run the revert with the full feature tags per `ai/rules/bash-output.md` | unvalidated |
+| A-2 | Reverting each guard really does leave the package green, and the run was not scoped too narrowly | measured 2026-08-02, both packages | The coverage exists and one of the two items closes immediately | re-run the revert with the full feature tags per `ai/rules/commands.md` | unvalidated |
 | A-3 | ESP counters in scenarios `04` and `06` behave as they do in `07`, so the control transfers | read, `07-responder-psk/check.py` | The assertion needs a different shape for the EAP-TLS labs | run the extended scenarios once | unvalidated |
 | A-4 | No other test already covers either guard from a different package | measured for the two packages, not tree-wide | An existing test covers it and the new one duplicates | grep the tree for the guard's behavior before writing the test | unvalidated |
 
@@ -171,8 +171,8 @@ records it and does not edit the rule.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The new EAP test asserts the error string rather than the behavior, so a reword breaks it | the test fails on a message change that keeps behavior | assert that no panic occurs and a method failure is returned, never the exact text |
-| R-2 | Extending scenarios `04` and `06` makes them flaky, since interop is nightly and advisory | intermittent reds in the nightly tier | wait on the counter condition, never on elapsed time (`ai/rules/fix-dont-record.md`) |
-| R-3 | Item 4's constraint stays in this spec and is deleted at closure, so the next probe author never sees it | a future probe built on `lo` | route the constraint to a durable home at closure: the learned summary at minimum, `ai/rules/qemu-testing.md` if the owner agrees |
+| R-2 | Extending scenarios `04` and `06` makes them flaky, since interop is nightly and advisory | intermittent reds in the nightly tier | wait on the counter condition, never on elapsed time (`ai/rules/completion.md`) |
+| R-3 | Item 4's constraint stays in this spec and is deleted at closure, so the next probe author never sees it | a future probe built on `lo` | route the constraint to a durable home at closure: the learned summary at minimum, `ai/rules/platform-linux.md` if the owner agrees |
 | R-4 | Adding assertions to a scenario carrying an `RFC requirement:` tag trips the rfc-tagged-test hook | the edit is blocked at write time | check each scenario for tags first; a tagged change needs the owner's approval, never a self-issued one |
 
 ## Blast Radius
@@ -319,7 +319,7 @@ records it and does not edit the rule.
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | Item 1 IS an input-validation guard on peer-controlled length. The test must drive it from the peer-facing entry point, not the helper alone (`ai/rules/fail-closed-guards.md`) |
+| Input validation | Item 1 IS an input-validation guard on peer-controlled length. The test must drive it from the peer-facing entry point, not the helper alone (`ai/rules/evidence.md`) |
 | Resource exhaustion | None introduced |
 | Error leakage | The new EAP test must not pin an error string that reveals internal state |
 

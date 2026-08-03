@@ -6,7 +6,7 @@
 // (internal/component/traffic/yang/ze-traffic-control-conf.yang) — so the
 // offline tc/VPP policer tool is the member `control`, reached as
 // `ze traffic control`, not a hyphenated `traffic-control` compound (R9,
-// ai/rules/cli-grammar.md). This is the owner package: the tool lives with
+// ai/rules/cli.md). This is the owner package: the tool lives with
 // internal/component/traffic, not under cmd/ze.
 //
 // codegen:skip -- the `traffic` root is wired into the ze / ze-appliance CLI by
@@ -37,7 +37,7 @@ func init() {
 
 // trafficMembers is the closed set of `ze traffic` sub-tokens. Matching args[0]
 // against it before doing anything with the token keeps an unknown sub-command
-// from ever reaching the tool's arg parser (ai/rules/cli-grammar.md, closed
+// from ever reaching the tool's arg parser (ai/rules/cli.md, closed
 // keyword set).
 var trafficMembers = map[string]bool{"control": true}
 

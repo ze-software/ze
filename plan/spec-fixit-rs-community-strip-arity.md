@@ -21,19 +21,19 @@ the strip works.
 **Cause.** An arity mismatch between two halves of the modification accumulator
 contract, in a path with zero test coverage.
 
-`StripControlCommunities` (`internal/component/bgp/wireu/community.go:158`) walks
+`StripControlCommunities` (`internal/component/bgp/wireu/community.go`) walks
 the COMMUNITY attribute and accumulates **every** matching four-byte value into a
 single slice at `:189`. Both route-server call sites hand that whole slice to the
 accumulator as one Remove operation:
 
 | Call site | Producer line |
 |-----------|---------------|
-| `internal/component/bgp/reactor/reactor_api_forward.go:643` builds it, `:635` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
-| `internal/component/bgp/reactor/forward_rs.go:347` builds it, `:342` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
+| `internal/component/bgp/reactor/reactor_api_forward.go` builds it, `:635` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
+| `internal/component/bgp/reactor/forward_rs.go` builds it, `:342` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
 
 The consumer is `removeValues`
-(`internal/component/bgp/plugins/filter_community/handler.go:165`), reached
-through `communityAttrModHandler` (`:19`) and `genericCommunityHandler` (`:64`,
+(`internal/component/bgp/plugins/filter_community/handler.go`), reached
+through `communityAttrModHandler` and `genericCommunityHandler` (`:64`,
 which calls `removeValues(data, 4, op.Buf)` at `:78`). Its first statement is a
 size guard at `:119-122`:
 
@@ -46,9 +46,9 @@ intact.
 
 **Why the other producers are unaffected.** They already split. The text-delta
 path splits a Remove directive into `valueSize` chunks explicitly at
-`internal/component/bgp/reactor/filter_delta.go:221-224`, and the community
+`internal/component/bgp/reactor/filter_delta.go`, and the community
 plugin's own egress filter emits one operation per wire value at
-`internal/component/bgp/plugins/filter_community/egress.go:28-30`. The one-value
+`internal/component/bgp/plugins/filter_community/egress.go`. The one-value
 rule is therefore a real contract, it is simply unwritten, and the two
 route-server sites are the only violators.
 
@@ -57,7 +57,7 @@ route-server sites are the only violators.
 1. The route-server strip does not happen (a behaviour bug on a live path).
 2. The guard that catches the mismatch is fail-open: it preserves the data and
    says nothing, so the violation has been invisible since it was introduced.
-   `ai/rules/fail-closed-guards.md` requires a guard to fail closed or speak.
+   `ai/rules/evidence.md` requires a guard to fail closed or speak.
 
 **Coverage.** There is no test at all. `StripControlCommunities` has exactly four
 references in the tree (the two call sites, its definition, and its doc comment)
@@ -72,25 +72,25 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 ### Architecture Docs
-- [ ] `ai/rules/fail-closed-guards.md` - a guard must fail closed or say something
+- [ ] `ai/rules/evidence.md` - a guard must fail closed or say something
   → Constraint: silently preserving data on a detected caller-contract violation is the exact fail-open shape this rule forbids. The mismatch branch must either handle the input or refuse loudly.
 - [ ] `docs/architecture/core-design.md` - modification accumulator and the progressive build
   → Decision: filters accumulate `Op(code, action, valueBytes)` and the apply engine dispatches per attribute code to a registered handler. The value-buffer arity is part of that contract and belongs in its documentation.
-- [ ] `ai/rules/api-contracts.md` - caller obligations belong in the function comment
+- [ ] `ai/rules/go-standards.md` - caller obligations belong in the function comment
   → Constraint: `ModAccumulator.Op` carries a caller obligation for list-valued Remove operations and does not state it. That omission is the root cause.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc1997.md` - BGP communities
   → Constraint: a COMMUNITY attribute value is a list of four-octet values, so a subset removal is well defined on four-byte boundaries. The `valueSize` parameter is that width.
 - [ ] `rfc/short/rfc7947.md` - Internet Exchange BGP route server
-  → Constraint: the RFC mandates per-client import and export policy on each redistribution (RFC7947-x-4) but places **no** normative requirement on stripping control communities. The stripping is ze's own designed behaviour, stated in the `StripControlCommunities` doc comment at `internal/component/bgp/wireu/community.go:138-140` ("values that should be removed before forwarding"), not an RFC obligation. Do not describe the fix as an RFC compliance fix.
+  → Constraint: the RFC mandates per-client import and export policy on each redistribution (RFC7947-x-4) but places **no** normative requirement on stripping control communities. The stripping is ze's own designed behaviour, stated in the `StripControlCommunities` doc comment at `internal/component/bgp/wireu/community.go` ("values that should be removed before forwarding"), not an RFC obligation. Do not describe the fix as an RFC compliance fix.
 - [ ] `rfc/short/rfc8092.md` - large communities
   → Constraint: the twelve-byte width shares the same generic handler, so any arity change must hold for widths 4, 8 and 12.
 
 **Key insights:** (minimal context to resume after compaction)
 - Only the two route-server sites pass a multi-value Remove buffer; every other producer already splits.
-- The forwarding **decision** is correct: `ParseCommunityPolicy` (`community.go:51`) reads the policy properly and `ShouldForwardTo` (`:21`) suppresses the right destinations. Only the stripping fails, so the impact is a leak of internal control tags to clients, not mis-forwarding.
-- `filter_community` is gated by `ze_bgp` (`feature-gates.txt:261`), the same gate as the reactor, so the handler is always linked when this path can run. The absence of a default code-8 handler in `attrModHandlersWithDefaults` (`filter_delta_handlers.go:468`, whose `genericAttrCodes` list at `:82-98` deliberately excludes 8, 16 and 32) is therefore not reachable and is not part of this bug.
+- The forwarding **decision** is correct: `ParseCommunityPolicy` (`community.go`) reads the policy properly and `ShouldForwardTo` suppresses the right destinations. Only the stripping fails, so the impact is a leak of internal control tags to clients, not mis-forwarding.
+- `filter_community` is gated by `ze_bgp` (`feature-gates.txt`), the same gate as the reactor, so the handler is always linked when this path can run. The absence of a default code-8 handler in `attrModHandlersWithDefaults` (`filter_delta_handlers.go`, whose `genericAttrCodes` list at `:82-98` deliberately excludes 8, 16 and 32) is therefore not reachable and is not part of this bug.
 
 ## Current Behavior (MANDATORY)
 
@@ -100,26 +100,26 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 > the spec was written. Citations that still name live code were re-pointed on
 > 2026-07-28 after commit `4730deb84` moved them. Citations that
 > name code the fix DELETED (the `len(toRemove) != valueSize` size guard and its
-> "silently preserve data" comment, cited below as `handler.go:119-122` and
-> `handler.go:120`) are kept at their pre-fix positions on purpose: they are the
+> "silently preserve data" comment, cited below as `handler.go` and
+> `handler.go`) are kept at their pre-fix positions on purpose: they are the
 > record of what the defect was, and there is nothing left to point them at.
-- [ ] `internal/component/bgp/wireu/community.go:158` - `StripControlCommunities`: walks the attribute section, and for a COMMUNITY attribute appends every four-byte value whose high half is 0 or the route server's low sixteen ASN bits into one result slice (`:186-191`). Returns nil when nothing matches.
-- [ ] `internal/component/bgp/wireu/community.go:51` - `ParseCommunityPolicy`: independent walk producing the blacklist, whitelist, blackhole and prepend-target policy. Correct today; unchanged by this fix.
-- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:610-636` - the route-server branch of the destination loop: parses the policy once per UPDATE at `:614-616`, suppresses non-forward destinations at `:618`, then emits the single Remove operation at `:635`.
-- [ ] `internal/component/bgp/reactor/forward_rs.go:320-343` - the route-server fast-path rail: the identical sequence, strip buffer built at `:325`, single Remove operation at `:342`.
-- [ ] `internal/component/bgp/plugins/filter_community/handler.go:19` - `communityAttrModHandler` delegates to `genericCommunityHandler` with `valueSize` 4.
-- [ ] `internal/component/bgp/plugins/filter_community/handler.go:64` - `genericCommunityHandler`: copies the source value into a fresh buffer at `:69-70`, applies Remove operations at `:76-80`, then Add at `:81-85`, then Set at `:86-91`, omits the attribute entirely when nothing remains at `:93-95`, and writes an always-extended-length header at `:110-113`.
-- [ ] `internal/component/bgp/plugins/filter_community/handler.go:165` - `removeValues`: returns the input unchanged when the removal buffer length is not exactly `valueSize`; otherwise rebuilds the list with an allocating append loop at `:172`.
-- [ ] `internal/component/bgp/plugins/filter_community/egress.go:28-30` - the plugin's own egress filter emits one Remove operation per configured wire value.
-- [ ] `internal/component/bgp/reactor/filter_delta.go:221-224` - the text-delta path splits a Remove directive into `valueSize` chunks before emitting.
-- [ ] `internal/component/bgp/filterapi/filterapi.go:153` - `func (a *ModAccumulator) Op(`: documents that repeated calls with the same code are allowed and reach the handler together, but states nothing about the value-buffer arity.
-- [ ] `internal/component/bgp/reactor/forward_build.go:199-223` - `buildModifiedPayload` dispatch: groups operations by code and hands all operations for a code to its registered handler in one call.
-- [ ] `internal/component/bgp/reactor/filter_delta_handlers.go:468` - `attrModHandlersWithDefaults`: fills generic set handlers for the codes listed at `:82-98`, which exclude the community codes because the plugin registers specialised ones.
+- [ ] `internal/component/bgp/wireu/community.go` - `StripControlCommunities`: walks the attribute section, and for a COMMUNITY attribute appends every four-byte value whose high half is 0 or the route server's low sixteen ASN bits into one result slice. Returns nil when nothing matches.
+- [ ] `internal/component/bgp/wireu/community.go` - `ParseCommunityPolicy`: independent walk producing the blacklist, whitelist, blackhole and prepend-target policy. Correct today; unchanged by this fix.
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - the route-server branch of the destination loop: parses the policy once per UPDATE at `:614-616`, suppresses non-forward destinations at `:618`, then emits the single Remove operation at `:635`.
+- [ ] `internal/component/bgp/reactor/forward_rs.go` - the route-server fast-path rail: the identical sequence, strip buffer built at `:325`, single Remove operation at `:342`.
+- [ ] `internal/component/bgp/plugins/filter_community/handler.go` - `communityAttrModHandler` delegates to `genericCommunityHandler` with `valueSize` 4.
+- [ ] `internal/component/bgp/plugins/filter_community/handler.go` - `genericCommunityHandler`: copies the source value into a fresh buffer at `:69-70`, applies Remove operations at `:76-80`, then Add at `:81-85`, then Set at `:86-91`, omits the attribute entirely when nothing remains at `:93-95`, and writes an always-extended-length header at `:110-113`.
+- [ ] `internal/component/bgp/plugins/filter_community/handler.go` - `removeValues`: returns the input unchanged when the removal buffer length is not exactly `valueSize`; otherwise rebuilds the list with an allocating append loop at `:172`.
+- [ ] `internal/component/bgp/plugins/filter_community/egress.go` - the plugin's own egress filter emits one Remove operation per configured wire value.
+- [ ] `internal/component/bgp/reactor/filter_delta.go` - the text-delta path splits a Remove directive into `valueSize` chunks before emitting.
+- [ ] `internal/component/bgp/filterapi/filterapi.go` - `func (a *ModAccumulator) Op(`: documents that repeated calls with the same code are allowed and reach the handler together, but states nothing about the value-buffer arity.
+- [ ] `internal/component/bgp/reactor/forward_build.go` - `buildModifiedPayload` dispatch: groups operations by code and hands all operations for a code to its registered handler in one call.
+- [ ] `internal/component/bgp/reactor/filter_delta_handlers.go` - `attrModHandlersWithDefaults`: fills generic set handlers for the codes listed at `:82-98`, which exclude the community codes because the plugin registers specialised ones.
 
 **Behavior to preserve:**
-- The forwarding decision: `ShouldForwardTo` (`community.go:21`) must keep suppressing exactly the destinations it suppresses today. This fix touches stripping only.
-- Single-value Remove operations from the text-delta path (`filter_delta.go:221-224`) and from the plugin egress filter (`egress.go:28-30`) must behave exactly as today.
-- The Remove, then Add, then Set ordering inside `genericCommunityHandler` (`:76-91`), and the "omit the attribute entirely when nothing remains" behaviour at `:93-95`.
+- The forwarding decision: `ShouldForwardTo` (`community.go`) must keep suppressing exactly the destinations it suppresses today. This fix touches stripping only.
+- Single-value Remove operations from the text-delta path (`filter_delta.go`) and from the plugin egress filter (`egress.go`) must behave exactly as today.
+- The Remove, then Add, then Set ordering inside `genericCommunityHandler`, and the "omit the attribute entirely when nothing remains" behaviour at `:93-95`.
 - The same handler serves widths 4, 8 and 12; all three must keep working.
 - Every existing expectation in `test/plugin/community-*.ci` and `test/plugin/bgp-rs-*.ci`.
 
@@ -133,14 +133,14 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 - A route-server client peer sends an UPDATE whose COMMUNITY attribute carries two or more control values, for example `0:65001` and `0:65002`. The bytes arrive as a normal received UPDATE and are cached as a `ReceivedUpdate`.
 
 ### Transformation Path
-1. The destination loop reaches a route-server client destination (`reactor_api_forward.go:611`, or `forward_rs.go:320` on the fast-path rail).
-2. Once per UPDATE, `ParseCommunityPolicy` and `StripControlCommunities` each walk the payload (`reactor_api_forward.go:614-616`). The strip buffer now holds eight bytes, two communities.
-3. `ShouldForwardTo` decides the destination is eligible (`:618`). This is correct today.
-4. One Remove operation carrying the eight-byte buffer is appended to the destination's accumulator (`:635`).
-5. `buildModifiedPayload` groups operations by code and calls the registered code-8 handler with them (`forward_build.go:199-211`).
-6. `genericCommunityHandler` copies the source list and calls `removeValues(data, 4, eightByteBuffer)` (`handler.go:78`).
-7. `removeValues` sees a length of eight against a value size of four, and returns the list unchanged (`handler.go:119-122`).
-8. The unchanged list is written back into the output attribute (`handler.go:110-113`), and the route reaches the client carrying both control communities.
+1. The destination loop reaches a route-server client destination (`reactor_api_forward.go`, or `forward_rs.go` on the fast-path rail).
+2. Once per UPDATE, `ParseCommunityPolicy` and `StripControlCommunities` each walk the payload (`reactor_api_forward.go`). The strip buffer now holds eight bytes, two communities.
+3. `ShouldForwardTo` decides the destination is eligible. This is correct today.
+4. One Remove operation carrying the eight-byte buffer is appended to the destination's accumulator.
+5. `buildModifiedPayload` groups operations by code and calls the registered code-8 handler with them (`forward_build.go`).
+6. `genericCommunityHandler` copies the source list and calls `removeValues(data, 4, eightByteBuffer)` (`handler.go`).
+7. `removeValues` sees a length of eight against a value size of four, and returns the list unchanged (`handler.go`).
+8. The unchanged list is written back into the output attribute (`handler.go`), and the route reaches the client carrying both control communities.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -150,8 +150,8 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 | wireu to reactor | `StripControlCommunities` returns a concatenated wire-value buffer | No |
 
 ### Integration Points
-- `filterapi.ModAccumulator.Op` (`filterapi.go:132`): the contract that gains the documented arity rule.
-- `genericCommunityHandler` (`handler.go:64`): the single consumer for all three community widths.
+- `filterapi.ModAccumulator.Op` (`filterapi.go`): the contract that gains the documented arity rule.
+- `genericCommunityHandler` (`handler.go`): the single consumer for all three community widths.
 - The two route-server rails, `forwardUpdateCore` and `reactorForwardRS`, which must stay behaviourally identical to each other.
 
 ### Architectural Verification
@@ -161,7 +161,7 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Chosen Fix
 
@@ -191,17 +191,17 @@ Option B, in three parts:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The two route-server sites are the only producers of a multi-value Remove buffer. | Full enumeration of `AttrModRemove` producers: `filter_delta.go:221-224` splits, `filter_community/egress.go:29` is per value, `reactor_api_forward.go:635` and `forward_rs.go:342` do not split. | Another producer means the same fix still applies; only the impact assessment widens. | `grep -rn "AttrModRemove" --include=*.go internal/` re-run at implementation, each producer inspected. | **VALIDATED 2026-07-28.** Re-run: the only other hit is `policy_dryrun.go:251`, which is a verb-name switch for dry-run output, not a producer or consumer. |
+| A-1 | The two route-server sites are the only producers of a multi-value Remove buffer. | Full enumeration of `AttrModRemove` producers: `filter_delta.go` splits, `filter_community/egress.go` is per value, `reactor_api_forward.go` and `forward_rs.go` do not split. | Another producer means the same fix still applies; only the impact assessment widens. | `grep -rn "AttrModRemove" --include=*.go internal/` re-run at implementation, each producer inspected. | **VALIDATED 2026-07-28.** Re-run: the only other hit is `policy_dryrun.go`, which is a verb-name switch for dry-run output, not a producer or consumer. |
 | A-2 | Widening `removeValues` cannot change behaviour for a single-value buffer. | One value is a whole multiple of the width, and the matching predicate is unchanged for that case. | Existing community `.ci` files fail, which is the detection. | `TestRemoveValuesSingleUnchanged` plus the existing `test/plugin/community-*.ci` suite. | **VALIDATED.** `TestRemoveValuesSingleUnchanged` passes; the full `bgp plugin` suite shows no community test newly failing. |
-| A-3 | The forwarding decision is unaffected: only stripping is broken. | `ParseCommunityPolicy` (`community.go:51`) and `ShouldForwardTo` (`:21`) are independent of `StripControlCommunities` and of the handler. | A wider bug, and the spec scope grows. | `TestShouldForwardToUnaffected` and a `.ci` asserting the suppression set is unchanged. | **VALIDATED.** `TestShouldForwardToUnaffectedByStrip` (`wireu/community_test.go`); both `.ci` files carry a `65000:65002` whitelist tag and the route still reaches 65002. |
-| A-4 | Widths 8 and 12 need no separate treatment. | All three share `genericCommunityHandler` with only `valueSize` differing (`handler.go:19-31`). | Per-width handling, a larger change. | Table-driven test over widths 4, 8 and 12. | **VALIDATED.** `TestRemoveValuesAllWidths` covers 4, 8 and 12, each with a multi-value removal and a non-multiple refusal. |
+| A-3 | The forwarding decision is unaffected: only stripping is broken. | `ParseCommunityPolicy` (`community.go`) and `ShouldForwardTo` are independent of `StripControlCommunities` and of the handler. | A wider bug, and the spec scope grows. | `TestShouldForwardToUnaffected` and a `.ci` asserting the suppression set is unchanged. | **VALIDATED.** `TestShouldForwardToUnaffectedByStrip` (`wireu/community_test.go`); both `.ci` files carry a `65000:65002` whitelist tag and the route still reaches 65002. |
+| A-4 | Widths 8 and 12 need no separate treatment. | All three share `genericCommunityHandler` with only `valueSize` differing (`handler.go`). | Per-width handling, a larger change. | Table-driven test over widths 4, 8 and 12. | **VALIDATED.** `TestRemoveValuesAllWidths` covers 4, 8 and 12, each with a multi-value removal and a non-multiple refusal. |
 | A-5 | No `.ci` currently covers route-server control-community stripping, so no existing functional expectation encodes the broken behaviour. | `grep -rn "StripControlCommunities"` returns four hits, none in a test; no `test/plugin/bgp-rs-*.ci` mentions control communities. | An existing `.ci` pins the leak and must be corrected as part of this fix. | Re-run the grep and read every `test/plugin/bgp-rs-*.ci`. | **VALIDATED.** Four hits, none a test. No existing `.ci` needed correcting; the two new files are the first coverage. |
-| A-6 | `session/rs-client true` is required for the strip path to run at all. | Not in the original spec; discovered while writing the functional tests. Both the RFC 7947 policy block (`reactor_api_forward.go:611`) and the strip emission (`:642`) are gated on `facts.rsClient`, which comes from `config.go:266`. | A `.ci` without the leaf exercises nothing and passes vacuously against a broken build. | Both new `.ci` files set it on both peers, with a comment saying why. | **VALIDATED 2026-07-28.** An early draft omitted it and forwarded all five communities intact even against a FIXED binary -- indistinguishable from the bug it was meant to catch. |
+| A-6 | `session/rs-client true` is required for the strip path to run at all. | Not in the original spec; discovered while writing the functional tests. Both the RFC 7947 policy block (`reactor_api_forward.go`) and the strip emission are gated on `facts.rsClient`, which comes from `config.go`. | A `.ci` without the leaf exercises nothing and passes vacuously against a broken build. | Both new `.ci` files set it on both peers, with a comment saying why. | **VALIDATED 2026-07-28.** An early draft omitted it and forwarded all five communities intact even against a FIXED binary -- indistinguishable from the bug it was meant to catch. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Operators have built policy that depends on seeing the leaked control communities on the client side. | Complaint after upgrade. | The leak contradicts the stated intent in `community.go:138-140`. Record the behaviour change in the learned summary and the guide page added by this spec. |
+| R-1 | Operators have built policy that depends on seeing the leaked control communities on the client side. | Complaint after upgrade. | The leak contradicts the stated intent in `community.go`. Record the behaviour change in the learned summary and the guide page added by this spec. |
 | R-2 | The loud refusal fires in production for a producer the enumeration missed. | The new warning appears in soak logs. | The warning names the code, the expected width and the actual length, so the offending producer is identifiable from one log line. |
 | R-3 | The route-server fast-path rail and the general forward rail drift, so the fix lands on one only. | The `.ci` runs one rail and passes while the other leaks. | The functional test must exercise both rails; `test/plugin/bgp-rs-reactor-fastpath.ci` and `bgp-rs-reactor-fastpath-fallback.ci` show how each is selected. |
 
@@ -218,9 +218,9 @@ Option B, in three parts:
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Route-server client sends a route tagged with two `0:<asn>` control communities | → | `StripControlCommunities` builds an eight-byte buffer, `removeValues` drops both | `test/plugin/bgp-rs-community-strip-multi.ci` |
-| Same route on the route-server fast-path rail | → | `forward_rs.go:342` operation reaches the same handler | `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` |
+| Same route on the route-server fast-path rail | → | `forward_rs.go` operation reaches the same handler | `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` |
 | Route tagged with exactly one control community | → | unchanged single-value path | `test/plugin/bgp-rs-community-strip-multi.ci` (single-value case in the same scenario) |
-| Configured `community { egress strip NAME }` on an ordinary peer | → | per-value operations from `egress.go:29`, behaviour unchanged | existing `test/plugin/community-strip.ci` |
+| Configured `community { egress strip NAME }` on an ordinary peer | → | per-value operations from `egress.go`, behaviour unchanged | existing `test/plugin/community-strip.ci` |
 
 ## Acceptance Criteria
 
@@ -229,7 +229,7 @@ Option B, in three parts:
 | AC-1 | Route-server client route carrying two control communities, forwarded to another client | Neither control community appears in the UPDATE the receiving client sees |
 | AC-2 | Same, with five control communities interleaved with three ordinary ones | All five control communities are removed; all three ordinary communities are preserved, in their original order |
 | AC-3 | Same, with exactly one control community | Behaviour is identical to today: the single community is removed |
-| AC-4 | A route whose every community is a control community | The COMMUNITY attribute is omitted entirely from the forwarded UPDATE, matching the existing empty-list behaviour at `handler.go:93-95` |
+| AC-4 | A route whose every community is a control community | The COMMUNITY attribute is omitted entirely from the forwarded UPDATE, matching the existing empty-list behaviour at `handler.go` |
 | AC-5 | A Remove operation whose buffer length is not a whole multiple of the value width | The operation is refused and a warning is logged naming the attribute code, the expected width and the actual buffer length. The remaining operations for that attribute still apply |
 | AC-6 | The same scenario driven through the route-server fast-path rail | Identical wire output to the general forward rail |
 | AC-7 | Extended communities (width 8) and large communities (width 12) with a multi-value Remove buffer | All listed values are removed, proving the fix is width-independent |
@@ -252,7 +252,7 @@ Option B, in three parts:
 | `TestRemoveValuesSingleUnchanged` | `internal/component/bgp/plugins/filter_community/handler_test.go` | A-2: the single-value case is byte-identical to today | |
 | `TestRemoveValuesNonMultipleRefusedLoudly` | `internal/component/bgp/plugins/filter_community/handler_test.go` | AC-5: a non-multiple length is refused and reported, not silently ignored | |
 | `TestRemoveValuesAllWidths` | `internal/component/bgp/plugins/filter_community/handler_test.go` | AC-7: table-driven over widths 4, 8 and 12 | |
-| `TestGenericCommunityHandlerOmitsEmptyAttribute` | `internal/component/bgp/plugins/filter_community/handler_test.go` | AC-4: an emptied list omits the attribute, preserving `handler.go:93-95` | |
+| `TestGenericCommunityHandlerOmitsEmptyAttribute` | `internal/component/bgp/plugins/filter_community/handler_test.go` | AC-4: an emptied list omits the attribute, preserving `handler.go` | |
 | `TestStripControlCommunitiesMultiValue` | `internal/component/bgp/wireu/community_test.go` | the producer emits every matching value concatenated; pins the buffer shape the consumer must accept | |
 | `TestStripControlCommunitiesPreservesOrdinary` | `internal/component/bgp/wireu/community_test.go` | ordinary communities are never selected for removal | |
 | `TestShouldForwardToUnaffected` | `internal/component/bgp/wireu/community_test.go` | A-3: the forwarding decision is independent of the strip | |
@@ -319,7 +319,7 @@ Option B, in three parts:
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` if the arity obligation is visible to plugin authors writing filters |
 | 6 | Has a user guide page? | Yes | `docs/guide/bgp-policy.md`: the route-server control-community convention (`0:<asn>` and `<rs-asn>:<asn>`) has no documentation anywhere under `docs/`, which is part of why the bug survived |
 | 7 | Wire format changed? | No | The emitted wire changes, but no format changes |
-| 8 | Plugin SDK/protocol changed? | Yes | `ai/rules/plugin-design.md`: state the Remove-buffer arity obligation alongside the accumulator contract |
+| 8 | Plugin SDK/protocol changed? | Yes | `ai/rules/plugins.md`: state the Remove-buffer arity obligation alongside the accumulator contract |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 7947 places no requirement on control-community stripping; see the Required Reading constraint |
 | 10 | Test infrastructure changed? | No | |
 | 11 | Affects daemon comparison? | No | |
@@ -346,7 +346,7 @@ Option B, in three parts:
    - Verify: all unit tests pass; both `.ci` files pass; `test/plugin/community-*.ci` unchanged
 4. **Phase: State the contract** -- document the obligation everywhere it is relied on
    - Tests: `TestRSStripEndToEndBothRails`
-   - Files: `filterapi/filterapi.go`, `wireu/community.go`, `reactor/reactor_api_forward.go`, `reactor/forward_rs.go`, `docs/guide/bgp-policy.md`, `docs/architecture/core-design.md`, `ai/rules/plugin-design.md`
+   - Files: `filterapi/filterapi.go`, `wireu/community.go`, `reactor/reactor_api_forward.go`, `reactor/forward_rs.go`, `docs/guide/bgp-policy.md`, `docs/architecture/core-design.md`, `ai/rules/plugins.md`
    - Verify: both rails produce identical wire; the counter is registered and documented; `make ze-verify` passes
 
 ### Critical Review Checklist
@@ -354,18 +354,18 @@ Option B, in three parts:
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line, and both route-server rails are covered, not just the one the default configuration selects |
 | Feature completeness | The `.ci` files fail before the fix and pass after; a mutation reinstating the size guard turns them red |
-| Correctness | Only control communities are removed. An ordinary community whose high half coincidentally equals the route server's low sixteen ASN bits is a real ambiguity in the existing selection rule (`community.go:186-190`); confirm the fix does not widen it, and record it as a known limitation rather than silently changing it |
-| Naming | The refusal warning names the attribute code, the expected width and the actual length, per `ai/rules/error-messages.md` |
+| Correctness | Only control communities are removed. An ordinary community whose high half coincidentally equals the route server's low sixteen ASN bits is a real ambiguity in the existing selection rule (`community.go`); confirm the fix does not widen it, and record it as a known limitation rather than silently changing it |
+| Naming | The refusal warning names the attribute code, the expected width and the actual length, per `ai/rules/cli.md` |
 | Data flow | The forwarding decision path is untouched; only the strip path changes |
-| Rule: `ai/rules/fail-closed-guards.md` | No branch preserves data on a detected contract violation without speaking |
-| Rule: `ai/rules/api-contracts.md` | The arity obligation is stated on `ModAccumulator.Op`, where the caller reads it, not only in the handler that enforces it |
+| Rule: `ai/rules/evidence.md` | No branch preserves data on a detected contract violation without speaking |
+| Rule: `ai/rules/go-standards.md` | The arity obligation is stated on `ModAccumulator.Op`, where the caller reads it, not only in the handler that enforces it |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The leak is fixed on the general rail | `make ze-functional-test TEST=bgp-rs-community-strip-multi` |
 | The leak is fixed on the fast-path rail | `make ze-functional-test TEST=bgp-rs-community-strip-multi-fastpath` |
-| The tests genuinely catch the bug | reinstate the exact-length guard at `handler.go:119-122` and confirm both `.ci` files turn red |
+| The tests genuinely catch the bug | reinstate the exact-length guard at `handler.go` and confirm both `.ci` files turn red |
 | The single-value path is unchanged | `make ze-functional-test TEST=community-strip` |
 | The refusal is observable | `grep -rn "bgp_attr_mod_op_refused_total" internal/` returns the registration and the increment site |
 | The convention is documented | `grep -n "control communit" docs/guide/bgp-policy.md` |
@@ -408,7 +408,7 @@ Option B, in three parts:
 
 The spec put the log line inside `removeValues`. It is in the CALLER instead.
 `logger` here is `slogutil.LazyLogger` memoised behind a `sync.Once`
-(`filter_community.go:26`), so a helper that logged directly could only be tested
+(`filter_community.go`), so a helper that logged directly could only be tested
 through logging configuration. Returning `(data, ok)` makes the refusal a value
 the unit test asserts on directly, and `genericCommunityHandler` emits the warning
 and `continue`s -- which is also what AC-5's "the remaining operations for that
@@ -446,35 +446,35 @@ Left for an owner decision.
 ### Trap worth recording
 
 Every rebuild during this work went to `bin/ze`, but the runner resolves the DUT
-from `tmp/s/<session-id>/bin` FIRST (`FindPrebuiltDir`, `internal/test/sessionpath/sessionpath.go:107-132`).
+from `tmp/s/<session-id>/bin` FIRST (`FindPrebuiltDir`, `internal/test/sessionpath/sessionpath.go`).
 A stale session-scoped binary was therefore under test for several iterations,
 which read exactly like "the fix does not work on this path" and sent this
 investigation looking for a third forwarding rail that does not exist
 (`ForwardUpdatesDirect` delegates to `forwardUpdateCore` at
-`reactor_api_forward_batch.go:148`). Running WITHOUT `ZE_TEST_NO_BUILD=1` lets the
+`reactor_api_forward_batch.go`). Running WITHOUT `ZE_TEST_NO_BUILD=1` lets the
 runner build the DUT itself and avoids this entirely.
 
 ## Design Insights
 
 - The defect is not in either half taken alone. `StripControlCommunities` legitimately returns every match, and `removeValues` legitimately defends against a buffer it cannot interpret. The defect is that the arity rule joining them was never written down, so two of four producers violated it and the guard chose silence over noise.
-- The guard's own comment, "Size mismatch: caller bug, silently preserve data" (`handler.go:120`), names the caller bug correctly and then declines to report it. A guard that has already diagnosed the fault is the cheapest possible place to speak.
+- The guard's own comment, "Size mismatch: caller bug, silently preserve data" (`handler.go`), names the caller bug correctly and then declines to report it. A guard that has already diagnosed the fault is the cheapest possible place to speak.
 - Zero coverage is the enabling condition. `StripControlCommunities` has four references in the tree and not one is a test, and no `.ci` exercises route-server control-community stripping. A feature with no test and no documentation has no way to notice it stopped working.
-- The forwarding decision and the strip are computed by two independent walks of the same bytes (`community.go:51` and `:141`), called back to back at `reactor_api_forward.go:614-616`. That the decision half works and the strip half does not is a direct consequence of their independence.
+- The forwarding decision and the strip are computed by two independent walks of the same bytes (`community.go` and `:141`), called back to back at `reactor_api_forward.go`. That the decision half works and the strip half does not is a direct consequence of their independence.
 
 ## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Widen the consumer to accept a whole number of values | split into per-value operations at the two producers | Splitting fixes the leak and leaves the fail-open guard, so the next violator fails silently too. Widening fixes both defects at one site and keeps every existing single-value producer working. |
-| Refuse a non-multiple length loudly | keep preserving the data silently | `ai/rules/fail-closed-guards.md`: a guard must fail closed or say something. The guard has already detected the fault; reporting it costs one log line on a path that is already an error. |
-| Document the obligation on `ModAccumulator.Op` | document it only on the handler | `ai/rules/api-contracts.md` puts caller obligations where the caller reads them. The handler is not what a filter author looks at when calling `Op`. |
+| Refuse a non-multiple length loudly | keep preserving the data silently | `ai/rules/evidence.md`: a guard must fail closed or say something. The guard has already detected the fault; reporting it costs one log line on a path that is already an error. |
+| Document the obligation on `ModAccumulator.Op` | document it only on the handler | `ai/rules/go-standards.md` puts caller obligations where the caller reads them. The handler is not what a filter author looks at when calling `Op`. |
 | Fix now, independently of `spec-wire-edit-0-umbrella.md` | wait for the typed slot structure to make the arity a compile error | The umbrella is weeks of work; this is a live leak on the route-server path. The umbrella rebases onto this fix. |
 | Add a refusal counter | log only | A log line in a soak run is easy to miss. A counter makes R-2 measurable before the next producer appears. |
 
 ## Known Limitations
 
-- The selection rule in `StripControlCommunities` (`community.go:186-190`) matches on the community's high half alone, so an ordinary community whose high half happens to equal 0 or the route server's low sixteen ASN bits is indistinguishable from a control community and is stripped. This is pre-existing and unchanged by this fix; it is recorded here because the fix makes the stripping actually happen, which makes the ambiguity reachable for the first time in the multi-value case.
-- Standard communities can only carry a sixteen-bit ASN in the high half. A route server with a four-octet ASN cannot express the `<rs-asn>:<asn>` form in a standard community at all; `parseCommunityAttr` documents this at `community.go:110-112` and directs operators to large communities. Large-community control values are parsed by `parseLargeCommunityAttr` (`:198`) but are **not** stripped: `StripControlCommunities` only inspects code 8. That gap is out of scope here and is a separate defect.
+- The selection rule in `StripControlCommunities` (`community.go`) matches on the community's high half alone, so an ordinary community whose high half happens to equal 0 or the route server's low sixteen ASN bits is indistinguishable from a control community and is stripped. This is pre-existing and unchanged by this fix; it is recorded here because the fix makes the stripping actually happen, which makes the ambiguity reachable for the first time in the multi-value case.
+- Standard communities can only carry a sixteen-bit ASN in the high half. A route server with a four-octet ASN cannot express the `<rs-asn>:<asn>` form in a standard community at all; `parseCommunityAttr` documents this at `community.go` and directs operators to large communities. Large-community control values are parsed by `parseLargeCommunityAttr` but are **not** stripped: `StripControlCommunities` only inspects code 8. That gap is out of scope here and is a separate defect.
 - The two independent attribute walks are not merged. That is `plan/learned/1322-wire-edit-0-umbrella.md`.
 
 ## RFC Documentation (Scope: protocol)
@@ -490,7 +490,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 Note for the implementer: RFC 7947 does **not** require control-community
 stripping. Do not add an RFC citation above the strip code. The behaviour is
-ze's own, stated at `internal/component/bgp/wireu/community.go:138-140`.
+ze's own, stated at `internal/component/bgp/wireu/community.go`.
 
 ## Checklist
 
@@ -526,19 +526,19 @@ ze's own, stated at `internal/component/bgp/wireu/community.go:138-140`.
 The "Not done" note above states that the refusal counter is NOT implemented and
 is "left for an owner decision". That is superseded: **the counter shipped in the
 same commit** that carries this spec. `filterapi.RecordRemoveBufferRefused` is
-defined at `internal/component/bgp/filterapi/metrics.go:46`, registered as
+defined at `internal/component/bgp/filterapi/metrics.go`, registered as
 `ze_bgp_attr_mod_remove_buffer_refused_total` at
-`internal/component/bgp/filterapi/metrics.go:39`, wired from the reactor's
-metrics-enable block at `internal/component/bgp/reactor/reactor.go:1028`, called
-at `internal/component/bgp/plugins/filter_community/handler.go:100`, and covered
+`internal/component/bgp/filterapi/metrics.go`, wired from the reactor's
+metrics-enable block at `internal/component/bgp/reactor/reactor.go`, called
+at `internal/component/bgp/plugins/filter_community/handler.go`, and covered
 by four tests in `internal/component/bgp/filterapi/metrics_test.go`.
 
 The objection recorded in that note (this package has no metrics surface) was
 resolved rather than accepted: the counter lives in `filterapi`, which already
 owns the accumulator contract being violated, not in `filter_community`. The
 reasoning is recorded in the code at
-`internal/component/bgp/filterapi/metrics.go:25-32` and mirrored at
-`internal/component/bgp/reactor/reactor.go:1022-1027`, and it is load-bearing:
+`internal/component/bgp/filterapi/metrics.go` and mirrored at
+`internal/component/bgp/reactor/reactor.go`, and it is load-bearing:
 the AttrMod handlers register at init() and run during the progressive build
 whether or not the owning plugin is running, so a plugin `ConfigureMetrics` hook
 would leave the counter dead in exactly the configuration where the violation is
@@ -558,7 +558,7 @@ expected to be replaced wholesale by spec-wire-edit-2-edit-apply. **That spec CL
 two operands that are BOTH peer-controlled on the route-server path: `data` is
 the peer's own COMMUNITY attribute, and `toRemove` is derived from that same
 attribute by `wireu.StripControlCommunities`
-(`internal/component/bgp/wireu/community.go:158`), not from local configuration.
+(`internal/component/bgp/wireu/community.go`), not from local configuration.
 A BGP attribute value reaches 65535 octets, so each side reaches 16383 four-byte
 values.
 
@@ -576,9 +576,9 @@ attribute (65,532 octets, the RFC 4271 ceiling):
 | 16383 identical `0:0` | **118 us, 0 B** | **1,948 us, 1,004,865 B** |
 
 Reachability was verified, not assumed. `StripControlCommunities` matches on
-`high == 0` (`internal/component/bgp/wireu/community.go:202-209`), so a repeated
+`high == 0` (`internal/component/bgp/wireu/community.go`), so a repeated
 `0:0` is a trivially constructible all-control payload, and it leaves
-`BlacklistASNs` empty (`community.go:123`) so `ShouldForwardTo` returns true for
+`BlacklistASNs` empty (`community.go`) so `ShouldForwardTo` returns true for
 every client and the fan-out is maximal. No cap exists anywhere on received
 community count. The 4 KB message case needs no capability negotiation.
 
@@ -600,23 +600,23 @@ deduplicate at the producer, since `StripControlCommunities` already walks the
 payload once per UPDATE and duplicates are what make the map pathological; hoist
 the set construction out of the per-destination loop, since
 `communityStripBytes` is fan-out-invariant (computed once at
-`reactor_api_forward.go:614-616`) while `buildModifiedPayload` runs per peer at
-`reactor_api_forward.go:793`; and bound the threshold on `min(|data|, |set|)`
+`reactor_api_forward.go`) while `buildModifiedPayload` runs per peer at
+`reactor_api_forward.go`; and bound the threshold on `min(|data|, |set|)`
 rather than on set size alone.
 
 ### RF-2 (ISSUE): eleven stale citations in the commit's own artefacts
 
 The commit moved lines in six files and left citations at pre-move positions in
 three artefacts it authored: the `removeValues` doc comment and both `.ci`
-headers. The `.ci` ones are re-pointed here (`community.go:141` to `:158`,
-`reactor_api_forward.go:635` to `:643`, `forward_rs.go:342` to `:347`, and
-`reactor_api_forward.go:634` to `:642` in four places). `community.go:128-133`
+headers. The `.ci` ones are re-pointed here (`community.go` to `:158`,
+`reactor_api_forward.go` to `:643`, `forward_rs.go` to `:347`, and
+`reactor_api_forward.go` to `:642` in four places). `community.go`
 and the learned summary were already correct.
 
 The three inside the `handler.go` doc comment are NOT fixed: they lived in the
-same hunk as the reverted RF-1 change. They are `internal/component/bgp/plugins/filter_community/handler.go:159`
-(`community.go:141`, now `:158`) and `:161` (`reactor_api_forward.go:635` and
-`forward_rs.go:342`, now `:643` and `:347`). Whoever rewrites this function
+same hunk as the reverted RF-1 change. They are `internal/component/bgp/plugins/filter_community/handler.go`
+(`community.go`, now `:158`) and `:161` (`reactor_api_forward.go` and
+`forward_rs.go`, now `:643` and `:347`). Whoever rewrites this function
 should correct them rather than carry them forward.
 
 No gate catches this class: `scripts/dev/spec-citation-check.py` scans only
@@ -638,18 +638,18 @@ fixed here; they belong to whoever rewrites this function.
 
 | Finding | Where | Note |
 |---------|-------|------|
-| The refusal-message test is vacuous | `handler_test.go:362` | `assert.Contains(t, out, "3")` matches the `slog` RFC 3339 timestamp regardless of the message. Deleting `"buffer-length", len(op.Buf)` from the handler leaves it green. `assert.Contains(t, out, "buffer-length=3")` is the real check. |
+| The refusal-message test is vacuous | `handler_test.go` | `assert.Contains(t, out, "3")` matches the `slog` RFC 3339 timestamp regardless of the message. Deleting `"buffer-length", len(op.Buf)` from the handler leaves it green. `assert.Contains(t, out, "buffer-length=3")` is the real check. |
 | The map path had no coverage at widths 8 and 12 | `handler_test.go` | `TestRemoveValuesAllWidths` only ever passes two-value sets, below any threshold. A mutation truncating the lookup key to 4 bytes survived the suite, which at widths 8 and 12 would silently remove nothing: the same failure shape this spec exists to fix. |
-| `removeValues` drops a trailing partial value | `handler.go:170` | Loop bound `i+valueSize <= len(data)`. A COMMUNITY attribute of length 4k+3 reaches the handler (the RFC 7606 validator has no length check for code 8) and is silently normalised. Pre-existing. |
-| `data = data[:65535]` truncates mid-value | `handler.go:128-130` | 65535 is divisible by none of 4, 8, 12, so the cap can emit a malformed attribute. Reachable only when Add ops push past the ceiling. Pre-existing. |
-| Empty `toRemove` is untested | `handler.go:165` | `len(nil) % 4 == 0` passes the guard. Unreachable from today's three producers, all of which gate on non-empty. |
+| `removeValues` drops a trailing partial value | `handler.go` | Loop bound `i+valueSize <= len(data)`. A COMMUNITY attribute of length 4k+3 reaches the handler (the RFC 7606 validator has no length check for code 8) and is silently normalised. Pre-existing. |
+| `data = data[:65535]` truncates mid-value | `handler.go` | 65535 is divisible by none of 4, 8, 12, so the cap can emit a malformed attribute. Reachable only when Add ops push past the ceiling. Pre-existing. |
+| Empty `toRemove` is untested | `handler.go` | `len(nil) % 4 == 0` passes the guard. Unreachable from today's three producers, all of which gate on non-empty. |
 
 ## Mistake Log
 
 | # | What happened | Root cause | Rule that would have caught it |
 |---|---------------|------------|--------------------------------|
-| 1 | The arity fix introduced a peer-controlled quadratic (RF-1). | The replacement was designed against the correctness defect only. The removed guard's second, accidental role as a cost cap was never asked about. | `ai/rules/critical-review.md`: the Review Gate is what surfaces this, and it was never run before the commit landed. |
-| 2 | Eleven citations in the commit's own artefacts pointed at lines the same commit moved (RF-2). | Citations were written against the pre-edit file and not re-resolved after the edit. | `ai/rules/no-fabrication.md` mandates the citation form, but no gate covers comments in `.go` or `.ci`. |
+| 1 | The arity fix introduced a peer-controlled quadratic (RF-1). | The replacement was designed against the correctness defect only. The removed guard's second, accidental role as a cost cap was never asked about. | `ai/rules/planning.md`: the Review Gate is what surfaces this, and it was never run before the commit landed. |
+| 2 | Eleven citations in the commit's own artefacts pointed at lines the same commit moved (RF-2). | Citations were written against the pre-edit file and not re-resolved after the edit. | `ai/rules/evidence.md` mandates the citation form, but no gate covers comments in `.go` or `.ci`. |
 | 3 | The Documentation checklist promised a metrics entry that was never written (RF-3). | The checklist was filled at design time and never re-verified at closure. | The Pre-Commit Verification "Documentation Verified" table, unreached because the closure template was never appended. |
 | 4 | Commit A landed without the closure template, so there was no Review Gate, Implementation Audit or Pre-Commit Verification section to fail. | The two-commit closure was started and abandoned mid-way; the session moved to another spec. | `ai/rules/planning.md` Spec Closure, enforced by `scripts/dev/spec-closure-check.py --spec` (exit 3), which was not run. |
 
@@ -659,7 +659,7 @@ fixed here; they belong to whoever rewrites this function.
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 | A Remove buffer of N values removes all N | done | `handler.go` `removeValues` | Option B as chosen |
-| A non-multiple length is refused loudly | done | `handler.go` refusal branch, warning plus counter | `filterapi/metrics.go:46` |
+| A non-multiple length is refused loudly | done | `handler.go` refusal branch, warning plus counter | `filterapi/metrics.go` |
 | The arity obligation documented on `ModAccumulator.Op` | done | `internal/component/bgp/filterapi/filterapi.go` | |
 | The route-server convention documented | done | `docs/guide/bgp-policy.md` | |
 | The refusal is observable | done | `ze_bgp_attr_mod_remove_buffer_refused_total`, now also in `docs/plugin-development/metrics.md` | RF-3 |
@@ -778,7 +778,7 @@ record --spec fixit-rs-community-strip-arity --verdict clean --files ...`.
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | confirmed | A tree-wide search for `AttrModRemove` over `internal/`: `filter_delta.go:221-224` splits, `filter_community/egress.go:29` is per value, only `reactor_api_forward.go` and `forward_rs.go` pass a multi-value buffer |
+| A-1 | confirmed | A tree-wide search for `AttrModRemove` over `internal/`: `filter_delta.go` splits, `filter_community/egress.go` is per value, only `reactor_api_forward.go` and `forward_rs.go` pass a multi-value buffer |
 | A-2 | confirmed | `TestRemoveValuesSingleUnchanged` green; `test/plugin/community-strip.ci` unchanged and green |
 | A-3 | confirmed | `TestShouldForwardToUnaffectedByStrip` green; the strip and the policy parse are independent walks |
 | A-4 | confirmed | `TestRemoveValuesAllWidths` covers 4, 8 and 12 through the one shared handler |

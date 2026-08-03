@@ -10,8 +10,8 @@
 Awaiting closure (recorded 2026-07-22 during plan review): all three children
 shipped and the roll-up learned summary ALREADY EXISTS as
 `plan/learned/900-perf-next-round-3.md` (child 1 `ebgpWireSlot` lock-free slots
-in `received_update.go:24,89`; child 2 `filterAttrs`/`filterAttrID` in
-`filter_chain.go:28,79`, Phase B scratch-pool deliberately deferred there;
+in `received_update.go,89`; child 2 `filterAttrs`/`filterAttrID` in
+`filter_chain.go,79`, Phase B scratch-pool deliberately deferred there;
 child 3 `Community.AppendText` in
 `internal/core/bgp/attribute/text_append.go`). Remaining work is the
 two-commit closure of the umbrella and its three children. Note:
@@ -83,18 +83,18 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 
 | Candidate | Verdict | Evidence |
 |-----------|---------|----------|
-| Engine event dispatch slice copy (`internal/component/plugin/server/engine_event.go:103-105`) | NOT hot. No spec. | BGP events never reach engine subscribers; only config-transaction events do (~10-30 handler registrations per config reload, dispatch rate ~0.1/s operational). Verified via `deliverEvent` flow in `internal/component/plugin/server/dispatch.go:392-468`. |
+| Engine event dispatch slice copy (`internal/component/plugin/server/engine_event.go`) | NOT hot. No spec. | BGP events never reach engine subscribers; only config-transaction events do (~10-30 handler registrations per config reload, dispatch rate ~0.1/s operational). Verified via `deliverEvent` flow in `internal/component/plugin/server/dispatch.go`. |
 | UPDATE builder pooling (the old spec-604 deferral) | ALREADY DONE. | Commit 233ff1726 (2026-04-16), `plan/learned/604-update-pool.md` + `plan/learned/605-mvpn-pool-and-bounded-scratch.md`. All 14 make() sites eliminated; `GetUpdateBuilder`/`PutUpdateBuilder` pool exists; BuildUnicast measured at ~10 allocs/op. Reactor forward path never used builders. |
 | `forward_build.go` pool-fallback make() (lines 278, 352, 376-378) | Deliberate design, keep. | Tiered escalation per-peer pool -> modBufPool -> make only for oversized payload on pool miss; commented `// pool-fallback` at each site. |
 | RFC 7606 validation cache (`docs/research/optimisation-findings.md`) | Stale, unmeasured. | Document dated 2025-12-22 pre-dates both campaigns; explicitly requires measurement that was never done. Act only if a fresh profile shows validation frames at the top. |
-| `prefixToWire` allocations (`internal/component/bgp/plugins/rib/rib_nlri.go:109,117`) | Cold path. No change. | Callers are CLI `inject`/`withdraw` one-shots (`rib_commands.go:313,383`) and tests; not per-route. |
-| seqmap compaction (`internal/core/seqmap/seqmap.go:122-131`) | Sound design, infrequent. | O(n log n) only when dead > len/2 and len > 256; mutation-tested; not worth latency-quantile work without evidence. |
-| Looking-glass error-path JSON (`internal/component/lg/server.go:539,550`) | Cold (error responses only). | Not worth touching. |
+| `prefixToWire` allocations (`internal/component/bgp/plugins/rib/rib_nlri.go,117`) | Cold path. No change. | Callers are CLI `inject`/`withdraw` one-shots (`rib_commands.go,383`) and tests; not per-route. |
+| seqmap compaction (`internal/core/seqmap/seqmap.go`) | Sound design, infrequent. | O(n log n) only when dead > len/2 and len > 256; mutation-tested; not worth latency-quantile work without evidence. |
+| Looking-glass error-path JSON (`internal/component/lg/server.go,550`) | Cold (error responses only). | Not worth touching. |
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/memory-architecture.md` - allocation strategy and pool inventory
+- [ ] `ai/rules/performance.md` - allocation strategy and pool inventory
   → Constraint: copies happen only at sanctioned boundaries (pool entry, ContextID mismatch, filter modify, JSON for external plugins)
 - [ ] `plan/learned/771-performance-optimization-campaign.md` - first campaign, methodology
   → Decision: profile-first; reject proposals that profiling shows are stack-allocated already
@@ -127,7 +127,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 **Behavior to change:**
 - None user-visible. Performance characteristics only.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Inbound BGP UPDATE wire bytes (children 1, 2); CLI/API `show bgp rib` request (child 3).

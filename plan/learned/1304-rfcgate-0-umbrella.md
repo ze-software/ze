@@ -42,10 +42,10 @@ decision D4 fixed the order: machinery first, then a fleet to drain the backlog.
   `manual-walk` sign-off read as keyword-verified.
 - **The 32 rowless enrolments stay deferred, sequenced BEHIND the annotation
   re-derivation** (OR-3). The judgement that their absence is safe rests on
-  `{not-applicable}` annotations that `ai/rules/rfc-compliance.md:56` voided as
+  `{not-applicable}` annotations that `ai/rules/rfc-compliance.md` voided as
   authority. Writing the rows first would bake a void basis into the public page.
 - **Every defect the machinery found got a named spec and an owner ruling.** None
-  was recorded as a known failure. `ai/rules/no-parking.md` allows a shard only
+  was recorded as a known failure. `ai/rules/completion.md` allows a shard only
   for a non-deterministic failure whose mechanism nobody can determine. None of
   these qualified.
 

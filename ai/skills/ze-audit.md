@@ -11,7 +11,7 @@ See also: `/ze-implement` (implement the spec), `/ze-review-spec` (post-impl ver
 
 ## Delegation
 
-`ai/rules/spec-delegation.md`: the main thread supervises, it does not run this
+`ai/rules/planning.md`: the main thread supervises, it does not run this
 phase itself.
 
 - **If you are the main thread:** spawn an agent to run this skill, hand it the
@@ -22,11 +22,11 @@ phase itself.
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
-  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
   unverified is fabrication with an extra hop. Report the conclusion and the
   evidence that would overturn it, never the search. Under 40 lines
-  (`ai/rules/detail-budget.md`).
+  (`ai/rules/writing.md`).
 
 ## Steps
 

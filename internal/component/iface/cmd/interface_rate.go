@@ -4,7 +4,7 @@
 // Owned by the iface component: the rate handlers read per-interface rate
 // counters through the iface backend (iface.GetRate / ListRates). Relocated
 // from the central cmd/show package together with the rest of the interface
-// surface. See ai/rules/plugin-self-containment.md.
+// surface. See ai/rules/plugins.md.
 
 package cmd
 

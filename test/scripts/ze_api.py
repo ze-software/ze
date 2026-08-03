@@ -1515,7 +1515,7 @@ class API:
         and returns its ``default`` when no row exists, so an absent peer reads as
         the counter value 0. For a per-peer ABSENCE claim both behaviours are
         wrong -- a missing row would satisfy "nothing was sent" for the wrong
-        reason (ai/rules/fail-closed-guards.md).
+        reason (ai/rules/evidence.md).
         """
         rows = self.peer_fields(addr)
         row = rows.get(addr)
@@ -1699,7 +1699,7 @@ class API:
         # `timeout` bounds a LACK OF PROGRESS, not the total replay.
         #
         # It used to be a flat wall-clock deadline, and that is a fixed duration
-        # standing in for a condition (`ai/rules/fix-dont-record.md`): a replay
+        # standing in for a condition (`ai/rules/completion.md`): a replay
         # that is still delivering EORs has not stalled, however slow the host,
         # but an 8-way parallel suite could consume 30 s while the engine was
         # forwarding fine. That surfaced as
@@ -2037,7 +2037,7 @@ def wait_for_output(
     guessed on a fast native host, which is the first thing to miss under QEMU
     emulation over a 9p mount, and which then reads as a product regression
     rather than as a test that waited on a clock instead of on state
-    (ai/rules/fix-dont-record.md).
+    (ai/rules/completion.md).
 
     A non-zero exit from ``argv`` is "not yet", not an error: ``nft list table``
     fails outright until the table exists, which is the normal state while the

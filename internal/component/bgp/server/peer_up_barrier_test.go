@@ -108,7 +108,7 @@ func recordingResponder(ctx context.Context, conn *plugipc.PluginConn, rec *barr
 // leave the count set on a barrier whose acknowledgements have already been
 // spent, and acknowledging before delivery would make the End-of-RIB claim a
 // registration that had not happened yet
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestOnPeerStateChangeArmsBarrierBeforeDelivering(t *testing.T) {
 	barrierName, plainName := registerBarrierTestPlugins(t)
 	srv, rec := newBarrierTestServer(t)

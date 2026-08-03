@@ -37,7 +37,7 @@ traffic {
 
 ## tc Backend: Original Qdisc Snapshot
 
-Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (`exact-or-reject.md`).
+Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (`protocol.md`).
 
 `noqueue` is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied *from*. It carries no reconstructable parameters, but it is the *absence* of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to `noqueue`. Adding a qdisc named `noqueue` is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.
 

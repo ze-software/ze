@@ -10,7 +10,7 @@ import (
 // central show/delete schemas: the central verb schemas must NOT declare these
 // tokens, and this package MUST. Removing the BGP peer command owner must
 // remove the whole `show bgp health` and `delete bgp peer` surface with no
-// dangling node. See ai/rules/plugin-self-containment.md.
+// dangling node. See ai/rules/plugins.md.
 func TestPeerCmdSchemaOwnsCarvedVerbs(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:bgp-health"`,

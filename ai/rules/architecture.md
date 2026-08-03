@@ -1,0 +1,580 @@
+# Architecture and Design
+
+**When:** before any design decision, before writing code or a spec, or when deciding where a new package belongs
+**Severity:** blocking
+**Related:** plugins, performance, protocol, completion, go-standards
+
+## Directives
+
+Rationale and examples: `ai/rationale/design-principles.md`, `ai/rationale/before-writing-code.md`, `ai/rationale/data-flow-tracing.md`, `ai/rationale/architecture-summary.md`.
+See also, for the pool/buffer/lazy principles: `ai/rules/performance.md`, `ai/rules/protocol.md`. Full architecture details: `docs/architecture/core-design.md`.
+
+**Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), load the relevant context below. Trained instincts about "how software works" are wrong here: ze has opinions.**
+**Complete the "Before Writing Code" checklist before writing any code, tests, or documentation.**
+**Before any spec: READ source, document current behavior, preserve by default.**
+**Before modifying a file, check what else needs to change. Changes to certain file types have predictable ripple effects.**
+**Trace full data flow before writing or reviewing specs.**
+**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age. Three tiers, two mechanical axes. New code MUST land in the correct tier; an engine in the wrong tier fails `make ze-verify`.**
+**Persist runtime state through the managed zefs store, never as a loose file.**
+**Ze differs from typical Go projects in specific, load-bearing ways. An AI trained on standard Go patterns will default to the wrong approach unless it reads the divergence tables below. Each entry names the standard approach, the Ze approach, the rule that governs it, and a one-line reason.**
+
+## Before Writing Code
+
+Complete before writing any code, tests, or documentation.
+
+- [ ] 1. Read pattern cookbook (touching CLI/web/plugin/config/tests): read `ai/patterns/<domain>.md`. See `ai/INDEX.md` "I Want To..."
+- [ ] 2. Grep/Glob for existing implementations, extend if found. Hook `check-existing-patterns.sh` blocks `Write` of a new `.go` under `internal/` when the first type name exists elsewhere. Grep `^type Foo ` first
+- [ ] 3. Know source files: use digests if available; read + write digest if not
+- [ ] 4. Verify file paths exist (Glob/Grep)
+- [ ] 5. Wiring-first check: for every new feature, name the user entry point (CLI command, web route, config leaf, plugin event) and the function where it will be registered. If the entry point doesn't exist yet, it is Phase 1. If it does, name the function you will modify. "Library code someone will call" is not an answer.
+- [ ] 6. Buffer-first check (wire encoding): `ai/rules/performance.md`
+- [ ] 7. Lazy-first check: can the consumer use existing wire methods? "Design Principles" below, "Lazy over eager"
+- [ ] 8. Bulk-edit check: >2 files with same pattern? Change ONE, test, confirm, THEN `scripts/dev/replace.py` (preview before `--apply`). Never assume
+- [ ] 9. Sibling call-site audit: adding a guard/fallback/retry to ONE call site? Grep ALL callers; apply same change in the same commit
+- [ ] 10. Discovery update check: adding or changing a feature, tool, self-check, verification gate, or test infrastructure? Name the docs/rules/index updates now. See `ai/rules/repo-maintenance.md`
+
+### Memory Lifecycle Tracing
+
+**Before any buffer/pool/allocation, trace the full lifecycle: where allocated? who holds it? when copied? when released?**
+**Ze lifecycle: allocate at receive (Incoming Peer Pool), share read-only through forwarding, copy only on egress modification (Outgoing Peer Pool), release after TCP write.**
+**Acquisition point defines the design: "every dispatch" vs "only on modification" are fundamentally different. A pool is not a counter. Look at filter code + `buildModifiedPayload` to see WHERE modification happens before deciding WHERE buffers come from.**
+**Red flags:** new file without checking for similar; function that might duplicate; can't name 3 related files.
+
+### Sibling Call-Site Audit
+
+**When you add a guard, fallback, retry, or special case to a call site of a shared function, grep every other call site in the same commit and apply the same fix where needed.**
+
+| Trigger | Action |
+|---------|--------|
+| `nil` check on a result | Check every other caller for the same nil case |
+| Fallback when external system unavailable | Check every other caller of the dependency |
+| Retry / backoff | Check every other caller doing the same I/O |
+| New error-wrapping context | Check every other caller wrapping the same error |
+| Replace direct call with helper | Check every other caller that should use the helper |
+| Change/remove how a binary is invoked (launch form, positional, flag) | Grep EVERY invocation site of the bare token (`\bze <arg>`), not just the framework directive (`exec=ze`): `.ci` `exec=`, embedded `tmpfs=*.sh` bodies, helper `.sh`/`.py`, runner launch code, wrapper scripts, docs. Prove with the FULL suite, never a sample, only it runs the embedded launches (learned 1248) |
+
+```
+fn="store.ReadFile"
+grep -rn "$fn" internal/ pkg/ cmd/ --include="*.go"
+```
+
+**For each match: same guard needed? Yes -> fix now. No -> state in commit message WHY this caller is exempt. Silence is bug bait.**
+**Difference from bulk-edit (item 7): bulk-edit = "same change to N files I already know about" (discipline). Sibling-audit = "change to ONE file; which OTHERS need it?" (discovery).**
+
+## Design Context
+
+Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), load the relevant context below.
+
+### Tier 1: Always Read Before Any Design
+
+| What | Where | Prevents |
+|------|-------|----------|
+| Design principles | "Design Principles" below | "Good enough" backends, translation layers, implicit behavior, missed abstractions (abstract at 2+ use cases) |
+| Plugin architecture | `ai/rules/plugins.md` | Wrong package, import violations, wrong comm mechanism |
+| Registration pattern | `ai/patterns/registration.md` | Missing init + registry + blank import pattern |
+| Existing core packages | `ls internal/core/` | Missing patterns like `internal/core/family/` |
+
+### Tier 2: When Designing a Specific Artifact
+
+| Artifact | Read | Prevents |
+|----------|------|----------|
+| New plugin | `ai/patterns/plugin.md` | Wrong structure, missing YANG, wrong callback |
+| Cross-plugin comm (broadcast) | `pkg/ze/eventbus.go` + `internal/core/events/typed.go` + one consumer (e.g. fibkernel) | EventBus is for async pub/sub notifications, not request/response |
+| Cross-plugin comm (request/response) | `pkg/plugin/rpc/bridge.go` (DirectBridge) + `plan/learned/DESIGN-HISTORY.md` "Plugin system: architecture" (294, retired) | DirectBridge for sync typed calls from core to internal plugins. Do not reinvent this. |
+| Shared registry | `internal/core/family/` (read the code) | Registry inside a plugin instead of core |
+| Config option | `ai/patterns/config-option.md` + `ai/rules/config.md` + `ai/rules/config.md` + `ai/rules/config.md` | Missing env var, wrong YANG shape, env-only when should be config, wrong leaf name |
+| CLI command | `ai/patterns/cli-command.md` | Wrong dispatch structure |
+| TUI / terminal colors | `docs/architecture/cli/color-system.md` | Wrong color roles, inconsistent palette across surfaces |
+| Platform-specific | Existing splits (`fibkernel/backend_linux.go`, `ifacenetlink/sysctl_linux.go`) | Wrong build tag, wrong abstraction level |
+| New feature with dataplane effect | `internal/plugins/iface/netlink/` + `internal/plugins/iface/vpp/` | Netlink-only feature without VPP support |
+| Naming | `ai/rules/go-standards.md` + `ai/rules/config.md` (config/env) + grep analogous names | Inventing ze-names when kernel/standard names exist, abbreviated YANG leaves, env var path not mirroring YANG |
+
+### Tier 3: When the Design Touches These Areas
+
+| Area | Read | Prevents |
+|------|------|----------|
+| Plugin startup timing | `internal/component/plugin/server/startup.go` (`TopologicalTiers`, `runPluginPhase`) | Hand-waving instead of tier ordering |
+| Wire encoding | `ai/rules/performance.md` | Allocations in encoding |
+| Env vars | `ai/rules/go-standards.md` + `ai/rules/config.md` + `ai/rules/config.md` + `internal/core/env/` | `os.Getenv`, missing `MustRegister`, env-only when should be YANG config, wrong naming convention |
+| JSON format | `ai/rules/cli.md` | Wrong key casing |
+| Testing | `ai/rules/testing.md` + `ai/patterns/functional-test.md` | Missing .ci tests, wrong structure |
+| Daemon lifecycle | `OnStarted`/`OnAllPluginsReady` in a similar plugin | Wrong callback, missing cleanup |
+
+### BGP Domain Facts (Do Not Assume From Training Data)
+
+| Fact | Why it matters |
+|------|---------------|
+| NEXT_HOP is set at the eBGP border router; all IBGP routes share a small set of next-hops (the L3 device originating the prefix or the eBGP peer) | Attribute byte overlap across IBGP peers is high, not low |
+| MED, LOCAL_PREF, communities are policy-set by the sender and tend to be identical across many routes from the same peer | Same-peer attribute reuse is very high |
+| AS_PATH is identical for all routes learned from the same external source; IBGP does not prepend | Cross-peer attribute overlap within an AS is significant |
+| BGP UPDATE packing groups NLRIs with identical attributes into one message, but convergence events and incremental announcements spread them across multiple UPDATEs | Attribute reuse across UPDATEs from a single peer is common |
+
+### Anti-Patterns
+
+| Anti-pattern | Instead |
+|--------------|---------|
+| "Docs say X supports Y" | Read the implementation. Docs may be stale or aspirational |
+| "Industry standard is X" | Grep ze for how it already does X |
+| "Good enough for dev" | "Do it right." Darwin could be prod |
+| "Overkill for now" when comparing compile-time vs runtime enforcement | Compile-time enforcement is not overkill, it is correctness. If the compiler can prevent a class of bugs, that is the right option. Implementation cost is not a reason to accept weaker guarantees. |
+| "Translation layer for cleaner API" | "Explicit > implicit." Use native names |
+| "Put the registry where it's used" | Check `internal/core/` first |
+| "DispatchCommand for cross-plugin calls" | EventBus for broadcast; DirectBridge for request/response |
+| "New direct-call mechanism for internal plugins" | DirectBridge already exists (`pkg/plugin/rpc/bridge.go`). Read it before proposing. |
+| "No cleanup needed on stop" | Ze owns what it touches |
+| "VPP support can be added later" | If the feature has a netlink implementation, add the VPP implementation in the same work. Ze targets both dataplanes; netlink-only features create drift. |
+| "Defaults are suggestions" | Defaults are requirements; log when overridden |
+
+### Mechanical Check
+
+- 1. Did I read how ze already handles similar? (grep, not assume)
+- 2. Did I check `internal/core/` for an existing shared pattern?
+- 3. Did I read the relevant `ai/patterns/` file?
+- 4. Does my proposal contradict "Design Principles" below?
+- 5. Am I inventing a name when standard/kernel/existing exists?
+- 6. Am I proposing a new communication mechanism? Read `pkg/plugin/rpc/bridge.go` first. DirectBridge likely already does it.
+- 7. Am I comparing systems or claiming capabilities? Read the implementation for each system being compared. Spawn parallel agents if multiple codepaths need verification. Never answer from docs alone.
+
+## Design Principles
+
+| Principle | Rule |
+|-----------|------|
+| YAGNI | Don't build what's not immediately needed |
+| Simplicity | Boring code that obviously works > clever code |
+| No identity wrappers | Wrapper must transform (type conversion, error wrapping, defaults). A struct holding raw data + accessor methods is an identity wrapper, pass the data, use existing type methods |
+| Single responsibility | One thing per function/struct/package. "And" in name = split |
+| Explicit > implicit | No hidden magic, convention-based behavior, silent defaults |
+| Minimize coupling | Components know the minimum about each other. High->low dependency |
+| Interface segregation | Clients depend only on methods they use |
+| Abstract when you can | Two concrete use cases justify an abstraction. Abstract at the second use case; don't wait for a third |
+| Design for change | Isolate volatility behind stable interfaces |
+| Fail-mode awareness | Every external call can fail; every input can be malformed |
+| Do it right | Zero-copy, pool dedup, buffer-first. Never trade correctness for implementation speed |
+| Exact or reject | Backend/translator cannot apply config EXACTLY -> verify/commit fails with a clear error. No silent approximation. `ai/rules/protocol.md` |
+| Durability over velocity | "Never revisit this code" > "get to commit fast". Rework wastes more time than thoroughness |
+| Encapsulation onion | Allocate one buffer at the outermost protocol layer; slice inward with specialised types (`WireUpdate`, `PackContext`). Peel by narrowing the window, never by copying |
+| Buffer-first encoding | Write side: all wire encoding into pooled, bounded buffers via `WriteTo(buf, off) int`. No `append`, `make`, or `buildFoo() []byte` in helpers. `ai/rules/performance.md` |
+| No `make` where pools exist | Variable-N `make([]byte, N)` on a wire-facing path comes from a pre-allocated, bounded pool. `make` is OK for fixed-size headers and one-shot startup allocations |
+| Pool strategy by goroutine shape | Single-backing ring (single reactor goroutine, sequential) OR `sync.Pool` seeded for peak (multiple concurrent goroutines). All buffers in a pool are the SAME MAX size |
+| Lazy over eager | Read side: raw byte slices + offset iterators (`Next()`), not parsed structs or collected slices. Consumer acts on data directly. N->0-until-needed, not N->1 |
+| Zero-copy, copy-on-modify | Allocate at receive (Incoming Peer Pool); share read-only through forwarding; copy only when egress filters modify (Outgoing Peer Pool); release after send. Global Shared Pool handles overflow |
+
+### Scalability Checklist
+
+- [ ] Abstract when you can (2+ use cases?)
+- [ ] No speculative features (needed NOW?)
+- [ ] Single responsibility per component
+- [ ] Explicit behavior (no hidden magic?)
+- [ ] Minimal coupling
+- [ ] Consistent naming
+- [ ] Testable in isolation
+- [ ] Next-developer test: understood in 30 seconds?
+
+## Module Tiers (core / component / plugin)
+
+This generalizes `ai/rules/plugins.md` (the "delete the folder" test) into a placement rule that code can audit.
+
+### The Three Tiers
+
+| Tier | Home | What it is | Examples |
+|------|------|------------|----------|
+| **core / infra** | `internal/core/` | A library you cannot "run as a plugin." Foundational; no config-driven lifecycle. | family, events, metrics, diagnostic, bufpool |
+| **component** | `internal/component/` | A platform plugin: other plugins/components depend on it or plug into it. | bgp, iface, firewall, traffic, vpp |
+| **plugin (edge)** | `internal/plugins/` | An edge plugin: a config-driven engine that nothing else depends on. | ntp, static, dhcpserver, l2tp-auth-* |
+
+### The Two Axes
+
+| Axis | Mechanical test |
+|------|-----------------|
+| **A. Is it a config-driven engine?** | does it call `sdk.NewWithConn(`? |
+| **B. Does a feature depend on it?** | does any `.go` file under `internal/component/` or `internal/plugins/` (excluding its own subtree, the generated composition root, `cmd/ze` dispatch, `internal/core`, `internal/chaos`, `internal/test`, and `_test.go`) import it? |
+
+Decision:
+
+- **core library** -> `internal/core/`. It has no config-driven lifecycle, no registry side effect, and no reason to live with a component domain.
+- **framework** -> usually `internal/component/`. It provides Ze's wiring substrate rather than a runnable feature: config, plugin, command, cli, doctor, hub, lifecycle, and setup-feature integration.
+- **host-service** -> `internal/component/`. It is a daemon or appliance service boundary such as web, ssh, gNMI, MCP, looking-glass, host APIs, or gokrazy support. These packages are not pure core libraries because startup, doctor, listener, or platform registration pins them to composition.
+- **domain-library** -> lives with the component domain it serves until that domain is split. In this spec only BNG (`l2tp`, `ppp`, `pppoe`, `pppoeclient`, `subscriber`) and VPN (`ike`, `ipsec`) are clustered. PKI stays top-level because it is shared certificate infrastructure for IPsec and future TLS users. AAA, traffic, firewall, and CoS stay flat unless a later spec proves a clean isolated cluster.
+- **engine + a feature depends on it** -> **component** (`internal/component/`). It is a platform other plugins build on. BGP is the archetype: its sub-plugins and other code plug into it.
+- **engine + nothing depends on it** -> **edge plugin** (`internal/plugins/`). IS-IS, OSPF, LDP, RSVP-TE are edge protocols: they consume services (iface, the RIB) but nothing consumes them. A *gated* edge engine's blank import in the generated `all_<tag>.go`, a `cmd/ze` dispatch companion, or `cmd/ze/setup_features_*.go` is a registration import, NOT a dependency, so it does not promote the engine to a component.
+- The RIB stays **component** because edge protocols install routes through it.
+
+### Non-engine category manifest
+
+The source of truth for intentional non-engine placements outside `internal/core/` is `scripts/dev/tier_non_engine_categories.txt`. It is a human-readable manifest consumed by `scripts/dev/dep_audit.py --check`; do not hide new exceptions in Python code.
+
+Each row is:
+
+```text
+<repo-relative package dir> <category> <rationale>
+```
+
+Allowed categories:
+
+| Category | Meaning | Allowed home |
+|----------|---------|--------------|
+| `framework` | Wiring substrate or setup feature that exists to register, configure, command, audit, or orchestrate other packages. | `internal/component/` or setup packages under `internal/plugins/` |
+| `host-service` | Listener, appliance, host API, or platform service pinned to composition by startup or doctor/platform registration. | `internal/component/` |
+| `domain-library` | Non-engine package that belongs to a real domain cluster. In this spec that means BNG and VPN only. | `internal/component/` |
+| `planned-violation` | Existing known placement that is scheduled to move or disappear. New rows need a spec reference in the rationale. | `internal/component/` or `internal/plugins/` |
+
+**The manifest is not a general allowlist. It classifies packages whose placement cannot be derived from the engine and registration mechanics alone, and the gate fails if a manifest row points at an engine, uses the wrong home for its category, goes stale, or a shared non-engine placement appears without a row.**
+
+### Authoring rule (read before creating a package)
+
+Decide the tier by the two axes and the non-engine categories BEFORE you pick a directory:
+
+- 1. Pure library, no `sdk.NewWithConn`, no plugin lifecycle, no component domain owner -> `internal/core/<x>`.
+- 2. Framework or host-service infrastructure -> classify it in `scripts/dev/tier_non_engine_categories.txt` and keep it under `internal/component/<x>` unless this rule says setup-package placement belongs under `internal/plugins/<x>`.
+- 3. Domain library -> keep it with the owning domain only when the manifest names the domain category. Today that means BNG and VPN; AAA, traffic, firewall, and CoS stay flat.
+- 4. Engine that other plugins will depend on -> `internal/component/<x>`.
+- 5. Engine that is a self-contained leaf feature -> `internal/plugins/<x>`.
+
+**A sub-plugin of an existing subsystem (e.g. a BGP capability or NLRI codec) goes under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`), not at the top level. Those nested namespaces are listed in the generator's `pluginDirs` (`scripts/codegen/plugin_imports.go`).**
+
+### Scope of enforcement
+
+The gate enforces engine placement mechanically and enforces ambiguous non-engine placements through the manifest:
+
+> A config-driven engine (`sdk.NewWithConn`) at a top-level subsystem MUST be in
+> `internal/component/` if a feature depends on it, else in `internal/plugins/`.
+>
+> A non-engine package outside `internal/core/` MUST either be classified by the
+> existing registration mechanics or have a manifest row in
+> `scripts/dev/tier_non_engine_categories.txt`.
+
+The "wired as a plugin" signal is mechanical: the advisory reads composition roots (generated `all.go`, gated `all_<tag>.go`, `cmd/ze` dispatch companions, and `cmd/ze/setup_features_*.go`) to tell registered packages from genuine core candidates. It catches every shape: `registry.Register`, `RegisterRPCs`, `RegisterBackend`, doctor checks, `*-cmd` verb providers, and setup-feature commands. BGP codec/type packages are being split separately; `ike/dataplane` stays under component until its VPP backend is split from the interface package. There is **no permanent allowlist**.
+
+`scripts/dev/dep_audit.py --check` enforces the engine-placement rule, the non-engine category manifest, the **core import-direction rule** (`internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`; grandfathered pairs live in the shrink-only `scripts/dev/core_import_baseline.txt` with a fix route each, and new pairs and stale rows both fail), the disable-ability rule, and golangci build-tag drift. It runs in `make ze-verify` (target `ze-tier-check`). It:
+
+- parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
+- treats generated `all.go` files, gated `all_<tag>.go` files, `cmd/ze` dispatch/import companions, and `cmd/ze/setup_features_*.go` as registration importers, not functional dependencies;
+- fails (exit 2) on any **new** misplaced engine, naming the dir and its required tier, pointing here;
+- fails on a **stale** engine baseline entry (one no longer misplaced), forcing cleanup;
+- fails (exit 2) on any illegal, stale, or missing row in `scripts/dev/tier_non_engine_categories.txt`;
+- fails (exit 2) if a `DISABLEABLE` feature is imported by always-on (untagged, non-test) code, naming the file and the build tag it needs.
+
+### Disable-ability (compile-out)
+
+Axis B also decides whether a feature can be **compiled out** of the binary. A feature is compile-out-able exactly when nothing always-compiled depends on it: it is reached ONLY through build-tag-gated registration. A direct functional `import` from always-on (untagged) code pins the package into every binary and defeats the compile-out; only a blank/gated registration import can be dropped by a build tag.
+
+Two shapes exist. **Listener services** (looking-glass: `ze_lg`, web: `ze_web`, MCP: `ze_mcp`) plug into the construction registry (`cmd/ze/hub/service_registry.go`): a gated `service_<x>.go` + `register_<x>.go` registers a factory and any listener-migrator wiring the hub iterates. MCP fits because its `MCPServerHandle` is already `Reconfigurable` + `Shutdown`; the command metadata it shares with the always-on API is kept neutral (`command_meta.go`) so API does not pull mcp back into every binary. Web also has a nil-able standalone seam (`web_infra.go`) for `ze start --web` so the always-on CLI path does not import `internal/component/web`. **Dedicated seams** cover services whose construction shape does not fit the registry: ssh (`ze_ssh`) uses `ssh_infra.go` for the shared startup and standalone paths; gNMI (`ze_gnmi`) uses `gnmi_infra.go` for rich constructor inputs plus the reload notification hook; the REST/gRPC API uses `api_infra.go` with TWO independent hooks (`ze_rest` / `ze_grpc`) so an operator can ship gRPC-without-REST or vice-versa, sharing an always-on engine/session builder (`buildAPIShared`). The shared `api-server { token }` YANG base stays always-on and each transport's `rest{}`/`grpc{}` container is contributed by a gated YANG module (`internal/component/api/rest/yang`, `internal/component/api/grpc/yang`) via Ze's same-named-container merge, so a compiled-out transport's config block is rejected as unknown. Telemetry (`ze_telemetry`) is the first **core-level** seam: its hook `metrics.StartExporter` lives in always-on `internal/core/metrics` (not the hub) because two start sites in different components, the hub standalone path and the bgp reactor path (`internal/component/bgp/config`), both read it; the hub's gated `register_telemetry.go` wires the gated `internal/component/telemetry/exporter` (and its Netdata `collector` sidecar) into the seam. Only the Prometheus HTTP exporter compiles out; the metric COLLECTION registry (`PrometheusRegistry`, `Registry`, the `NopRegistry` dummy) stays always-on so the ~60 packages that record `ze_*` metrics keep working with the exporter gated. Both shapes gate their direct package and YANG schema imports into generated `all_ze_<feature>.go` files via `plugin_imports.go`. `make ze` / `ze-appliance` pass the default-on feature tags (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them for a smaller, hardened binary. See `plan/learned/983-feature-gate-manifest-ssot.md`.
+
+**Rule:** a compile-out-able feature (gated by `//go:build ze_<feature>`) MUST NOT be directly imported by always-on code. Reach it through the construction registry or a seam (`ssh_infra.go` / `gnmi_infra.go` style) in another gated file. `dep_audit.py` enumerates these gated packages (`DISABLEABLE`); the gate flags any always-on, non-test importer. Gates are declared in ONE place: `<tag> <pkg>` lines in the repo-root `feature-gates.txt` manifest. A feature may reuse one tag for sidecar packages that must vanish with it. `ZE_FEATURES` (Makefile), `TestBuildTags()` (`internal/test/runner`), `featureTags` (`plugin_imports.go`), and `DISABLEABLE` (`dep_audit.py`) all DERIVE from it; only `.golangci.yml` build-tags is edited by hand (static YAML), and `dep_audit.py --check` fails on its drift. Full procedure and the two registration shapes: `ai/rules/plugins.md`.
+
+### Migration baseline (transitional, NOT an allowlist)
+
+`scripts/dev/tier_migration_baseline.txt` holds the engines that are currently in the wrong tier and scheduled to move (child specs `spec-tiers-2`/`-3`). Each row is annotated with the child spec that removes it. The gate fails on new violations and on stale entries, so the file can only shrink. **An empty baseline = full engine-placement enforcement with zero exceptions.** Regenerate after a move with `scripts/dev/dep_audit.py --write-baseline`.
+
+## Data Flow Tracing
+
+The four subsection names below are the required section names of a spec's Data Flow section (`plan/TEMPLATE.md`, checked by `.claude/hooks/validate-spec.sh`).
+
+### Entry Point
+
+- [ ] 1. Entry points: where does data enter? (wire, API, config, plugin) What format?
+
+### Transformation Path
+
+- [ ] 2. Transformations: parse -> validate -> store -> process -> encode
+
+### Boundaries Crossed
+
+- [ ] 3. Boundary crossings: Engine <-> Plugin (JSON over pipes), FSM <-> Reactor (event types), WireUpdate <-> RIB (attribute refs), Caps <-> PackContext (encoding context)
+- [ ] 4. Violations? Bypassed layers? Unintended coupling? Duplicated functionality? Broken zero-copy?
+
+### Integration Points
+
+- [ ] 5. Integration points exist? Signatures match? Unrelated code needs changes?
+
+### Reference Flows
+
+- **Wire -> RIB:** TCP -> message parse -> UPDATE (WireUpdate, lazy iterator) -> attribute extraction -> pool dedup -> RIB entry (NLRI -> attr refs)
+- **API -> Wire:** command parse -> attribute building -> WireUpdate -> PackContext -> wire bytes
+- **Plugin <-> Engine:** event -> JSON encode -> write stdin -> plugin processes -> write stdout command -> engine parses -> execute
+
+### Must Answer Before Approving Spec
+
+- 1. Where does data come from?
+- 2. What happens at each stage?
+- 3. Where does it go and in what format?
+- 4. Which boundaries does it cross?
+- 5. What existing code does it interact with?
+
+## Impact Analysis
+
+### By File Type
+
+#### YANG Schema (`*.yang`)
+
+| What changed | Also update |
+|---|---|
+| New leaf/container | Config parser that reads the tree (grep `GetContainer`, `GetChild` for the path) |
+| New leaf/container | Validator if validation rules apply |
+| New leaf/container | CLI completion if the command references the schema |
+| Renamed path | `scripts/dev/yang_move.py` handles slash paths, set commands, brace blocks, GetContainer chains |
+| New `environment/` leaf | `env.MustRegister()` in the component's config loader |
+| New `ze:listener` | Conflict detection via `FindListenerConflict` |
+| New `ze:command` | RPC handler + `make ze-doc-test` |
+
+#### Registration (`register.go`, `init()`)
+
+| What changed | Also update |
+|---|---|
+| New plugin | `make generate` (updates `all.go`), `TestAllPluginsRegistered` count |
+| New family | `family.MustRegister()`, NLRI decoder/encoder registration |
+| New capability | Capability codec registration |
+| New event type | `Registration.EventTypes` field |
+| Renamed name | See `ai/rules/plugins.md` "Renaming a Registered Name" for full grep |
+
+#### Go Source (`*.go` under `internal/`)
+
+| What changed | Also check |
+|---|---|
+| New exported symbol | Wiring: who calls it? (`ai/rules/completion.md`) |
+| Modified function signature | All callers (LSP findReferences or grep) |
+| New goroutine | `ai/rules/goroutine-lifecycle.md`, cleanup on shutdown |
+| New `make([]byte, N)` on wire path | Pool-backed alternative (`ai/rules/performance.md`) |
+| New `fmt.Sprintf` | Append-based alternative (`ai/rules/performance.md`) |
+| Guard/fallback added | Sibling call-site audit ("Sibling Call-Site Audit" above) |
+| Error return ignored | Hook `block-ignored-errors.sh` will reject |
+
+#### Functional Test (`*.ci`)
+
+| What changed | Also check |
+|---|---|
+| New test file | Correct directory (`ai/rules/testing.md` test directories table) |
+| Python observer | No `sys.exit(1)`, use `runtime_fail` (`ai/rules/testing.md` observer section) |
+| Config in `tmpfs=` | Parse test validates syntax |
+
+#### Go Source to Documentation
+
+**When changing code, check `ai/CODE-TO-DOCS.md` for docs that reference the file. Update any claims that are now wrong. Regenerate: `make ze-doc-index`.**
+
+#### Documentation (`docs/`)
+
+| What changed | Also check |
+|---|---|
+| New factual claim | Source anchor: `<!-- source: path -- symbol -->` |
+| Feature count/list | `make ze-doc-test` validates against live registry |
+| Changed config syntax | `docs/guide/configuration.md` and `docs/architecture/config/syntax.md` |
+
+#### Spec (`plan/spec-*.md`)
+
+| What changed | Also check |
+|---|---|
+| Status change | per-session marker via `scripts/dev/spec-session.sh` |
+| AC added/removed | Wiring test table, audit table |
+| Design decision | Annotate with `-> Decision:` for post-compaction recovery |
+
+### Quick Grep Patterns
+
+```bash
+# Who calls this function?
+grep -rn "FunctionName" internal/ cmd/ --include="*.go" | grep -v "_test.go"
+
+# Who reads this YANG path?
+grep -rn "path/to/leaf" internal/ --include="*.go"
+
+# Who references this registered name?
+grep -rn "plugin-name" internal/ pkg/ cmd/ test/ docs/ plan/ .claude/
+
+# Who imports this package?
+grep -rn "github.com/ze-software/ze/internal/component/foo" internal/ cmd/ --include="*.go"
+```
+
+## zefs Persistence (no loose state files)
+
+### The rule
+
+Persist runtime state through the managed zefs store, never as a loose file.
+
+- **Do:** `statestore.Put(key, data)` / `statestore.Get(key)` (package `internal/core/statestore`), keyed by a registered `pkg/zefs` key (`meta/<subsystem>/<name>` in `pkg/zefs/keys.go`).
+- **Don't:** `os.WriteFile` / `os.Create` / `os.OpenFile(..., O_CREATE...)` / `os.Rename` a state blob into a path under the config/state dir.
+
+### Why
+
+On the gokrazy appliance the writable `/perm` partition holds exactly one managed artifact: `database.zefs`. It is integrity-checked (`pkg/zefs` check/repair), seeded at install, and understood by the image build/verify tooling. A loose `state/foo.json` next to it is invisible to all of that: it is not backed up, not verified, and silently gone after a reimage. `resolve.Storage()` already resolves zefs-on-appliance / filesystem-fallback-on-dev; `statestore` is the plugin-facing equivalent: it writes through the config system's OWN blob-store handle (registered once at daemon startup via `statestore.SetStore`), so state and config share one in-memory tree.
+
+### How
+
+```go
+// save (best-effort; no-op when no blob store is registered)
+data, _ := json.Marshal(snapshot)
+_, _ = statestore.Put(zefs.KeyDDoSDetectBaseline.Pattern, data)
+
+// restore
+if data, ok := statestore.Get(zefs.KeyDDoSDetectBaseline.Pattern); ok {
+    _ = json.Unmarshal(data, &snapshot) // keep version/sanity guards
+}
+```
+
+- Register the key in `pkg/zefs/keys.go` (`meta/<subsystem>/<name>`; use a `{placeholder}` for per-entity keys and `Key(param)` to fill it).
+- `statestore` is **best-effort**: `Put` is a no-op when no blob store is registered (filesystem-fallback mode). Keep persistence non-fatal.
+- **One shared instance, not a transient open.** The config system opens `database.zefs` once at startup and holds that single `*zefs.BlobStore` for the process; a flush re-encodes the whole file from its in-memory tree. Writing state through a SEPARATE transient store would let the config store's next flush drop every state key (and a state write could revert a concurrent config commit). So `statestore` writes through that same handle (registered with `SetStore` in `cmd/ze/hub`), serialized by the store's own lock: one tree, no lost updates. A write still rewrites the whole store per flush, so keep cadences modest (best-effort caches, not per-packet).
+
+### Legitimate raw filesystem writes (allowlisted)
+
+Not every `os.WriteFile` is state. These stay raw and are allowlisted in the guard with a reason:
+
+- **Kernel/device control:** `/proc`, `/sys`, sysfs, `/dev`, cgroup, ethtool.
+- **Ephemeral scratch:** `/tmp`, `/run`, pid files, sockets, probe/ready files.
+- **External artifacts:** files produced for another consumer: `resolv.conf`, systemd units, PEM exports, MRT dumps, the ze binary during self-update, the externally-written `config-pushed.conf` inbox.
+- **The storage layer itself:** `internal/component/config/storage`, `pkg/zefs`, and crash-time writers (`internal/core/crashlog`) that must survive a broken zefs. The append-only audit log (`internal/core/audit`) also stays a tailable file (a blob KV store is the wrong shape for an append log).
+
+### Gate
+
+`make ze-fs-persistence-check` (in `make ze-verify` / `ze-verify-changed`) runs `scripts/checks/direct_fs_persistence.go`: it flags any non-allowlisted raw filesystem write in the scanned trees. A new legitimate non-state writer needs an allowlist entry (with a reason); genuine state must move to `statestore`.
+
+## Ze Divergences from Standard Go
+
+### Encoding / Wire
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| `func (t T) Marshal() ([]byte, error)` | `func (t T) WriteTo(buf []byte, off int) int` | `ai/rules/performance.md` | Zero alloc on hot path; caller owns the buffer |
+| `bytes.Buffer` / `append` in helpers | Pre-allocated pooled buffers, slice inward | `ai/rules/performance.md` | Bounded memory, no GC pressure |
+| `make([]byte, n)` for variable-length wire data | Pool-backed buffers of fixed MAX size | `ai/rules/performance.md` | Pool strategy by goroutine shape |
+| Helper allocates its own scratch | Caller passes buffer down, callee writes into it | `ai/rules/performance.md` | One allocation at outermost scope, not N in sub-functions |
+| `sync.Pool` only for "reuse" | `sync.Pool` is the default for multi-goroutine scratch, ring buffer for single-goroutine | `ai/rules/performance.md` | Pool shape must match goroutine shape |
+| Parse into structs eagerly | Lazy iterators over raw byte slices (`Next()`) | "Design Principles" above (Lazy over eager) | N->0-until-needed, not N->1 |
+| `fmt.Sprintf` for formatting | `textbuf.Buffer` (128B stack-inline) or `strconv.Append*` | `ai/rules/performance.md` | Sprintf allocates 2-3x; textbuf allocates once |
+| `strings.Join(parts, " ")` | Single `textbuf.Buffer` with `.Byte(' ')` separators | `ai/rules/performance.md` | Eliminates intermediate `[]string` + final join |
+
+### Architecture / Registration
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Direct imports between packages | `init()` + registry + blank import | `ai/patterns/registration.md` | Small core discovers components; never imports directly |
+| Constructor injection | Registry lookup at runtime (`registry.NLRIDecoder(family)`) | `ai/rules/plugins.md` | Plugins are independently removable via blank import |
+| `os.Getenv("FOO")` | `env.Get("ze.foo")` via `internal/core/env` | `ai/rules/go-standards.md` | Cache, registration, dot/underscore agnostic, secret clearing |
+| `log.Printf` or `logrus` | `slog` via `slogutil.Logger("subsystem")` | `ai/rules/go-standards.md` | Hierarchical per-subsystem levels via env vars |
+| Shared types via direct import | Cross-boundary payloads are value types only | `ai/rules/plugins.md` (Cross-Boundary Value Types) | No pointer fields across plugin/component boundaries |
+
+### Config / Schema
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Struct tags + `json.Unmarshal` | YANG schema as sole source of truth | `ai/rules/config.md` | Schema-driven validation, migration, completion, diff |
+| Config version field | No version numbers; machine-transformable migration | `ai/rules/config.md` | YANG evolution handles schema changes |
+| Silent defaults for missing fields | Fail on unknown keys; suggest closest valid | `ai/rules/config.md` | Explicit > implicit |
+| `interface{}` for flexible config | `map[string]any` through canonical pipeline | `ai/rules/repo-maintenance.md` | File -> Tree -> ResolveBGPTree -> map[string]any -> PeersFromTree |
+
+### Communication / IPC
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| gRPC or HTTP between services | JSON events down, text commands up, over pipes or net.Pipe | `ai/rules/plugins.md` | Plugin SDK is language-agnostic (Go/Python/Rust) |
+| Direct function calls for sync | DirectBridge for typed in-process calls | `ai/rules/plugins.md` (DirectBridge) | Bypasses JSON serialization for internal plugins |
+| Channel-based pub/sub | EventBus with typed handles (`events.Register[T]`) | `ai/rules/plugins.md` (EventBus) | Type-safe, registered event types, no raw `bus.Subscribe` |
+
+### Testing
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| `go test ./...` for verification | `make ze-verify` (two-pass + functional + exabgp) | `ai/rules/testing.md` | 349 packages; cached full + race on changed groups |
+| Unit tests prove correctness | Unit tests + `.ci` functional tests (both required) | `ai/rules/completion.md` | Unit proves algorithm; `.ci` proves user can reach the feature |
+| `testify/assert` | Standard library `testing` | (convention) | No test framework dependencies |
+| `go test -race` once | `make ze-race-reactor` (`-race -count=20`) for reactor code | `ai/rules/testing.md` | Rare schedules need repeated runs to surface |
+
+### CLI / Commands
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| `cobra` or `flag` | YANG-modeled dispatch with RPC handlers | `ai/patterns/cli-command.md` | Unified schema for CLI, web, config, completion |
+| `command <identifier> [flags]` | `<verb> <noun> <action> [<identifier>]` | `ai/rules/cli.md` | Identifier-keyword ambiguity elimination |
+| Format output as string | Return structured JSON, format via pipe operators | `ai/rules/cli.md` | `\| json`, `\| table`, `\| match`, `\| resolve`, etc. |
+| Hardcode help text | Derive from registry/schema | `ai/rules/evidence.md` | Single source of truth; no stale enumerations |
+
+### Scripts / Tooling
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Shell scripts for tooling | Python only | `ai/rules/go-standards.md` | Shell is fragile for complex orchestration |
+| `/tmp` for scratch files | Project `tmp/` (gitignored) | `ai/rules/testing.md` | `go test ./...` walks `/tmp`; project tmp is isolated |
+| `git add -A && git commit` | Commit via script the user triggers | `CLAUDE.md` prohibitions | Sessions share staging; cross-commits result |
+
+## Architecture Summary
+
+### System
+
+```
+BGP Subsystem (internal/component/bgp/):
+  Peers (FSM) → Wire Layer → Reactor (event loop, BGP cache) → EventDispatcher
+   ║ formatted events (down) / commands (up)
+Plugin Infrastructure (internal/plugin/):
+  Registry · Process Manager · Hub · SDK · DirectBridge
+   ║ JSON events + base64 wire bytes (down) / text commands (up)
+Plugins: RIB, RR, GR, etc. (Go/Python/Rust)
+```
+
+BGP Subsystem handles protocol: FSM manages peers, Wire Layer parses messages into WireUpdate, Reactor processes events, EventDispatcher bridges to Plugin Infrastructure. Plugin Infrastructure manages plugin lifecycle and message routing. Plugins implement RIB, dedup, policy.
+
+### Negotiated Capabilities (per-peer)
+
+| Field | Type | Effect |
+|-------|------|--------|
+| ASN4 | bool | 4-byte ASN in AS_PATH |
+| AddPath | map[Family]Mode | Path-ID prefix in NLRI |
+| ExtendedMsg | bool | 65535 byte messages |
+| ExtendedNextHop | map[Family]AFI | Per-family NH mapping |
+| GracefulRestart | *GR | RFC 4724 state |
+| RouteRefresh | bool | RFC 2918 |
+
+**Same wire bytes parse differently based on caps. ContextID identifies encoding context for zero-copy.**
+
+### Wire Writing
+
+**All types implement `BufWriter`: `WriteTo(buf, off) int` or `CheckedWriteTo(buf, off) (int, error)`.**
+**Context-dependent types take `*PackContext` for ADD-PATH/ASN4.**
+
+### UPDATE Structure
+
+```
+UPDATE = Header (19B) + Withdrawn (IPv4) + Path Attributes
+  + MP_REACH_NLRI (non-IPv4 announce) + MP_UNREACH_NLRI (non-IPv4 withdraw)
+  + NLRI (IPv4 unicast only)
+```
+
+### WireUpdate vs RIB
+
+- WireUpdate = transport (lazy parse via iterators, keeps wire refs)
+- RIB = storage (NLRI → attribute refs into per-type pools, NOT WireUpdate)
+- Per-attribute-type pools with dedup. Per-family NLRI pools.
+
+### Forward Pool
+
+Two-tier model with per-destination-peer workers:
+
+- **Peer Pools** (64 buffers per peer, negotiated size): each peer has an Incoming Peer Pool (inbound) and an Outgoing Peer Pool (outbound modification). Same Peer Pool type, size at init.
+- **Global Shared Pool**: byte-budgeted overflow, mixed 4K/64K blocks. Auto-sized from peer prefix maximums via `overflowPoolBudget()`. Pool exhaustion is the backpressure signal.
+
+### Chaos Simulator
+
+**Unbounded event buffer: no events ever dropped. Ring buffer rejected because losing route events breaks convergence counts.**
+
+### API Command Syntax
+
+```
+Text:   update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+Binary: update hex attr set 400101... nlri ipv4/unicast add 180a00
+```
+
+## Related
+
+- `ai/rules/plugins.md`: the delete-the-folder invariant.
+- `ai/rules/plugins.md`: registration patterns, Proximity Principle.
+- `scripts/dev/dep_audit.py`: the reverse-dependency report + the placement gate.
+- `plan/spec-tiers-0-umbrella.md`: the taxonomy, the reorg plan, the hardening analysis.
+
+## Rationale
+
+### Incidents behind Design Context
+
+Incident: session as-router (2026-04-13) made 7 wrong recommendations by starting to design before loading context.
+
+Incident: session l2tp-8a-auth-pool (2026-04-21) proposed a new direct-call mechanism between core and plugins, not discovering that DirectBridge already provides typed function calls. Root cause: no document in the research path mentioned DirectBridge for request/response. Fixed by splitting the cross-plugin comm row into broadcast vs request/response and adding DirectBridge to the anti-pattern table.
+
+### Incident behind the Sibling Call-Site Audit
+
+Precedent: the blob-store fallback fix (`d029a94d` + `5f66e4f5`) was added in one call site. Three siblings were missed; five plugin tests stayed masked for six days.

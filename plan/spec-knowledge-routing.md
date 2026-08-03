@@ -34,7 +34,7 @@ corpus exists because closure wrote to a queue and nobody drained it.
 |---------|----------------|
 | A design decision, why the code is shaped this way | `docs/architecture/<subsystem>.md` |
 | A recurring trap an agent must avoid | a rule under `ai/rules/` |
-| An invariant governing ONE function | a comment at that function (`ai/rules/self-documenting.md`) |
+| An invariant governing ONE function | a comment at that function (`ai/rules/protocol.md`) |
 | A protocol obligation | `rfc/short/rfcNNNN.md` |
 | How data flows through a subsystem today | `ai/digests/<subsystem>.md` |
 | An abandoned approach and why it failed | `plan/learned/DESIGN-HISTORY.md` |
@@ -76,11 +76,11 @@ These are not anecdotes. Each one changes a design decision in this spec.
 - [ ] `plan/learned/1316-knowledge-0-umbrella.md` - the previous pass and its measurements
   → Constraint: dead-path rate is now about 5% and `make ze-learned-staleness` holds it with a zero-slack ceiling. Routing must not raise it.
   → Decision: age-band retirement is DONE and is not repeated. This spec routes by content.
-- [ ] `ai/rules/documentation.md` - governs anything written into `docs/`
+- [ ] `ai/rules/writing.md` - governs anything written into `docs/`
   → Constraint: every factual claim carries a source anchor and is verified against code BEFORE it is written. A routed line is a factual claim.
-- [ ] `ai/rules/detail-budget.md` - governs the size of a routed line
+- [ ] `ai/rules/writing.md` - governs the size of a routed line
   → Constraint: one to three lines, merged into an existing section. Appending a section per summary moves the pile rather than draining it.
-- [ ] `ai/rules/self-documenting.md` - governs the code-comment destination
+- [ ] `ai/rules/protocol.md` - governs the code-comment destination
   → Constraint: an invariant governing one function belongs at that function. `session_connection.go` line 330 is the exemplar to match.
 - [ ] `ai/rules/never-destroy-work.md` - governs every deletion
   → Constraint: deletion needs explicit owner permission. The pilot deletes nothing.
@@ -108,7 +108,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 - A summary acquires a lifecycle: written, routed, removed.
 - `plan/learned/` acquires a target size and a gate that notices when it grows.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A spec closes and `/ze-close` writes a summary, when there is a lesson.
@@ -141,7 +141,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | A routing gate joins `check_doc_links.py` rather than becoming a new target |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A, no wire path |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | N-A, no daemon registration |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | N-A, no daemon registration |
 
 ## Risks & Assumptions
 
@@ -224,7 +224,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 - `ai/rules/planning.md` - "Writing Learned Summaries" states the lifecycle: written, routed, removed
 - `mk/inventory.mk` - declare `ze-learned-queue`, add it to `ze-doc-test`
 - `ai/INDEX.md` - Dev Tools row, in the same phase (AC-9)
-- `ai/rules/discovery-updates.md` - discovery-surface row
+- `ai/rules/repo-maintenance.md` - discovery-surface row
 
 ## Files to Create
 
@@ -268,7 +268,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | 14 | Prometheus counters added/changed? | No | No counters |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registration |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Routing adds anchors; every one is verified against code first |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ai/INDEX.md` and `ai/rules/discovery-updates.md` list current gates |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ai/INDEX.md` and `ai/rules/repo-maintenance.md` list current gates |
 
 ## Implementation Steps
 
@@ -299,9 +299,9 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | Correctness | Any ceiling asserts EQUALITY with the measured count, never merely bounds it |
 | Data flow | Routed content is merged into an existing section, never appended as a new one |
 | Evidence | Every `ALREADY-THERE` verdict quotes a line from the target file |
-| Rule: `ai/rules/documentation.md` | Every routed line into `docs/` carries a source anchor and was verified against code first |
+| Rule: `ai/rules/writing.md` | Every routed line into `docs/` carries a source anchor and was verified against code first |
 | Rule: `ai/rules/never-destroy-work.md` | The pilot deletes nothing; later waves delete only with per-wave permission |
-| Rule: `ai/rules/discovery-updates.md` | Every artifact reaches `ai/INDEX.md` in the phase that creates it |
+| Rule: `ai/rules/repo-maintenance.md` | Every artifact reaches `ai/INDEX.md` in the phase that creates it |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |

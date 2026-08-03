@@ -23,7 +23,7 @@ any such path as a LIVE citation and this sentence is about a file that is gone)
 reading that the whole `removeValues` contract was about to be
 replaced wholesale. That spec CLOSED on 2026-08-02 (`plan/learned/1318-wire-edit-2-edit-apply.md`)
 without doing this work, so the three rows were homeless: a deferral whose destination is
-gone is a deletion with a polite name (`ai/rules/deferral-tracking.md`).
+gone is a deletion with a polite name (`ai/rules/planning.md`).
 
 They were briefly repointed at the learned summary itself, by a mechanical sweep that was
 repairing dead spec citations elsewhere. That is worse than homeless, because a learned
@@ -75,7 +75,7 @@ code, so these three are owed against `handler.go` as it stands today.
 **Behavior to change:** (only what the user asked for)
 - [list, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - [Where data enters: wire bytes, API command, config, plugin message]
@@ -100,7 +100,7 @@ code, so these three are owed against `handler.go` as it stands today.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -201,16 +201,16 @@ code, so these three are owed against `handler.go` as it stands today.
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
 | CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli-grammar.md` |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
 | Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/pipe-completeness.md` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 
@@ -227,7 +227,7 @@ code, so these three are owed against `handler.go` as it stands today.
 | 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
 | 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | | `docs/comparison.md` |

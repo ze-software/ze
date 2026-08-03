@@ -116,7 +116,7 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 	// One predicate answers "is this EAP" for the config gate and for the engine.
 	// A private copy here goes stale the day a third mode arrives. This side then
 	// sends an AUTH payload where the EAP signal belongs.
-	// See ai/rules/derive-not-hardcode.md.
+	// See ai/rules/evidence.md.
 	isEAP := ipsec.IsEAPMode(sa.PeerCfg.Auth.Mode)
 
 	idPayload := buildIDPayload(sa, true)
@@ -379,7 +379,7 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 	// The canonical predicate, not a copy of it. A copy that missed a later mode
 	// falls through to verifyPSKAuth. The shared-key AUTH that RFC 7296
 	// Section 2.16 forbids on an EAP peer then verifies again.
-	// See ai/rules/fail-closed-guards.md and ai/rules/derive-not-hardcode.md.
+	// See ai/rules/evidence.md and ai/rules/evidence.md.
 	isEAP := ipsec.IsEAPMode(sa.PeerCfg.Auth.Mode)
 
 	switch authPayload.AuthMethod {
@@ -393,7 +393,7 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 		// the initiator". Reaching here on an EAP SA means the remote sent a
 		// shared-secret AUTH before any MSK existed. That is the responder AUTH
 		// of the first EAP message, and a pre-shared key does not satisfy the
-		// obligation. Refuse it (ai/rules/fail-closed-guards.md).
+		// obligation. Refuse it (ai/rules/evidence.md).
 		if isEAP {
 			return fmt.Errorf(
 				"ike auth: EAP peer %q sent a pre-shared-key AUTH, and RFC 7296 Section 2.16 "+

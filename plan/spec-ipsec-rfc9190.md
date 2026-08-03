@@ -84,7 +84,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 - Add the protected success indication, resumption, OCSP stapling, and privacy
   NAIs. Then enrol.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - An EAP-TLS exchange inside IKE_AUTH, either role.
@@ -209,7 +209,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema | Yes | resumption and OCSP need operator control; read `ai/rules/config-surface.md` |
+| YANG schema | Yes | resumption and OCSP need operator control; read `ai/rules/config.md` |
 | YANG validation constraints | Yes | with the leaves above |
 | CLI commands/flags | No | no new command |
 | Functional test for new RPC/API | N-A | no new RPC |

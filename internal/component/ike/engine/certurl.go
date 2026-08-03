@@ -151,7 +151,7 @@ func (c *certURLStore) Load(key string) ([]byte, bool) {
 // An object larger than the whole byte budget is never stored. Storing it would evict
 // every other entry and then sit alone, which is a cache one peer can flush at will.
 // certURLMaxBytes already bounds a body well below the budget, so this refuses only a
-// value a future edit of that cap would let through (ai/rules/fail-closed-guards.md).
+// value a future edit of that cap would let through (ai/rules/evidence.md).
 func (c *certURLStore) Store(key string, der []byte) {
 	if len(der) > certURLCacheMaxBytes {
 		return
@@ -274,7 +274,7 @@ var certURLFetches = certURLFetcher{
 //
 // Both refusals are silent, and each costs the peer one more repeat of its message. The
 // miss stays explicit at the caller, which returns errCertURLPending in either case
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // The two records it consults are scoped differently on purpose. The pending set is keyed
 // on the hash alone, so two peers naming the same object share ONE fetch, which is the

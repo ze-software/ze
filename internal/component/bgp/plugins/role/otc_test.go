@@ -1651,7 +1651,7 @@ func TestOTCEgressStampLocalASNZero(t *testing.T) {
 }
 
 // TestOTCEgressStampFailClosedObservability is the AC-4 fail-closed proof
-// (plan/spec-fixit-local-asn-config-key.md, ai/rules/fail-closed-guards.md):
+// (plan/spec-fixit-local-asn-config-key.md, ai/rules/evidence.md):
 // when a Customer/Peer/RS-client destination has no local AS (dest.LocalAS==0),
 // the OTC stamp is skipped AND the skip is observable (a WARN is emitted), so a
 // missing local AS is never a silent, valid-looking zero. Driven from the

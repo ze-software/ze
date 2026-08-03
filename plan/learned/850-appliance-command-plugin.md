@@ -10,7 +10,7 @@ The appliance command surface lived in `cmd/ze/install/appliance/`, nested under
 
 - Chose `internal/appliance/` as the provider location over `internal/plugins/appliance/` (reserved for SDK runtime plugins with bus/engine) and `internal/component/appliance/` (implies daemon component presence). Appliance has no daemon role.
 - Chose `MustRegisterRootHandler` (the ownership model from command-surface-ownership) over a static `case "appliance"` in `main.go`. The handler is dispatched through `dispatchRegisteredRoot` which calls `LookupRoot`, so no appliance spelling remains in the central switch.
-- Chose clean break (delete old path and alias) over a deprecation transition, per `ai/rules/compatibility.md`: Ze has never been released, no users, no compat shims.
+- Chose clean break (delete old path and alias) over a deprecation transition, per `ai/rules/go-standards.md`: Ze has never been released, no users, no compat shims.
 - Kept the `dispatchTable()` built-at-call-time pattern from the original package. The cmd*.go files install handlers via package-level var assignment in `init()`, and the map must be built after all `init()` runs.
 - Used `internal/core/helpfmt` and `internal/core/suggest` (importable leaf packages) instead of `cmd/ze/internal/helpfmt` and `cmd/ze/internal/suggest` (which would violate the no-cmd-import constraint).
 

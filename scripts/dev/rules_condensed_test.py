@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for the rule-digest generator's three artifacts.
+"""Tests for the rule-digest generator's two artifacts.
 
 Run: python3 scripts/dev/rules_condensed_test.py
 
 Picked up automatically by `TestPythonUnitTests` (scripts/dev/python_tests_test.go),
 which globs `*_test.py` under every root in `pythonTestRoots`.
 
-`rules_condensed.py` emits three files from ONE parse of `ai/rules/*.md`:
+`rules_condensed.py` emits two files from ONE parse of `ai/rules/*.md`:
 
-  CONDENSED.md  every rule's directives (the historical artifact)
   TRIGGERS.md   one routing line per rule, all of them, always loaded
   CORE.md       the directives of the rules that must never sit behind a trigger
 
@@ -151,11 +150,11 @@ class TriggerIndexTest(unittest.TestCase):
                 self.assertLessEqual(len(line), rules_condensed.MAX_TRIGGER_LINE)
 
     def test_live_trigger_index_covers_every_live_rule(self):
-        """The live tree: all 97 rules present, every line inside the budget."""
+        """The live tree: every rule present, every line inside the budget."""
         rules = rules_condensed.load_rules(RULES_DIR)
         lines = rules_condensed.trigger_lines(rules)
         self.assertEqual(len(lines), len(rules))
-        self.assertGreaterEqual(len(lines), 97)
+        self.assertGreaterEqual(len(lines), 20)
         for line in lines:
             self.assertLessEqual(len(line), rules_condensed.MAX_TRIGGER_LINE, line)
 
@@ -179,7 +178,7 @@ class CoreMembershipTest(unittest.TestCase):
                 "interop-and-goal-validation",
             ):
                 write_rule(rules_dir, f"{stem}.md", "when doing the thing", "blocking")
-            write_rule(rules_dir, "no-parking.md", "when blocked", "blocking")
+            write_rule(rules_dir, "completion.md", "when blocked", "blocking")
             write_rule(rules_dir, "alpha.md", "when editing alpha files", "advisory")
 
             core = rules_condensed.core_members(rules_condensed.load_rules(rules_dir))
@@ -193,7 +192,7 @@ class CoreMembershipTest(unittest.TestCase):
                 self.assertIn(f"{stem}.md", names)
             # Rung 3 is NOT automatically eager: it is reachable through its
             # trigger like every other routed rule.
-            self.assertNotIn("no-parking.md", names)
+            self.assertNotIn("completion.md", names)
 
     def test_core_contains_live_rung_1_and_2_rules(self):
         """The live ladder: the four named rule files are eager in this repo."""
@@ -212,7 +211,7 @@ class CoreMembershipTest(unittest.TestCase):
 
         The failure this guards is a filename list in the generator, which reads
         identically to a derivation until the ladder changes underneath it
-        (`ai/rules/derive-not-hardcode.md`). The ladder here names rules that
+        (`ai/rules/evidence.md`). The ladder here names rules that
         exist NOWHERE in the real repo, so a hardcoded list cannot fake it.
         """
         with tempfile.TemporaryDirectory() as td:
@@ -247,7 +246,7 @@ class LadderRefusalTest(unittest.TestCase):
     `rung_col` unset, every row was skipped, and `git-safety`,
     `never-destroy-work`, `rfc-compliance` and `interop-and-goal-validation`
     left the always-on core with no error at all
-    (`ai/rules/fail-closed-guards.md`).
+    (`ai/rules/evidence.md`).
     """
 
     def _rules(self, rules_dir):
@@ -339,7 +338,7 @@ class LadderRefusalTest(unittest.TestCase):
                 "| 3 | Scope integrity | `no-parking` | Never reduce scope |\n",
                 encoding="utf-8",
             )
-            write_rule(rules_dir, "no-parking.md", "when blocked", "blocking")
+            write_rule(rules_dir, "completion.md", "when blocked", "blocking")
             with self.assertRaises(rules_condensed.LadderError) as ctx:
                 rules_condensed.core_members(self._rules(rules_dir))
             self.assertIn("rung 1/2", str(ctx.exception))
@@ -515,19 +514,16 @@ class CorpusCouplingTest(unittest.TestCase):
             }
             self.assertIn("broken.md", names)
 
-    def test_core_body_matches_condensed_body(self):
-        """One parse: a core section reads identically to its digest section."""
+    def test_core_body_matches_the_rule_it_came_from(self):
+        """One parse: a core section reads identically to its own rule file."""
         rules = rules_condensed.load_rules(RULES_DIR)
         core = rules_condensed.core_members(rules)
         self.assertTrue(core)
-        digest, _ = rules_condensed.build(RULES_DIR)
         core_text, _ = rules_condensed.build_core(RULES_DIR)
         for rule in core:
             body = "\n".join(rules_condensed.condense_body(rule["body"])).strip()
             self.assertTrue(body)
-            head = body.splitlines()[0]
-            self.assertIn(head, core_text)
-            self.assertIn(head, digest)
+            self.assertIn(body.splitlines()[0], core_text)
 
 
 def instruction_imports():
@@ -548,7 +544,7 @@ class ImportSwitchTest(unittest.TestCase):
         """AC-8: the canonical source imports the index and the core, not the digest.
 
         Asserted on `ai/INSTRUCTIONS.md` because that is the tracked, canonical
-        file (`ai/rules/canonical-sources.md`). `CLAUDE.md` and `AGENTS.md` are
+        file (`ai/rules/repo-maintenance.md`). `CLAUDE.md` and `AGENTS.md` are
         gitignored generator output, so a fresh checkout has neither until
         `make ze-ai-instructions` runs.
         """
@@ -575,16 +571,20 @@ class ImportSwitchTest(unittest.TestCase):
                 found, expected, f"{name} is stale; run make ze-ai-instructions"
             )
 
-    def test_condensed_still_generated_so_the_revert_works(self):
-        """The revert is one import line, which needs the digest to still exist.
+    def test_condensed_is_gone_and_stays_gone(self):
+        """`CONDENSED.md` was deleted on 2026-08-03 and must not come back.
 
-        `CONDENSED.md` is generated and unimported on purpose. Stop generating it
-        and reverting this spec stops being a one-line edit.
+        It held every rule's directives in one file. Nothing loaded it, and it
+        regenerated 5,182 lines on every rule edit, so the edit cost was paid
+        for a file no session read. `TRIGGERS.md` keeps every rule named.
         """
-        digest = RULES_DIR / "CONDENSED.md"
-        self.assertTrue(digest.is_file(), "CONDENSED.md must stay generated")
-        text = digest.read_text(encoding="utf-8")
-        self.assertIn("GENERATED by scripts/dev/rules_condensed.py", text)
+        self.assertFalse(
+            (RULES_DIR / "CONDENSED.md").is_file(),
+            "CONDENSED.md is back; a rule edit now regenerates it again",
+        )
+        self.assertNotIn(
+            "CONDENSED.md", [name for name, _ in rules_condensed.ARTIFACTS]
+        )
         self.assertNotIn("ai/rules/CONDENSED.md", instruction_imports())
 
     def test_every_live_rule_is_named_in_the_index_file(self):
@@ -595,7 +595,7 @@ class ImportSwitchTest(unittest.TestCase):
         """
         index = (RULES_DIR / "TRIGGERS.md").read_text(encoding="utf-8")
         rules = rules_condensed.load_rules(RULES_DIR)
-        self.assertGreaterEqual(len(rules), 97)
+        self.assertGreaterEqual(len(rules), 20)
         missing = [r["name"] for r in rules if f"ai/rules/{r['name']}" not in index]
         self.assertEqual(missing, [], f"unreachable in every session: {missing}")
 

@@ -52,7 +52,7 @@ destroyed `docs/performance.md` in passing, which is how the sixth was found.
   source-anchored document to zero bytes while reporting two benchmarks PASSED.
   Generate to a temp file, check the exit code, then `os.replace`.
 - **`argv[0]` dispatch and session binary suffixes are incompatible.**
-  `binarySuffixRoot` (`cmd/ze/dispatch.go:127`) takes the segment after the LAST
+  `binarySuffixRoot` (`cmd/ze/dispatch.go`) takes the segment after the LAST
   `-`, so `bin/ze-perf-<session-id>` ends in the session id and dispatches
   nothing: `ze-perf report` dies with `unknown command: report`. The container
   already bind-mounted the binary as a bare `/usr/local/bin/ze-perf` for exactly
@@ -68,7 +68,7 @@ destroyed `docs/performance.md` in passing, which is how the sixth was found.
   became `ze start <config>` and `test/ui/deprecated-bare-config.ci` guards the
   removal, but `test/perf/run.py` still used the old form -- outside `test/`'s
   own suites, so nothing caught it. This is the `\bze <arg>` grep from
-  `ai/rules/before-writing-code.md`, missed again.
+  `ai/rules/architecture.md`, missed again.
 - **Nothing in `ze-verify` covers the Docker perf/interop path**, which is why
   five defects accumulated silently. If you change how ze is built, invoked, or
   named, assume that path is stale until you have run it.

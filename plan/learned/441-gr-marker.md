@@ -29,10 +29,10 @@ Ze implemented the Receiving Speaker side of RFC 4724 (Graceful Restart) but had
 
 - `internal/component/bgp/grmarker/grmarker.go` -- marker package (Write, Read, Remove, MaxRestartTime, SetRBit)
 - `internal/component/bgp/grmarker/grmarker_test.go` -- 21 unit tests
-- `internal/component/bgp/reactor/peer.go:480` -- R-bit injection in getPluginCapabilities
-- `internal/component/bgp/reactor/reactor.go:154` -- Config.RestartUntil field
-- `cmd/ze/hub/main.go:173` -- startup marker read/remove
-- `internal/component/bgp/config/loader.go:634` -- restartFunc closure
+- `internal/component/bgp/reactor/peer.go` -- R-bit injection in getPluginCapabilities
+- `internal/component/bgp/reactor/reactor.go` -- Config.RestartUntil field
+- `cmd/ze/hub/main.go` -- startup marker read/remove
+- `internal/component/bgp/config/loader.go` -- restartFunc closure
 - `test/plugin/gr-marker-restart.ci` -- R=1 OPEN wire verification
 - `test/plugin/gr-marker-expired.ci` -- expired marker rejection
 - `test/plugin/gr-cli-restart.ci` -- lifecycle dispatch test

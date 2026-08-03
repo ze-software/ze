@@ -151,7 +151,7 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 // tested; the two in this file were not. Every test that touched the branch
 // called buildModifiedPayload DIRECTLY, which proves the helper reports the
 // failure and says nothing about whether these two callers act on it
-// (ai/rules/fail-closed-guards.md: drive the guard from its entry point, never
+// (ai/rules/evidence.md: drive the guard from its entry point, never
 // the helper alone).
 //
 // The ingress one is the sharper of the two. It converts an import-modify

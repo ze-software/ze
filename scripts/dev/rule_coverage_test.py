@@ -106,7 +106,7 @@ class TestDetector(DetectorCase):
     def test_detector_reports_unread_matched_rule(self):
         """AC-10: a blocking rule whose trigger matched, never read, is named."""
         write_rule(
-            self.rules, "buffer-first.md", "writing any wire-encoding path", "blocking"
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
         )
         write_transcript(
             self.transcript,
@@ -115,25 +115,25 @@ class TestDetector(DetectorCase):
 
         result = self.analyse()
 
-        self.assertIn("buffer-first.md", result["missed"])
+        self.assertIn("performance.md", result["missed"])
         self.assertEqual(1, self.run_detector(), "a miss must exit 1, not 0")
 
     def test_detector_silent_when_all_read(self):
         """AC-11: reading the matched rule clears it."""
         write_rule(
-            self.rules, "buffer-first.md", "writing any wire-encoding path", "blocking"
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
         )
         write_transcript(
             self.transcript,
             [
                 ("Edit", str(self.root / "internal" / "wire.go")),
-                ("Read", str(self.root / "ai" / "rules" / "buffer-first.md")),
+                ("Read", str(self.root / "ai" / "rules" / "performance.md")),
             ],
         )
 
         result = self.analyse()
 
-        self.assertIn("buffer-first.md", result["matched"])
+        self.assertIn("performance.md", result["matched"])
         self.assertEqual([], result["missed"])
         self.assertEqual(0, self.run_detector())
 
@@ -158,26 +158,26 @@ class TestDetector(DetectorCase):
     def test_condensed_digest_read_does_not_count(self):
         """Reading the eager digest must not mark every rule consulted.
 
-        This is what makes a miss meaningful: CONDENSED.md is in every session's
+        This is what makes a miss meaningful: a digest is in every session's
         context today, so counting it would make the detector measure nothing.
         """
         write_rule(
-            self.rules, "buffer-first.md", "writing any wire-encoding path", "blocking"
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
         )
-        (self.rules / "CONDENSED.md").write_text("# digest\n", encoding="utf-8")
+        (self.rules / "TRIGGERS.md").write_text("# digest\n", encoding="utf-8")
         write_transcript(
             self.transcript,
             [
                 ("Edit", str(self.root / "internal" / "wire.go")),
-                ("Read", str(self.rules / "CONDENSED.md")),
+                ("Read", str(self.rules / "TRIGGERS.md")),
             ],
         )
 
         result = self.analyse()
 
-        self.assertEqual(["buffer-first.md"], result["missed"])
+        self.assertEqual(["performance.md"], result["missed"])
 
-    def write_core(self, *names, cites="no-parking.md"):
+    def write_core(self, *names, cites="completion.md"):
         """A CORE.md carrying the given rules, in the generator's own shape.
 
         The directive body CITES another rule inline, exactly as the real
@@ -185,7 +185,7 @@ class TestDetector(DetectorCase):
         `CORE_RULE_LINE` is `^`/`$` anchored, and a fixture without one lets the
         anchors be deleted with every test still green. On the live artifact
         that deletion nearly doubles the muted set, swallowing rules every
-        session is expected to read (`no-parking.md`, `testing.md`, `tdd.md`,
+        session is expected to read (`completion.md`, `testing.md`, `testing.md`,
         `planning.md` among them): over-muting, the one direction this module
         exists to prevent. The exact counts move with the corpus, so they are
         measured rather than written down here.
@@ -210,9 +210,9 @@ class TestDetector(DetectorCase):
             self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
         )
         write_rule(
-            self.rules, "no-parking.md", "when creating or updating a spec", "blocking"
+            self.rules, "completion.md", "when creating or updating a spec", "blocking"
         )
-        self.write_core("spec-no-code.md", cites="no-parking.md")
+        self.write_core("spec-no-code.md", cites="completion.md")
         write_transcript(
             self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
         )
@@ -225,7 +225,7 @@ class TestDetector(DetectorCase):
             "only the standalone path line is membership; an inline citation is prose",
         )
         self.assertEqual(
-            ["no-parking.md"], result["missed"], "the cited rule is still owed"
+            ["completion.md"], result["missed"], "the cited rule is still owed"
         )
 
     def test_parse_matches_the_generator_that_writes_core(self):
@@ -233,7 +233,7 @@ class TestDetector(DetectorCase):
 
         `write_core` above is this file's own idea of the shape. If the
         generator's changes, every other test here stays green while the live
-        exclusion silently empties (`ai/rules/derive-not-hardcode.md`).
+        exclusion silently empties (`ai/rules/evidence.md`).
         """
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import rules_condensed
@@ -306,7 +306,7 @@ class TestDetector(DetectorCase):
         self.assertEqual(0, self.run_detector(), "an unclearable miss must not exit 1")
 
     def test_always_on_exclusion_is_stated_not_silent(self):
-        """A guard that mutes something says so (ai/rules/fail-closed-guards.md)."""
+        """A guard that mutes something says so (ai/rules/evidence.md)."""
         write_rule(
             self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
         )
@@ -347,7 +347,7 @@ class TestDetector(DetectorCase):
         """No CORE.md must not silently mute; it must fall back to reporting.
 
         Both halves are asserted. The announcement is the guard's other half
-        (`ai/rules/fail-closed-guards.md`), and asserting only the behaviour
+        (`ai/rules/evidence.md`), and asserting only the behaviour
         leaves deleting the print() green.
         """
         write_rule(
@@ -419,7 +419,7 @@ class TestDetector(DetectorCase):
     def test_report_line_is_appended(self):
         """Evidence accumulates across sessions rather than scrolling away."""
         write_rule(
-            self.rules, "buffer-first.md", "writing any wire-encoding path", "blocking"
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
         )
         write_transcript(
             self.transcript, [("Edit", str(self.root / "internal" / "wire.go"))]
@@ -441,13 +441,13 @@ class TestDetector(DetectorCase):
         rows = [json.loads(x) for x in report.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(1, len(rows))
         self.assertEqual("sess-1", rows[0]["session"])
-        self.assertEqual(["buffer-first.md"], rows[0]["missed"])
+        self.assertEqual(["performance.md"], rows[0]["missed"])
         self.assertIn("unmatchable", rows[0])
 
     def test_unreadable_transcript_reports_nothing_and_exits_zero(self):
         """No observation means no verdict, never an invented one."""
         write_rule(
-            self.rules, "buffer-first.md", "writing any wire-encoding path", "blocking"
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
         )
         rc = rule_coverage.main(
             [
@@ -468,7 +468,7 @@ class TestDetector(DetectorCase):
         PREVENTS: the bare `except OSError: return written, rules_read`. Two
         empty sets are exactly what a genuinely read-only session produces, so
         the silent branch was indistinguishable from a real observation of
-        nothing (ai/rules/fail-closed-guards.md: a guard that cannot evaluate
+        nothing (ai/rules/evidence.md: a guard that cannot evaluate
         must say so). It stays advisory -- this hook never blocks a stop.
         """
         path = self.root / "locked.jsonl"
@@ -512,7 +512,7 @@ class TestNeverBlocksStop(DetectorCase):
         payload, and an empty one. None may return 2.
         """
         write_rule(
-            self.rules, "buffer-first.md", "writing any wire-encoding path", "blocking"
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
         )
         write_transcript(
             self.transcript, [("Edit", str(self.root / "internal" / "wire.go"))]

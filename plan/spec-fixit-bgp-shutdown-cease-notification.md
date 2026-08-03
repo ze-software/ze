@@ -21,20 +21,20 @@ and the trace is what this spec is written from.
 
 **Ze sends no Cease / Administrative Shutdown NOTIFICATION on SIGTERM, and the code
 that would send one is unreachable.** `Session.Close()` builds exactly that message
-(`internal/component/bgp/reactor/session_connection.go:377-392`), and it has **no
+(`internal/component/bgp/reactor/session_connection.go`), and it has **no
 reachable production caller**. Two independent guards each make it dead:
 
 | # | Guard | Why it is always false on the shutdown path |
 |---|-------|---------------------------------------------|
-| 1 | `if p.session != nil` (`internal/component/bgp/reactor/peer_run.go:536-542`) | `runOnce`'s deferred `p.session = nil` (`peer_run.go:255-257`) runs before `p.cleanup()`, which is itself `defer p.cleanup()` at `peer_run.go:28` and therefore can only run after `runOnce` returned. Same goroutine, strict program order: this is a guaranteed ordering, not a race |
-| 2 | `if conn != nil` (`session_connection.go:385`) | The session's cancel goroutine calls `closeConn()` the instant the peer context is done (`session.go:896-897`), and `Run` also has `defer s.closeConn()` (`session.go:868`). `closeConn` sets `s.conn = nil` (`session_connection.go:506`) |
+| 1 | `if p.session != nil` (`internal/component/bgp/reactor/peer_run.go`) | `runOnce`'s deferred `p.session = nil` (`peer_run.go`) runs before `p.cleanup()`, which is itself `defer p.cleanup()` at `peer_run.go` and therefore can only run after `runOnce` returned. Same goroutine, strict program order: this is a guaranteed ordering, not a race |
+| 2 | `if conn != nil` (`session_connection.go`) | The session's cancel goroutine calls `closeConn()` the instant the peer context is done (`session.go`), and `Run` also has `defer s.closeConn()` (`session.go`). `closeConn` sets `s.conn = nil` (`session_connection.go`) |
 
 So even if guard 1 were passed, guard 2 would still skip the send. `logNotifyErr` is
 never invoked, so nothing is logged either.
 
 **Timing is not the cause and must not be "fixed".** `r.cleanup()` Phase 2 waits on
-every `peer.Wait(waitCtx)` under a 2s deadline (`reactor.go:1608`, `:1626-1630`) and
-the hub gives `eng.Stop` a 3s budget (`cmd/ze/hub/main.go:1182-1188`). The peer
+every `peer.Wait(waitCtx)` under a 2s deadline (`reactor.go`, `:1626-1630`) and
+the hub gives `eng.Stop` a 3s budget (`cmd/ze/hub/main.go`). The peer
 goroutine reaches `cleanup()` well before exit. Nothing is issued, so nothing is
 left unflushed. A fix that only widens a deadline changes nothing.
 
@@ -44,12 +44,12 @@ NOTIFICATION message with a Cease" in **indicative mood with no RFC 2119 keyword
 (`rfc/full/rfc4271.txt:3940-3943`), despite the document carrying the 2119
 boilerplate at `:302-304`. The only keyword governing the act is §6.7's **MAY**
 (`rfc/full/rfc4271.txt:1919-1923`). RFC 4486 adds nothing stronger: both its
-extracted requirements are MAY (`rfc/short/rfc4486.md:55-56`). This is therefore a
+extracted requirements are MAY (`rfc/short/rfc4486.md`). This is therefore a
 conformance-quality and operational defect, **not** a MUST violation, and it does not
 engage the owner-escalation gate in `ai/rules/rfc-compliance.md`.
 
 **The operational consequence is why this is worth fixing anyway.** A peer observes a
-clean TCP FIN, not an RST and not a NOTIFICATION (`session_connection.go:484-506`:
+clean TCP FIN, not an RST and not a NOTIFICATION (`session_connection.go`:
 flush, `CloseWrite`, 100ms drain, `Close`). A bare TCP close with no NOTIFICATION is
 the signal a graceful-restart-capable peer reads as *"my neighbour restarted, retain
 its routes as stale"* rather than *"my neighbour went away, withdraw them"*. Ze
@@ -59,7 +59,7 @@ box out of service intends.
 
 → Constraint: the GR consequence above is **unverified**. It follows from what the
 peer sees plus the fact that Ze advertises GR; nobody has traced Ze's own GR plugin
-or tested a real peer's reaction (`ai/rules/no-fabrication.md`). Validating it is the
+or tested a real peer's reaction (`ai/rules/evidence.md`). Validating it is the
 first task of this spec, because it decides the priority: if peers do hold stale
 routes through an admin shutdown, this is an operator-visible defect and the MAY
 level understates it.
@@ -72,7 +72,7 @@ level understates it.
 - [ ] `ai/rules/rfc-compliance.md` "Extraction Completeness"
   → Constraint: there is **no `RFC4271-8.2.2-*` requirement extracted at all**
     (`rfc/short/rfc4271.md` jumps from `RFC4271-8.2.1-3` to `8.2.1.4`; confirmed in
-    `ai/RFC-REQUIREMENTS.md:1918-1921`). RFC 4271 IS enrolled (`rfc/enrolled.txt:193`),
+    `ai/RFC-REQUIREMENTS.md`). RFC 4271 IS enrolled (`rfc/enrolled.txt`),
     so this is an unextracted obligation inside an enrolled RFC: the gate's silence is
     not conformance.
 - [ ] `internal/component/bgp/reactor/session_connection.go` (`Close`, `closeConn`, `Teardown`)
@@ -95,29 +95,29 @@ level understates it.
 
 | Hop | What happens | Cite |
 |-----|--------------|------|
-| 1 | SIGTERM → `cb()` | `signal.go:161-162`, `:171` |
-| 2 | callback is `r.Stop()` | `reactor.go:1272-1274` |
-| 3 | `Stop()` cancels `r.ctx` | `reactor.go:1358-1366` |
-| 4 | `monitor()` unblocks → `r.cleanup()` | `reactor.go:1567-1569` |
-| 5 | `cleanup()` Phase 1 → `peer.Stop()` → `p.cancel()` | `reactor.go:1602-1604`, `peer.go:1035-1043` |
-| 6 | `p.ctx` is a child of `r.ctx`, so step 3 already cancelled it | `peer.go:1027`; started at `reactor.go:645`, `:1137`, `reactor_peers.go:193`, `reactor_dynamic.go:99` |
-| 7 | session cancel goroutine → `s.closeConn()` | `session.go:889`, `:896-897` |
-| 8 | `closeConn()` sets `s.conn = nil` | `session_connection.go:506` |
-| 9 | `Session.Run` returns; `defer s.closeConn()` on every path | `session.go:868` |
-| 10 | `runOnce`'s defer sets `p.session = nil` | `peer_run.go:255-257` |
-| 11 | `runOnce` returns → `defer p.cleanup()` | `peer_run.go:28`, `:178`, `:517` |
-| 12 | `cleanup()` tests `p.session != nil` → false → never sends | `peer_run.go:536-542` |
+| 1 | SIGTERM → `cb()` | `signal.go`, `:171` |
+| 2 | callback is `r.Stop()` | `reactor.go` |
+| 3 | `Stop()` cancels `r.ctx` | `reactor.go` |
+| 4 | `monitor()` unblocks → `r.cleanup()` | `reactor.go` |
+| 5 | `cleanup()` Phase 1 → `peer.Stop()` → `p.cancel()` | `reactor.go`, `peer.go` |
+| 6 | `p.ctx` is a child of `r.ctx`, so step 3 already cancelled it | `peer.go`; started at `reactor.go`, `:1137`, `reactor_peers.go`, `reactor_dynamic.go` |
+| 7 | session cancel goroutine → `s.closeConn()` | `session.go`, `:896-897` |
+| 8 | `closeConn()` sets `s.conn = nil` | `session_connection.go` |
+| 9 | `Session.Run` returns; `defer s.closeConn()` on every path | `session.go` |
+| 10 | `runOnce`'s defer sets `p.session = nil` | `peer_run.go` |
+| 11 | `runOnce` returns → `defer p.cleanup()` | `peer_run.go`, `:178`, `:517` |
+| 12 | `cleanup()` tests `p.session != nil` → false → never sends | `peer_run.go` |
 
 **No other graceful path fires on shutdown.** Every production `Teardown` caller is
-BFD-down (`peer_bfd.go:130`), congestion (`forward_pool_congestion.go:273`),
-prefix-limit (`peer_initial_sync.go:317`), or the operator command `request peer
-teardown` (`plugins/cmd/peer/peer.go:400`).
+BFD-down (`peer_bfd.go`), congestion (`forward_pool_congestion.go`),
+prefix-limit (`peer_initial_sync.go`), or the operator command `request peer
+teardown` (`plugins/cmd/peer/peer.go`).
 
-**Why this survived.** `TestSessionGracefulClose` (`session_test.go:466-489`) calls
+**Why this survived.** `TestSessionGracefulClose` (`session_test.go`) calls
 `session.Close()` **directly**, without ever running `Session.Run`, so `s.conn` is
 still live and the NOTIFICATION *is* built. It asserts only `NoError` and
 `StateIdle`, never the wire bytes. The dead path therefore compiles, shows coverage,
-and reads as working. `test/reload/signal-stop.ci:14` does drive a real
+and reads as working. `test/reload/signal-stop.ci` does drive a real
 `action=sigterm` but asserts only the pre-shutdown route, the EOR and a clean exit
 (`:10-11`), so it stays green either way.
 
@@ -128,7 +128,7 @@ Shutdown to each Established peer, and the send is flushed before the socket clo
 send must fit inside them, not extend them; a shutdown that hangs waiting on an
 unresponsive peer is worse than one that closes bluntly.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 An operator (or an init system, or a container runtime) sends SIGTERM to `ze`. Input
@@ -142,9 +142,9 @@ closes the socket and nils it → `Session.Run` returns → `runOnce`'s defer ni
 downstream of two nils that the cancel has already set.
 
 **Where a fix inserts.** Before the cancel propagates, not after. `Reactor.cleanup()`
-Phase 1 (`reactor.go:1602-1604`) is the last point at which sessions are still live
+Phase 1 (`reactor.go`) is the last point at which sessions are still live
 and the sockets still open; the existing `Session.Teardown(NotifyCeaseAdminShutdown, ...)`
-path (`session_connection.go:425-450`) already works and is exercised by four other
+path (`session_connection.go`) already works and is exercised by four other
 callers, so the fix is a call-site and ordering problem, not new wire code.
 
 ### Boundaries Crossed
@@ -169,7 +169,7 @@ callers, so the fix is a call-site and ordering problem, not new wire code.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | Sending Cease before the cancel propagates fits inside the existing 2s per-peer and 3s engine budgets | The send is one small message per peer on an already-open socket; `Teardown` does this today on four other paths | Shutdown slows or hangs, which is worse than the defect | Measure shutdown wall time with N peers before and after | unvalidated |
-| A-2 | A GR-capable peer currently retains Ze's routes as stale across an admin shutdown | Peer sees a bare FIN, and Ze advertises GR (`docs/features/rfc-status.md:27`) | The defect is cosmetic rather than operator-visible, and priority drops | AC-7: a real peer (FRR or BIRD) in the interop lab | unvalidated |
+| A-2 | A GR-capable peer currently retains Ze's routes as stale across an admin shutdown | Peer sees a bare FIN, and Ze advertises GR (`docs/features/rfc-status.md`) | The defect is cosmetic rather than operator-visible, and priority drops | AC-7: a real peer (FRR or BIRD) in the interop lab | unvalidated |
 | A-3 | `Session.Teardown` is safe to call from the reactor's cleanup goroutine | It is called today from BFD, congestion and prefix-limit paths | A data race on session state during shutdown | `make ze-race-reactor` (`ai/rules/testing.md`) | unvalidated |
 
 ### Risks
@@ -221,10 +221,10 @@ callers, so the fix is a call-site and ordering problem, not new wire code.
 - `internal/component/bgp/reactor/session_connection.go` - `Close()` reachable or deleted
 - `internal/component/bgp/reactor/session_test.go` - `TestSessionGracefulClose` asserts wire bytes, not just `NoError`
 - `test/reload/signal-stop.ci` - assert the NOTIFICATION
-- `test/plugin/rfc7606-relay-one-field.ci:256` - **a booby trap this spec will spring.**
+- `test/plugin/rfc7606-relay-one-field.ci` - **a booby trap this spec will spring.**
   That test carries `reject=stderr:pattern=notification`, and it is green today ONLY
   because Ze sends no Cease on shutdown. The moment this spec lands, every shutdown
-  emits `notification sent` (`internal/component/bgp/reactor/session_write.go:50-54`)
+  emits `notification sent` (`internal/component/bgp/reactor/session_write.go`)
   and that reject rule flips RED on a test that has nothing to do with shutdown.
   Found by an independent reviewer on 2026-07-29, who verified it by establishing a
   real session against `ze-test peer --mode sink`, sending SIGTERM, and observing the
@@ -244,7 +244,7 @@ callers, so the fix is a call-site and ordering problem, not new wire code.
    and the rest of the spec is urgent. Cheapest route is the existing interop lab with
    a GR-capable peer.
 2. **Phase: Wiring.** Extend `test/reload/signal-stop.ci` to assert the NOTIFICATION.
-   It must FAIL first, against today's bare FIN (`ai/rules/tdd.md`).
+   It must FAIL first, against today's bare FIN (`ai/rules/testing.md`).
 3. **Phase: The ordering fix.** Send Cease from `Reactor.cleanup()` Phase 1, before the
    cancel propagates, reusing `Session.Teardown`. Bound it by the existing budgets.
 4. **Phase: Remove the dead code.** `Session.Close()` and the `peer_run.go` guard are
@@ -273,7 +273,7 @@ went missing. Coverage of a dead path reads exactly like coverage of a live one.
   fact that Ze advertises GR. It is **not** traced through Ze's GR plugin and not
   tested against a real peer. AC-7 exists to settle it.
 - What FSM event fires on the shutdown path instead of `fsm.EventManualStop`
-  (`session_connection.go:395`, also dead) was not traced.
+  (`session_connection.go`, also dead) was not traced.
 
 ## Checklist
 
@@ -300,7 +300,7 @@ went missing. Coverage of a dead path reads exactly like coverage of a live one.
 | AC-1 | SIGTERM to `ze` with one Established peer | The peer receives a NOTIFICATION with Error Code Cease and subcode Administrative Shutdown BEFORE the TCP close, asserted on the wire, not by a log line |
 | AC-2 | The same, with the peer socket already broken | Shutdown still completes inside the existing 2s/3s budgets; a failed send is logged, never fatal, and never hangs |
 | AC-3 | `Session.Close()` after this spec | It has a reachable production caller, or it is deleted. Dead code that appears to implement a protocol action is worse than its absence, because it reads as coverage |
-| AC-4 | `peer_run.go:536-542` | Either reachable, or removed with its guard |
+| AC-4 | `peer_run.go` | Either reachable, or removed with its guard |
 | AC-5 | `test/reload/signal-stop.ci` | Asserts the NOTIFICATION on the wire, so the behaviour cannot silently regress to a bare FIN again |
 | AC-6 | `rfc/short/rfc4271.md` | Carries an extracted requirement for the §8.2.2 ManualStop action list at its true level, so the ledger stops being silent about it. **All THREE sites, not just the Established one**: `rfc/full/rfc4271.txt:3718` (OpenSent), `:3733` (OpenConfirm) and `:3943` (Established) each list "sends the NOTIFICATION message with a Cease" for a ManualStop event. Verified 2026-07-29 by grepping the source text; an earlier reading cited only the Established site, and a fix that covers only Established leaves an operator stopping a peer mid-handshake with the same silent close |
 | AC-8 | A ManualStop while a session is in OpenSent or OpenConfirm | The peer receives Cease, same as from Established. The FSM lists the action in all three states, so a fix keyed only to Established is incomplete |
@@ -312,7 +312,7 @@ went missing. Coverage of a dead path reads exactly like coverage of a live one.
   fact that Ze advertises GR. It is **not** traced through Ze's GR plugin and not
   tested against a real peer. AC-7 exists to settle it.
 - What FSM event fires on the shutdown path instead of `fsm.EventManualStop`
-  (`session_connection.go:395`, also dead) was not traced.
+  (`session_connection.go`, also dead) was not traced.
 
 ## RFC Documentation (Scope: protocol)
 

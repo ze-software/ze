@@ -8,7 +8,7 @@ The entire `.ci` suite stayed green while ze's route replay emitted NEXT_HOP twi
 
 - One engine per test, per-instance router-id (ExaBGP-style) over shared state, so multiple engines never collide; proven live by scenario 49 (two speakers at distinct IPs, both Established).
 - Tests are dynamically loaded plugins with only `NAME` + `on_update` (+ optional `on_end`) over a built-in validator: the engine validates NOTHING on its own, so a check exists only because a test wrote it, and every plugin ships red/green unit fixtures. This is what keeps a hand-rolled speaker from accreting its own broad, buggy validator.
-- Interop scenario over a `.ci` functional test for the dup-NEXT_HOP proof, because the bug lives in the wire-mode re-encode path (`buildWireModeUpdate`, `reactor_api_batch.go`) which only fires when ze forwards to a DISTINCT receiving peer, and the `.ci` harness is single-IP (documented at `test/plugin/adj-rib-in-replay-on-peerup.ci:4-5`). The Docker harness gives every peer its own IP, so scenario 48 is stronger coverage than any `.ci` could be.
+- Interop scenario over a `.ci` functional test for the dup-NEXT_HOP proof, because the bug lives in the wire-mode re-encode path (`buildWireModeUpdate`, `reactor_api_batch.go`) which only fires when ze forwards to a DISTINCT receiving peer, and the `.ci` harness is single-IP (documented at `test/plugin/adj-rib-in-replay-on-peerup.ci`). The Docker harness gives every peer its own IP, so scenario 48 is stronger coverage than any `.ci` could be.
 - Distinct `_TIMEOUT` vs `_CLOSED` sentinels in the engine's socket reads (review ISSUE 1) over a single `None`, so an idle gap does not end the session and a delayed duplicate cannot yield a false GREEN.
 
 ## Consequences

@@ -43,34 +43,34 @@ destination hostname (and, consequently, the socket family).
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/traceroute/cmd/traceroute.go` - `doTracerouteCtx` derives the socket family from the destination: `isV6 := dest.Is6()` (traceroute.go:192); the `source` is used only for `bindAddr` (traceroute.go:202-204, :208). `parseTracerouteArgs` (traceroute.go:60-116) resolves the destination first; source has no bearing on it.
-- [ ] `internal/component/traceroute/cmd/resolve.go` - the destination is resolved AF-agnostically before the source arg is read; `validateSourceIP` (resolve.go:157-164) checks only that the source is a valid IP, not its family vs the destination.
-- [ ] `internal/core/probe/icmp.go` - `ResolveTarget` calls `net.DefaultResolver.LookupNetIP(ctx, "ip", s)` and returns `ips[0]` (icmp.go:54-66); network `"ip"` means either family, first answer wins.
+- [ ] `internal/component/traceroute/cmd/traceroute.go` - `doTracerouteCtx` derives the socket family from the destination: `isV6 := dest.Is6()` (traceroute.go); the `source` is used only for `bindAddr` (traceroute.go, :208). `parseTracerouteArgs` (traceroute.go) resolves the destination first; source has no bearing on it.
+- [ ] `internal/component/traceroute/cmd/resolve.go` - the destination is resolved AF-agnostically before the source arg is read; `validateSourceIP` (resolve.go) checks only that the source is a valid IP, not its family vs the destination.
+- [ ] `internal/core/probe/icmp.go` - `ResolveTarget` calls `net.DefaultResolver.LookupNetIP(ctx, "ip", s)` and returns `ips[0]` (icmp.go); network `"ip"` means either family, first answer wins.
 
 ### Post-wave corrections (2026-07-10)
 
-All refs re-verified against current code. `doTracerouteCtx` (traceroute.go:185),
+All refs re-verified against current code. `doTracerouteCtx` (traceroute.go),
 `isV6 := dest.Is6()` (:192), bindAddr (:202-204, ListenPacket :208),
-`parseTracerouteArgs` (:60-116), `validateSourceIP` (resolve.go:157-164) and
-`ResolveTarget` (icmp.go:54-66, `LookupNetIP` with network `"ip"` :58, first
+`parseTracerouteArgs` (:60-116), `validateSourceIP` (resolve.go) and
+`ResolveTarget` (icmp.go, `LookupNetIP` with network `"ip"` :58, first
 answer :65) are all current. Two material precision corrections:
 
 - **Entry-point correction (supersedes A-2's basis and the wiring wording).**
   The source option exists ONLY on the `ze-resolve:traceroute` RPC path, and
   its keyword is `source` (not `source-address`): `handleResolveTraceroute`
-  (resolve.go:23) resolves the destination FIRST via `probe.ResolveTarget`
-  (resolve.go:32) and only THEN parses `source` (resolve.go:47-54) -- that
+  (resolve.go) resolves the destination FIRST via `probe.ResolveTarget`
+  (resolve.go) and only THEN parses `source` (resolve.go) -- that
   ordering is the bug site. `parseTracerouteArgs` has NO source option at all;
-  the `ze-show:traceroute` handler (`handleTraceroute`, traceroute.go:46-51),
-  the offline `show traceroute` (`showTracerouteLocal`, register.go:46-54) and
-  the monitor paths all pass an empty `tracerouteOpts` (traceroute.go:51,
-  register.go:54). So the entry points do NOT share one parse path, and only
+  the `ze-show:traceroute` handler (`handleTraceroute`, traceroute.go),
+  the offline `show traceroute` (`showTracerouteLocal`, register.go) and
+  the monitor paths all pass an empty `tracerouteOpts` (traceroute.go,
+  register.go). So the entry points do NOT share one parse path, and only
   the resolve path can express a source today. The fix (source-first parse +
   family hint + clear mismatch error) lands on `handleResolveTraceroute`;
   `ResolveTarget` still gains the family-aware capability as designed.
 - **`ResolveTarget` blast radius.** Six non-test callers: traceroute
-  resolve.go:32, traceroute.go:103, stream.go:46; ping resolve.go:31,
-  ping.go:88, stream.go:25. A family-aware variant (or an added parameter
+  resolve.go, traceroute.go, stream.go; ping resolve.go,
+  ping.go, stream.go. A family-aware variant (or an added parameter
   updated at all six sites) must keep ping compiling with unchanged behaviour.
 - **Adjacent observation (out of scope).** Ping's resolve path has the same
   source-after-resolve pattern (`internal/component/ping/cmd/resolve.go`:
@@ -89,7 +89,7 @@ answer :65) are all current. Two material precision corrections:
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- ~~CLI: `resolve traceroute` / `show traceroute` with a `source-address <ip>` option and a hostname target, parsed in `parseTracerouteArgs` (traceroute.go:60-115).~~ (Superseded 2026-07-10: wrong producer.) The `ze-resolve:traceroute` RPC (`handleResolveTraceroute`, resolve.go:23) with a `source <ip>` option and a hostname target; the source is parsed in that handler's own arg loop (resolve.go:47-54), not in `parseTracerouteArgs`. `show traceroute` has no source option today.
+- ~~CLI: `resolve traceroute` / `show traceroute` with a `source-address <ip>` option and a hostname target, parsed in `parseTracerouteArgs` (traceroute.go).~~ (Superseded 2026-07-10: wrong producer.) The `ze-resolve:traceroute` RPC (`handleResolveTraceroute`, resolve.go) with a `source <ip>` option and a hostname target; the source is parsed in that handler's own arg loop (resolve.go), not in `parseTracerouteArgs`. `show traceroute` has no source option today.
 
 ### Transformation Path
 1. Parse args; extract the source-address (if any) before resolving the destination.
@@ -106,10 +106,10 @@ answer :65) are all current. Two material precision corrections:
 | Engine ↔ socket | resolved family selects v4/v6 socket | [ ] |
 
 ### Integration Points
-- `ResolveTarget` (`probe/icmp.go:54-66`) - accept a family hint (six non-test callers, incl. ping; see Post-wave corrections).
-- `handleResolveTraceroute` (`resolve.go:23`, source parse :47-54, destination resolve :32) - order source parse before destination resolve; pass the hint (corrected 2026-07-10: this is where the source is parsed, not `parseTracerouteArgs`).
-- `doTracerouteCtx` (`traceroute.go:185`) - socket family from the resolved destination, unchanged mechanics.
-- `validateSourceIP` (`resolve.go:157-164`) - optionally assert source family matches the resolved destination.
+- `ResolveTarget` (`probe/icmp.go`) - accept a family hint (six non-test callers, incl. ping; see Post-wave corrections).
+- `handleResolveTraceroute` (`resolve.go`, source parse :47-54, destination resolve :32) - order source parse before destination resolve; pass the hint (corrected 2026-07-10: this is where the source is parsed, not `parseTracerouteArgs`).
+- `doTracerouteCtx` (`traceroute.go`) - socket family from the resolved destination, unchanged mechanics.
+- `validateSourceIP` (`resolve.go`) - optionally assert source family matches the resolved destination.
 
 ### Architectural Verification
 - [ ] No bypassed layers (resolution still through the probe resolver)
@@ -123,7 +123,7 @@ answer :65) are all current. Two material precision corrections:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `LookupNetIP` supports `"ip4"`/`"ip6"` networks for family-constrained resolution | Go stdlib net semantics | need manual filtering of results | unit test with a dual-stack name | unvalidated |
-| A-2 | ~~Both `resolve traceroute` and `show traceroute` share the same parse path~~ | ~~traceroute.go:60-115~~ | must fix both call sites | grep both entry points during audit | broken (2026-07-10: they do NOT share a parse path; only the resolve path accepts a source -- see Post-wave corrections; fix scoped to `handleResolveTraceroute`) |
+| A-2 | ~~Both `resolve traceroute` and `show traceroute` share the same parse path~~ | ~~traceroute.go~~ | must fix both call sites | grep both entry points during audit | broken (2026-07-10: they do NOT share a parse path; only the resolve path accepts a source -- see Post-wave corrections; fix scoped to `handleResolveTraceroute`) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -190,7 +190,7 @@ answer :65) are all current. Two material precision corrections:
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| CLI grammar | [ ] no (existing options) | `ai/rules/cli-grammar.md` |
+| CLI grammar | [ ] no (existing options) | `ai/rules/cli.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/traceroute-source-af.ci` |
 | Pipe completeness | [ ] yes | traceroute output already routes through pipes; keep it |
 
@@ -247,11 +247,11 @@ answer :65) are all current. Two material precision corrections:
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| A-2: resolve and show traceroute share one parse path with a source option | Only `ze-resolve:traceroute` accepts a source (keyword `source`, resolve.go:47-54); `parseTracerouteArgs` has no source option; show/monitor paths pass empty opts | Design-stage re-verification 2026-07-10 (read handlers in resolve.go, traceroute.go, register.go) | Fix scoped to `handleResolveTraceroute`; wiring/phase wording corrected before implementation started |
+| A-2: resolve and show traceroute share one parse path with a source option | Only `ze-resolve:traceroute` accepts a source (keyword `source`, resolve.go); `parseTracerouteArgs` has no source option; show/monitor paths pass empty opts | Design-stage re-verification 2026-07-10 (read handlers in resolve.go, traceroute.go, register.go) | Fix scoped to `handleResolveTraceroute`; wiring/phase wording corrected before implementation started |
 
 ## Known Limitations
 - Only the `ze-resolve:traceroute` path accepts a source today, so only that path gains family-driven resolution. `show traceroute` / `monitor traceroute` (parseTracerouteArgs-based, no source option) are unaffected; adding a source option to them is out of scope for this spec.
-- Ping's resolve path has the same source-after-resolve pattern (ping/cmd/resolve.go:31 vs :44-52) and is NOT fixed here; flagged for a user decision as follow-up.
+- Ping's resolve path has the same source-after-resolve pattern (ping/cmd/resolve.go vs :44-52) and is NOT fixed here; flagged for a user decision as follow-up.
 
 ## Design Insights
 <!-- LIVE -->

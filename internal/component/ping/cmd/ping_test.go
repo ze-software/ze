@@ -122,7 +122,7 @@ func TestMonitorPingParseArgsInterval(t *testing.T) {
 // PREVENTS: the trap this fixes -- monitorPingLocal parsed both via the shared
 // parsePingArgs and then discarded them, so an explicit request silently did
 // nothing. Accept-and-ignore is banned by
-// ai/rules/no-workarounds-for-missing-behavior.md.
+// ai/rules/completion.md.
 func TestMonitorPingParseArgsCountAndSize(t *testing.T) {
 	mp, err := parseMonitorPingArgs([]string{"10.0.0.1", "count", "5", "size", "1400"})
 	require.NoError(t, err)
@@ -563,7 +563,7 @@ func TestRunPingBatchCountZeroDoesNotHang(t *testing.T) {
 // a missing route, EPERM without CAP_NET_RAW -- no probe reaches the wire, so
 // runPingSession emits nothing. runPingBatch must NOT summarize that empty result
 // as a healthy sent=0/received=0/loss-percent=0 map (the fail-open pattern
-// ai/rules/fail-closed-guards.md forbids: a transport failure rendered as a
+// ai/rules/evidence.md forbids: a transport failure rendered as a
 // valid-looking 0%-loss answer). It returns errPingNoProbesSent instead, matching
 // the serial engine's StatusError-on-write. The socket is still closed.
 func TestRunPingBatchSendErrorFailsClosed(t *testing.T) {

@@ -1,4 +1,4 @@
-// Design: ai/rules/cli-patterns.md -- "-" means stdin/stdout across every command
+// Design: ai/rules/cli.md -- "-" means stdin/stdout across every command
 package cliio
 
 import (
@@ -25,7 +25,7 @@ const MaxStdinBytes = 256 << 20 // 256 MB
 // ErrStdinClaimed is returned when "-" is read a second time in one process.
 // stdin is consumable exactly once; a second read would silently return empty,
 // which downstream cannot tell from a genuinely empty file
-// (ai/rules/fail-closed-guards.md). Fail closed instead.
+// (ai/rules/evidence.md). Fail closed instead.
 var ErrStdinClaimed = errors.New("cliio: stdin (\"-\") already consumed; it can be read at most once per command")
 
 // stdin and stdout are indirections over the process's standard streams so

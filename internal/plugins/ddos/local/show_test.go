@@ -31,8 +31,10 @@ func TestShowDdosLocalNoResponder(t *testing.T) {
 
 func TestShowDdosLocalActive(t *testing.T) {
 	r := newResponder(DefaultConfig(), nil)
-	r.active = true
-	r.target = ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80}
+	// setStatus is the responder's only writer of the mitigation state: it keeps
+	// the mu-guarded fields and the lock-free snapshot the show handler reads in
+	// step. Poking the fields would leave the snapshot idle.
+	r.setStatus(true, ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80})
 	activeResponder.Store(r)
 	t.Cleanup(func() { activeResponder.Store(nil) })
 

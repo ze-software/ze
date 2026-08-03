@@ -19,7 +19,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 `-race` reports zero data races.
 
 **This is a BROKEN TEST, and it must be FIXED. It must NOT go into
-`plan/known-failures/`.** `ai/rules/fix-dont-record.md` is explicit: a test that
+`plan/known-failures/`.** `ai/rules/completion.md` is explicit: a test that
 passes on a quiet host and fails on a busy one waits on a duration instead of on
 a condition, and "passes in isolation" is a banned excuse. It reproduces, so
 there is no recording path for it. The load is not the explanation, it is the
@@ -56,24 +56,24 @@ guaranteed two, and the fourth dispatch may legitimately not block.
 Wait on the drained condition rather than on a clock. The test needs a way to
 observe that the per-peer channel is full, and a way to observe that it has been
 drained. Neither exists today, which is the product gap
-(`ai/rules/fix-dont-record.md`: "If none exists, ADD one; a missing signal is a
+(`ai/rules/completion.md`: "If none exists, ADD one; a missing signal is a
 product gap, not a test problem"). Expect this to need a small observable on the
 pool, not only a test rewrite. Confirm at design time whether an existing
 accessor already answers it before adding one.
 
 The assertion the test exists to make is unchanged and must survive: a dispatch
 into a full channel BLOCKS and no item is dropped. Weakening that to reach green
-is banned (`ai/rules/no-test-deletion.md`).
+is banned (`ai/rules/testing.md`).
 
 Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 ## Required Reading
 
-- [ ] `ai/rules/fix-dont-record.md` - load is never an explanation, it is the bug
+- [ ] `ai/rules/completion.md` - load is never an explanation, it is the bug
   → Constraint: no `plan/known-failures/` shard. The failure reproduces, so it gets fixed.
-- [ ] `ai/rules/flaky-under-load.md` - use `scripts/dev/stress-repro.py`, never a loop over the full suite
+- [ ] `ai/rules/testing.md` - use `scripts/dev/stress-repro.py`, never a loop over the full suite
   → Constraint: reproduce under the stress reproducer, then read the test; do not hunt with repeated verify runs.
-- [ ] `ai/rules/no-test-deletion.md` - the assertion is the requirement
+- [ ] `ai/rules/testing.md` - the assertion is the requirement
   → Constraint: the backpressure claim survives the rewrite unchanged.
 - [ ] `ai/rules/testing.md` - "Reactor Concurrency Code"
   → Constraint: `make ze-race-reactor` is the required verification for anything in this package that shares state across goroutines.
@@ -92,7 +92,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 **Behavior to change:** how the test waits. Durations become conditions. If an observable must be added to `forward_pool.go` to make the condition readable, that is a deliberate addition and not a workaround.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 `pool.Dispatch(key, item)` called from the reactor's forward path, against a per-peer channel of fixed size.
@@ -122,14 +122,14 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 | No unintended coupling | No | fill during design |
 | No duplicated functionality | No | fill during design: check for an existing depth or length accessor before adding one |
 | Zero-copy preserved where applicable | N-A | no wire path touched |
-| Registration over hardcoding (`ai/rules/plugin-self-containment.md`) | N-A | no command, view, family, or handler added |
+| Registration over hardcoding (`ai/rules/plugins.md`) | N-A | no command, view, family, or handler added |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The failure is a timing assumption in the test, not a defect in `Dispatch`. | `-race` is clean and the test passes in isolation, which points at the assertion rather than at the code. | A real backpressure defect exists and is in scope here (`ai/rules/no-parking.md`). | reproduce under `scripts/dev/stress-repro.py`, then read the worker's take path | unvalidated |
+| A-1 | The failure is a timing assumption in the test, not a defect in `Dispatch`. | `-race` is clean and the test passes in isolation, which points at the assertion rather than at the code. | A real backpressure defect exists and is in scope here (`ai/rules/completion.md`). | reproduce under `scripts/dev/stress-repro.py`, then read the worker's take path | unvalidated |
 | A-2 | The worker takes a batch, so channel occupancy after three dispatches is not deterministically two. | The handler signature receives a slice of items, which suggests batching. NOT yet confirmed against the take path. | Step 1 is sound and only `require.Never` needs replacing. | read `forward_pool.go`'s worker loop | unvalidated |
 | A-3 | No observable for full or drained exists on the pool today. | The test uses durations, which is what an author does when no signal is available. | Use the existing one. Do not add a second. | grep the pool's exported and package-level accessors | unvalidated |
 
@@ -137,9 +137,9 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The fix replaces one duration with a longer one and the test reds again later on a busier host. | A rewrite that still names a millisecond figure as the proof. | A duration may bound a poll, never carry the assertion. The assertion reads a condition. |
-| R-2 | The test is quietly relaxed to assert something weaker that always passes. | The `PREVENTS:` line stops matching what the test checks. | The backpressure claim is the requirement (`ai/rules/no-test-deletion.md`). |
+| R-2 | The test is quietly relaxed to assert something weaker that always passes. | The `PREVENTS:` line stops matching what the test checks. | The backpressure claim is the requirement (`ai/rules/testing.md`). |
 | R-3 | A new observable exists only for the test and is dead in production. | An accessor with one caller, and that caller is a `_test.go` file. | A test-only observable is acceptable when it reads state the pool already keeps. Adding new STATE for a test is not. Record which it is. |
-| R-4 | The failure is chased by looping `make ze-verify`. | Repeated full-suite runs in the session log. | `ai/rules/flaky-under-load.md`: use `scripts/dev/stress-repro.py` against the suspected package. |
+| R-4 | The failure is chased by looping `make ze-verify`. | Repeated full-suite runs in the session log. | `ai/rules/testing.md`: use `scripts/dev/stress-repro.py` against the suspected package. |
 
 ## Blast Radius
 
@@ -183,7 +183,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 ## Implementation Steps
 
-1. Reproduce with `scripts/dev/stress-repro.py` against the reactor package. Capture the first failure's full output. Do not loop `make ze-verify` (`ai/rules/flaky-under-load.md`).
+1. Reproduce with `scripts/dev/stress-repro.py` against the reactor package. Capture the first failure's full output. Do not loop `make ze-verify` (`ai/rules/testing.md`).
 2. Read the worker take path and settle A-2. This decides whether step 1 of the test is also broken.
 3. Settle A-3: find or add the observable for full and drained.
 4. Rewrite the waits. Every remaining sleep or timeout bounds a poll and carries a comment naming the condition.
@@ -195,12 +195,12 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 |-------|------------------------------|
 | Completeness | Both duration-shaped steps replaced, not only `require.Never` |
 | Correctness | The `VALIDATES:` and `PREVENTS:` annotations still describe what the test checks |
-| Rule: `ai/rules/fix-dont-record.md` | No shard was written, and no sentence blames host load |
-| Rule: `ai/rules/no-test-deletion.md` | The backpressure assertion is unchanged in strength |
+| Rule: `ai/rules/completion.md` | No shard was written, and no sentence blames host load |
+| Rule: `ai/rules/testing.md` | The backpressure assertion is unchanged in strength |
 | Registration over hardcoding | N-A |
 
 ## Known Limitations
-- This fixes one test. Sibling tests in the same file may share the timing assumption; if the read in step 2 shows they do, fix them in the same pass rather than filing them (`ai/rules/no-parking.md`).
+- This fixes one test. Sibling tests in the same file may share the timing assumption; if the read in step 2 shows they do, fix them in the same pass rather than filing them (`ai/rules/completion.md`).
 
 ## Checklist
 

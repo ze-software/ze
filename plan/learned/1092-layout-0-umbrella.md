@@ -60,5 +60,5 @@ architecture claim. This umbrella turned each gap into a sequenced child
 - `plan/spec-reactor-split.md` (created: the candidate's destination)
 - children's key files: `scripts/dev/dep_audit.py`,
   `scripts/dev/core_import_baseline.txt`,
-  `scripts/checks/plugin_process_boundary.go`, `ai/rules/naming.md`,
-  `ai/rules/protocol-skeleton.md`, `scripts/dev/protocol_skeleton_report.py`
+  `scripts/checks/plugin_process_boundary.go`, `ai/rules/go-standards.md`,
+  `ai/rules/protocol.md`, `scripts/dev/protocol_skeleton_report.py`

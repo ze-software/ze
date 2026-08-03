@@ -477,7 +477,7 @@ var (
 	// (interfaceLinkLocal), so the sentinel itself carries only the condition.
 	// Unwrapped it named no subject, and the ospfv3-vlink QEMU failure logged
 	// "opening ipv6 interfaces: ... has no usable link-local source" with no way
-	// to tell WHICH of the configured interfaces had none (ai/rules/error-messages.md).
+	// to tell WHICH of the configured interfaces had none (ai/rules/cli.md).
 	ErrNoLinkLocal = errors.New("no usable link-local source")
 )
 

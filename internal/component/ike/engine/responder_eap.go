@@ -58,7 +58,7 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 	// sets ClientAuth to RequireAndVerifyClientCert over whatever pool it is given,
 	// and an empty pool rejects every client with an opaque "certificate signed by
 	// unknown authority" that names neither the peer nor the CA that failed to load.
-	// Denying while saying nothing is the failure this guards (ai/rules/fail-closed-guards.md).
+	// Denying while saying nothing is the failure this guards (ai/rules/evidence.md).
 	caName := sa.PeerCfg.Auth.CACertificate
 	if caName == "" {
 		return eap.MethodConfig{}, fmt.Errorf(
@@ -82,7 +82,7 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 // RFC 7296 Section 2.16 says EAP methods "MUST be used in conjunction with a
 // public-key-signature-based authentication of the responder to the initiator".
 // A pre-shared key is not a public-key signature. There is therefore no PSK
-// fallback here, and the guard denies instead (ai/rules/fail-closed-guards.md).
+// fallback here, and the guard denies instead (ai/rules/evidence.md).
 //
 // The removed fall-through to computePSKAuth signed the responder AUTH with the
 // same secret that eap-mschapv2 hands the user as a password. It also left the

@@ -16,7 +16,7 @@ records it at closure.
   copies). `internal/component/bgp/wireu/aspath_as4.go` owns `hasNonMappableASN`,
   `as4PathForPath`, `as4PathForRewrite`, `as4PathWireSize`, `writeAS4PathAttr`. The rewrite path
   (`aspath_rewrite.go` insert/fast-path/full) and the sibling `TranscodeASPath`
-  (`aspath_transcode.go:149`) both call it; the sibling's old LOCAL `hasNonMappableASN` was
+  (`aspath_transcode.go`) both call it; the sibling's old LOCAL `hasNonMappableASN` was
   deleted. Verified genuinely shared (not parallel) by mutation: returning nil from
   `as4PathForPath` reds 16 tests across BOTH `aspath_rewrite`/`as4_rfc6793` AND
   `aspath_transcode` test files.
@@ -31,7 +31,7 @@ records it at closure.
 
 - Ze is RFC 6793 S4.2.2-compliant on eBGP egress to an old (non-AS4) speaker: a >65535 ASN is
   recoverable by the receiver from AS4_PATH. Tagged `RFC6793-4.2.2-*` / `RFC6793-6-*`
-  (`make ze-rfc-check` green); `docs/features/rfc-status.md:15` credits AS4_PATH construction.
+  (`make ze-rfc-check` green); `docs/features/rfc-status.md` credits AS4_PATH construction.
 - Receive-side reconstruction (S4.2.3) and NEW-to-NEW forwarding remain out of this spec's scope
   (still listed as gaps in rfc-status).
 

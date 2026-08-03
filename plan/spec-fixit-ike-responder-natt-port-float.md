@@ -56,10 +56,10 @@ Verified facts from the scenario run:
 | Step | Evidence |
 |------|----------|
 | Ze answers IKE_SA_INIT | strongSwan parses it and selects the proposal |
-| Ze reaches `responder EAP started` | `engine/responder_eap.go:187`, reachable only after IKE_AUTH #1 arrives and IDr, CERT, AUTH and the EAP request are sent |
+| Ze reaches `responder EAP started` | `engine/responder_eap.go`, reachable only after IKE_AUTH #1 arrives and IDr, CERT, AUTH and the EAP request are sent |
 | strongSwan never reports parsing that response | its log stops after `sending cert request` |
-| 4.001 seconds later Ze logs `EAP round missing EAP payload` | `responder_eap.go:231`, then `StateDead` |
-| later packets are dropped | `no SA for NAT-T packet`, `engine/register.go:495` |
+| 4.001 seconds later Ze logs `EAP round missing EAP payload` | `responder_eap.go`, then `StateDead` |
+| later packets are dropped | `no SA for NAT-T packet`, `engine/register.go` |
 | `swanctl --list-sas` | both endpoints on port 4500, SA stuck `CONNECTING` |
 
 **Control experiment.** Scenario 03, same containers and the same PKI, with Ze as the
@@ -92,12 +92,12 @@ Source files read on 2026-07-31:
 - [ ] `internal/component/ike/engine/register.go`
 - [ ] `internal/component/ike/engine/responder_eap.go`
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
 An IKE_AUTH request arriving on UDP 4500, dispatched by `dispatchNATTInbound`
-(`register.go:481`).
+(`register.go`).
 
 ### Transformation Path
 
@@ -155,7 +155,7 @@ unaffected, which the scenario 03 control shows.
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
 | ~~IKE_AUTH on 4500~~ | -> | ~~the reply-form decision~~ | landed in RFC 7296 pilot WP-8 |
-| a retransmitted IKE_AUTH (`responder_eap.go:230`) | -> | the cached-response replay | `test/ipsec/ipsec-responder-retransmit.ci` |
+| a retransmitted IKE_AUTH (`responder_eap.go`) | -> | the cached-response replay | `test/ipsec/ipsec-responder-retransmit.ci` |
 
 ## 🧪 TDD Test Plan
 

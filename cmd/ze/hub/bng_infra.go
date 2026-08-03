@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp BNG construction seam
+// Design: ai/rules/plugins.md -- ze_l2tp BNG construction seam
 //
 // Always-on seam for the gated L2TP/PPPoE (BNG) subsystem construction. The
 // gated register_l2tp.go sets bngRegister from its init(); main.go calls it

@@ -299,7 +299,7 @@ func TestASPathSlotRSClientSkipsPrepend(t *testing.T) {
 // VALIDATES: a truncated UPDATE body is refused rather than resolved, so the
 // caller suppresses the destination.
 // PREVENTS: a fail-open read of peer-controlled length fields
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestASPathSlotRefusesTruncatedPayload(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit

@@ -66,7 +66,7 @@ const (
 // keeps the declared name and the tested bits in one place: the failure this
 // prevents is a token whose NAME says one capability while the probe checks
 // another, which is a guard that cannot evaluate what it claims to
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 var capsRequired = map[string][]int{
 	capsNetAdmin: {capNetAdmin},
 	capsNetRaw:   {capNetRaw},
@@ -75,7 +75,7 @@ var capsRequired = map[string][]int{
 
 // capsAccepted lists the accepted tokens for an error message, derived from the
 // table so a new capability cannot be added without the diagnostic naming it
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 func capsAccepted() string {
 	names := make([]string, 0, len(capsRequired))
 	for name := range capsRequired {
@@ -125,7 +125,7 @@ const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch 
 // SKIP, not run. provisionNetnsLinks is reachable only from the netns arm of
 // runOrchestrated (runner_exec.go), so off netns mode the interface is never
 // created and the option is silently inert -- a fail-open gate
-// (ai/rules/fail-closed-guards.md). The test then runs against a kernel missing
+// (ai/rules/evidence.md). The test then runs against a kernel missing
 // the interface it asked for and fails on a symptom far from the cause. Two
 // shapes of that in the 2026-07-25 `make ze-qemu-needs-linux-test` run, which
 // sets no ZE_TEST_NETNS:

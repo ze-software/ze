@@ -131,7 +131,7 @@ class TestParseChecklistLine(unittest.TestCase):
         """AC-1: a MUST-level line without an ID errors; it is never skipped.
 
         A silently skipped MUST is a false green — the exact failure this gate exists
-        to prevent (ai/rules/fail-closed-guards.md).
+        to prevent (ai/rules/evidence.md).
         """
         line = "- [ ] [MUST] legacy line with no ID (§2)"
         with self.assertRaises(R.ParseError):
@@ -143,7 +143,7 @@ class TestParseChecklistLine(unittest.TestCase):
         Regression: a line like `- [ ] [RFC9234-R012] [MUST] ... (§5)` has an unrecognised
         first bracket, so it was dismissed as an ad-hoc category line and dropped — taking
         a live MUST out of the ledger with it. A silently skipped obligation is exactly the
-        false green this gate exists to prevent (ai/rules/fail-closed-guards.md).
+        false green this gate exists to prevent (ai/rules/evidence.md).
         """
         line = (
             "- [ ] [RFC9234-R012] [MUST] OTC on egress MUST equal the identifier (§5)"
@@ -711,7 +711,7 @@ class _FakeGit:
 class TestUnrunCarrierRefused(unittest.TestCase):
     """AC-7: a tag in a suite nothing executes is refused, not marked.
 
-    A marker is a note; a refusal is a guard (ai/rules/fail-closed-guards.md). Raised from
+    A marker is a note; a refusal is a guard (ai/rules/evidence.md). Raised from
     scan_tree so `make ze-rfc-index` refuses it too -- a check that only run_check enforced
     would let `--write` publish a ledger crediting evidence no pipeline runs.
     """
@@ -1072,7 +1072,7 @@ class TestTransitionalFileLevelRule(unittest.TestCase):
     `verdict_freshness` with no `units` recorded -- so the coverage sits on the code that runs.
 
     Re-pointed rather than deleted: the FUNCTIONALITY was not removed, only relocated
-    (`ai/rules/no-test-deletion.md`). The move also makes each case stronger, because the live
+    (`ai/rules/testing.md`). The move also makes each case stronger, because the live
     path names WHICH stale state it is where the boolean could only say "not fresh".
     """
 
@@ -1182,7 +1182,7 @@ class TestEnrolledDescriptorLevelsMatchTheSummaries(unittest.TestCase):
 
     That is the failure mode this pins: a level overstated in the note is invisible to the
     gate but is exactly what a reader trusts when deciding what Ze owes
-    (ai/rules/derive-not-hardcode.md, ai/rules/no-fabrication.md).
+    (ai/rules/evidence.md, ai/rules/evidence.md).
     """
 
     # Longest-first so "MUST NOT" is preferred over "MUST" and "SHOULD NOT" over "SHOULD".
@@ -1481,7 +1481,7 @@ class TestLedgerEvidenceTier(unittest.TestCase):
 
     def test_legend_is_derived_from_the_carrier_table(self):
         """A hand-written legend rots the moment a carrier is added
-        (ai/rules/derive-not-hardcode.md)."""
+        (ai/rules/evidence.md)."""
         out = self._render([])
         for c in R.CARRIERS:
             if c.tier == R.TIER_UNRUN:
@@ -1546,7 +1546,7 @@ class TestLedgerFreshness(unittest.TestCase):
 
     def test_missing_ledger_reads_as_stale(self):
         """A missing ledger is '' != body, so it fails closed rather than passing by
-        vacuum (ai/rules/fail-closed-guards.md)."""
+        vacuum (ai/rules/evidence.md)."""
         errs = self._check(None)
         self.assertEqual(len(errs), 1)
 
@@ -2243,7 +2243,7 @@ class TestEvidenceRatchet(unittest.TestCase):
 
 class TestEvidenceRatchetWiring(unittest.TestCase):
     """check_evidence_ratchet is dead code unless run_check calls it with the real
-    baseline. Drives run_check end-to-end (ai/rules/integration-completeness.md)."""
+    baseline. Drives run_check end-to-end (ai/rules/completion.md)."""
 
     def _drive(self, tags, baseline_evidence):
         with _patched(
@@ -3091,7 +3091,7 @@ _LIVE_BASELINE = object()
 
 # The destination of a relocation, as the artifact spells it and as the file is named. A
 # FIXTURE spec, never a real one: plan/spec-*.md is deleted the day its work closes
-# (ai/rules/spec-preservation.md), so a test pinned to a live spec would red on the day the
+# (ai/rules/planning.md), so a test pinned to a live spec would red on the day the
 # obligation it points at was finally met.
 _SPEC_NAME = "spec-relocation-fixture.md"
 _SPEC_REL = "plan/" + _SPEC_NAME
@@ -3201,7 +3201,7 @@ def _reqs_9999(n=2):
 
 class TestSiteInventory(unittest.TestCase):
     """The inventory is DERIVED from the source text. A hand-typed 'sites seen' is a
-    claim, and claims are what this programme removes (ai/rules/derive-not-hardcode.md)."""
+    claim, and claims are what this programme removes (ai/rules/evidence.md)."""
 
     def _inv(self, src, gated=0, stem="rfc9999"):
         with _patched(
@@ -3275,7 +3275,7 @@ class TestSiteInventory(unittest.TestCase):
 
     def test_missing_source_text_derives_nothing(self):
         """Fail closed: no source means no inventory to judge, never an empty one that
-        reads as 'nothing to extract' (ai/rules/fail-closed-guards.md, zero-value trap)."""
+        reads as 'nothing to extract' (ai/rules/evidence.md, zero-value trap)."""
         with _patched(source_text=lambda s: None, source_path=lambda s: None):
             self.assertIsNone(R.derive_inventory("rfc9999", 3))
 
@@ -3335,7 +3335,7 @@ class TestSiteInventory(unittest.TestCase):
 
     def test_a_duplicate_locator_from_the_derivation_fails_closed(self):
         """The invariant is asserted at its PRODUCER, not left for a downstream dict to
-        swallow (ai/rules/fail-closed-guards.md: a guard that cannot deny must say so).
+        swallow (ai/rules/evidence.md: a guard that cannot deny must say so).
 
         The memo is cleared first, and that is load-bearing rather than tidiness. This is the one
         test whose subject is reached only by RUNNING the derivation, and derive_inventory answers
@@ -3948,7 +3948,7 @@ class TestSkeletonWriter(unittest.TestCase):
         writing a file that could not be re-read -- and one such committed file makes every
         later `--check` print 'cannot run', hiding EVERY other RFC violation in the repo.
         A guard that neither denies nor speaks does not exist
-        (ai/rules/fail-closed-guards.md)."""
+        (ai/rules/evidence.md)."""
         broken = _artifact()
         broken["sections"] = broken["sections"] + [broken["sections"][1]]
         with _patched(_artifact_document=lambda inv, previous: broken):
@@ -4336,7 +4336,7 @@ class TestRelocatedToSpec(unittest.TestCase):
 
     def test_an_empty_destination_spec_is_refused(self):
         """A file that exists and says nothing reserves nothing. Present-but-empty passes
-        every existence test there is, which is the shape ai/rules/fail-closed-guards.md
+        every existence test there is, which is the shape ai/rules/evidence.md
         records as passing `ok` while being unusable."""
         errs = self._errs(_relocated_artifact(), specs={_SPEC_NAME: ""})
         self.assertTrue(any("2:2" in e and "no longer names" in e for e in errs), errs)
@@ -4678,7 +4678,7 @@ class TestRelocatedToSpec(unittest.TestCase):
 class TestPre2119FailsClosed(unittest.TestCase):
     """R-4, the fail-open this spec exists to close: a keyword-driven check reports
     '0 sites, all classified' for 23 enrolled RFCs holding 172 gated MUSTs. A guard that
-    cannot deny must SAY so (ai/rules/fail-closed-guards.md).
+    cannot deny must SAY so (ai/rules/evidence.md).
 
     Both figures are at the SITE denominator -- `derive_inventory(stem, gated).keyword_sites
     == 0`, which is the oracle this check actually uses. There is a second, narrower
@@ -4923,7 +4923,7 @@ class TestExtractionRatchet(unittest.TestCase):
 
 class TestEnrolmentSignoffPrecondition(unittest.TestCase):
     """AC-1 / AC-19: extraction sign-off is a precondition of a NEW enrolment only.
-    Grandfathering is SCOPE, not an allowlist file (ai/rules/derive-not-hardcode.md)."""
+    Grandfathering is SCOPE, not an allowlist file (ai/rules/evidence.md)."""
 
     def test_new_enrolment_without_signoff_fails(self):
         errs = R.check_enrolment(
@@ -5039,7 +5039,7 @@ class TestExtractionStatus(unittest.TestCase):
 
     def test_json_envelope_carries_counts_and_registers(self):
         """AC-16: schema-version, signed and enrolled counts, per-register counts, and
-        the unsigned backlog list. Lower kebab-case keys (ai/rules/json-format.md)."""
+        the unsigned backlog list. Lower kebab-case keys (ai/rules/cli.md)."""
         with _one_per_register():
             with _patched(
                 load_enrolled=lambda: {"rfc9001", "rfc9002", "rfc9003", "rfc7606"},
@@ -5387,7 +5387,7 @@ class TestDrainFloor(unittest.TestCase):
         self.assertEqual(R.required_floor(start, 0.0, drainable=7), 0)
 
     def test_whole_months_are_counted_at_the_day_boundary(self):
-        """ai/rules/tdd.md boundary testing: last invalid, first valid, first beyond.
+        """ai/rules/testing.md boundary testing: last invalid, first valid, first beyond.
 
         Every part of this arithmetic was unpinned -- a `+1` on the month count, dropping
         the partial-month adjustment, and ceil->floor all survived the whole suite. The
@@ -6067,7 +6067,7 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
     suite (test/traffic/), into the gitignored incubator (test/draft/), or into a tree
     whose sibling check.py the SAME table refuses as unrun (test/ipsec-interop/). The tier
     is now derived from mk/test-functional.mk's own suite list, so it tracks reality
-    instead of restating it (ai/rules/derive-not-hardcode.md).
+    instead of restating it (ai/rules/evidence.md).
     """
 
     def test_a_run_suite_is_verify_tier(self):
@@ -6192,7 +6192,7 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
         test_evasion_moving_a_ci_out_of_a_run_suite_is_not_verify_tier does -- a decoy
         naming test/hub/ or test/stress/ walked straight past that enumeration. What is
         asserted is that AMBIGUITY itself is refused: two answers is not an answer
-        (ai/rules/fail-closed-guards.md).
+        (ai/rules/evidence.md).
         """
         with _scratch() as root:
             os.makedirs(os.path.join(root, "mk"))
@@ -6279,7 +6279,7 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
     def test_refusal_message_is_grammatical(self):
         """The catch-all's message used to read '... -- no declared runner has no
         automated caller'. It is the message most likely to be hit, so it is the one that
-        must parse as English (ai/rules/error-messages.md)."""
+        must parse as English (ai/rules/cli.md)."""
         for c in R.CARRIERS:
             if c.tier != R.TIER_UNRUN:
                 continue
@@ -6374,7 +6374,7 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
     def test_scheduled_workflow_targets_fails_closed_when_unreadable(self):
         """The unsafe direction is answering 'everything runs': that would upgrade every
         carrier on an error. An unreadable directory raises instead
-        (ai/rules/fail-closed-guards.md)."""
+        (ai/rules/evidence.md)."""
         with _scratch() as root:
             with self.assertRaises(R.ParseError):
                 R.scheduled_workflow_targets(os.path.join(root, "nope"))
@@ -6450,7 +6450,7 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
             self.assertEqual(head[name].tier, want, name)
 
     def test_no_interop_tier_literal_survives(self):
-        """`ai/rules/derive-not-hardcode.md`: the workflow reader is the ONLY place an
+        """`ai/rules/evidence.md`: the workflow reader is the ONLY place an
         interop tier is decided. INTEROP_TREES carries the path and the runner; a tier
         constant beside them would be the literal coming back."""
         for row in R.INTEROP_TREES:
@@ -7019,7 +7019,7 @@ class TestFingerprintShapeBoundary(_AuditFixture):
     moved, and prints a remediation that does not name the fault.
 
     Driven through `load_audit`, the entry point an authored record actually arrives by, not
-    through `_sha_value` alone (`ai/rules/fail-closed-guards.md`: drive the guard from its entry
+    through `_sha_value` alone (`ai/rules/evidence.md`: drive the guard from its entry
     point). The four cases per field are the boundary trio plus the one a pure length check would
     wave through.
     """
@@ -7093,7 +7093,7 @@ class TestFingerprintShapeBoundary(_AuditFixture):
                 self.assertIn(field, str(cm.exception), f"{field}/{name}")
 
     def test_the_refusal_names_the_value_and_the_expected_shape(self):
-        """`ai/rules/error-messages.md`: the offending value AND the expected one. 'invalid sha'
+        """`ai/rules/cli.md`: the offending value AND the expected one. 'invalid sha'
         with neither is unactionable, and the reader cannot tell a typo from a real re-audit."""
         v = self.verdict()
         v["requirement_sha"] = "a" * (R.SHA_HEX_LEN - 1)
@@ -7162,7 +7162,7 @@ class TestNotApplicableTestsMapSpelling(_AuditFixture):
         return req, v
 
     def test_absent_and_empty_are_the_same_state(self):
-        """The zero-value trap (ai/rules/fail-closed-guards.md): a present-but-empty value must
+        """The zero-value trap (ai/rules/evidence.md): a present-but-empty value must
         never diverge from an absent one. One record, two spellings, two different states."""
         seen = {}
         for spelling in ("empty", "omitted"):
@@ -7425,7 +7425,7 @@ class TestAuditUnitFreshness(_AuditFixture):
     def test_empty_extraction_is_an_error_not_a_hash(self):
         """R-2, the zero-value trap. Hashing "" would give every unreadable file the same
         fingerprint, so a deleted test would read as unchanged -- a false FRESH, the one
-        catastrophic outcome (ai/rules/fail-closed-guards.md)."""
+        catastrophic outcome (ai/rules/evidence.md)."""
         path = os.path.join(self.tmp, "empty_test.go")
         open(path, "w").close()
         rel = os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
@@ -7940,7 +7940,7 @@ class TestReseal(_AuditFixture):
 class _AuditDrive(_AuditFixture):
     """Shared run_check driver: everything unrelated to the audit is patched out, so a failure
     here is the audit machinery and nothing else. A check that stops being CALLED must fail a
-    test rather than passing silently (ai/rules/fail-closed-guards.md: drive the guard from its
+    test rather than passing silently (ai/rules/evidence.md: drive the guard from its
     entry point, not only the helper)."""
 
     def _drive(
@@ -8556,7 +8556,7 @@ class TestVerdictVocabularyAgreesWithTheSkill(unittest.TestCase):
     """The gate's enum and `ai/skills/ze-rfc-audit.md`'s table are the same vocabulary read by a
     machine and by an agent. A drift makes the skill teach the fleet to write records the schema
     refuses -- which is how `implemented` got into the one existing audit file
-    (`ai/rules/derive-not-hardcode.md`)."""
+    (`ai/rules/evidence.md`)."""
 
     def test_the_skill_documents_exactly_the_gates_enum(self):
         skill = _read_repo("ai/skills/ze-rfc-audit.md")
@@ -9031,7 +9031,7 @@ class _LedgerEdgeDrive(unittest.TestCase):
     Everything unrelated is patched out, so a failure here is one of the four checks and
     nothing else -- the same contract the audit and extraction drivers above use. What is
     NOT patched out is the check under test: a helper-only test would prove the helper and
-    say nothing about whether run_check calls it (ai/rules/fail-closed-guards.md, the test
+    say nothing about whether run_check calls it (ai/rules/evidence.md, the test
     corollary).
     """
 
@@ -9136,7 +9136,7 @@ class TestDispositionParsing(unittest.TestCase):
 
     def test_whitespace_only_reason_is_rejected(self):
         """The present-but-empty case: `len(fields) > 2` is true, so an `ok`-style test
-        passes and the reason is still nothing (ai/rules/fail-closed-guards.md)."""
+        passes and the reason is still nothing (ai/rules/evidence.md)."""
         with self.assertRaises(R.ParseError) as ctx:
             R.parse_dispositions("rfc1234\tbacklog\t   \n")
         self.assertIn("no reason", str(ctx.exception))
@@ -9252,7 +9252,7 @@ class TestSummaryDisposition(unittest.TestCase):
         rephrasings of the same laundering walked through it. The rule is now a POSITIVE
         requirement that fails closed: a `non-normative` reason must cite something about the
         DOCUMENT, and a reason that cites nothing is refused whatever its phrasing
-        (ai/rules/fail-closed-guards.md)."""
+        (ai/rules/evidence.md)."""
         for reason in (
             "Ze is not required to do any of this",
             "Ze plays no role addressed by this document",
@@ -9269,7 +9269,7 @@ class TestSummaryDisposition(unittest.TestCase):
     def test_each_accepted_form_of_document_evidence_passes(self):
         """The whitelist the message names, one reason per arm. A guard whose accepted set the
         message describes wrongly sends the author round in circles
-        (ai/rules/error-messages.md leg 3)."""
+        (ai/rules/cli.md leg 3)."""
         for reason in (
             "Informational; it carries no RFC 2119 key-words section",
             "the BCP 14 boilerplate is absent from this text",
@@ -9629,7 +9629,7 @@ class TestUnprovenSupport(unittest.TestCase):
     def test_a_blank_status_is_treated_as_a_claim(self):
         """The zero-value trap: `row["status"]` is PRESENT and empty, so an `ok`-style test
         passes. A blank cell on a page of support claims must fail closed
-        (ai/rules/fail-closed-guards.md)."""
+        (ai/rules/evidence.md)."""
         errs = self._errs([], {"rfc1": _row("   ")})
         self.assertEqual(len(errs), 1, errs)
         self.assertIn("(blank)", errs[0])
@@ -9718,7 +9718,7 @@ class TestUnprovenSupport(unittest.TestCase):
         self.assertIn("capitalised", errs[0])
 
     def test_the_refused_escape_gets_its_own_message(self):
-        """ai/rules/error-messages.md leg 3: a remediation must be TRUE. Telling an author who
+        """ai/rules/cli.md leg 3: a remediation must be TRUE. Telling an author who
         already wrote a manual-walk sign-off to "record a manual-walk sign-off" is a dead end,
         so the refused-escape state says what is wrong with the one on disk."""
         art = _extraction(
@@ -9736,7 +9736,7 @@ class TestUnprovenSupport(unittest.TestCase):
         self.assertNotIn("or a manual-walk extraction sign-off", refused)
 
     def test_a_manual_walk_signoff_with_no_derived_grade_does_not_permit_it(self):
-        """Fail closed on the unknown (ai/rules/fail-closed-guards.md). An absent grade means
+        """Fail closed on the unknown (ai/rules/evidence.md). An absent grade means
         the source could not be re-derived, so nothing established that zero is a property of
         the text -- and a missing dict entry must not read as a passing one."""
         art = _extraction(
@@ -9857,7 +9857,7 @@ class TestDerivedRegisters(unittest.TestCase):
 
     The grade is DERIVED from the source at check time and keyed by stem, so the escape reads
     what the document is written in rather than what the artifact declares about itself
-    (ai/rules/derive-not-hardcode.md).
+    (ai/rules/evidence.md).
 
     STEM is this class's own, for the reason TestUnprovenSupportWiring.WALK_STEM records: the
     derive_inventory memo is process-wide, so a class that derives a shared fixture under a
@@ -9887,7 +9887,7 @@ class TestDerivedRegisters(unittest.TestCase):
     def test_a_stem_with_no_source_text_is_ABSENT_rather_than_defaulted(self):
         """None is not a register. A stem whose source cannot be read must leave no entry, so
         the consumer sees "I could not look" instead of a grade nobody derived
-        (ai/rules/fail-closed-guards.md, the zero-value trap)."""
+        (ai/rules/evidence.md, the zero-value trap)."""
         signed = {self.STEM: _extraction(stem=self.STEM, register="manual-walk")}
         with _extraction_tree(src={}):
             self.assertEqual(R.derived_registers(signed, []), {})
@@ -10431,7 +10431,7 @@ class TestFourStemEnrolmentRealTree(unittest.TestCase):
 
         Child 2's whole thesis is that unit evidence proves the ALGORITHM while only a running
         non-unit test proves the DAEMON, so a prose claim of functional proof the gate does not
-        credit is the claim and the evidence disagreeing (ai/rules/no-fabrication.md)."""
+        credit is the claim and the evidence disagreeing (ai/rules/evidence.md)."""
         rel = "test/plugin/prefix-maximum-enforce.ci"
         tags = [t for t in R.scan_tree() if t.rid == "RFC4486-4-1"]
         found = [t for t in tags if t.file == rel]
@@ -10612,7 +10612,7 @@ _REAL_GO_IMPORT = "github.com/ze-software/ze/internal/component/bgp/message"
 class TestBuildTagsDerivation(unittest.TestCase):
     """The compile check has to use the tag set `make ze-unit-test` compiles with.
 
-    Dropping the feature tags is the failure ai/rules/bash-output.md names: a bare `go`
+    Dropping the feature tags is the failure ai/rules/commands.md names: a bare `go`
     invocation excludes every gated file, so a tagged test behind `ze_ospf` is never
     type-checked and the check reports clean over code it did not read.
     """
@@ -10724,7 +10724,7 @@ class TestTagPackagesCompile(unittest.TestCase):
 
     The sibling of _refuse_unrun: that one refuses a tag nothing RUNS, this one refuses a
     tag nothing can COMPILE. Both are admissibility, not coverage
-    (ai/rules/fail-closed-guards.md).
+    (ai/rules/evidence.md).
     """
 
     def _tags(self):
@@ -10835,7 +10835,7 @@ class TestTagPackagesCompile(unittest.TestCase):
 
     def test_a_wall_of_compiler_errors_is_truncated(self):
         """One broken import produces a type error per use site. The whole list in one
-        message helps nobody (ai/rules/error-messages.md, "Truncate large blobs")."""
+        message helps nobody (ai/rules/cli.md, "Truncate large blobs")."""
         lines = "".join(
             f"vet: {_REAL_GO_TEST}:{n}:1: undefined: nope\n" for n in range(1, 41)
         )

@@ -36,7 +36,7 @@ edit regenerates it and a stale index never ships. Motivating audit:
 
 ## Consequences
 
-- `ai/INDEX.md` gained an "understand existing code" front door; `discovery-updates.md`
+- `ai/INDEX.md` gained an "understand existing code" front door; `repo-maintenance.md`
   lists the three surfaces; `git-safety.md` documents the commit gate.
 - Freshness is structural (index matches sources), enforced pre-commit via
   `commit_helper` and by `ze-regen-check`. Semantic truth of the one-liners is
@@ -71,5 +71,5 @@ edit regenerates it and a stale index never ships. Motivating audit:
 - `ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md` (generated)
 - `scripts/dev/commit_helper.py` (+ `commit_helper_test.py`), `scripts/dev/verify_wiring_docs.py`
 - `mk/inventory.mk`, `Makefile` (`ze-discovery-index`, `ze-regen`, gate in `ze-doc-test`)
-- `ai/INDEX.md`, `ai/rules/discovery-updates.md`, `ai/rules/git-safety.md`
+- `ai/INDEX.md`, `ai/rules/repo-maintenance.md`, `ai/rules/git-safety.md`
 - `AI-NAVIGATION-AUDIT.md` (audit), `plan/learned/1067-generated-discovery-indexes.md`

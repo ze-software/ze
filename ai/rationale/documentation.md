@@ -1,6 +1,6 @@
 # Documentation Rationale
 
-Why: `ai/rules/documentation.md`
+Why: `ai/rules/writing.md`
 
 ## Historical Lesson: Content Drift
 AGENT.md had UPPERCASE doc paths and TOP 5 rules while CLAUDE.md had moved to lowercase and TOP 6. The fix cost a full session. This is why "single source of truth" exists.
@@ -53,7 +53,7 @@ plan/learned/
 | Make targets | `Makefile` + `ai/rules/testing.md` | Reference, not list |
 | Architecture doc paths | `ai/INDEX.md` | Point to INDEX |
 | Rule content | `.claude/rules/<name>.md` | Point to rule file |
-| CLI patterns | `ai/rules/cli-patterns.md` | Point to rule file |
+| CLI patterns | `ai/rules/cli.md` | Point to rule file |
 
 ## Forbidden
 - UPPERCASE for regular docs (except README, INDEX)

@@ -1,7 +1,7 @@
 // Design: docs/guide/command-reference.md -- `show neighbor` / `show arp`.
 // Owned by the iface component: both read the kernel neighbor table (IPv4 ARP
 // + IPv6 ND) through the iface backend (iface.ListNeighbors). `show arp` is the
-// IPv4 alias for `show neighbor ipv4`. See ai/rules/plugin-self-containment.md
+// IPv4 alias for `show neighbor ipv4`. See ai/rules/plugins.md
 // and docs/architecture/cli/command-namespacing.md (object-rooted commands).
 
 package cmd

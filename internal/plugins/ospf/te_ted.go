@@ -6,7 +6,7 @@
 // (RFC 3630 Opaque type 1 and RFC 5392 Opaque type 6). It never triggers SPF and installs
 // no routes. It is fed by the TE consumer's OnReceive and read by `show ospf te-database`,
 // the TE metrics, and a future rsvpte admission consumer through the value-typed Snapshot
-// and LookupLink (no cross-boundary pointers, ai/rules/plugin-design.md). Each entry keys
+// and LookupLink (no cross-boundary pointers, ai/rules/plugins.md). Each entry keys
 // on the LSA instance (advertising router + Opaque type + Opaque ID) so a withdraw removes
 // exactly the right link; the decoded link also carries its Link ID + local address for
 // the rsvpte lookup.

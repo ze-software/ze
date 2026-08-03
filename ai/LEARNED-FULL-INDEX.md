@@ -960,3 +960,4 @@ Total: 901 summaries
 | 1324 | Poll Loop Gate | `plan/learned/1324-poll-loop-gate.md` |
 | 1325 | The review loop had no terminating state | `plan/learned/1325-review-loop-bounded-scope.md` |
 | 1326 | A deferral shard outlives the spec that opened it | `plan/learned/1326-deferral-shard-outlives-its-spec.md` |
+| 1328 | Rule corpus merged to 26, and line numbers removed from prose | `plan/learned/1328-rule-corpus-merge-and-line-ref-strip.md` |

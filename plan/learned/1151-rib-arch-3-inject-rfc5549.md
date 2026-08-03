@@ -13,13 +13,13 @@ receive/parse side already supported RFC 5549; this was the symmetric inject/enc
 ## Decisions
 
 - Carry the IPv6 next-hop in an **MP_REACH_NLRI attribute** stored inside the injected
-  route's attribute block, mirroring the receive path (`rib_structured.go:209-237`): the
+  route's attribute block, mirroring the receive path (`rib_structured.go`): the
   MP_REACH lives in the attribute bytes, the NLRI stays the separate storage key. Chosen
   over adding an MP_REACH method to `attribute.Builder` (which deliberately has none) --
   instead build it with the existing `attribute.NewMPReachNLRI` + `attribute.WriteAttrTo`
   and append the full attribute wire.
 - Reused the existing send-side RFC 5549 encoder rather than writing a new one: the triage
-  anchor (`PackContext.ExtendedNextHop`) was stale/gone, but `commit.go:222`
+  anchor (`PackContext.ExtendedNextHop`) was stale/gone, but `commit.go`
   `useTraditionalNLRI` already routes IPv4/unicast + non-IPv4 next-hop to
   `buildMPReachNLRI` (`:337`->`:484`). Once the stored route's recovered next-hop is IPv6,
   the forward path emits RFC 5549 automatically.
@@ -32,7 +32,7 @@ receive/parse side already supported RFC 5549; this was the symmetric inject/enc
 - Injected IPv4-over-IPv6 (RFC 5549) and native-IPv6 routes now forward with the correct
   next-hop. The extended-next-hop forwarding path is now exercisable end-to-end from inject.
 - The next-hop is recovered from stored attributes (`bestCandidateNextHopAddr` ->
-  `extractMPNextHopAddr`, `rib_bestchange.go:1058`), not a stored scalar -- consistent with
+  `extractMPNextHopAddr`, `rib_bestchange.go`), not a stored scalar -- consistent with
   how received MP routes work.
 - The "received" adj-rib-in show renders legacy NEXT_HOP only, not MP next-hops, so
   `show bgp rib received` shows no next-hop for these routes (received IPv6/MP routes

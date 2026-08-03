@@ -9,7 +9,7 @@ import (
 // checked by internal/component/cmd/show/schema's TestShowSchemaHasNoBGPPluginCommands:
 // the central show schema must NOT declare `show rr ...`, and this package MUST.
 // Together they prove the surface moved rather than vanished. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 func TestRRCmdSchemaOwnsShowRR(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:rr-status"`,

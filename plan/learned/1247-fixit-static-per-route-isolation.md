@@ -28,7 +28,7 @@ programmed. The open A-2 product-contract decision was resolved by an autonomous
 - **The contract composes with the `OnConfigApply` journal rollback** rather than fighting
   it: `applyRoutes` returning `nil` means `j.Record`'s forward func sees nil, so no
   spurious rollback fires; the rollback path stays intact for a genuine failure.
-- **Observability is fail-closed** (`ai/rules/fail-closed-guards.md`): a skip is never
+- **Observability is fail-closed** (`ai/rules/evidence.md`): a skip is never
   silent. An always-on WARN log, a `static show` `skipped`/`skip-reason` column, and a
   `doctor-static-route-skipped` doctor check (reaching the live manager via an
   `activeRouteManager atomic.Pointer` singleton, set/cleared on the plugin lifecycle).

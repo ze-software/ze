@@ -378,7 +378,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen, cut uint64) {
 		if rs.now().After(deadline) {
 			// Say it rather than let the peer look complete: past this point the
 			// cut is knowingly suppressing UPDATEs the replay could not cover
-			// (ai/rules/fail-closed-guards.md).
+			// (ai/rules/evidence.md).
 			logger().Warn("peer-up replay gave up waiting for adj-rib-in to reach the cut; routes at or below it may be missing",
 				"peer", peerAddr, "cut", cut, "ingested", progress.ingestedString(), "budget", replayCatchUpBudget)
 			break

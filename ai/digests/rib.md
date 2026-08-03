@@ -16,32 +16,32 @@ style) and does no best-path.
 ## Flow
 Received UPDATE → best-path change (all `file:line` in `internal/component/bgp/plugins/rib/` unless noted):
 1. Engine caches wire bytes and delivers a `StructuredEvent` via DirectBridge; `bgp-rib`'s
-   handler is registered at `rib.go:554` (`p.OnStructuredEvent`) → `dispatchStructured`
-   (`rib_structured.go:49`) → `handleReceivedStructured` (`rib_structured.go:75`).
-2. Phase 1 (`rib_structured.go:138`): under a brief `r.peerMu.Lock`, update `peerMeta` and
+   handler is registered at `rib.go` (`p.OnStructuredEvent`) → `dispatchStructured`
+   (`rib_structured.go`) → `handleReceivedStructured` (`rib_structured.go`).
+2. Phase 1 (`rib_structured.go`): under a brief `r.peerMu.Lock`, update `peerMeta` and
    lazily create the peer's `storage.PeerRIB` (`bgpPeers[peerAddr]`). Lock released.
-3. Parse the UPDATE's one attribute block once: `storage.ParseRouteEntry` (`rib_structured.go:171`).
+3. Parse the UPDATE's one attribute block once: `storage.ParseRouteEntry` (`rib_structured.go`).
 4. Phase 2 insert/withdraw per NLRI section (v4 NLRI/Withdrawn, MP_REACH/MP_UNREACH):
-   `peerRIB.InsertEntry` (`rib_structured.go:187`) → `storage.PeerRIB.InsertEntry`
-   (`storage/peerrib.go:61`) → `storage.FamilyRIB.InsertEntry` (`storage/familyrib.go:216`);
-   withdrawals via `peerRIB.Remove` (`rib_structured.go:203`). Each affected prefix is pushed
+   `peerRIB.InsertEntry` (`rib_structured.go`) → `storage.PeerRIB.InsertEntry`
+   (`storage/peerrib.go`) → `storage.FamilyRIB.InsertEntry` (`storage/familyrib.go`);
+   withdrawals via `peerRIB.Remove` (`rib_structured.go`). Each affected prefix is pushed
    onto a pooled `affected` slice. Labeled-unicast (SAFI 4) strips labels to side-data
-   (`insertLabeledEntry`, `rib_structured.go:535`).
-5. Phase 3 best-path (`rib_structured.go:273`, no outer lock held): for each affected prefix
-   `checkBestPathChange` (`rib_bestchange.go:699`) → `gatherCandidates` reads every peer's
-   entry for the prefix (`rib_commands.go:934`/`extractCandidate:967`) → `SelectBest` runs the
-   RFC 4271 pairwise decision (`bestpath.go:122`, steps in `comparePair` `bestpath.go:307`).
+   (`insertLabeledEntry`, `rib_structured.go`).
+5. Phase 3 best-path (`rib_structured.go`, no outer lock held): for each affected prefix
+   `checkBestPathChange` (`rib_bestchange.go`) → `gatherCandidates` reads every peer's
+   entry for the prefix (`rib_commands.go`/`extractCandidate:967`) → `SelectBest` runs the
+   RFC 4271 pairwise decision (`bestpath.go`, steps in `comparePair` `bestpath.go`).
 6. Winner compared to the previous best in the sharded `bestPrev` store (packed
-   `bestPathRecord` uint64, `rib_bestchange.go:748`+`779` same-best short-circuit). On change:
+   `bestPathRecord` uint64, `rib_bestchange.go`+`779` same-best short-circuit). On change:
    store the new record, mirror into Loc-RIB via `r.locRIB.InsertForward` carrying the
-   zero-copy `ForwardHandle` (`rib_bestchange.go:820`), and return a `bestChangeEntry`.
-7. After the shard lock is released, `publishBestChanges` (`rib_structured.go:301/304` →
-   `rib_bestchange.go:1205`) emits a `BestChangeBatch` on the EventBus under
+   zero-copy `ForwardHandle` (`rib_bestchange.go`), and return a `bestChangeEntry`.
+7. After the shard lock is released, `publishBestChanges` (`rib_structured.go/304` →
+   `rib_bestchange.go`) emits a `BestChangeBatch` on the EventBus under
    (`bgp-rib`, `best-change`) via `ribevents.BestChange.Emit` and calls `bgpredist.EmitBestChange`.
    Downstream sysrib/FIB consume the Loc-RIB; redistribute/route-server consumers act on the
    batch. Forwarding to peers is a separate concern: sent UPDATEs return as "sent" events →
-   `handleSentStructured` (`rib_structured.go:310`) stores Adj-RIB-Out (`ribOut`) for replay on
-   peer-up/route-refresh (`handleStructuredState` `rib.go:1006`).
+   `handleSentStructured` (`rib_structured.go`) stores Adj-RIB-Out (`ribOut`) for replay on
+   peer-up/route-refresh (`handleStructuredState` `rib.go`).
 
 ## Key files
 | File | Role |
@@ -69,35 +69,35 @@ Received UPDATE → best-path change (all `file:line` in `internal/component/bgp
   Insert/Remove must balance AddRef/Release or leak/double-free.
 - **Dedup / no-op fast path:** `RouteEntry.AttrFingerprint` (FNV-1a of attr bytes + ASN4 flag)
   plus `AttrLen` let a re-announcement with identical attributes skip `ParseAttributes`
-  entirely (`familyrib.go:143`+`216`). Deeper equality is handle equality: `entriesEqual` =
-  `Bundle == Bundle && ASPath == ASPath` (`familyrib.go:707`). Fingerprint collision → a missed
+  entirely (`familyrib.go`+`216`). Deeper equality is handle equality: `entriesEqual` =
+  `Bundle == Bundle && ASPath == ASPath` (`familyrib.go`). Fingerprint collision → a missed
   attribute update, recovered by RIB refresh (documented in `routeentry.go`).
-- **Best-path ordering:** `comparePair` (`bestpath.go:307`), step 0 stale-level depreference
+- **Best-path ordering:** `comparePair` (`bestpath.go`), step 0 stale-level depreference
   (LLGR level ≥ `DepreferenceThreshold`=2 loses), 1 highest LOCAL_PREF, 2 shortest AS_PATH
   (AS_SET counts as 1), 3 lowest ORIGIN, 4 lowest MED (only same first-neighbor-AS), 5 eBGP over
   iBGP, 6 lowest IGP cost (0 unless a resolver is set via `SetIGPCostFunc`), 7 lowest
   Router-ID/ORIGINATOR_ID, 8 lowest peer address. `SelectBest` is a linear reduce; multipath
-  siblings tie on steps 1–5 (`multipathEqual`, `bestpath.go:200`).
+  siblings tie on steps 1–5 (`multipathEqual`, `bestpath.go`).
 - **Change tracking:** previous best per prefix is a packed `bestPathRecord` uint64 (three
   uint16 interner indices for peer/next-hop/MED + a flags word); zero GC pointers per entry so a
   1M-prefix BART fringe is opaque to the GC mark phase. Same-best short-circuit is one value
-  compare (`rib_bestchange.go:779`), skipped for labeled routes (label stack is not in the
+  compare (`rib_bestchange.go`), skipped for labeled routes (label stack is not in the
   record) and for SRv6.
 - **GOTCHA, only the structured path computes best-path.** `handleReceivedStructured`
-  (`rib_structured.go:274`) and command mutations (inject/withdraw/community in
+  (`rib_structured.go`) and command mutations (inject/withdraw/community in
   `rib_commands*.go`) call `checkBestPathChange`. The JSON-fallback path
-  `handleReceived`→`handleReceivedPool` (`rib.go:863`/`898`, used only for external non-DirectBridge
+  `handleReceived`→`handleReceivedPool` (`rib.go`/`898`, used only for external non-DirectBridge
   plugins) inserts into the pool but does **not** trigger best-path or emit change events.
   Production `bgp-rib` is an internal DirectBridge plugin, so it always takes the structured path.
 - **Locking:** `peerMu` guards only the peer-keyed maps; `bestPrev` is sharded per (family,shard)
   with its own locks; `bestPathInterner` has per-table locks. Lock order is strictly
   `peerMu (outer) → shard.mu (inner)`; nobody holds `peerMu` while taking an interner lock.
   `checkBestPathChange` resolves next-hop/protocol-class *before* taking `shard.mu`
-  (`rib_bestchange.go:709`) precisely so `shard.mu` never sits above `peerMu`. EventBus emits
+  (`rib_bestchange.go`) precisely so `shard.mu` never sits above `peerMu`. EventBus emits
   happen **after** releasing `peerMu` (`emitPurgedWithdraws`, `publishBestChanges`) to avoid
   deadlocking in-process subscribers that re-enter RIBManager.
 - **Peer down:** unless retained for GR (`retainedPeers`), the peer's `PeerRIB` is released and
-  `purgeBestPrevForPeer` (`rib_bestchange.go:545`) sweeps every shard removing that peer's best
+  `purgeBestPrevForPeer` (`rib_bestchange.go`) sweeps every shard removing that peer's best
   records, emitting withdraws and calling `r.locRIB.Remove` so consumers see withdrawals
   immediately instead of on the next per-prefix UPDATE.
 - **Interner cap:** each reverse table (peers/next-hops/metrics) caps at 65536; saturation logs

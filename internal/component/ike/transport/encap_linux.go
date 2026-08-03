@@ -32,7 +32,7 @@ var ErrNoESPInUDP = errors.New("transport: this platform cannot decapsulate ESP 
 // Holding port 4500 without the option is therefore worse than not holding it.
 //
 // It fails closed. Every failure returns an error and sets nothing
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func EnableESPInUDP(c *net.UDPConn) error {
 	if c == nil {
 		return errors.New("transport: udp encap needs a socket")

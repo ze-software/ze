@@ -349,7 +349,7 @@ func runPingBatch(
 	// either the first send failed (unreachable/permission) or the caller
 	// canceled before any probe went out. Reporting that as sent=0/received=0/
 	// loss-percent=0 would render a transport failure as a healthy 0%-loss answer
-	// -- the fail-open pattern ai/rules/fail-closed-guards.md forbids. Surface it
+	// -- the fail-open pattern ai/rules/evidence.md forbids. Surface it
 	// as an error instead, matching the serial engine's StatusError on write.
 	if len(replies) == 0 {
 		if ctxErr := ctx.Err(); ctxErr != nil {

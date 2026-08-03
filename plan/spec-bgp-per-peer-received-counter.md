@@ -15,7 +15,7 @@ premise on the same day it was written:
 and D-4 is "WITHDRAWN 2026-07-16. It is NOT superseded";
 `spec-bgp-filtered-route-storage` now explicitly rejects any pre-policy
 store. The spec REMAINS legitimately blocked, but on reason #1 alone (A-4:
-the tally drifts under implicit withdraw -- `session_prefix.go:179`
+the tally drifts under implicit withdraw -- `session_prefix.go`
 `prefixCounts` holds no per-prefix identity and `:196` `add()` does an
 unconditional `+= delta`).
 
@@ -37,7 +37,7 @@ evidenced below; a future session should re-design, not re-plumb.
    concluded (its D-4) that it is **superseded, not merely blocked**, by
    `spec-bgp-peer-settings-reload-ignored`: that spec's Phase B builds a
    **pre-policy store** which "must capture the ORIGINAL payload"
-   (`plan/spec-bgp-peer-settings-reload-ignored.md:290`), making `routes_filtered`
+   (`plan/spec-bgp-peer-settings-reload-ignored.md`), making `routes_filtered`
    a QUERY over that store rather than separate storage.
 
    **Read that before re-designing this one.** A store keyed by prefix identity is
@@ -112,16 +112,16 @@ implement it deliberately rather than half-land it.
 - `show bgp summary` per-peer rows gain a pre-policy received count, distinct from accepted, family-scopable like the existing counts.
 - Birdwatcher `routes_received` is remapped to the pre-policy count so its semantics match BIRD (received = pre-import, imported = post-import).
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Operator runs `show bgp summary` (optionally `show bgp summary <afi/safi>`) over the CLI, or the Looking Glass calls the birdwatcher protocols endpoint.
 - Format at entry: text command dispatched to the peer summary handler; JSON envelope back.
 
 ### Transformation Path
-1. Session read goroutine tallies pre-policy prefixes per family in `prefixCounts` (`session_prefix.go:225`), lock-free.
+1. Session read goroutine tallies pre-policy prefixes per family in `prefixCounts` (`session_prefix.go`), lock-free.
 2. A new lock-free snapshot (per-family atomic loads) publishes the current pre-policy count where the reactor peer-snapshot API can read it without racing the writer.
-3. `reactorAPIAdapter.Peers()` (`reactor_api.go:89`) includes the pre-policy count in each `plugin.PeerInfo`.
+3. `reactorAPIAdapter.Peers()` (`reactor_api.go`) includes the pre-policy count in each `plugin.PeerInfo`.
 4. The peer summary handler merges the pre-policy count into each summary row alongside the RIB-sourced accepted/sent counts.
 5. `transformProtocols` (`lg/handler_api.go`) maps `routes_received` from the pre-policy count and `routes_imported` from the accepted count.
 
@@ -141,24 +141,24 @@ implement it deliberately rather than half-land it.
 - [ ] No unintended coupling (LG still consumes only JSON keys).
 - [ ] No duplicated functionality (reuses `prefixCounts`, does not recompute a wire tally).
 - [ ] Zero-copy preserved where applicable (atomic loads, no map copy on the hot path).
-- [ ] Registration over hardcoding - the new count rides the existing `PeerInfo` and summary-merge path; no per-feature switch/case added to a core/shared struct (`ai/rules/plugin-self-containment.md`).
+- [ ] Registration over hardcoding - the new count rides the existing `PeerInfo` and summary-merge path; no per-feature switch/case added to a core/shared struct (`ai/rules/plugins.md`).
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `prefixCounts` is genuinely pre-policy | `session_prefix.go:225` counts from the wire UPDATE before the reject gate at `reactor_notify.go:448` | The exposed number would be a duplicate of accepted, not a new signal | re-read producer + race-detector `.ci` that rejects a route via import policy and shows received > accepted | **confirmed** (2026-07-16): `session_read.go:198-201` calls `checkPrefixLimits` on the raw wire UPDATE under the comment "Check prefix limits BEFORE delivering to plugins"; plugin dispatch happens later at `session_read.go:233` via `onMessageReceived`, and the import-filter reject gate is downstream at `reactor_notify.go:448` (`if !res.accept { return false }`). The tally is strictly pre-policy. |
-| A-2 | Per-family atomic snapshot removes the race | `reactor_api.go:90` reads under `r.mu.RLock`; writer takes no lock | Data race persists | `go test -race` on a reactor test injecting concurrent UPDATEs | unvalidated (no code written). The RACE PREMISE is confirmed: `session.go:316` documents `prefixCounts` as "Only accessed from session's read goroutine (no synchronization needed)" and `add()` (`session_prefix.go:196`) mutates the map with no lock, so a read from `Peers()` would race. |
+| A-1 | `prefixCounts` is genuinely pre-policy | `session_prefix.go` counts from the wire UPDATE before the reject gate at `reactor_notify.go` | The exposed number would be a duplicate of accepted, not a new signal | re-read producer + race-detector `.ci` that rejects a route via import policy and shows received > accepted | **confirmed** (2026-07-16): `session_read.go` calls `checkPrefixLimits` on the raw wire UPDATE under the comment "Check prefix limits BEFORE delivering to plugins"; plugin dispatch happens later at `session_read.go` via `onMessageReceived`, and the import-filter reject gate is downstream at `reactor_notify.go` (`if !res.accept { return false }`). The tally is strictly pre-policy. |
+| A-2 | Per-family atomic snapshot removes the race | `reactor_api.go` reads under `r.mu.RLock`; writer takes no lock | Data race persists | `go test -race` on a reactor test injecting concurrent UPDATEs | unvalidated (no code written). The RACE PREMISE is confirmed: `session.go` documents `prefixCounts` as "Only accessed from session's read goroutine (no synchronization needed)" and `add()` (`session_prefix.go`) mutates the map with no lock, so a read from `Peers()` would race. |
 | A-3 | LG consumers tolerate `routes_received` becoming pre-policy | `lg/handler_api.go` already reads the keys; birdwatcher semantics expect received >= imported | Downstream dashboards misreport | LG `.ci` asserting received (pre) >= imported (post) | unvalidated -- and THREATENED by R-3: for VPN/flowspec families the tally can UNDER-count, so `received >= imported` is not guaranteed for all families. |
-| A-4 | The tally is an accurate count of what the peer advertised | Spec Task section assumed the number only needed safe exposure | The exposed number is misleading in production; the whole spec premise collapses | read the producer's data structure and every mutation site | **BROKEN** (2026-07-16): `prefixCounts` (`session_prefix.go:179-182`) holds only `counts map[uint32]int64` + `warned map[uint32]bool` -- NO per-prefix identity -- and `add()` (line 196) does an unconditional `pc.counts[fk] += delta`. The only decrements are explicit withdrawals: `countBodyWithdrawn` (line 254) and `MP_UNREACH` (line 267); `applyPrefixDelta`/`applyPrefixCheck` are called ONLY from `checkPrefixLimits`. LSP `findReferences` on `prefixCounts.add` returns exactly 3 hits -- the definition (196:25) plus `applyPrefixDelta` (349:28) and `applyPrefixCheck` (371:28) -- so there is NO third mutation path in the codebase and nothing can decrement on implicit replace. Therefore a re-announced prefix (BGP implicit withdraw, the normal attribute-update path) increments the tally AGAIN while the Adj-RIB-In replaces in place. Under route churn `received` climbs away from reality and never recovers. Acceptable for prefix-limit enforcement (fails safe: over-counts only), NOT acceptable as an operator-facing "routes the peer sent". |
+| A-4 | The tally is an accurate count of what the peer advertised | Spec Task section assumed the number only needed safe exposure | The exposed number is misleading in production; the whole spec premise collapses | read the producer's data structure and every mutation site | **BROKEN** (2026-07-16): `prefixCounts` (`session_prefix.go`) holds only `counts map[uint32]int64` + `warned map[uint32]bool` -- NO per-prefix identity -- and `add()` (line 196) does an unconditional `pc.counts[fk] += delta`. The only decrements are explicit withdrawals: `countBodyWithdrawn` (line 254) and `MP_UNREACH` (line 267); `applyPrefixDelta`/`applyPrefixCheck` are called ONLY from `checkPrefixLimits`. LSP `findReferences` on `prefixCounts.add` returns exactly 3 hits -- the definition (196:25) plus `applyPrefixDelta` (349:28) and `applyPrefixCheck` (371:28) -- so there is NO third mutation path in the codebase and nothing can decrement on implicit replace. Therefore a re-announced prefix (BGP implicit withdraw, the normal attribute-update path) increments the tally AGAIN while the Adj-RIB-In replaces in place. Under route churn `received` climbs away from reality and never recovers. Acceptable for prefix-limit enforcement (fails safe: over-counts only), NOT acceptable as an operator-facing "routes the peer sent". |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Atomics add hot-path cost to prefix counting | benchmark regression on UPDATE throughput | keep the atomic write off the per-NLRI path; publish a per-UPDATE snapshot instead. NOTE (2026-07-16): naturally satisfied -- `applyPrefixDelta`/`applyPrefixCheck` are already called once per family-section per UPDATE (after `countBodyNLRI` tallies all NLRIs), never per-NLRI. A per-UPDATE map-copy snapshot would still allocate on the hot path and must be avoided; prefer atomic slots per family. |
 | R-2 | Pre-policy vs accepted gap is unattributable without filtered tracking | operators ask "why received > accepted with no filter configured" | ship together with, or after, the Depends spec; document the gap includes rejects and malformed drops. AGGRAVATED by A-4: with drift, the gap is permanent and unexplainable even WITH filtered tracking, because most of it is not filtering at all -- it is re-announcement. |
-| R-3 | The tally can UNDER-count for complex families | `received < accepted` for VPN/flowspec peers | `countPrefixEntries` (`session_prefix.go:493-497`) documents itself as possibly inaccurate for VPN/flowspec ("cannot overcount due to prefix-length advancing") -- i.e. it may undercount. Exposing it as `routes_received` breaks the birdwatcher `received >= imported` invariant (A-3) for those families. Needs per-family accuracy before exposure. |
+| R-3 | The tally can UNDER-count for complex families | `received < accepted` for VPN/flowspec peers | `countPrefixEntries` (`session_prefix.go`) documents itself as possibly inaccurate for VPN/flowspec ("cannot overcount due to prefix-length advancing") -- i.e. it may undercount. Exposing it as `routes_received` breaks the birdwatcher `received >= imported` invariant (A-3) for those families. Needs per-family accuracy before exposure. |
 
 ## Wiring Test (MANDATORY - NOT deferrable)
 
@@ -303,10 +303,10 @@ Facts established while auditing; carry these into any re-design.
 
 | # | Finding | Evidence |
 |---|---------|----------|
-| F-1 | `prefixCounts` is allocated for EVERY session, not only when limits are configured | `session.go:402` initializes it unconditionally in `NewSession`. The spec's data-flow assumed nothing here, but it matters: the pre-policy count exists even for peers with no `prefix-maximum`, so AC-1 does not need a limits-configured peer. |
-| F-2 | The field comment at `session.go:315` is STALE and contradicts the code | It reads "Initialized in NewSession when PrefixMaximum is configured"; `session.go:402` initializes it unconditionally. A one-line comment fix, deliberately NOT made in this session (user scoped the session to stop, no code). Worth fixing on the way past. |
-| F-3 | Peer already has the exact lock-free pattern this spec proposed to invent | `peer_stats.go:55` `peerCounters` holds `atomic.*` fields; `Peer.Stats()` (line 87) reads them lock-free and `reactor_api.go:96` already calls it from `Peers()`. A per-family atomic table on `Peer`, published via a Session callback wired in `runOnce()` (the existing `prefixMetrics` / `onNotifSent` pattern, `session.go:319-344`), is the idiomatic shape -- not a new snapshot type in `session_prefix.go`. Reset would hang off `ClearStats` (`peer_run.go:520`). |
-| F-4 | `summary.go:133-139` documents the CURRENT single-count design as deliberate | The comment states "there is no separate pre-policy received count here" and explains routes-filtered is never emitted. Any implementation must rewrite that comment, and it overlaps the Depends spec's own edit to the same function. |
+| F-1 | `prefixCounts` is allocated for EVERY session, not only when limits are configured | `session.go` initializes it unconditionally in `NewSession`. The spec's data-flow assumed nothing here, but it matters: the pre-policy count exists even for peers with no `prefix-maximum`, so AC-1 does not need a limits-configured peer. |
+| F-2 | The field comment at `session.go` is STALE and contradicts the code | It reads "Initialized in NewSession when PrefixMaximum is configured"; `session.go` initializes it unconditionally. A one-line comment fix, deliberately NOT made in this session (user scoped the session to stop, no code). Worth fixing on the way past. |
+| F-3 | Peer already has the exact lock-free pattern this spec proposed to invent | `peer_stats.go` `peerCounters` holds `atomic.*` fields; `Peer.Stats()` (line 87) reads them lock-free and `reactor_api.go` already calls it from `Peers()`. A per-family atomic table on `Peer`, published via a Session callback wired in `runOnce()` (the existing `prefixMetrics` / `onNotifSent` pattern, `session.go`), is the idiomatic shape -- not a new snapshot type in `session_prefix.go`. Reset would hang off `ClearStats` (`peer_run.go`). |
+| F-4 | `summary.go` documents the CURRENT single-count design as deliberate | The comment states "there is no separate pre-policy received count here" and explains routes-filtered is never emitted. Any implementation must rewrite that comment, and it overlaps the Depends spec's own edit to the same function. |
 
 ## Checklist
 

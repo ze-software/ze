@@ -15,7 +15,7 @@ A Docker interop lab that depends on host-kernel features does not run on macOS
 or in CI by itself: Docker Desktop's VM lacks the modules and the Alpine QEMU VM
 has no Docker. "It's Linux-only / needs the host kernel" is the trigger to build
 the QEMU runner, not an excuse to skip it. The four-step pattern is now codified
-in `ai/rules/qemu-testing.md` ("Interop Labs ... Need a QEMU Runner Too"):
+in `ai/rules/platform-linux.md` ("Interop Labs ... Need a QEMU Runner Too"):
 
 1. netns `effective-<feature>.py` (two namespaces + veth, no Docker), mirroring
    `effective-l2tp-ppp.py`;

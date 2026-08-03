@@ -40,15 +40,15 @@ The tests actively misled a reader into a false finding.
 ### What the fix is NOT
 
 Do not delete and stop. RFC 4724 Section 2 deserves real coverage and
-`ai/rules/no-test-deletion.md` requires replacement in the same change. The fix
+`ai/rules/testing.md` requires replacement in the same change. The fix
 drives `sendInitialRoutes` and asserts on what reaches the wire.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/tdd.md` - AC-linked tests
+- [ ] `ai/rules/testing.md` - AC-linked tests
   → Constraint: "If the assertion would still pass with a stub implementation that does nothing, the test is invalid." All three qualify.
-- [ ] `ai/rules/no-test-deletion.md` - governs the replacement
+- [ ] `ai/rules/testing.md` - governs the replacement
   → Constraint: removal is legitimate only when replacing with better coverage, and the replacement lands in the same change.
 - [ ] `ai/rules/testing.md` - the sensitivity ratchets
   → Constraint: the assert-nothing detector did NOT catch these, because they do assert; they assert on themselves. This is a distinct defect class.
@@ -78,7 +78,7 @@ drives `sendInitialRoutes` and asserts on what reaches the wire.
 **Behavior to change:**
 - The three tests are replaced by coverage that drives production code.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A peer reaches Established and initial sync runs.
@@ -107,7 +107,7 @@ drives `sendInitialRoutes` and asserts on what reaches the wire.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | The replacement must not re-implement the tracking a third time |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A, tests only |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | N-A |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | N-A |
 
 ## Risks & Assumptions
 
@@ -247,7 +247,7 @@ drives `sendInitialRoutes` and asserts on what reaches the wire.
 | Correctness | Phase 2 needed no production change |
 | Correctness | `ClaimInitialSyncEOR` is accounted for, so a second marker is not expected where the claim suppresses it |
 | Evidence | AC-3's mutation output pasted in both directions, not summarised |
-| Rule: `ai/rules/no-test-deletion.md` | Replacement lands in the same change as removal |
+| Rule: `ai/rules/testing.md` | Replacement lands in the same change as removal |
 | Rule: `ai/rules/rfc-compliance.md` | Ledger regenerated and committed with the tag |
 
 ### Deliverables Checklist
@@ -280,7 +280,7 @@ drives `sendInitialRoutes` and asserts on what reaches the wire.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Replace, do not delete | Delete the three and stop | RFC 4724 Section 2 deserves real coverage, and `no-test-deletion.md` requires replacement |
+| Replace, do not delete | Delete the three and stop | RFC 4724 Section 2 deserves real coverage, and `testing.md` requires replacement |
 | Assert on what reaches the wire | Assert on `IncrEORSent` alone | A counter can be incremented by the wrong path. The frame is the behaviour |
 | Widening the ratchet is optional | Make it mandatory | A noisy detector gets switched off; recording the class honestly is the better outcome |
 

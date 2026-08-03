@@ -209,7 +209,7 @@ func waitQueueDrained(t *testing.T, ss *senderSession) {
 // waitFor blocks until cond() is true, failing the test at the deadline. Used
 // wherever a test must wait for the drain goroutine to reach a state: the drain
 // is asynchronous, so waiting on the scheduler instead makes the test pass or
-// fail on how busy the host is (ai/rules/fix-dont-record.md).
+// fail on how busy the host is (ai/rules/completion.md).
 func waitFor(t *testing.T, limit time.Duration, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(limit)
@@ -315,7 +315,7 @@ func TestSenderQueueOverflowResetsSessionWithoutTermination(t *testing.T) {
 	// collector then has no bytes and the no-Termination assertion below has
 	// nothing to examine. Waiting on the condition instead of on scheduling
 	// luck also means the assertion can never pass vacuously
-	// (ai/rules/fix-dont-record.md).
+	// (ai/rules/completion.md).
 	if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
@@ -391,8 +391,8 @@ func TestSenderRouteMonitoringHotPathIsAllocationFree(t *testing.T) {
 	// PREVENTS: the [][]byte handoff this design rejected. A queue of per-message
 	// byte slices would allocate once per Route Monitoring message on the
 	// BGP-UPDATE -> BMP hot path, which is exactly the property
-	// newSenderSession's scratch comment records (ai/rules/buffer-first.md,
-	// ai/rules/memory-architecture.md).
+	// newSenderSession's scratch comment records (ai/rules/performance.md,
+	// ai/rules/performance.md).
 	conn := newDiscardConn()
 	ss := newTestSession(t, "alloc", conn)
 

@@ -69,4 +69,4 @@ every binary. The fix is a neutral command-metadata type both surfaces adapt.
 - Modified: `cmd/ze/hub/{main.go,main_servers.go,api.go,listener_migrate.go,service_registry.go}`,
   `cmd/ze/hub/{mcp_test.go,mcp_keyperm_test.go}` (gated `ze_mcp`), `feature-gates.txt`,
   `.golangci.yml`, `scripts/dev/dep_audit.py`, `internal/component/plugin/all/all.go`,
-  `docs/features.md`, `ai/rules/module-tiers.md`, `ai/rules/feature-gate-registration.md`
+  `docs/features.md`, `ai/rules/architecture.md`, `ai/rules/plugins.md`

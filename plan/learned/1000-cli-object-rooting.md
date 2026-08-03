@@ -17,7 +17,7 @@ and never a `--flag`.
 Rationale and the vendor analysis behind the choice (Cisco `ip`-rooted, Nokia
 `router`-rooted, Juniper/Linux object-rooted): `docs/architecture/cli/command-namespacing.md`.
 The "no `--flag` syntax in YANG; filters are keyword grammar" rule:
-`ai/rules/cli-grammar.md` ("No Flag Syntax in YANG").
+`ai/rules/cli.md` ("No Flag Syntax in YANG").
 
 ## How the family filter and the row cap are typed
 
@@ -27,7 +27,7 @@ The "no `--flag` syntax in YANG; filters are keyword grammar" rule:
   check is the whole contract; a handler must not re-normalise.
 - **The row cap is a `limit N` keyword leaf**, matching the YANG `limit` `ArgDef`.
   It is not `--limit`, for the same reason the family filter is not `--family`
-  (`ai/rules/cli-grammar.md`, "No Flag Syntax in YANG").
+  (`ai/rules/cli.md`, "No Flag Syntax in YANG").
 
 ## Traps for the next agent
 

@@ -26,8 +26,8 @@ Each fact at its producer in `third_party/vpp-linux-cp/src/`:
 | `lcp_set_default_ns` | `lcp.c:73-74` | `format (0, "/var/run/netns/%s%c", ...)` then `open`. The leaf is a NAME under `/var/run/netns/`. `host`/`root` are not special. |
 | `lcp_get_default_ns` | `lcp.c:28-36` | Only RETURNS `lcpm->default_namespace`. It formats nothing and opens nothing. |
 | `lcp_itf_pair_create` | `lcp_interface.c:850-855` | `if (ns == 0 \|\| ns[0] == 0) ns = lcp_get_default_ns ();` An EMPTY per-pair netns falls back to the GLOBAL default. |
-| `startupconf.go:106` | | ze itself writes `default netns <leaf>` whenever LCP is enabled. |
-| `RealListenerFactory.Listen` | `internal/core/network/network.go:167` | Bare `net.ListenConfig`; `Control` only sets MD5/TTL. **BGP has no netns awareness**, so the DETECTION is correct and must not be weakened. |
+| `startupconf.go` | | ze itself writes `default netns <leaf>` whenever LCP is enabled. |
+| `RealListenerFactory.Listen` | `internal/core/network/network.go` | Bare `net.ListenConfig`; `Control` only sets MD5/TTL. **BGP has no netns awareness**, so the DETECTION is correct and must not be weakened. |
 
 **The keystone:** the model is TWO-LEVEL. `""` means "VPP's own namespace" only when the
 global default is unset, and ze never leaves it unset when LCP is enabled. So there is
@@ -45,9 +45,9 @@ repeated the original bug in a new costume.
 The false claim had FOUR assertion sites (`doctor.go` message, `doctor.go` doc comment,
 `lcp.go` doc comment, `codes.go` registry Description) and ZERO verification sites. The
 entire evidence base was Go comments plus a generated binapi stub
-(`vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go:354`, "optional tap netns"), which documents
+(`vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go`, "optional tap netns"), which documents
 only that the FIELD exists and cannot express a resolution rule. Both banned patterns in
-`ai/rules/no-fabrication.md` (comment-as-intent, binding-stub-as-foreign-semantics) fired
+`ai/rules/evidence.md` (comment-as-intent, binding-stub-as-foreign-semantics) fired
 here at once.
 
 Five unit tests covered this check. All five asserted the diagnostic's COUNT and CODE.
@@ -68,7 +68,7 @@ a check FIRES says nothing about whether its advice is survivable.
   with formatting/opening the path (it does neither; `lcp_set_default_ns` does). A
   plausible function name is not a producer read. Both slips are this spec's own Core
   Insight recurring inside its own fix.
-- `plan/spec-bgp-netns.md` (`:202`, `:332`, `:448`, `:738`) still cites
+- `plan/spec-bgp-netns.md` still cites
   `lcp_interface.c:856-861` against upstream FDio/vpp master, which it labels honestly.
   Now that `third_party/vpp-linux-cp/` exists in-tree, it may want to re-anchor when it
   next lands.
@@ -90,11 +90,11 @@ a check FIRES says nothing about whether its advice is survivable.
 
 ## Rule candidate (raised, not applied)
 
-`ai/rules/doctor-checks.md` "Test Requirement" says a check's unit test must assert that it
+`ai/rules/repo-maintenance.md` "Test Requirement" says a check's unit test must assert that it
 emits the registered code. That is precisely what the five existing tests did, and it was
 not enough to stop false advice shipping. The requirement could extend to asserting the
 diagnostic's REMEDIATION. The sibling `doctor-vpp-wireguard` message is equally unasserted
-today. This generalizes `ai/rules/fail-closed-guards.md`'s test corollary: for a
+today. This generalizes `ai/rules/evidence.md`'s test corollary: for a
 diagnostic, the shape that should be rejected is BAD ADVICE, and only a message-content
 assertion rejects it.
 
@@ -106,7 +106,7 @@ assertion rejects it.
   invariant, while a golden-string test would be deleted with the first cosmetic edit.
 - The message keeps its stable leading phrase `bgp is enabled and vpp.lcp.netns=` so log
   scanners still match, quotes the offending value, and pushes the long form to
-  `ze explain doctor-vpp-lcp-netns` per `ai/rules/error-messages.md` ("if the next step
+  `ze explain doctor-vpp-lcp-netns` per `ai/rules/cli.md` ("if the next step
   needs more than one line, attach a diagnostic code").
 - The "host/root do not work" clause is kept in the MESSAGE, not only in `ze explain`: the
   old advice is in the wild (operators' notes, and `docs/guide/vpp.md` carried it until

@@ -20,9 +20,9 @@ enforcement). Remaining: tiers-5 Path B preconditions (B-2/B-3/config split).
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/plugin-self-containment.md` - the "delete the folder" invariant this generalizes
-4. `ai/rules/plugin-design.md` - registration patterns, Proximity Principle
-5. `ai/rules/rule-placement.md` (global) + `ai/rules/canonical-sources.md` - where the new rule doc must live
+3. `ai/rules/plugins.md` - the "delete the folder" invariant this generalizes
+4. `ai/rules/plugins.md` - registration patterns, Proximity Principle
+5. `ai/rules/rule-placement.md` (global) + `ai/rules/repo-maintenance.md` - where the new rule doc must live
 6. `scripts/dev/dep_audit.py` - the reverse-dependency tool that becomes the placement gate
 7. `scripts/codegen/plugin_imports.go` - hardcoded `pluginDirs` / `rpcRoot` that encode the current split
 8. `internal/component/plugin/all/all.go` - generated composition root (blank imports)
@@ -87,12 +87,12 @@ audit (below) enforces this on every verification run.
 ### Architecture Docs
 - [ ] `.claude/rules/planning.md` - workflow rules for umbrella + child specs
   -> Constraint: one spec at a time per session; children close via the two-commit rule.
-- [ ] `ai/rules/plugin-self-containment.md` - the "delete the folder" invariant this umbrella generalizes
+- [ ] `ai/rules/plugins.md` - the "delete the folder" invariant this umbrella generalizes
   -> Constraint: removing a plugin folder plus its blank import must leave every other plugin and the core working; tier moves must preserve that property.
-- [ ] `ai/rules/plugin-design.md` - registration patterns, Proximity Principle
+- [ ] `ai/rules/plugins.md` - registration patterns, Proximity Principle
   -> Constraint: both tiers register through the same registry; the tier is decided by dependency direction, not by capability difference.
-- [ ] `~/.claude/rules/rule-placement.md` (global) + `ai/rules/canonical-sources.md` - where the new rule doc must live
-  -> Decision: the taxonomy is project-wide agent behavior, so the rule lands in `ai/rules/module-tiers.md` (shared), never in a tool-specific home.
+- [ ] `~/.claude/rules/rule-placement.md` (global) + `ai/rules/repo-maintenance.md` - where the new rule doc must live
+  -> Decision: the taxonomy is project-wide agent behavior, so the rule lands in `ai/rules/architecture.md` (shared), never in a tool-specific home.
 - [ ] `scripts/dev/dep_audit.py` - the reverse-dependency tool that becomes the placement gate
   -> Constraint: the gate reuses this tool's import-graph walk; no second graph walker is written.
 - [ ] `scripts/codegen/plugin_imports.go` - hardcoded `pluginDirs`/`rpcRoot` encode the current split
@@ -157,7 +157,7 @@ UIs (`web`, `gnmi`, `mcp`, `lg`) and non-engine subsystems (`l2tp`, `ppp`, `pppo
 `doctor` framework. Most are NOT leaf and cannot move to `internal/core/` without
 decoupling first; this phase is deferred and may become its own umbrella.
 
-## Data Flow (placement & discovery, see `ai/rules/data-flow-tracing.md`)
+## Data Flow (placement & discovery, see `ai/rules/architecture.md`)
 
 ### Entry Point
 A package's `register.go` (and its `sdk.NewWithConn`/`registry.Registration`) plus
@@ -211,7 +211,7 @@ its directory location.
 
 | # | Child spec | Scope | Risk | Gated by |
 |---|-----------|-------|------|----------|
-| 1 | `spec-tiers-1-rule-and-audit.md` | Document the taxonomy in `ai/rules/module-tiers.md`; add to `ai/rules/INDEX.md` + CLAUDE.md Before-You table; extend `dep_audit.py` with **Path C**: `--check` enforces ONLY the engine rule (engine -> component if depended, else plugins), exit 2 on an engine misplacement; core/composition/host printed as advisory, NOT enforced; **no allowlist**. Add Go test gate `TestEnginePlacement`; wire into `make ze-verify`. **No moves.** | low | self (audit over current tree records the 8 engine mismatches as the worklist) |
+| 1 | `spec-tiers-1-rule-and-audit.md` | Document the taxonomy in `ai/rules/architecture.md`; add to `ai/rules/INDEX.md` + CLAUDE.md Before-You table; extend `dep_audit.py` with **Path C**: `--check` enforces ONLY the engine rule (engine -> component if depended, else plugins), exit 2 on an engine misplacement; core/composition/host printed as advisory, NOT enforced; **no allowlist**. Add Go test gate `TestEnginePlacement`; wire into `make ze-verify`. **No moves.** | low | self (audit over current tree records the 8 engine mismatches as the worklist) |
 | 2 | `spec-tiers-2-edge-out.md` | Move `isis, ldp, rsvpte, flowexport, mpls` component->plugins via the Python migration tool; update generator `pluginDirs`/`rpcRoot`; regenerate `all.go`; update docs/inventory. | low-med | Phase 1 audit |
 | 3 | `spec-tiers-3-platform-in.md` | Move `sysrib, bfd, sysctl` plugins->component via the tool; update importers, generator, docs. | med | Phase 1 audit |
 | 4 | `spec-tiers-4-borderline.md` | Decide + move `ike`, `mrt` per-case. **DONE (Phase 4, 2026-06-24):** `mrt` moved to plugins in Phase 2; `ike` stays component (2 feature deps). Also absorbed the post-Phase-3 `ospf` gate regression (nested `ospfv3` -> `ospf/v3`). | med | Phase 1 audit |
@@ -390,7 +390,7 @@ tier). The enforced engine gate is unchanged.
 Results: new fields `is_registered`/`is_engine`/`core_candidate` on each advisory row;
 the report sections are REGISTERED PLUGINS / CORE CANDIDATES / SHARED LIBRARIES;
 `dep_audit.py --selftest` gained B-1 fixtures and is now wired into `make ze-tier-check`
-(it ran the gate's `--check` only before, never its own tests); `ai/rules/module-tiers.md`
+(it ran the gate's `--check` only before, never its own tests); `ai/rules/architecture.md`
 updated. ruff clean; selftest + gate green.
 
 Remaining: B-3 (host-tier decision -- the Open Design Decision below), B-2 (extract
@@ -513,11 +513,11 @@ re-run that protocol's existing interop suite to prove no behavior change.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| New rule doc | [ ] yes | `ai/rules/module-tiers.md` + `ai/rules/INDEX.md` pointer |
+| New rule doc | [ ] yes | `ai/rules/architecture.md` + `ai/rules/INDEX.md` pointer |
 | Verification gate | [ ] yes | `make ze-verify` wiring of the placement audit |
 | Generator update | [ ] yes | `scripts/codegen/plugin_imports.go` |
 | Docs/inventory | [ ] yes | `docs/plugin-overview.md`, arch lists |
-| Discovery-updates | [ ] yes | `ai/rules/discovery-updates.md` - register the gate + keyword in `ai/INDEX.md` |
+| Discovery-updates | [ ] yes | `ai/rules/repo-maintenance.md` - register the gate + keyword in `ai/INDEX.md` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -528,7 +528,7 @@ re-run that protocol's existing interop suite to prove no behavior change.
 | others | - | [ ] no | verified by grep for moved paths in docs/ |
 
 ## Files to Create
-- `ai/rules/module-tiers.md` - the canonical tier-placement rule (Phase 1)
+- `ai/rules/architecture.md` - the canonical tier-placement rule (Phase 1)
 - `scripts/dev/migrate_module.py` - the deterministic Python restructuring tool: FS move + quoted-import rewrite + generator-list edit, dry-run by default (Phase 2)
 - `scripts/dev/dep_audit_test.py` (or Go gate) - audit gate test (Phase 1)
 - child specs `spec-tiers-1..5` as sequenced above
@@ -547,7 +547,7 @@ re-run that protocol's existing interop suite to prove no behavior change.
 | 14. Summary | Executive Summary |
 
 ### Implementation Phases
-1. **Phase: Rule + audit gate (Phase 0/1, MANDATORY FIRST)** - write `ai/rules/module-tiers.md`; extend `dep_audit.py` with `--check`, classification, allowlist; add the Go/py gate test; wire into `make ze-verify`; add INDEX/CLAUDE/discovery-updates entries.
+1. **Phase: Rule + audit gate (Phase 0/1, MANDATORY FIRST)** - write `ai/rules/architecture.md`; extend `dep_audit.py` with `--check`, classification, allowlist; add the Go/py gate test; wire into `make ze-verify`; add INDEX/CLAUDE/discovery-updates entries.
    - Tests: `TestModuleTierPlacement`, `TestExceptionsAllowlistHonored`
    - Verify: audit runs in verification and reports the known mismatches as failures (allowlisted until their move lands)
 2. **Phase: Migration tool** - write `scripts/dev/migrate_module.py` (dry-run default): moves a dir between tiers, rewrites quoted import paths repo-wide, edits generator `pluginDirs`/`rpcRoot`, then invokes the generator.
@@ -607,7 +607,7 @@ on. The audit reads this straight off the import graph.
 ## Goal Validation (BLOCKING)
 | Goal | Evidence Type | Concrete Evidence |
 |------|---------------|-------------------|
-| Boundary documented | rule file | `ai/rules/module-tiers.md` exists + linked in INDEX |
+| Boundary documented | rule file | `ai/rules/architecture.md` exists + linked in INDEX |
 | Placement auditable by code | gate test | `dep_audit.py --check` non-zero on a planted misplacement; green on compliant tree |
 | Restructure deterministic | tool + build | `migrate_module.py` dry-run output + green `go build ./...` per move |
 | Boundary matches import graph | audit clean | `dep_audit.py --check` reports zero engine-rule mismatches after Phases 2-3 |

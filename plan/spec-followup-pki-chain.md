@@ -33,12 +33,12 @@ Starting before it lands means designing against an API that does not exist yet.
 ### Work items (re-homed 2026-07-16 from `plan/deferrals.md`)
 
 - **Looking-glass TLS serves a PKI-stored chain (from spec-pki-full-chain design, 2026-07-10)** -
-  `cmd/ze/hub/service_lg.go:78` keeps the self-signed-only `LoadOrGenerateCert` path. Extend
+  `cmd/ze/hub/service_lg.go` keeps the self-signed-only `LoadOrGenerateCert` path. Extend
   it by consuming `pki.ServerTLSMaterial` like web/DoT/DoH. This is a THIRD consumer of the
   same pattern the base spec generalizes; the base spec's own Task says "same pattern applies
   cleanly later".
 - **Multi-intermediate chains (from spec-pki-full-chain design, 2026-07-10)** - `intermediate`
-  holds a single certificate (`pki/config.go:147-158`), so a 4-tier CA (leaf + 2
+  holds a single certificate (`pki/config.go`), so a 4-tier CA (leaf + 2
   intermediates) cannot be expressed. Extend `intermediate` to a list. Single-intermediate
   covers the common case, and the base spec's doctor chain check reports AKI/SKI mismatch, so
   the gap stays visible meanwhile.
@@ -95,7 +95,7 @@ configured; the base spec's chain assembly.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `spec-pki-full-chain` will land a reusable `pki.ServerTLSMaterial` that a third consumer can adopt without redesign | That spec's Task names it and generalizes across two consumers already | If the base lands a web-specific shape, the looking-glass item becomes a refactor, not an adoption | Read the base spec's delivered API at its closure | unvalidated |
-| A-2 | Extending `intermediate` to a list is backwards-compatible for existing single-intermediate configs | `pki/config.go:147-158` currently parses one certificate | If YANG cannot express both forms compatibly, existing configs break on upgrade | Read the YANG leaf and the parser before designing | unvalidated |
+| A-2 | Extending `intermediate` to a list is backwards-compatible for existing single-intermediate configs | `pki/config.go` currently parses one certificate | If YANG cannot express both forms compatibly, existing configs break on upgrade | Read the YANG leaf and the parser before designing | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

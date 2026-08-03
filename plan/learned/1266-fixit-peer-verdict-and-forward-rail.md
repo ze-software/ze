@@ -58,11 +58,11 @@ the tests both pass and actually gate.
   spec against the CODE before assuming its defects are open -- three read-only
   investigation agents found there was almost nothing left to implement.
 - **A stale claim can hide inside the spec itself.** The spec asserted the RFC 4271
-  §5.1.2 prepend obligation was "unextracted"; it is present at `rfc/short/rfc4271.md:739`
+  §5.1.2 prepend obligation was "unextracted"; it is present at `rfc/short/rfc4271.md`
   (`[RFC4271-5.1.2-3]`). Verify spec-stated gaps, not just spec-stated fixes.
 - The `overflowPending` gate can transiently go negative during a Stop/drain race;
   harmless because TryDispatch short-circuits on `fp.stopped` before reading it.
-- Cosmetic residue: the `# ORDERING:` comment in `test/plugin/bgp-rs-reactor-fastpath.ci:32-41`
+- Cosmetic residue: the `# ORDERING:` comment in `test/plugin/bgp-rs-reactor-fastpath.ci`
   is self-contradicted by the `test-relax` block below it (the assertions are
   correct). `plan/known-failures/bgp-plugin-show-l2tp-tunnel-detail.md` (test 458)
   is a separate test's shard, not resolved by this spec.

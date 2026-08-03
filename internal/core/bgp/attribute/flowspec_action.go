@@ -41,9 +41,9 @@ func FlowSpecActionKeyword(name string) (ExtendedCommunity, bool) {
 
 // FlowSpecActionKeywords returns the accepted keywords, sorted, for an error
 // message that tells the operator what IS accepted rather than only that their
-// input was not (ai/rules/error-messages.md). Derived from the table, so a new
+// input was not (ai/rules/cli.md). Derived from the table, so a new
 // keyword cannot be added without the diagnostic naming it
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 func FlowSpecActionKeywords() []string {
 	names := make([]string, 0, len(flowSpecActionKeywords))
 	for name := range flowSpecActionKeywords {

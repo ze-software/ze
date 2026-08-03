@@ -38,7 +38,7 @@ type pluginConfig struct {
 	enabled bool
 	// persistDir is vestigial back-compat: its value no longer names a
 	// directory (Meticulous TX sequences persist to the shared zefs store
-	// via internal/core/statestore, see ai/rules/zefs-persistence.md), but
+	// via internal/core/statestore, see ai/rules/architecture.md), but
 	// a non-empty value still opts a session into persistence. The
 	// persist-dir YANG leaf is retained for compatibility and flagged for
 	// later deprecation.

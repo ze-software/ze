@@ -10,4 +10,4 @@
 
 Consult `ai/rationale/<name>.md` when the compressed rule leaves gaps.
 
-Project knowledge and mistake log: `ai/rules/project-knowledge.md`
+Project knowledge and mistake log: `ai/rules/repo-maintenance.md`

@@ -153,7 +153,7 @@ func crossContextTranscodeBody(t *testing.T) []byte {
 // read pool instead of allocating a fresh one per forward, and takes none at all
 // when the destination context needs no transcode.
 // PREVENTS: a silent return to `make([]byte, len(payload)*2+1024)` per forward,
-// which is the ai/rules/buffer-first.md violation this item exists to remove. The
+// which is the ai/rules/performance.md violation this item exists to remove. The
 // pool in-use delta is the only observable that separates the two: both produce
 // identical bytes.
 func TestTranscodeBufferPooled(t *testing.T) {

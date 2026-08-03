@@ -22,7 +22,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 ### Work items (migrated from the 2026-07-06 deferral triage; `L#` = row in the pre-triage `plan/deferrals.md`)
 
-- **Root-cause the empty-bus shutdown hang (L103)** - a `.ci` plugin dispatching `show errors` on an empty bus then `daemon shutdown`+`wait_for_shutdown` hangs to timeout. Product handler is benign (`show.go:101,118`); fault is in the harness shutdown/IPC path. Blocks L102,L115.
+- **Root-cause the empty-bus shutdown hang (L103)** - a `.ci` plugin dispatching `show errors` on an empty bus then `daemon shutdown`+`wait_for_shutdown` hangs to timeout. Product handler is benign (`show.go,118`); fault is in the harness shutdown/IPC path. Blocks L102,L115.
 - **Empty-bus tests, blocked by L103 (L102,L115)** - `show-errors-empty.ci` (L102), `show-warnings-empty.ci` (L115). Unit tests already cover the empty case.
 - **Distinct-blocker report-bus `.ci` (L116,L117,L113,L104)** - config-rollback (L116, multi-phase toggle plugin), config-save (L117, read-only-fs/write-intercept), warnings-clear (L113, ze-peer announce-over-threshold+withdraw), session-dropped (L104, ze-peer abrupt-close action).
 
@@ -32,7 +32,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 write watchdog to the plugin RPC connection layer: on transports that do not implement
 `SetWriteDeadline` (stdio, io.Pipe, SSH channels), a write stalled past a default 30s window
 is logged, counted, and the connection is closed by `fireWatchdog`
-(`pkg/plugin/rpc/conn.go:191-200`; watchdog fields :91-93; window `defaultWriteDeadline` at
+(`pkg/plugin/rpc/conn.go`; watchdog fields :91-93; window `defaultWriteDeadline` at
 :44; armed on the non-deadline path at :314). If the un-root-caused daemon-shutdown hang
 involved a write stalled on such a transport in the harness shutdown/IPC path, the watchdog
 would now break the stall after 30s instead of hanging to the test timeout, changing or
@@ -66,7 +66,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 **Behavior to change:**
 - Only the specific gaps enumerated in the Task work items.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - `ze show errors` / `ze show warnings` dispatched via a `.ci` test plugin, then `daemon shutdown`
@@ -91,7 +91,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 - [ ] No bypassed layers (data flows through intended path)
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
-- [ ] Registration over hardcoding - new commands/views/families/handlers register and are core-discovered, not hardcoded into a core/shared package (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding - new commands/views/families/handlers register and are core-discovered, not hardcoded into a core/shared package (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -183,4 +183,4 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 - [ ] Tests PASS (paste output)
 
 ## Notes
-- Skeleton = captured intent, not a designed spec (see `ai/rules/deferral-tracking.md`). Moves to `design` when someone picks it up.
+- Skeleton = captured intent, not a designed spec (see `ai/rules/planning.md`). Moves to `design` when someone picks it up.

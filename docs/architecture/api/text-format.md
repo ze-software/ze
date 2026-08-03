@@ -100,21 +100,21 @@ Each NLRI type plugin implements `String()` which produces the text representati
 
 | Type | Format | Optional Fields | Source |
 |------|--------|-----------------|--------|
-| IPv4/IPv6 unicast | `10.0.0.0/24` | — | `nlri/inet.go:178` |
-| + ADD-PATH | `10.0.0.0/24 path-id set 42` | path-id | `nlri/inet.go:177` |
-| VPN | `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` | label, path-id | `bgp-nlri-vpn/types.go:266` |
-| Labeled unicast | `prefix set 10.0.0.0/24 label set 1000` | label, path-id | `bgp-nlri-labeled/types.go:161` |
-| EVPN Type1 | `ethernet-ad rd set X esi set Y etag set Z` | label | `bgp-nlri-evpn/types.go:308` |
-| EVPN Type2 | `mac-ip rd set X mac set Y ip set Z` | ip, etag, label | `bgp-nlri-evpn/types.go:481` |
-| EVPN Type3 | `multicast rd set X ip set Y` | etag | `bgp-nlri-evpn/types.go:595` |
-| EVPN Type4 | `ethernet-segment rd set X esi set Y ip set Z` | — | `bgp-nlri-evpn/types.go:715` |
-| EVPN Type5 | `ip-prefix rd set X prefix set Y` | esi, etag, gateway, label | `bgp-nlri-evpn/types.go:875` |
-| EVPN unknown | `evpn-type<N>` | — | `bgp-nlri-evpn/types.go:919` |
-| FlowSpec | `flow destination 10.0.0.0/24 port ==80` | varies by components | `bgp-nlri-flowspec/types.go:336` |
-| VPLS | `rd set X ve-id set Y label set Z` | — | `bgp-nlri-vpls/types.go:173` |
-| MVPN | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mvpn/types.go:192` |
-| RTC | `origin-as set X rt set Y` or `default` | default case has no sub-keys | `bgp-nlri-rtc/types.go:184` |
-| MUP | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mup/types.go:200` |
+| IPv4/IPv6 unicast | `10.0.0.0/24` | — | `nlri/inet.go` |
+| + ADD-PATH | `10.0.0.0/24 path-id set 42` | path-id | `nlri/inet.go` |
+| VPN | `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` | label, path-id | `bgp-nlri-vpn/types.go` |
+| Labeled unicast | `prefix set 10.0.0.0/24 label set 1000` | label, path-id | `bgp-nlri-labeled/types.go` |
+| EVPN Type1 | `ethernet-ad rd set X esi set Y etag set Z` | label | `bgp-nlri-evpn/types.go` |
+| EVPN Type2 | `mac-ip rd set X mac set Y ip set Z` | ip, etag, label | `bgp-nlri-evpn/types.go` |
+| EVPN Type3 | `multicast rd set X ip set Y` | etag | `bgp-nlri-evpn/types.go` |
+| EVPN Type4 | `ethernet-segment rd set X esi set Y ip set Z` | — | `bgp-nlri-evpn/types.go` |
+| EVPN Type5 | `ip-prefix rd set X prefix set Y` | esi, etag, gateway, label | `bgp-nlri-evpn/types.go` |
+| EVPN unknown | `evpn-type<N>` | — | `bgp-nlri-evpn/types.go` |
+| FlowSpec | `flow destination 10.0.0.0/24 port ==80` | varies by components | `bgp-nlri-flowspec/types.go` |
+| VPLS | `rd set X ve-id set Y label set Z` | — | `bgp-nlri-vpls/types.go` |
+| MVPN | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mvpn/types.go` |
+| RTC | `origin-as set X rt set Y` or `default` | default case has no sub-keys | `bgp-nlri-rtc/types.go` |
+| MUP | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mup/types.go` |
 <!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- String -->

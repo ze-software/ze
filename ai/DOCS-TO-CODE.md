@@ -5,7 +5,7 @@
 
 Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
-`<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
+`<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
 Total: 306 design docs, 3193 files
 
@@ -40,29 +40,29 @@ Total: 306 design docs, 3193 files
 | `internal/component/authz/register.go` | AAA registry (VFS-like) |
 | `internal/component/tacacs/register.go` | AAA registry (VFS-like) |
 
-## `ai/rules/buffer-first.md`
+## `ai/rules/performance.md`
 
 - `internal/plugins/vrrp/packet/packet.go` -- WriteTo(buf, off) int contract
 - `internal/plugins/vrrp/packet/validate.go` -- zero-allocation decode over a lazy VIP view
 
-## `ai/rules/cli-grammar.md`
+## `ai/rules/cli.md`
 
 - `scripts/checks/ci_dispatch_commands.go` -- dispatch-key migration leaves dead callers
 
-## `ai/rules/cli-patterns.md`
+## `ai/rules/cli.md`
 
 - `internal/core/cliio/cliio.go` -- "-" means stdin/stdout across every command
 
-## `ai/rules/config-string-coercion.md`
+## `ai/rules/config.md`
 
 - `scripts/checks/config_string_coercion.go` -- config value-coercion guard
 
-## `ai/rules/design-principles.md`
+## `ai/rules/architecture.md`
 
 - `internal/core/bufpool/bufpool.go` -- "Pool strategy by goroutine shape"
 - `internal/core/bufpool/doc.go` -- "Pool strategy by goroutine shape"
 
-## `ai/rules/doctor-checks.md`
+## `ai/rules/repo-maintenance.md`
 
 | File | Topic |
 |------|-------|
@@ -75,11 +75,11 @@ Total: 306 design docs, 3193 files
 | `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
 | `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go` | doctor checks owned by the plugin that |
 
-## `ai/rules/fail-closed-guards.md`
+## `ai/rules/evidence.md`
 
 - `cmd/ze/hub/mgmt_guard.go` -- boot-time management-listener exposure guard
 
-## `ai/rules/feature-gate-registration.md`
+## `ai/rules/plugins.md`
 
 | File | Topic |
 |------|-------|
@@ -182,21 +182,21 @@ Total: 306 design docs, 3193 files
 | `internal/plugins/static/backend_vpp_off_linux.go` | ze_vpp-off static backend stub |
 | `scripts/codegen/feature_tags.go` | the three static consumers are GENERATED, not hand-maintained |
 
-## `ai/rules/no-sprintf-alloc.md`
+## `ai/rules/performance.md`
 
 - `internal/core/textbuf/textbuf.go` -- zero-allocation text formatting helpers
 
-## `ai/rules/pipe-completeness.md`
+## `ai/rules/cli.md`
 
 - `internal/component/cli/model_enrich.go` -- data-transform pipes in custom render paths
 - `internal/component/cli/model_enrich_test.go` -- enrichAddr applies | resolve / | origin in | log render paths
 - `internal/component/cli/testing/fake_monitor.go` -- functional coverage for | log data-transform pipes
 
-## `ai/rules/plugin-process-boundary.md`
+## `ai/rules/plugins.md`
 
 - `scripts/checks/plugin_process_boundary.go` -- process-boundary guard
 
-## `ai/rules/plugin-self-containment.md`
+## `ai/rules/plugins.md`
 
 | File | Topic |
 |------|-------|
@@ -210,7 +210,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/web/register_ospf.go` | OSPF web routes self-registration |
 | `internal/component/web/webroute.go` | web route registry (registration over hardcoding) |
 
-## `ai/rules/zefs-persistence.md`
+## `ai/rules/architecture.md`
 
 | File | Topic |
 |------|-------|

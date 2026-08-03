@@ -14,7 +14,7 @@ the resolver (sub-spec 2) or migrating any consumer.
 ## Decisions
 
 - Added two `omitempty` fields to `iface.InterfaceInfo` (`OsName`, `PermanentMAC`) over a new struct or a separate API, because the type is the existing cross-boundary value type and `omitempty` makes the addition non-breaking for every show/web/rate consumer.
-- `PermanentMAC` is read from `netlink.LinkAttrs.PermHWAddr` (vishvananda/netlink v1.3.1, `link.go:58`) over a raw `IFLA_PERM_ADDRESS` netlink parse or `ETHTOOL_GPERMADDR` ioctl, because the wrapper already exposes the field; no extra syscall path is needed.
+- `PermanentMAC` is read from `netlink.LinkAttrs.PermHWAddr` (vishvananda/netlink v1.3.1, `link.go`) over a raw `IFLA_PERM_ADDRESS` netlink parse or `ETHTOOL_GPERMADDR` ioctl, because the wrapper already exposes the field; no extra syscall path is needed.
 - Populated both in `linkToInfo` (the single build point shared by `ListInterfaces` and `GetInterface`) over per-call-site reads, so there is one permaddr read path.
 - **Narrowed scope mid-implementation (user-approved):** os-name as a *resolution selector* (un-hiding the config `os-name` leaf, default-to-name, binding) was moved to sub-spec 2. The audit proved the config `os-name` leaf is **dormant** -- written by `ze init` (523) but read by no runtime code -- so promoting it before a consumer exists would be a speculative, inert config knob. Sub-spec 1 only makes os-name *visible* in `show interface` (the `OsName` field = kernel device name) and reads the permanent MAC.
 - `show interface name <x> detail` needed no formatter change: it returns the whole `InterfaceInfo`, so the new fields surface automatically.

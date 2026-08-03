@@ -22,7 +22,7 @@ import (
 // It is a variable so a test can drive the arm below it, where the ownership record and
 // the kernel's own state can part. No real kernel refuses a well-formed delete on demand
 // for a reason other than ENOENT, and driving that arm from the helper alone would leave
-// the entry point itself unproven (ai/rules/fail-closed-guards.md).
+// the entry point itself unproven (ai/rules/evidence.md).
 var xfrmPolicyDel = netlink.XfrmPolicyDel
 
 type xfrmBackend struct {
@@ -69,7 +69,7 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 		if !okPeer || !okLocal {
 			// IPv6 ESP-in-UDP is not served by this receiver. Refusing the install is
 			// the honest answer: an SA that silently receives one form only carries no
-			// traffic when the peer picks the other (ai/rules/exact-or-reject.md).
+			// traffic when the peer picks the other (ai/rules/protocol.md).
 			return fmt.Errorf("xfrm: spi=%d asks to receive both ESP forms, which this backend serves for IPv4 only (src=%v dst=%v)", p.SPI, p.Src, p.Dst)
 		}
 		if err := b.espForms.Watch(p.SPI, peer, local); err != nil {
@@ -217,7 +217,7 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	//
 	// This is idempotent AND safer than swallowing EEXIST: swallowing would leave ze
 	// believing it installed a policy when a DIFFERENT one occupied that selector,
-	// which is a guard that fails open (ai/rules/fail-closed-guards.md).
+	// which is a guard that fails open (ai/rules/evidence.md).
 	//
 	// The upsert is what a rekey needs and what a DIFFERENT peer must not get. EEXIST
 	// used to refuse the second peer loudly, and the claim below is what refuses it
@@ -269,7 +269,7 @@ func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 // install back by removing the policy of the other direction, so a peer whose install
 // this backend just refused would otherwise take the owning peer's live policy down on
 // its way out, and the owning peer's tunnel would blackhole with its states still
-// installed (ai/rules/fail-closed-guards.md).
+// installed (ai/rules/evidence.md).
 func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 	pol, err := xfrmPolicyFromParams(p)
 	if err != nil {
@@ -386,7 +386,7 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 // A match asking for "exactly port 0" cannot be built: writing 0 yields mask 0, which
 // matches EVERY port. That is the OPAQUE port form of RFC 7296 Section 3.13.1, and
 // installing it as any-port would protect more traffic than was negotiated. So it is
-// refused here rather than widened (ai/rules/exact-or-reject.md).
+// refused here rather than widened (ai/rules/protocol.md).
 func xfrmSelectorPort(side string, p PortMatch) (int, error) {
 	if p.IsAny() {
 		return 0, nil

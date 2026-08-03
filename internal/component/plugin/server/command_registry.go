@@ -36,7 +36,7 @@ type deprecatedAlias struct {
 
 // The canonical closed set of first tokens (verbs) a plugin command may begin
 // with lives in command.Verbs (internal/component/command), the single source of
-// truth shared with the grammar gate (ai/rules/cli-grammar.md, derive-not-hardcode.md).
+// truth shared with the grammar gate (ai/rules/cli.md, evidence.md).
 // validateCommandName below checks against it; adding a verb is a deliberate edit
 // to command.Verbs, not a second list here.
 //
@@ -47,7 +47,7 @@ type deprecatedAlias struct {
 //
 // validVerbList returns the sorted, comma-separated list of valid command verbs,
 // derived from the canonical command.Verbs registry (internal/component/command)
-// so there is no second verb list to drift (ai/rules/derive-not-hardcode.md).
+// so there is no second verb list to drift (ai/rules/evidence.md).
 func validVerbList() string {
 	return textbuf.Join(command.VerbList(), ", ")
 }

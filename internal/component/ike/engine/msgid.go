@@ -274,7 +274,7 @@ func (sa *SA) requestWindowStale(now time.Time) bool {
 // checklist row RFC7296-2.3-7 carries the sentence verbatim.
 //
 // A body of any other length is refused rather than ignored. Ze never acts on a
-// notification whose length the RFC fixes (ai/rules/exact-or-reject.md). The caller
+// notification whose length the RFC fixes (ai/rules/protocol.md). The caller
 // ends the IKE_AUTH on the error.
 //
 // The value bounds what Ze MAY SEND and never what Ze ACCEPTS. Ze sends no

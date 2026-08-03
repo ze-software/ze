@@ -12,7 +12,7 @@
 The repo commits its Go dependencies TWICE, in two different formats:
 
 - `vendor/` — a flat, one-version-per-package tree, read only by `-mod=vendor`, tied to the
-  root module's `go.mod`. Used to build `bin/gok` (`mk/gokrazy.mk:57`, `-mod=vendor`) and the
+  root module's `go.mod`. Used to build `bin/gok` (`mk/gokrazy.mk`, `-mod=vendor`) and the
   rest of the repo.
 - `gokrazy/modcache/` — a committed, versioned `pkg@vX.Y.Z` GOMODCACHE (60+ tracked files),
   read by normal module resolution (`GOMODCACHE=$(CURDIR)/gokrazy/modcache`), used by the
@@ -64,7 +64,7 @@ is DISJOINT:
 line up.** A never-compiled blank import of `gokrazy/gokrazy` + `go mod tidy`/`vendor` resolved
 `gokrazy/gokrazy` to `@20260703` (matching the image pin, good) but forced `gokrazy/internal`
 up `20251208 -> 20260625`, which BROKE the vendored `gokrazy/tools@20260406`:
-`vendor/github.com/gokrazy/tools/internal/packer/sbom.go:101: undefined: config.InstanceConfigPath`.
+`vendor/github.com/gokrazy/tools/internal/packer/sbom.go: undefined: config.InstanceConfigPath`.
 So the April `tools` and the July `gokrazy/gokrazy` need incompatible `internal` versions. Spike
 reverted; tree clean.
 
@@ -94,14 +94,14 @@ status quo is worth changing.
 
 ## Required Reading
 
-- `ai/rules/appliance-dep-bumps.md` — the vendored-init bump runbook and modcache cache-permission rules
+- `ai/rules/platform-linux.md` — the vendored-init bump runbook and modcache cache-permission rules
 - `mk/gokrazy.mk` — how `bin/gok` and the image build consume the two stores today
 - `plan/learned/1173-relocate-scratch-and-cache.md` — must land first (Depends)
 
 ## Current Behavior
 
 **Source files read:** (during the 2026-07-18 audit + spike recorded above)
-- [x] `mk/gokrazy.mk:57` — `bin/gok` built with `-mod=vendor` from the root module
+- [x] `mk/gokrazy.mk` — `bin/gok` built with `-mod=vendor` from the root module
 - [x] `gokrazy/ze/builddir/*/go.mod` — independently-pinned builddir modules read `GOMODCACHE=$(CURDIR)/gokrazy/modcache`
 - [x] `gokrazy/modcache/.gitignore` — whitelists only `gokrazy/gokrazy@*/**`; everything else is downloaded, not committed
 - [x] `.gitignore:1` — "Dependencies are vendored and committed" (the property step 2 would reverse)

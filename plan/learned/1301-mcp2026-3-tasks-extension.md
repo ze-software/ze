@@ -70,7 +70,7 @@ rather than per call through `params.task`.
   directly. `retentionHints` re-clamps, so the *wire* value survived when the
   constructor call was deleted. But `r.ttl`, the sweep window, would not have
   survived. Drive the guard from the entry point that fires it
-  (`fail-closed-guards.md`). This test did not, and that is why it missed.
+  (`evidence.md`). This test did not, and that is why it missed.
 - **A claim that `ze:task-support forbidden` was inert was false**, and nobody
   checked it before it was recorded. `tools/list` carries it on `ze_clear_bgp` and
   `ze_request_bgp`, and a task-augmented call is refused with

@@ -254,7 +254,7 @@ func RunRouteServer(conn net.Conn) int {
 	// Claim peer-up replay ownership from bgp-adj-rib-in once everything is up.
 	// OnAllPluginsReady (not OnStarted) because this dispatches to ANOTHER
 	// plugin's command, which only resolves after the dispatcher's command
-	// registry is frozen (ai/rules/plugin-design.md, OnStarted vs
+	// registry is frozen (ai/rules/plugins.md, OnStarted vs
 	// OnAllPluginsReady).
 	p.OnAllPluginsReady(func() error {
 		rs.claimReplayOwnership()

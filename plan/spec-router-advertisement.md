@@ -8,11 +8,11 @@
 | Updated | 2026-07-10 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
-citations below updated in-body): `reconcileDHCP` now `register.go:861`,
+citations below updated in-body): `reconcileDHCP` now `register.go`,
 `DHCPStopper` `:812`, `SetDHCPClientFactory` `:824` (block `:809-826`),
 shutdown stop-all `:764+`, `dhcpEntry`/`dhcpParams` `:841-856`. `BuildRA`
-(`ra.go:37`), `startRASender`/`raSenderLoop` (`:29`/`:108`),
-`Resolve`/`Subscribe` (`resolve.go:65`/`:80`) verified exact.
+(`ra.go`), `startRASender`/`raSenderLoop` (`:29`/`:108`),
+`Resolve`/`Subscribe` (`resolve.go`/`:80`) verified exact.
 
 Status note: user instruction 2026-07-10 authorized conversion to ready (skeleton
 filled from firsthand RESEARCH/DESIGN in this session; no separate approval round).
@@ -24,11 +24,11 @@ filled from firsthand RESEARCH/DESIGN in this session; no separate approval roun
 2. `.claude/rules/planning.md`
 3. `internal/component/l2tp/ppp/ra.go` - the only existing RA builder (BNG, prefix-less)
 4. `internal/component/l2tp/ppp/ra_linux.go` - the RA raw-socket send loop
-5. `ai/rules/qemu-testing.md` - RA is Linux-only; QEMU integration tests mandatory
-6. `internal/component/iface/register.go` (reconcileDHCP at register.go:861, DHCPStopper/SetDHCPClientFactory at register.go:809-826) - the per-unit service reconcile + factory pattern this spec mirrors
+5. `ai/rules/platform-linux.md` - RA is Linux-only; QEMU integration tests mandatory
+6. `internal/component/iface/register.go` (reconcileDHCP at register.go, DHCPStopper/SetDHCPClientFactory at register.go) - the per-unit service reconcile + factory pattern this spec mirrors
 7. `internal/component/iface/resolve.go` (Resolve :65, Addresses :71, Subscribe :80) - the mandatory interface-resolution surface
 8. `internal/plugins/iface/dhcp/register.go` - the sibling plugin registration precedent (`iface-dhcp`)
-9. `internal/component/iface/yang/ze-iface-conf.yang` (interface-unit grouping, ipv6 container at ze-iface-conf.yang:351) - where the new container sits
+9. `internal/component/iface/yang/ze-iface-conf.yang` (interface-unit grouping, ipv6 container at ze-iface-conf.yang) - where the new container sits
 
 ## Task
 
@@ -59,7 +59,7 @@ gap; it is NOT ready to implement.~~ (superseded 2026-07-10: placement decided a
 | Config surface | New `router-advertisement` container inside the per-unit `ipv6` container of the `interface-unit` grouping (`ze-iface-conf.yang`), sibling of `dhcpv6`, marked `ze:os "linux"` + `ze:backend "netlink"` |
 | Sender placement | New edge plugin `internal/plugins/iface/ra` (plugin name `iface-ra`, package `ifacera`), factory-registered into the iface component exactly like `iface-dhcp` (`iface.SetDHCPClientFactory` precedent) |
 | Packet encoding | New core leaf package `internal/core/ndp` (RFC 4861 RA header + Prefix Information + Source Link-Layer Address options, RFC 8106 RDNSS); `ppp.BuildRA` delegates to it with byte-identical output |
-| Lifecycle | iface component reconciles desired vs active senders on config apply/reload (mirrors `reconcileDHCP`, register.go:861); per-sender goroutine follows `iface.Subscribe` link events; final zero-lifetime RA on removal/shutdown |
+| Lifecycle | iface component reconciles desired vs active senders on config apply/reload (mirrors `reconcileDHCP`, register.go); per-sender goroutine follows `iface.Subscribe` link events; final zero-lifetime RA on removal/shutdown |
 | Interface resolution | `iface.Resolve` only; the `*net.Interface` needed by multicast join is constructed from the resolver `Binding` (Ifindex/OsName), so `scripts/checks/iface_resolution.go` needs no new allowlist entry |
 | Tests | Unit golden-vector tests for encoding, iface config parse/reconcile unit tests, netns+veth QEMU integration tests proving a peer kernel autoconfigures, `.ci` parse accept/reject + a `needs-linux` functional test |
 
@@ -80,21 +80,21 @@ from configured unit addresses, `show interface` RA state surface.
   → Constraint: reuse the `BuildRA` + raw-socket/RS-listener pattern, but generalise it to a LAN interface and add prefix options.
 - [ ] `internal/core/sysctl/known_linux.go` - host-side RA acceptance sysctls (accept_ra, autoconf, forwarding).
   → Constraint: sending RAs is distinct from accepting them; a router sending RAs must have IPv6 forwarding on and typically does not accept RAs on the same interface.
-- [ ] `ai/rules/qemu-testing.md` - RA delivery is a kernel/link behaviour; QEMU integration tests are mandatory.
+- [ ] `ai/rules/platform-linux.md` - RA delivery is a kernel/link behaviour; QEMU integration tests are mandatory.
   → Constraint: never skip QEMU tests for "needs hardware".
-- [ ] `internal/component/iface/register.go` (read 2026-07-10; re-anchored 2026-07-22) - reconcileDHCP (register.go:861+) + DHCPStopper/SetDHCPClientFactory (register.go:809-826) + shutdown stop-all (register.go:764+).
+- [ ] `internal/component/iface/register.go` (read 2026-07-10; re-anchored 2026-07-22) - reconcileDHCP (register.go+) + DHCPStopper/SetDHCPClientFactory (register.go) + shutdown stop-all (register.go+).
   → Decision: the RA sender copies this exact shape: RAStopper interface, SetRASenderFactory, reconcileRA on OnConfigure/OnConfigApply, stop-all on shutdown (D-4).
-- [ ] `internal/plugins/iface/dhcp/register.go` (read 2026-07-10) - `iface-dhcp` registration: `registry.Registration{Dependencies: []string{"interface"}}` + factory handoff at init (register.go:17-42).
+- [ ] `internal/plugins/iface/dhcp/register.go` (read 2026-07-10) - `iface-dhcp` registration: `registry.Registration{Dependencies: []string{"interface"}}` + factory handoff at init (register.go).
   → Decision: `iface-ra` registers identically; removing the plugin leaves the factory nil and reconcileRA a no-op (self-containment).
-- [ ] `internal/component/iface/resolve.go` (read 2026-07-10) - Resolve (resolve.go:65), Addresses (resolve.go:71), Subscribe (resolve.go:80); Binding carries Ifindex/OsName/OperMAC.
+- [ ] `internal/component/iface/resolve.go` (read 2026-07-10) - Resolve (resolve.go), Addresses (resolve.go), Subscribe (resolve.go); Binding carries Ifindex/OsName/OperMAC.
   → Constraint: all interface-name handling goes through the resolver; the sender builds its `*net.Interface` from the Binding instead of `net.InterfaceByName` (D-3).
-- [ ] `scripts/checks/iface_resolution.go` (read 2026-07-10) - bans `net.InterfaceByName(` / `.LinkByName(` / SIOCGIFINDEX outside the allowlist (patterns at iface_resolution.go:62-66); `internal/component/l2tp/ppp/` is allowlisted because pppN names are kernel-assigned (iface_resolution.go:55).
+- [ ] `scripts/checks/iface_resolution.go` (read 2026-07-10) - bans `net.InterfaceByName(` / `.LinkByName(` / SIOCGIFINDEX outside the allowlist (patterns at iface_resolution.go); `internal/component/l2tp/ppp/` is allowlisted because pppN names are kernel-assigned (iface_resolution.go).
   → Constraint: the new plugin must pass this gate with NO new allowlist entry (AC-11).
-- [ ] `ai/rules/module-tiers.md` + `ai/rules/plugin-self-containment.md` (read 2026-07-10).
-  → Decision: engine nothing depends on -> edge plugin under `internal/plugins/`; nested under `internal/plugins/iface/` like `dhcp`/`netlink`/`vpp` (blank imports exist at `internal/component/plugin/all/all.go:235-236`); shared encoding primitive extracted to `internal/core/ndp` per the dedicated-feature-modules extraction rule.
-- [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md`, `ai/patterns/config-option.md` (read 2026-07-10).
+- [ ] `ai/rules/architecture.md` + `ai/rules/plugins.md` (read 2026-07-10).
+  → Decision: engine nothing depends on -> edge plugin under `internal/plugins/`; nested under `internal/plugins/iface/` like `dhcp`/`netlink`/`vpp` (blank imports exist at `internal/component/plugin/all/all.go`); shared encoding primitive extracted to `internal/core/ndp` per the dedicated-feature-modules extraction rule.
+- [ ] `ai/rules/config.md`, `ai/rules/config.md`, `ai/patterns/config-option.md` (read 2026-07-10).
   → Decision: operator-facing YANG config (no env vars); kebab-case full words with unit suffixes (`maximum-interval-seconds`); maximum native validation via range/default/description, cross-field checks at parse/verify time.
-- [ ] `internal/plugins/iface/netlink/slaac_linux.go` (read 2026-07-10) - the receive-side complement: addrOrigin (slaac_linux.go:30) classifies kernel-autoconfigured addresses; ze runs no userspace RA client.
+- [ ] `internal/plugins/iface/netlink/slaac_linux.go` (read 2026-07-10) - the receive-side complement: addrOrigin (slaac_linux.go) classifies kernel-autoconfigured addresses; ze runs no userspace RA client.
   → Constraint: receive-side tracking is untouched by this spec; the QEMU test can reuse its origin classification to assert the peer's SLAAC address.
 
 ### RFC Summaries (MUST for protocol work)
@@ -106,27 +106,27 @@ from configured unit addresses, `show interface` RA state surface.
 **Key insights:**
 - The RA message builder and raw-socket send loop already exist for BNG; the missing pieces are the LAN config surface and the Prefix Information option (RFC 4861 Section 4.6.2), which has no type in the codebase today.
 - The iface component already owns a per-unit service lifecycle (DHCP clients) driven by a factory + reconcile pattern; RA senders are the same shape with the direction reversed (ze serves the LAN instead of consuming a lease).
-- RFC 4861 Section 4.2 requires RAs to be sent with IPv6 Hop Limit 255; the Linux ndisc receive path discards RAs with any other hop limit. The existing ppp sender sets only `ControlMessage.IfIndex` (ra_linux.go:117) and never sets the multicast hop limit, whose kernel default is 1. The new sender sets it explicitly; A-4 verifies the claim in QEMU (and may reveal a latent ppp bug).
+- RFC 4861 Section 4.2 requires RAs to be sent with IPv6 Hop Limit 255; the Linux ndisc receive path discards RAs with any other hop limit. The existing ppp sender sets only `ControlMessage.IfIndex` (ra_linux.go) and never sets the multicast hop limit, whose kernel default is 1. The new sender sets it explicitly; A-4 verifies the claim in QEMU (and may reveal a latent ppp bug).
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/ppp/ra.go` - `BuildRA` (ra.go:37) builds an ICMPv6 type-134 RA with header, flags, and RDNSS only; its comment (ra.go:34-36) states no Prefix Information is included because BNG uses DHCPv6-PD. There is no `PrefixInfo`/prefix-option type anywhere.
-- [ ] `internal/component/l2tp/ppp/ra_linux.go` - ~~`raSenderLoop` (ra_linux.go:100-138)~~ `raSenderLoop` (ra_linux.go:108-146; corrected 2026-07-10 after re-read) sends RAs to `ff02::1` on a timer and on-demand to Router Solicitations, bound to the point-to-point `pppN` device; not a LAN broadcast sender.
-- [ ] `internal/core/sysctl/known_linux.go` - only host-side RA behaviour is exposed (accept_ra at known_linux.go:73, autoconf at :69, forwarding at :77); nothing advertises prefixes.
+- [ ] `internal/component/l2tp/ppp/ra.go` - `BuildRA` (ra.go) builds an ICMPv6 type-134 RA with header, flags, and RDNSS only; its comment (ra.go) states no Prefix Information is included because BNG uses DHCPv6-PD. There is no `PrefixInfo`/prefix-option type anywhere.
+- [ ] `internal/component/l2tp/ppp/ra_linux.go` - ~~`raSenderLoop` (ra_linux.go)~~ `raSenderLoop` (ra_linux.go; corrected 2026-07-10 after re-read) sends RAs to `ff02::1` on a timer and on-demand to Router Solicitations, bound to the point-to-point `pppN` device; not a LAN broadcast sender.
+- [ ] `internal/core/sysctl/known_linux.go` - only host-side RA behaviour is exposed (accept_ra at known_linux.go, autoconf at :69, forwarding at :77); nothing advertises prefixes.
 
 Additional findings (2026-07-10 research pass, all read firsthand):
-- `startRASender` (ra_linux.go:29-85) opens the raw socket via `net.ListenConfig` on `ip6:ipv6-icmp`, SO_BINDTODEVICE to the pppN device (ra_linux.go:50), joins ff02::2 (ra_linux.go:60), installs an ICMP6_FILTER accepting only Router Solicitations (ra_linux.go:64-69), and spawns `rsReaderLoop` (ra_linux.go:87) + `raSenderLoop`. Its only caller is `startIPv6Service` (ipv6_service_linux.go:20), invoked per PPP session. Timers are fixed (5 initial RAs at 3s, then a 600s ticker, ra_linux.go:18-22), not the RFC 4861 Section 6.2.4 randomised interval.
-- The ppp send path sets only `ControlMessage.IfIndex` (ra_linux.go:117); it never sets the IPv6 multicast hop limit. See A-4.
-- `internal/component/iface/register.go` - `reconcileDHCP` (register.go:861) builds a desired per-unit service set from parsed config and diffs it against running clients; `DHCPStopper` (register.go:812) + `SetDHCPClientFactory` (register.go:824) keep the component free of any import of the client plugin; shutdown stops all clients (register.go:764+). This is the lifecycle pattern the RA sender copies.
-- `internal/component/iface/config.go` - per-unit ipv6 settings are parsed into `ipv6Settings` (config.go:261-268) with a nested `dhcpv6UnitConfig` (config.go:215) parsed by `parseDHCPv6Config` (config.go:1273); parse errors propagate to OnConfigVerify (config.go:270-273 comment), which is where the new cross-field RA checks reject invalid config.
-- `internal/component/iface/resolve.go` - the shared resolver: `Resolve` (resolve.go:65) returns a `Binding` (Ifindex, OsName, OperMAC, ...), `Subscribe` (resolve.go:80) delivers per-logical-name link events. `scripts/checks/iface_resolution.go` (patterns at :62-66) fails ze-verify for any direct `net.InterfaceByName`/`LinkByName` call outside its allowlist; `internal/component/l2tp/ppp/` is exempt only because pppN names are kernel-assigned (allowlist entry :55).
-- `internal/plugins/iface/netlink/slaac_linux.go` - receive side: `addrOrigin` (slaac_linux.go:30) classifies kernel-autoconfigured addresses (static/slaac/temporary/dynamic) from IFA_F_* flags; ze deliberately runs no userspace RA client (file header comment). Untouched by this spec.
-- `internal/component/iface/register.go` also carries receive-side RA state: `suppressRAForConfig`/`restoreAcceptRaDefrtr` (register.go:1129-1235) toggle `accept_ra_defrtr` for route-priority handling, and NTF_ROUTER neighbor events track discovered routers (register.go:312-319). This is about ACCEPTING RAs from other routers; it does not conflict with sending, but the reconcile code lives in the same file and the new code must not disturb it.
-- `internal/component/iface/yang/ze-iface-conf.yang` - the per-unit `ipv6` container (ze-iface-conf.yang:351) already hosts `dhcpv6` (ze-iface-conf.yang:394, `ze:backend "netlink"`); `mirror` (ze-iface-conf.yang:425) shows the `ze:os "linux"` + `ze:backend` combination. The new `router-advertisement` container is a sibling of `dhcpv6`.
-- `internal/core/probe/icmp.go` - core already hosts a low-level ICMPv6 primitive package precedent (`NetworkICMPv6` constant, icmp.go:21) extracted so feature modules do not depend on each other; the same rationale places the ND/RA encoder in `internal/core/ndp`.
-- `internal/component/plugin/all/all.go:235-236` - blank imports for `internal/plugins/iface/dhcp` and `internal/plugins/iface/netlink` prove nested iface plugin discovery works; the generator adds `internal/plugins/iface/ra` the same way.
-- QEMU precedents: `internal/component/iface/slaac_integration_linux_test.go` (integration && linux, netns + dummy, asserts origin=slaac) and `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` (netns + veth pair helpers). `mk/test-integration.mk:281-285` runs `$(ZE_QEMU_INTEGRATION_PKGS)` in the Alpine VM.
+- `startRASender` (ra_linux.go) opens the raw socket via `net.ListenConfig` on `ip6:ipv6-icmp`, SO_BINDTODEVICE to the pppN device (ra_linux.go), joins ff02::2 (ra_linux.go), installs an ICMP6_FILTER accepting only Router Solicitations (ra_linux.go), and spawns `rsReaderLoop` (ra_linux.go) + `raSenderLoop`. Its only caller is `startIPv6Service` (ipv6_service_linux.go), invoked per PPP session. Timers are fixed (5 initial RAs at 3s, then a 600s ticker, ra_linux.go), not the RFC 4861 Section 6.2.4 randomised interval.
+- The ppp send path sets only `ControlMessage.IfIndex` (ra_linux.go); it never sets the IPv6 multicast hop limit. See A-4.
+- `internal/component/iface/register.go` - `reconcileDHCP` (register.go) builds a desired per-unit service set from parsed config and diffs it against running clients; `DHCPStopper` (register.go) + `SetDHCPClientFactory` (register.go) keep the component free of any import of the client plugin; shutdown stops all clients (register.go+). This is the lifecycle pattern the RA sender copies.
+- `internal/component/iface/config.go` - per-unit ipv6 settings are parsed into `ipv6Settings` (config.go) with a nested `dhcpv6UnitConfig` (config.go) parsed by `parseDHCPv6Config` (config.go); parse errors propagate to OnConfigVerify (config.go comment), which is where the new cross-field RA checks reject invalid config.
+- `internal/component/iface/resolve.go` - the shared resolver: `Resolve` (resolve.go) returns a `Binding` (Ifindex, OsName, OperMAC, ...), `Subscribe` (resolve.go) delivers per-logical-name link events. `scripts/checks/iface_resolution.go` (patterns at :62-66) fails ze-verify for any direct `net.InterfaceByName`/`LinkByName` call outside its allowlist; `internal/component/l2tp/ppp/` is exempt only because pppN names are kernel-assigned (allowlist entry :55).
+- `internal/plugins/iface/netlink/slaac_linux.go` - receive side: `addrOrigin` (slaac_linux.go) classifies kernel-autoconfigured addresses (static/slaac/temporary/dynamic) from IFA_F_* flags; ze deliberately runs no userspace RA client (file header comment). Untouched by this spec.
+- `internal/component/iface/register.go` also carries receive-side RA state: `suppressRAForConfig`/`restoreAcceptRaDefrtr` (register.go) toggle `accept_ra_defrtr` for route-priority handling, and NTF_ROUTER neighbor events track discovered routers (register.go). This is about ACCEPTING RAs from other routers; it does not conflict with sending, but the reconcile code lives in the same file and the new code must not disturb it.
+- `internal/component/iface/yang/ze-iface-conf.yang` - the per-unit `ipv6` container (ze-iface-conf.yang) already hosts `dhcpv6` (ze-iface-conf.yang, `ze:backend "netlink"`); `mirror` (ze-iface-conf.yang) shows the `ze:os "linux"` + `ze:backend` combination. The new `router-advertisement` container is a sibling of `dhcpv6`.
+- `internal/core/probe/icmp.go` - core already hosts a low-level ICMPv6 primitive package precedent (`NetworkICMPv6` constant, icmp.go) extracted so feature modules do not depend on each other; the same rationale places the ND/RA encoder in `internal/core/ndp`.
+- `internal/component/plugin/all/all.go` - blank imports for `internal/plugins/iface/dhcp` and `internal/plugins/iface/netlink` prove nested iface plugin discovery works; the generator adds `internal/plugins/iface/ra` the same way.
+- QEMU precedents: `internal/component/iface/slaac_integration_linux_test.go` (integration && linux, netns + dummy, asserts origin=slaac) and `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` (netns + veth pair helpers). `mk/test-integration.mk` runs `$(ZE_QEMU_INTEGRATION_PKGS)` in the Alpine VM.
 
 **Behavior to preserve:**
 - The BNG PPP RA path is unchanged (it intentionally sends prefix-less M+O RAs); after the encoder extraction its wire output must stay byte-identical (AC-10).
@@ -142,12 +142,12 @@ Additional findings (2026-07-10 research pass, all read firsthand):
 - Config: ~~per-interface RA settings plus one or more advertised prefixes (new config surface, most likely a `router-advert` service or an iface IPv6 sub-block).~~ (decided 2026-07-10) `interface <kind> <name> unit <unit> ipv6 router-advertisement { ... }` in `ze-iface-conf.yang`: per-unit flags, intervals, lifetimes, a `prefix` list, and an `rdnss` container (full leaf table under Key Design Decisions D-10).
 
 ### Transformation Path
-1. Config parsed into per-interface RA state (flags, intervals, lifetimes, prefixes, DNS~~, MTU~~ (MTU option descoped 2026-07-10)): `parseRAConfig` fills a new `raUnitConfig` on `ipv6Settings` (config.go:261), parse/cross-field errors reject at OnConfigVerify.
-2. An RA sender is started per configured interface via `reconcileRA` (mirrors reconcileDHCP, register.go:861) through the `SetRASenderFactory` seam; the sender resolves the logical name via `iface.Resolve`, joins all-routers (ff02::2) on the resolved OS device, and listens for Router Solicitations behind an ICMP6_FILTER.
+1. Config parsed into per-interface RA state (flags, intervals, lifetimes, prefixes, DNS~~, MTU~~ (MTU option descoped 2026-07-10)): `parseRAConfig` fills a new `raUnitConfig` on `ipv6Settings` (config.go), parse/cross-field errors reject at OnConfigVerify.
+2. An RA sender is started per configured interface via `reconcileRA` (mirrors reconcileDHCP, register.go) through the `SetRASenderFactory` seam; the sender resolves the logical name via `iface.Resolve`, joins all-routers (ff02::2) on the resolved OS device, and listens for Router Solicitations behind an ICMP6_FILTER.
 3. RA messages are built by `internal/core/ndp`: header + flags + Prefix Information option(s) (new) + Source Link-Layer Address (from Binding.OperMAC) + optional RDNSS.
 4. Unsolicited RAs are sent on a randomised timer (uniform in [minimum-interval, maximum-interval], RFC 4861 Section 6.2.4); solicited RAs answer Router Solicitations after a 0..500ms random delay, rate-limited to one multicast RA per 3s (RFC 4861 constants).
 5. On link down (resolver Subscribe event) the sender pauses; on up/appeared it re-resolves, rejoins the group, and resumes with an initial burst.
-6. On config change/removal, senders are reconfigured or stopped; a stopping sender emits a final RA with Router Lifetime 0 (RFC 4861 Section 6.2.5) before closing the socket. Shutdown stops all senders like the DHCP stop-all (register.go:741-746).
+6. On config change/removal, senders are reconfigured or stopped; a stopping sender emits a final RA with Router Lifetime 0 (RFC 4861 Section 6.2.5) before closing the socket. Shutdown stops all senders like the DHCP stop-all (register.go).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -175,13 +175,13 @@ Additional findings (2026-07-10 research pass, all read firsthand):
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The BNG RA builder/socket pattern generalises to a LAN sender | ra.go / ra_linux.go exist; 2026-07-10 read confirms the socket setup (ListenPacket + SO_BINDTODEVICE + JoinGroup + ICMP6_FILTER, ra_linux.go:29-77) has no ppp-specific step | need a fresh RA stack | integration test `TestRASenderPeerAutoconfigures` (netns veth) | unvalidated (design-level evidence only; settle in Phase 4) |
-| A-2 | A Prefix Information option can be added cleanly to the RA builder | BuildRA is a linear offset-append encoder (ra.go:37-89); options append after the 16-byte header exactly like RDNSS (ra.go:75-86) | builder rework needed | unit test `TestBuildRAPrefixOption` golden vectors | unvalidated (design-level evidence only; settle in Phase 2) |
-| A-3 | RA sending coexists with host-side accept_ra settings | sysctl model (known_linux.go:68-79); the userspace raw-socket send path is independent of accept_ra/forwarding sysctls | interface loops/conflicts | test forwarding-on + accept_ra-off in QEMU (part of `TestRASenderPeerAutoconfigures` setup) | unvalidated |
-| A-4 | RAs must carry IPv6 Hop Limit 255 to be accepted by the Linux ndisc receive path, and the sender must set the multicast hop limit explicitly (kernel default is 1) | RFC 4861 Section 4.2 receiver rule; ppp sender sets only ControlMessage.IfIndex (ra_linux.go:117) and its subscribers may rely on different validation. UNVERIFIED against kernel source; treated as a requirement to prove | RAs silently dropped by every standard receiver | integration test asserts the peer autoconfigures AND a packet capture (raw socket read in the test) shows hop limit 255; if the ppp path is proven broken, file a followup | unvalidated |
-| A-5 | The factory + reconcile seam (dhcpClientFactory shape) supports restart-on-param-change for RA senders | reconcileDHCP restarts clients whose params changed (register.go:858-861 comment + dhcpEntry.params, register.go:841-856) | reconcile rework | unit test `TestReconcileRA` with a stub factory | unvalidated |
-| A-6 | A `*net.Interface` constructed from the resolver Binding (Index + Name only) is sufficient for `ipv6.PacketConn.JoinGroup` and `ControlMessage.IfIndex` | JoinGroup consumes the interface index; ppp passes a full struct but uses only `iface.Index` in the send path (ra_linux.go:117). UNVERIFIED against x/net/ipv6 internals | fall back to post-resolution `net.InterfaceByName(binding.OsName)` plus an iface_resolution.go allowlist entry (ldp precedent, iface_resolution.go:53) | integration test joins the group and receives an RS through the filter | unvalidated |
-| A-7 | The YANG loader accepts a new container inside the `interface-unit` grouping without touching other modules | dhcpv6/mirror/mpls containers already sit there (ze-iface-conf.yang:394,425,444) | schema surgery needed | `test/parse/iface-router-advertisement.ci` passes | unvalidated |
+| A-1 | The BNG RA builder/socket pattern generalises to a LAN sender | ra.go / ra_linux.go exist; 2026-07-10 read confirms the socket setup (ListenPacket + SO_BINDTODEVICE + JoinGroup + ICMP6_FILTER, ra_linux.go) has no ppp-specific step | need a fresh RA stack | integration test `TestRASenderPeerAutoconfigures` (netns veth) | unvalidated (design-level evidence only; settle in Phase 4) |
+| A-2 | A Prefix Information option can be added cleanly to the RA builder | BuildRA is a linear offset-append encoder (ra.go); options append after the 16-byte header exactly like RDNSS (ra.go) | builder rework needed | unit test `TestBuildRAPrefixOption` golden vectors | unvalidated (design-level evidence only; settle in Phase 2) |
+| A-3 | RA sending coexists with host-side accept_ra settings | sysctl model (known_linux.go); the userspace raw-socket send path is independent of accept_ra/forwarding sysctls | interface loops/conflicts | test forwarding-on + accept_ra-off in QEMU (part of `TestRASenderPeerAutoconfigures` setup) | unvalidated |
+| A-4 | RAs must carry IPv6 Hop Limit 255 to be accepted by the Linux ndisc receive path, and the sender must set the multicast hop limit explicitly (kernel default is 1) | RFC 4861 Section 4.2 receiver rule; ppp sender sets only ControlMessage.IfIndex (ra_linux.go) and its subscribers may rely on different validation. UNVERIFIED against kernel source; treated as a requirement to prove | RAs silently dropped by every standard receiver | integration test asserts the peer autoconfigures AND a packet capture (raw socket read in the test) shows hop limit 255; if the ppp path is proven broken, file a followup | unvalidated |
+| A-5 | The factory + reconcile seam (dhcpClientFactory shape) supports restart-on-param-change for RA senders | reconcileDHCP restarts clients whose params changed (register.go comment + dhcpEntry.params, register.go) | reconcile rework | unit test `TestReconcileRA` with a stub factory | unvalidated |
+| A-6 | A `*net.Interface` constructed from the resolver Binding (Index + Name only) is sufficient for `ipv6.PacketConn.JoinGroup` and `ControlMessage.IfIndex` | JoinGroup consumes the interface index; ppp passes a full struct but uses only `iface.Index` in the send path (ra_linux.go). UNVERIFIED against x/net/ipv6 internals | fall back to post-resolution `net.InterfaceByName(binding.OsName)` plus an iface_resolution.go allowlist entry (ldp precedent, iface_resolution.go) | integration test joins the group and receives an RS through the filter | unvalidated |
+| A-7 | The YANG loader accepts a new container inside the `interface-unit` grouping without touching other modules | dhcpv6/mirror/mpls containers already sit there (ze-iface-conf.yang,425,444) | schema surgery needed | `test/parse/iface-router-advertisement.ci` passes | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -189,7 +189,7 @@ Additional findings (2026-07-10 research pass, all read firsthand):
 | R-1 | Misconfigured RA disrupts a LAN (wrong prefix/lifetime) | hosts get bad SLAAC addresses | validate prefix/lifetime; QEMU SLAAC test before ship |
 | R-2 | RA sender and host RA-acceptance conflict on the same interface | routing loops / address churn | design guidance: forwarding on, accept_ra off on advertising interfaces; doctor check (D-6) warns when forwarding is off while advertising |
 | R-3 | Extracting the encoder to `internal/core/ndp` changes ppp wire bytes and breaks BNG subscribers | parity unit test fails | ppp keeps its `RAConfig` API and delegates; `TestBuildRAParity` asserts byte-identical output for the ppp fixed config before any ppp caller changes |
-| R-4 | Sender goroutine lifecycle leaks on rapid link flap or config churn | goroutine count grows in tests; stale sockets hold the group join | single owner goroutine per sender with context cancel (ppp cancel-func precedent, ra_linux.go:79-84); reconcile stops before starting a replacement; integration test flaps the link |
+| R-4 | Sender goroutine lifecycle leaks on rapid link flap or config churn | goroutine count grows in tests; stale sockets hold the group join | single owner goroutine per sender with context cancel (ppp cancel-func precedent, ra_linux.go); reconcile stops before starting a replacement; integration test flaps the link |
 | R-5 | Randomised timers make tests flaky | intermittent CI failures on interval assertions | timer bounds injected via the sender config struct in tests (short intervals); assertions test bounds, not exact instants |
 
 ## Wiring Test (MANDATORY)
@@ -292,11 +292,11 @@ QEMU Go integration tests (`//go:build integration && linux`, run by `make ze-qe
 - Phasing: prefix advertisement + SLAAC first; ~~RDNSS/DNSSL, MTU, route information options in follow-up sub-specs.~~ (amended 2026-07-10) RDNSS is in scope now (AC-4, the ppp encoder already carries it); DNSSL, the MTU option, and RFC 4191 route information stay in follow-up sub-specs.
 
 ## Files to Modify
-- ~~`internal/core/sysctl/known_linux.go` - ensure IPv6 forwarding is set on advertising interfaces (design decision)~~ (dropped 2026-07-10: D-6 decided doctor-check guidance instead of sysctl mutation; no new sysctl keys are needed, all referenced IPv6 keys already registered at known_linux.go:68-79)
+- ~~`internal/core/sysctl/known_linux.go` - ensure IPv6 forwarding is set on advertising interfaces (design decision)~~ (dropped 2026-07-10: D-6 decided doctor-check guidance instead of sysctl mutation; no new sysctl keys are needed, all referenced IPv6 keys already registered at known_linux.go)
 - ~~iface IPv6 config surface - reference the new RA feature (design decision)~~ (made concrete 2026-07-10, rows below)
-- `internal/component/iface/yang/ze-iface-conf.yang` - `router-advertisement` container inside the `interface-unit` grouping's `ipv6` container (sibling of `dhcpv6`, ze-iface-conf.yang:394), `ze:os "linux"` + `ze:backend "netlink"`, leaves per D-10
-- `internal/component/iface/config.go` - `raUnitConfig` struct + `parseRAConfig` + `RouterAdvertisement` field on `ipv6Settings` (config.go:261) + cross-field verify errors
-- `internal/component/iface/register.go` - `RAStopper` interface, `SetRASenderFactory`, `reconcileRA` called where `reconcileDHCP` is (OnConfigure/OnConfigApply), stop-all + final-RA on shutdown (near register.go:741)
+- `internal/component/iface/yang/ze-iface-conf.yang` - `router-advertisement` container inside the `interface-unit` grouping's `ipv6` container (sibling of `dhcpv6`, ze-iface-conf.yang), `ze:os "linux"` + `ze:backend "netlink"`, leaves per D-10
+- `internal/component/iface/config.go` - `raUnitConfig` struct + `parseRAConfig` + `RouterAdvertisement` field on `ipv6Settings` (config.go) + cross-field verify errors
+- `internal/component/iface/register.go` - `RAStopper` interface, `SetRASenderFactory`, `reconcileRA` called where `reconcileDHCP` is (OnConfigure/OnConfigApply), stop-all + final-RA on shutdown (near register.go)
 - `internal/component/l2tp/ppp/ra.go` - delegate encoding to `internal/core/ndp` keeping the `RAConfig` API and byte-identical output (AC-10)
 - `internal/component/plugin/all/all.go` - generated blank import of the new plugin (`make generate`, never hand-edited)
 - `mk/test-integration.mk` - add `./internal/plugins/iface/ra/...` to `ZE_QEMU_INTEGRATION_PKGS`
@@ -316,7 +316,7 @@ QEMU Go integration tests (`//go:build integration && linux`, run by `make ze-qe
 - `internal/plugins/iface/ra/sender_linux.go` - socket setup, RS listener, randomised send loop, final zero-lifetime RA
 - `internal/plugins/iface/ra/sender_linux_test.go` - interval-bounds + metrics unit tests
 - `internal/plugins/iface/ra/ra_integration_linux_test.go` - netns + veth QEMU integration tests (4 tests, see TDD plan)
-- `internal/plugins/iface/ra/doctor_linux.go` - D-6 doctor check + unit test (owner package per `ai/rules/plugin-self-containment.md`)
+- `internal/plugins/iface/ra/doctor_linux.go` - D-6 doctor check + unit test (owner package per `ai/rules/plugins.md`)
 - `test/parse/iface-router-advertisement.ci` - schema accept
 - `test/parse/iface-router-advertisement-invalid.ci` - cross-field reject
 - `test/parse/iface-vpp-rejects-router-advertisement.ci` - backend gating reject
@@ -334,7 +334,7 @@ QEMU Go integration tests (`//go:build integration && linux`, run by `make ze-qe
 | Editor autocomplete | yes (automatic) | derived from YANG types/enums; nothing custom |
 | Functional test for new RPC/API | yes | `test/parse/iface-router-advertisement*.ci`, `test/plugin/iface-ra-slaac.ci` |
 | Pipe completeness | no | no command output produced |
-| Env var registration | no | operator-facing YANG config, not under `environment/` (`ai/rules/config-surface.md` decision table: capacity/behavior knobs -> YANG) |
+| Env var registration | no | operator-facing YANG config, not under `environment/` (`ai/rules/config.md` decision table: capacity/behavior knobs -> YANG) |
 | Doctor check for runtime dependencies | yes | `internal/plugins/iface/ra/doctor_linux.go` + `internal/core/diagnostic/codes.go`: warn when RA is enabled on a unit whose device has `net.ipv6.conf.<dev>.forwarding=0` (D-6) |
 | Prometheus counters/metrics | yes | `ze_iface_ra_sent_total{interface}`, `ze_iface_ra_solicited_total{interface}` via `internal/core/metrics` (85 plugin usages precedent); listed in docs row 14 |
 
@@ -391,7 +391,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 2. **Phase: Core encoder** - `internal/core/ndp`
    - Tests: `TestBuildRAHeader`, `TestBuildRAPrefixOption`, `TestBuildRASourceLinkLayer`, `TestBuildRARDNSS` (golden vectors from the RFC layouts), boundary rows
    - Files: `internal/core/ndp/ra.go`, `ra_test.go`
-   - Verify: tests fail -> implement -> pass; buffer-first API per `ai/rules/buffer-first.md`
+   - Verify: tests fail -> implement -> pass; buffer-first API per `ai/rules/performance.md`
 3. **Phase: ppp delegation (parity)** - AC-10
    - Tests: `TestBuildRAParity` (golden bytes captured from the CURRENT ppp encoder BEFORE the change)
    - Files: `internal/component/l2tp/ppp/ra.go`, `ra_parity_test.go`
@@ -418,14 +418,14 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 | Completeness | Every AC-1..AC-12 has implementation with file:line |
 | Feature completeness | Every End-to-End User Story path works; radvd reference: flags, intervals, lifetimes, prefix flags, RDNSS all reachable from config |
 | Correctness | RFC 4861 constants respected (MinRtrAdvInterval bounds, 3s multicast rate limit, 0..500ms solicited delay, hop limit 255, zero-lifetime final RA) |
-| Naming | YANG kebab-case full words with unit suffixes; Go structs PascalCase of the leaves (`ai/rules/config-naming.md`) |
+| Naming | YANG kebab-case full words with unit suffixes; Go structs PascalCase of the leaves (`ai/rules/config.md`) |
 | Data flow | parse in iface component only; sender receives a value config struct; no YANG knowledge inside the plugin |
 | Registration over hardcoding | plugin registers via `registry.Register` + factory seam; no iface-ra spelling in any central package; removal test: nil factory -> reconcile no-op |
 | Doctor checks | forwarding-off warning registered in the owner package with unit test |
 | YANG validation | every new leaf has range/default/description; no bare `type string` |
 | Prometheus counters | both counters registered and documented |
 | Rule: iface-resolution | zero direct kernel resolution; `make ze-iface-resolution-check` clean (AC-11) |
-| Rule: buffer-first | encoder writes into caller buffer and returns length, no per-send allocations in the loop (`ai/rules/buffer-first.md`, `ai/rules/no-sprintf-alloc.md`) |
+| Rule: buffer-first | encoder writes into caller buffer and returns length, no per-send allocations in the loop (`ai/rules/performance.md`, `ai/rules/performance.md`) |
 | Rule: qemu-testing | all four integration tests present and wired into `ZE_QEMU_INTEGRATION_PKGS`; `.ci` marked `needs-linux` |
 
 ### Deliverables Checklist (/implement stage 10)
@@ -446,7 +446,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | RS packets are untrusted link traffic: length-check before parse; ICMP6_FILTER limits types but code must not trust it (filter set is best-effort, ppp logs and continues on failure) |
-| Resource exhaustion | RS floods must not queue unbounded sends: capacity-1 coalescing channel (ppp precedent, ra_linux.go:75) + the 3s multicast rate limit |
+| Resource exhaustion | RS floods must not queue unbounded sends: capacity-1 coalescing channel (ppp precedent, ra_linux.go) + the 3s multicast rate limit |
 | Privilege | raw ICMPv6 socket requires CAP_NET_RAW; the daemon already holds it (ping/traceroute); no new privilege surface, no setuid path |
 | Config-driven amplification | router-lifetime/interval bounds enforced by YANG ranges prevent advertising storms (minimum-interval floor 3s) |
 | Information leakage | RA reveals the router MAC and prefixes by design; RDNSS only advertises operator-configured addresses, never resolved system DNS |
@@ -467,7 +467,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| Skeleton assumed a top-level `internal/plugins/radvd/` plugin and a `test/qemu/` directory | placement follows the iface-dhcp nested-plugin + factory pattern; QEMU `.ci` tests live under `test/<area>/` with `option=needs-linux` | 2026-07-10 research pass (register.go:786-803, qemu-testing.md) | spec paths corrected before any code |
+| Skeleton assumed a top-level `internal/plugins/radvd/` plugin and a `test/qemu/` directory | placement follows the iface-dhcp nested-plugin + factory pattern; QEMU `.ci` tests live under `test/<area>/` with `option=needs-linux` | 2026-07-10 research pass (register.go, platform-linux.md) | spec paths corrected before any code |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -478,7 +478,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
-- The iface component already contains a receive-side RA subsystem (accept_ra_defrtr suppression, NTF_ROUTER tracking, register.go:1129-1235). Send and receive sides share a file but no state; keep it that way.
+- The iface component already contains a receive-side RA subsystem (accept_ra_defrtr suppression, NTF_ROUTER tracking, register.go). Send and receive sides share a file but no state; keep it that way.
 - The resolver Binding carries everything the raw socket needs (Ifindex, OsName, OperMAC), which is what makes the no-direct-resolution constraint (AC-11) achievable without an allowlist entry.
 
 ## Core Insight
@@ -493,8 +493,8 @@ option encoders.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| D-1: sender in a new nested edge plugin `internal/plugins/iface/ra` (`iface-ra`, package `ifacera`), factory-registered into the iface component | (a) top-level `internal/plugins/radvd` with its own YANG module; (b) inside the `internal/plugins/iface/netlink` backend; (c) inside `internal/component/iface` itself | (a) splits interface config across two trees and duplicates the reconcile machinery; (b) the netlink backend owns kernel mutation ops, not service lifecycles (the DHCP client was deliberately split out); (c) would put a linux-only raw-socket service into the always-on component and break the delete-the-folder test. The iface-dhcp shape (register.go:809-826 + internal/plugins/iface/dhcp/register.go:17-42) is the proven fit; module-tiers: an engine nothing depends on is an edge plugin |
-| D-2: RA/ND message encoding in a new `internal/core/ndp` package; `ppp.BuildRA` delegates with byte-identical output | (a) import `internal/component/l2tp/ppp` from the new plugin; (b) duplicate the encoder in the plugin | (a) couples a LAN feature to the BNG domain library, and the ppp builder is deliberately prefix-less; (b) fails the spec's own no-duplication verification. `ai/rules/plugin-self-containment.md` (dedicated feature modules) says shared low-level primitives extract to `internal/core/<x>`; `internal/core/probe` is the precedent |
+| D-1: sender in a new nested edge plugin `internal/plugins/iface/ra` (`iface-ra`, package `ifacera`), factory-registered into the iface component | (a) top-level `internal/plugins/radvd` with its own YANG module; (b) inside the `internal/plugins/iface/netlink` backend; (c) inside `internal/component/iface` itself | (a) splits interface config across two trees and duplicates the reconcile machinery; (b) the netlink backend owns kernel mutation ops, not service lifecycles (the DHCP client was deliberately split out); (c) would put a linux-only raw-socket service into the always-on component and break the delete-the-folder test. The iface-dhcp shape (register.go + internal/plugins/iface/dhcp/register.go) is the proven fit; module-tiers: an engine nothing depends on is an edge plugin |
+| D-2: RA/ND message encoding in a new `internal/core/ndp` package; `ppp.BuildRA` delegates with byte-identical output | (a) import `internal/component/l2tp/ppp` from the new plugin; (b) duplicate the encoder in the plugin | (a) couples a LAN feature to the BNG domain library, and the ppp builder is deliberately prefix-less; (b) fails the spec's own no-duplication verification. `ai/rules/plugins.md` (dedicated feature modules) says shared low-level primitives extract to `internal/core/<x>`; `internal/core/probe` is the precedent |
 | D-3: resolve logical names ONLY via `iface.Resolve`/`iface.Subscribe`; build the `*net.Interface` for group join from the Binding (Index/OsName); SO_BINDTODEVICE with Binding.OsName | post-resolution `net.InterfaceByName(binding.OsName)` + a new `scripts/checks/iface_resolution.go` allowlist entry (ldp precedent) | keeps the ze-iface-resolution-check gate clean (AC-11) and honors os-name/mac-match selectors; fallback documented in A-6 if x/net needs a fuller struct |
 | D-4: lifecycle owned by the iface component reconcile (`reconcileRA` mirroring `reconcileDHCP`), senders keyed by interface+unit, restart on param change, stop-all on shutdown, final zero-lifetime RA on stop | plugin subscribes to config events itself and manages its own set | the component already parses the interface tree and owns unit iteration; a second parser in the plugin would drift; the factory seam keeps the component import-free of the plugin |
 | D-5: RFC 4861 Section 6.2 timers (uniform random interval in [minimum, maximum], initial burst of 3 at <= 16s, solicited delay 0..500ms, >= 3s between multicast RAs) | copy the ppp fixed timers (5 x 3s burst, 600s ticker) | ppp serves a single point-to-point subscriber; a LAN sender must follow the RFC constants for multi-host links; intervals injectable for tests (R-5) |
@@ -504,7 +504,7 @@ option encoders.
 | D-9: observability = slog + two Prometheus counters (`ze_iface_ra_sent_total`, `ze_iface_ra_solicited_total`, label `interface`) + the D-6 doctor check | per-prefix gauges, `show interface` RA state | minimal first cut; state surfaces are follow-up scope |
 | D-10: YANG shape per the leaf table below, all-native single-leaf validation, cross-field checks at parse/verify | custom `ze:validate` validators | native ranges are self-documenting and tab-complete; the iface component already rejects invalid combinations at verify (tunnel precedent) |
 
-YANG leaf table (container `router-advertisement`, inside `unit`/`ipv6`, `ze:os "linux"`, `ze:backend "netlink"`; all names per `ai/rules/config-naming.md`, full words + unit suffixes):
+YANG leaf table (container `router-advertisement`, inside `unit`/`ipv6`, `ze:os "linux"`, `ze:backend "netlink"`; all names per `ai/rules/config.md`, full words + unit suffixes):
 
 | Leaf / node | Type + native validation | Default | Meaning (RFC anchor) |
 |-------------|--------------------------|---------|----------------------|

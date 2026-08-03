@@ -82,7 +82,7 @@ func wildcardHostsForFamily(family string) []string {
 
 // checkAS112TLSCert validates the DoT/DoH certificate material whenever a secure
 // listener is enabled. It reuses the shared dnsserver cert check so as112 and
-// geodns report cert problems identically (ai/rules/doctor-checks.md: "New
+// geodns report cert problems identically (ai/rules/repo-maintenance.md: "New
 // service with TLS -> Certificate validity + expiry check").
 func checkAS112TLSCert(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)

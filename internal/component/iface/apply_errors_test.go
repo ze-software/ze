@@ -29,7 +29,7 @@ func permErr(errno syscall.Errno) error {
 // and the underlying reason.
 // PREVENTS: the operator-facing regression -- an unprivileged ze aborted startup
 // reporting only "operation not permitted" with no statement of which privilege
-// was missing or how to grant it (ai/rules/error-messages.md leg 3).
+// was missing or how to grant it (ai/rules/cli.md leg 3).
 func TestJoinApplyErrorsAddsPermissionRemediation(t *testing.T) {
 	for _, errno := range []syscall.Errno{syscall.EPERM, syscall.EACCES} {
 		err := joinApplyErrors("interface config", []error{permErr(errno)})
@@ -80,7 +80,7 @@ func TestJoinApplyErrorsOmitsRemediationForNonPermissionError(t *testing.T) {
 // PREVENTS: the previous "N errors (see log for details)" summary, which named
 // no cause at all. This error crosses the plugin RPC boundary as text, so the
 // engine's copy cannot consult the plugin's log -- the evidence has to travel
-// inside the error (ai/rules/error-messages.md leg 2).
+// inside the error (ai/rules/cli.md leg 2).
 func TestJoinApplyErrorsMultipleNamesCountAndFirstCause(t *testing.T) {
 	first := permErr(syscall.EPERM)
 	second := fmt.Errorf("veth zdiag1 create: %w",

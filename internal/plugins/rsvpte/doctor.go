@@ -19,7 +19,7 @@ var rsvpRawSocketProbe = rsvpRawSocketAvailable
 
 // checkRSVPTERawSocket warns when rsvp-te is configured but a raw IP socket for
 // protocol 46 cannot be opened (needs CAP_NET_RAW). rsvp-te owns the rsvp-te
-// config block, so it owns this readiness check (ai/rules/doctor-checks.md).
+// config block, so it owns this readiness check (ai/rules/repo-maintenance.md).
 func checkRSVPTERawSocket(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {

@@ -134,7 +134,7 @@ func leafListEntry(min, max uint64) *gyang.Entry {
 // This is the coverage shape the defect hid behind. TestCheckCardinality above
 // constructs a synthetic gyang.Entry and calls the helper, so it passes whether
 // or not walkTree ever REACHES the helper -- and reaching it is the part that was
-// broken. ai/rules/fail-closed-guards.md: drive a guard from its entry point,
+// broken. ai/rules/evidence.md: drive a guard from its entry point,
 // never the helper alone.
 //
 // VALIDATES: walkTree applies BOTH bounds of a leaf-list's YANG cardinality --

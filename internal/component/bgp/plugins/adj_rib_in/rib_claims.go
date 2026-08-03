@@ -11,7 +11,7 @@ package adj_rib_in
 //
 // Spelled out here rather than imported from the rs package on purpose: this
 // plugin must build and run with bgp-rs deleted from the tree
-// (ai/rules/plugin-self-containment.md). An absent bgp-rs simply never claims
+// (ai/rules/plugins.md). An absent bgp-rs simply never claims
 // the token, and self-replay stays on.
 const claimPeerUpReplay = "bgp-peer-up-replay"
 
@@ -38,7 +38,7 @@ const claimPeerUpReplay = "bgp-peer-up-replay"
 // nil claimActive means the caller has no claim source at all, which resolves to
 // "not claimed" -- the fail-closed direction, because self-replay at worst
 // duplicates an idempotent UPDATE while standing down for an absent owner loses
-// routes (ai/rules/fail-closed-guards.md).
+// routes (ai/rules/evidence.md).
 func (r *AdjRIBInManager) applyStartupClaims(claimActive func(role string) bool) {
 	if claimActive == nil || !claimActive(claimPeerUpReplay) {
 		return

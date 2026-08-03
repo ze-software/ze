@@ -26,11 +26,11 @@ present -> only the value loop), so there is no double-reporting.
 
 - **LIST branch** has the identical count-0 shape but ZERO live triggers: a grep
   proved the only `min-elements` declarations in the whole tree are three
-  **leaf-lists** (`ze-vrrp-conf.yang:56,165`, `ze-tacacs-conf.yang:91`); no `list`
+  **leaf-lists** (`ze-vrrp-conf.yang,165`, `ze-tacacs-conf.yang`); no `list`
   declares `min-elements`. Documented as theoretical, not fixed.
 - **TACACS `profile`** stays inert at `ze config validate` (`system`/`tacacs` is not
   in `yangSectionsToValidate`), but that is SAFE: a runtime backstop fails closed at
-  `internal/component/tacacs/authenticator.go:105-110` (a priv-level mapped to zero
+  `internal/component/tacacs/authenticator.go` (a priv-level mapped to zero
   profiles is REJECTED, not escalated to BuiltinAdminProfile).
 - **Severity asymmetry** (pre-existing, deliberately excluded here): an absent `mandatory` leaf
   WARNS (`cmd_validate.go` `ErrTypeMissing`->Warning) but an absent min-bounded

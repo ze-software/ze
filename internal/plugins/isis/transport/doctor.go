@@ -7,7 +7,7 @@
 // CAP_NET_RAW. This doctor check warns, before the engine starts, when IS-IS is
 // configured but that socket cannot be opened, so the failure surfaces via
 // `ze doctor` rather than only as a degraded engine at runtime (ai/rules/
-// doctor-checks.md). The transport owns the raw-socket dependency, so it owns
+// repo-maintenance.md). The transport owns the raw-socket dependency, so it owns
 // the check, its diagnostic code, and the unit test (plugin-self-containment).
 
 package transport

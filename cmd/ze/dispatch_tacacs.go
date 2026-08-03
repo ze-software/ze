@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_tacacs dispatch-root CLI gating
+// Design: ai/rules/plugins.md -- ze_tacacs dispatch-root CLI gating
 //
 // TACACS+ CLI command registration (`ze tacacs ...`) for the ze dispatch
 // composition root, gated on ze_tacacs. The other roots are the generated

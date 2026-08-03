@@ -11,7 +11,7 @@ package that registers itself; cmd/ holds only wiring.
 - **`subdispatch.Dispatcher` for analyze and perf.** Replaces static switch/case and derives
   help text from registered subcommands. Matches the install/uninstall pattern.
 - **Self-registering packages via `init()`.** The cmd/ze file is a build-tagged blank import
-  only. No `binarySetup` needed for analyze or perf; `dispatch.go:143` handles nil.
+  only. No `binarySetup` needed for analyze or perf; `dispatch.go` handles nil.
 - **One package per mock (`internal/test/mock/<name>/`).** Each mock has distinct deps (dns,
   net, http); separate packages keep import graphs clean. Matches `internal/test/syslog/`.
 - **Perf dispatch/register/cmd in `internal/perf/cli/`, not `internal/perf/`.** The `perf`

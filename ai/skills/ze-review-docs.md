@@ -74,7 +74,7 @@ For every markdown link `[text](path)` or `[text](path#anchor)`:
 For every fenced code block tagged with a language (` ```go `, ` ```bash `, ` ```json `):
 - `go`: check that referenced types, functions, and methods exist in the codebase (`Grep`)
 - `bash`: check that referenced commands (`ze`, `make ze-*`) exist
-- `json`: check that field names match `ai/rules/json-format.md` conventions (kebab-case)
+- `json`: check that field names match `ai/rules/cli.md` conventions (kebab-case)
 
 **3d. Terminology consistency**
 
@@ -122,7 +122,7 @@ For any doc showing CLI commands or flags:
 1. Read the actual command handler (`cmd/ze/`)
 2. Verify flags exist with documented names and types
 3. Verify output format matches documented format
-4. Verify documented commands have tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A documented command without completion is undiscoverable. See `ai/rules/cli-patterns.md` "Command Completion".
+4. Verify documented commands have tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A documented command without completion is undiscoverable. See `ai/rules/cli.md` "Command Completion".
 
 ### 5. Completeness analysis
 
@@ -261,7 +261,7 @@ After each fix, re-run the mechanical check for that file to confirm the fix is 
 ## Rules
 
 - Do NOT fix anything before presenting the report and getting user approval.
-- Read the actual source code before writing or correcting any documentation. Never describe code from memory. (`ai/rules/documentation.md` Source Anchors)
+- Read the actual source code before writing or correcting any documentation. Never describe code from memory. (`ai/rules/writing.md` Source Anchors)
 - Every factual claim in a fix must have a source anchor.
 - Preserve existing document structure and style when making fixes.
 - Do not add features, examples, or sections beyond what was identified as missing.

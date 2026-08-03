@@ -1,7 +1,7 @@
 // VALIDATES: AC-11 / R-7 -- buildRichRoute emits a fast-reroute backup as a
 // link-down-flagged multipath next-hop carrying the SR repair MPLS encap, so the
 // kernel forwards to it only when the primary link is down. Linux-only (netlink);
-// runs under QEMU per ai/rules/qemu-testing.md.
+// runs under QEMU per ai/rules/platform-linux.md.
 // PREVENTS: a backup that is never installed, or one the kernel always uses.
 
 //go:build linux

@@ -74,7 +74,7 @@ var (
 )
 
 // BuildFrame writes an 802.3 + LLC frame for pdu into buf and returns the number
-// of bytes written. Buffer-first per ai/rules/buffer-first.md: the caller owns
+// of bytes written. Buffer-first per ai/rules/performance.md: the caller owns
 // buf and must size it to at least FrameHeaderLen+len(pdu). The PDU is copied in
 // verbatim -- the transport adds only framing and MUST NOT pad or alter it
 // (umbrella "Final PDU bytes" contract).

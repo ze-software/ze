@@ -1,6 +1,6 @@
 # Before Writing Code Rationale
 
-Why: `ai/rules/before-writing-code.md`
+Why: `ai/rules/architecture.md`
 
 ## Historical Lesson
 Invented a new JSON format instead of reading `decode.go` and preserving the existing one. This is why "read source files, document current behavior, preserve by default" exists.

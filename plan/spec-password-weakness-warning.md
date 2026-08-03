@@ -13,8 +13,8 @@ same three commit sites and wired `RejectMaskedBcryptLeaves` there, shifting
 anchors ~6-9 lines (citations below updated in-body): `editor_commit.go`
 152 -> 158 and 312 -> 321; `MigrationWarning` build 190 -> 196 and
 330 -> 339. `ApplyPasswordHashing` is
-still error-only (`password_hash.go:87`) and `hashPlaintextSibling`'s empty
-no-op is preserved (`:154-157`), so AC-5 holds. Rebase the helper wiring onto
+still error-only (`password_hash.go`) and `hashPlaintextSibling`'s empty
+no-op is preserved, so AC-5 holds. Rebase the helper wiring onto
 the current commit-site lines per R-4's stated mitigation.
 
 **Notes:** Promoted to ready per user instruction 2026-07-10 (followup-wave impact review session) authorizing conversion to ready.
@@ -26,7 +26,7 @@ the current commit-site lines per R-4's stated mitigation.
 2. `.claude/rules/planning.md`
 3. `internal/component/config/password_hash.go` - commit-time password hashing
 4. `internal/plugins/passwd/main.go` - the `ze passwd` hashing helper
-5. `ai/rules/config-surface.md` - warning vs rejection semantics
+5. `ai/rules/config.md` - warning vs rejection semantics
 
 ## Task
 
@@ -55,9 +55,9 @@ placeholder "N". Neither is a final decision.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/config-surface.md` - warning vs error semantics on commit.
+- [ ] `ai/rules/config.md` - warning vs error semantics on commit.
   → Constraint: this is a warning, not a rejection; the password is still set.
-- [ ] `ai/rules/plugin-self-containment.md` - the check must live with the password logic.
+- [ ] `ai/rules/plugins.md` - the check must live with the password logic.
   → Constraint: one shared strength-check helper used by both the config-commit path and the `ze passwd` helper.
 
 **Key insights:**
@@ -68,19 +68,19 @@ placeholder "N". Neither is a final decision.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` (password_hash.go:153-170) reads the plaintext sibling (:155-158) and bcrypt-hashes it (:159), rejecting only empty (:156-158 returns nil no-op) and too-long (:161-164). No strength check. `ApplyPasswordHashing` (:88) is the commit entry point.
-- [ ] `internal/plugins/passwd/main.go` - `runImpl` (main.go:65-87) reads plaintext (:66), rejects empty (:71-74) and too-long (:77-79), then hashes (:75). No strength check.
+- [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` (password_hash.go) reads the plaintext sibling (:155-158) and bcrypt-hashes it (:159), rejecting only empty (:156-158 returns nil no-op) and too-long (:161-164). No strength check. `ApplyPasswordHashing` (:88) is the commit entry point.
+- [ ] `internal/plugins/passwd/main.go` - `runImpl` (main.go) reads plaintext (:66), rejects empty (:71-74) and too-long (:77-79), then hashes (:75). No strength check.
 
 ### Post-wave corrections (2026-07-10)
 
 All refs re-verified against current code: NO drift. `ApplyPasswordHashing`
-(password_hash.go:88), `hashPlaintextSibling` (:153-170 with empty no-op
-:156-158, hash :159, too-long :161-164) and `runImpl` (main.go:65, empty
+(password_hash.go), `hashPlaintextSibling` (:153-170 with empty no-op
+:156-158, hash :159, too-long :161-164) and `runImpl` (main.go, empty
 :71-74, hash :75, too-long :77-79) all match the citations above exactly.
 
 Additional evidence strengthening A-1 (warning channel): the SAME file already
 produces advisory warnings on this exact surface -- `CheckBcryptLeaves`
-(password_hash.go:26-36) returns warning strings for a non-bcrypt canonical
+(password_hash.go) returns warning strings for a non-bcrypt canonical
 leaf value, and the functional test `test/parse/user-plaintext-warning.ci`
 proves those warnings surface through `ze config validate`. The weakness
 warning rides an existing, tested channel. A-1 keeps its validation method
@@ -110,7 +110,7 @@ the new test is `test/parse/password-weakness-warning.ci`.
 ### Transformation Path
 1. Before bcrypt hashing, the plaintext is passed to a shared strength-check helper.
 2. The helper returns a weakness reason if the plaintext is shorter than the minimum length or matches the embedded common-password denylist (case-insensitive, exact match).
-3. If weak, a warning is surfaced through the caller's existing warning surface. Concretely (see Key Design Decisions): the config path threads the reason out of `ApplyPasswordHashing`/`hashPlaintextSibling` into the commit result's warning field (`CommitResult.MigrationWarning`, `internal/component/cli/contract/contract.go:63`) at the two `internal/component/cli/editor_commit.go` sites (:158/:196, :321/:339) and the `commitContent()` site (`internal/component/cli/editor_commands.go:985`); the `ze passwd` helper writes the reason to `errOut`.
+3. If weak, a warning is surfaced through the caller's existing warning surface. Concretely (see Key Design Decisions): the config path threads the reason out of `ApplyPasswordHashing`/`hashPlaintextSibling` into the commit result's warning field (`CommitResult.MigrationWarning`, `internal/component/cli/contract/contract.go`) at the two `internal/component/cli/editor_commit.go` sites (:158/:196, :321/:339) and the `commitContent()` site (`internal/component/cli/editor_commands.go`); the `ze passwd` helper writes the reason to `errOut`.
 4. Hashing proceeds unchanged; the password is set regardless of the warning.
 
 ### Boundaries Crossed
@@ -122,10 +122,10 @@ the new test is `test/parse/password-weakness-warning.ci`.
 
 ### Integration Points
 - New shared helper (e.g. under the config or a small auth util package) taking plaintext, returning an optional weakness reason.
-- `internal/component/config/password_hash.go` - call the helper in `hashPlaintextSibling` (`:153`) before hashing. Today `ApplyPasswordHashing` (`:88`) and `hashPlaintextSibling` return error-only, and there is no warning-carrying return: the reason must be threaded out of `ApplyPasswordHashing` (new out-param or a `([]string, error)` / result-struct return) so the three commit call sites can surface it. `CheckBcryptLeaves` (`:30`) is NOT the route -- its only non-test caller besides `ze config validate` (`internal/component/cli/validator.go:159`) never sets a password.
-- `internal/component/cli/editor_commit.go:158,321` - map the returned reason into `CommitResult.MigrationWarning` (built at `:196`, `:339`).
-- `internal/component/cli/editor_commands.go:985` - `commitContent()` returns only `(string, error)` today, so this site must also gain a warning surface (extend its signature or route to the editor's status/warning path) for AC-1/AC-2 to hold here.
-- `internal/plugins/passwd/main.go` - call the helper in `runImpl` (`:65`) before hashing; write the reason to `errOut`.
+- `internal/component/config/password_hash.go` - call the helper in `hashPlaintextSibling` before hashing. Today `ApplyPasswordHashing` and `hashPlaintextSibling` return error-only, and there is no warning-carrying return: the reason must be threaded out of `ApplyPasswordHashing` (new out-param or a `([]string, error)` / result-struct return) so the three commit call sites can surface it. `CheckBcryptLeaves` is NOT the route -- its only non-test caller besides `ze config validate` (`internal/component/cli/validator.go`) never sets a password.
+- `internal/component/cli/editor_commit.go,321` - map the returned reason into `CommitResult.MigrationWarning` (built at `:196`, `:339`).
+- `internal/component/cli/editor_commands.go` - `commitContent()` returns only `(string, error)` today, so this site must also gain a warning surface (extend its signature or route to the editor's status/warning path) for AC-1/AC-2 to hold here.
+- `internal/plugins/passwd/main.go` - call the helper in `runImpl` before hashing; write the reason to `errOut`.
 
 ### Architectural Verification
 - [ ] No bypassed layers (both set paths call the one helper)
@@ -136,20 +136,20 @@ the new test is `test/parse/password-weakness-warning.ci`.
 ## Key Design Decisions
 
 **The warning-channel route (load-bearing).** No path today both emits a warning
-AND sets the password: `ApplyPasswordHashing` (`internal/component/config/password_hash.go:88`)
-and `hashPlaintextSibling` (`:153`) return error-only, and `CommitResult` carries a
-single-purpose `MigrationWarning` string (`internal/component/cli/contract/contract.go:60,63`)
-built only at `internal/component/cli/editor_commit.go:196,339`. The
-`CheckBcryptLeaves` -> `validator.go:159` warning walk is the `ze config validate`
+AND sets the password: `ApplyPasswordHashing` (`internal/component/config/password_hash.go`)
+and `hashPlaintextSibling` return error-only, and `CommitResult` carries a
+single-purpose `MigrationWarning` string (`internal/component/cli/contract/contract.go,63`)
+built only at `internal/component/cli/editor_commit.go,339`. The
+`CheckBcryptLeaves` -> `validator.go` warning walk is the `ze config validate`
 path and never sets a password, so it cannot carry this warning.
 
 Decision: thread the weakness reason out of the commit hashing path itself --
 `ApplyPasswordHashing`/`hashPlaintextSibling` gain a warning-carrying return
 (out-param, `([]string, error)`, or a small result struct) -- and surface it at
 the three commit call sites:
-- `internal/component/cli/editor_commit.go:158` and `:321` map the reason into `CommitResult.MigrationWarning`.
-- `internal/component/cli/editor_commands.go:985` (`commitContent()`, currently `(string, error)`) gains a warning surface too.
-- `internal/plugins/passwd/main.go:65` (`runImpl`) writes the reason to `errOut`.
+- `internal/component/cli/editor_commit.go` and `:321` map the reason into `CommitResult.MigrationWarning`.
+- `internal/component/cli/editor_commands.go` (`commitContent()`, currently `(string, error)`) gains a warning surface too.
+- `internal/plugins/passwd/main.go` (`runImpl`) writes the reason to `errOut`.
 
 This gives AC-1/AC-2 ("warning emitted AND password set") a real route rather than
 riding the validate-only `CheckBcryptLeaves` channel, which cannot set passwords.
@@ -164,8 +164,8 @@ re-approving the design.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The config-commit path can surface a non-fatal warning once the reason is threaded out of `ApplyPasswordHashing` | `CommitResult.MigrationWarning` (`contract.go:63`) already carries one advisory string to the operator; `commitContent()` (`editor_commands.go:985`) has none yet and must gain one | warning is swallowed at a site with no surface | trace all three commit call sites during audit (see Key Design Decisions) | unvalidated |
-| A-2 | Both password-set sites hold plaintext before hashing | password_hash.go:155-159, main.go:66-75 | a set path bypasses the check | grep all bcrypt set sites | unvalidated |
+| A-1 | The config-commit path can surface a non-fatal warning once the reason is threaded out of `ApplyPasswordHashing` | `CommitResult.MigrationWarning` (`contract.go`) already carries one advisory string to the operator; `commitContent()` (`editor_commands.go`) has none yet and must gain one | warning is swallowed at a site with no surface | trace all three commit call sites during audit (see Key Design Decisions) | unvalidated |
+| A-2 | Both password-set sites hold plaintext before hashing | password_hash.go, main.go | a set path bypasses the check | grep all bcrypt set sites | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -173,7 +173,7 @@ re-approving the design.
 | R-1 | Warning treated as an error and blocks commit | commit fails on a weak password | keep the helper's return advisory; never convert to error |
 | R-2 | Denylist bloat / maintenance | list grows unbounded | keep a small fixed embedded list (top common passwords) + length rule; not a dictionary |
 | R-3 | Plaintext leaking into logs | plaintext in a warning string | warn with a generic reason, never echo the password |
-| R-4 | Textual merge friction with `plan/spec-fixit-bcrypt-hash-credential.md` (semantically independent, but edits the same `internal/component/config/password_hash.go` and the same three commit call sites `editor_commit.go:158,321`, `editor_commands.go:985`) | both specs touch the same lines | SEQUENCE the two specs; land whichever the owner picks first. If the bcrypt spec changes `ApplyPasswordHashing`'s signature, adopt the chosen-first signature and rebase this spec's helper wiring onto it |
+| R-4 | Textual merge friction with `plan/spec-fixit-bcrypt-hash-credential.md` (semantically independent, but edits the same `internal/component/config/password_hash.go` and the same three commit call sites `editor_commit.go,321`, `editor_commands.go`) | both specs touch the same lines | SEQUENCE the two specs; land whichever the owner picks first. If the bcrypt spec changes `ApplyPasswordHashing`'s signature, adopt the chosen-first signature and rebase this spec's helper wiring onto it |
 
 ## Wiring Test (MANDATORY)
 
@@ -190,7 +190,7 @@ re-approving the design.
 | AC-2 | password matching the embedded denylist | warning emitted; password still set |
 | AC-3 | password matching denylist (different case) | warning emitted (case-insensitive) |
 | AC-4 | strong password (long, not in list) | no warning |
-| AC-5 | empty password | unchanged, and no weakness warning: config path is a NO-OP (`password_hash.go:156-158` returns nil, leaf untouched -- not a rejection); `ze passwd` still rejects it (`internal/plugins/passwd/main.go:71-74`) |
+| AC-5 | empty password | unchanged, and no weakness warning: config path is a NO-OP (`password_hash.go` returns nil, leaf untouched -- not a rejection); `ze passwd` still rejects it (`internal/plugins/passwd/main.go`) |
 | AC-6 | password over 72 bytes | still rejected (unchanged) |
 | AC-7 | `ze passwd` with a weak value | warning on stderr; hash still printed |
 

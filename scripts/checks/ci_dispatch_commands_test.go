@@ -70,7 +70,7 @@ func TestCIDispatchCommandsSelftest(t *testing.T) {
 // has -- with ze_bgp off, `show bgp summary` is simply not registered and every
 // legitimate use of it would report as dead. This mirrors the Makefile's
 // GO_TEST_TAGS derivation rather than restating the list
-// (ai/rules/feature-gate-registration.md: no consumer is hand-maintained).
+// (ai/rules/plugins.md: no consumer is hand-maintained).
 func featureTags(t *testing.T) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot(t), "feature-gates.txt"))

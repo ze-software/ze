@@ -27,7 +27,7 @@ Two surfaces were each verified in only one of the three workflows: the doctor
 check (pushed in /ze-implement, checked nowhere in /ze-review) and composition
 root (checked in /ze-review, not in /ze-spec or /ze-implement). The doctor check
 was the only surface verified nowhere at review time. Separately,
-`ai/rules/discovery-updates.md` (the canonical "every surface a change must
+`ai/rules/repo-maintenance.md` (the canonical "every surface a change must
 touch" rule) was referenced by none of the three skills.
 
 ## Decisions
@@ -51,9 +51,9 @@ runtime-dependency row: a new dependency with no registered `ze doctor` check an
 diagnostic code is a BLOCKER. This is the surface that was gated nowhere else.
 
 **Close the discovery hole.** Both skills now reference
-`ai/rules/discovery-updates.md` (spec via the gate's Mechanical Checklist step,
+`ai/rules/repo-maintenance.md` (spec via the gate's Mechanical Checklist step,
 review via a new doc-drift row for `ai/INDEX.md` / `ai/LEARNED-INDEX.md` /
-`hook-mapping.md`). The rule is no longer orphaned from the workflows.
+`repo-maintenance.md`). The rule is no longer orphaned from the workflows.
 
 ## Consequences
 
@@ -69,7 +69,7 @@ review via a new doc-drift row for `ai/INDEX.md` / `ai/LEARNED-INDEX.md` /
 
 - The generated `.claude/skills/*/SKILL.md` copies are gitignored; edit the
   canonical `ai/skills/*.md` and run `make ze-ai-sync` (then `make ze-ai-check`
-  confirms no drift). See `ai/rules/canonical-sources.md`.
+  confirms no drift). See `ai/rules/repo-maintenance.md`.
 - Composition-root drift is already auto-caught at verify time
   (`ze-plugin-imports-check` + golden snapshots) and at review; the residual cost
   is that it is found late. Adding `make generate` to /ze-implement verification
@@ -85,5 +85,5 @@ review via a new doc-drift row for `ai/INDEX.md` / `ai/LEARNED-INDEX.md` /
 - `ai/skills/ze-review.md` -- doctor-check row (Step 1), discovery-index row
   (Step 3 doc-drift).
 - Reuses existing `ai/INDEX.md` type-to-pattern map, `plan/TEMPLATE.md`
-  checklists, `ai/rules/discovery-updates.md`, `ai/rules/doctor-checks.md`.
+  checklists, `ai/rules/repo-maintenance.md`, `ai/rules/repo-maintenance.md`.
 - Generalizes lesson 905 (`ai/patterns/bgp-family.md`).

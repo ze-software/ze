@@ -174,11 +174,11 @@ The original pioneer of DST for distributed systems.
 
 | Type | Count | Files | Impact |
 |------|-------|-------|--------|
-| `net.Dial*` | 1 | session.go:210 | Outbound connections |
-| `net.Listen` | 1 | listener.go:84 | Inbound connections |
+| `net.Dial*` | 1 | session.go | Outbound connections |
+| `net.Listen` | 1 | listener.go | Inbound connections |
 | `conn.Read` | 4 | session.go, reactor.go | Message receipt |
 | `conn.Write` | 3 | session.go | Message sending |
-| `Accept()` | 1 | listener.go:94 | Connection acceptance |
+| `Accept()` | 1 | listener.go | Connection acceptance |
 
 **Critical:** All network I/O uses real TCP sockets with no mock capability.
 
@@ -193,18 +193,18 @@ The original pioneer of DST for distributed systems.
 
 | File:Line | Component | Trigger |
 |-----------|-----------|---------|
-| `peer.go:365` | `Peer.run()` | Peer start |
-| `peer.go:441` | `Peer.Wait()` | Context wait |
-| `peer.go:558` | `sendInitialRoutes()` | FSM→Established |
-| `peer.go:663` | `ResolvePendingCollision()` | Collision detected |
-| `listener.go:94` | `acceptLoop()` | Listener start |
-| `listener.go:117` | `Listener.Wait()` | Context wait |
-| `listener.go:161` | Connection handler | Accept callback |
-| `reactor.go:1513` | `monitor()` | Reactor start |
-| `reactor.go:1532` | `reactor.Wait()` | Context wait |
-| `reactor.go:1662` | `handlePendingCollision()` | Pending connection |
-| `signal.go:97` | `SignalHandler.run()` | Signal handling |
-| `signal.go:114` | `SignalHandler.Wait()` | Context wait |
+| `peer.go` | `Peer.run()` | Peer start |
+| `peer.go` | `Peer.Wait()` | Context wait |
+| `peer.go` | `sendInitialRoutes()` | FSM→Established |
+| `peer.go` | `ResolvePendingCollision()` | Collision detected |
+| `listener.go` | `acceptLoop()` | Listener start |
+| `listener.go` | `Listener.Wait()` | Context wait |
+| `listener.go` | Connection handler | Accept callback |
+| `reactor.go` | `monitor()` | Reactor start |
+| `reactor.go` | `reactor.Wait()` | Context wait |
+| `reactor.go` | `handlePendingCollision()` | Pending connection |
+| `signal.go` | `SignalHandler.run()` | Signal handling |
+| `signal.go` | `SignalHandler.Wait()` | Context wait |
 
 ### 2.4 Select Statements (Non-Deterministic Choice)
 
@@ -214,23 +214,23 @@ Go's `select` picks arbitrarily among ready cases. Found **33 locations**:
 
 | File:Line | Cases | Risk |
 |-----------|-------|------|
-| `session.go:458-465` | ctx.Done, errChan, default | Timer vs message race |
-| `session.go:90-93` | errChan send, default | Non-blocking send |
-| `peer.go:462-470` | ctx.Done, default | Shutdown race |
-| `peer.go:490-494` | ctx.Done, time.After | Backoff timing |
-| `listener.go:137-148` | ctx.Done, accept | Accept race |
-| `signal.go:133-140` | sigChan, ctx.Done | Signal delivery |
-| `reactor.go:1537` | done channel | Wait race |
+| `session.go` | ctx.Done, errChan, default | Timer vs message race |
+| `session.go` | errChan send, default | Non-blocking send |
+| `peer.go` | ctx.Done, default | Shutdown race |
+| `peer.go` | ctx.Done, time.After | Backoff timing |
+| `listener.go` | ctx.Done, accept | Accept race |
+| `signal.go` | sigChan, ctx.Done | Signal delivery |
+| `reactor.go` | done channel | Wait race |
 
 ### 2.5 Channel Operations
 
 | File:Line | Channel | Buffer | Senders | Receivers |
 |-----------|---------|--------|---------|-----------|
-| `session.go:76` | `errChan` | 2 | Timer callbacks, Teardown | Run loop |
-| `signal.go:38` | `sigChan` | 1 | OS signals | Handler |
-| `listener.go:116` | `done` | 0 | acceptLoop | Wait |
-| `peer.go:440` | `done` | 0 | run loop | Wait |
-| `reactor.go:1531` | `done` | 0 | monitor | Wait |
+| `session.go` | `errChan` | 2 | Timer callbacks, Teardown | Run loop |
+| `signal.go` | `sigChan` | 1 | OS signals | Handler |
+| `listener.go` | `done` | 0 | acceptLoop | Wait |
+| `peer.go` | `done` | 0 | run loop | Wait |
+| `reactor.go` | `done` | 0 | monitor | Wait |
 
 ### 2.6 Mutex-Protected State
 
@@ -245,9 +245,9 @@ Go's `select` picks arbitrarily among ready cases. Found **33 locations**:
 
 **Race Windows Identified:**
 
-1. **Peer.setState()** (peer.go:322): Callback called outside lock
-2. **Session timer callbacks** (session.go:86-94): FSM event inside lock, errChan send outside
-3. **Collision resolution** (peer.go:663): Async session close
+1. **Peer.setState()** (peer.go): Callback called outside lock
+2. **Session timer callbacks** (session.go): FSM event inside lock, errChan send outside
+3. **Collision resolution** (peer.go): Async session close
 
 ---
 
@@ -644,13 +644,13 @@ Every blocking operation needs a yield point:
 
 | Operation | Location | Yield Call |
 |-----------|----------|------------|
-| `io.ReadFull` | session.go:512 | `scheduler.Yield(YieldNetworkRead)` |
-| `conn.Write` | session.go:1175 | `scheduler.Yield(YieldNetworkWrite)` |
-| `time.After` receive | peer.go:493 | `scheduler.Yield(YieldTimerWait)` |
-| Timer callback | timer.go:151+ | `scheduler.Yield(YieldTimerFire)` |
-| `Accept()` | listener.go:94 | `scheduler.Yield(YieldNetworkRead)` |
-| `DialContext` | session.go:210 | `scheduler.Yield(YieldNetworkWrite)` |
-| Channel send | session.go:90 | `scheduler.Yield(YieldChannelSend)` |
+| `io.ReadFull` | session.go | `scheduler.Yield(YieldNetworkRead)` |
+| `conn.Write` | session.go | `scheduler.Yield(YieldNetworkWrite)` |
+| `time.After` receive | peer.go | `scheduler.Yield(YieldTimerWait)` |
+| Timer callback | timer.go+ | `scheduler.Yield(YieldTimerFire)` |
+| `Accept()` | listener.go | `scheduler.Yield(YieldNetworkRead)` |
+| `DialContext` | session.go | `scheduler.Yield(YieldNetworkWrite)` |
+| Channel send | session.go | `scheduler.Yield(YieldChannelSend)` |
 | Mutex acquire | various | `scheduler.Yield(YieldMutexAcquire)` |
 
 ---
@@ -1071,7 +1071,7 @@ func TestFSMTransitions(t *testing.T) {
 
 ### 10.1 Problem
 
-Current FSM processes events immediately (fsm.go:123):
+Current FSM processes events immediately (fsm.go):
 
 ```go
 func (f *FSM) Event(event Event) error {

@@ -24,7 +24,7 @@ and never widen a test that catches a real bug.
   truth for both duration and count budgets, and widened EVERY structurally-identical gate: both
   ze-peer bind barriers, both `daemon.ready` waits, the `await=stderr` fence, the `ze bgp decode`
   fork, and the HTTP wait/retry/client budgets. (The first pass missed the siblings; a review round
-  caught them -- the classic `before-writing-code.md` sibling-call-site audit.)
+  caught them -- the classic `architecture.md` sibling-call-site audit.)
 - **345: keep reject-duplicate-router-id as the DEFAULT; add `bgp/session/allow-shared-router-id`
   to opt into ACCEPTING a shared BGP Identifier** (owner decision, over unconditionally relaxing per
   RFC 6286 §2.2, which would delete a deliberate 342-line-tested feature). The Go flag is

@@ -59,7 +59,7 @@ two gates have opposite dependency shapes, which is the whole lesson.
 - The dependent-gate mechanism (`parentTagOf`/`buildConstraint` in
   `plugin_imports.go`) is general for one nesting level: any future gate whose
   package nests under another gate's tree AND imports it gets the compound
-  constraint automatically. Documented in `ai/rules/feature-gate-registration.md`.
+  constraint automatically. Documented in `ai/rules/plugins.md`.
 - `dep_audit` needed **zero** changes: its existing subtree-prefix same-feature
   skip already treats a bmp→bgp import as intra-`ze_bgp`-family (bmp lives under
   `internal/component/bgp`). The anticipated R-2 work was a non-issue.
@@ -95,4 +95,4 @@ two gates have opposite dependency shapes, which is the whole lesson.
 - `internal/component/plugin/coordinator_test.go` -- drop removed fields.
 - `cmd/ze/hub/build_tag_{bmp,mrt}_{present,absent}_test.go`, `build_tag_gate11_absent_test.go`, `registry/mrt_seam_test.go` -- present/absent + nm matrix + seam tests.
 - generated: `all.go`, `all_ze_bgp.go`, `all_ze_bmp.go`, `all_ze_mrt.go`, `.golangci.yml`, `gokrazy/ze/config.json`, `docs/guide/quickstart.md`.
-- docs: `ai/rules/feature-gate-registration.md` (dependent-gate pattern), `docs/features.md` (MRT + BMP gate notes).
+- docs: `ai/rules/plugins.md` (dependent-gate pattern), `docs/features.md` (MRT + BMP gate notes).

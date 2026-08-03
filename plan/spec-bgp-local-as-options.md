@@ -14,15 +14,15 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 The `local-options` leaf-list offers two enums, `no-prepend` and `replace-as`
-(`internal/component/bgp/yang/ze-bgp-conf.yang:477`), documented as distinct
+(`internal/component/bgp/yang/ze-bgp-conf.yang`), documented as distinct
 behaviours and explicitly composable: the leaf description at
-`internal/component/bgp/yang/ze-bgp-conf.yang:486` says "Both together: full
+`internal/component/bgp/yang/ze-bgp-conf.yang` says "Both together: full
 replacement with no prepend", which only means something if each does something
 different on its own.
 
 They do not. Both parse into separate fields at
-`internal/component/bgp/reactor/config.go:140` and
-`internal/component/bgp/reactor/config.go:141`, and then the one site that reads
+`internal/component/bgp/reactor/config.go` and
+`internal/component/bgp/reactor/config.go`, and then the one site that reads
 either of them treats them as the same flag:
 
 ```
@@ -32,11 +32,11 @@ if s.GlobalLocalAS != 0 && s.GlobalLocalAS != s.LocalAS &&
 }
 ```
 
-That is `internal/component/bgp/reactor/peer_forward_facts.go:144`. Either flag
+That is `internal/component/bgp/reactor/peer_forward_facts.go`. Either flag
 alone clears `facts.secondaryAS`, and `secondaryAS` is the only thing that picks
 the dual-ASN encoder over the single-ASN one at
-`internal/component/bgp/reactor/reactor_api_forward.go:518` and again at
-`internal/component/bgp/reactor/reactor_api_forward.go:442`. So a peer configured
+`internal/component/bgp/reactor/reactor_api_forward.go` and again at
+`internal/component/bgp/reactor/reactor_api_forward.go`. So a peer configured
 `no-prepend`, a peer configured `replace-as`, and a peer configured with both
 receive byte-identical AS_PATHs. Three documented configurations, one behaviour.
 
@@ -73,13 +73,13 @@ and the Section 4.2 four are that spec's.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 ### Architecture Docs
-- [ ] `ai/rules/config-surface.md` - YANG versus environment variables, and what a config leaf owes
+- [ ] `ai/rules/config.md` - YANG versus environment variables, and what a config leaf owes
   → Constraint: a leaf that documents a behaviour owes that behaviour. Two enums that produce identical output are a configuration surface making a promise the engine does not keep.
-- [ ] `ai/rules/config-naming.md` - naming for config leaves
+- [ ] `ai/rules/config.md` - naming for config leaves
   → Constraint: the enum names are vendor-familiar, so renaming is not free. Whatever this spec decides, `no-prepend` and `replace-as` keep meanings an operator migrating from another daemon would recognise.
 - [ ] `docs/architecture/wire/attributes.md` - path attribute encoding
   → Constraint: AS_PATH is a segment sequence; a prepend inserts into or creates the leading AS_SEQUENCE. Whether one ASN or two are prepended is a wire-visible difference, so both options are testable at the byte level.
-- [ ] `ai/rules/fail-closed-guards.md` - a guard must fail closed or say something
+- [ ] `ai/rules/evidence.md` - a guard must fail closed or say something
   → Constraint: if the decision is that one option cannot be implemented in Ze, it must be rejected at config-parse time with a message naming the leaf, not silently accepted and ignored. Silently accepting a no-op is the current failure.
 - [ ] `ai/rules/rfc-compliance.md` - when a compliance decision needs the owner
   → Decision: choosing to leave a MUST unimplemented, or classifying it `{gap}` / `{not-applicable}`, is Thomas's call. Making Ze more conformant needs no permission. This spec's open axis A-1 is therefore a question to ask, not a choice to make.
@@ -94,35 +94,35 @@ and the Section 4.2 four are that spec's.
   → Constraint: an ASN above 65535 is encoded as AS_TRANS toward an old speaker, so a test asserting which ASNs were prepended must read AS4_PATH as well as AS_PATH when the peer is two-octet.
 
 **Key insights:** (minimal context to resume after compaction)
-- One line decides everything: the compound condition at `internal/component/bgp/reactor/peer_forward_facts.go:144` reads both flags with the same polarity and the same effect.
-- `secondaryAS` is a single field with no third state, so today the encoder choice at `internal/component/bgp/reactor/reactor_api_forward.go:518` is binary. Distinguishing the two options needs either a second field or a value that carries direction.
+- One line decides everything: the compound condition at `internal/component/bgp/reactor/peer_forward_facts.go` reads both flags with the same polarity and the same effect.
+- `secondaryAS` is a single field with no third state, so today the encoder choice at `internal/component/bgp/reactor/reactor_api_forward.go` is binary. Distinguishing the two options needs either a second field or a value that carries direction.
 - Ze never rewrites an inbound AS_PATH. The prepend happens only on the egress path, gated on the destination being eBGP. So the conformant reading of "No Prepend Inbound" may be that it is already unconditionally true and the option has nothing to select. That is the open axis, not a conclusion.
 - There is no wire-level test for any of this. Both new `.ci` files are the point of the spec as much as the code change.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang:477` - the `local-options` leaf-list, with `enum no-prepend` at `internal/component/bgp/yang/ze-bgp-conf.yang:479` described as "Do not prepend real ASN before local-as in AS_PATH" and `enum replace-as` at `internal/component/bgp/yang/ze-bgp-conf.yang:482` described as "Replace real ASN entirely with local-as in AS_PATH". The leaf-list `description "Modifiers for local-as behavior.` at `internal/component/bgp/yang/ze-bgp-conf.yang:486` documents a third combined state.
-- [ ] `internal/component/bgp/reactor/config.go:88` - `peerLocalAS := localAS`: the per-peer local AS starts at the global value and is overridden from `session > asn > local`.
-- [ ] `internal/component/bgp/reactor/config.go:96` - the `local-options` leaf-list read, with `case "no-prepend"` at `internal/component/bgp/reactor/config.go:106` and `case "replace-as"` at `internal/component/bgp/reactor/config.go:108` setting two separate booleans.
-- [ ] `internal/component/bgp/reactor/config.go:131` - `ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)`, then `ps.GlobalLocalAS = localAS` at `internal/component/bgp/reactor/config.go:136` preserving the router's global ASN separately from the per-peer override.
-- [ ] `internal/component/bgp/reactor/config.go:140` - `ps.LocalASNoPrepend = localASNoPrepend`, followed by `ps.LocalASReplaceAS = localASReplaceAS` at `internal/component/bgp/reactor/config.go:141`: the two flags reach the settings distinctly.
-- [ ] `internal/component/bgp/reactor/peer_forward_facts.go:144` - the compound `s.GlobalLocalAS != s.LocalAS` guard: `secondaryAS` is filled only when a per-peer override exists **and neither flag is set**. This is the single site that consumes either flag.
-- [ ] `internal/component/bgp/reactor/peer_forward_facts.go:146` - `facts.secondaryAS = s.GlobalLocalAS`: the only assignment to the field.
-- [ ] `internal/component/bgp/reactor/peer_forward_facts.go:109` - the precomputed `s.IsEBGP()` fact that gates whether any prepend happens at all.
-- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:518` - the encoder choice on the per-destination rail, branching on `secondaryAS != 0`: `RewriteASPathDual` at `internal/component/bgp/reactor/reactor_api_forward.go:519`, `RewriteASPath` at `internal/component/bgp/reactor/reactor_api_forward.go:521` otherwise.
-- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:442` - the same `secondaryAS != 0` branch repeated on the second rail, with `RewriteASPathDual` at `internal/component/bgp/reactor/reactor_api_forward.go:443`.
-- [ ] `internal/component/bgp/wireu/aspath_rewrite.go:52` - `RewriteASPathDual`: prepends two ASNs, ordered so the primary ends up outermost, closest to the peer. Its doc block names RFC 7705 as the reference.
-- [ ] `internal/component/bgp/wireu/aspath_rewrite.go:35` - `RewriteASPath`: the single-ASN entry point taken when `secondaryAS` is zero.
-- [ ] `internal/component/bgp/reactor/peer_forward_facts_test.go:123` - the existing unit coverage sets `LocalASNoPrepend` and `LocalASReplaceAS` from a table, so a test that distinguishes them has a place to live.
-- [ ] `internal/component/bgp/reactor/config_test.go:1163` - asserts both flags false by default, and `internal/component/bgp/reactor/config_test.go:1193` asserts both true when both enums are configured. Neither asserts a single option in isolation, which is exactly the case that would have caught this.
+- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - the `local-options` leaf-list, with `enum no-prepend` at `internal/component/bgp/yang/ze-bgp-conf.yang` described as "Do not prepend real ASN before local-as in AS_PATH" and `enum replace-as` at `internal/component/bgp/yang/ze-bgp-conf.yang` described as "Replace real ASN entirely with local-as in AS_PATH". The leaf-list `description "Modifiers for local-as behavior.` at `internal/component/bgp/yang/ze-bgp-conf.yang` documents a third combined state.
+- [ ] `internal/component/bgp/reactor/config.go` - `peerLocalAS := localAS`: the per-peer local AS starts at the global value and is overridden from `session > asn > local`.
+- [ ] `internal/component/bgp/reactor/config.go` - the `local-options` leaf-list read, with `case "no-prepend"` at `internal/component/bgp/reactor/config.go` and `case "replace-as"` at `internal/component/bgp/reactor/config.go` setting two separate booleans.
+- [ ] `internal/component/bgp/reactor/config.go` - `ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)`, then `ps.GlobalLocalAS = localAS` at `internal/component/bgp/reactor/config.go` preserving the router's global ASN separately from the per-peer override.
+- [ ] `internal/component/bgp/reactor/config.go` - `ps.LocalASNoPrepend = localASNoPrepend`, followed by `ps.LocalASReplaceAS = localASReplaceAS` at `internal/component/bgp/reactor/config.go`: the two flags reach the settings distinctly.
+- [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - the compound `s.GlobalLocalAS != s.LocalAS` guard: `secondaryAS` is filled only when a per-peer override exists **and neither flag is set**. This is the single site that consumes either flag.
+- [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - `facts.secondaryAS = s.GlobalLocalAS`: the only assignment to the field.
+- [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - the precomputed `s.IsEBGP()` fact that gates whether any prepend happens at all.
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - the encoder choice on the per-destination rail, branching on `secondaryAS != 0`: `RewriteASPathDual` at `internal/component/bgp/reactor/reactor_api_forward.go`, `RewriteASPath` at `internal/component/bgp/reactor/reactor_api_forward.go` otherwise.
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - the same `secondaryAS != 0` branch repeated on the second rail, with `RewriteASPathDual` at `internal/component/bgp/reactor/reactor_api_forward.go`.
+- [ ] `internal/component/bgp/wireu/aspath_rewrite.go` - `RewriteASPathDual`: prepends two ASNs, ordered so the primary ends up outermost, closest to the peer. Its doc block names RFC 7705 as the reference.
+- [ ] `internal/component/bgp/wireu/aspath_rewrite.go` - `RewriteASPath`: the single-ASN entry point taken when `secondaryAS` is zero.
+- [ ] `internal/component/bgp/reactor/peer_forward_facts_test.go` - the existing unit coverage sets `LocalASNoPrepend` and `LocalASReplaceAS` from a table, so a test that distinguishes them has a place to live.
+- [ ] `internal/component/bgp/reactor/config_test.go` - asserts both flags false by default, and `internal/component/bgp/reactor/config_test.go` asserts both true when both enums are configured. Neither asserts a single option in isolation, which is exactly the case that would have caught this.
 - [ ] `test/parse/session-policy-config.ci` - the only functional coverage naming `local-options`, and it is parse-level: it never brings a session up or reads an AS_PATH off the wire.
 
 **Behavior to preserve:**
 - A peer with `local-as` configured and no modifiers keeps today's dual prepend, with the override ASN outermost and the global ASN behind it, matching RFC 7705 Section 3.2's worked example.
 - `replace-as` keeps today's behaviour: only the Local AS is prepended toward that peer.
 - The per-neighbour and per-neighbour-group inheritance of the `session` container, which is what satisfies `RFC7705-3.3-1`.
-- A peer with no `local-as` override at all is untouched: the `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go:144` is false regardless of the flags.
+- A peer with no `local-as` override at all is untouched: the `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go` is false regardless of the flags.
 - Every existing expectation under `test/parse/`, `test/plugin/` and `test/policy/`.
 - The AS_TRANS handling for a four-octet local AS toward a two-octet peer.
 
@@ -135,13 +135,13 @@ and the Section 4.2 four are that spec's.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Configuration: `session > asn > local` and the `asnMap["local-options"]` leaf-list read at `internal/component/bgp/reactor/config.go:96`, inherited group to peer.
+- Configuration: `session > asn > local` and the `asnMap["local-options"]` leaf-list read at `internal/component/bgp/reactor/config.go`, inherited group to peer.
 - A received UPDATE being forwarded to the configured eBGP peer, which is where the prepend is applied.
 
 ### Transformation Path
-1. Config parse fills `LocalAS`, `GlobalLocalAS` and the two option flags on the peer settings, from `NewPeerSettings` at `internal/component/bgp/reactor/config.go:131` onward.
-2. Forward facts are precomputed once per settings change; the `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go:144` decides whether `secondaryAS` is set.
-3. The destination loop asks for the eBGP wire, and the encoder choice at `internal/component/bgp/reactor/reactor_api_forward.go:518` reads only `secondaryAS`.
+1. Config parse fills `LocalAS`, `GlobalLocalAS` and the two option flags on the peer settings, from `NewPeerSettings` at `internal/component/bgp/reactor/config.go` onward.
+2. Forward facts are precomputed once per settings change; the `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go` decides whether `secondaryAS` is set.
+3. The destination loop asks for the eBGP wire, and the encoder choice at `internal/component/bgp/reactor/reactor_api_forward.go` reads only `secondaryAS`.
 4. `RewriteASPathDual` or `RewriteASPath` writes the prepended AS_PATH.
 5. **Proposed:** step 2 produces a three-valued outcome rather than a boolean, so step 3 can distinguish the two options. The shape of that value depends on A-1.
 6. The peer receives the UPDATE; a `.ci` reads the AS_PATH back off the wire and asserts which ASNs were prepended.
@@ -149,9 +149,9 @@ and the Section 4.2 four are that spec's.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| YANG config to peer settings | two enums to two booleans, `internal/component/bgp/reactor/config.go:140` | No |
-| Peer settings to forward facts | the guard at `internal/component/bgp/reactor/peer_forward_facts.go:144` collapses both to one field | No |
-| Forward facts to AS_PATH encoder | `secondaryAS` non-zero selects the dual encoder, `internal/component/bgp/reactor/reactor_api_forward.go:518` | No |
+| YANG config to peer settings | two enums to two booleans, `internal/component/bgp/reactor/config.go` | No |
+| Peer settings to forward facts | the guard at `internal/component/bgp/reactor/peer_forward_facts.go` collapses both to one field | No |
+| Forward facts to AS_PATH encoder | `secondaryAS` non-zero selects the dual encoder, `internal/component/bgp/reactor/reactor_api_forward.go` | No |
 | Engine to peer TCP | the prepended AS_PATH is what the peer stores and re-advertises | No |
 
 ### Integration Points
@@ -167,18 +167,18 @@ and the Section 4.2 four are that spec's.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | **OPEN AXIS, needs Thomas.** Ze never rewrites an inbound AS_PATH, so RFC 7705's "No Prepend Inbound" may already be unconditionally true, leaving the `no-prepend` enum nothing to select. | The prepend runs only on the egress path, gated on `isEBGP` (`internal/component/bgp/reactor/peer_forward_facts.go:109`); no ingress site writes AS_PATH. | The three candidate resolutions are in the table below. Choosing any of them is a compliance decision (`ai/rules/rfc-compliance.md`), so this is a question to ask before implementing, not a choice to make. | Thomas's ruling, recorded in this spec before implementation starts. | unvalidated |
+| A-1 | **OPEN AXIS, needs Thomas.** Ze never rewrites an inbound AS_PATH, so RFC 7705's "No Prepend Inbound" may already be unconditionally true, leaving the `no-prepend` enum nothing to select. | The prepend runs only on the egress path, gated on `isEBGP` (`internal/component/bgp/reactor/peer_forward_facts.go`); no ingress site writes AS_PATH. | The three candidate resolutions are in the table below. Choosing any of them is a compliance decision (`ai/rules/rfc-compliance.md`), so this is a question to ask before implementing, not a choice to make. | Thomas's ruling, recorded in this spec before implementation starts. | unvalidated |
 | A-2 | No ingress path modifies AS_PATH, so `RFC7705-3.3-2` holds vacuously today. | The AS-path rewrite family is reached only from the forward and announce rails. | If an ingress rewrite exists, `no-prepend` has a real inbound meaning and A-1 resolves itself. | Tree-wide grep for `RewriteASPath`, `RewriteASPathDual` and `TranscodeASPath` call sites, classifying each as ingress or egress, as the first implementation action. | unvalidated |
-| A-3 | `secondaryAS` is the only channel by which either flag reaches the wire. | `internal/component/bgp/reactor/peer_forward_facts.go:146` is the field's only assignment, and `internal/component/bgp/reactor/reactor_api_forward.go:518` and `internal/component/bgp/reactor/reactor_api_forward.go:442` are its only readers on the prepend path. | A second channel means a wider change and possibly a second divergence. | Grep for `secondaryAS`, `LocalASNoPrepend` and `LocalASReplaceAS` across the tree. | unvalidated |
+| A-3 | `secondaryAS` is the only channel by which either flag reaches the wire. | `internal/component/bgp/reactor/peer_forward_facts.go` is the field's only assignment, and `internal/component/bgp/reactor/reactor_api_forward.go` and `internal/component/bgp/reactor/reactor_api_forward.go` are its only readers on the prepend path. | A second channel means a wider change and possibly a second divergence. | Grep for `secondaryAS`, `LocalASNoPrepend` and `LocalASReplaceAS` across the tree. | unvalidated |
 | A-4 | No operator configuration in the wild depends on `no-prepend` meaning what it currently does. | The two enums are indistinguishable today, so any config relying on the current behaviour would work identically under `replace-as`. | The change is still wire-visible for anyone who configured `no-prepend` alone and expected today's output. Release-note it. | A note in the change description; there is no telemetry to consult. | unvalidated |
-| A-5 | Both mechanisms are already per-neighbour and per-neighbour-group configurable, satisfying `RFC7705-3.3-1` without code change. | The `session` container is group-to-peer inherited (`internal/component/bgp/yang/ze-bgp-conf.yang:461`), and the existing `peers[0].LocalASNoPrepend` coverage at `internal/component/bgp/reactor/config_test.go:1163` exercises it. | The requirement needs implementation, not just a tag. | Tagging the existing config tests and confirming the gate accepts them. | unvalidated |
+| A-5 | Both mechanisms are already per-neighbour and per-neighbour-group configurable, satisfying `RFC7705-3.3-1` without code change. | The `session` container is group-to-peer inherited (`internal/component/bgp/yang/ze-bgp-conf.yang`), and the existing `peers[0].LocalASNoPrepend` coverage at `internal/component/bgp/reactor/config_test.go` exercises it. | The requirement needs implementation, not just a tag. | Tagging the existing config tests and confirming the gate accepts them. | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -204,7 +204,7 @@ and the Section 4.2 four are that spec's.
 | An operator configures `local-as` with `replace-as` and the peer receives a route | → | `secondaryAS` stays zero, single-ASN encoder runs | `test/plugin/bgp-local-as-replace-as.ci` |
 | An operator configures `local-as` with `no-prepend` and the peer receives a route | → | the resolution of A-1 selects its own encoder path | `test/plugin/bgp-local-as-no-prepend.ci` |
 | An operator configures `local-as` with no modifiers and the peer receives a route | → | dual-ASN encoder, override outermost | `test/plugin/bgp-local-as-dual.ci` |
-| An operator configures both enums together | → | the combined state the `description "Modifiers for local-as behavior.` text at `internal/component/bgp/yang/ze-bgp-conf.yang:486` documents | `test/plugin/bgp-local-as-replace-as.ci` |
+| An operator configures both enums together | → | the combined state the `description "Modifiers for local-as behavior.` text at `internal/component/bgp/yang/ze-bgp-conf.yang` documents | `test/plugin/bgp-local-as-replace-as.ci` |
 
 ## Acceptance Criteria
 
@@ -271,7 +271,7 @@ and the Section 4.2 four are that spec's.
 | `NN-local-as-dual-frr` | `test/interop/scenarios/` | FRR | a real peer sees both ASNs in the documented order during a migration | |
 
 ## Files to Modify
-- `internal/component/bgp/reactor/peer_forward_facts.go` - the `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go:144` stops collapsing the two flags; the facts carry enough to distinguish them
+- `internal/component/bgp/reactor/peer_forward_facts.go` - the `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go` stops collapsing the two flags; the facts carry enough to distinguish them
 - `internal/component/bgp/reactor/reactor_api_forward.go` - the encoder choice reads the distinguished fact rather than a single boolean field
 - `internal/component/bgp/reactor/config.go` - only if A-1 resolves to rejecting an option, in which case the parse names the leaf
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - the enum descriptions say what each option actually does, in RFC 7705's vocabulary
@@ -361,7 +361,7 @@ and the Section 4.2 four are that spec's.
 | Naming | The enum names stay recognisable to an operator migrating from another daemon, and the descriptions use RFC 7705's vocabulary |
 | Data flow | The distinction is computed once into the forward facts, never re-derived per destination |
 | Registration over hardcoding | No per-option branch is added to a core package: the option resolves to a value the existing encoder choice already consumes |
-| Rule: `ai/rules/fail-closed-guards.md` | If an option is unsupported it is rejected by name at parse time, never silently ignored |
+| Rule: `ai/rules/evidence.md` | If an option is unsupported it is rejected by name at parse time, never silently ignored |
 | Rule: `ai/rules/rfc-compliance.md` | A-1 was ruled by Thomas before any code was written, and the ruling is recorded here |
 
 ### Deliverables Checklist
@@ -397,9 +397,9 @@ and the Section 4.2 four are that spec's.
 
 ## Design Insights
 
-- The defect is one compound condition. The `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go:144` continues onto the next line with `!s.LocalASNoPrepend && !s.LocalASReplaceAS`, reading two independent operator intentions with one polarity and one effect. That is how two documented behaviours became one.
-- The configuration surface is the thing that made this discoverable and the thing that made it invisible: the YANG description at `internal/component/bgp/yang/ze-bgp-conf.yang:486` promises a third combined state, and nothing tested that any of the three differed.
-- The existing unit tests at `internal/component/bgp/reactor/config_test.go:1163` and `internal/component/bgp/reactor/config_test.go:1193` assert both flags false and both flags true. Neither exercises one alone, which is exactly the pair of cases that distinguishes the options. A table test that only walks the corners misses the edges.
+- The defect is one compound condition. The `s.GlobalLocalAS != s.LocalAS` guard at `internal/component/bgp/reactor/peer_forward_facts.go` continues onto the next line with `!s.LocalASNoPrepend && !s.LocalASReplaceAS`, reading two independent operator intentions with one polarity and one effect. That is how two documented behaviours became one.
+- The configuration surface is the thing that made this discoverable and the thing that made it invisible: the YANG description at `internal/component/bgp/yang/ze-bgp-conf.yang` promises a third combined state, and nothing tested that any of the three differed.
+- The existing unit tests at `internal/component/bgp/reactor/config_test.go` and `internal/component/bgp/reactor/config_test.go` assert both flags false and both flags true. Neither exercises one alone, which is exactly the pair of cases that distinguishes the options. A table test that only walks the corners misses the edges.
 - RFC 7705 separates the two mechanisms by direction, not by degree. That is the framing the enum descriptions should adopt, because "no prepend" and "replace" sound like two strengths of one knob and are not.
 
 ## Key Design Decisions
@@ -424,13 +424,13 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 | RFC | Section | Requirement | Site |
 |-----|---------|-------------|------|
-| 7705 | 3.3 | mechanisms MUST be configurable per neighbour or per neighbour group | `internal/component/bgp/reactor/config.go:96` |
+| 7705 | 3.3 | mechanisms MUST be configurable per neighbour or per neighbour group | `internal/component/bgp/reactor/config.go` |
 | 7705 | 3.3 | "No Prepend Inbound" MUST NOT append the Local AS inbound or toward iBGP | the ingress path, per the A-1 ruling |
-| 7705 | 3.3 | "No Prepend Inbound" MUST still append the globally configured ASN toward other local eBGP neighbours | `internal/component/bgp/reactor/peer_forward_facts.go:144` |
-| 7705 | 3.3 | "Replace Old AS" MUST NOT append the globally configured ASN | `internal/component/bgp/reactor/peer_forward_facts.go:146` |
-| 7705 | 3.3 | "Replace Old AS" MUST append only the configured Local AS | `internal/component/bgp/reactor/reactor_api_forward.go:521` |
-| 4271 | 9.1.2 | prepend the local AS when propagating to an eBGP peer | `internal/component/bgp/wireu/aspath_rewrite.go:35` |
-| 6793 | 4.2.2 | AS_TRANS toward an old speaker, real values in AS4_PATH | `internal/component/bgp/wireu/aspath_rewrite.go:52` |
+| 7705 | 3.3 | "No Prepend Inbound" MUST still append the globally configured ASN toward other local eBGP neighbours | `internal/component/bgp/reactor/peer_forward_facts.go` |
+| 7705 | 3.3 | "Replace Old AS" MUST NOT append the globally configured ASN | `internal/component/bgp/reactor/peer_forward_facts.go` |
+| 7705 | 3.3 | "Replace Old AS" MUST append only the configured Local AS | `internal/component/bgp/reactor/reactor_api_forward.go` |
+| 4271 | 9.1.2 | prepend the local AS when propagating to an eBGP peer | `internal/component/bgp/wireu/aspath_rewrite.go` |
+| 6793 | 4.2.2 | AS_TRANS toward an old speaker, real values in AS4_PATH | `internal/component/bgp/wireu/aspath_rewrite.go` |
 
 ## Checklist
 

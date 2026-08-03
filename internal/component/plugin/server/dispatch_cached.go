@@ -70,7 +70,7 @@ func (s *Server) opRelayStoredRoute(_ *process.Process, params json.RawMessage) 
 // forward-cached (many destinations, drop the bad ones and proceed) this call
 // targets exactly ONE peer, so a destination that does not parse means the whole
 // replay has nowhere to go and must fail closed rather than silently relay
-// nothing (ai/rules/fail-closed-guards.md).
+// nothing (ai/rules/evidence.md).
 func (s *Server) relayStoredRoute(destination string, routes []rpc.StoredRoute) error {
 	if len(routes) == 0 {
 		return nil

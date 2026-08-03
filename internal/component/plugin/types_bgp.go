@@ -393,7 +393,7 @@ type ReactorCacheCoordinator interface {
 // coordinator relays UPDATEs the engine still holds by id, while this relays
 // bytes the PLUGIN holds after the cache has dropped them. The two have different
 // lifetimes and different implementers, so a caller should be able to depend on
-// one without the other (interface segregation, ai/rules/design-principles.md).
+// one without the other (interface segregation, ai/rules/architecture.md).
 type ReactorRelayCoordinator interface {
 	// RelayStoredRoute relays each stored route to destination through the
 	// forward rail, applying the egress transform that route's SOURCE peer

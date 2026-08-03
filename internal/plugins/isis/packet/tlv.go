@@ -40,7 +40,7 @@ const TLVHeaderLen = 2
 const MaxTLVValueLen = 255
 
 // TLVIterator walks a TLV region lazily, yielding (type, value-slice) pairs
-// without copying. Decode is zero-copy per ai/rules/buffer-first.md: the value
+// without copying. Decode is zero-copy per ai/rules/performance.md: the value
 // slices alias the caller's buffer and are valid only while it is stable.
 //
 // The iterator never panics on malformed input (spec R-3, AC-11): a TLV whose

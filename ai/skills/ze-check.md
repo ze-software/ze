@@ -90,7 +90,7 @@ If the only hits are definition and test files: **UNWIRED**.
 ### 4g. Canonical source check
 
 For every modified file in the diff, check whether it is a generated file
-(per `ai/rules/canonical-sources.md`). If a generated file was edited directly:
+(per `ai/rules/repo-maintenance.md`). If a generated file was edited directly:
 **WRONG SOURCE** -- the canonical file should have been edited instead.
 
 ## Rules

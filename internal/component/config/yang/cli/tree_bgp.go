@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_bgp partition of the analysis-tree blank imports
+// Design: ai/rules/plugins.md -- ze_bgp partition of the analysis-tree blank imports
 //
 //go:build ze_bgp
 

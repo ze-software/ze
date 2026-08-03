@@ -147,7 +147,7 @@ def build_hint(output: str) -> str:
     reads as a broken Go installation and is not one. This does NOT skip: the
     prerequisite is one documented command away, and skipping would delete the
     only coverage of the boot-time hugepage reservation
-    (ai/rules/fail-closed-guards.md). It makes the failure actionable.
+    (ai/rules/evidence.md). It makes the failure actionable.
     """
     for marker in ("toolchain not available", "incomplete packages", "GOPROXY=off"):
         if marker in output:

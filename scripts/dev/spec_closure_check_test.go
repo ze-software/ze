@@ -9,7 +9,7 @@ import (
 // These tests drive scripts/dev/spec-closure-check.py, the mechanical detector
 // written for the Stop-hook closure gate (block-premature-stop.sh) and used by
 // the commit-time reminder in commit_helper.py. See ai/rules/planning.md
-// "Spec Closure" and ai/rules/hook-mapping.md.
+// "Spec Closure" and ai/rules/repo-maintenance.md.
 //
 // The Stop hook was registered on no event from 41e5fa44f (2026-06-29) until
 // Thomas re-registered it on 2026-07-31. The closure gate runs again, so both

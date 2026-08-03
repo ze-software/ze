@@ -6,7 +6,7 @@ import (
 )
 
 // TestVRRPCmdSchemaOwnsShowVRRP is the plugin OWNER half of the
-// plugin-self-containment invariant (ai/rules/plugin-self-containment.md): the
+// plugin-self-containment invariant (ai/rules/plugins.md): the
 // vrrp command schema declares every `show vrrp ...` / `clear vrrp ...` node, so
 // removing the vrrp plugin removes the whole command surface with it. The
 // central show/clear schema packages assert the mirror image (they declare none

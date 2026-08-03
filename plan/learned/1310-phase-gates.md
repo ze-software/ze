@@ -5,7 +5,7 @@
 Two rules were being ignored, and neither had anything to catch it. A session ran
 five hand-written agent prompts where `/ze-explore` and `/ze-review` already
 existed, and did every implementation edit on the review model without once
-announcing the boundary. Both rules said the right thing. `model-selection.md`
+announcing the boundary. Both rules said the right thing. `planning.md`
 even admitted "No hook or gate checks the running model."
 
 ## Decisions
@@ -57,5 +57,5 @@ even admitted "No hook or gate checks the running model."
 - `.claude/hooks/delegation-reminder.sh` -- the per-turn line now names the skills
 - `.claude/settings.json` -- the new `PreToolUse Task|Agent` registration
 - `scripts/dev/hook-fixture-check.py` -- the `phase-gates` section, 17 fixtures
-- `ai/rules/model-selection.md`, `ai/rules/agent-tooling.md`, `ai/rules/hook-mapping.md`
-- `ai/rules/detail-budget.md` -- write like a person
+- `ai/rules/planning.md`, `ai/rules/cli.md`, `ai/rules/repo-maintenance.md`
+- `ai/rules/writing.md` -- write like a person

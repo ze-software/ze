@@ -24,7 +24,7 @@ import (
 //
 // It is silent, and that is what makes it worth a check. The operator raised a defense
 // and the config committed. Nothing in ze's own logs says the value cannot be reached
-// (ai/rules/fail-closed-guards.md: a guard that neither denies nor speaks does not exist).
+// (ai/rules/evidence.md: a guard that neither denies nor speaks does not exist).
 //
 // It is a WARNING rather than a commit-time rejection, because the value is not wrong in
 // itself. An operator who is about to add peers has written a threshold that will start

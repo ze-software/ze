@@ -13,7 +13,7 @@ plugin JSON payloads and CLI diff output byte-for-byte.
 ## Decisions
 
 - Reused `config.DiffMaps` directly over relocating it to a new `internal/core/` leaf:
-  `plugin/server` already imports `config` (`reload.go:16` for `AppendPath`/`PathSep`/
+  `plugin/server` already imports `config` (`reload.go` for `AppendPath`/`PathSep`/
   `ExtractConfigSubtree`), so the call adds zero new package edge. The leaf-package move
   would force `config` + its `ze config diff` CLI consumer to migrate for no coupling win.
 - Kept `config.DiffMaps` where it lives (package `config`) over moving it: `config` parses

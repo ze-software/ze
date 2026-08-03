@@ -17,11 +17,11 @@
 // while the caller's backing slice is stable; isis-6 copies LSP bytes it
 // retains.
 //
-// Encode is buffer-first (ai/rules/buffer-first.md): every PDU and TLV writes
+// Encode is buffer-first (ai/rules/performance.md): every PDU and TLV writes
 // into a caller-owned buffer via WriteTo(buf []byte, off int) int. The PDU
 // Length field and the LSP Fletcher checksum are written by skip-and-backfill,
 // never a Len()-then-WriteTo() double traversal. Human-readable rendering uses
-// textbuf/AppendTo, never fmt.Sprintf (ai/rules/no-sprintf-alloc.md).
+// textbuf/AppendTo, never fmt.Sprintf (ai/rules/performance.md).
 //
 // The single highest-risk item is the ISO 8473 Fletcher checksum with its
 // two-step adjustment (checksum.go): it is implemented and vector-tested

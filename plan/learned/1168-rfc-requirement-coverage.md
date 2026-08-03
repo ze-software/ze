@@ -84,4 +84,4 @@ would fail on non-compliance. RFC 7606 is the pilot. See also
   `TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute` (genuine §2-5)
 - Created: `rfc/audit/rfc7606.json` (52 verdicts)
 - Modified: `mk/inventory.mk` (`ze-doc-test` ledger freshness); docs
-  (`rfc-implementation-guide.md` §9.7, `functional-tests.md`, `discovery-updates.md`)
+  (`rfc-implementation-guide.md` §9.7, `functional-tests.md`, `repo-maintenance.md`)

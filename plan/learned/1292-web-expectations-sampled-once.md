@@ -41,7 +41,7 @@ out-of-band swap on the save response (`handler_config_form.go` renders
   gives five to seven, and stays well inside the per-test `option=timeout` (30-60s)
   so a genuinely missing element still fails its step.
 - **The shard is deleted, not amended.** It reproduced, so it was never eligible
-  to be recorded in the first place (`ai/rules/fix-dont-record.md`); the entry is
+  to be recorded in the first place (`ai/rules/completion.md`); the entry is
   archived in `plan/known-failures/RESOLVED.md` with the mechanism.
 
 ## Consequences

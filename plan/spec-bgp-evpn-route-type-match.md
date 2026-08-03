@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md`
 3. `internal/component/bgp/plugins/filter_family/` - the closest existing filter (family-granularity match)
 4. `internal/component/bgp/plugins/nlri/evpn/types.go` - EVPN route types
-5. `ai/rules/plugin-self-containment.md` - filters are self-contained plugins
+5. `ai/rules/plugins.md` - filters are self-contained plugins
 
 ## Task
 
@@ -32,7 +32,7 @@ numeric 1-5, following the existing one-plugin-per-match-type pattern.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/plugin-self-containment.md` - each filter is its own plugin; remove it and the feature vanishes.
+- [ ] `ai/rules/plugins.md` - each filter is its own plugin; remove it and the feature vanishes.
   → Constraint: register a new `filter_evpn_route_type` plugin; do not add an EVPN case to a generic filter.
 - [ ] `ai/patterns/config-option.md` - config leaf/validator pattern for the match value.
   → Constraint: use native YANG enumeration + numeric where possible.
@@ -44,7 +44,7 @@ numeric 1-5, following the existing one-plugin-per-match-type pattern.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugins/nlri/evpn/types.go` - `EVPNRouteType1..5` = EAD / MAC-IP / IMET(inclusive-multicast) / Ethernet-Segment / IP-prefix (types.go:60-64); each has a struct, parser, and `WriteTo`; `EVPNRouteType.String()` yields names like `ethernet-segment`.
+- [ ] `internal/component/bgp/plugins/nlri/evpn/types.go` - `EVPNRouteType1..5` = EAD / MAC-IP / IMET(inclusive-multicast) / Ethernet-Segment / IP-prefix (types.go); each has a struct, parser, and `WriteTo`; `EVPNRouteType.String()` yields names like `ethernet-segment`.
 - [ ] `internal/component/bgp/plugins/filter_family/match.go` - matches only at address-family granularity (extracts the family from the UPDATE body); no route-type awareness. This is the closest existing filter.
 - [ ] `internal/component/bgp/plugins/` filter set - `filter_aspath`, `filter_aspath_length`, `filter_community`, `filter_community_match`, `filter_family`, `filter_irr`, `filter_modify`, `filter_prefix`, `filter_remove_private_as`; none reference EVPN route type (grep for `RouteType` in filters returns nothing).
 - [ ] `internal/component/bgp/filterapi/filterapi.go` - the filter API (`IngressFilterFunc`, `PeerFilterInfo`) that plugins implement and register.
@@ -86,7 +86,7 @@ numeric 1-5, following the existing one-plugin-per-match-type pattern.
 - [ ] No bypassed layers (filter uses the filter API, not a reactor hook)
 - [ ] No unintended coupling (reads EVPN route type via the NLRI plugin's exported type)
 - [ ] No duplicated functionality (new match type, reuses the filter framework)
-- [ ] Registration over hardcoding — a self-contained `filter_evpn_route_type` plugin registers itself; no EVPN case added to a generic/central filter (`ai/rules/plugin-self-containment.md`).
+- [ ] Registration over hardcoding — a self-contained `filter_evpn_route_type` plugin registers itself; no EVPN case added to a generic/central filter (`ai/rules/plugins.md`).
 
 ## Risks & Assumptions
 
@@ -165,9 +165,9 @@ existing EVPN family. The BGP Family Checklist does not apply.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [ ] yes | `internal/component/bgp/plugins/filter_evpn_route_type/yang/`; `ai/rules/config-naming.md` |
+| YANG schema (new config) | [ ] yes | `internal/component/bgp/plugins/filter_evpn_route_type/yang/`; `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | `enumeration` of names + numeric 1-5 |
-| CLI grammar | [ ] yes | `ai/rules/cli-grammar.md` |
+| CLI grammar | [ ] yes | `ai/rules/cli.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/bgp-evpn-route-type-match.ci` |
 | Registered plugin/inventory changed | [ ] yes | plugin snapshot/all_test; `docs/plugin-overview.md` |
 

@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. ~~`DESIGN-REVIEW.md` finding 7 ("The public SDK boundary is not real") and its verification notes~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec. Both defects re-verified still open 2026-07-22: `*selector.Selector` leaks at `bridge.go:294,303` and `sdk_engine.go:26,31`; no `ProtocolVersion` anywhere in `pkg/plugin/`)
+3. ~~`DESIGN-REVIEW.md` finding 7 ("The public SDK boundary is not real") and its verification notes~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec. Both defects re-verified still open 2026-07-22: `*selector.Selector` leaks at `bridge.go,303` and `sdk_engine.go,31`; no `ProtocolVersion` anywhere in `pkg/plugin/`)
 4. `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk.go`, `pkg/plugin/rpc/bridge.go`,
    `pkg/plugin/sdk/sdk_engine.go`, `internal/component/plugin/server/{startup,subsystem}.go`
 
@@ -26,7 +26,7 @@ sharper). Two independent, verified problems:
    `ProtocolVersion` / `apiVersion` field exists anywhere in `pkg/plugin/` (broad non-test
    search empty; only Stage-5 transport "negotiation" exists, `pkg/plugin/rpc/enums.go`
    `EventKindNegotiated`, which is not a protocol version). `DeclareRegistrationInput` (Stage 1,
-   `types.go:27-43`) carries no version. Any struct change in `pkg/plugin/rpc/types.go` is a
+   `types.go`) carries no version. Any struct change in `pkg/plugin/rpc/types.go` is a
    silent mis-decode for a separately-compiled plugin process not rebuilt in lockstep. This
    bites any out-of-process plugin binary, in-tree or not.
 
@@ -34,7 +34,7 @@ sharper). Two independent, verified problems:
    transitively depends on 5 internal packages (`internal/core/stringsx`, `.../textbuf`,
    `.../selector`, `internal/component/plugin/ipc`, `internal/core/env`; `go list -deps
    ./pkg/plugin/sdk`), and `*internal/core/selector.Selector` appears in EXPORTED signatures:
-   `pkg/plugin/rpc/bridge.go:294` (`UpdateRouteSelHandler`), `pkg/plugin/sdk/sdk_engine.go:27,32`
+   `pkg/plugin/rpc/bridge.go` (`UpdateRouteSelHandler`), `pkg/plugin/sdk/sdk_engine.go,32`
    (`Plugin.UpdateRouteSel` / `UpdateRouteSelWithMeta`). An out-of-tree module CAN blank-import
    the SDK (verified: it builds), but CANNOT import `internal/core/selector` ("use of internal
    package ... not allowed", verified), so it cannot construct the argument and those exported
@@ -65,12 +65,12 @@ Two notes from the 2026-07 implementation wave (verified against current code):
 
 1. **The ProtocolVersion handshake must coexist with new write-timeout wire behavior.**
    `pkg/plugin/rpc/conn.go` now applies a default 30s write deadline when the context carries
-   none (`defaultWriteDeadline`, conn.go:44; applied in `writeAppended`, conn.go:292-294,
+   none (`defaultWriteDeadline`, conn.go; applied in `writeAppended`, conn.go,
    :309) and, on transports without `SetWriteDeadline` (stdio, SSH channels), arms a
    fail-fast write watchdog that closes the connection on a stalled write (`fireWatchdog`,
-   conn.go:191-200; transport selection at conn.go:307-315; hook `SetWriteWatchdogHook`,
-   conn.go:139; counter `ze_plugin_write_watchdog_total` wired in
-   `internal/component/plugin/server/server.go:188-196`). Consequences for this spec: the
+   conn.go; transport selection at conn.go; hook `SetWriteWatchdogHook`,
+   conn.go; counter `ze_plugin_write_watchdog_total` wired in
+   `internal/component/plugin/server/server.go`). Consequences for this spec: the
    Stage-1 declare-registration write and the engine's version-rejection diagnostic write are
    both subject to this deadline/watchdog, and AC-2's "clear error, not a hang" now has an
    interacting mechanism, since the transport already converts some write stalls into
@@ -80,7 +80,7 @@ Two notes from the 2026-07 implementation wave (verified against current code):
 2. **`ze-plugin-boundary-check` does NOT satisfy AC-5, despite the name.** The verify gate
    `ze-plugin-boundary-check` (Makefile:287, :294, :319) runs
    `scripts/checks/plugin_process_boundary.go`, which guards same-process-effect direct calls
-   that bypass DirectBridge/DispatchCommand (its header, plugin_process_boundary.go:3-15). It
+   that bypass DirectBridge/DispatchCommand (its header, plugin_process_boundary.go). It
    does not inspect exported `pkg/plugin/**` signatures for `internal/` types. AC-5 still
    requires its own new mechanical guard; name it distinctly to avoid collision with the
    existing gate.
@@ -92,9 +92,9 @@ Two notes from the 2026-07 implementation wave (verified against current code):
 - [ ] `docs/architecture/api/process-protocol.md` - the 5-stage plugin handshake and wire framing
   → Decision: Stage 1 is plugin-initiated declare-registration; it is the earliest structured message and the natural version-negotiation point.
   → Constraint: the wire framing must stay backward-parseable enough to emit a version-mismatch error rather than a raw decode failure.
-- [ ] `ai/rules/module-tiers.md` - tier axes; where `pkg/` sits relative to `internal/`
+- [ ] `ai/rules/architecture.md` - tier axes; where `pkg/` sits relative to `internal/`
   → Constraint: `pkg/` is the advertised external surface; a public package exposing internal types defeats the tier intent.
-- [ ] `ai/rules/plugin-design.md` - the plugin SDK/protocol contract
+- [ ] `ai/rules/plugins.md` - the plugin SDK/protocol contract
   → Constraint: out-of-process plugins interact only via the wire protocol and the exported SDK; both must be self-describing.
 
 **Key insights:** the wire boundary (separately-compiled binaries) and the source boundary
@@ -130,11 +130,11 @@ first; API cleanup + a guard fixes the second.
   specific diagnostic instead of silently mis-decoding later structs.
 - No exported `pkg/plugin/**` symbol names an `internal/` type; a mechanical guard enforces it.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A plugin process connects, runs `SendAuth` (`sdk.go:212`), then sends Stage-1
-  declare-registration (`DeclareRegistrationInput`, `sdk.go:332`) to the engine.
+- A plugin process connects, runs `SendAuth` (`sdk.go`), then sends Stage-1
+  declare-registration (`DeclareRegistrationInput`, `sdk.go`) to the engine.
 - Format at entry: a JSON `DeclareRegistrationInput` over the process transport.
 
 ### Transformation Path
@@ -143,7 +143,7 @@ first; API cleanup + a guard fixes the second.
    converts via `registrationFromRPC`.
 3. Today: no version is present, so a struct-shape drift decodes into wrong/zero fields silently.
 4. Separately, at runtime an in-process plugin may call `Plugin.UpdateRouteSel(*selector.Selector)`
-   (`sdk_engine.go:27`) into `DirectBridge.UpdateRouteSel` (`bridge.go:303`) - an exported path
+   (`sdk_engine.go`) into `DirectBridge.UpdateRouteSel` (`bridge.go`) - an exported path
    naming an internal type.
 5. An out-of-tree importer builds against the SDK (allowed) but cannot name `*selector.Selector`
    (internal import rejected), so step 4's exported API is uncallable for it.
@@ -170,7 +170,7 @@ first; API cleanup + a guard fixes the second.
 - [ ] Zero-copy preserved where applicable (in-process DirectBridge fast path retained)
 - [ ] Registration over hardcoding — the version and the boundary guard are declared once and
   discovered by the handshake / verify pipeline, not special-cased per plugin
-  (`ai/rules/plugin-self-containment.md`)
+  (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
@@ -179,7 +179,7 @@ first; API cleanup + a guard fixes the second.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | All in-tree plugins rebuild in lockstep with the engine, so a mandatory version field does not break them | in-tree plugins compiled with the engine | A staged rollout needs a tolerant/optional version first | build + full plugin `.ci` suite after adding the field | unvalidated |
 | A-2 | `*selector.Selector` is the only internal type in an exported `pkg/plugin/**` signature | `go list`/grep found selector; only reviewed selector + ipc | Other leaks exist; the guard must find them all | the AC-5 boundary guard run across all pkg/plugin exported signatures | unvalidated |
-| A-3 | The in-process `UpdateRouteSel*` fast path has only in-tree callers, so moving it to an internal seam breaks nobody external | `sdk_engine.go:24-26` comment "in-process plugins use this"; external plugins use the string path | An external caller relied on it (it could not, being un-nameable) | grep callers of `UpdateRouteSel`/`UpdateRouteSelWithMeta` | unvalidated |
+| A-3 | The in-process `UpdateRouteSel*` fast path has only in-tree callers, so moving it to an internal seam breaks nobody external | `sdk_engine.go` comment "in-process plugins use this"; external plugins use the string path | An external caller relied on it (it could not, being un-nameable) | grep callers of `UpdateRouteSel`/`UpdateRouteSelWithMeta` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -263,7 +263,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` (version handshake) |
+| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` (version handshake) |
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` plugin boundary section |
 | 16 | Changed source referenced by doc anchors? | [ ] | grep `docs/` for `source: .../pkg/plugin/rpc/types.go`, `sdk.go` |
 
@@ -377,7 +377,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 - [any silent-decode case surfaced by adding the version]
 
 ### Documentation Updates
-- [process-protocol.md version handshake + plugin-design.md, or "None" with grep evidence]
+- [process-protocol.md version handshake + plugins.md, or "None" with grep evidence]
 
 ## Review Gate
 

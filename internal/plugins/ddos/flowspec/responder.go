@@ -106,14 +106,58 @@ type responder struct {
 	mu         sync.Mutex
 	cfg        *Config
 	dispatcher routeDispatcher
-	active     bool
-	target     ddosevent.VectorTuple
-	match      flowspecMatch
-	probe      *probe
+	// active, target and probe are guarded by mu. setAnnouncement is their ONLY
+	// writer, in production and in tests: it is what keeps `published` in step
+	// with them (mirrors ddos/local setStatus and anomaly/shape gauge).
+	active bool
+	target ddosevent.VectorTuple
+	match  flowspecMatch
+	probe  *probe
+	// published mirrors {active, target, probing} for readers that must not wait
+	// on mu. mu is held across the announce and the withdraw so concurrent
+	// mitigations stay ordered, and each of those is a dispatcher round trip:
+	// the production dispatcher (register.go sdkDispatcher) sends the update
+	// text to the BGP engine over the plugin SDK's UpdateRoute RPC, so a reader
+	// taking mu waited that RPC out. show ddos flowspec is such a reader
+	// (show.go handleShowDdosFlowspec -> status()), so a slow engine took the
+	// management plane's read down with it, unbounded while a flood churns
+	// announce and withdraw. Written under mu by setAnnouncement, read lock-free
+	// by status(). Same defect and fix shape as D-3 (ddos/local) and D-4
+	// (anomaly/shape) of plan/spec-fixit-firewall-concurrency-deadlock.md.
+	published atomic.Pointer[announceStatus]
+}
+
+// announceStatus is one immutable snapshot of the responder's upstream
+// announcement state. Never mutated after Store; a new value is published on
+// every change.
+type announceStatus struct {
+	active  bool
+	target  ddosevent.VectorTuple
+	probing bool
 }
 
 func newResponder(cfg *Config, dispatcher routeDispatcher) *responder {
-	return &responder{cfg: cfg, dispatcher: dispatcher}
+	r := &responder{cfg: cfg, dispatcher: dispatcher}
+	// Publish the idle snapshot before the responder is reachable, so status()
+	// never has to interpret a nil pointer as "no announcement".
+	r.setAnnouncement(false, ddosevent.VectorTuple{}, nil)
+	return r
+}
+
+// setAnnouncement records the announcement state and republishes the lock-free
+// snapshot status() reads. It is the ONLY writer of active, target and probe, so
+// the snapshot cannot fall out of step with them: an announce or a withdraw that
+// forgets to republish is not writable. It derives probing here, under mu, so
+// status() never needs the lock to compute it. Caller holds r.mu.
+func (r *responder) setAnnouncement(active bool, target ddosevent.VectorTuple, p *probe) {
+	r.active = active
+	r.target = target
+	r.probe = p
+	r.published.Store(&announceStatus{
+		active:  active,
+		target:  target,
+		probing: active && p != nil,
+	})
 }
 
 // blackholeAction is the flowspec traffic action for the critical-severity
@@ -192,10 +236,9 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 		logger().Error("ddos-flowspec: announce failed", "error", err)
 		return
 	}
-	r.active = true
-	r.target = target
-	r.probe = newProbe(r.cfg.HoldDown, r.cfg.ProbeInterval, r.cfg.ProbeWindow, r.cfg.ProbeRate, r.cfg.BackoffCap)
-	r.probe.Start()
+	p := newProbe(r.cfg.HoldDown, r.cfg.ProbeInterval, r.cfg.ProbeWindow, r.cfg.ProbeRate, r.cfg.BackoffCap)
+	p.Start()
+	r.setAnnouncement(true, target, p)
 	logger().Info("ddos-flowspec: announced",
 		"target", target.DstPrefix, "action", action, "reason", reason)
 }
@@ -230,18 +273,30 @@ func (r *responder) withdraw() {
 	if err := r.dispatcher.Dispatch(cmd); err != nil {
 		logger().Error("ddos-flowspec: withdraw failed", "error", err)
 	}
-	r.active = false
 	if r.probe != nil {
 		r.probe.Stop()
 	}
+	// The probe is dropped, not merely stopped: announce always builds a fresh
+	// one, and probeTick reads it only while active. Keeping the target lets the
+	// log line and a post-withdraw read still name what was announced.
+	r.setAnnouncement(false, r.target, nil)
 	logger().Info("ddos-flowspec: withdrawn", "target", r.target.DstPrefix)
 }
 
-// status returns a mutex-safe snapshot for the show handler: whether an upstream
-// FlowSpec rule is currently announced, the target vector it covers, and whether
-// the leak-probe is running.
+// status returns the published snapshot for the show handler: whether an
+// upstream FlowSpec rule is currently announced, the target vector it covers,
+// and whether the leak-probe is running. It takes NO lock on purpose -- r.mu is
+// held across the announce and the withdraw, each a dispatcher round trip to the
+// BGP engine, so reading through it would make show ddos flowspec wait out an
+// UpdateRoute RPC.
 func (r *responder) status() (active bool, target ddosevent.VectorTuple, probing bool) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.active, r.target, r.active && r.probe != nil
+	s := r.published.Load()
+	if s == nil {
+		// Unreachable: newResponder publishes the idle snapshot before the
+		// responder is shared. Answering "nothing announced" for an unpublished
+		// responder is the fail-closed reading -- it never claims an upstream
+		// rule the BGP engine does not hold.
+		return false, ddosevent.VectorTuple{}, false
+	}
+	return s.active, s.target, s.probing
 }

@@ -56,7 +56,7 @@ func cmdArchiveImpl(args []string) int {
 	}
 
 	// The operational command is verb-first `request config archive <name>`
-	// (ai/rules/cli-grammar.md); this offline `ze config archive` tool dispatches it.
+	// (ai/rules/cli.md); this offline `ze config archive` tool dispatches it.
 	var tb textbuf.Buffer
 	result, err := sshclient.ExecCommand(creds, tb.Str("request config archive ").Str(archiveName).String())
 	if err != nil {

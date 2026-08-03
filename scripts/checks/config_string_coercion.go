@@ -1,4 +1,4 @@
-// Design: ai/rules/config-string-coercion.md -- config value-coercion guard
+// Design: ai/rules/config.md -- config value-coercion guard
 //
 // config_string_coercion enforces an invariant discovered while debugging why
 // ddos-detect never fired (session 6503): the plugin config framework delivers

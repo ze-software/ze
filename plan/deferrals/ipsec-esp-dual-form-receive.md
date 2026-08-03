@@ -1,6 +1,6 @@
 # Deferrals -- spec-ipsec-esp-dual-form-receive
 
-Source: `plan/spec-ipsec-esp-dual-form-receive.md`. Format: `ai/rules/deferral-tracking.md`.
+Source: `plan/spec-ipsec-esp-dual-form-receive.md`. Format: `ai/rules/planning.md`.
 
 Created 2026-08-02. The spec's metadata table has named this shard since it was written, and
 the file did not exist, so the spec's Goal Gate "Deferral shard resolved: no live row without

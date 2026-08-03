@@ -91,7 +91,7 @@ func TestCheckInterfaceNexthopBackendNilOrEmpty(t *testing.T) {
 // VALIDATES: AC-3 -- the route-skipped doctor check fires when the running plugin
 // has skipped a route, emits doctor-static-route-skipped, and names the skipped
 // prefix and reason. PREVENTS: a skip being a silent no-op
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestCheckRouteSkippedFires(t *testing.T) {
 	rm := newRouteManager(&mockStaticBackend{})
 	bad := netip.MustParsePrefix("203.0.113.0/24")

@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 // Related: api.go -- always-on API helpers (engine, auth, config-validation hook, buildAPIShared)
 //
 // API compile-out seam. REST and gRPC are independent encodings, each

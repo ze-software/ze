@@ -2,14 +2,14 @@
 
 **When:** authoring or editing any `ai/rules/*.md` rule file
 **Severity:** blocking
-**Related:** canonical-sources, discovery-updates
+**Related:** repo-maintenance
 
 ## Directives
 
 Every `ai/rules/*.md` rule MUST open with a title and a machine-readable
 metadata block, so tooling can parse triggers and severity without guessing. An
 ALL-CAPS stem is a generated artifact, never a rule: `INDEX.md`, `TRIGGERS.md`,
-`CORE.md`, `CONDENSED.md`. The generators skip it by that shape, so a new
+`CORE.md`. The generators skip it by that shape, so a new
 artifact needs no code change.
 
 Required structure, in this exact order:
@@ -31,7 +31,7 @@ the file, so it MUST name a situation and nothing else.
 |-------------|-----|
 | Start with a temporal opener (`when`, `whenever`, `before`, `after`, `while`, `during`, `if`, `once`, `unless`, `upon`, `on`, `at`, `any/every/each time`, `prior to`, `as soon as`) or a gerund (`writing`, `adding`, `reviewing`, `naming`, `closing`, ...) | A uniform opening makes the column scannable, and both forms force a situation rather than an assertion |
 | Name what the author is DOING or what has HAPPENED, never what they must do | "All CLI commands MUST follow these patterns" matches every task and therefore routes nothing. "adding or changing a CLI subcommand, flag, or exit code" routes |
-| One complete clause, one line | A trigger that ends on a comma, a dangling `by`/`with`/`the`, or an unbalanced `**` was copied out of a wrapped bold body line. Three such triggers shipped into `CONDENSED.md` unnoticed |
+| One complete clause, one line | A trigger that ends on a comma, a dangling `by`/`with`/`the`, or an unbalanced `**` was copied out of a wrapped bold body line. Three such triggers shipped into the digest unnoticed |
 | Do not restate the directive | The directive belongs under `## Directives`, where the digest picks it up. Duplicating it in the trigger costs tokens in every session and routes nothing |
 
 Reference rules (a lookup table, a glossary, an architecture summary) get a
@@ -41,7 +41,7 @@ check enforces a rule", "reasoning about where a component sits".
 ## The body has a budget too
 
 The lint caps the trigger line. Nothing caps the body, which is why every long
-rule in the corpus is format-legal. `ai/rules/detail-budget.md` sets the standard,
+rule in the corpus is format-legal. `ai/rules/writing.md` sets the standard,
 and these four points are the ones a rule author breaks first.
 
 | Requirement | Why |
@@ -55,7 +55,7 @@ A rule over about 150 lines is carrying reference material. Move the tables to
 `docs/` and link to them, or split the rule at its real seam.
 
 `scripts/dev/rules_lint.py` enforces all of this. When a line legitimately
-describes ANOTHER artifact's severity (as `hook-mapping.md` does), mark that
+describes ANOTHER artifact's severity (as `repo-maintenance.md` does), mark that
 line `<!-- severity-note: whose severity this is -->`. The marker is
 line-scoped on purpose: a file-scoped opt-out would silently cover every later
 addition to that file.
@@ -65,7 +65,7 @@ addition to that file.
   title and the block.
 - Put imperative content under `## Directives` (or the rule's own directive
   sections). This is what the digest artifacts carry.
-- **One generator, `scripts/dev/rules_condensed.py`, emits three artifacts from one parse. Two are loaded into every session. The third is read on demand.** `TRIGGERS.md` carries one routing line per rule for all 97, so no rule is ever invisible. `CORE.md` carries the directives of the always-on rules only. `CONDENSED.md` carries every rule's directives and is NOT imported. Open it when several triggers match at once.
+- **One generator, `scripts/dev/rules_condensed.py`, emits two artifacts from one parse, and both load into every session.** `TRIGGERS.md` carries one routing line per rule, so no rule is ever invisible. `CORE.md` carries the directives of the always-on rules only. A rule's own file holds everything else, one Read away.
 - **Your `**When:**` line is now the ONLY thing that reaches a session about your rule, unless the rule is in the core.** Write it as the situation a reader matches against the task in hand. A trigger that names no distinctive term routes nothing, and the rule is read only by someone who already went looking for it.
 - **Core membership is derived, never listed.** Four conditions make a rule always-on: the ladder in `ai/rules/rule-precedence.md` names it on rung 1 or 2, it IS that ladder, it has no routable trigger, or no past task description in `plan/` would surface it. `make ze-rules-router-report` prints that last set. To make a rule always-on, put it on the ladder.
 - **`make ze-rules-payload` measures what a session loads.** The budget is 40,000 tokens.
@@ -73,11 +73,11 @@ addition to that file.
   DROPS these sections, fenced code blocks, and `Rationale:`/`See:` pointer
   lines. Anything an agent must obey to comply belongs in a directive section,
   never only in `## Rationale`.
-- **Write directives as bullets, table rows, or `**bold**` lines. Those reach the digest verbatim; prose does not.** The condenser keeps only the FIRST prose paragraph of each section, truncated to its first sentence or 220 characters, and drops every later prose paragraph in that section outright (`condense_body` / `flush_prose`, `scripts/dev/rules_condensed.py:106-148`).
-- **Keep each bullet on ONE physical line when its full text must reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py:52`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; do not wrap it for looks.
-- After editing a rule, READ your section in the regenerated `CONDENSED.md` before committing. A directive that lost half its sentence is not visible from the rule file alone.
+- **Write directives as bullets, table rows, or `**bold**` lines. Those reach the digest verbatim; prose does not.** The condenser keeps only the FIRST prose paragraph of each section, truncated to its first sentence or 220 characters, and drops every later prose paragraph in that section outright (`condense_body` / `flush_prose`, `scripts/dev/rules_condensed.py`).
+- **Keep each bullet on ONE physical line when its full text must reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; do not wrap it for looks.
+- After editing a rule, READ your rule's row in the regenerated `TRIGGERS.md`, and its section in `CORE.md` when the rule is always-on. A trigger that lost half its clause is not visible from the rule file alone.
 - `make ze-rules-lint` enforces the block; `make ze-rules-condensed` regenerates
-  all three artifacts. Both run in `make ze-doc-test`. A rule that fails the lint
+  both artifacts. Both run in `make ze-doc-test`. A rule that fails the lint
   cannot land.
 - **Commit all three regenerated artifacts in the SAME commit as the rule edit.**
   The freshness gate (`ze-rules-condensed-check`, inside the blocking
@@ -95,11 +95,11 @@ addition to that file.
 
 ## Rationale
 
-`CONDENSED.md` was imported into every agent session, so a fresh session saw
-every rule's directives without opening 97 files. That only works if a tool can
-mechanically separate a rule's directives from its explanation. Before this
-format, directives and rationale were interleaved and no extraction was
-reliable.
+A digest can only route to a rule if a tool can mechanically separate that
+rule's directives from its explanation. Before this format, directives and
+rationale were interleaved and no extraction was reliable. `CONDENSED.md`, a
+third artifact holding every rule's directives, was deleted on 2026-08-03: it
+regenerated 5,182 lines on every rule edit and nothing loaded it.
 
 Eager loading cost about 99,600 tokens on every turn. Every session and every
 subagent paid it, whether or not any of it applied. A session editing one
@@ -121,7 +121,7 @@ hand-written.
 
 **When:** touching wire encoding or allocating memory
 **Severity:** blocking
-**Related:** memory-architecture, no-sprintf-alloc
+**Related:** performance
 
 ## Directives
 - All wire encoding MUST write into pooled, bounded buffers.

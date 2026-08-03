@@ -272,7 +272,7 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) err
 // Every key is validated and a bad one is an error rather than a zero value: a
 // spec that silently degrades to count=0 sends nothing, and a test asserting
 // that a route was NOT forwarded would then pass for the wrong reason
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func parseBulkSpec(kv map[string]string) (InjectSpec, error) {
 	spec := InjectSpec{}
 

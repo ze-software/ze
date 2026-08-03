@@ -278,7 +278,7 @@ func deleteMalformed(del *wire.PayloadDelete) bool {
 		// datagram holds NumSPIs*SPISize octets, and it copies exactly that many. It is
 		// kept as the fail-closed backstop for a payload built in process and for a future
 		// decoder that relaxes the check, because deleteSPIs below would otherwise silently
-		// resolve fewer SPIs than the peer named (ai/rules/fail-closed-guards.md).
+		// resolve fewer SPIs than the peer named (ai/rules/evidence.md).
 		return len(del.SPIs) < 4*int(del.NumSPIs)
 	default:
 		// RFC 7296 Section 3.11 assigns Protocol ID from the Security Protocol

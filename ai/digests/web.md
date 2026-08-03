@@ -22,65 +22,65 @@ unmarshal it back into a `map[string]any` for template rendering.
 
 ## Flow
 1. **Build-tag construction registry.** A `//go:build ze_web`/`ze_lg` `init()`
-   calls `registerService` (`cmd/ze/hub/register_web.go:7`,
-   `cmd/ze/hub/register_lg.go:12`); `buildServices`
-   (`cmd/ze/hub/service_registry.go:125`) invokes `buildWebService`
-   (`cmd/ze/hub/service_web.go:56`) / `buildLGService`
-   (`cmd/ze/hub/service_lg.go:44`) at startup. A nil `Service` return means
+   calls `registerService` (`cmd/ze/hub/register_web.go`,
+   `cmd/ze/hub/register_lg.go`); `buildServices`
+   (`cmd/ze/hub/service_registry.go`) invokes `buildWebService`
+   (`cmd/ze/hub/service_web.go`) / `buildLGService`
+   (`cmd/ze/hub/service_lg.go`) at startup. A nil `Service` return means
    "not configured"; with a tag off the package is dropped by the linker.
-2. **Shared CommandDispatcher.** `cmd/ze/hub/main.go:570` builds
+2. **Shared CommandDispatcher.** `cmd/ze/hub/main.go` builds
    `webDispatch := serverDispatcherWithSurface(apiServer, audit.Web)`
-   (`cmd/ze/hub/main_servers.go:26`), which calls `d.Dispatch(ctx, input)`, the
+   (`cmd/ze/hub/main_servers.go`), which calls `d.Dispatch(ctx, input)`, the
    identical `Dispatcher.Dispatch` documented in `ai/digests/cli-editor.md`
-   (`internal/component/plugin/server/command.go:538`). It flows into
-   `ServiceDeps.Dispatch` (`cmd/ze/hub/main.go:701`); `buildLGService` wraps it
-   again as `func(cmd string) (string, error)` (`cmd/ze/hub/service_lg.go:56`).
+   (`internal/component/plugin/server/command.go`). It flows into
+   `ServiceDeps.Dispatch` (`cmd/ze/hub/main.go`); `buildLGService` wraps it
+   again as `func(cmd string) (string, error)` (`cmd/ze/hub/service_lg.go`).
    Only the audit `Surface` differs between web/SSH/MCP/CLI callers.
 3. **Route table + transport.** `startWebServer`
-   (`cmd/ze/hub/service_web.go:223`) builds every handler closure and registers
+   (`cmd/ze/hub/service_web.go`) builds every handler closure and registers
    routes directly via `srv.HandleFunc`/`srv.Handle`
-   (`cmd/ze/hub/service_web.go:462-556`). `internal/component/web/handler.go:232`'s
+   (`cmd/ze/hub/service_web.go`). `internal/component/web/handler.go`'s
    `RegisterRoutes`/`RegisterCLIRoutes` look like the wiring layer but are only
    exercised by `handler_test.go` (see gotchas). `LGServer.registerRoutes`
-   (`internal/component/lg/server.go:211`) does the LG equivalent inside
-   `NewLGServer` (`internal/component/lg/server.go:131`). Both are hand-rolled multi-listener
+   (`internal/component/lg/server.go`) does the LG equivalent inside
+   `NewLGServer` (`internal/component/lg/server.go`). Both are hand-rolled multi-listener
    `*http.Server` wrappers: `WebServer.ListenAndServe`
-   (`internal/component/web/server.go:160`) and `LGServer.ListenAndServe`
-   (`internal/component/lg/server.go:298`) bind all-or-nothing and support live
+   (`internal/component/web/server.go`) and `LGServer.ListenAndServe`
+   (`internal/component/lg/server.go`) bind all-or-nothing and support live
    `Reconfigure`.
 4. **Auth gate.** Mutation/view routes are wrapped in `authWrap`, built on
-   `AuthMiddlewareWithAudit` (`internal/component/web/auth.go:177`): a valid
+   `AuthMiddlewareWithAudit` (`internal/component/web/auth.go`): a valid
    `ze-session` cookie wins, else Basic Auth, else 401 + `loginRenderer`.
    `mutationWrap` also requires `RequireSameOrigin`
-   (`cmd/ze/hub/service_web.go:440`). `--insecure-web` swaps in
-   `InsecureMiddleware` (`internal/component/web/auth.go:51`, no check at all).
-   `LoginHandlerWithAudit` (`auth.go:222`) creates the session; HTMX logins get
+   (`cmd/ze/hub/service_web.go`). `--insecure-web` swaps in
+   `InsecureMiddleware` (`internal/component/web/auth.go`, no check at all).
+   `LoginHandlerWithAudit` (`auth.go`) creates the session; HTMX logins get
    `HX-Redirect`. LG has **no** auth middleware by design
-   (`internal/component/lg/server.go:12-13`); only `securityHeaders`
-   (`internal/component/lg/server.go:557`) wraps its mux.
+   (`internal/component/lg/server.go`); only `securityHeaders`
+   (`internal/component/lg/server.go`) wraps its mux.
 5. **Full-page GET `/show/<path>`.** `HandleWorkbench`
-   (`internal/component/web/handler_workbench.go:59`) resolves the per-user
+   (`internal/component/web/handler_workbench.go`) resolves the per-user
    working tree via `mgr.Tree(username)` (falls back to committed), then tries
-   `renderPageContent` (`internal/component/web/workbench_pages.go:28`) for
+   `renderPageContent` (`internal/component/web/workbench_pages.go`) for
    purpose-built pages (interfaces, BGP, IP, firewall, system, L2TP, tools,
    logs, dashboard, dispatched by `path[0]`). Otherwise it walks the YANG
    schema generically via `walkSchema`/`walkTree`
-   (`internal/component/web/handler_config_walk.go:82,166`) and
-   `buildFragmentData` (`internal/component/web/fragment.go:324`), which builds
+   (`internal/component/web/handler_config_walk.go,166`) and
+   `buildFragmentData` (`internal/component/web/fragment.go`), which builds
    breadcrumbs, sidebar columns, and per-leaf `FieldMeta`
    (`renderer.ResolveDecorations` fills in display annotations,
-   `internal/component/web/decorator.go:46`). Root path renders
+   `internal/component/web/decorator.go`). Root path renders
    `workbench_dashboard`; any other path renders `detail`
-   (`handler_workbench.go:175-179`); both wrap in `RenderWorkbench`
-   (`internal/component/web/render.go:243`). The Finder equivalent is
-   `HandleFragment` (`internal/component/web/fragment.go:210`) →
-   `RenderLayout` (`internal/component/web/render.go:369`). `ReadUIModeFromRequest`
-   (`internal/component/web/ui_mode.go:65`) picks Workbench vs Finder from a
-   switch cookie, falling back to the `GetUIMode` startup default (`ui_mode.go:58`).
+   (`handler_workbench.go`); both wrap in `RenderWorkbench`
+   (`internal/component/web/render.go`). The Finder equivalent is
+   `HandleFragment` (`internal/component/web/fragment.go`) →
+   `RenderLayout` (`internal/component/web/render.go`). `ReadUIModeFromRequest`
+   (`internal/component/web/ui_mode.go`) picks Workbench vs Finder from a
+   switch cookie, falling back to the `GetUIMode` startup default (`ui_mode.go`).
 6. **HTMX partial navigation.** Any `HX-Request: true` request short-circuits
    both handlers to `renderer.RenderFragment("oob_response", data)`
-   (`internal/component/web/handler_workbench.go:163`,
-   `internal/component/web/fragment.go:257`, `internal/component/web/render.go:259`). The
+   (`internal/component/web/handler_workbench.go`,
+   `internal/component/web/fragment.go`, `internal/component/web/render.go`). The
    `oob_response` template
    (`internal/component/web/templates/component/oob_response.html:1`) emits the
    `finder`+`detail` swap for the target plus four `hx-swap-oob` spans
@@ -88,96 +88,96 @@ unmarshal it back into a `map[string]any` for template rendering.
    `oob_response.html:6-9`) so shared chrome stays in sync without a reload.
 7. **Inline leaf edit.** `POST /config/set/<path>` →
    `HandleConfigSetWithAuthorizer`
-   (`internal/component/web/handler_config_form.go:33`) authorizes via
-   `authorizeWebConfigMutation` (`internal/component/web/handler_config.go:98`),
+   (`internal/component/web/handler_config_form.go`) authorizes via
+   `authorizeWebConfigMutation` (`internal/component/web/handler_config.go`),
    validates the YANG type and unique constraints, calls `mgr.SetValue`, then
    for HTMX writes only the re-rendered field (`renderer.RenderField`,
-   `handler_config_form.go:148`) plus an OOB commit-bar `oob_save_ok`
-   (`handler_config_form.go:158`); no breadcrumb/detail OOB, unlike step 6.
+   `handler_config_form.go`) plus an OOB commit-bar `oob_save_ok`
+   (`handler_config_form.go`); no breadcrumb/detail OOB, unlike step 6.
    Validation failures use `WriteOOBError`
-   (`internal/component/web/fragment.go:46`), OOB-appending into `#error-list`
+   (`internal/component/web/fragment.go`), OOB-appending into `#error-list`
    (`templates/component/oob_error.html:2-3`).
 8. **Commit.** `POST /config/commit` →
    `HandleConfigCommitWithAuthorizerAndAudit`
-   (`internal/component/web/handler_config_commit.go:59`) →
-   `EditorManager.Commit` (`internal/component/web/editor.go:168`): stages via
+   (`internal/component/web/handler_config_commit.go`) →
+   `EditorManager.Commit` (`internal/component/web/editor.go`): stages via
    `CommitSessionCandidate`, calls `hook()` (== `reloadAfterCommit` →
    `doReload`, same stage/notify/mark shape as the SSH CLI editor in
    `ai/digests/cli-editor.md`), then `MarkCommittedContent`; a hook error
    clears the candidate and the commit fails. On success,
-   `BroadcastConfigChange` (`handler_config_commit.go:173` →
-   `internal/component/web/sse.go:248`) broadcasts a `config-change` SSE event.
+   `BroadcastConfigChange` (`handler_config_commit.go` →
+   `internal/component/web/sse.go`) broadcasts a `config-change` SSE event.
 9. **CLI bar and terminal.** `POST /cli` (integrated/config mode) →
-   `HandleCLICommandWithAuthorizer` (`internal/component/web/cli.go:219`) →
-   `dispatchCLICommand` (`cli.go:293`) routes by verb to per-verb handlers,
-   each ending in `writeCLIResponse` (`cli_terminal.go:911`): content area plus
+   `HandleCLICommandWithAuthorizer` (`internal/component/web/cli.go`) →
+   `dispatchCLICommand` (`cli.go`) routes by verb to per-verb handlers,
+   each ending in `writeCLIResponse` (`cli_terminal.go`): content area plus
    four independently-built OOB spans (`buildBreadcrumbOOB`/`buildPromptOOB`/
-   `buildPathBarOOB`/`buildContextOOB`, `cli_terminal.go:992,999,975,987`), a
+   `buildPathBarOOB`/`buildContextOOB`, `cli_terminal.go,999,975,987`), a
    third OOB shape distinct from steps 6 and 7. `POST /cli/terminal`
    (operational mode) → `HandleCLITerminalWithDispatchAuthorizerAndAudit`
-   (`cli_terminal.go:60`) → `executeTerminalOperationalMode` (`cli_terminal.go:220`)
-   → `executeTerminalOperational` (`cli_terminal.go:252`) runs pipe operators
+   (`cli_terminal.go`) → `executeTerminalOperationalMode` (`cli_terminal.go`)
+   → `executeTerminalOperational` (`cli_terminal.go`) runs pipe operators
    then calls `dispatch(cmdStr, username, remoteAddr)` (same dispatcher as
    admin/lg) and returns one JSON envelope (`terminalResponse`,
-   `cli_terminal.go:31`), not HTML; the JS client updates the DOM itself.
+   `cli_terminal.go`), not HTML; the JS client updates the DOM itself.
 10. **Admin execution and `ze:related` tools.** `POST /admin/<yang-path>`
-    (tree from `AdminTreeFromYANG`, `internal/component/web/handler_admin.go:319`)
-    → `HandleAdminExecute` (`handler_admin.go:131`) joins path segments into a
+    (tree from `AdminTreeFromYANG`, `internal/component/web/handler_admin.go`)
+    → `HandleAdminExecute` (`handler_admin.go`) joins path segments into a
     command string, calls `dispatch(commandStr, username, r.RemoteAddr)`, and
     renders `detail` with `CommandResultData`, or raw JSON for `?format=json`
-    (`ParseURL`/`NegotiateContentType`, `internal/component/web/handler.go:92,214`).
+    (`ParseURL`/`NegotiateContentType`, `internal/component/web/handler.go,214`).
     `POST /tools/related/run` → `HandleRelatedToolRun`
-    (`internal/component/web/handler_tools.go:83`) accepts only `tool_id` +
+    (`internal/component/web/handler_tools.go`) accepts only `tool_id` +
     `context_path` (never raw command text), checks Origin/Referer
     (`checkSameOrigin`), resolves placeholders against the working tree via
-    `RelatedResolver.Resolve` (`internal/component/web/related_resolver.go:79`),
+    `RelatedResolver.Resolve` (`internal/component/web/related_resolver.go`),
     validates the result, then calls `dispatch(res.Command, ...)`
-    (`handler_tools.go:175`): the command is built entirely server-side.
+    (`handler_tools.go`): the command is built entirely server-side.
 11. **SSE broker (pub-sub).** `GET /events` is `authWrap(broker)`, an
-    `*EventBroker` (`internal/component/web/sse.go:39`); `ServeHTTP` (`sse.go:142`)
-    subscribes the client (`Subscribe`, `sse.go:62`, capped at 100), then loops
+    `*EventBroker` (`internal/component/web/sse.go`); `ServeHTTP` (`sse.go`)
+    subscribes the client (`Subscribe`, `sse.go`, capped at 100), then loops
     on the client channel / 30s heartbeat / `ctx.Done()`. `Broadcast`
-    (`sse.go:106`) is non-blocking per client (`broadcastEvent`, `sse.go:95`):
+    (`sse.go`) is non-blocking per client (`broadcastEvent`, `sse.go`):
     a full 16-slot buffer drops the event rather than blocking the broker.
     Producers: commit (`config-change`, step 8) and `wireEventRingToBroker`
-    (`cmd/ze/hub/service_web.go:207`), forwarding `EventRing` appends as
+    (`cmd/ze/hub/service_web.go`), forwarding `EventRing` appends as
     `log-entry` events for the Live Log page.
 12. **Protocol live views (poll-push SSE).** `GET /isis/neighbors/stream` and
     `/ospf/*/stream` share one loop: `ISISHandlers`/`OSPFHandlers`
-    (`internal/component/web/handler_isis.go:21`) configure a `viewSpec` +
-    `snapshotHandlers` (`internal/component/web/snapshot_views.go:18,28`) whose
-    `.sse()` (`snapshot_views.go:84`) calls `sseSnapshotStream`
-    (`internal/component/web/sse_snapshot.go:29`): push an immediate snapshot,
+    (`internal/component/web/handler_isis.go`) configure a `viewSpec` +
+    `snapshotHandlers` (`internal/component/web/snapshot_views.go,28`) whose
+    `.sse()` (`snapshot_views.go`) calls `sseSnapshotStream`
+    (`internal/component/web/sse_snapshot.go`): push an immediate snapshot,
     then re-dispatch the same show command (`dispatchJSON`,
-    `snapshot_views.go:39`) on a 3s ticker, exiting on `ctx.Done()`. L2TP's CQM
+    `snapshot_views.go`) on a 3s ticker, exiting on `ctx.Done()`. L2TP's CQM
     stream (`HandleL2TPSamplesSSE`,
-    `internal/component/web/handler_l2tp.go:225`) is a separate, hand-written
+    `internal/component/web/handler_l2tp.go`) is a separate, hand-written
     copy of the same heartbeat/flusher pattern, not routed through
     `sseSnapshotStream`.
 13. **Looking glass query + graph.** `POST /lg/search` → `handleUISearch`
-    (`internal/component/lg/handler_ui.go:88`) validates every filter
+    (`internal/component/lg/handler_ui.go`) validates every filter
     (`isValidPrefix`/`isValidASPathPattern`/`isValidCommunity`/`isValidFamily`,
-    `internal/component/lg/handler_api.go:405` and neighbors), builds a
+    `internal/component/lg/handler_api.go` and neighbors), builds a
     `show bgp rib ...` pipeline string, and calls `s.query(cmd)`
-    (`internal/component/lg/server.go:535`) → `s.dispatch(cmd)` (step 2's
-    closure) → `parseJSON` (`internal/component/lg/handler_api.go:362`) →
-    `extractRoutes` (`handler_ui.go:632`) → `s.renderFragment`/`s.renderPage`
-    (`internal/component/lg/render.go:192,162`). Birdwatcher REST endpoints
-    (`internal/component/lg/handler_api.go:26` on) follow the same
+    (`internal/component/lg/server.go`) → `s.dispatch(cmd)` (step 2's
+    closure) → `parseJSON` (`internal/component/lg/handler_api.go`) →
+    `extractRoutes` (`handler_ui.go`) → `s.renderFragment`/`s.renderPage`
+    (`internal/component/lg/render.go,162`). Birdwatcher REST endpoints
+    (`internal/component/lg/handler_api.go` on) follow the same
     query→parseJSON→transform*→`writeJSON` shape, skipping templates.
-    `GET /lg/graph` → `handleGraph` (`internal/component/lg/handler_graph.go:33`)
+    `GET /lg/graph` → `handleGraph` (`internal/component/lg/handler_graph.go`)
     dispatches `show bgp rib prefix <prefix>`, builds a graph via `buildGraph`
-    (`internal/component/lg/graph.go:28`, delegating to the shared
+    (`internal/component/lg/graph.go`, delegating to the shared
     `internal/graph` package) or `buildNextHopGraph`
     (`internal/component/lg/graph_nexthop.go`), lays it out
-    (`computeLayout`/`computeNextHopLayout`, `internal/component/lg/layout.go:37`)
-    and renders SVG (`renderGraphSVG`, `layout.go:47`) or text
-    (`renderGraphText`, `graph.go:84`).
+    (`computeLayout`/`computeNextHopLayout`, `internal/component/lg/layout.go`)
+    and renders SVG (`renderGraphSVG`, `layout.go`) or text
+    (`renderGraphText`, `graph.go`).
 14. **Looking glass live peers.** `GET /lg/events` → `handleUIEvents`
-    (`internal/component/lg/handler_ui.go:449`) is its own poll-and-render SSE
+    (`internal/component/lg/handler_ui.go`) is its own poll-and-render SSE
     loop (not `sseSnapshotStream`): every 5s it re-dispatches `show bgp
     summary`, renders `peers_table_body` to a string (`s.renderToString`,
-    `internal/component/lg/render.go:208`), and pushes it as a `peer-update`
+    `internal/component/lg/render.go`), and pushes it as a `peer-update`
     event with each embedded newline continued as its own `data:` line.
 
 ## Key files
@@ -213,7 +213,7 @@ unmarshal it back into a `map[string]any` for template rendering.
 
 ## Invariants & gotchas
 - **`RegisterRoutes`/`RegisterCLIRoutes` are not production wiring.**
-  `internal/component/web/handler.go:232,249` look authoritative but
+  `internal/component/web/handler.go,249` look authoritative but
   `handler_test.go` is their only caller; `startWebServer` wires every route
   by hand in `cmd/ze/hub/service_web.go`. Adding a route to `RegisterRoutes`
   does not make it live.
@@ -234,32 +234,32 @@ unmarshal it back into a `map[string]any` for template rendering.
 - **Same command, two decodings.** `CommandDispatcher` always returns a JSON
   string; SSH CLI/MCP consume it close to raw, web/lg round-trip it through
   `parseJSON` back into `map[string]any` for templates
-  (`internal/component/lg/handler_api.go:362`) or forward it verbatim for
-  `?format=json` (`internal/component/web/handler.go:214`). A show command's
+  (`internal/component/lg/handler_api.go`) or forward it verbatim for
+  `?format=json` (`internal/component/web/handler.go`). A show command's
   JSON shape is a de facto stable API for both UI layers: a renamed field
   degrades templates to empty cells silently, not a compile error.
 - **lg is unauthenticated by design and hand-validates every input.**
-  `internal/component/lg/server.go:12-13` documents "public, read-only, no
+  `internal/component/lg/server.go` documents "public, read-only, no
   authentication"; every path/prefix/AS-path/community/family parameter is
   checked by a dedicated `isValid*` function
-  (`internal/component/lg/handler_api.go:383-415`) before it is concatenated
+  (`internal/component/lg/handler_api.go`) before it is concatenated
   into the dispatched command string; there is no downstream escaping to
   fall back on.
 - **Working tree vs committed tree.** View/edit handlers prefer
   `mgr.Tree(username)` (per-user `EditorManager` session tree) and fall back
   to the committed tree with no session
-  (`internal/component/web/handler_workbench.go:72-78`). Commit is
+  (`internal/component/web/handler_workbench.go`). Commit is
   `EditorManager.Commit` → `CommitSessionCandidate` → `commitHook` →
-  `MarkCommittedContent` (`internal/component/web/editor.go:168-192`), the
+  `MarkCommittedContent` (`internal/component/web/editor.go`), the
   same stage/notify/mark shape as the SSH CLI editor
   (`ai/digests/cli-editor.md` step 7); a reload failure clears the candidate
   rather than silently committing.
 - **UI mode is a per-request cookie, not a build option.**
-  `ReadUIModeFromRequest` (`internal/component/web/ui_mode.go:65`) reads the
+  `ReadUIModeFromRequest` (`internal/component/web/ui_mode.go`) reads the
   `ze-ui-mode` switch cookie first; the legacy `ze-ui` cookie is ignored so
   stale browser state cannot strand an operator on Finder. `/fragment/detail`
   is served by the Finder handler unconditionally for both UIs so the OOB
-  contract stays identical (`cmd/ze/hub/service_web.go:378-380`).
+  contract stays identical (`cmd/ze/hub/service_web.go`).
 - **`ze_web` gates the whole package; `ze_lg` gates only wiring.**
   `service_web.go` itself carries `//go:build ze_web` (the entire web daemon
   is compiled out); lg's server/handlers are always compiled, only
@@ -273,5 +273,5 @@ unmarshal it back into a `map[string]any` for template rendering.
 - `docs/guide/web-interface.md`, `docs/guide/looking-glass.md`: operator-facing usage guides
 - `plan/learned/688-web-4-interfaces.md`: Workbench page dispatch design notes
 - `plan/learned/937-isis-13-cli-diag-interop.md`, `plan/learned/967-ospf-13-cli-diag-interop.md`: shared read-only SSE snapshot loop rationale
-- `ai/rules/feature-gate-registration.md`: compile-out-able service construction registry
+- `ai/rules/plugins.md`: compile-out-able service construction registry
 - `ai/digests/cli-editor.md`: the SSH CLI side of the same `CommandDispatcher`/editor-commit machinery

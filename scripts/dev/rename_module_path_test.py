@@ -435,7 +435,7 @@ class Residuals(unittest.TestCase):
 # a dead token in the absence guard's own list. Reproduced before this was derived -- adding
 # `verdict_is_fresh(` back as a fourth forbidden token left the module at `Ran 42 tests ... OK`,
 # because the liveness check iterated its own separate copy and never saw the new entry
-# (`ai/rules/derive-not-hardcode.md`, applied to a test's own data).
+# (`ai/rules/evidence.md`, applied to a test's own data).
 #
 # Every probe must also be LOAD-BEARING -- a spelling the gate cannot satisfy in prose. See
 # RESEAL_RULE_WRITES below for the one that was not.

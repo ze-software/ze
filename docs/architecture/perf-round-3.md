@@ -73,7 +73,7 @@ shard-internal storage, and pool compaction can run concurrently before
 is still a large win.
 
 `formatCommunities` is kept unchanged for the community match filter
-(`rib_pipeline.go:672`) and looking-glass template (`lg/render.go:42`),
+(`rib_pipeline.go`) and looking-glass template (`lg/render.go`),
 which need string semantics and are lower-volume.
 
 ```

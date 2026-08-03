@@ -3,16 +3,16 @@
 Umbrella coordinating OSPFv2 delivery across 13 base children (spec-ospf-1..13)
 plus ospfv3 and af-unify. Base OSPFv2 (RFC 2328 + 3101 + 5709/7474 + 9129) is
 **delivered as a registered, config-driven plugin** — verified first-hand:
-`internal/plugins/ospf/register.go:111-119` registers `{Name:"ospf",
+`internal/plugins/ospf/register.go` registers `{Name:"ospf",
 RunEngine: runOSPFEngine, YANG: ospfyang.ZeOSPFConfYANG, Dependencies:
 [interface, fib-kernel, sysctl]}`, live via the generated
 `internal/component/plugin/all/all_ze_ospf.go` blank import.
 
 Producers (from the truth-audit, register wiring re-read at closure):
-- Adjacency/NSM: `neighbor/table.go:524` `setStateLocked`, `nsm.go:17` `shouldAdj`.
-- LSA flooding (§13): `lsdb/flooding.go`; SPF: `spf/spf.go:150` `Compute` (§16
-  Dijkstra), `spf/computer.go:419` `Run`.
-- FIB install: `spf/install.go:197` `insert` -> `:221` `insertPath` emitting a
+- Adjacency/NSM: `neighbor/table.go` `setStateLocked`, `nsm.go` `shouldAdj`.
+- LSA flooding (§13): `lsdb/flooding.go`; SPF: `spf/spf.go` `Compute` (§16
+  Dijkstra), `spf/computer.go` `Run`.
+- FIB install: `spf/install.go` `insert` -> `:221` `insertPath` emitting a
   `locrib.Path` at admin distance 110.
 - Inter-area/external: `spf/interarea.go`, `spf/external.go`; auth:
   `packet/auth`; raw IP proto 89: `transport/`.

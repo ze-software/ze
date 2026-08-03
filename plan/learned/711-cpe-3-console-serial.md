@@ -28,7 +28,7 @@ standard virtual substitute for serial ports.
 **Fix:** Created `console_integration_linux_test.go` with 7 QEMU integration
 tests using PTY pairs. Added `config/system` to the QEMU Makefile target.
 
-**Rule created:** `ai/rules/qemu-testing.md` with a virtual substitute table
+**Rule created:** `ai/rules/platform-linux.md` with a virtual substitute table
 (PTY for serial, veth for networking, netns for isolation), build tag guidance,
 and Makefile wiring instructions. Added to CLAUDE.md "Before You..." table and
 `ai/INDEX.md`. Human-facing guide at `docs/architecture/testing/qemu-integration.md`.

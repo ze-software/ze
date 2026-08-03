@@ -37,7 +37,7 @@ Two changes:
 ### Architecture Docs
 - [ ] `docs/architecture/cli/color-system.md` - if output/warnings are styled, use the semantic roles.
   → Constraint: sensitive-material output should carry a clear operator warning.
-- [ ] `ai/rules/plugin-self-containment.md` - pki-cmd owns its command surface.
+- [ ] `ai/rules/plugins.md` - pki-cmd owns its command surface.
   → Constraint: the new show verb and any authz check register through pki-cmd, not a central switch.
 
 **Key insights:**
@@ -47,7 +47,7 @@ Two changes:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/pki/show.go` - `certPEM` emits certificate(s) only, no key (show.go:167-179); `certBundlePEM` concatenates the cert chain **plus** the PKCS#8 private key (show.go:181-210), erroring if the entry has no private key. `marshalPrivateKeyPEM` produces the `PRIVATE KEY` PEM block. There is no function that emits the key alone.
+- [ ] `internal/component/pki/show.go` - `certPEM` emits certificate(s) only, no key (show.go); `certBundlePEM` concatenates the cert chain **plus** the PKCS#8 private key (show.go), erroring if the entry has no private key. `marshalPrivateKeyPEM` produces the `PRIVATE KEY` PEM block. There is no function that emits the key alone.
 - [ ] `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` - `show pki certificate name <name>` supports `pem` / `bundle pem` / `fingerprint`; the RPC is a plain `config false` operational command with no privilege/authz guard.
 - [ ] `internal/component/pki/store.go` - `ExportPEM` writes the key to a `0600` temp file for IPsec consumption (not a CLI display path).
 
@@ -87,7 +87,7 @@ Two changes:
 - [ ] No bypassed layers (dispatch via pki-cmd, not a hardcoded case in a core package)
 - [ ] No unintended coupling (authz consulted through its interface)
 - [ ] No duplicated functionality (reuse `marshalPrivateKeyPEM`)
-- [ ] Registration over hardcoding — the new verb and the authz check register via pki-cmd's command surface, per `ai/rules/plugin-self-containment.md`.
+- [ ] Registration over hardcoding — the new verb and the authz check register via pki-cmd's command surface, per `ai/rules/plugins.md`.
 
 ## Risks & Assumptions
 
@@ -95,7 +95,7 @@ Two changes:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Ze has an authz/role mechanism a show handler can consult | `internal/component/authz/` component exists | guard becomes an explicit-confirm prompt instead | read authz API during audit | unvalidated |
-| A-2 | Reusing `marshalPrivateKeyPEM` yields the exact key-only bytes wanted | show.go:181-210 already uses it | different encoding needed | unit test round-trips the key | unvalidated |
+| A-2 | Reusing `marshalPrivateKeyPEM` yields the exact key-only bytes wanted | show.go already uses it | different encoding needed | unit test round-trips the key | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -163,8 +163,8 @@ Two changes:
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | YANG schema (new RPC form) | [ ] yes | `ze-pki-cmd.yang` `private-key pem` |
-| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli-grammar.md` |
-| Pipe completeness | [ ] yes | route key output through `ApplyPipes` per `ai/rules/pipe-completeness.md` |
+| CLI grammar (action before identifier) | [ ] yes | `ai/rules/cli.md` |
+| Pipe completeness | [ ] yes | route key output through `ApplyPipes` per `ai/rules/cli.md` |
 | Functional test for new RPC | [ ] yes | `test/plugin/pki-show-private-key.ci` |
 
 ### Documentation Update Checklist (BLOCKING)

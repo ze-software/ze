@@ -408,7 +408,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// (GOOS=linux, via `make ze-qemu-needs-linux-test`) the directive is
 		// inert and the test runs normally. This is how Linux-only functional
 		// tests are validated automatically via QEMU instead of failing
-		// natively. See ai/rules/qemu-testing.md "Linux-only functional tests".
+		// natively. See ai/rules/platform-linux.md "Linux-only functional tests".
 		//
 		// An optional `caps=net-admin` declares that the test also needs
 		// privileged network configuration. Without it, a test that applies
@@ -430,7 +430,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// Declaring only one of a pair a test really needs makes the gate fail
 		// OPEN -- a host holding just that one passes a check it cannot satisfy,
 		// and the test then fails or hangs exactly as it did before the marker
-		// existed (ai/rules/fail-closed-guards.md).
+		// existed (ai/rules/evidence.md).
 		var caps []string
 		if raw := kv["caps"]; raw != "" {
 			for c := range strings.SplitSeq(raw, ",") {

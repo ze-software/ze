@@ -2,7 +2,7 @@
 """Tests for deferral_orphans.py.
 
 The script exists because three hand-counts of the same measurement were wrong,
-and `ai/rules/deferral-tracking.md` now cites it as the authority for a number a
+and `ai/rules/planning.md` now cites it as the authority for a number a
 BLOCKING rule quotes. So the pairing rule it implements is the thing under test:
 getting THAT wrong is what produced the 40/71 miscount it was written to replace.
 """
@@ -198,7 +198,7 @@ class TestClassify(unittest.TestCase):
 class TestTheRealCorpus(unittest.TestCase):
     """A ratchet over the live tree, not a unit test.
 
-    Deliberately NOT asserting the figure `ai/rules/deferral-tracking.md` quotes.
+    Deliberately NOT asserting the figure `ai/rules/planning.md` quotes.
     That figure is a DATED measurement, so it is a historical fact and stops
     reproducing the moment somebody closes a spec. Pinning it would turn every
     unrelated closure red, which is how a gate teaches people to route around it.

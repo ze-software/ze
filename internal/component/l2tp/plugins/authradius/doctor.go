@@ -22,7 +22,7 @@ var udpReachable = udpServerReachable
 // checkRADIUSServers probes every server under l2tp.auth.radius with a RADIUS
 // Access-Request and emits doctor-radius-unreachable when none responds.
 // This plugin owns the l2tp.auth.radius config block, so it owns the
-// readiness check (see ai/rules/doctor-checks.md "Where to Register Checks").
+// readiness check (see ai/rules/repo-maintenance.md "Where to Register Checks").
 func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {

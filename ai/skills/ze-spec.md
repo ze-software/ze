@@ -12,14 +12,14 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 
 ## Delegation
 
-`ai/rules/spec-delegation.md` exempts this skill: it runs in the MAIN THREAD.
+`ai/rules/planning.md` exempts this skill: it runs in the MAIN THREAD.
 Its gates require `AskUserQuestion`, and a subagent can neither hold a dialogue
 with the user nor use LSP.
 
 Delegate the work around the gates, not the gates themselves: send the research
 and the file reading out to agents (`/ze-explore`, `/ze-audit`), then carry every
 decision point here yourself. Verify what those agents report against source
-before putting it in front of the user (`ai/rules/no-fabrication.md`).
+before putting it in front of the user (`ai/rules/evidence.md`).
 
 ## Instructions
 
@@ -92,10 +92,10 @@ other research. A feature can be more than one type -- read every row that appli
 |---|---|---|
 | BGP family (SAFI / capability / attribute) | `ai/patterns/bgp-family.md` | see BGP Family Gate below |
 | System or BGP plugin | `ai/patterns/plugin.md`, `ai/patterns/registration.md` | new `internal/plugins/<name>/` or `bgp/plugins/<name>/` with `register.go` |
-| Component | `ai/patterns/registration.md`, `ai/rules/module-tiers.md` | new `internal/component/<name>/` |
+| Component | `ai/patterns/registration.md`, `ai/rules/architecture.md` | new `internal/component/<name>/` |
 | CLI command | `ai/patterns/cli-command.md` | new verb/subcommand or `ze:command` YANG node |
-| Config option / YANG leaf / env var | `ai/patterns/config-option.md`, `ai/rules/config-surface.md` | new YANG leaf, container, or `ze.*` env var |
-| Runtime dependency | `ai/rules/doctor-checks.md` | new file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, or netlink use |
+| Config option / YANG leaf / env var | `ai/patterns/config-option.md`, `ai/rules/config.md` | new YANG leaf, container, or `ze.*` env var |
+| Runtime dependency | `ai/rules/repo-maintenance.md` | new file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, or netlink use |
 
 `ai/INDEX.md` (the "Build / extend" table) is the authoritative feature-type to
 pattern map; consult it if the type is unclear.
@@ -116,7 +116,7 @@ feature type:
 `plan/TEMPLATE-CLOSURE.md` and are appended by `/ze-close` at step 1. Do not
 copy them into a new spec.
 
-**3. Discovery (BLOCKING):** answer the `ai/rules/discovery-updates.md` Mechanical
+**3. Discovery (BLOCKING):** answer the `ai/rules/repo-maintenance.md` Mechanical
 Checklist in the spec -- where an agent looks first (`ai/INDEX.md` row), what rule
 prevents regression, what registry/inventory prevents drift, what verification proves
 it. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is not done.
@@ -171,8 +171,8 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - What each file does, key functions, patterns used
    - Behavior that must be preserved (unless user says otherwise)
    - Write `→ Constraint:` noting preservation requirements
-4. Trace data flow per `ai/rules/data-flow-tracing.md`
-5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs, and note any `docs/features/rfc-status.md` row the spec will add or change so the standards ledger stays synced (per `ai/rules/discovery-updates.md`)
+4. Trace data flow per `ai/rules/architecture.md`
+5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs, and note any `docs/features/rfc-status.md` row the spec will add or change so the standards ledger stays synced (per `ai/rules/repo-maintenance.md`)
 6. Fill the spec's **Key Insights** summary (minimal context to resume after compaction)
 7. Present research findings to user:
    - Current behavior (what the code does now)
@@ -311,5 +311,5 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 - Each GATE must use `AskUserQuestion` -- never auto-proceed past a gate
 - Style: tables and prose, never code snippets in specs (`ai/rules/spec-no-code.md`)
 - All research findings go into spec exhaustively (`ai/rules/planning.md`)
-- Append-only editing for existing specs (`ai/rules/spec-preservation.md`)
+- Append-only editing for existing specs (`ai/rules/planning.md`)
 - One spec at a time -- this session's marker (`scripts/dev/spec-session.sh`) tracks which

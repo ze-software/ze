@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_bgp decoder seam link for hub tests
+// Design: ai/rules/plugins.md -- ze_bgp decoder seam link for hub tests
 //
 //go:build ze_bgp
 

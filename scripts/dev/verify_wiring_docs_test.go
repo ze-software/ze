@@ -150,7 +150,7 @@ if issues:
 // VALIDATES: a diff touching user-facing code (cli/web/config/cmd) with no
 // test/ change emits a functional-test advisory naming the expected suite dir.
 // PREVENTS: direct-to-code sessions bypassing the functional-test gate
-// (ai/rules/functional-test-gate.md) with no signal at verify time.
+// (ai/rules/testing.md) with no signal at verify time.
 func TestVerifyWiringDocsAdvisesFunctionalTests(t *testing.T) {
 	out := runVerifyWiringDocsDryRun(t, "internal/component/web/handler_admin.go")
 	mustContain(t, out, "ADVISORY: user-facing code changed without a functional-test change")

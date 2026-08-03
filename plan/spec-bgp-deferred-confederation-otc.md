@@ -33,10 +33,10 @@ confederation rules are vacuously satisfied:
 
 | Fact | Evidence |
 |------|----------|
-| Exactly one global local AS leaf exists, and it is mandatory | `internal/component/bgp/yang/ze-bgp-conf.yang:81-92` (`bgp/session/asn/local`) |
-| The only other local AS is a per-peer override, not a member-AS | `internal/component/bgp/yang/ze-bgp-conf.yang:446-450` (`session/asn/local`, "Local AS (overrides global)") |
+| Exactly one global local AS leaf exists, and it is mandatory | `internal/component/bgp/yang/ze-bgp-conf.yang` (`bgp/session/asn/local`) |
+| The only other local AS is a per-peer override, not a member-AS | `internal/component/bgp/yang/ze-bgp-conf.yang` (`session/asn/local`, "Local AS (overrides global)") |
 | No confederation identifier or member-AS leaf exists in any YANG | grep for `confed` across `internal/**/*.yang` matches only two filter descriptions |
-| ze never originates confederation AS_PATH segments | `internal/core/bgp/attribute/as4.go:102-119` (`FilterConfedSegments` strips them), `internal/component/bgp/reactor/reactor_wire.go:133`, `internal/component/bgp/wireu/aspath_as4.go:33`; nothing constructs `ASConfedSequence` / `ASConfedSet` |
+| ze never originates confederation AS_PATH segments | `internal/core/bgp/attribute/as4.go` (`FilterConfedSegments` strips them), `internal/component/bgp/reactor/reactor_wire.go`, `internal/component/bgp/wireu/aspath_as4.go`; nothing constructs `ASConfedSequence` / `ASConfedSet` |
 
 Real support therefore needs confederation-member configuration plus AS_CONFED
 origination first. That is a large feature and is the true scope of this spec.
@@ -46,17 +46,17 @@ whether ze supports the combination at all, or rejects it at config validation.
 
 ~~**Prerequisite bug found while verifying (2026-07-16).** The OTC egress stamp is
 inert today, independent of confederations: `extractLocalASN` reads the key
-`local-as` from the BGP config subtree (`internal/component/bgp/plugins/role/config.go:236`),
+`local-as` from the BGP config subtree (`internal/component/bgp/plugins/role/config.go`),
 but the config tree carries the global local AS at `bgp/session/asn/local`, as the
-reactor's own reader shows (`internal/component/bgp/reactor/config.go:479-486`).
-`getLocalASN` (`internal/component/bgp/plugins/role/role.go:66`) therefore returns
+reactor's own reader shows (`internal/component/bgp/reactor/config.go`).
+`getLocalASN` (`internal/component/bgp/plugins/role/role.go`) therefore returns
 0 in production, and the stamp is skipped by the `localASN > 0` guard
-(`internal/component/bgp/plugins/role/otc.go:429-436`). Fix that separately, before
+(`internal/component/bgp/plugins/role/otc.go`). Fix that separately, before
 any confederation work: this spec's whole subject is which ASN gets stamped.~~
 
 (Superseded 2026-07-22 plan review: the prerequisite bug is FIXED --
 `spec-fixit-local-asn-config-key` deleted the `extractLocalASN`/`local-as`
-reader; the OTC stamp now reads `dest.LocalAS` (`otc.go:432`) and the
+reader; the OTC stamp now reads `dest.LocalAS` (`otc.go`) and the
 `localASN > 0` guard is live. The related A-3 assumption row and the
 "Phase: Prerequisite" implementation step below are obsolete with it. The
 spec's main premise -- ze is single-AS, so RFC 9234 Section 5 confederation
@@ -77,9 +77,9 @@ handling is a large open design question -- is unaffected.)
   → Constraint: AS_PATH segment types and loop detection define what confederation segments must not escape
 
 **Key insights:**
-- `role/otc.go:429-436`: egress stamping uses one flat local ASN, with no notion of a confederation boundary
-- `role/otc.go:201-206`: `checkOTCEgress` suppresses on the destination's role only; a confederation boundary is not a role
-- `rfc/short/rfc9234.md:261-262`: R012/R013 are the two unchecked confederation requirements
+- `role/otc.go`: egress stamping uses one flat local ASN, with no notion of a confederation boundary
+- `role/otc.go`: `checkOTCEgress` suppresses on the destination's role only; a confederation boundary is not a role
+- `rfc/short/rfc9234.md`: R012/R013 are the two unchecked confederation requirements
 
 ## Current Behavior (MANDATORY)
 
@@ -93,11 +93,11 @@ handling is a large open design question -- is unaffected.)
 
 **Behavior to preserve:**
 - Single-AS operation stays the default: a router with no confederation config behaves exactly as today
-- RFC 9234 ingress rules stay non-overridable by the operator (`checkOTCIngress`, `otc.go:164-195`)
-- OTC remains scoped to AFI 1/2 SAFI 1 (`isPayloadUnicast`, `otc.go:100-145`)
-- "Once the OTC Attribute has been set, it MUST be preserved unchanged" (`otcAttrModHandler`, `otc.go:452-460`)
+- RFC 9234 ingress rules stay non-overridable by the operator (`checkOTCIngress`, `otc.go`)
+- OTC remains scoped to AFI 1/2 SAFI 1 (`isPayloadUnicast`, `otc.go`)
+- "Once the OTC Attribute has been set, it MUST be preserved unchanged" (`otcAttrModHandler`, `otc.go`)
 - Confederation AS_PATH segments continue to be stripped on egress, never leaked
-- Malformed OTC continues to be treat-as-withdraw (`otc.go:167-170`)
+- Malformed OTC continues to be treat-as-withdraw (`otc.go`)
 
 **Behavior to change:**
 - Add confederation identifier and member-AS configuration to the BGP config surface
@@ -105,19 +105,19 @@ handling is a large open design question -- is unaffected.)
 - Stamp OTC on confederation egress with the Confederation Identifier, never a Member-AS
 - Or, if the design rejects the combination: fail config validation with a clear message
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- BGP config tree delivered to the role plugin as a JSON section rooted at `bgp` (`RunRolePlugin` `OnConfigure`, `role.go:146-161`)
-- Received UPDATE path attributes on the ingress filter (`OTCIngressFilter`, `role.go` registration, `otc.go:311`)
-- Per-destination-peer forwarding on the egress filter (`OTCEgressFilter`, `otc.go:371`)
+- BGP config tree delivered to the role plugin as a JSON section rooted at `bgp` (`RunRolePlugin` `OnConfigure`, `role.go`)
+- Received UPDATE path attributes on the ingress filter (`OTCIngressFilter`, `role.go` registration, `otc.go`)
+- Per-destination-peer forwarding on the egress filter (`OTCEgressFilter`, `otc.go`)
 
 ### Transformation Path
-1. Config resolution builds the BGP tree; the plugin server extracts the `bgp` subtree and marshals it to JSON (`internal/component/plugin/server/reload.go:230-242`)
-2. The role plugin parses that JSON and stores per-peer role config plus the local ASN in package state (`setFilterState`, `role.go:56-63`)
-3. On ingress, `checkOTCIngress` applies the Section 5 rules and returns an accept / reject / treat-as-withdraw verdict plus an ASN to stamp (`otc.go:164-195`)
-4. On egress, `OTCEgressFilter` suppresses to Provider/Peer/RS, then stamps OTC for Customer/Peer/RS-Client destinations using `getLocalASN` (`otc.go:425-438`)
-5. The attribute mod handler writes the OTC bytes during the progressive attribute build, preserving any existing OTC (`otcAttrModHandler`, `otc.go:452-477`)
+1. Config resolution builds the BGP tree; the plugin server extracts the `bgp` subtree and marshals it to JSON (`internal/component/plugin/server/reload.go`)
+2. The role plugin parses that JSON and stores per-peer role config plus the local ASN in package state (`setFilterState`, `role.go`)
+3. On ingress, `checkOTCIngress` applies the Section 5 rules and returns an accept / reject / treat-as-withdraw verdict plus an ASN to stamp (`otc.go`)
+4. On egress, `OTCEgressFilter` suppresses to Provider/Peer/RS, then stamps OTC for Customer/Peer/RS-Client destinations using `getLocalASN` (`otc.go`)
+5. The attribute mod handler writes the OTC bytes during the progressive attribute build, preserving any existing OTC (`otcAttrModHandler`, `otc.go`)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -146,8 +146,8 @@ handling is a large open design question -- is unaffected.)
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | ze has no confederation config surface today | grep for `confed` over `internal/**/*.yang` matches only filter descriptions | Scope shrinks to OTC value selection only | Re-grep YANG at pickup | unvalidated |
-| A-2 | ze never originates AS_CONFED segments | `as4.go:102-119`, `reactor_wire.go:133`, `wireu/aspath_as4.go:33` all strip, none construct | Origination exists and only OTC selection is missing | Re-read the AS_PATH writers | unvalidated |
-| A-3 | OTC egress stamping works before confederation work starts | Currently broken: `role/config.go:236` reads a `local-as` key the tree does not carry | This spec builds on an inert code path and cannot be tested | Fix the key, then assert a stamp fires end-to-end | broken |
+| A-2 | ze never originates AS_CONFED segments | `as4.go`, `reactor_wire.go`, `wireu/aspath_as4.go` all strip, none construct | Origination exists and only OTC selection is missing | Re-read the AS_PATH writers | unvalidated |
+| A-3 | OTC egress stamping works before confederation work starts | Currently broken: `role/config.go` reads a `local-as` key the tree does not carry | This spec builds on an inert code path and cannot be tested | Fix the key, then assert a stamp fires end-to-end | broken |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

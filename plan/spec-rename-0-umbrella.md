@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/naming.md` ("Package-Naming Glossary") and `ai/rules/protocol-skeleton.md`
+3. `ai/rules/go-standards.md` ("Package-Naming Glossary") and `ai/rules/protocol.md`
 4. `scripts/dev/protocol_skeleton_report.py` (LEGACY_EXCEPTIONS table)
 
 ## Task
@@ -20,7 +20,7 @@
 The package-naming glossary (spec-layout-3) and the protocol skeleton
 (spec-layout-4) documented four legacy package names as exceptions rather than
 renaming them: `bgp/message`, `bgp/wireu`, `bgp/reactor`, `ike/wire`
-(`scripts/dev/protocol_skeleton_report.py:56-61` LEGACY_EXCEPTIONS). The user
+(`scripts/dev/protocol_skeleton_report.py` LEGACY_EXCEPTIONS). The user
 decided on 2026-07-08 to retire three of them. This umbrella coordinates the
 set; each child is one atomic pure-rename (or merge) commit pair.
 
@@ -41,10 +41,10 @@ The name dies with the decomposition, whichever destination that work gets.
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
-- [ ] `ai/rules/naming.md` - "Package-Naming Glossary" defines the target vocabulary
+- [ ] `ai/rules/go-standards.md` - "Package-Naming Glossary" defines the target vocabulary
   → Decision: `packet` = protocol wire codec; `wire` = primitives/raw handoff, with `ike/wire` recorded as the exception these specs remove
   → Constraint: glossary rows for `wireu` and the `ike/wire` exception must be updated in the same commit as each rename
-- [ ] `ai/rules/protocol-skeleton.md` - probe table + exceptions list mirror LEGACY_EXCEPTIONS
+- [ ] `ai/rules/protocol.md` - probe table + exceptions list mirror LEGACY_EXCEPTIONS
   → Constraint: exceptions table, probe rows, and `protocol_skeleton_report.py` LEGACY_EXCEPTIONS + selftest fixtures must stay in sync per child
 - [ ] `docs/architecture/wire/messages.md` - the `// Design:` anchor of both `message` and `wireu` files
   → Constraint: prose and source anchors in this doc change in children 2 and 3
@@ -57,7 +57,7 @@ The name dies with the decomposition, whichever destination that work gets.
 **Key insights:**
 - All four names are documented exceptions today; removing one = rename + rule-surface sync + doc-anchor sweep + full verify.
 - Zero aliased imports of any of the four packages exist (grep audit 2026-07-08), so qualifier rewrites are uniform.
-- `pkg/` (external SDK) has zero references to any of the four; nothing user-visible carries these names (the ExaBGP topic string "bgp.reactor" at `internal/exabgp/topics/topics.go:18` is an independent compat API name, untouched).
+- `pkg/` (external SDK) has zero references to any of the four; nothing user-visible carries these names (the ExaBGP topic string "bgp.reactor" at `internal/exabgp/topics/topics.go` is an independent compat API name, untouched).
 
 ## Current Behavior (MANDATORY)
 
@@ -76,7 +76,7 @@ The name dies with the decomposition, whichever destination that work gets.
 **Behavior to change:**
 - Package names and import paths only, per the children table. No functional change anywhere.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - No new data enters. The affected packages sit on existing paths: BGP wire bytes -> `message`/`wireu` codecs -> reactor/RIB; IKE wire bytes -> `ike/wire` codec -> `ike/engine`.
@@ -92,7 +92,7 @@ The name dies with the decomposition, whichever destination that work gets.
 
 ### Integration Points
 - `scripts/dev/protocol_skeleton_report.py` LEGACY_EXCEPTIONS - one row removed per child
-- `ai/rules/naming.md` glossary + `ai/rules/protocol-skeleton.md` exceptions/probe - rows updated per child
+- `ai/rules/go-standards.md` glossary + `ai/rules/protocol.md` exceptions/probe - rows updated per child
 - `ai/PACKAGE-MAP.md` - regenerated (`make ze-discovery-index`) per child
 
 ### Architectural Verification
@@ -109,7 +109,7 @@ The name dies with the decomposition, whichever destination that work gets.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No identifier clashes between `message` and `wireu` (fold is a clean merge) | comm audit 2026-07-08: 0 clashes across exported (60+81 vs 24+7) and unexported (108 vs 34) top-level names, tests included | fold needs renames first; child 3 redesign | audit rerun at child-3 start (packages may drift before then) | confirmed (2026-07-08 snapshot; re-check at child-3 start) |
 | A-2 | No local identifiers named `packet` shadow the new qualifier in any importer | grep audit 2026-07-08 over all importer files of the three packages: zero `packet :=` / `var packet` / `packet []byte` declarations | qualifier rewrite produces compile errors; rename locals first | `go build ./...` after each rename | confirmed (2026-07-08 snapshot; recompile validates) |
-| A-3 | No external surface carries the legacy names | `pkg/` grep: zero references; no quoted string literal ties telemetry/config/API to the package names; ExaBGP topic "bgp.reactor" (`internal/exabgp/topics/topics.go:18`) names a topic, not the package | a rename would break users | grep audit rerun per child | confirmed |
+| A-3 | No external surface carries the legacy names | `pkg/` grep: zero references; no quoted string literal ties telemetry/config/API to the package names; ExaBGP topic "bgp.reactor" (`internal/exabgp/topics/topics.go`) names a topic, not the package | a rename would break users | grep audit rerun per child | confirmed |
 | A-4 | The rib-arch spec set owns the BGP trees until it closes | `plan/spec-rib-arch-*.md` uncommitted in another session; rib-arch-8 lists `reactor` and NLRI-path files | children 2-3 conflict with in-flight branches | `make ze-spec-status` shows rib-arch set closed before starting child 2 | satisfied (rechecked 2026-07-22: rib-arch set fully closed -- no `spec-rib-arch-*.md` remains in plan/, learned 1128 + children 1123-1154 on disk; child 2 flipped to ready the same day) |
 | A-5 | Only `doc.go` and `errors.go` collide by filename between `message` and `wireu` | comm over both directory listings 2026-07-08 | more file merges needed in child 3 | rerun listing comm at child-3 start | confirmed (2026-07-08 snapshot) |
 
@@ -171,8 +171,8 @@ The name dies with the decomposition, whichever destination that work gets.
 
 ## Files to Modify
 - Per child spec. Umbrella-owned shared surfaces, touched once per child:
-- `ai/rules/naming.md` - glossary rows (`wireu`, `wire` exception)
-- `ai/rules/protocol-skeleton.md` - probe rows + exceptions table
+- `ai/rules/go-standards.md` - glossary rows (`wireu`, `wire` exception)
+- `ai/rules/protocol.md` - probe rows + exceptions table
 - `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS + selftest fixtures
 - `ai/PACKAGE-MAP.md` - regenerated per child (`make ze-discovery-index`)
 

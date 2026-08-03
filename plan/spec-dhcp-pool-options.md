@@ -72,7 +72,7 @@ YANG rather than inferred:
 ### Architecture Docs
 - [ ] `ai/patterns/config-option.md` - structural template for new config options.
   → Constraint: every leaf gets maximum native YANG validation (range/length/pattern).
-- [ ] `ai/rules/config-naming.md` - naming for the new list and leaves.
+- [ ] `ai/rules/config.md` - naming for the new list and leaves.
   → Constraint: kebab-case full words; decide `option` vs `dhcp-option` list name at design.
 
 ### RFC Summaries (MUST for protocol work)

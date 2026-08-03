@@ -469,7 +469,7 @@ func TestCmdMethods(t *testing.T) {
 	// 14 since ze-system:quiesce was added. These are hardcoded per-module
 	// counts, so every new RPC breaks them until the literal is bumped; that is
 	// how this sat red in plan/known-failures/. Deriving the expectation the
-	// way the inventory gates do (ai/rules/derive-not-hardcode.md) would be
+	// way the inventory gates do (ai/rules/evidence.md) would be
 	// better, but a count checked against the same registry it reads would be
 	// tautological -- a golden snapshot file (see plugin/all/testdata) is the
 	// shape that actually catches silent removal.

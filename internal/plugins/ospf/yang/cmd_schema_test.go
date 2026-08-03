@@ -33,7 +33,7 @@ func TestOSPFCmdSchemaOwnsShowOSPF(t *testing.T) {
 	}
 	for _, tok := range want {
 		if !strings.Contains(ZeOSPFCmdYANG, tok) {
-			t.Errorf("OSPF cmd schema is missing show command %q (owner half of plugin-self-containment; see ai/rules/plugin-self-containment.md)", tok)
+			t.Errorf("OSPF cmd schema is missing show command %q (owner half of plugin-self-containment; see ai/rules/plugins.md)", tok)
 		}
 	}
 }
@@ -94,7 +94,7 @@ func TestOSPFCmdSchemaOwnsClearOSPF(t *testing.T) {
 	}
 	for _, tok := range want {
 		if !strings.Contains(ZeOSPFCmdYANG, tok) {
-			t.Errorf("OSPF cmd schema is missing clear command %q (owner half of plugin-self-containment; see ai/rules/plugin-self-containment.md)", tok)
+			t.Errorf("OSPF cmd schema is missing clear command %q (owner half of plugin-self-containment; see ai/rules/plugins.md)", tok)
 		}
 	}
 }

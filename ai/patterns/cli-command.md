@@ -1,9 +1,9 @@
 # Pattern: CLI Command
 
 Structural template for adding CLI commands to Ze.
-Rules: `ai/rules/cli-patterns.md`. Architecture: `docs/architecture/cli/plugin-modes.md`.
+Rules: `ai/rules/cli.md`. Architecture: `docs/architecture/cli/plugin-modes.md`.
 
-**BLOCKING:** `ai/rules/cli-grammar.md` -- action keyword before identifier, IDs as strings.
+**BLOCKING:** `ai/rules/cli.md` -- action keyword before identifier, IDs as strings.
 Every command grammar must place the action keyword before any user-supplied identifier.
 Read the grammar rule before designing any new command.
 
@@ -11,10 +11,10 @@ Read the grammar rule before designing any new command.
 
 | Rule | When it applies |
 |------|----------------|
-| `ai/rules/pipe-completeness.md` | Every command producing output MUST support all pipe operators |
-| `ai/rules/derive-not-hardcode.md` | If the command lists or enumerates things (help, show, status) |
+| `ai/rules/cli.md` | Every command producing output MUST support all pipe operators |
+| `ai/rules/evidence.md` | If the command lists or enumerates things (help, show, status) |
 | `ai/rules/goroutine-lifecycle.md` | If the command launches background work (monitor, streaming) |
-| `ai/rules/json-format.md` | If the command emits JSON |
+| `ai/rules/cli.md` | If the command emits JSON |
 | Full navigation: `ai/INDEX.md` | |
 
 ## Two Types of Commands
@@ -24,7 +24,7 @@ Read the grammar rule before designing any new command.
 | **Offline** | the owner package, e.g. `internal/component/<owner>/cli/` (or `internal/plugins/<owner>/cli/`, `internal/core/<owner>/cli/`) | Tools that don't need a running daemon (config, decode, validate, yang). The command lives with the component that owns the behaviour, not under `cmd/ze`. |
 | **Online** | `internal/component/cmd/<verb>/` | Commands that interact with the running daemon via RPC |
 
-**Command ownership (`ai/rules/plugin-self-containment.md`):** a command's offline
+**Command ownership (`ai/rules/plugins.md`):** a command's offline
 CLI, root registration, daemon RPC, schema, and doctor check live in the package
 that owns the behaviour. `cmd/ze` is the process entry point only -- it consumes
 registrations and keeps no-owner / process-global commands (see the no-owner
@@ -248,7 +248,7 @@ Handler implementation lives in `internal/component/bgp/plugins/cmd/<noun>/`.
 **Owner-specific commands do NOT use the central `cmd/<verb>/` layout.** Put the
 handler `init()` + `RegisterRPCs` and a container-merge schema module in the
 package that owns the behaviour (the one whose code the handler calls), per
-`ai/rules/plugin-self-containment.md` ("Finding the Owner", "How to carve a
+`ai/rules/plugins.md` ("Finding the Owner", "How to carve a
 command into its owner"). The owner schema lives in `<owner>/yang/ze-<x>-cmd.yang`
 (top level, sibling of `cli`/`cmd`), re-declaring `container <verb> { container <x> {...} }`
 so the loader merges it onto the verb tree with no central edit. Determine the

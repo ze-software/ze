@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_isis dispatch-root CLI gating
+// Design: ai/rules/plugins.md -- ze_isis dispatch-root CLI gating
 //
 // IS-IS CLI command registration for the ze dispatch composition root, gated on
 // ze_isis. This is the SECOND composition root (the first is the generated

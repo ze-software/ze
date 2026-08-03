@@ -11,7 +11,7 @@ coining synonyms, and settled the one actively opaque name (`wireu`).
 
 ## Decisions
 
-- Glossary lives as a section in `ai/rules/naming.md`, over a new rule file:
+- Glossary lives as a section in `ai/rules/go-standards.md`, over a new rule file:
   one naming doc, discoverable via the existing rules-index row and
   `ai/INDEX.md` plugin row.
 - Definitions are DESCRIPTIVE, quoted from `ai/PACKAGE-MAP.md` (generated from
@@ -38,17 +38,17 @@ coining synonyms, and settled the one actively opaque name (`wireu`).
 
 ## Gotchas
 
-- The spec's Current Behavior claimed `naming.md` had forbidden-names rules
+- The spec's Current Behavior claimed `go-standards.md` had forbidden-names rules
   (`utils`/`helpers`); the actual file was 16 lines with none. Same lesson as
   layout-1's A-1: verify a spec's claims about a file against the file before
   building on them.
 - `core/routingtable` vs `plugins/routingtable` LOOK like duplicates in the
-  package map; `plugins/routingtable/registry.go:5-8` shows the plugin wraps
+  package map; `plugins/routingtable/registry.go` shows the plugin wraps
   and re-exports the core package deliberately (single import path for
   consumers). The glossary documents this so nobody "deduplicates" them.
 
 ## Files
 
-- `ai/rules/naming.md` (Package-Naming Glossary section)
+- `ai/rules/go-standards.md` (Package-Naming Glossary section)
 - `internal/component/bgp/wireu/doc.go` (name expansion + keep rationale)
 - `ai/PACKAGE-MAP.md` (regenerated: wireu row follows the new doc comment)

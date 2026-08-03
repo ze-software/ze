@@ -377,7 +377,7 @@ type showRoute struct {
 	// Skipped is true for a route the backend could not program (per-route
 	// isolation, spec-fixit-static-per-route-isolation). Such a route is NOT in
 	// the FIB; SkipReason names why. The operator sees it here so a skip is never
-	// a silent no-op (AC-3, ai/rules/fail-closed-guards.md).
+	// a silent no-op (AC-3, ai/rules/evidence.md).
 	Skipped    bool   `json:"skipped,omitempty"`
 	SkipReason string `json:"skip-reason,omitempty"`
 }

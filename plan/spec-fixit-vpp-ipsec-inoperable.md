@@ -21,20 +21,20 @@ that the backend cannot program a security association at all.
 **The VPP IPsec dataplane backend fails before it encodes anything. Every `InstallSA`,
 `RemoveSA`, `InstallPolicy` and `RemovePolicy` returns an error at the first request.**
 
-`vpp.go` declares a CRC of `"00000000"` for all four messages (`vpp.go:187`, `:196`,
+`vpp.go` declares a CRC of `"00000000"` for all four messages (`vpp.go`, `:196`,
 `:216`, `:225`). GoVPP resolves a message ID from the name and the CRC together
-(`vendor/go.fd.io/govpp/core/connection.go:489` and `:507`). The lookup is a literal string
+(`vendor/go.fd.io/govpp/core/connection.go` and `:507`). The lookup is a literal string
 key, `msgName + "_" + msgCrc`, against the table VPP itself sends at connect
-(`vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go:469`). A miss returns
-`UnknownMsgError` (`:472`).
+(`vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go`). A miss returns
+`UnknownMsgError`.
 
 The send path returns that error at
-`vendor/go.fd.io/govpp/core/request_handler.go:83-87`. The `EncodeMsg` call sits at `:89`,
+`vendor/go.fd.io/govpp/core/request_handler.go`. The `EncodeMsg` call sits at `:89`,
 so the encoder never runs. The message is refused first.
 
 The real CRCs are `c77ebd92` and `9ffac24b` for the SAD messages, and `7bfe69fc` for the
 SPD message. They live in the generated binapi at
-`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec/ipsec.ba.go:1687` and `:1798`.
+`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec/ipsec.ba.go` and `:1798`.
 
 **This is not a wire-format divergence that a careful patch can repair.** The struct is also
 misaligned from offset 9 onward, and it omits eleven fields. Both are moot while VPP
@@ -54,12 +54,12 @@ algorithm, and only a running functional or interop test proves the daemon.
 ## Nothing in production selects this backend
 
 `ikeDataplaneName` returns `"xfrm"` unless an override is set
-(`internal/component/ike/engine/testport.go:42-50`). Its own comment states that production
+(`internal/component/ike/engine/testport.go`). Its own comment states that production
 always uses XFRM. The only override is `ze.test.ike.dataplane`, registered `Private: true`
-and described as test infrastructure (`testport.go:31-37`). OSPF hardcodes
-`dataplane.Load("xfrm")` (`internal/plugins/ospf/ipsec_install.go:71`).
+and described as test infrastructure (`testport.go`). OSPF hardcodes
+`dataplane.Load("xfrm")` (`internal/plugins/ospf/ipsec_install.go`).
 
-The file is also behind `//go:build ze_vpp` (`vpp.go:4`), so a default build omits it.
+The file is also behind `//go:build ze_vpp` (`vpp.go`), so a default build omits it.
 
 **This bounds the blast radius, and it does not excuse the defect.** A registered backend
 that cannot work is a trap for the first operator who selects it, and `ze config verify`
@@ -71,9 +71,9 @@ Each is wrong on its own terms, and each would survive a layout repair.
 
 | Site | Sends | Correct | Consequence |
 |------|-------|---------|-------------|
-| `vpp.go:48` | `Protocol: 1` with the comment `// ESP` | 50 | Ze's OWN constant already agrees with VPP: `dataplane.go:30` declares `ProtoESP uint8 = 50`. The backend disagrees with its own package. `p.Proto` is ignored, so AH is unreachable |
-| `vpp.go:292` | `"3des"` maps to 4 | 11 | 4 is `AES_CTR_128`. This programs a different cipher than the operator configured, which `ai/rules/exact-or-reject.md` forbids outright |
-| `vpp.go:199-208` | `ipsecSPDEntry` models two prefixes | four address range endpoints | The real `IpsecSpdEntryV2` has no prefix field at all. This is a semantic mismatch, not a misordering |
+| `vpp.go` | `Protocol: 1` with the comment `// ESP` | 50 | Ze's OWN constant already agrees with VPP: `dataplane.go` declares `ProtoESP uint8 = 50`. The backend disagrees with its own package. `p.Proto` is ignored, so AH is unreachable |
+| `vpp.go` | `"3des"` maps to 4 | 11 | 4 is `AES_CTR_128`. This programs a different cipher than the operator configured, which `ai/rules/protocol.md` forbids outright |
+| `vpp.go` | `ipsecSPDEntry` models two prefixes | four address range endpoints | The real `IpsecSpdEntryV2` has no prefix field at all. This is a semantic mismatch, not a misordering |
 
 ## The same policy-to-SA gap the XFRM backend carried
 
@@ -84,11 +84,11 @@ and the tunnel forwarded nothing. The VPP backend has the same class of gap in i
 A PROTECT policy must name the SA that protects the traffic. The XFRM backend names it
 through the template tunnel endpoints. VPP names it through an SA id, because
 `IpsecSpdEntry` and `IpsecSpdEntryV2` carry `SaID` and hold no template addresses at all
-(`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go:346`
+(`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go`
 and `:364`). In the VPP model the tunnel endpoints live on the SAD entry instead.
 
 `InstallPolicy` sends `Policy: 3`, which is `IPSEC_API_SPD_ACTION_PROTECT`
-(`ipsec_types.ba.go:244`), together with a hardcoded `SAID: 0` (`vpp.go:104`). `SPParams`
+(`ipsec_types.ba.go`), together with a hardcoded `SAID: 0` (`vpp.go`). `SPParams`
 holds no field able to carry an SA id, so no caller can supply one. The policy protects with
 SA 0 and resolves to nothing. Zero is again the value that looks like a valid answer.
 
@@ -105,19 +105,19 @@ Found while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. This extend
 above rather than restating it: the hardcoded `Policy: 3` is named there as the SA-id gap,
 and two further fields were added to `SPParams` after this spec was written.
 
-`vppBackend.InstallPolicy` (`internal/component/ike/dataplane/vpp.go:141`) hardcodes
+`vppBackend.InstallPolicy` (`internal/component/ike/dataplane/vpp.go`) hardcodes
 `Priority: 100` at `:153` and `Policy: 3` at `:158`. It reads neither `p.Action` nor
 `p.Priority`.
 
 Both fields are now part of the interface contract, and both carry explicit instructions in
 their own declarations:
 
-- `SPParams.Action` (`dataplane.go:310`) states that a backend which cannot express
+- `SPParams.Action` (`dataplane.go`) states that a backend which cannot express
   `SPActionBypass` MUST reject the install rather than fall back to protecting, and gives
   the reason: a bypass silently downgraded to a protect policy black-holes the traffic it
-  was meant to let through (`ai/rules/exact-or-reject.md`). The VPP backend does exactly
+  was meant to let through (`ai/rules/protocol.md`). The VPP backend does exactly
   that fall-back, because 3 is PROTECT unconditionally.
-- `SPParams.Priority` (`dataplane.go:344`) states that lower means higher precedence and
+- `SPParams.Priority` (`dataplane.go`) states that lower means higher precedence and
   names the two constants callers use, `PriorityIKEBypass` (100) and `PriorityChildSA`
   (2000). A hardcoded 100 gives every Child SA policy the IKE bypass precedence, which
   inverts the ranking the constants exist to express.
@@ -138,12 +138,12 @@ Found on 2026-07-31, while `SAParams.EncKey` gained a documented contract.
 4106 Section 8.1 makes AES-GCM KEYMAT four octets longer than the AES key, so AES-GCM-256
 gives 36 octets. The Linux XFRM backend is correct: it hands the whole slice to
 `rfc4106(gcm(aes))`, which expects exactly that layout
-(`internal/component/ike/dataplane/xfrm_linux.go:58-62`).
+(`internal/component/ike/dataplane/xfrm_linux.go`).
 
 VPP does not take the two together. `ipsec_sad_entry` carries the GCM salt in its own
 field, so the key field must hold the cipher key alone. The backend sends
 `CryptoKey: vppKey(p.EncKey)` with all 36 octets and a hardcoded `Salt: 0`
-(`internal/component/ike/dataplane/vpp.go:50` and `:56`). VPP would read a 36 octet key
+(`internal/component/ike/dataplane/vpp.go` and `:56`). VPP would read a 36 octet key
 into a field it keys at 32. It would also encrypt with a zero salt while the peer uses
 the real one.
 
@@ -160,8 +160,8 @@ and pass the remainder as `CryptoKey`. Add the new criterion AC-9 below.
 
 | Document | Why |
 |----------|-----|
-| `ai/rules/no-fabrication.md` | A generated binding stub documents a field's existence, never what the foreign system does with it |
-| `ai/rules/exact-or-reject.md` | A backend that cannot apply the config exactly must reject at verify |
+| `ai/rules/evidence.md` | A generated binding stub documents a field's existence, never what the foreign system does with it |
+| `ai/rules/protocol.md` | A backend that cannot apply the config exactly must reject at verify |
 | `ai/rules/go-standards.md` | The dependency rule, and why vendoring here is additive rather than new |
 | `gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec/ipsec.ba.go` | The authoritative message definition |
 
@@ -176,7 +176,7 @@ Source files read on 2026-07-30:
 - [ ] `vendor/go.fd.io/govpp/core/request_handler.go`
 - [ ] `vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go`
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
@@ -187,13 +187,13 @@ negotiated. Format at entry is a `dataplane.SAParams`.
 
 The backend translates `SAParams` into `ipsecSAEntry` and wraps it in `ipsecSAAddDel`. It
 calls `SendRequest`, which asks `GetMessageID` for the numeric id
-(`vendor/go.fd.io/govpp/core/request_handler.go:83`). That resolves through
-`connection.go:507` to the socket client's table lookup
-(`adapter/socketclient/socketclient.go:469`), keyed on `name + "_" + crc`.
+(`vendor/go.fd.io/govpp/core/request_handler.go`). That resolves through
+`connection.go` to the socket client's table lookup
+(`adapter/socketclient/socketclient.go`), keyed on `name + "_" + crc`.
 
 The key never matches, because the CRC is `"00000000"`. `GetMsgID` returns
-`UnknownMsgError` (`socketclient.go:472`), `SendRequest` returns it at
-`request_handler.go:85-87`, and the flow STOPS. `EncodeMsg` at `:89` is dead code on this
+`UnknownMsgError` (`socketclient.go`), `SendRequest` returns it at
+`request_handler.go`, and the flow STOPS. `EncodeMsg` at `:89` is dead code on this
 path.
 
 After the repair the same call reaches the encoder, and the generated `Marshal` writes the
@@ -218,8 +218,8 @@ layout VPP expects.
 |----------|------|---------|
 | Delete the hand-rolled types and use the generated binapi | Correcting the CRCs and the field offsets by hand | The generated types carry the correct CRC, the correct layout, and their own `Marshal` and `Size`. Hand-maintaining a foreign wire format is the defect, and correcting it by hand preserves the defect |
 | Vendor `binapi/ipsec` and `binapi/ipsec_types` | Adding a new dependency | `go.fd.io/govpp` is ALREADY required. Every transitive dependency of these two packages is already vendored: `api`, `codec`, `ip_types`, `interface_types` and `tunnel_types`. The change is additive to `vendor/`, and `go.mod` does not move |
-| Fix the three value bugs in the same work | A follow-up spec | They are in the lines being rewritten. Leaving a known wrong cipher mapping in code you are already editing is parking (`ai/rules/no-parking.md`) |
-| Reject a `vpp` dataplane selection at config verify until a real VPP has accepted an SA | Shipping a backend that compiles | `ai/rules/exact-or-reject.md`. A backend nothing has ever exercised must not silently accept an operator's config |
+| Fix the three value bugs in the same work | A follow-up spec | They are in the lines being rewritten. Leaving a known wrong cipher mapping in code you are already editing is parking (`ai/rules/completion.md`) |
+| Reject a `vpp` dataplane selection at config verify until a real VPP has accepted an SA | Shipping a backend that compiles | `ai/rules/protocol.md`. A backend nothing has ever exercised must not silently accept an operator's config |
 
 ## Blast Radius
 
@@ -234,8 +234,8 @@ look like their own defects.
 
 | Id | Statement | Basis | Validation |
 |----|-----------|-------|------------|
-| A-1 | The module is already required, so vendoring is additive | `vendor/modules.txt:336-363` lists 27 binapi packages from the same module | Confirm `go.mod` is unchanged after `go mod vendor` |
-| A-2 | The generated types carry correct CRCs | `ipsec.ba.go:1687`, `:1798` | Compare against a live VPP message table |
+| A-1 | The module is already required, so vendoring is additive | `vendor/modules.txt` lists 27 binapi packages from the same module | Confirm `go.mod` is unchanged after `go mod vendor` |
+| A-2 | The generated types carry correct CRCs | `ipsec.ba.go`, `:1798` | Compare against a live VPP message table |
 | R-1 | Nothing has ever run this against a real VPP, so "fixed" cannot be proven by unit tests | No interop lab, no QEMU target, no `.ci` exercises it | The work is not done until something executes it. See Known Limitations |
 | R-2 | A correct layout CAN expose further semantic mismatches, above all in the SPD path | The SPD entry is already known to model the wrong concept | Translate the SPD call from ranges, never from prefixes |
 
@@ -308,7 +308,7 @@ The ipsec suite runs on every push, because `ipsec` is in `all_suites`
 `RFC7296-2.24-1` and `2.24-2` stay `uncertain` in the pilot's Appendix A until AC-7 holds.
 Once the backend can program an SA, ECN copying is one assignment:
 `Tunnel.EncapDecapFlags` takes `ENCAP_COPY_ECN | DECAP_COPY_ECN`
-(`vendor/go.fd.io/govpp/binapi/tunnel_types/tunnel_types.ba.go:42-43`, already vendored).
+(`vendor/go.fd.io/govpp/binapi/tunnel_types/tunnel_types.ba.go`, already vendored).
 
 Do NOT tag either row before AC-7. A tag asserts a proof, and no proof exists while nothing
 executes the backend.
@@ -320,7 +320,7 @@ against a real VPP today. Until something does, a green unit suite says only tha
 agrees with the generated types. That is a large improvement over agreeing with a
 hand-rolled guess, and it is not the same as working.
 
-`ai/rules/qemu-testing.md` describes the shape such a proof takes.
+`ai/rules/platform-linux.md` describes the shape such a proof takes.
 
 ## Checklist
 

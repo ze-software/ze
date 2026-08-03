@@ -9,8 +9,8 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 |------|----------------|
 | `ai/rules/testing.md` (Editor Tests) | TUI/editor testing uses `.et` format, not `.ci` |
 | `ai/rules/testing.md` (Observer-Exit Antipattern) | Python observers in `.ci` MUST use `runtime_fail`, not `sys.exit(1)` |
-| `ai/rules/tdd.md` | Test-first: write the test before the feature code |
-| `ai/rules/integration-completeness.md` | Every user-facing feature needs a `.ci` test |
+| `ai/rules/testing.md` | Test-first: write the test before the feature code |
+| `ai/rules/completion.md` | Every user-facing feature needs a `.ci` test |
 | Full navigation: `ai/INDEX.md` | |
 
 ## Test Directories

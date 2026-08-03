@@ -188,7 +188,7 @@ var errRecordingDeleteRefused = errors.New("schema not available")
 // errSchemaNotAvailable guard), the manager returns the error and never calls
 // DeleteValue.
 // PREVENTS: a silent fallback re-introducing the inert delete
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestEditorManagerDeleteByPathFailsClosed(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
 	ed := &recordingEditor{}

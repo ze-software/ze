@@ -52,14 +52,14 @@ and error paths. `received_update_bench_test.go` measures parallel cache-hit
 reads on the RS fan-out path. `forward_body_test.go` uses it to build a rewritten
 wire for a body comparison. Before any of them is deleted, decide for each
 whether the property it asserts is now covered on the edit-set path, and say so
-(`ai/rules/no-test-deletion.md`). A test deleted because its subject was deleted
+(`ai/rules/testing.md`). A test deleted because its subject was deleted
 is legitimate. A test deleted because it was in the way is not.
 
 Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 6.
 
 ## Required Reading
 
-- [ ] `ai/rules/no-test-deletion.md` - deleting a test is legitimate only when the functionality it tests is removed
+- [ ] `ai/rules/testing.md` - deleting a test is legitimate only when the functionality it tests is removed
   → Constraint: each deleted test needs a stated reason, per test, not one blanket sentence.
 - [ ] `ai/rules/no-layering.md` - when replacing X with Y, delete X
   → Decision: this spec is the deferred second half of that rule for the AS-path fold.
@@ -84,7 +84,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 6.
 
 **Behavior to change:** none. This is a removal of unreachable code.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 A received UPDATE forwarded to an eBGP peer, arriving as a `ReceivedUpdate` in the reactor.
@@ -112,7 +112,7 @@ A received UPDATE forwarded to an eBGP peer, arriving as a `ReceivedUpdate` in t
 | No unintended coupling | No | fill during design |
 | No duplicated functionality | No | this spec exists BECAUSE a duplicate survived; the check is that none remains |
 | Zero-copy preserved where applicable | No | fill during design: the eviction release must stay balanced |
-| Registration over hardcoding (`ai/rules/plugin-self-containment.md`) | N-A | removal only |
+| Registration over hardcoding (`ai/rules/plugins.md`) | N-A | removal only |
 
 ## Risks & Assumptions
 
@@ -128,7 +128,7 @@ A received UPDATE forwarded to an eBGP peer, arriving as a `ReceivedUpdate` in t
 |----|------|--------------|----------------------|
 | R-1 | A pool-accounting test goes red because the eviction path lost a release. | `TestForwardPoolBalance*` or a readbuf-leak test fails. | The release is removed because the buffer no longer exists. If a balance test reds, a live path was using the slot and A-1 is wrong. |
 | R-2 | The benchmark's coverage of parallel cache-hit reads disappears with no replacement, so a future regression on the edit-set path is unmeasured. | Nothing fails; the measurement is just gone. | Decide explicitly whether the edit-set path needs the equivalent benchmark. Record the decision either way. |
-| R-3 | Deleting the tests is treated as bookkeeping and no per-test reason is recorded. | A commit removing several `Test*` functions with one blanket sentence. | `ai/rules/no-test-deletion.md`: one stated reason per deleted test. |
+| R-3 | Deleting the tests is treated as bookkeeping and no per-test reason is recorded. | A commit removing several `Test*` functions with one blanket sentence. | `ai/rules/testing.md`: one stated reason per deleted test. |
 
 ## Blast Radius
 
@@ -192,7 +192,7 @@ A received UPDATE forwarded to an eBGP peer, arriving as a `ReceivedUpdate` in t
 | Completeness | The four `recent_cache.go` reads went with the fields, not after them |
 | Correctness | Wire bytes to an eBGP peer are unchanged; the delete is invisible on the wire |
 | Data flow | The edit-set path is the sole producer of the eBGP AS_PATH, confirmed by reading it |
-| Rule: `ai/rules/no-test-deletion.md` | One stated reason per deleted test |
+| Rule: `ai/rules/testing.md` | One stated reason per deleted test |
 | Rule: `ai/rules/stale-comments.md` | No surviving comment names the removed cache |
 | Registration over hardcoding | N-A, removal only |
 
@@ -204,7 +204,7 @@ surviving implementation produces. If the delete changes any AS_PATH byte, stop:
 the two implementations disagreed, and that disagreement is the finding.
 
 ## Known Limitations
-- This removes the cache. It does not add a gate that would have caught an unreachable exported symbol at commit time; `make ze-verify-wiring-docs` already owns that surface (`ai/rules/wiring-completeness.md`).
+- This removes the cache. It does not add a gate that would have caught an unreachable exported symbol at commit time; `make ze-verify-wiring-docs` already owns that surface (`ai/rules/completion.md`).
 
 ## Checklist
 

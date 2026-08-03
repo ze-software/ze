@@ -82,7 +82,7 @@ well inside the test budget.
 An unconditional `print('OK: ...')` in an observer is a lie that survives in the
 log and misleads the next reader. Print what you actually checked, and
 `runtime_fail(...)` on the path where the check did not hold
-(`ai/rules/fail-closed-guards.md`).
+(`ai/rules/evidence.md`).
 
 ## Step 5 — Take a port from the runner, never a literal
 
@@ -126,13 +126,13 @@ none of them.
 - **Draft first (BLOCKING).** A `.ci` under development belongs in
   `test/draft/<suite>/`. Editing a live test in place is how another session
   inherits your red.
-- **A red test means the code is wrong by default** (`ai/rules/no-test-deletion.md`).
+- **A red test means the code is wrong by default** (`ai/rules/testing.md`).
   Do not weaken an assertion to reach green. If the test is genuinely asking for
   something the product does not define (an ordering RFC 4271 leaves free, an
   attribute order, a scheduling interleaving), say so explicitly in the file and
   replace the assertion with the deterministic barrier that makes the real
   subject assertable.
-- **Diagnosis before fix** (`ai/rules/diagnosis-before-fix.md`) applies to test
+- **Diagnosis before fix** (`ai/rules/completion.md`) applies to test
   changes too: symptom, root cause at a cited `file:line`, owning layer, a
   `[workaround]` and a `[source]` candidate, and why the workaround is wrong.
   "The test is flaky" is a symptom, not a diagnosis.

@@ -13,15 +13,15 @@ after installation" -- a regression, not a new feature gap.
 Two `database.zefs` builders exist and one clobbers the other:
 
 - `ze appliance build` bakes the **full** appliance seed into the image `/perm`
-  partition: `internal/appliance/cmd_build.go:170` `injectZeFS` writes the
+  partition: `internal/appliance/cmd_build.go` `injectZeFS` writes the
   assembled `dbPath` to `ze/database.zefs`. The seed carries the SSH listener
-  overrides (`internal/appliance/cmd_assemble.go:210-215` ->
+  overrides (`internal/appliance/cmd_assemble.go` ->
   `set environment ssh server default ip 0.0.0.0` / `port 21982`), the
   `ze.conf` template, web certs, and instance identity.
 - The image server's `/install/database.zefs` endpoint builds a **minimal
-  first-boot bootstrap** database: `internal/plugins/imageserver/handler.go:124`
+  first-boot bootstrap** database: `internal/plugins/imageserver/handler.go`
   `buildZefsDB` writes only SSH/admin creds and hardcodes the listener to
-  `sshHost="127.0.0.1"`, `sshPort="2222"` (`handler.go:20-21`). It writes **no**
+  `sshHost="127.0.0.1"`, `sshPort="2222"` (`handler.go`). It writes **no**
   `ze.conf` template -- by design, per [[811-install-3-image-server]].
 
 The installer's `mountInjectDB` (`internal/install/disk/system.go`) then

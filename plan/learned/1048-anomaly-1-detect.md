@@ -14,7 +14,7 @@ shared event contract, detector, or responder). Report-only: it emits incidents;
 - **Separate `anomalyevent` contract, source/entity-oriented.** Mirrors `ddosevent`'s
   `events.Register[T](ns, et)` pattern but with namespace `anomaly-detect` and structs keyed
   on a source `netip.Prefix` (not a destination `VectorTuple`). `events.Register` self-registers
-  the namespace (typed.go:188), so package-init `var` declarations are all the contract needs.
+  the namespace (typed.go), so package-init `var` declarations are all the contract needs.
 - **Consume trafficfeature, baseline in the detector.** The detector reads
   `trafficfeature.Snapshot()` on its own 1s ticker (trafficfeature has Snapshot, not a
   SubscribeRates callback). Per-(entity,feature) baseline = TWO `stats.EWMA`s (value +

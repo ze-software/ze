@@ -16,6 +16,14 @@ import (
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
+// detectedEmittedFlag reads the detected-emitted flag the way production does:
+// under d.mu, which is what owns it together with attackGen.
+func detectedEmittedFlag(d *detector) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.detectedEmitted
+}
+
 // frec builds a flowRecord (destined to the victim) for classifier tests.
 func frec(proto uint8, src string, sport, dport uint16, pkts uint64, tcpState uint8) flowRecord {
 	return flowRecord{
@@ -818,7 +826,7 @@ func TestNoStaleCharacterizedAfterClear(t *testing.T) {
 	tick(cum)
 
 	// Wait for Detected to land (goroutine set detectedEmitted before blocking).
-	for !d.detectedEmitted.Load() {
+	for !detectedEmittedFlag(d) {
 		runtime.Gosched()
 	}
 
@@ -856,5 +864,168 @@ func TestStopFencesCharacterization(t *testing.T) {
 
 	if detected != nil {
 		t.Errorf("no Detected should be emitted after Stop, got %+v", detected)
+	}
+}
+
+// TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout proves the detector does not
+// hold d.mu across the (synchronous, sequential) event fan-out. Detected reaches
+// ddos-local's onDetected, which reconciles nft inside the handler, so holding
+// d.mu there parked the detector's own state behind a netlink round trip.
+// VALIDATES: spec-fixit-firewall-concurrency-deadlock, the L7 instance of the
+// lock-held-across-a-slow-call class.
+// PREVENTS: a wedged kernel freezing the rate loop (onRate/onRates take d.mu on
+// every tick) and Stop()/saveBaseline() with it.
+func TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	bus := newDTestBus()
+	ddosevent.Detected.Subscribe(bus, func(_ *ddosevent.AttackDetected) {
+		close(entered)
+		<-release // stands in for ddos-local's blocked nft reconcile
+	})
+
+	d := newDetector(floodConfig(), bus, nil)
+	d.attackGen = 1
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		d.emitDetected(1, "xe0", ddosevent.VectorTuple{}, ddosevent.SeverityMedium,
+			ddosevent.DirectionLocal, false, 1000, 1000)
+	})
+	<-entered // the fan-out is in flight
+
+	done := make(chan struct{})
+	go func() {
+		// The rate loop: onRate takes d.mu for the whole tick.
+		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: 1}}})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		close(release)
+		wg.Wait()
+		t.Fatal("the rate tick blocked on d.mu while a Detected fan-out was in flight")
+	}
+
+	close(release)
+	wg.Wait()
+
+	if !detectedEmittedFlag(d) {
+		t.Fatal("emitDetected did not publish the Detected event")
+	}
+}
+
+// TestClearedNeverOvertakesDetectedFanout pins the invariant that emitMu took
+// over from d.mu: a Cleared staged by the rate tick must never reach subscribers
+// while the Detected fan-out for that attack is still in flight. If it did,
+// ddos-local would apply the drop (Detected) after its withdraw (Cleared) and
+// keep a rule no later event removes -- a permanent stuck mitigation, since
+// max-mitigation-duration is not enforced there.
+// VALIDATES: spec-fixit-firewall-concurrency-deadlock, the L7 fix.
+// PREVENTS: "fixing" the long lock hold by simply releasing the lock before the
+// emit, which trades a hang for a correctness bug.
+func TestClearedNeverOvertakesDetectedFanout(t *testing.T) {
+	var mu sync.Mutex
+	var order []string
+	entered := make(chan struct{})
+	release := make(chan struct{})
+
+	bus := newDTestBus()
+	ddosevent.Detected.Subscribe(bus, func(_ *ddosevent.AttackDetected) {
+		close(entered)
+		<-release
+		mu.Lock()
+		order = append(order, "detected")
+		mu.Unlock()
+	})
+	ddosevent.Cleared.Subscribe(bus, func(_ *ddosevent.AttackCleared) {
+		mu.Lock()
+		order = append(order, "cleared")
+		mu.Unlock()
+	})
+
+	d := newDetector(floodConfig(), bus, nil)
+	d.attackGen = 1
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		d.emitDetected(1, "xe0", ddosevent.VectorTuple{}, ddosevent.SeverityMedium,
+			ddosevent.DirectionLocal, false, 1000, 1000)
+	})
+	<-entered // Detected passed the generation check and is fanning out
+
+	// What the rate tick does when the attack clears: advance the generation and
+	// stage the Cleared under d.mu, then publish it with d.mu released.
+	d.mu.Lock()
+	d.emitCleared()
+	pending := d.pending
+	d.pending = pendingEmits{}
+	d.mu.Unlock()
+	wg.Go(func() { d.emitPending(pending) })
+
+	// Give an unserialized fan-out the window it needs to publish Cleared while
+	// Detected is still parked in its subscriber. Serialized, it cannot take that
+	// window however long it is.
+	time.Sleep(50 * time.Millisecond)
+	close(release)
+	wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(order) != 2 || order[0] != "detected" || order[1] != "cleared" {
+		t.Fatalf("fan-out order = %v, want [detected cleared]: a Cleared that overtakes an in-flight Detected leaves ddos-local with a stuck drop", order)
+	}
+}
+
+// TestDetectedFlagNeverSurvivesAClear pins the invariant that the
+// detected-emitted flag cannot outlive the attack it belongs to.
+//
+// The window it closes: emitDetected reads attackGen under d.mu and releases it
+// (the fan-out must NOT run under d.mu -- that is the hang emitMu exists to
+// remove), fans out, and only then records the flag. A clear landing inside that
+// fan-out advances attackGen and clears the flag under d.mu; recording the flag
+// afterwards without re-checking the generation puts it back to true for an
+// attack that no longer exists. The window is as wide as ddos-local's netlink
+// reconcile.
+//
+// VALIDATES: the flag is set under the same d.mu critical section that re-checks
+// the generation, so a clear cannot be undone by an in-flight Detected.
+// PREVENTS: applyTick staging an AttackOngoing for the NEXT attack before that
+// attack's AttackDetected has fanned out -- exactly what the flag exists to stop.
+func TestDetectedFlagNeverSurvivesAClear(t *testing.T) {
+	bus := newDTestBus()
+	d := newDetector(floodConfig(), bus, nil)
+	d.attackGen = 1
+
+	var wg sync.WaitGroup
+	// The clear runs INSIDE the Detected fan-out. The subscriber is invoked from
+	// emitDetected, after the generation check and before the flag is recorded,
+	// which is the exact interleaving -- no sleep, no goroutine ordering to hope
+	// for.
+	ddosevent.Detected.Subscribe(bus, func(_ *ddosevent.AttackDetected) {
+		// What the rate tick does when the attack clears: advance the generation
+		// and stage the Cleared under d.mu.
+		d.mu.Lock()
+		d.emitCleared()
+		pending := d.pending
+		d.pending = pendingEmits{}
+		d.mu.Unlock()
+		// Publishing blocks on emitMu until this fan-out finishes, as in production.
+		wg.Go(func() { d.emitPending(pending) })
+	})
+
+	if !d.emitDetected(1, "xe0", ddosevent.VectorTuple{}, ddosevent.SeverityMedium,
+		ddosevent.DirectionLocal, false, 1000, 1000) {
+		t.Fatal("emitDetected dropped an emit whose generation was current at the check")
+	}
+	wg.Wait()
+
+	d.mu.Lock()
+	flagged, gen := d.detectedEmitted, d.attackGen
+	d.mu.Unlock()
+	if flagged {
+		t.Fatalf("detected-emitted flag survived the clear (attackGen is now %d, the Detected belonged to 1): applyTick will stage an AttackOngoing for the next attack before its AttackDetected has fanned out", gen)
 	}
 }

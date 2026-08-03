@@ -18,7 +18,7 @@ facts surface the detector already reads. It adds no detector logic and no opera
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-anomaly-0-umbrella.md` - child-6 row, R-3 (degrade-to-prefix), A-3 (tier violation)
-4. `ai/rules/module-tiers.md` + `scripts/dev/dep_audit.py` (the `ze-tier-check` gate; `engine_depended` at dep_audit.py:486-506)
+4. `ai/rules/architecture.md` + `scripts/dev/dep_audit.py` (the `ze-tier-check` gate; `engine_depended` at dep_audit.py)
 5. Source: `internal/plugins/flowexport/exporter.go` (producer), `internal/core/observation/observation.go` (feed type), `internal/component/trafficfeature/{feature.go,service.go}` (facts surface)
 
 ## Task
@@ -30,7 +30,7 @@ consumes -- **without any plugin importing another plugin**.
 
 The load-bearing constraint: a direct `internal/plugins/anomaly/detect` ->
 `internal/plugins/flowexport/enrich` import is **forbidden** and fails `make ze-tier-check`
-(`dep_audit.py` `engine_depended`, dep_audit.py:486-506: flowexport is a config-driven engine
+(`dep_audit.py` `engine_depended`, dep_audit.py: flowexport is a config-driven engine
 in the edge tier; a feature importing its subtree flips its expected tier to `component`, which
 is a misplacement -> exit 2). The sanctioned ze data path is **producer -> core feed -> component
 global -> consumer**, never plugin->plugin. flowexport already looks the AS up; this spec has it
@@ -43,16 +43,16 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. Capture insights as → Decision: / → Constraint: annotations. -->
-- [ ] `ai/rules/module-tiers.md` - the tier taxonomy and the `ze-tier-check` gate this spec must pass
+- [ ] `ai/rules/architecture.md` - the tier taxonomy and the `ze-tier-check` gate this spec must pass
   → Constraint: tier = dependency direction. `internal/core` (observation) is imported by everyone; `internal/component` (trafficfeature) is depended on by plugins; `internal/plugins` (flowexport, anomaly) is an edge nobody depends on. Adding a field to a core or component struct is tier-safe; a plugin importing another plugin's engine subtree is not.
-  → Constraint: flowexport is a config-driven engine (`sdk.NewWithConn`, register.go:100) living in `internal/plugins`; it is NOT in `tier_migration_baseline.txt` (clean edge). If any `internal/component/*` or `internal/plugins/*` file imports `internal/plugins/flowexport/...`, `engine_depended` returns True, its expected tier becomes `component`, and the gate fails. The stamp must add zero new importer of flowexport.
-- [ ] `ai/rules/data-flow-tracing.md` - cross-plugin data path rule (referenced by umbrella)
+  → Constraint: flowexport is a config-driven engine (`sdk.NewWithConn`, register.go) living in `internal/plugins`; it is NOT in `tier_migration_baseline.txt` (clean edge). If any `internal/component/*` or `internal/plugins/*` file imports `internal/plugins/flowexport/...`, `engine_depended` returns True, its expected tier becomes `component`, and the gate fails. The stamp must add zero new importer of flowexport.
+- [ ] `ai/rules/architecture.md` - cross-plugin data path rule (referenced by umbrella)
   → Constraint: cross-plugin data flows producer -> core feed -> component global -> consumer. Origin-AS must RIDE the `observation`/`trafficfeature` surface, stamped by the producer; the consumer must never fetch it.
-- [ ] `ai/rules/plugin-self-containment.md` - delete-the-folder invariant
+- [ ] `ai/rules/plugins.md` - delete-the-folder invariant
   → Constraint: removing flowexport must not break the observation/trafficfeature types. The AS field is an inert `uint32` on core/component structs that defaults to `0`; it carries meaning only while flowexport is loaded and enriching. Nothing in core/component may spell "flowexport".
 
 ### Source of the constraint (gate code, MUST read)
-- [ ] `scripts/dev/dep_audit.py` - `engine_depended(engine_rel, module, edges)` at dep_audit.py:486-506
+- [ ] `scripts/dev/dep_audit.py` - `engine_depended(engine_rel, module, edges)` at dep_audit.py
   → Constraint: returns True when a non-test, non-registration importer under `internal/component/` or `internal/plugins/` (excluding the engine's own subtree and `NON_FEATURE_PREFIXES` core/chaos/test) imports the engine's package subtree. This is exactly what a `detect -> flowexport/enrich` import would trigger. The producer-stamp path adds no such importer, so the gate stays green.
   → Constraint: `make ze-tier-check` runs `dep_audit.py --selftest` then `--check` (Makefile:288-290); it is part of `_ze-verify-impl` (Makefile:274). The tier assertion in this spec is a gate run, not a Go test.
 
@@ -60,32 +60,32 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 - N/A -- no wire protocol change. Origin-AS already exists on the flow (populated from the BGP RIB by the flowexport enricher); this spec moves an in-process value between existing structs.
 
 **Key insights:**
-- The stamp point is `internal/plugins/flowexport/exporter.go`: `exportFlows` enriches each flow (`e.enricher.Enrich`, exporter.go:258; sets `flows[i].SrcAS/DstAS`, exporter.go:259-260) and then builds and publishes `observation.Observation{KindFlow, FeatureFlowBytes, ...}` (exporter.go:308-323). The AS is ALREADY materialized on the flow struct (`ConntrackFlow.SrcAS`, flowtypes.go:35) when the observation is constructed, so stamping is a **zero-lookup field copy** inside the existing publish loop.
-- flowexport is the **sole** publisher of `KindFlow` observations (grep: only exporter.go:312 constructs one), and `trafficfeature.ingest` processes **only** `KindFlow`+`FeatureFlowBytes` (feature.go:103). So the detector's entire fact surface is already 100% flowexport-derived. This spec adds an OPTIONAL field on that existing path; it does not create a new hard dependency (refines umbrella R-3).
-- The consumer (child 7) already imports `internal/component/trafficfeature` and takes a `trafficfeature.FeatureEntry` by value (`detector.go:213 scoreEntity(fe trafficfeature.FeatureEntry, ...)`). Reading a new `fe.SrcAS` field adds ZERO new imports.
+- The stamp point is `internal/plugins/flowexport/exporter.go`: `exportFlows` enriches each flow (`e.enricher.Enrich`, exporter.go; sets `flows[i].SrcAS/DstAS`, exporter.go) and then builds and publishes `observation.Observation{KindFlow, FeatureFlowBytes, ...}` (exporter.go). The AS is ALREADY materialized on the flow struct (`ConntrackFlow.SrcAS`, flowtypes.go) when the observation is constructed, so stamping is a **zero-lookup field copy** inside the existing publish loop.
+- flowexport is the **sole** publisher of `KindFlow` observations (grep: only exporter.go constructs one), and `trafficfeature.ingest` processes **only** `KindFlow`+`FeatureFlowBytes` (feature.go). So the detector's entire fact surface is already 100% flowexport-derived. This spec adds an OPTIONAL field on that existing path; it does not create a new hard dependency (refines umbrella R-3).
+- The consumer (child 7) already imports `internal/component/trafficfeature` and takes a `trafficfeature.FeatureEntry` by value (`detector.go scoreEntity(fe trafficfeature.FeatureEntry, ...)`). Reading a new `fe.SrcAS` field adds ZERO new imports.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read (BEFORE writing this spec):**
-- [ ] `internal/core/observation/observation.go` - `Observation` struct at observation.go:62-69 (Kind, Iface, Flow, Feature, Value, At); `FlowKey` at observation.go:54-60 (Src, Dst, SrcPort, DstPort, Proto); `KindFlow` at observation.go:41. `Feed.Publish` fans an `Observation` value to subscribers (observation.go:180); `Global()` is the process-wide feed (observation.go:220).
-  → Constraint: there is NO AS field on `Observation` or `FlowKey` today. `Observation` is a value copied through a `chan Observation` (bufferCap 1024, observation.go:71,115). A new field must be a plain scalar (no pointer, no slice) to keep the value copy-safe and allocation-free.
-- [ ] `internal/plugins/flowexport/exporter.go` - `exportFlows` (exporter.go:246) is the producer: enriches (`Enrich`, exporter.go:258), taps the recent ring, fans to collectors, then publishes one `KindFlow` observation per flow (exporter.go:308-323).
-  → Constraint: the publish loop reads `f := &flows[i]` (exporter.go:310); `f.SrcAS` is already set from enrichment above. Stamp inside this loop; do not add a second enricher call.
-- [ ] `internal/plugins/flowexport/enrich/enricher.go` - `Lookup(addr) (ASEntry, bool)` at enricher.go:44 returns the low-level radix hit; `Enrich(src,dst) Enrichment` at enricher.go:55 is the wrapper the producer actually calls (it calls Lookup twice, enricher.go:63/68). `Enrichment.SrcAS/DstAS uint32` (enricher.go:12-19); `ASEntry.AS uint32` (radix.go:9).
-  → Constraint: `SrcAS == 0` is the natural "unknown" sentinel: `Enrich` leaves `SrcAS` at 0 on a RIB miss, and the producer only enriches `if e.enricher != nil` (exporter.go:256). `ConntrackFlow.SrcAS` documents "0 if unknown" (flowtypes.go:35).
-- [ ] `internal/component/trafficfeature/service.go` - `FeatureEntry` at service.go:30-50 (Addr, FanOut, OutInRatio, PortEntropy, NewPeer, RarePort, Beaconing); `Snapshot` at service.go:54-58; `Service.Snapshot()` returns the latest finalized view (service.go:150). Service subscribes to `observation.Feed` and forwards each obs to `agg.ingest` (service.go:164).
+- [ ] `internal/core/observation/observation.go` - `Observation` struct at observation.go (Kind, Iface, Flow, Feature, Value, At); `FlowKey` at observation.go (Src, Dst, SrcPort, DstPort, Proto); `KindFlow` at observation.go. `Feed.Publish` fans an `Observation` value to subscribers (observation.go); `Global()` is the process-wide feed (observation.go).
+  → Constraint: there is NO AS field on `Observation` or `FlowKey` today. `Observation` is a value copied through a `chan Observation` (bufferCap 1024, observation.go,115). A new field must be a plain scalar (no pointer, no slice) to keep the value copy-safe and allocation-free.
+- [ ] `internal/plugins/flowexport/exporter.go` - `exportFlows` (exporter.go) is the producer: enriches (`Enrich`, exporter.go), taps the recent ring, fans to collectors, then publishes one `KindFlow` observation per flow (exporter.go).
+  → Constraint: the publish loop reads `f := &flows[i]` (exporter.go); `f.SrcAS` is already set from enrichment above. Stamp inside this loop; do not add a second enricher call.
+- [ ] `internal/plugins/flowexport/enrich/enricher.go` - `Lookup(addr) (ASEntry, bool)` at enricher.go returns the low-level radix hit; `Enrich(src,dst) Enrichment` at enricher.go is the wrapper the producer actually calls (it calls Lookup twice, enricher.go/68). `Enrichment.SrcAS/DstAS uint32` (enricher.go); `ASEntry.AS uint32` (radix.go).
+  → Constraint: `SrcAS == 0` is the natural "unknown" sentinel: `Enrich` leaves `SrcAS` at 0 on a RIB miss, and the producer only enriches `if e.enricher != nil` (exporter.go). `ConntrackFlow.SrcAS` documents "0 if unknown" (flowtypes.go).
+- [ ] `internal/component/trafficfeature/service.go` - `FeatureEntry` at service.go (Addr, FanOut, OutInRatio, PortEntropy, NewPeer, RarePort, Beaconing); `Snapshot` at service.go; `Service.Snapshot()` returns the latest finalized view (service.go). Service subscribes to `observation.Feed` and forwards each obs to `agg.ingest` (service.go).
   → Constraint: `FeatureEntry` is a pure value of facts (no verdict). The AS field is a fact (a measurable label), so it belongs here. It is returned by value in `Snapshot.Sources`.
-- [ ] `internal/component/trafficfeature/feature.go` - `sourceState` at feature.go:48-57 (window-scoped outBytes/inBytes/dests/ports reset each tick; persistent activity/firstTick/lastActiveTick/gaps carry across ticks). `ingest` folds one flow into the SOURCE role (feature.go:114-128) and the DEST role (feature.go:129-135). `snapshot` emits a `FeatureEntry` only for entities that acted as a source this window (`sent := st.outBytes > 0`, feature.go:169; built at feature.go:177-188; window fields cleared at feature.go:191-195).
+- [ ] `internal/component/trafficfeature/feature.go` - `sourceState` at feature.go (window-scoped outBytes/inBytes/dests/ports reset each tick; persistent activity/firstTick/lastActiveTick/gaps carry across ticks). `ingest` folds one flow into the SOURCE role (feature.go) and the DEST role (feature.go). `snapshot` emits a `FeatureEntry` only for entities that acted as a source this window (`sent := st.outBytes > 0`, feature.go; built at feature.go; window fields cleared at feature.go).
   → Constraint: the same `netip.Addr` is one `sourceState` regardless of role. In the SOURCE branch `obs.SrcAS` is THIS entity's AS; in the DEST branch `obs.SrcAS` is the OTHER endpoint's AS. Therefore AS must be stamped ONLY in the SOURCE branch. Only source entities are emitted today, so the source AS is exactly what a `FeatureEntry` needs.
-  → Constraint: AS is an entity property (its prefix's origin), so it belongs in the PERSISTENT part of `sourceState` and must NOT be cleared in the window reset (feature.go:191-195).
-- [ ] `internal/plugins/anomaly/detect/detector.go` - imports `internal/component/trafficfeature` (detector.go:18), consumes `trafficfeature.Snapshot()` (register.go:114) and `trafficfeature.FeatureEntry` by value (detector.go:213). Does NOT import flowexport (grep: only a comment in a test).
+  → Constraint: AS is an entity property (its prefix's origin), so it belongs in the PERSISTENT part of `sourceState` and must NOT be cleared in the window reset (feature.go).
+- [ ] `internal/plugins/anomaly/detect/detector.go` - imports `internal/component/trafficfeature` (detector.go), consumes `trafficfeature.Snapshot()` (register.go) and `trafficfeature.FeatureEntry` by value (detector.go). Does NOT import flowexport (grep: only a comment in a test).
   → Constraint: this is the future consumer (child 7). It already has the imports needed to read `fe.SrcAS`; child 6 must not require it to import anything new. Child 6 does NOT modify the detector.
 
 **Behavior to preserve:**
 - `Observation` stays a copy-safe value on `chan Observation`; `Publish` stays non-blocking.
 - `trafficfeature` stays neutral facts (no verdict); it ingests only `KindFlow`+`FeatureFlowBytes`.
 - flowexport stays an edge plugin in `internal/plugins`; nothing in core/component spells "flowexport".
-- Existing flow-record / NetFlow / IPFIX collector fan-out and the `show flow-recent` src-as column (cmd_show.go:142) are unchanged.
+- Existing flow-record / NetFlow / IPFIX collector fan-out and the `show flow-recent` src-as column (cmd_show.go) are unchanged.
 
 **Behavior to change:**
 - `Observation` gains an origin-AS scalar; the flowexport producer sets it from the already-enriched flow; `trafficfeature` carries it through ingest to `FeatureEntry`. All additive; `0` when unknown.
@@ -93,26 +93,26 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- A conntrack flow inside flowexport, enriched with its source origin-AS from the BGP RIB radix tree (`ConntrackFlow.SrcAS`, flowtypes.go:35, set at exporter.go:259).
+- A conntrack flow inside flowexport, enriched with its source origin-AS from the BGP RIB radix tree (`ConntrackFlow.SrcAS`, flowtypes.go, set at exporter.go).
 
 ### Transformation Path
-1. **Stamp (producer):** in `exportFlows` publish loop (exporter.go:308-323), copy `f.SrcAS` onto the `Observation` being built. No new enricher call; the value is already on the flow.
-2. **Feed (core):** the enlarged `Observation` value rides `observation.Feed.Publish` -> subscriber channels unchanged (observation.go:180).
-3. **Ingest (component):** `trafficfeature.Service` forwards each obs to `agg.ingest` (service.go:164); in the SOURCE-role branch (feature.go:114-128) the entity's persistent `sourceState` records `obs.SrcAS` (only when non-zero, so an unknown-AS flow never clobbers a previously known AS).
-4. **Snapshot (component):** `agg.snapshot` copies the persistent AS into the emitted `FeatureEntry.SrcAS` (feature.go:177-188); returned by value in `Snapshot.Sources`.
+1. **Stamp (producer):** in `exportFlows` publish loop (exporter.go), copy `f.SrcAS` onto the `Observation` being built. No new enricher call; the value is already on the flow.
+2. **Feed (core):** the enlarged `Observation` value rides `observation.Feed.Publish` -> subscriber channels unchanged (observation.go).
+3. **Ingest (component):** `trafficfeature.Service` forwards each obs to `agg.ingest` (service.go); in the SOURCE-role branch (feature.go) the entity's persistent `sourceState` records `obs.SrcAS` (only when non-zero, so an unknown-AS flow never clobbers a previously known AS).
+4. **Snapshot (component):** `agg.snapshot` copies the persistent AS into the emitted `FeatureEntry.SrcAS` (feature.go); returned by value in `Snapshot.Sources`.
 5. **Consume (out of scope, child 7):** the detector reads `fe.SrcAS` from the same `Snapshot()` it already reads; `0` -> degrade to prefix cohorts.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| flowexport (plugin) -> observation (core) | existing `observation.Global().Publish` at exporter.go:308-322; AS rides as a new struct field, no new import | [ ] |
-| observation (core) -> trafficfeature (component) | existing feed subscription (service.go:164); field read in `ingest` | [ ] |
+| flowexport (plugin) -> observation (core) | existing `observation.Global().Publish` at exporter.go; AS rides as a new struct field, no new import | [ ] |
+| observation (core) -> trafficfeature (component) | existing feed subscription (service.go); field read in `ingest` | [ ] |
 | trafficfeature (component) -> detect (plugin, child 7) | existing `Snapshot()` / `FeatureEntry` value read; `fe.SrcAS` adds no import | [ ] |
 | detect -/-> flowexport (FORBIDDEN) | must remain absent; `ze-tier-check` proves no such edge exists | [ ] |
 
 ### Integration Points
-- `internal/plugins/flowexport/exporter.go:308-323` - the publish loop that gains the stamp.
-- `internal/core/observation/observation.go:62-69` - the `Observation` struct that gains `SrcAS`.
+- `internal/plugins/flowexport/exporter.go` - the publish loop that gains the stamp.
+- `internal/core/observation/observation.go` - the `Observation` struct that gains `SrcAS`.
 - `internal/component/trafficfeature/{feature.go,service.go}` - `sourceState`/`FeatureEntry` carry it.
 
 ### Architectural Verification
@@ -127,27 +127,27 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Producer-stamping is tier-safe; only a `detect -> flowexport/enrich` import trips the gate | `dep_audit.py` `engine_depended` 486-506; flowexport is an edge engine (register.go:100) not in `tier_migration_baseline.txt` | design invalid | run `make ze-tier-check` after the change; grep for any `internal/plugins/anomaly` -> `internal/plugins/flowexport` import | **confirmed** (gate code read; no new importer is introduced) |
-| A-2 | The AS is already on the flow at publish time, so the stamp is a field copy with no extra lookup | `ConntrackFlow.SrcAS` flowtypes.go:35; set at exporter.go:259 before the publish loop at exporter.go:308 | need a second enricher call | read exporter.go 246-324 | **confirmed** |
-| A-3 | `SrcAS == 0` is a safe "unknown" sentinel (public ASNs are never 0; AS0 is reserved) | `Enrich` leaves 0 on RIB miss (enricher.go:55-76); flowtypes.go:35 "0 if unknown"; RFC 7607 reserves AS0 | a real AS0 flow reads as unknown | none needed (AS0 is reserved and never announced) | **confirmed** |
-| A-4 | Only source entities are emitted, so a source-branch stamp fully populates every `FeatureEntry` | `sent := st.outBytes > 0` gate feature.go:169; dest-only entities carry `inBytes` and are not emitted | dest entities would carry wrong/zero AS | read feature.go 141-209; unit test asserts `FeatureEntry.SrcAS` matches the source's AS | **confirmed** |
-| A-5 | Adding a `uint32` to `Observation` does not break the value-copy feed or other consumers | `Feed.Publish` copies the value (observation.go:180); other consumers (`trafficstat/window.go:74`) read only fields they know | feed regression | `make ze-unit-test`; existing observation/trafficstat tests | unvalidated |
+| A-1 | Producer-stamping is tier-safe; only a `detect -> flowexport/enrich` import trips the gate | `dep_audit.py` `engine_depended` 486-506; flowexport is an edge engine (register.go) not in `tier_migration_baseline.txt` | design invalid | run `make ze-tier-check` after the change; grep for any `internal/plugins/anomaly` -> `internal/plugins/flowexport` import | **confirmed** (gate code read; no new importer is introduced) |
+| A-2 | The AS is already on the flow at publish time, so the stamp is a field copy with no extra lookup | `ConntrackFlow.SrcAS` flowtypes.go; set at exporter.go before the publish loop at exporter.go | need a second enricher call | read exporter.go 246-324 | **confirmed** |
+| A-3 | `SrcAS == 0` is a safe "unknown" sentinel (public ASNs are never 0; AS0 is reserved) | `Enrich` leaves 0 on RIB miss (enricher.go); flowtypes.go "0 if unknown"; RFC 7607 reserves AS0 | a real AS0 flow reads as unknown | none needed (AS0 is reserved and never announced) | **confirmed** |
+| A-4 | Only source entities are emitted, so a source-branch stamp fully populates every `FeatureEntry` | `sent := st.outBytes > 0` gate feature.go; dest-only entities carry `inBytes` and are not emitted | dest entities would carry wrong/zero AS | read feature.go 141-209; unit test asserts `FeatureEntry.SrcAS` matches the source's AS | **confirmed** |
+| A-5 | Adding a `uint32` to `Observation` does not break the value-copy feed or other consumers | `Feed.Publish` copies the value (observation.go); other consumers (`trafficstat/window.go`) read only fields they know | feed regression | `make ze-unit-test`; existing observation/trafficstat tests | unvalidated |
 | A-6 | AS on a source entity is stable within a window (same prefix -> same origin AS) so last-non-zero-write-wins is correct | AS is a function of the source prefix in the RIB | flapping AS within a window | stamp only on non-zero `obs.SrcAS`, keep persistent | **confirmed** (design choice records last known AS) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Security domain becomes dependent on flowexport being enabled | detector produces nothing when flowexport is off | **pre-existing, not introduced here**: flowexport is the sole `KindFlow` publisher (exporter.go:312) and `trafficfeature` ingests only `KindFlow` (feature.go:103), so the fact surface already requires flowexport. AS is strictly additive; `SrcAS == 0` degrades to prefix cohorts (umbrella R-3) |
+| R-1 | Security domain becomes dependent on flowexport being enabled | detector produces nothing when flowexport is off | **pre-existing, not introduced here**: flowexport is the sole `KindFlow` publisher (exporter.go) and `trafficfeature` ingests only `KindFlow` (feature.go), so the fact surface already requires flowexport. AS is strictly additive; `SrcAS == 0` degrades to prefix cohorts (umbrella R-3) |
 | R-2 | An unknown-AS flow (RIB miss) overwrites a previously known AS on the same source within a window | source entity's `SrcAS` drops to 0 mid-window | stamp only when `obs.SrcAS != 0`; keep `srcAS` in the persistent (non-reset) part of `sourceState` |
 | R-3 | Enlarging `Observation` raises per-observation copy cost / channel memory | throughput regression under high flow rate | field is a single `uint32` (4 bytes, likely absorbed by struct alignment); no allocation; measure with existing flow-export benchmarks if concerned |
-| R-4 | A future dest-entity axis (child 5) needs the dest AS, which this spec does not carry | child 5 finds no dest AS on the observation | documented in Known Limitations: `DstAS` is a one-line additive follow-up owned by child 5 when it emits dest entities; `ConntrackFlow.DstAS` already exists (flowtypes.go:36) |
+| R-4 | A future dest-entity axis (child 5) needs the dest AS, which this spec does not carry | child 5 finds no dest AS on the observation | documented in Known Limitations: `DstAS` is a one-line additive follow-up owned by child 5 when it emits dest entities; `ConntrackFlow.DstAS` already exists (flowtypes.go) |
 | R-5 | Someone "simplifies" by importing `flowexport/enrich` from the detector to get AS directly | `make ze-tier-check` exit 2 naming flowexport | the gate is the guardrail; this spec exists precisely to make that import unnecessary |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| flowexport publishes an enriched flow (`f.SrcAS` set) | → | stamp in `exportFlows` publish loop (exporter.go:308-323) | `TestExportFlowsStampsSrcAS` (flowexport: subscribe to a feed, run `exportFlows`, assert published `Observation.SrcAS == f.SrcAS`) |
+| flowexport publishes an enriched flow (`f.SrcAS` set) | → | stamp in `exportFlows` publish loop (exporter.go) | `TestExportFlowsStampsSrcAS` (flowexport: subscribe to a feed, run `exportFlows`, assert published `Observation.SrcAS == f.SrcAS`) |
 | a `KindFlow` observation with `SrcAS=N` enters the feed | → | `agg.ingest` source branch + `snapshot` (feature.go) | `TestFeatureEntryCarriesSrcAS` (trafficfeature: ingest an obs with `SrcAS=N`, tick, assert `Snapshot().Sources[i].SrcAS == N`) |
 | an unknown-AS flow (`SrcAS=0`) | → | same path, sentinel behavior | `TestFeatureEntrySrcASUnsetWhenUnknown` (assert `FeatureEntry.SrcAS == 0`, no clobber of a prior known AS) |
 | the whole change compiled | → | no forbidden import edge | `make ze-tier-check` passes (`dep_audit.py --check` exit 0); grep proves no `anomaly -> flowexport` import |
@@ -166,7 +166,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | runs flowexport with BGP enrichment on, so flows carry origin-AS | flow enriched (exporter.go:258) -> `Observation.SrcAS` stamped (exporter.go:~321) -> feed -> `trafficfeature` ingest -> `FeatureEntry.SrcAS` in `Snapshot()` | `TestExportFlowsStampsSrcAS` + `TestFeatureEntryCarriesSrcAS` |
+| 1 | runs flowexport with BGP enrichment on, so flows carry origin-AS | flow enriched (exporter.go) -> `Observation.SrcAS` stamped (exporter.go:~321) -> feed -> `trafficfeature` ingest -> `FeatureEntry.SrcAS` in `Snapshot()` | `TestExportFlowsStampsSrcAS` + `TestFeatureEntryCarriesSrcAS` |
 | 2 | runs flowexport without BGP enrichment (no RIB) | flow `SrcAS=0` -> observation `SrcAS=0` -> `FeatureEntry.SrcAS=0` (child 7 will degrade to prefix cohorts) | `TestFeatureEntrySrcASUnsetWhenUnknown` |
 | 3 | (child 7, out of scope) sees AS-origin cohorts in `show anomaly detect` | detector reads `fe.SrcAS` from the same Snapshot | owned by `spec-anomaly-7-as-entities-cohorts.md` |
 
@@ -202,10 +202,10 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 
 ## Files to Modify
 <!-- Check // Design: annotations on each file. -->
-- `internal/core/observation/observation.go` - add a `SrcAS uint32` field to the `Observation` struct (observation.go:62-69). Design ref: `plan/learned/1016-observation-feed.md`.
-- `internal/plugins/flowexport/exporter.go` - in the publish loop (exporter.go:308-323), stamp `obs.SrcAS = f.SrcAS`. Design ref: `plan/learned/819-flow-export-2-flow-records.md`.
-- `internal/component/trafficfeature/service.go` - add `SrcAS uint32` to `FeatureEntry` (service.go:30-50).
-- `internal/component/trafficfeature/feature.go` - add a persistent `srcAS uint32` to `sourceState` (feature.go:48-57); stamp it in the SOURCE-role branch of `ingest` only when `obs.SrcAS != 0` (feature.go:114-128); copy it into `FeatureEntry.SrcAS` in `snapshot` (feature.go:177-188); do NOT clear it in the window reset (feature.go:191-195).
+- `internal/core/observation/observation.go` - add a `SrcAS uint32` field to the `Observation` struct (observation.go). Design ref: `plan/learned/1016-observation-feed.md`.
+- `internal/plugins/flowexport/exporter.go` - in the publish loop (exporter.go), stamp `obs.SrcAS = f.SrcAS`. Design ref: `plan/learned/819-flow-export-2-flow-records.md`.
+- `internal/component/trafficfeature/service.go` - add `SrcAS uint32` to `FeatureEntry` (service.go).
+- `internal/component/trafficfeature/feature.go` - add a persistent `srcAS uint32` to `sourceState` (feature.go); stamp it in the SOURCE-role branch of `ingest` only when `obs.SrcAS != 0` (feature.go); copy it into `FeatureEntry.SrcAS` in `snapshot` (feature.go); do NOT clear it in the window reset (feature.go).
 
 ### BGP Family Checklist (if new SAFI / capability / attribute)
 N/A -- this spec adds no SAFI, capability, or attribute; no wire format changes. (Delete-per-template: not a BGP protocol extension.)
@@ -216,7 +216,7 @@ N/A -- this spec adds no SAFI, capability, or attribute; no wire format changes.
 | YANG schema (new RPCs/config) | No | N/A -- no new config; AS enrichment is governed by flowexport's existing enricher, not a new knob |
 | YANG validation constraints | No | N/A -- no new leaf |
 | YANG custom validators | No | N/A |
-| CLI commands/flags | No | N/A -- no new CLI; `show flow-recent` already prints src-as (cmd_show.go:142); the AS-on-anomaly CLI is child 7 |
+| CLI commands/flags | No | N/A -- no new CLI; `show flow-recent` already prints src-as (cmd_show.go); the AS-on-anomaly CLI is child 7 |
 | CLI grammar (action before identifier) | No | N/A |
 | Editor autocomplete | No | N/A |
 | Functional test for new RPC/API | No | N/A -- no new RPC/API; proven by unit + tier-check (child 7 owns the daemon `.ci`) |
@@ -341,14 +341,14 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
-- The umbrella framed this as "stamp where the producer calls `enrich.Enricher.Lookup`." The precise producer calls the higher-level `Enrich` wrapper (exporter.go:258), and crucially the AS is ALREADY on the `ConntrackFlow` struct (`SrcAS`, flowtypes.go:35) when the observation is built (exporter.go:311). So the stamp is a pure field copy with **no lookup at all** -- even cheaper than the umbrella implied.
+- The umbrella framed this as "stamp where the producer calls `enrich.Enricher.Lookup`." The precise producer calls the higher-level `Enrich` wrapper (exporter.go), and crucially the AS is ALREADY on the `ConntrackFlow` struct (`SrcAS`, flowtypes.go) when the observation is built (exporter.go). So the stamp is a pure field copy with **no lookup at all** -- even cheaper than the umbrella implied.
 - The "hard dependency on flowexport" (umbrella R-3) is not introduced by AS work: flowexport is already the sole `KindFlow` publisher and `trafficfeature` ingests only `KindFlow`, so the detector's facts already require flowexport. AS is strictly an additive optional label on the existing path.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Stamp `SrcAS` at the flowexport producer onto `observation.Observation` | (a) import `flowexport/enrich` from the detector; (b) a separate AS side-channel feed | (a) fails `ze-tier-check` (`engine_depended`, dep_audit.py:486-506); (b) duplicates the feed. Producer-stamp reuses the value already on the flow and adds zero import edges |
-| Carry `SrcAS` only (not `DstAS`) in this spec | carry both now | only source entities are emitted (`sent := st.outBytes > 0`, feature.go:169) and child 7 reads `fe.SrcAS`; `DstAS` is unused until child 5 emits dest entities. No-speculative-features. `DstAS` is a one-line additive follow-up (`ConntrackFlow.DstAS` already exists) |
+| Stamp `SrcAS` at the flowexport producer onto `observation.Observation` | (a) import `flowexport/enrich` from the detector; (b) a separate AS side-channel feed | (a) fails `ze-tier-check` (`engine_depended`, dep_audit.py); (b) duplicates the feed. Producer-stamp reuses the value already on the flow and adds zero import edges |
+| Carry `SrcAS` only (not `DstAS`) in this spec | carry both now | only source entities are emitted (`sent := st.outBytes > 0`, feature.go) and child 7 reads `fe.SrcAS`; `DstAS` is unused until child 5 emits dest entities. No-speculative-features. `DstAS` is a one-line additive follow-up (`ConntrackFlow.DstAS` already exists) |
 | Stamp in the SOURCE-role ingest branch only | stamp in both roles | in the DEST branch `obs.SrcAS` is the OTHER endpoint's AS; stamping it would mislabel the entity (A-4). The source branch sees the entity-as-source, where `obs.SrcAS` is correct |
 | Persist `srcAS` across window reset; overwrite only on non-zero | reset per window; always overwrite | AS is an entity property (its prefix), stable across windows; a later unknown-AS flow (RIB miss) must not clobber a known AS (R-2) |
 | `SrcAS == 0` is the "unknown" sentinel | a separate `HasAS bool` | AS0 is reserved (RFC 7607) and never announced, so 0 is unambiguous; matches the existing `ConntrackFlow.SrcAS` "0 if unknown" convention and enables child 7's degrade-to-prefix cleanly |
@@ -356,7 +356,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Known Limitations
 - Carries source origin-AS only. Destination-AS (`DstAS`) is deferred to child 5 (`entity-matrix`), which introduces dest entities; the value already exists on the flow, so it is a one-field additive change when needed.
 - No operator-facing surface in child 6. The AS becomes visible to operators only when child 7 scores AS-origin cohorts / per-ASN entities in `show anomaly detect`.
-- No new metric to confirm AS coverage. `show flow-recent` (cmd_show.go:142) already exposes src-as as an indirect signal that enrichment is working; a dedicated coverage counter is a possible future add.
+- No new metric to confirm AS coverage. `show flow-recent` (cmd_show.go) already exposes src-as as an indirect signal that enrichment is working; a dedicated coverage counter is a possible future add.
 
 ## Core Insight
 The tier boundary is enforced by making the seam unnecessary, not by adding a shared package: the

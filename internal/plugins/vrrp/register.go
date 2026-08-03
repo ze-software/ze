@@ -6,7 +6,7 @@
 // Registration is the plugin's whole coupling to ze: an init() that hands the
 // registry a Registration, plus generated blank imports. Delete this directory,
 // run `make generate`, and every vrrp surface (config schema, commands, doctor
-// codes, metrics, events) disappears with it (ai/rules/plugin-self-containment.md).
+// codes, metrics, events) disappears with it (ai/rules/plugins.md).
 package vrrp
 
 import (

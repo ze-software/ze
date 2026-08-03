@@ -41,17 +41,17 @@ implementation proved that design impossible for the reject case and it was repl
 ## Gotchas
 
 - **An observer plugin cannot watch a plugin that fails startup.** as112 refuses at the top of
-  `RunEngine` (`internal/plugins/as112/register.go:223-225`), which is a plugin-startup
-  failure; `StartupCoordinator.PluginFailed` (`internal/component/plugin/startup_coordinator.go:147-164`)
+  `RunEngine` (`internal/plugins/as112/register.go`), which is a plugin-startup
+  failure; `StartupCoordinator.PluginFailed` (`internal/component/plugin/startup_coordinator.go`)
   "aborts the ENTIRE startup process", so a co-located observer plugin dies at the barrier
   ("plugin 0 failed: startup incomplete"). The daemon does not exit on the failure either
-  (`startup.go:116-118` logs and returns, keeps running; no later plugin phase runs). The whole
+  (`startup.go` logs and returns, keeps running; no later plugin phase runs). The whole
   reject-fence bucket shares this -- do not try to fence a refuse via an in-daemon observer.
   The warn case (cos) is different: it completes startup, so an observer WOULD work there --
   but await is simpler and uniform.
 - **`system subsystem list` has two parallel handlers.** The dispatchable command
   `system subsystem list` reaches `handleSystemSubsystemList`
-  (`internal/component/plugin/server/system.go:271`); `show system subsystem list` reaches a
+  (`internal/component/plugin/server/system.go`); `show system subsystem list` reaches a
   near-identical `handleShowSystemSubsystemList` (`internal/component/cmd/show/system.go`). The
   first (server) is the one a plugin/observer dispatch actually hits, proven by
   `test/plugin/subsystem-list.ci`.
@@ -59,8 +59,8 @@ implementation proved that design impossible for the reject case and it was repl
   `.ci`, including a comment that says "replaced the time.sleep(4.0)". Reword conversion
   comments (e.g. "4.0s sleep") or the count never drops.
 - **A bare `.ci` foreground process cannot dispatch engine commands.** `API()` needs
-  `ZE_PLUGIN_HUB_TOKEN`/engine FDs (`test/scripts/ze_api.py:103-112`), set only for
-  daemon-spawned plugins (`process.go:578-584`); a `cmd=foreground:exec=python3 ...` has none.
+  `ZE_PLUGIN_HUB_TOKEN`/engine FDs (`test/scripts/ze_api.py`), set only for
+  daemon-spawned plugins (`process.go`); a `cmd=foreground:exec=python3 ...` has none.
   This is why the queryable-state design needed an observer plugin at all (and why await,
   which reads the daemon's own captured stderr, sidesteps it).
 - **When adding an early-teardown wait, guard BOTH daemon-ready waits.** The foreground and
@@ -68,7 +68,7 @@ implementation proved that design impossible for the reject case and it was repl
   leaves a latent 5s stall on the other path (found in review).
 - **Mutation-verify this fence by inverting the producer's guard, never by swapping
   plugins.** The line the test awaits is emitted behind `if !p.IsInternal()`
-  (`pkg/plugin/sdk/sdk.go:148`, called at `internal/plugins/as112/register.go:223`).
+  (`pkg/plugin/sdk/sdk.go`, called at `internal/plugins/as112/register.go`).
   Inverting that condition is the authoritative mutation: it removes the refusal the
   fence exists to observe. Substituting a different plugin changes the fixture instead
   of the producer, so the test can stay green while proving nothing.

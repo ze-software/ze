@@ -43,9 +43,9 @@ Add isolated-CPU-aware worker placement plus CPU validation:
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/research/vpp-deployment-reference.md` - startup.conf `cpu {}` syntax and production values (already referenced by `startupconf.go:1`).
+- [ ] `docs/research/vpp-deployment-reference.md` - startup.conf `cpu {}` syntax and production values (already referenced by `startupconf.go`).
   → Constraint: VPP accepts `main-core` + either `workers` (count) or `corelist-workers` (explicit ids); Ze emits `corelist-workers`.
-- [ ] `ai/rules/config-surface.md` - CPU pinning is operator config.
+- [ ] `ai/rules/config.md` - CPU pinning is operator config.
   → Constraint: keep operator ergonomics (a worker count) while sourcing the actual ids from the isolated set.
 
 **Key insights:**
@@ -55,8 +55,8 @@ Add isolated-CPU-aware worker placement plus CPU validation:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/vpp/startupconf.go` - the `cpu {}` section writes `main-core` directly and computes `corelist-workers` via `workerCoreList(mainCore, count)` as a contiguous range `mainCore+1 .. mainCore+count` (startupconf.go:42-53, `workerCoreList` at :124-131). No isolated-CPU sourcing.
-- [ ] `internal/component/vpp/config.go` - `CPUSettings{MainCore *uint8; Workers *uint8}` (config.go:51-53); `parseCPU` only range-checks uint8 and rejects unknown keys (config.go:323-347); `VPPSettings.Validate()` never references CPU/core (config.go:282-321).
+- [ ] `internal/component/vpp/startupconf.go` - the `cpu {}` section writes `main-core` directly and computes `corelist-workers` via `workerCoreList(mainCore, count)` as a contiguous range `mainCore+1 .. mainCore+count` (startupconf.go, `workerCoreList` at :124-131). No isolated-CPU sourcing.
+- [ ] `internal/component/vpp/config.go` - `CPUSettings{MainCore *uint8; Workers *uint8}` (config.go); `parseCPU` only range-checks uint8 and rejects unknown keys (config.go); `VPPSettings.Validate()` never references CPU/core (config.go).
 - [ ] `internal/component/vpp/yang/ze-vpp-conf.yang` - exposes only `main-core` and `workers` (count) under `cpu` (cpu container :46, main-core :49, workers :56).
 
 ### Post-wave corrections (2026-07-10)
@@ -64,18 +64,18 @@ Add isolated-CPU-aware worker placement plus CPU validation:
 All refs re-verified against current code after the followup-spec wave (the
 wireguard startup.conf toggle landed in the SAME files):
 
-- Line drift corrected in place above (old -> new): `CPUSettings` config.go:43-46
+- Line drift corrected in place above (old -> new): `CPUSettings` config.go
   -> :51-53; `parseCPU` :296-319 -> :323-347; `Validate` :255-294 -> :282-321
   (re-read in full: still NO CPU/core validation -- the gap this spec closes is
-  confirmed open); `workerCoreList` startupconf.go:119-127 -> :124-131 (re-read:
+  confirmed open); `workerCoreList` startupconf.go -> :124-131 (re-read:
   still the naive contiguous range mainCore+1..mainCore+count). The `cpu {}`
-  section is unchanged at startupconf.go:42-53; yang cpu container :46,
+  section is unchanged at startupconf.go; yang cpu container :46,
   main-core :49, workers :56.
 - Rebase requirement: the wave added a VPP plugin-enablement surface in these
-  same files -- `PluginSettings` on `VPPSettings` (config.go:40), `parsePlugins`
-  (config.go:267), a `plugins {}` startup.conf section (startupconf.go:69-88)
+  same files -- `PluginSettings` on `VPPSettings` (config.go), `parsePlugins`
+  (config.go), a `plugins {}` startup.conf section (startupconf.go)
   with the wireguard toggle (`s.Plugins.Wireguard`, :84-86), and a yang
-  `plugins` container with the `wireguard` leaf (ze-vpp-conf.yang:200). The
+  `plugins` container with the `wireguard` leaf (ze-vpp-conf.yang). The
   cpu work must rebase onto this layout: the generated `cpu {}` section sits
   above the new `plugins {}` section, and new cpu leaves join a schema that
   now also carries the plugins container. No design change needed, only
@@ -96,7 +96,7 @@ wireguard startup.conf toggle landed in the SAME files):
 - Host facts: the kernel-isolated CPU set (`/sys/devices/system/cpu/isolated`) and the online CPU inventory.
 
 ### Transformation Path
-1. `parseCPU` reads the cpu leaves into `CPUSettings` (config.go:323-347).
+1. `parseCPU` reads the cpu leaves into `CPUSettings` (config.go).
 2. `Validate()` gains CPU checks: requested cores exist in the online inventory; `main-core` disjoint from worker cores; enough isolated CPUs for the worker count.
 3. Worker core selection draws from the isolated set (via a new helper that reads `/sys/devices/system/cpu/isolated`), replacing the naive `mainCore+1..` arithmetic.
 4. `startupconf.go` emits `main-core` + `corelist-workers` from the validated, isolated-sourced core list.
@@ -111,8 +111,8 @@ wireguard startup.conf toggle landed in the SAME files):
 | VPP config ↔ kernel config | chosen cores requested as isolated at boot | [ ] |
 
 ### Integration Points
-- `workerCoreList` (`startupconf.go:124-131`) - replace/augment with isolated-set sourcing.
-- `VPPSettings.Validate()` (`config.go:282-321`) - add CPU validation.
+- `workerCoreList` (`startupconf.go`) - replace/augment with isolated-set sourcing.
+- `VPPSettings.Validate()` (`config.go`) - add CPU validation.
 - kernel/boot config (gokrazy cmdline) - request isolation for the VPP core set.
 
 ### Architectural Verification
@@ -200,9 +200,9 @@ wireguard startup.conf toggle landed in the SAME files):
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new/changed config) | [ ] maybe | `ze-vpp-conf.yang` cpu leaves; `ai/rules/config-surface.md`, `ai/rules/config-naming.md` |
+| YANG schema (new/changed config) | [ ] maybe | `ze-vpp-conf.yang` cpu leaves; `ai/rules/config.md`, `ai/rules/config.md` |
 | YANG validation constraints | [ ] yes | ranges; custom validator if cross-field |
-| Doctor check for runtime dependencies | [ ] yes | reads `/sys/devices/system/cpu/isolated`; `ai/rules/doctor-checks.md` |
+| Doctor check for runtime dependencies | [ ] yes | reads `/sys/devices/system/cpu/isolated`; `ai/rules/repo-maintenance.md` |
 | Functional test for new behaviour | [ ] yes | `test/plugin/vpp-isolated-cpus.ci` |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -271,8 +271,8 @@ wireguard startup.conf toggle landed in the SAME files):
   that computes per-appliance extra kernel arguments and hands them to gok via a
   derived instance config (temp parent dir patching `KernelExtraArgs` of
   `gokrazy/ze/config.json`; gok resolves `<parent_dir>/<instance>/config.json`,
-  gokrazy/internal instanceflag.go:83-85; packer appends the args to /cmdline.txt,
-  tools packer/write.go:71-135). Whichever spec is implemented first creates the
+  gokrazy/internal instanceflag.go; packer appends the args to /cmdline.txt,
+  tools packer/write.go). Whichever spec is implemented first creates the
   seam and the derived-config writer; the second only adds its arguments there.
   Do not build a second cmdline path.
 

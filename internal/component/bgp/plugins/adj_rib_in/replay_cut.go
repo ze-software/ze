@@ -18,7 +18,7 @@ package adj_rib_in
 // excludes a peer only on `msgID <= ForwardFrom`, never true at ForwardFrom 0)
 // forwarded the same route live. Both rails reach the reactor's forwardUpdateCore,
 // so the peer received two byte-identical UPDATEs back to back
-// (ai/rules/fail-closed-guards.md: a zero value must never be a valid-looking
+// (ai/rules/evidence.md: a zero value must never be a valid-looking
 // answer).
 type replayCut struct {
 	// maxMsgID is the newest reactor MessageID the caller had taken delivery of at

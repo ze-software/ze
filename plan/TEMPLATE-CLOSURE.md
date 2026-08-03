@@ -42,7 +42,7 @@
 
 ## Implementation Audit
 
-<!-- BLOCKING before the learned summary. See ai/rules/implementation-audit.md.
+<!-- BLOCKING before the learned summary. See ai/rules/completion.md.
      Status: Done (with file:line) | Partial | Skipped | Changed.
      Partial and Skipped both require explicit user approval. -->
 
@@ -88,7 +88,7 @@
      The spec's own shard is git rm'd at closure ONLY when every row in it is
      terminal; a shard still holding a live row outlives its source spec and
      deferral_shard_removal_problems blocks its removal
-     (ai/rules/deferral-tracking.md). Account for every row here.
+     (ai/rules/planning.md). Account for every row here.
      If resolving a row empties a FOREIGN shard (its last live row becomes
      terminal), that shard is now residue and this closure removes it too. -->
 | Row (from the deferral shard) | Final Status | Destination or evidence |
@@ -97,7 +97,7 @@
 
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/critical-review.md). The review is INDEPENDENT: reviewer
+<!-- BLOCKING (ai/rules/planning.md). The review is INDEPENDENT: reviewer
      subagents or a fresh session over the actual diff, never your own inline
      reasoning about code you just wrote.
 

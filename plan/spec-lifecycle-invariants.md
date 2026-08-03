@@ -117,7 +117,7 @@ those two rows true rather than changing them.
   → Constraint: handler registries delegate (`l2tp.Register*` forwards to `subscriber.Register*`); event subscriptions do not. Never assume a working handler implies a working subscription.
 - [ ] `plan/learned/885-cos-dynamic.md` - the CoS session handler this spec migrates
   → Constraint: `cos/register.go` passes a nil `resolveStatic`, so `onSessionDown` pushes nil maps and wipes the VLAN QoS map rather than restoring the configured profile. Fix while migrating, do not preserve.
-- [ ] `ai/rules/data-flow-tracing.md` - required before a spec whose data crosses a boundary
+- [ ] `ai/rules/architecture.md` - required before a spec whose data crosses a boundary
   → Constraint: trace the producer of every value, not the consumer; the boundary table must name how each crossing is verified.
 - [ ] `ai/rules/rfc-compliance.md` - six enrolled RFCs are in scope
   → Decision: full compliance plus a tagged test is the answer and needs no permission; only doing LESS requires asking.
@@ -211,7 +211,7 @@ map key today, which is why the keyspace phase precedes the migration phase.
 | `Subsystem.wireObserverSubscriptions` | Up, Down, IPAssigned, EchoRTT | `ReleaseSession` is typed on a uint16 session id, and `EchoRTT` has no subscriber-namespace equivalent | keyspace phase re-types the release; EchoRTT stays on `l2tpevents` because it is transport-level, not lifecycle |
 | `subscriberBridge.subscribe` | Up, Down, IPAssigned | none; it is the producer | unchanged |
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 Three independent entry points converge on the same downstream consumers.
@@ -250,7 +250,7 @@ Three independent entry points converge on the same downstream consumers.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
@@ -410,7 +410,7 @@ tests instead.
 - `scripts/evidence/effective-vpp.py`, `scripts/evidence/effective-vpp-iface.py` - pin the VPP image
 - `scripts/dev/verify_wiring_docs.py` - add the emit-versus-subscribe predicate
 - `ai/rules/interop-and-goal-validation.md` - add the contention vacuity-trap row
-- `ai/rules/before-writing-code.md` - add the fresh-versus-restore trigger row
+- `ai/rules/architecture.md` - add the fresh-versus-restore trigger row
 - `rfc/short/rfc2865.md`, `rfc/short/rfc2866.md`, `rfc/short/rfc3954.md`, `rfc/short/rfc5176.md` - extract the missing obligations
 - `docs/features/rfc-status.md` - keep the ledger in step with the summaries
 - `plan/spec-finish-l2tp.md` - correct the stale L41 row and close L42
@@ -500,7 +500,7 @@ tests instead.
    - Verify: existing whole-millisecond configs produce byte-identical startup.conf (A-5)
 10. **Phase: Guards and rules** - the emit-versus-subscribe predicate and the two rule rows
    - Tests: `test_emit_without_subscribe_is_reported`
-   - Files: `scripts/dev/verify_wiring_docs.py`, `ai/rules/interop-and-goal-validation.md`, `ai/rules/before-writing-code.md`
+   - Files: `scripts/dev/verify_wiring_docs.py`, `ai/rules/interop-and-goal-validation.md`, `ai/rules/architecture.md`
    - Verify: the predicate reports the pre-fix state of this very spec's topics when run against the parent commit
 11. **Phase: RFC extraction and ledger** - add the missing obligations with their proofs, in the same phase as the tests that prove them
    - Tests: tagged positive and negative pairs for each new requirement id

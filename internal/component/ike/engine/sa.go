@@ -222,7 +222,7 @@ type SA struct {
 	// a Message ID window check. An unauthenticated datagram never moves it. Nil
 	// means no authenticated message has arrived yet, and remoteUDPAddr then falls
 	// back to the CONFIGURED remote rather than to whatever last arrived
-	// (ai/rules/fail-closed-guards.md).
+	// (ai/rules/evidence.md).
 	//
 	// Owner-loop state after establishment, like lastResponse, so it needs no lock.
 	peerEndpoint *net.UDPAddr
@@ -398,7 +398,7 @@ func (sa *SA) lifetimeExpired(now time.Time) bool {
 // The fallback is the CONFIGURED remote, never the datagram in hand. An
 // unauthenticated source address is attacker-chosen, and a fallback that used it
 // would let one forged packet aim the SA at a victim
-// (ai/rules/fail-closed-guards.md). The port of that fallback follows localPort, so
+// (ai/rules/evidence.md). The port of that fallback follows localPort, so
 // a floated SA reaches the peer's port 4500 before its first authenticated message.
 //
 // It returns a COPY. established.go rewrites the port of the value it gets back, and
@@ -464,7 +464,7 @@ func (sa *SA) floatToNATTPort() {
 //
 // A floated peer reads a message from port 500 with no marker as ESP, and drops it
 // with no log. A silent fallback would therefore look like a working tunnel and
-// carry nothing (ai/rules/fail-closed-guards.md).
+// carry nothing (ai/rules/evidence.md).
 func (sa *SA) sendPath(fallback *transport.UDPTransport) (*transport.UDPTransport, bool) {
 	if sa.localPort == transport.NATTPort {
 		if sa.nattSocket == nil {

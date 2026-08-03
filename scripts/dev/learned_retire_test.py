@@ -201,7 +201,7 @@ class SelectionTest(RetireTestCase):
 
     def test_defect_records_are_out_of_reach(self):
         # `plan/known-failures/` and `plan/deferrals/` hold DEFECT records,
-        # which `ai/rules/no-parking.md` forbids pruning. They are a different
+        # which `ai/rules/completion.md` forbids pruning. They are a different
         # directory, so no band can select them.
         root = self._root()
         self._corpus(root, [1])
@@ -457,7 +457,7 @@ class CeilingIsModuleWideTest(RetireTestCase):
         self.assertTrue(victim.is_file(), "the file must survive the refusal")
 
     def test_remove_refuses_a_path_outside_the_learned_directory(self):
-        # `plan/known-failures/` holds DEFECT records (`ai/rules/no-parking.md`).
+        # `plan/known-failures/` holds DEFECT records (`ai/rules/completion.md`).
         root = self._root()
         write(root, "plan/known-failures/001-flake.md", "# a red test\n")
         victim = root / "plan/known-failures/001-flake.md"

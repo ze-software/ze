@@ -48,7 +48,7 @@ func plainFragment(more bool, payload []byte) []byte {
 // that simply never sent L left inExpected at 0, skipped the ceiling entirely,
 // and could grow inBuf without limit. EAP-TLS runs before the peer is
 // authenticated, so that is remote memory growth driven by an unauthenticated
-// party (ai/rules/fail-closed-guards.md).
+// party (ai/rules/evidence.md).
 func TestReassembleBoundsBufferWithoutLengthFlag(t *testing.T) {
 	var f tlsFragmenter
 	chunk := make([]byte, 4096)
@@ -124,7 +124,7 @@ func TestReassembleRejectsConflictingDeclaredLength(t *testing.T) {
 // Completeness used to be judged from the M flag alone. A peer whose last
 // fragment carried fewer octets than the L field declared therefore had its
 // short buffer handed straight to crypto/tls, which answers with the opaque
-// "local error: tls: error decoding message" (ai/rules/fail-closed-guards.md).
+// "local error: tls: error decoding message" (ai/rules/evidence.md).
 func TestReassemblyCompleteRejectsShortMessage(t *testing.T) {
 	var f tlsFragmenter
 	if err := f.reassemble(lFragment(3000, true, make([]byte, 1024))); err != nil {

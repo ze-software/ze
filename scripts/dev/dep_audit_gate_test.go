@@ -5,7 +5,7 @@ package main
 // fixture-based unit tests live in dep_audit.py (--check / --selftest); these
 // tests run the real script and assert its exit code.
 //
-// Rule: ai/rules/module-tiers.md. Spec: plan/spec-tiers-1-rule-and-audit.md.
+// Rule: ai/rules/architecture.md. Spec: plan/spec-tiers-1-rule-and-audit.md.
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func TestEnginePlacement(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("dep_audit.py --check failed (exit %d) -- a misplaced engine, "+
 			"stale baseline entry, or non-engine category issue. "+
-			"See ai/rules/module-tiers.md.\n%s", code, out)
+			"See ai/rules/architecture.md.\n%s", code, out)
 	}
 }
 

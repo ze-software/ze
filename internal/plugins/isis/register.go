@@ -116,14 +116,14 @@ func registerISIS() {
 	// Self-contained CLI completion for the NET and system-id leaves: the central
 	// config package owns the ValidateFn (config can't import isis without a
 	// cycle), but the completion guidance is registered here so the IS-IS package
-	// owns its own CompleteFn (mac-address precedent, ai/rules/plugin-self-containment.md).
+	// owns its own CompleteFn (mac-address precedent, ai/rules/plugins.md).
 	configyang.RegisterCompleteFn("isis-net", netCompletions)
 	configyang.RegisterCompleteFn("isis-system-id", systemIDCompletions)
 
 	// Register the IS-IS config-sanity diagnostic codes (codes.go) this component
 	// OWNS, so `ze explain` can describe them and deleting the component removes
 	// them (they are not in the central diagnostic.builtinCodes slice;
-	// ai/rules/plugin-self-containment.md). The raw-socket code is owned/listed by
+	// ai/rules/plugins.md). The raw-socket code is owned/listed by
 	// the transport, never here (one code, one owner).
 	registerISISDiagnosticCodes()
 
@@ -170,7 +170,7 @@ func init() { registerISIS() }
 // (metadata in codes.go) the component OWNS, so `ze explain <code>` can describe
 // them. They are deliberately NOT in the central diagnostic.builtinCodes slice:
 // owning them here means deleting the IS-IS component removes the codes with it
-// (ai/rules/plugin-self-containment.md). A duplicate registration is benign (the
+// (ai/rules/plugins.md). A duplicate registration is benign (the
 // code is already explainable), so the error is ignored like RegisterBuiltinCodes
 // does; this function is the only registrant of these two codes.
 func registerISISDiagnosticCodes() {

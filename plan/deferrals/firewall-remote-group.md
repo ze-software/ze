@@ -1,6 +1,6 @@
 # Deferrals -- spec-firewall-remote-group
 
-Source: `plan/spec-firewall-remote-group.md`. Format: `ai/rules/deferral-tracking.md`.
+Source: `plan/spec-firewall-remote-group.md`. Format: `ai/rules/planning.md`.
 
 Created 2026-08-02 by a session sweeping the shared working tree, NOT by the spec's
 author. The spec names two mechanisms it deliberately excludes, and the commit gate reads

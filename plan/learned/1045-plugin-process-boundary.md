@@ -18,10 +18,10 @@ any tooling was built.
   direct calls to functions with the same "package-level singleton /
   subscriber-list registration" shape as as112's `RegisterOwnedAddresses`
   and cos's `GetBackend`. Found `iface.SubscribeCollectNotify`/
-  `UnsubscribeCollectNotify` (`internal/component/iface/rate.go:83,101`) --
+  `UnsubscribeCollectNotify` (`internal/component/iface/rate.go,101`) --
   registers a callback into a package-level `collectSubsPtr`, invoked only
   by the rate tracker's background loop, which itself only runs wherever
-  `iface`'s own plugin instance runs (`internal/component/iface/register.go:691-693`).
+  `iface`'s own plugin instance runs (`internal/component/iface/register.go`).
   Three plugins called it with zero `IsInternal()` guard: `traffic-usage`
   (its only attach/detach mechanism), `flow-export` (its only counter data
   source, unconditional), `ddos-detect` (via a `trafficstat.EnsureGlobal`/
@@ -126,7 +126,7 @@ any tooling was built.
   `trafficstat`) will not be caught until someone adds it to
   `dangerousPatterns` in `scripts/checks/plugin_process_boundary.go`. This
   is an accepted, stated limitation (documented in the check's own package
-  doc comment and `ai/rules/plugin-process-boundary.md`), not a gap masked
+  doc comment and `ai/rules/plugins.md`), not a gap masked
   as coverage.
 
 ## Gotchas
@@ -223,9 +223,9 @@ any tooling was built.
 - `test/plugin/trafficusage-external-refuses.ci`,
   `flowexport-external-refuses.ci`, `ddos-detect-external-warns.ci` (new,
   `option=needs-linux`, config-validated but not run locally -- see Gotchas)
-- `ai/rules/plugin-process-boundary.md` (new) -- the rule, `ai/rules/INDEX.md`
+- `ai/rules/plugins.md` (new) -- the rule, `ai/rules/INDEX.md`
   regenerated
-- `ai/rules/plugin-design.md` (DirectBridge section) -- new anti-pattern
+- `ai/rules/plugins.md` (DirectBridge section) -- new anti-pattern
   entry
 - `ai/INDEX.md` -- 3 cross-reference rows (I Want To, Adding a Feature,
   Cross-Cutting Rules)

@@ -19,141 +19,141 @@ netlink `ip rule`/`ip route` for policy-based routing), and `firewall/plugins/ir
 resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 
 ## Flow
-1. **Plugin registration.** `internal/component/firewall/register.go:34-42` registers plugin
+1. **Plugin registration.** `internal/component/firewall/register.go` registers plugin
    "firewall" with YANG root `configRootFirewall` ("firewall"), `InProcessConfigVerifier:
    VerifyConfig`, `RunEngine: runEngine`.
-2. **5-stage SDK lifecycle.** `runEngine` (`firewall/engine.go:235`) wires `OnConfigure` (first apply,
-   `firewall/engine.go:253`), `OnConfigVerify` (`firewall/engine.go:291`), `OnConfigApply` with rollback journal
-   (`firewall/engine.go:306`), `OnConfigRollback` (`firewall/engine.go:369`), mirrors the traffic plugin's pattern.
-3. **JSON section → []Table.** `parseFirewallSections` (`firewall/engine.go:96`) extracts the `firewall`
-   config section and calls `ParseFirewallConfig` (`firewall/config.go:40`), which walks
-   `table/chain/term/set/flowtable` maps: `parseTable` (`firewall/config.go:71`, prefixes kernel names
-   with `"ze_"`, `firewall/config.go:35`, `firewall/config.go:83`), `parseChain` (`firewall/config.go:132`), `parseTerm`
-   (`firewall/config.go:196`) → `parseFromBlock`/`parseThenBlock` (`firewall/config.go:222`, `firewall/config.go:343`) build
-   `Match`/`Action` values, `parseSet` (`firewall/config.go:1137`), `parseFlowtable` (`firewall/config.go:1251`).
+2. **5-stage SDK lifecycle.** `runEngine` (`firewall/engine.go`) wires `OnConfigure` (first apply,
+   `firewall/engine.go`), `OnConfigVerify` (`firewall/engine.go`), `OnConfigApply` with rollback journal
+   (`firewall/engine.go`), `OnConfigRollback` (`firewall/engine.go`), mirrors the traffic plugin's pattern.
+3. **JSON section → []Table.** `parseFirewallSections` (`firewall/engine.go`) extracts the `firewall`
+   config section and calls `ParseFirewallConfig` (`firewall/config.go`), which walks
+   `table/chain/term/set/flowtable` maps: `parseTable` (`firewall/config.go`, prefixes kernel names
+   with `"ze_"`, `firewall/config.go`, `firewall/config.go`), `parseChain` (`firewall/config.go`), `parseTerm`
+   (`firewall/config.go`) → `parseFromBlock`/`parseThenBlock` (`firewall/config.go`, `firewall/config.go`) build
+   `Match`/`Action` values, `parseSet` (`firewall/config.go`), `parseFlowtable` (`firewall/config.go`).
 4. **IRR set-name expansion at parse time.** Inside `parseChain`, any term whose `from` block
    matches an `irr_v4_*` named set gets an auto-generated `_v6` sibling term against
-   `irr_v6_*` (`expandIRRTermV6`, `firewall/config.go:560`, hooked at `firewall/config.go:187-189`), the operator
+   `irr_v6_*` (`expandIRRTermV6`, `firewall/config.go`, hooked at `firewall/config.go`), the operator
    writes one term, gets two.
-5. **Verify-time checks.** `parseAndVerifyFirewallSections` (`firewall/engine.go:158`) runs, in order:
-   `ExtractGlobalOptions` (`firewall/config.go:1315`, `firewall/engine.go:169`), the YANG `ze:backend` commit-time
-   gate `validateBackendGate` (`firewall/engine.go:56`, `firewall/engine.go:172`), structural/cross-reference
-   checks `ValidateTables` (`validate.go:22`, `firewall/engine.go:175`: term non-emptiness, Jump/Goto
+5. **Verify-time checks.** `parseAndVerifyFirewallSections` (`firewall/engine.go`) runs, in order:
+   `ExtractGlobalOptions` (`firewall/config.go`, `firewall/engine.go`), the YANG `ze:backend` commit-time
+   gate `validateBackendGate` (`firewall/engine.go`, `firewall/engine.go`), structural/cross-reference
+   checks `ValidateTables` (`validate.go`, `firewall/engine.go`: term non-emptiness, Jump/Goto
    target chains, FlowOffload flowtable refs, `MatchInSet` field/family compatibility via
-   `validateSetFieldMatch` `validate.go:166`), and an optional per-backend `RunVerifier`
-   (`backend.go:96`, `firewall/engine.go:178`).
+   `validateSetFieldMatch` `validate.go`), and an optional per-backend `RunVerifier`
+   (`backend.go`, `firewall/engine.go`).
 6. **Global options → sysctl bridge.** `ExtractGlobalOptions` maps `firewall/global-options`
    leaves (`all-ping`, `syn-cookies`, `source-validation`, …) to sysctl key/value pairs;
-   `emitGlobalOptionsSysctlDefaults` (`firewall/engine.go:198-229`) emits them over `EventBus` as sysctl
+   `emitGlobalOptionsSysctlDefaults` (`firewall/engine.go`) emits them over `EventBus` as sysctl
    **defaults** (lower precedence than explicit sysctl config) and, on reload, first clears the
    previous batch so removed options actually revert.
-7. **Backend load + apply.** `LoadBackend(cfg.Backend)` (`firewall/engine.go:274`, also `firewall/engine.go:328` →
-   `backend.go:130`) instantiates the registered factory for the config's `backend` leaf (default
-   `"nft"` on Linux, `default_linux.go:11`; empty/reject on non-Linux, `default_other.go:10`).
-   `RegisterTables("firewall", cfg.Tables)` (`firewall/engine.go:279` → `registry.go:22`) stores this
-   owner's desired tables; `ApplyAll()` (`firewall/engine.go:280` → `registry.go:37`) merges tables from
+7. **Backend load + apply.** `LoadBackend(cfg.Backend)` (`firewall/engine.go`, also `firewall/engine.go` →
+   `backend.go`) instantiates the registered factory for the config's `backend` leaf (default
+   `"nft"` on Linux, `default_linux.go`; empty/reject on non-Linux, `default_other.go`).
+   `RegisterTables("firewall", cfg.Tables)` (`firewall/engine.go` → `registry.go`) stores this
+   owner's desired tables; `ApplyAll()` (`firewall/engine.go` → `registry.go`) merges tables from
    **every** registered owner by `(Name, Family)` via `mergeSameNameTables`
-   (`registry.go:53`, `registry.go:70`) and calls `backend.Apply(all)` (`registry.go:62`).
-8. **nftables Apply.** `internal/plugins/firewall/nft/backend_linux.go:40`: list current `ze_*`
+   (`registry.go`, `registry.go`) and calls `backend.Apply(all)` (`registry.go`).
+8. **nftables Apply.** `internal/plugins/firewall/nft/backend_linux.go`: list current `ze_*`
    tables (`ListTables`, line 44), delete only tables this Apply owns
    (`shouldDeleteTable`, line 73), then `applyTable` per table (line 92), **Sets are applied
    before Chains** (lines 102-114) so `MatchInSet` lowering can resolve the kernel-assigned set
    ID from the `sets` map handed to `applyChain` (line 156), then Flowtables (line 239); one
    atomic `conn.Flush()` (line 66) commits everything.
 9. **Term lowering.** `applyChain` (line 131) calls `lowerTerm`
-   (`internal/plugins/firewall/nft/lower_linux.go:194`), which lowers each `Match`
-   (`lower_linux.go:216`) and `Action` (`lower_linux.go:321`) to `expr.Any` (register-machine
+   (`internal/plugins/firewall/nft/lower_linux.go`), which lowers each `Match`
+   (`lower_linux.go`) and `Action` (`lower_linux.go`) to `expr.Any` (register-machine
    discipline documented at the top of that file). Every rule gets an anonymous `Counter`
    expression prepended unless the term already declared one (`hasCounterExpr`,
-   `backend_linux.go:171`, `backend_linux.go:188`) so `show firewall ruleset` always has
-   packet/byte data; the term name is stashed in `Rule.UserData` (`backend_linux.go:182`) for
+   `backend_linux.go`, `backend_linux.go`) so `show firewall ruleset` always has
+   packet/byte data; the term name is stashed in `Rule.UserData` (`backend_linux.go`) for
    readback/counters.
 10. **Snapshot for readers.** Once `backend.Apply` returns nil, `StoreLastApplied`
-    (`accessor.go:28`) deep-copies the applied `[]Table` into an atomic pointer
-    (`firewall/engine.go:283`, `firewall/engine.go:341`) so CLI/show/audit never race the live config.
-11. **Reload with rollback.** `OnConfigApply` builds an `sdk.Journal` (`firewall/engine.go:334`) recording
+    (`accessor.go`) deep-copies the applied `[]Table` into an atomic pointer
+    (`firewall/engine.go`, `firewall/engine.go`) so CLI/show/audit never race the live config.
+11. **Reload with rollback.** `OnConfigApply` builds an `sdk.Journal` (`firewall/engine.go`) recording
     a forward closure (apply new tables) and a rollback closure (re-`RegisterTables` +
     `ApplyAll` the previous snapshot); on error the journal rolls back immediately
-    (`firewall/engine.go:358`); `OnConfigRollback` replays it on a coordinator-driven abort
-    (`firewall/engine.go:369-380`).
+    (`firewall/engine.go`); `OnConfigRollback` replays it on a coordinator-driven abort
+    (`firewall/engine.go`).
 12. **flowspec-firewall: BGP FlowSpec → nftables.** Registered with `Dependencies:
-    ["firewall"]` (`internal/plugins/flowspec-firewall/register.go:33`,
-    `internal/plugins/flowspec-firewall/register.go:37`). `handleEvent`
-    (`internal/plugins/flowspec-firewall/engine.go:55`) dispatches parsed BGP events: `"state"`
+    ["firewall"]` (`internal/plugins/flowspec-firewall/register.go`,
+    `internal/plugins/flowspec-firewall/register.go`). `handleEvent`
+    (`internal/plugins/flowspec-firewall/engine.go`) dispatches parsed BGP events: `"state"`
     down → `handlePeerDown` (line 84, evicts via `ruleMap.removePeer`,
-    `internal/plugins/flowspec-firewall/state.go:71`); `"update"` → `handleUpdate` (line 99),
+    `internal/plugins/flowspec-firewall/state.go`); `"update"` → `handleUpdate` (line 99),
     which parses extended communities into a `flowAction` (discard/rate-limit/mark) via
-    `parseExtendedCommunities` (`flowspec-firewall/translate.go:194`) and, per FlowSpec NLRI op, calls
-    `handleFlowSpecAdd` (line 149) → `parseNLRIJSON` (`flowspec-firewall/translate.go:371`) +
-    `translateFlowSpec` (`flowspec-firewall/translate.go:40`), mapping RFC 8955 components to `firewall.Match`
-    (`componentToMatch`, `flowspec-firewall/translate.go:83`) and the action to `firewall.Action`
-    (`actionToFirewall`, `flowspec-firewall/translate.go:166`). FlowSpec Type-4 "port" (src OR dst) is split into
-    two terms to avoid nftables AND semantics (`flowspec-firewall/translate.go:64-71`). Destination-local
-    detection (`localAddrs.containsWithin`, `internal/plugins/flowspec-firewall/localaddr.go:50`,
+    `parseExtendedCommunities` (`flowspec-firewall/translate.go`) and, per FlowSpec NLRI op, calls
+    `handleFlowSpecAdd` (line 149) → `parseNLRIJSON` (`flowspec-firewall/translate.go`) +
+    `translateFlowSpec` (`flowspec-firewall/translate.go`), mapping RFC 8955 components to `firewall.Match`
+    (`componentToMatch`, `flowspec-firewall/translate.go`) and the action to `firewall.Action`
+    (`actionToFirewall`, `flowspec-firewall/translate.go`). FlowSpec Type-4 "port" (src OR dst) is split into
+    two terms to avoid nftables AND semantics (`flowspec-firewall/translate.go`). Destination-local
+    detection (`localAddrs.containsWithin`, `internal/plugins/flowspec-firewall/localaddr.go`,
     fed by interface `addr-added`/`addr-removed` EventBus subscriptions,
-    `internal/plugins/flowspec-firewall/engine.go:207-208`) picks the input vs forward hook.
-    `ruleMap` (`state.go:20`) caps at `maxRulesDefault=1000`
-    (`internal/plugins/flowspec-firewall/engine.go:23`); `buildTable` (`state.go:86`) emits table
+    `internal/plugins/flowspec-firewall/engine.go`) picks the input vs forward hook.
+    `ruleMap` (`state.go`) caps at `maxRulesDefault=1000`
+    (`internal/plugins/flowspec-firewall/engine.go`); `buildTable` (`state.go`) emits table
     `"flowspec"` with `flowspec-fwd` (hook forward) / `flowspec-in` (hook input) chains,
-    priority -1, policy accept. `applyRules` (`internal/plugins/flowspec-firewall/engine.go:177`)
+    priority -1, policy accept. `applyRules` (`internal/plugins/flowspec-firewall/engine.go`)
     calls `firewall.RegisterTables("flowspec", tables)` + `firewall.ApplyAll()`
-    (`internal/plugins/flowspec-firewall/engine.go:179-180`), the same shared nft apply path.
+    (`internal/plugins/flowspec-firewall/engine.go`), the same shared nft apply path.
     Plugin shutdown clears the owner (`RegisterTables("flowspec", nil)`,
-    `internal/plugins/flowspec-firewall/engine.go:221`).
+    `internal/plugins/flowspec-firewall/engine.go`).
 13. **policyroute: policy-based routing.** Registered with `Dependencies: ["firewall"]`
-    (`internal/plugins/policyroute/register.go:18`,
-    `internal/plugins/policyroute/register.go:27`). `parsePolicyConfig`
-    (`internal/plugins/policyroute/config.go:28`) builds `[]PolicyRoute` from the `policy/route`
-    tree. `OnConfigApply` (`internal/plugins/policyroute/register.go:106`) diffs old/new under an
-    `sdk.Journal` (`internal/plugins/policyroute/register.go:118`), calling `applyPolicies`
-    (`internal/plugins/policyroute/register.go:181`) both ways.
-    `alloc.translate(policies)` (`internal/plugins/policyroute/translate.go:33`) builds **one**
+    (`internal/plugins/policyroute/register.go`,
+    `internal/plugins/policyroute/register.go`). `parsePolicyConfig`
+    (`internal/plugins/policyroute/config.go`) builds `[]PolicyRoute` from the `policy/route`
+    tree. `OnConfigApply` (`internal/plugins/policyroute/register.go`) diffs old/new under an
+    `sdk.Journal` (`internal/plugins/policyroute/register.go`), calling `applyPolicies`
+    (`internal/plugins/policyroute/register.go`) both ways.
+    `alloc.translate(policies)` (`internal/plugins/policyroute/translate.go`) builds **one**
     `"ze_pr"` table / `"prerouting"` chain (`ChainRoute`, hook prerouting, priority -150,
-    `internal/plugins/policyroute/translate.go:37-44`) whose terms `SetMark` matching traffic
-    (`internal/plugins/policyroute/translate.go:200-212` for `table N`,
-    `internal/plugins/policyroute/translate.go:214-236` for `next-hop`), using fwmarks allocated
+    `internal/plugins/policyroute/translate.go`) whose terms `SetMark` matching traffic
+    (`internal/plugins/policyroute/translate.go` for `table N`,
+    `internal/plugins/policyroute/translate.go` for `next-hop`), using fwmarks allocated
     from a private range `0x50000-0x5FFFF` (`allocateMark`,
-    `internal/plugins/policyroute/marks.go:14`, `marks.go:49`) and auto next-hop route tables
-    `2000-2999` (`allocateTable`, `marks.go:17`, `marks.go:67`).
+    `internal/plugins/policyroute/marks.go`, `marks.go`) and auto next-hop route tables
+    `2000-2999` (`allocateTable`, `marks.go`, `marks.go`).
     `firewall.RegisterTables("policy-routes", result.Tables)` + `firewall.ApplyAll()`
-    (`internal/plugins/policyroute/register.go:199-200`) push the nftables side through the
-    shared registry; `rm.applyAll` (`internal/plugins/policyroute/register.go:204` →
-    `internal/plugins/policyroute/rules_linux.go:85`) then programs the **ip-rule/ip-route side
-    directly via `vishvananda/netlink`** (`RuleAdd`, `rules_linux.go:45`; `RouteAdd`,
-    `rules_linux.go:66`): nftables marks the packet, netlink's `ip rule` selects the table by
+    (`internal/plugins/policyroute/register.go`) push the nftables side through the
+    shared registry; `rm.applyAll` (`internal/plugins/policyroute/register.go` →
+    `internal/plugins/policyroute/rules_linux.go`) then programs the **ip-rule/ip-route side
+    directly via `vishvananda/netlink`** (`RuleAdd`, `rules_linux.go`; `RouteAdd`,
+    `rules_linux.go`): nftables marks the packet, netlink's `ip rule` selects the table by
     that mark. A partial-apply failure re-clears both sides
-    (`internal/plugins/policyroute/register.go:204-209`); rollback and shutdown reverse both
-    (`internal/plugins/policyroute/register.go:124`,
-    `internal/plugins/policyroute/register.go:220-234`, `rules_linux.go:92`).
+    (`internal/plugins/policyroute/register.go`); rollback and shutdown reverse both
+    (`internal/plugins/policyroute/register.go`,
+    `internal/plugins/policyroute/register.go`, `rules_linux.go`).
 14. **firewall/plugins/irr: dynamic address groups.**
-    `internal/component/firewall/plugins/irr/irr.go:61` resolves IRR/PeeringDB AS-SET or ASN
-    references into a cached `PrefixStore` (`irr.go:74-79`), refreshed on a timer
-    (`refreshLoop`/`refreshAllNow`, `irr.go:210`, `irr.go:235`) or on demand via `update firewall
-    irr asn|as-set` commands (`plugins/irr/command.go:128`, `plugins/irr/command.go:155`).
-    `applyTables` (`irr.go:181`) turns cached prefixes into nftables **interval sets**: `buildSets`
-    (`internal/component/firewall/plugins/irr/sets.go:28`) emits paired
+    `internal/component/firewall/plugins/irr/irr.go` resolves IRR/PeeringDB AS-SET or ASN
+    references into a cached `PrefixStore` (`irr.go`), refreshed on a timer
+    (`refreshLoop`/`refreshAllNow`, `irr.go`, `irr.go`) or on demand via `update firewall
+    irr asn|as-set` commands (`plugins/irr/command.go`, `plugins/irr/command.go`).
+    `applyTables` (`irr.go`) turns cached prefixes into nftables **interval sets**: `buildSets`
+    (`internal/component/firewall/plugins/irr/sets.go`) emits paired
     `irr_v4_<name>`/`irr_v6_<name>` sets (`SetFlagInterval`), each prefix converted to a
-    half-open `[start, end)` element pair (`prefixRange`, `sets.go:75`); `buildIRRTables`
-    (`sets.go:191`) attaches sets to term-referencing tables, `buildIfaceTables` (`sets.go:118`)
+    half-open `[start, end)` element pair (`prefixRange`, `sets.go`); `buildIRRTables`
+    (`sets.go`) attaches sets to term-referencing tables, `buildIfaceTables` (`sets.go`)
     builds a dedicated `"ze_irr_iface"` table that accepts an interface's traffic only if the
     source address is in its AS-SET-derived set, else drops (default-deny per interface,
-    `sets.go:170-183`). `RegisterTables("firewall-irr", tables)` + `ApplyAll`
-    (`irr.go:202-203`) merge into the same shared nftables state.
+    `sets.go`). `RegisterTables("firewall-irr", tables)` + `ApplyAll`
+    (`irr.go`) merge into the same shared nftables state.
 15. **Readback, show, audit.** CLI text formatting: `FormatTables`
-    (`internal/component/firewall/cmd/show.go:43`). The live `show firewall ruleset
+    (`internal/component/firewall/cmd/show.go`). The live `show firewall ruleset
     <name>`/`show firewall group <name>` RPCs are served by the nft backend itself
-    (`internal/plugins/firewall/nft/cmd_show.go:27`, `nft/cmd_show.go:125`), reading
-    `firewall.LastApplied()` (`accessor.go:137`) for structure and `backend.GetCounters`
-    (`internal/plugins/firewall/nft/backend_linux.go:269`) for live per-term packet/byte counts
-    (matched via `Rule.UserData`, `backend_linux.go:314`); only the `"nft"` backend is supported
-    for ruleset readback (`nft/cmd_show.go:43-51`). Kernel readback:
-    `backend.ListTables()` (`backend_linux.go:260`) → `readTables`
-    (`internal/plugins/firewall/nft/readback_linux.go:27`) reconstructs Table/Chain/Set/
+    (`internal/plugins/firewall/nft/cmd_show.go`, `nft/cmd_show.go`), reading
+    `firewall.LastApplied()` (`accessor.go`) for structure and `backend.GetCounters`
+    (`internal/plugins/firewall/nft/backend_linux.go`) for live per-term packet/byte counts
+    (matched via `Rule.UserData`, `backend_linux.go`); only the `"nft"` backend is supported
+    for ruleset readback (`nft/cmd_show.go`). Kernel readback:
+    `backend.ListTables()` (`backend_linux.go`) → `readTables`
+    (`internal/plugins/firewall/nft/readback_linux.go`) reconstructs Table/Chain/Set/
     Flowtable shells only, term Matches/Actions are **not** reverse-lowered. Drift audit:
-    `AuditTables` (`internal/component/firewall/audit.go:25`) compares `LastApplied()` against
+    `AuditTables` (`internal/component/firewall/audit.go`) compares `LastApplied()` against
     `backend.ListTables()`, raising `firewall-stale-table` / `firewall-drift` reports, wired into
     the daemon health check by `RegisterHealthCheck`/`checkFirewallHealth`
-    (`internal/plugins/firewall/nft/health.go:16`, `health.go:20`).
+    (`internal/plugins/firewall/nft/health.go`, `health.go`).
 
 ## Key files
 | File | Role |
@@ -188,44 +188,44 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 ## Invariants & gotchas
 - **Multi-owner merge, full re-apply.** `firewall` (config), `flowspec` (BGP FlowSpec),
   `policy-routes`, and `firewall-irr` each call `RegisterTables` under a distinct owner key;
-  `ApplyAll` (`registry.go:37`) merges **every** owner's tables and re-applies the full union
+  `ApplyAll` (`registry.go`) merges **every** owner's tables and re-applies the full union
   on **any** owner's change, one plugin's reload rewrites everyone's nftables state.
-- **Sets before Chains is load-bearing.** `applyTable` (`backend_linux.go:92`) applies every
+- **Sets before Chains is load-bearing.** `applyTable` (`backend_linux.go`) applies every
   `Set` before any `Chain` because `MatchInSet` lowering needs the kernel-assigned set ID
-  recovered from the `sets` map built during that same pass (`backend_linux.go:102-114`,
-  `backend_linux.go:156`).
-- **`ze_` prefix is the ownership boundary.** `shouldDeleteTable` (`backend_linux.go:73`) only
+  recovered from the `sets` map built during that same pass (`backend_linux.go`,
+  `backend_linux.go`).
+- **`ze_` prefix is the ownership boundary.** `shouldDeleteTable` (`backend_linux.go`) only
   deletes tables with that prefix AND either in the new desired set or previously applied by
   this backend instance, a foreign `ze_*`-named table from another process is never swept.
 - **Counter injection is exactly-once, unnamed only.** Every lowered rule gets an anonymous
   `Counter` prepended unless the term already declared one (`hasCounterExpr`,
-  `backend_linux.go:171`, `backend_linux.go:188`), so `show firewall ruleset` always has data;
-  **named** counters are rejected at lowering (`lowerCounter`, `lower_linux.go:939`), not yet
+  `backend_linux.go`, `backend_linux.go`), so `show firewall ruleset` always has data;
+  **named** counters are rejected at lowering (`lowerCounter`, `lower_linux.go`), not yet
   implemented.
-- **Readback is not bijective.** `ListTables`/`readTables` (`readback_linux.go:27`) reconstruct
+- **Readback is not bijective.** `ListTables`/`readTables` (`readback_linux.go`) reconstruct
   table/chain/set shells only; `Term.Matches`/`Actions` come back empty because the wire format
   cannot be unambiguously reversed to the abstract model, operators consult config for rule
   bodies, not `show`.
 - **IRR v6 companion terms are synthesized, not configured.** Any term whose `from` block
   matches an `irr_v4_*` set gets an automatic `_v6` sibling against `irr_v6_*`
-  (`expandIRRTermV6`, `firewall/config.go:560`, hooked in `parseChain` at `firewall/config.go:187-189`), one
+  (`expandIRRTermV6`, `firewall/config.go`, hooked in `parseChain` at `firewall/config.go`), one
   term written, two applied.
 - **Policy routing double-applies across two mechanisms.** nftables marks the packet
   (`RegisterTables`+`ApplyAll`) and netlink separately selects the routing table by that mark
   (`rm.applyAll`); a failure between the two apply calls leaves marks active with no matching
   `ip rule`, `applyPolicies`'s error path re-clears both sides
-  (`internal/plugins/policyroute/register.go:204-209`).
-- **Backend gate is YANG-schema-driven.** `validateBackendGate` (`firewall/engine.go:56`) loads the
+  (`internal/plugins/policyroute/register.go`).
+- **Backend gate is YANG-schema-driven.** `validateBackendGate` (`firewall/engine.go`) loads the
   compiled YANG schema and checks `ze:backend "nft"`-annotated leaves against the **active**
   backend name, independent of, and in addition to, `ValidateTables`'s structural checks.
 - **Global-options are defaults, not enforcement.** `emitGlobalOptionsSysctlDefaults`
-  (`firewall/engine.go:198`) emits at the sysctl "default" layer so an explicit sysctl config leaf always
+  (`firewall/engine.go`) emits at the sysctl "default" layer so an explicit sysctl config leaf always
   wins; on reload it first clears the previous batch via an EventBus "clear source defaults"
   event so removed `global-options` actually revert instead of sticking.
 - **VPP is a second, untraced backend.** `internal/plugins/firewall/vpp/` implements the same
   `Backend` interface with its own `Verifier` gating unsupported expression types
-  (`RegisterVerifier`, `backend.go:81`); `show firewall ruleset` explicitly rejects any backend
-  other than `"nft"` (`nft/cmd_show.go:43-51`).
+  (`RegisterVerifier`, `backend.go`); `show firewall ruleset` explicitly rejects any backend
+  other than `"nft"` (`nft/cmd_show.go`).
 
 ## See also
 - `docs/architecture/core-design.md`, firewall plugin engine (SDK 5-stage), backend abstraction
@@ -234,4 +234,4 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 - `plan/learned/786-backend-command-dispatch.md`, nft backend show/health command dispatch
 - `plan/learned/768-doctor-health-checks.md`, firewall drift detection (`AuditTables`)
 - `rfc/short/rfc8955.md`, BGP FlowSpec NLRI component types and traffic filtering actions
-- `ai/rules/architecture-summary.md`, one-page component map and boundaries
+- `ai/rules/architecture.md`, one-page component map and boundaries

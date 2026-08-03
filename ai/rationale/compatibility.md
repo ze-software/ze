@@ -1,6 +1,6 @@
 # Compatibility Rationale
 
-Why: `ai/rules/compatibility.md`
+Why: `ai/rules/go-standards.md`
 
 ## Why No Backwards Compat
 Ze has never been released. No users to break. Applies to: API protocols, config syntax, wire formats, CLI commands -- everything.

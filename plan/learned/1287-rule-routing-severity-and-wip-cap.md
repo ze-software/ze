@@ -31,7 +31,7 @@ spec is executed; none limited how many are open at once.
 - **Severity must agree with the prose**, with a LINE-scoped
   `<!-- severity-note: ... -->` escape rather than a file-scoped one. A
   file-scoped opt-out silently covers every later addition to that file. Exactly
-  one line in the tree needs it (`hook-mapping.md` describing the LSP gate).
+  one line in the tree needs it (`repo-maintenance.md` describing the LSP gate).
 - **Cap WIP at the `ready` -> `in-progress` transition**, not at claim time
   generally. Resuming an in-progress spec adds nothing, and claiming a skeleton
   for research starts no implementation. Blocking (exit 3) over warning, because
@@ -41,7 +41,7 @@ spec is executed; none limited how many are open at once.
   1-10) and `/ze-close` (the old 11-16). Two independent reasons, either
   sufficient: closure instructions reached at the tail of a 16-step skill get
   partially followed (the same evidence that motivated
-  `plan/TEMPLATE-CLOSURE.md`), and `ai/rules/model-selection.md` puts
+  `plan/TEMPLATE-CLOSURE.md`), and `ai/rules/planning.md` puts
   implementation on Opus 4.8 and the Review Gate / spec closure / implementation
   audit on Opus 5, so one skill spanning both forced a silent model-boundary
   crossing.

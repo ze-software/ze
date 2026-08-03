@@ -128,7 +128,7 @@ func TestVerifyCookieRejectsSubstitutedInputs(t *testing.T) {
 // VALIDATES: verifyCookie denies on every miss -- empty data, a wrong length, an
 // unknown version octet, a nil address, an empty nonce.
 // PREVENTS: the zero-value trap, where an absent or malformed cookie reads as a valid
-// answer and takes the half-open slot (ai/rules/fail-closed-guards.md).
+// answer and takes the half-open slot (ai/rules/evidence.md).
 func TestVerifyCookieFailsClosed(t *testing.T) {
 	resetCookieSecret(t)
 	spiI, ni, ip := cookieTestInputs()
@@ -285,7 +285,7 @@ func TestScanSAInitPreStateDeniesMalformedChains(t *testing.T) {
 
 // VALIDATES: a 64-octet cookie is accepted and a 65-octet one is not.
 // PREVENTS: an off-by-one that reads the RFC 7296 Section 2.6 bound as "< 64" rather
-// than "<= 64" (ai/rules/tdd.md, boundary testing).
+// than "<= 64" (ai/rules/testing.md, boundary testing).
 func TestScanSAInitPreStateCookieLengthBoundary(t *testing.T) {
 	spiI, ni, _ := cookieTestInputs()
 	for _, tc := range []struct {
@@ -323,7 +323,7 @@ func TestCookieRequiredIsMonotoneAndFailsClosed(t *testing.T) {
 }
 
 // FuzzScanSAInitPreState drives the hand-rolled walker with arbitrary bytes.
-// ai/rules/tdd.md makes a fuzz target mandatory for wire-format parsing of external
+// ai/rules/testing.md makes a fuzz target mandatory for wire-format parsing of external
 // input, and this walker runs on unauthenticated input before any state exists.
 func FuzzScanSAInitPreState(f *testing.F) {
 	spiI, ni, _ := cookieTestInputs()

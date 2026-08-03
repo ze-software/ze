@@ -190,7 +190,7 @@ func TestTxQueueSteadyStateIsAllocationFree(t *testing.T) {
 	// page is in hand -- pages come from txPagePool and are rewound in place.
 	// PREVENTS: regressing to a per-message []byte copy, which is the whole
 	// reason this is a pooled byte queue rather than a [][]byte channel
-	// (ai/rules/memory-architecture.md, ai/rules/buffer-first.md).
+	// (ai/rules/performance.md, ai/rules/performance.md).
 	q := newTxQueue(1 << 20)
 	msg := bytes.Repeat([]byte{0x99}, 160) // a typical Loc-RIB Route Monitoring
 

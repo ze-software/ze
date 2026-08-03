@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc9568.md -- Section 7.1 receive validation + errata 8298-8301
 // RFC: rfc/short/rfc3768.md -- Section 7.1 receive validation + Section 5.2.3 TTL
-// Design: ai/rules/buffer-first.md -- zero-allocation decode over a lazy VIP view
+// Design: ai/rules/performance.md -- zero-allocation decode over a lazy VIP view
 //
 // validate.go implements the ordered VRRP receive-validation ladder (Decode),
 // the RxMeta the transport produces, the caller-supplied group Lookup, the

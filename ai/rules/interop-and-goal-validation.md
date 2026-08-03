@@ -141,7 +141,7 @@ The spec's Goal Validation table must have:
 
 ## Relationship to Other Rules
 
-- `functional-test-gate.md`: requires functional tests per feature type; this rule adds interop on top for protocol features
-- `no-partial-completion.md`: requires every AC tested; this rule requires the *aggregate* goal proven
+- `testing.md`: requires functional tests per feature type; this rule adds interop on top for protocol features
+- `completion.md`: requires every AC tested; this rule requires the *aggregate* goal proven
 - `rfc-compliance.md`: requires RFC conformance in code; this rule requires conformance proven against other implementations
 - `testing.md`: test infrastructure and workflow; this rule specifies when each test type is mandatory

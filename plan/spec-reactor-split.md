@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/naming.md` ("Package-Naming Glossary"), `ai/rules/protocol-skeleton.md`
+3. `ai/rules/go-standards.md` ("Package-Naming Glossary"), `ai/rules/protocol.md`
 4. `internal/component/bgp/reactor/` file listing (the prefix clusters below)
 
 ## Task
@@ -23,7 +23,7 @@ structural divergence found by the 2026-07-08 comparative review
 (spec-layout-0 umbrella, closed with this spec as the recorded destination for
 its unscheduled candidate). Decompose it into glossary-named subpackages; the
 legacy `reactor` name (documented exception,
-`scripts/dev/protocol_skeleton_report.py:56-61`) dies as a side effect.
+`scripts/dev/protocol_skeleton_report.py`) dies as a side effect.
 
 Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 
@@ -36,7 +36,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
   `operation.go`, `update_group.go`, ...). These prefixes are the natural
   first-cut split lines.
 - New packages take names from the glossary and skeleton rules
-  (`ai/rules/naming.md`, `ai/rules/protocol-skeleton.md`): an engine home for
+  (`ai/rules/go-standards.md`, `ai/rules/protocol.md`): an engine home for
   the runtime loop, `transport`-shaped socket I/O, per-peer state naming per
   the BGP RFC vocabulary (the `fsm` package already exists separately).
 - 331 doc source anchors point into the package (measured 2026-07-08); the
@@ -55,10 +55,10 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. -->
-- [ ] `ai/rules/naming.md` - "Package-Naming Glossary" (fill during design)
-- [ ] `ai/rules/protocol-skeleton.md` - target module vocabulary (fill during design)
+- [ ] `ai/rules/go-standards.md` - "Package-Naming Glossary" (fill during design)
+- [ ] `ai/rules/protocol.md` - target module vocabulary (fill during design)
 - [ ] `docs/architecture/core-design.md` - reactor's documented role (fill during design)
-- [ ] `ai/rules/module-tiers.md` - no tier moves; decomposition stays inside `internal/component/bgp/` (fill during design)
+- [ ] `ai/rules/architecture.md` - no tier moves; decomposition stays inside `internal/component/bgp/` (fill during design)
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4271.md` - only if design changes any behavior-adjacent seam (goal is behavior-neutral decomposition; fill during design)
@@ -79,7 +79,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 **Behavior to change:**
 - Package structure only (fill during design)
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - (fill during design; today: BGP session bytes and API commands enter the reactor loop)
@@ -165,7 +165,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 ## Files to Modify
 - `internal/component/bgp/reactor/**` - decomposed into subpackages (fill exact map during design)
 - `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("bgp","reactor") removal
-- `ai/rules/naming.md`, `ai/rules/protocol-skeleton.md` - reactor exception rows retired
+- `ai/rules/go-standards.md`, `ai/rules/protocol.md` - reactor exception rows retired
 - `scripts/codegen/plugin_imports.go` - `internal/component/bgp/reactor/filter` row if that subdir moves
 - docs holding the 331 anchors - sweep (fill during design)
 

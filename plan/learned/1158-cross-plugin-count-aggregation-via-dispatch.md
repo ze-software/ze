@@ -2,7 +2,7 @@
 
 `show bgp summary` needed per-peer route counts, but those counts are owned by the
 `bgp-rib` plugin (Adj-RIB-In/Out sizes), and `cmd/peer` must not import it
-(`ai/rules/plugin-self-containment.md`). The reusable shape: an aggregating
+(`ai/rules/plugins.md`). The reusable shape: an aggregating
 command handler reads another plugin's state by RUNTIME COMMAND DISPATCH, keyed
 by a string constant, never a Go import.
 
@@ -21,13 +21,13 @@ Three properties that make it correct:
   const. `make ze-plugin-boundary-check` stays green because there is no
   compile-time edge from `cmd/peer` to `bgp/plugins/rib`.
 - **Best-effort by construction.** `ForwardToPlugin` returns `ErrUnknownCommand`
-  when the plugin is not loaded (`command.go:795-801`). The merge treats a nil
+  when the plugin is not loaded (`command.go`). The merge treats a nil
   result as "omit the keys," so the summary still renders on a build without the
   RIB. Do NOT fake a 0 for an absent owner — an omitted key and a real 0 mean
   different things to a consumer.
 - **The response is `plugin.RawJSON` (a string type), not a Go map.** A plugin
   forward round-trips through JSON over the `net.Pipe` (`routeToProcess` sets
-  `Data: plugin.RawJSON(rpcOut.Data)`, `command.go:895`). Parse it with
+  `Data: plugin.RawJSON(rpcOut.Data)`, `command.go`). Parse it with
   `json.Unmarshal([]byte(raw), ...)`. Internal BGP plugins are in-process
   goroutines but still communicate ONLY by RPC over a pipe — there are no shared
   Go objects to read directly.
@@ -47,13 +47,13 @@ gives full coverage without a fake plugin process.
 ## Honest zero: do not fabricate a count you cannot produce
 
 Alice-LG reads `routes_filtered`. Ze drops import-rejected routes at the reactor
-gate (`reactor_notify.go:449`) and never stores them (`project-knowledge.md`: "No
+gate (`reactor_notify.go`) and never stores them (`repo-maintenance.md`: "No
 filtered/noexport route tracking"). The temptation was to derive `filtered =
 received - accepted`; that conflates policy rejects with loop/limit/malformed
 drops and would report a number that is wrong rather than absent. The honest move
 is to leave `filtered` at 0 (matching the existing `handleAPIRoutesFiltered`
-stub) and document why. `ai/rules/no-fabrication.md` and
-`no-workarounds-for-missing-behavior.md` both point the same way: an absent value
+stub) and document why. `ai/rules/evidence.md` and
+`completion.md` both point the same way: an absent value
 stays absent.
 
 ## Trap: the "obvious" source can race

@@ -40,7 +40,7 @@ def _any_scenario_needs_frr(scenarios_dir, scenario_filter):
 def _feature_gate_tags():
     """Sorted ze_<feature> build tags from feature-gates.txt, the single source of
     truth. Derived, not hardcoded, so the lab tracks ZE_FEATURES when a gate is added
-    -- see ai/rules/feature-gate-registration.md.
+    -- see ai/rules/plugins.md.
 
     The IKE subsystem is one of those gates (ze_ike). A lab binary built without it
     holds no ipsec schema, so ze refuses its own scenario config with "unknown
@@ -140,7 +140,7 @@ def main():
         # test/interop/run.py. Every scenario runs in containers, so an unreachable
         # Docker means nothing was verified -- and a runner that reports an absence
         # on stdout with no next step leaves the reader to guess whether the lab was
-        # skipped or broken (ai/rules/error-messages.md: what / why / next).
+        # skipped or broken (ai/rules/cli.md: what / why / next).
         print(
             "error: Docker unavailable, cannot run the IPsec interop lab -- every "
             "scenario runs in containers. Start Docker (or install it), then re-run: "

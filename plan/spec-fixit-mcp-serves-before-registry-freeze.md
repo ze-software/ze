@@ -20,10 +20,10 @@ The producing path, read rather than inferred:
 
 | Step | Site |
 |------|------|
-| MCP binds and serves | `buildServices` (`cmd/ze/hub/main.go:961`) |
-| The registry freezes | `cr.Freeze()` (`internal/component/plugin/server/startup.go:206`) |
-| The daemon waits for that freeze | `apiServer.WaitForStartupComplete` (`cmd/ze/hub/main.go:1123`) |
-| The tool list re-reads the registry on every call | `commandMetaSource` (`cmd/ze/hub/command_meta.go:95`) |
+| MCP binds and serves | `buildServices` (`cmd/ze/hub/main.go`) |
+| The registry freezes | `cr.Freeze()` (`internal/component/plugin/server/startup.go`) |
+| The daemon waits for that freeze | `apiServer.WaitForStartupComplete` (`cmd/ze/hub/main.go`) |
+| The tool list re-reads the registry on every call | `commandMetaSource` (`cmd/ze/hub/command_meta.go`) |
 
 `buildServices` runs at line 961 and the wait runs at line 1123. Every plugin
 command that registers between those two points is absent from a `tools/list`
@@ -60,7 +60,7 @@ legitimately differ.
 **Behavior to change:** (only what the user asked for)
 - [list, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - [Where data enters: wire bytes, API command, config, plugin message]
@@ -85,18 +85,18 @@ legitimately differ.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
 | Id | Assumption | Basis | Validation | Status |
 |----|------------|-------|------------|--------|
-| A-1 | The window is reachable by a real client, not only by a test | `buildServices` binds the listener at `main.go:961`, before the wait at `:1123` | Connect an MCP client during startup and call `tools/list` twice | unvalidated |
+| A-1 | The window is reachable by a real client, not only by a test | `buildServices` binds the listener at `main.go`, before the wait at `:1123` | Connect an MCP client during startup and call `tools/list` twice | unvalidated |
 | A-2 | No other service in `buildServices` depends on binding before the freeze | Not yet read. The product fix moves every service in that call, not only MCP | Read `buildServices` and list what it starts | unvalidated |
 
 | Id | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-1 | A client caches the incomplete list for a full minute. `tools/list` advertises `ttlMs` 60000 (`ttlRegistryDerivedMs`, `internal/component/mcp/caching.go:136`), which the MCP 2026-07-28 caching work added. Before that work the client re-fetched at will, so the same race healed on the next call | An MCP client offers fewer tools than `ze show commands` lists, and keeps doing so for about a minute after start | The product direction closes the window. The test direction does NOT: it leaves this consequence in place |
+| R-1 | A client caches the incomplete list for a full minute. `tools/list` advertises `ttlMs` 60000 (`ttlRegistryDerivedMs`, `internal/component/mcp/caching.go`), which the MCP 2026-07-28 caching work added. Before that work the client re-fetched at will, so the same race healed on the next call | An MCP client offers fewer tools than `ze show commands` lists, and keeps doing so for about a minute after start | The product direction closes the window. The test direction does NOT: it leaves this consequence in place |
 | R-2 | Delaying the bind turns an incomplete answer into a refused connection | A client that connects during startup fails instead of degrading | Decide deliberately which failure an operator prefers, and document it |
 
 ## Blast Radius
@@ -179,16 +179,16 @@ legitimately differ.
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
 | CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli-grammar.md` |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
 | Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/pipe-completeness.md` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 
@@ -205,7 +205,7 @@ legitimately differ.
 | 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
 | 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | | `docs/comparison.md` |
@@ -336,7 +336,7 @@ constraints, message ordering, and every MUST/MUST NOT.
      registrations, and it has no wait today, so this makes the test assert its
      own premise. It leaves the product behavior as it is.
 2. Implement the chosen direction with a functional test that fails before the
-   fix and passes after it (`ai/rules/functional-test-gate.md`, mutation
+   fix and passes after it (`ai/rules/testing.md`, mutation
    verification).
 3. Re-run `test/plugin/mcp-tools-list-deterministic-order.ci` under concurrency
    and record the pass rate against the measured baseline below.
@@ -359,4 +359,4 @@ fix. Both are evidence that the failure is pre-existing.
 ## Notes
 
 Do NOT weaken or delete the deterministic-order test to reach green
-(`ai/rules/no-test-deletion.md`). It found a real product wart.
+(`ai/rules/testing.md`). It found a real product wart.

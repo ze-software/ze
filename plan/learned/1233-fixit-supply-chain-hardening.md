@@ -34,7 +34,7 @@ the inline dev/merge loop.
   deterministic and gates merges, catching a re-vendor that drops the DoS hardening.
 - **Pin hygiene = move-where-a-tag-exists, document where none does.** All 6 direct
   pseudo-version pins have NO upstream semver tag (proxy `@v/list` empty for each), so none
-  moved (build-safe); each is documented in `ai/rules/appliance-dep-bumps.md`. Documentation
+  moved (build-safe); each is documented in `ai/rules/platform-linux.md`. Documentation
   is a valid AC-4 outcome.
 
 ## Consequences
@@ -63,5 +63,5 @@ the inline dev/merge loop.
 - `.github/workflows/govulncheck.yml` (new, scheduled SCA)
 - `.github/workflows/codeql.yml` (shipped tag-combo build incl. `$(ZE_FEATURES)`)
 - `scripts/status/verify_run_test.go` (`TestGovulncheckScheduledWorkflow`, `TestCodeQLBuildUsesShippedTags` + feature-drift guard)
-- `ai/rules/appliance-dep-bumps.md` (pin-hygiene table, review cadence, GPLv2 sign-off note)
+- `ai/rules/platform-linux.md` (pin-hygiene table, review cadence, GPLv2 sign-off note)
 - `internal/appliance/updater_hardening_markers_test.go` (AC-3, prior commit 7a54527d0)

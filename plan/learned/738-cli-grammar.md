@@ -14,7 +14,7 @@ Four CLI handler families (show interface, clear interface, cache, commit) accep
 
 ## Consequences
 
-- `.claude/rules/cli-grammar.md` is BLOCKING for all future CLI command work. Wired into INSTRUCTIONS.md "Before You" table, cli-patterns.md rules/checklist, and cli-command.md pattern doc.
+- `.claude/rules/cli-grammar.md` is BLOCKING for all future CLI command work. Wired into INSTRUCTIONS.md "Before You" table, cli.md rules/checklist, and cli-command.md pattern doc.
 - Old grammar forms are accepted with deprecation. Scripts using old grammar will see a `"deprecated"` key in successful responses. This is intentional and non-breaking (new key, not changed shape).
 - Cache and commit YANG files remain flat (single container, no sub-containers). Autocomplete for action keywords comes from the YANG description text, not container nesting.
 - Fleet specs (0, 1, 4, 5) and the cli-grammar spec itself were updated to use action-first grammar.
@@ -27,8 +27,8 @@ Four CLI handler families (show interface, clear interface, cache, commit) accep
 
 ## Files
 
-- `ai/rules/cli-grammar.md` (new rule)
-- `ai/INSTRUCTIONS.md`, `ai/patterns/cli-command.md`, `ai/rules/cli-patterns.md` (enforcement chain)
+- `ai/rules/cli.md` (new rule)
+- `ai/INSTRUCTIONS.md`, `ai/patterns/cli-command.md`, `ai/rules/cli.md` (enforcement chain)
 - `internal/component/cmd/show/show.go` (handleShowInterface refactor)
 - `internal/component/iface/cmd/clear.go` (handleClearInterfaceCounters refactor)
 - `internal/component/bgp/plugins/cmd/cache/cache.go` (handleBgpCache refactor)

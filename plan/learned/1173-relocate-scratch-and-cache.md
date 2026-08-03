@@ -11,7 +11,7 @@ to out-of-tree state.
 
 ## Decisions
 
-- **Durable cache = existing `~/.cache/ze`** (`resolveCacheDir`, `cache.go:47-57`), NOT a new
+- **Durable cache = existing `~/.cache/ze`** (`resolveCacheDir`, `cache.go`), NOT a new
   repo-local `cache/` folder. A repo `cache` symlink points at it (created by
   `scripts/dev/ensure-links.py`) for visibility. Shared across worktrees, survives `git clean`.
 - **Make kernel path routed through the cache via Option C:** `mk/gokrazy.mk ze-kernel` asks a

@@ -22,7 +22,7 @@ The next session then inherits a record rather than a guess dressed as a finding
 ## Task
 
 **`TestInProcessChaosReconnect` fails on a loaded host and passes on a quiet one.**
-`ai/rules/fix-dont-record.md` names that shape and forbids recording it. A test that
+`ai/rules/completion.md` names that shape and forbids recording it. A test that
 survives only on a quiet host is a broken test. Load is the bug rather than the excuse.
 
 The failure under `ze-verify-changed`:
@@ -37,12 +37,12 @@ The first assertion passed, so a disconnect DID fire. The second failed, so the 
 recorded a second `peer.EventEstablished` before the run ended.
 
 **The observed mechanism.** The test asks for `ChaosRate: 1.0` with `ChaosInterval: 1s`
-over a fixed `Duration` of 60 seconds (`internal/chaos/inprocess/runner_test.go:666-680`).
+over a fixed `Duration` of 60 seconds (`internal/chaos/inprocess/runner_test.go`).
 Chaos therefore offers a disconnect every second for the whole run. Real TCP on loopback
 and real goroutine scheduling sit under the virtual clock. On a loaded host a
 re-establishment takes longer, while the disconnects keep arriving at the same rate. The
 count of `EventEstablished` is read only after `Run` returns
-(`runner_test.go:683-696`), so nothing waits for the second one.
+(`runner_test.go`), so nothing waits for the second one.
 
 ## Attribution: this is not the pilot's change
 
@@ -59,17 +59,17 @@ Reproduction, measured the same day:
 
 The first isolated attempt failed for an unrelated reason and is recorded so nobody repeats
 it: a bare `go test` without the feature tags reports `no such module: ze-bgp-conf`.
-`ai/rules/bash-output.md` names that trap.
+`ai/rules/commands.md` names that trap.
 
 ## The mechanism (resolved 2026-07-31)
 
 **The run ends on VIRTUAL time, and the reconnect it provoked needs REAL time.**
 
 The advance loop exits at `for simulated < cfg.Duration`
-(`internal/chaos/inprocess/runner.go:473`). It spends the 60 second window in about 0.6
-seconds of real time, which the file already states at `runner.go:685`. `simCancel()` then
-runs (`runner.go:749` before this work). The reconnect loop reads that cancel at
-`runner.go:334` and returns instead of restarting the simulator.
+(`internal/chaos/inprocess/runner.go`). It spends the 60 second window in about 0.6
+seconds of real time, which the file already states at `runner.go`. `simCancel()` then
+runs (`runner.go` before this work). The reconnect loop reads that cancel at
+`runner.go` and returns instead of restarting the simulator.
 
 An instrumented run under load captured the whole failure in two milliseconds:
 
@@ -80,23 +80,23 @@ An instrumented run under load captured the whole failure in two milliseconds:
 23:14:44.415  simulator returned, simCtxErr=context canceled
 ```
 
-The context watcher (`internal/chaos/peer/simulator.go:168-174`) closed the connection in
+The context watcher (`internal/chaos/peer/simulator.go`) closed the connection in
 the middle of the OPEN exchange. On a quiet host the same reconnect completes in 10
 milliseconds. Nothing in the test waits for it, because the count is read after `Run`
-returns (`runner_test.go:683-696`).
+returns (`runner_test.go`).
 
 ### Both earlier candidates are refuted
 
 | Candidate | Refutation |
 |-----------|------------|
-| `guard.AllowChaos` permits a new disconnect before the re-establishment finished | `AllowChaos` (`internal/chaos/guard/guard.go:89-119`) holds no establishment gate. Every action except `ActionHoldTimerExpiry` falls into the case at `guard.go:99-115`, whose body is a comment and nothing else. It also cannot fire at a peer that is down. `Scheduler.Tick` builds its candidates from established peers alone, and returns early when there are none (`internal/chaos/engine/scheduler.go:140-143`) |
-| The established snapshot is stale by a tick, so chaos targets a peer that just went down | The staleness is real. It cannot suppress the count. A stale action lands on a channel of capacity 1 (`runner.go:266`) and is read at `simulator.go:500`, which the session loop reaches only after `emit(Event{Type: EventEstablished})` at `simulator.go:250`. The recovery is therefore already counted before any chaos action can end the session |
+| `guard.AllowChaos` permits a new disconnect before the re-establishment finished | `AllowChaos` (`internal/chaos/guard/guard.go`) holds no establishment gate. Every action except `ActionHoldTimerExpiry` falls into the case at `guard.go`, whose body is a comment and nothing else. It also cannot fire at a peer that is down. `Scheduler.Tick` builds its candidates from established peers alone, and returns early when there are none (`internal/chaos/engine/scheduler.go`) |
+| The established snapshot is stale by a tick, so chaos targets a peer that just went down | The staleness is real. It cannot suppress the count. A stale action lands on a channel of capacity 1 (`runner.go`) and is read at `simulator.go`, which the session loop reaches only after `emit(Event{Type: EventEstablished})` at `simulator.go`. The recovery is therefore already counted before any chaos action can end the session |
 
-Both fall to one line. **`internal/chaos/peer/simulator.go:250` emits `EventEstablished`
+Both fall to one line. **`internal/chaos/peer/simulator.go` emits `EventEstablished`
 before the simulator can read a chaos action, so no chaos-side decision can prevent the
 second establishment.** Only a teardown that stops the handshake can, and that is
-`simCancel()`. In the captured failure the peer never reached `simulator.go:250` at all. It
-died in `readMsg` during the OPEN exchange (`simulator.go:202`), which no guard reaches.
+`simCancel()`. In the captured failure the peer never reached `simulator.go` at all. It
+died in `readMsg` during the OPEN exchange (`simulator.go`), which no guard reaches.
 
 ## What the diagnosis cost, and what it found
 
@@ -105,9 +105,9 @@ measurement after a narrower gate still failed under load.
 
 | Hidden state | Why peer state cannot show it |
 |--------------|-------------------------------|
-| The disconnect event trails the decision | `EventDisconnected` is emitted only after `<-readerDone`, and `readLoop` waits for its own drain goroutine first (`internal/chaos/peer/simulator_reader.go:38-41`). The drain goroutine that writes `establishedState` adds another wakeup |
-| An action is queued or running | `ActionConnectionCollision` holds the simulator for 500 milliseconds of real time (`internal/chaos/peer/simulator_actions.go:273`) and reports `Disconnected: false`. The peer reads as healthy throughout |
-| An action's consequence is deferred | `ActionHoldTimerExpiry` only stops the keepalives (`simulator_actions.go:44-47`). The session survives until the reactor's hold timer expires 20 seconds of virtual time later |
+| The disconnect event trails the decision | `EventDisconnected` is emitted only after `<-readerDone`, and `readLoop` waits for its own drain goroutine first (`internal/chaos/peer/simulator_reader.go`). The drain goroutine that writes `establishedState` adds another wakeup |
+| An action is queued or running | `ActionConnectionCollision` holds the simulator for 500 milliseconds of real time (`internal/chaos/peer/simulator_actions.go`) and reports `Disconnected: false`. The peer reads as healthy throughout |
+| An action's consequence is deferred | `ActionHoldTimerExpiry` only stops the keepalives (`simulator_actions.go`). The session survives until the reactor's hold timer expires 20 seconds of virtual time later |
 
 ## A sibling instance, same class, different suite
 
@@ -129,15 +129,15 @@ therefore adds total runtime and no concurrency.
 
 | Document | Why |
 |----------|-----|
-| `ai/rules/fix-dont-record.md` | Load is never an explanation, and a shard that blames it is refused |
-| `ai/rules/flaky-under-load.md` | `scripts/dev/stress-repro.py` reproduces this cheaply |
+| `ai/rules/completion.md` | Load is never an explanation, and a shard that blames it is refused |
+| `ai/rules/testing.md` | `scripts/dev/stress-repro.py` reproduces this cheaply |
 | `internal/chaos/inprocess/runner.go` | The advance loop and the `DisconnectAt` precedent at `:55-61` |
 | `internal/chaos/inprocess/chaos.go` | The scheduler loop and the guard call |
 
 ## The precedent to follow
 
 `DisconnectAt` in the same package was made condition-gated for this exact class of
-problem, and its doc comment states the principle (`internal/chaos/inprocess/runner.go:55-61`):
+problem, and its doc comment states the principle (`internal/chaos/inprocess/runner.go`):
 
 <!-- ste: ignore -->
 > It is an earliest bound, not an instant: disconnecting a session that has not come up yet exercises a scenario nobody wrote, and on a slow host a fixed instant lands there.
@@ -153,24 +153,24 @@ Source files read on 2026-07-30:
 - [ ] `internal/chaos/inprocess/runner_test.go`
 - [ ] `internal/chaos/inprocess/chaos.go`
 
-`chaosEnabled` comes from `cfg.ChaosRate > 0` (`runner.go:251`). When it is set, both
+`chaosEnabled` comes from `cfg.ChaosRate > 0` (`runner.go`). When it is set, both
 `DisconnectAt` branches disable themselves through their own `!chaosEnabled` guard
-(`runner.go:507`, `:578`), so a chaos run uses none of the condition-gated machinery. The
-chaos scheduler runs on ticks alone (`chaos.go:92-113`).
+(`runner.go`, `:578`), so a chaos run uses none of the condition-gated machinery. The
+chaos scheduler runs on ticks alone (`chaos.go`).
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
-`Run` (`internal/chaos/inprocess/runner.go`), called from `runner_test.go:670`. Format at
+`Run` (`internal/chaos/inprocess/runner.go`), called from `runner_test.go`. Format at
 entry is a `RunConfig`.
 
 ### Transformation Path
 
 The advance loop drives virtual time and feeds `chaosTick`. `chaosSchedulerLoop` reads a
-tick and calls `sched.Tick(now, es.Snapshot())` (`chaos.go:98`). Each surviving action
-passes `guard.AllowChaos` (`chaos.go:100`) and is sent non-blocking to the peer's channel
-(`chaos.go:103-109`). Lifecycle events land in `result.Events`, which the test counts after
+tick and calls `sched.Tick(now, es.Snapshot())` (`chaos.go`). Each surviving action
+passes `guard.AllowChaos` (`chaos.go`) and is sent non-blocking to the peer's channel
+(`chaos.go`). Lifecycle events land in `result.Events`, which the test counts after
 `Run` returns.
 
 ### Boundaries Crossed
@@ -189,7 +189,7 @@ None outside `internal/chaos/inprocess`. No other suite reads these events.
 
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
-| `Run` with `ChaosRate` 1.0 (`runner_test.go:670`) | -> | whichever gate the diagnosis names | `TestInProcessChaosReconnect` under stress |
+| `Run` with `ChaosRate` 1.0 (`runner_test.go`) | -> | whichever gate the diagnosis names | `TestInProcessChaosReconnect` under stress |
 
 ## 🧪 TDD Test Plan
 
@@ -253,7 +253,7 @@ ctx in 4 of 80 runs.
 
 ## A product data race, found by the fix
 
-`ai/rules/fix-dont-record.md` predicts that a real wait exposes a genuine race. It did.
+`ai/rules/completion.md` predicts that a real wait exposes a genuine race. It did.
 
 `DirectBridge.SendCallback` sends on `callbackCh` while `CloseCallbacks` closes it
 (`pkg/plugin/rpc/bridge.go`). The author knew the send CAN panic and added a `recover`, but
@@ -263,7 +263,7 @@ ctx in 4 of 80 runs.
 
 `CloseCallbacks` now takes `sendMu` for writing and both senders take it for reading, so a
 send can never overlap the close. The close still signals the SDK event loop to exit, so
-the contract at `pkg/plugin/sdk/sdk_dispatch.go:128-138` is unchanged.
+the contract at `pkg/plugin/sdk/sdk_dispatch.go` is unchanged.
 
 ## Evidence
 
@@ -286,7 +286,7 @@ the original report recorded, so the failing run was the race pass.
 
 | Id | Criterion | Evidence |
 |----|-----------|----------|
-| AC-1 | The mechanism is named with a `file:line`, and the losing candidate above is refuted in writing | "The mechanism" above names `runner.go:473` and `runner.go:334`. Both candidates are refuted against `guard.go:99-115`, `scheduler.go:140-143` and `simulator.go:250` |
+| AC-1 | The mechanism is named with a `file:line`, and the losing candidate above is refuted in writing | "The mechanism" above names `runner.go` and `runner.go`. Both candidates are refuted against `guard.go`, `scheduler.go` and `simulator.go` |
 | AC-2 | `TestInProcessChaosReconnect` passes under stress pressure | 0 of 100, then 0 of 60, against 6 of 30 before |
 | AC-3 | `Duration` is unchanged and no sleep is lengthened | `git diff internal/chaos/inprocess/runner_test.go` is empty. No `time.Sleep` value changed |
 | AC-4 | Chaos stays adversarial mid-run, so a half-open session is still reachable | The scheduler, the guard, the stale snapshot and the drop path are untouched. The gate runs after the advance loop, which is the only feeder of `chaosTick`, so no chaos is scheduled during it |

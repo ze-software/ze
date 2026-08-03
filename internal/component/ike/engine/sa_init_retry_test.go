@@ -35,7 +35,7 @@ func TestParseInvalidKEGroupReadsTwoOctetsBigEndian(t *testing.T) {
 // VALIDATES: every malformed or out-of-range body is refused, and the caller cannot
 // mistake a refusal for group 0.
 // PREVENTS: a forged notify steering Ze onto a group it cannot build, and the zero-value
-// trap where a truncated body parses as "no DH" (ai/rules/fail-closed-guards.md).
+// trap where a truncated body parses as "no DH" (ai/rules/evidence.md).
 func TestParseInvalidKEGroupFailsClosed(t *testing.T) {
 	cases := []struct {
 		name string
@@ -76,7 +76,7 @@ func TestGroupIsProposedOnlyForConfiguredGroups(t *testing.T) {
 
 // VALIDATES: the retry cause is a typed value whose zero is invalid.
 // PREVENTS: an unset cause reading as a real one and driving a retry nobody asked for
-// (ai/rules/enum-over-string.md).
+// (ai/rules/go-standards.md).
 func TestRetryCauseZeroIsInvalid(t *testing.T) {
 	var zero retryCause
 	if zero != retryCauseNone {

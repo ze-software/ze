@@ -799,7 +799,7 @@ class Scenario:
             # vrrp-keepalived,vpp,vpp-iface}.py, test/stress/harness.py,
             # test/plugin/lg-graph-lab/run.sh, docker/compose.yaml) and in five docs. The
             # audit is only complete when it covers EVERY invocation site of the bare
-            # token, not the ones sharing a directory (ai/rules/before-writing-code.md,
+            # token, not the ones sharing a directory (ai/rules/architecture.md,
             # Sibling Call-Site Audit).
             cmd=["start", "/etc/ze/ze.conf"],
         )

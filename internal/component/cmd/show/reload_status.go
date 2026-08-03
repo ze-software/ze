@@ -14,7 +14,7 @@ import (
 // `show reload-status` stays in the CENTRAL show package on purpose. The reload
 // generation counter is process-global daemon state with no removable owner --
 // the same class as `show warnings` and `show health` -- so it does not belong
-// to any plugin's subtree (ai/rules/plugin-self-containment.md). In particular
+// to any plugin's subtree (ai/rules/plugins.md). In particular
 // it is NOT `show config reload-status`: that subtree is owned by
 // internal/plugins/config-cli, and hanging a centrally-handled command off a
 // plugin's schema inverts the removal test.

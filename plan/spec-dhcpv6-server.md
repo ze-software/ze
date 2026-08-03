@@ -47,7 +47,7 @@ so the two servers present one consistent operator surface.
 ### Architecture Docs
 - [ ] `internal/plugins/dhcpserver/` (current IPv4 code) - reuse packet/socket/lease scaffolding where possible.
   → Constraint: DHCPv6 uses a different transport (UDP 546/547, multicast) and message model; do not force it into the v4 handler.
-- [ ] `ai/rules/module-tiers.md` - where a v6 server sits relative to the v4 plugin.
+- [ ] `ai/rules/architecture.md` - where a v6 server sits relative to the v4 plugin.
   → Constraint: decide during design whether v6 is a sibling plugin or a shared engine with v4.
 
 ### RFC Summaries (MUST for protocol work)

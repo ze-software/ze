@@ -12,7 +12,7 @@ import (
 // remoteIDTypeNames maps the remote-id-type YANG enum onto the Identification Type
 // numbers of RFC 7296 Section 3.5. The numbers come from the wire package rather than
 // being restated here, so the config surface and the codec cannot drift apart
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 //
 // ID_DER_ASN1_GN is deliberately absent. RFC 7296 Section 3.5 assigns it, and RFC 7296
 // Section 4 does not require accepting it, so ze offers no way to ask for a type it
@@ -41,7 +41,7 @@ func RemoteIDTypeNames() []string {
 // type number. The second result reports whether the name is known. The caller MUST
 // REFUSE an unknown name rather than treat it as unset. A name read as unset would
 // silently widen the peer's accepted identity types to every comparable one
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func ParseRemoteIDType(s string) (uint8, bool) {
 	t, ok := remoteIDTypeNames[s]
 	return t, ok
@@ -59,7 +59,7 @@ func ParseRemoteIDType(s string) (uint8, bool) {
 // An UNSET type (0) is treated as constrained. remote-id-type is optional, and an operator
 // who omits it is matching a peer that asserts one of the string types in every ordinary
 // configuration. Reading unset as unconstrained would silently drop the check for every
-// peer that never sets the leaf, which is most of them (ai/rules/fail-closed-guards.md).
+// peer that never sets the leaf, which is most of them (ai/rules/evidence.md).
 func remoteIDIsTerminatorFree(idType uint8) bool {
 	switch idType {
 	case 0, wire.IDTypeFQDN, wire.IDTypeRFC822Addr:
@@ -80,7 +80,7 @@ func remoteIDIsTerminatorFree(idType uint8) bool {
 // legitimate value nothing: a domain name is letters, digits, hyphen and dot, and a mail
 // address adds no control character either. Reading "etc." narrowly, as NULL and CR
 // alone, would let LF through, and LF terminates a string in as many parsers as CR does
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // The octets are examined one at a time rather than as runes. A terminator inside a
 // multi-octet UTF-8 sequence is not reachable, because every continuation octet has its

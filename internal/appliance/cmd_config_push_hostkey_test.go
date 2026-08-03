@@ -113,7 +113,7 @@ func TestSSHExecAcceptsPinnedHostKey(t *testing.T) {
 
 // VALIDATES: AC-5 -- a missing known_hosts file fails closed with a readable error.
 // PREVENTS: An absent file being treated as "nothing to check" and falling through
-// to an unverified connection (ai/rules/fail-closed-guards.md).
+// to an unverified connection (ai/rules/evidence.md).
 func TestSSHExecRefusesMissingKnownHosts(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "absent", "known_hosts")
 

@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- registration over hardcoding
+// Design: ai/rules/plugins.md -- registration over hardcoding
 // Registers the monitor-ping live view (model_ping.go) with the client-side
 // view registry (view_registry.go). Kept in a register_*.go file per
 // ai/patterns/registration.md; delete this plus model_ping.go and the view is

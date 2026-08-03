@@ -10,7 +10,7 @@ NOTE: learned number 1190 was chosen to avoid collision with concurrent sessions
 
 A slow or stuck (not crashed) cache-consumer plugin can pin the shared read-buffer
 pool for minutes. Each `RecentUpdateCache` entry holds a pooled `BufHandle`
-(`received_update.go:58` `poolBuf`), released only on consumer `Ack` or by the gap
+(`received_update.go` `poolBuf`), released only on consumer `Ack` or by the gap
 safety valve (default 5 min, scanned every 30s). Those buffers come from the
 byte-budgeted `bufMuxStd`/`bufMuxExt` pool that also feeds every live session's read
 path, so sustained pinning starves inbound-UPDATE processing for ALL peers long before

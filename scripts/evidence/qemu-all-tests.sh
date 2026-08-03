@@ -160,7 +160,7 @@ fsuite install "$ZE_TEST_BIN" install --all -p "$PARALLEL"
 fsuite appliance "$ZE_TEST_BIN" appliance --all -p "$PARALLEL"
 # IGP/MPLS suites: gated natively too, but test/ospf and test/ospfv3 contain
 # option=needs-linux tests that only execute here (spec-test-coverage-gaps AC-5;
-# the "full pass" claim in ai/rules/qemu-testing.md needs every gating suite).
+# the "full pass" claim in ai/rules/platform-linux.md needs every gating suite).
 fsuite ldp "$ZE_TEST_BIN" ldp --all -p "$PARALLEL"
 fsuite rsvpte "$ZE_TEST_BIN" rsvpte --all -p "$PARALLEL"
 fsuite isis "$ZE_TEST_BIN" isis --all -p "$PARALLEL"
@@ -275,7 +275,7 @@ fi
 # package's ordinary unit tests, which are compiled and run too -- but without
 # ze_core and the ZE_FEATURES set they normally get, so every feature-gated
 # surface silently vanishes and the tests that assert on it fail. That is not a
-# regression, it is the bare-`go test` trap ai/rules/bash-output.md describes:
+# regression, it is the bare-`go test` trap ai/rules/commands.md describes:
 # four internal/component/doctor listener tests failed for want of ze_ssh alone,
 # reporting "expected ssh listener from fallback collection" while passing in
 # ze-verify. Derived from feature-gates.txt so this cannot drift from the

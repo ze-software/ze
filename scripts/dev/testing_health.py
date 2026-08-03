@@ -187,7 +187,7 @@ class CollectError(Exception):
     """A collector could not produce a trustworthy number.
 
     Raised rather than returning zero: a guard that reports a permissive value
-    on a miss is worse than no guard (ai/rules/fail-closed-guards.md).
+    on a miss is worse than no guard (ai/rules/evidence.md).
     """
 
 
@@ -698,7 +698,7 @@ def collect_sleep_ratchet(root: Path) -> Metric:
     # signed-integer lines that sum to the ceiling); verify_wiring_docs owns the
     # canonical parser. A file with no parseable integer line is malformed and
     # must fail closed -- a garbage baseline may not silently disable the ratchet
-    # (ai/rules/fail-closed-guards.md). Imported lazily so a discovery_sources
+    # (ai/rules/evidence.md). Imported lazily so a discovery_sources
     # import hiccup cannot break the whole module load.
     from verify_wiring_docs import parse_sleep_baseline
 
@@ -1502,7 +1502,7 @@ def _gated_list(by_key, metric_key, list_field, count_of, count_path, means) -> 
     file -- so it is indistinguishable from success and it is what the shipped
     defect produced. `rfc-unproven` read `worst`, a key only `rfc-proof-density`
     carries, so the fact was empty on both sides of every comparison and gated
-    nothing (ai/rules/fail-closed-guards.md: a guard that neither denies nor
+    nothing (ai/rules/evidence.md: a guard that neither denies nor
     speaks does not exist). Its siblings had the same `.get(...) or []` shape and
     the same reachable vacuum.
 

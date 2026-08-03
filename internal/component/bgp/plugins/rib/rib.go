@@ -229,7 +229,7 @@ type RIBManager struct {
 
 	// bgpPeers holds BGP Adj-RIB-In state, keyed by parsed peer address.
 	// Peer strings are parsed once at the event / command boundary; every
-	// internal lookup uses the netip.Addr key (ai/rules/enum-over-string.md).
+	// internal lookup uses the netip.Addr key (ai/rules/go-standards.md).
 	bgpPeers map[netip.Addr]*storage.PeerRIB
 
 	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
@@ -1047,7 +1047,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	// fresh session is always the latter. Conflating the two made
 	// replayRoutesWithCursor's empty-groups ready signal (rib_replay.go:250-253)
 	// unreachable and delayed every fresh session's EOR by 2.5s.
-	// See ai/rules/fail-closed-guards.md (the zero-value trap).
+	// See ai/rules/evidence.md (the zero-value trap).
 	cameUp := false
 	var replayGroups []replayGroup
 	var pendingPurgeEmits map[family.Family][]bestChangeEntry

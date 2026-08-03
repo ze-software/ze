@@ -30,7 +30,7 @@ converted to deterministic waits on the darwin dev host, because neither the
 original nor the converted test can be RUN there to prove the conversion. Each
 one needs the same treatment: confirm the ORIGINAL passes under QEMU, convert the
 blind hold to a deterministic wait, then RE-VERIFY under QEMU. A darwin skip is
-not evidence: per `ai/rules/qemu-testing.md` and the umbrella spec's R-2, no
+not evidence: per `ai/rules/platform-linux.md` and the umbrella spec's R-2, no
 linux-only conversion may be marked done on a darwin-skip alone. Converting each
 sleep lowers `test/.ci-sleep-baseline` (cited 132; now 125, 2026-07-22), which must be
 ratcheted down in the same change.
@@ -56,22 +56,22 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 <!-- NEVER tick [ ] to [x]. Capture insights as → Decision: / → Constraint: annotations. -->
 
 ### Source (read before designing)
-- [ ] `internal/test/runner/record_parse.go:394-412` (was `:391-400`) - `option=needs-linux` parsing: the ONLY place `Record.NeedsLinux` is set.
+- [ ] `internal/test/runner/record_parse.go` (was `:391-400`) - `option=needs-linux` parsing: the ONLY place `Record.NeedsLinux` is set.
   → Constraint: `option=skip-os:value=darwin` does NOT set `NeedsLinux`. The two gates are not interchangeable, and the difference decides which QEMU target reaches a test.
-- [ ] `internal/test/runner/record_parse.go:236-237` (was `:235-236`) - the `ZE_QEMU_LINUX_ONLY=1` filter.
+- [ ] `internal/test/runner/record_parse.go` (was `:235-236`) - the `ZE_QEMU_LINUX_ONLY=1` filter.
   → Constraint: every test NOT marked `option=needs-linux` gets `SkipReason = "ZE_QEMU_LINUX_ONLY (not option=needs-linux)"`. So `make ze-qemu-needs-linux-test` SKIPS the whole policy/firewall/ospf/pppoe group. Claiming those "QEMU-verified" via that target would be false.
-- [ ] `internal/test/runner/record.go:203-207` (was `:179-183`) - `NeedsLinux` field doc.
-- [ ] `mk/test-integration.mk:251-260` - the `ze-qemu-needs-linux-test` target: cross-compiles linux binaries, runs `qemu-all-tests.sh` with `ZE_QEMU_LINUX_ONLY=1` and `ZE_QEMU_SKIP_SUITES="web"`.
+- [ ] `internal/test/runner/record.go` (was `:179-183`) - `NeedsLinux` field doc.
+- [ ] `mk/test-integration.mk` - the `ze-qemu-needs-linux-test` target: cross-compiles linux binaries, runs `qemu-all-tests.sh` with `ZE_QEMU_LINUX_ONLY=1` and `ZE_QEMU_SKIP_SUITES="web"`.
   → Constraint: one VM boot for all linux-only tests, not one VM per test. Per-test iteration uses `make ze-qemu-debug RUN=...`.
-- [ ] `scripts/dev/verify_wiring_docs.py:196-256` (`check_ci_sleep_ratchet`), `:258-285` (`check_ci_sleep_justification`) - the two gates.
+- [ ] `scripts/dev/verify_wiring_docs.py` (`check_ci_sleep_ratchet`), `:258-285` (`check_ci_sleep_justification`) - the two gates.
   → Constraint: the ratchet caps HOW MANY sleeps exist (against the baseline); the justification gate is scoped to CHANGED `.ci` files only, so touching a file makes this session responsible for every sleep in it.
 - [ ] `test/.ci-sleep-baseline` - cited `132`; now `125` (composable-delta sum, 2026-07-22).
   → Constraint: the 2026-07-15 measurement was exactly 126 `time.sleep(` in `test/**/*.ci` (baseline tight, zero slack); `test/.ci-sleep-baseline` read 132 (verified 2026-07-16 by reading the file) after sibling specs landed, and now sums to 125 (2026-07-22, composable-delta format), so re-measure the tree at Phase 2. Any conversion must lower the baseline in the same change or the ratchet fails.
 
 ### Architecture Docs
-- [ ] `ai/rules/qemu-testing.md` - QEMU integration is mandatory for linux-only code; never skip for "needs hardware".
+- [ ] `ai/rules/platform-linux.md` - QEMU integration is mandatory for linux-only code; never skip for "needs hardware".
   → Constraint: this rule is the spec's completion criterion. Conversion is not done; QEMU re-verification is done.
-- [ ] `ai/rules/ci-sleep-justification.md` - the comment-on-every-sleep rule.
+- [ ] `ai/rules/testing.md` - the comment-on-every-sleep rule.
   → Constraint: a converted sleep removes its comment with it; a KEPT sleep must keep justifying itself or the gate fails on the changed file.
 - [ ] `docs/architecture/testing/ci-format.md` - the `.ci` directive catalog (`option=needs-linux`, `option=skip-os`, `expect=`).
 
@@ -82,9 +82,9 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 - [ ] `internal/test/runner/record.go` - the `NeedsLinux` field doc (:203-207, was :179-183): set by `option=needs-linux` so the `ZE_QEMU_LINUX_ONLY` filter can run ONLY those tests.
 - [ ] `scripts/dev/verify_wiring_docs.py` - `check_ci_sleep_ratchet` (:196) reads `test/.ci-sleep-baseline`; `check_ci_sleep_justification` (:258) is scoped to CHANGED `.ci` files (:268).
 - [ ] `test/.ci-sleep-baseline` - was `132` (:1, then a single integer); now sums to `125` (2026-07-22, composable-delta format: the ceiling is the sum of the signed-integer lines); up from the 126 measured 2026-07-15 as sibling specs landed (re-measure the tree count at Phase 2).
-- [ ] `test/traffic/001-boot-apply.ci:21-25`, `test/traffic/011-vpp-reject-hfsc.ci:23`, `test/traffic/020-vpp-reject-dscp-filter.ci:24`, `test/traffic/022-boot-qdisc-tc.ci:21`, `test/traffic/024-vpp-reject-prio.ci:21` - the ZE_READY_FILE blind-hold shape, annotated "blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)".
-- [ ] `test/traffic/012-vpp-not-connected.ci:2,14,22,26` and `test/traffic/026-vpp-accept-multiclass.ci:23,24` - the deliberate-timer shape: "blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test". 012's header states it VALIDATES that `WaitConnected` returns an error after the 5s timeout.
-- [ ] `test/traffic/002-reload-apply.ci:39,44`, `test/traffic/023-reload-qdisc-tc.ci:38,46`, `test/policy/006-reload.ci:33,46` - the reload shape: a "blind settle" before SIGHUP ("let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll") plus a "blind hold" after ("SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log").
+- [ ] `test/traffic/001-boot-apply.ci`, `test/traffic/011-vpp-reject-hfsc.ci`, `test/traffic/020-vpp-reject-dscp-filter.ci`, `test/traffic/022-boot-qdisc-tc.ci`, `test/traffic/024-vpp-reject-prio.ci` - the ZE_READY_FILE blind-hold shape, annotated "blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)".
+- [ ] `test/traffic/012-vpp-not-connected.ci,14,22,26` and `test/traffic/026-vpp-accept-multiclass.ci,24` - the deliberate-timer shape: "blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test". 012's header states it VALIDATES that `WaitConnected` returns an error after the 5s timeout.
+- [ ] `test/traffic/002-reload-apply.ci,44`, `test/traffic/023-reload-qdisc-tc.ci,46`, `test/policy/006-reload.ci,46` - the reload shape: a "blind settle" before SIGHUP ("let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll") plus a "blind hold" after ("SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log").
 
 **Behavior to preserve:**
 - Every converted test keeps its exact `expect=`/`reject=`/fatal assertions. Only the WAIT mechanism changes (umbrella "Behavior to preserve").
@@ -112,7 +112,7 @@ Gate taxonomy across ALL files containing sleeps (blind = raw minus bounded poll
 | Group | Gate | Reachable by | Raw | Blind |
 |-------|------|--------------|-----|-------|
 | A | `option=needs-linux` | `make ze-qemu-needs-linux-test` | 14 | **9** |
-| B | `option=skip-os:value=darwin` only | NOT that target (filtered at `record_parse.go:235`); needs `ze-qemu-all-test` | 31 | **12** |
+| B | `option=skip-os:value=darwin` only | NOT that target (filtered at `record_parse.go`); needs `ze-qemu-all-test` | 31 | **12** |
 | C | no OS gate | the darwin host directly | 81 | **54** |
 
 Group A files (raw/blind): `install/dhcp-zero-listener.ci` 1/1, `install/tftp-zero-listener.ci` 1/1,
@@ -190,7 +190,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | tc qdisc programmed by OnConfigure | -> | tc readback poll replacing the blind hold | `test/traffic/022-boot-qdisc-tc.ci` (QEMU) |
 | dhcp/tftp zero-listener path | -> | deterministic wait on the asserted listener state | `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci` (QEMU) |
 | ddos characterize pipeline | -> | deterministic wait on the characterization result | `test/plugin/ddos-detect-characterize.ci` (QEMU) |
-| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py:196`) | `test/.ci-sleep-baseline` lowered; `make ze-verify-changed` green |
+| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py`) | `test/.ci-sleep-baseline` lowered; `make ze-verify-changed` green |
 
 ## Acceptance Criteria
 
@@ -199,7 +199,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | AC-1 | Before converting any test | The ORIGINAL test is confirmed green under QEMU, so a post-conversion failure is unambiguously the conversion's fault |
 | AC-2 | A blind hold on a background daemon's readiness (the ZE_READY_FILE shape) | Replaced by a deterministic wait on a real signal (the asserted OnConfigure log line, or a readiness marker made available to backgrounded ze), bounded, with a timeout that names what it waited for |
 | AC-3 | A pre-SIGHUP blind settle / post-SIGHUP blind hold (traffic/002, traffic/023, policy/006) | Replaced by a wait on an observable reload-completion signal, or the test is recorded as infra-gated with the missing signal named |
-| AC-4 | Each converted test, after conversion | RE-VERIFIED green under QEMU. Never marked done on a darwin skip alone (`ai/rules/qemu-testing.md`, umbrella R-2) |
+| AC-4 | Each converted test, after conversion | RE-VERIFIED green under QEMU. Never marked done on a darwin skip alone (`ai/rules/platform-linux.md`, umbrella R-2) |
 | AC-5 | A sleep annotated "bounded wait not a blind sleep" | Left unchanged; it is already deterministic |
 | AC-6 | A deliberate timer (traffic/012, traffic/026: the 5s vpp `WaitConnected` timeout IS the behavior under test) | Kept, justifying comment intact, `check_ci_sleep_justification` green |
 | AC-7 | Any commit that removes sleeps | `test/.ci-sleep-baseline` lowered by exactly the number removed, in the SAME change (the baseline stood at 132 when written; now 125, 2026-07-22) |
@@ -220,9 +220,9 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A linux-only conversion is claimed done on a darwin skip | the test "passes" on darwin instantly with a skip reason | MANDATORY QEMU run per test (`ai/rules/qemu-testing.md`); AC-4 makes re-verification the completion criterion, not conversion |
+| R-1 | A linux-only conversion is claimed done on a darwin skip | the test "passes" on darwin instantly with a skip reason | MANDATORY QEMU run per test (`ai/rules/platform-linux.md`); AC-4 makes re-verification the completion criterion, not conversion |
 | R-2 | "Verified" via a target that silently skipped the test (group B under `ZE_QEMU_LINUX_ONLY=1`) | the QEMU run reports the test skipped, not passed, and the summary is not read closely | AC-8; always read the skip count in the QEMU summary, never just the exit code |
-| R-3 | A converted test flakes under QEMU's slower timing | intermittent red | investigate the race at the source; NEVER re-add a sleep (`ai/rules/no-workarounds-for-missing-behavior.md`) |
+| R-3 | A converted test flakes under QEMU's slower timing | intermittent red | investigate the race at the source; NEVER re-add a sleep (`ai/rules/completion.md`) |
 | R-4 | Converting a bounded poll or a deliberate timer for baseline credit | the diff touches sleeps whose comments say "bounded wait" or "IS the behavior under test" | AC-5/AC-6; the ratchet rewards removal, so guard against gaming it |
 | R-5 | Overlap with `plan/spec-fixit-reject-fence-observability.md` | two specs edit the same external-warn tests | 3 group A files (`ddos-detect-external-warns`, `flowexport-external-refuses`, `trafficusage-external-refuses`) are named by the umbrella as infra-gated reject-fence cases; confirm ownership before touching them |
 | R-8 | Overlap with `plan/spec-fixit-ddos-test-infra.md` (sibling skeleton, created 2026-07-15) | both specs edit `test/plugin/ddos-detect-mitigate.ci` | that spec's Problem A REWRITES that file onto the `ze_api` observer pattern, changing its sleep count. It has blind=0 today, so this spec has nothing to convert in it: leave it alone and let the ddos spec own it. Re-measure the baseline after that spec lands |
@@ -271,14 +271,14 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 - `test/.ci-sleep-baseline` - lowered per conversion batch (ratchet).
 - `docs/architecture/testing/ci-format.md` - document any new wait surface or gate convention introduced by research (candidate, pending research).
 - `internal/test/runner/record_parse.go` - only if the backgrounded-ze readiness gap (A-2) or a regating decision (A-4) lands at the runner (candidate, pending research; UNVERIFIED that a change is needed here).
-- `ai/rules/qemu-testing.md` - only if the group A/B target-reachability distinction deserves recording as a rule (candidate).
+- `ai/rules/platform-linux.md` - only if the group A/B target-reachability distinction deserves recording as a rule (candidate).
 - The converted `.ci` files: `test/traffic/022-boot-qdisc-tc.ci`, `test/traffic/023-reload-qdisc-tc.ci`, `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci`, `test/plugin/ddos-detect-characterize.ci`, plus the group B set (`test/policy/*.ci`, `test/firewall/*.ci`, `test/ospf/*.ci`, `test/pppoe/*.ci`) if AC-8 resolves in favour of including them.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | Test infra docs | only if a new wait surface lands | `docs/architecture/testing/ci-format.md` |
-| Discovery updates | only if a new primitive/gate lands | `ai/INDEX.md` per `ai/rules/discovery-updates.md` |
+| Discovery updates | only if a new primitive/gate lands | `ai/INDEX.md` per `ai/rules/repo-maintenance.md` |
 | QEMU verification | yes (the spec's whole point) | `make ze-qemu-needs-linux-test` |
 | Ratchet | yes | `test/.ci-sleep-baseline` |
 

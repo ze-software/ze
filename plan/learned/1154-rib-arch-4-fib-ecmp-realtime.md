@@ -2,9 +2,9 @@
 
 ## Context
 
-BGP equal-cost multipath selection existed (`SelectMultipath`, bestpath.go:157) but its
+BGP equal-cost multipath selection existed (`SelectMultipath`, bestpath.go) but its
 siblings reached only the `show bgp rib best` display. The realtime best-change producer
-(`checkBestPathChange`, rib_bestchange.go:700) called `SelectBest` and mirrored ONE
+(`checkBestPathChange`, rib_bestchange.go) called `SelectBest` and mirrored ONE
 `locrib.Path` (single next-hop) into the shared Loc-RIB, so a BGP multipath best installed a
 single kernel next-hop, never an ECMP group. rib-arch-4 delivers the full N-nexthop set so
 the FIB installs BGP ECMP.
@@ -12,7 +12,7 @@ the FIB installs BGP ECMP.
 ## Decisions
 
 - **Populate the Loc-RIB, not the BGP best-change event.** The FIB consumes sysrib's Stream B
-  (built from Loc-RIB Changes in the default in-process deployment, sysrib.go:852), NOT the BGP
+  (built from Loc-RIB Changes in the default in-process deployment, sysrib.go), NOT the BGP
   event bus; `BestChangeEntry.ECMPNextHops` is `json:"-"` and never reaches the FIB. So a fix at
   the BGP producer's event (design A) is dead.
 - **Design C over design B.** BGP arbitrates ONE best across peers, so it inserts one Loc-RIB

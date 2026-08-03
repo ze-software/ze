@@ -53,7 +53,7 @@ source .claude/hooks/lib/state-file.sh
 ZE_SPEC_WIP_CAP="${ZE_SPEC_WIP_CAP:-12}"
 
 # Print "<updated-date>\t<spec-file>" per in-progress spec, stalest first.
-# Two greps over the whole set, never one per file (ai/rules/no-fork-loops.md).
+# Two greps over the whole set, never one per file (ai/rules/commands.md).
 _wip_list() {
     local files
     files=$(grep -l '^| Status | *in-progress' plan/spec-*.md 2>/dev/null || true)

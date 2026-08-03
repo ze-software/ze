@@ -24,9 +24,9 @@ strongSwan fails the method immediately.**
 strongSwan sends a 67-octet `EAP/REQ/TLS` Start. Ze replies with 67 octets. A ClientHello is
 several hundred octets. strongSwan then logs `EAP method EAP_TLS failed`.
 
-`readAndSendTLS` (`internal/component/ike/eap/peer.go:406-418`) calls
+`readAndSendTLS` (`internal/component/ike/eap/peer.go`) calls
 `ps.tlsTransport.readServerData()`, which is a non-blocking drain of a buffer under a mutex
-(`eap_tls.go:321-327`). When that drain returns empty, line 415 sends `TypeData: []byte{0}`,
+(`eap_tls.go`). When that drain returns empty, line 415 sends `TypeData: []byte{0}`,
 a bare flags octet, which is the fragment-acknowledgement form.
 
 It is reached from `handleTLSRequest:286`, immediately after `startTLSClient()` at `:283`.
@@ -50,7 +50,7 @@ it was unable to start until today.
 | RFC 5216 Section 2.1 | The EAP-TLS message flow, and what answers a Start |
 | `internal/component/ike/eap/peer.go` | `readAndSendTLS` and `handleTLSRequest` |
 | `internal/component/ike/eap/eap_tls.go` | The buffered transport and its non-blocking drain |
-| `ai/rules/fail-closed-guards.md` | An empty drain is a zero value that reads as a valid answer |
+| `ai/rules/evidence.md` | An empty drain is a zero value that reads as a valid answer |
 
 ## Current Behavior (MANDATORY)
 
@@ -59,11 +59,11 @@ Source files read on 2026-07-31:
 - [ ] `internal/component/ike/eap/peer.go`
 - [ ] `internal/component/ike/eap/eap_tls.go`
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
-`handleTLSRequest` (`eap/peer.go:286`), on the inbound `EAP/REQ/TLS` Start.
+`handleTLSRequest` (`eap/peer.go`), on the inbound `EAP/REQ/TLS` Start.
 
 ### Transformation Path
 
@@ -120,7 +120,7 @@ scenario 03 passes.
 
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
-| inbound EAP-TLS Start (`peer.go:286`) | -> | the handshake-output wait | a unit test with a deliberately slow TLS client |
+| inbound EAP-TLS Start (`peer.go`) | -> | the handshake-output wait | a unit test with a deliberately slow TLS client |
 | scenario 04 against strongSwan | -> | the whole EAP-TLS path | `test/ipsec-interop/scenarios/04-eap-tls` |
 
 ## 🧪 TDD Test Plan

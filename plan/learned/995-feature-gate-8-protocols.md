@@ -113,5 +113,5 @@ shape is different: pure blank-import partitioning, no new register_<x>.go/seam.
   protocol CLI imports), `internal/component/plugin/all/all.go` (generated),
   `internal/component/cmd/show/yang/self_containment_test.go` (relocated hint paths),
   `scripts/dev/dep_audit.py` (two model fixes), `docs/features.md` (IS-IS/OSPF/
-  MPLS-LDP-RSVP-TE rows), `ai/rules/feature-gate-registration.md` (plugin
-  compile-out shape), `ai/rules/module-tiers.md` (gated edge engine note)
+  MPLS-LDP-RSVP-TE rows), `ai/rules/plugins.md` (plugin
+  compile-out shape), `ai/rules/architecture.md` (gated edge engine note)

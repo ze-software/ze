@@ -15,9 +15,9 @@ summary records the work at closure (the sibling `spec-fixit-tombstone-code-poin
 ## Decisions
 
 - **Clear only the Transitive bit, per-destination, on the eBGP re-encode.**
-  `clearTombstoneTransitive` (`wireu/tombstone.go:38`) masks only `FlagTransitive` (Optional +
+  `clearTombstoneTransitive` (`wireu/tombstone.go`) masks only `FlagTransitive` (Optional +
   Extended-Length preserved); it is called from the attribute-copy loop's `default:` case in
-  `aspath_rewrite.go:528` guarded by `code == attribute.AttrTombstone`. IBGP peers keep the
+  `aspath_rewrite.go` guarded by `code == attribute.AttrTombstone`. IBGP peers keep the
   shared received wire zero-copy (marker stays 0xC0), because "forwarded within the AS via IBGP"
   must not alter it.
 - **AC-2 (code 253) RETIRED, not implemented as a second case.** The sibling code-point-split

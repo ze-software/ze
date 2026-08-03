@@ -50,7 +50,7 @@ func TestPeerAwaitEOROptionReachesConfig(t *testing.T) {
 	// Through the real entry point, so the merge being CALLED is covered too.
 	// Testing the merge function alone leaves the same hole one level up: a
 	// correct, complete merge that nothing invokes drops every option exactly as
-	// the original bug did (ai/rules/fail-closed-guards.md, "drive the guard from
+	// the original bug did (ai/rules/evidence.md, "drive the guard from
 	// the entry point").
 	full, ok := zeTestParsePeerFlags([]string{path})
 	if !ok || full == nil {

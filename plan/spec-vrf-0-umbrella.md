@@ -103,7 +103,7 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` -- overall architecture, reactor, plugin model
   --> Constraint: reactor is the central event loop; plugins connect via hub
-- [ ] `ai/rules/plugin-design.md` -- plugin registration, 5-stage protocol, proximity principle
+- [ ] `ai/rules/plugins.md` -- plugin registration, 5-stage protocol, proximity principle
   --> Constraint: registration via `init()` in `register.go`, blank import is only coupling
 - [ ] `ai/rules/goroutine-lifecycle.md` -- goroutine patterns
   --> Constraint: long-lived workers only, no per-event goroutines in hot paths
@@ -216,11 +216,11 @@ The following global state in `internal/component/bgp/reactor/` was analyzed for
 
 | Global | File | Type | Reason |
 |--------|------|------|--------|
-| `bufMuxStd` | `session.go:53` | Pool + budget | Same process, same memory, global budget is correct |
-| `bufMuxExt` | `session.go:58` | Pool + budget | Same as above |
-| `modBufPool` | `forward_build.go:18` | `sync.Pool` | Stateless buffer pool, no contention concern |
-| `fwdWriteDeadlineNs` | `forward_pool.go:53` | `atomic.Int64` | Global tuning knob, not per-VRF |
-| `msgIDCounter` | `received_update.go:20` | `atomic.Uint64` | Monotonic process-wide sequence number, non-contiguous IDs per VRF is fine |
+| `bufMuxStd` | `session.go` | Pool + budget | Same process, same memory, global budget is correct |
+| `bufMuxExt` | `session.go` | Pool + budget | Same as above |
+| `modBufPool` | `forward_build.go` | `sync.Pool` | Stateless buffer pool, no contention concern |
+| `fwdWriteDeadlineNs` | `forward_pool.go` | `atomic.Int64` | Global tuning knob, not per-VRF |
+| `msgIDCounter` | `received_update.go` | `atomic.Uint64` | Monotonic process-wide sequence number, non-contiguous IDs per VRF is fine |
 | Loggers | Various | Lazy loggers | Read-only, safe to share |
 | Error sentinels | Various | `var Err*` | Read-only, safe to share |
 

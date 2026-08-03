@@ -9,7 +9,7 @@ import (
 // The central show, monitor, and resolve schemas must NOT declare any `ping`
 // command node, and this dedicated ping module MUST declare all of them.
 // Together they prove the ping surface moved rather than vanished. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 func TestPingCmdSchemaOwnsPing(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:ping"`,

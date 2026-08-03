@@ -407,7 +407,7 @@ func TestPortEncodingFollowsSection3131(t *testing.T) {
 	// negotiated, which RFC 7296 Section 2.9 forbids.
 	//
 	// Ze refuses the form at commit (ipsec.checkPortProgrammable). It drops the form at
-	// negotiation (programmableSelector). That is ai/rules/exact-or-reject.md applied
+	// negotiation (programmableSelector). That is ai/rules/protocol.md applied
 	// correctly. A backend that cannot deliver the operator's config exactly must reject
 	// it, and must never approximate it.
 	//

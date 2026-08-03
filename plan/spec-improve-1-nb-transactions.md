@@ -38,9 +38,9 @@ SetResponse extension mechanism where it fits. No new custom proto.
 ### Architecture Docs
 - [ ] `docs/architecture/config/syntax.md` - config CLI conventions
   → Constraint: (fill during design)
-- [ ] `ai/rules/config-manipulation.md` - config content must go through approved methods
+- [ ] `ai/rules/config.md` - config content must go through approved methods
   → Constraint: rollback-to-transaction must reuse the commit path, not write files directly
-- [ ] `ai/rules/cli-grammar.md` - keywords before values for new CLI verbs
+- [ ] `ai/rules/cli.md` - keywords before values for new CLI verbs
   → Constraint: (fill during design)
 - [ ] `plan/spec-fleet-3-audit-trail.md` - hub-side audit trail spec; overlap check
   → Decision: (fill during design -- transaction records are the device-local half of an audit story)
@@ -83,7 +83,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
 
 ### Transformation Path
 1. Commit request (CLI or gNMI) reaches the session commit path with optional comment + confirmed-timeout.
-2. `TxCoordinator.Execute` runs verify/apply/commit as today (`orchestrator.go:198-234`).
+2. `TxCoordinator.Execute` runs verify/apply/commit as today (`orchestrator.go`).
 3. On success, a transaction record (ID, timestamp, user, comment, revision reference) is appended to a persistent transaction store.
 4. Confirmed commit arms a rollback timer; expiry replays the previous revision through the SAME commit path, creating a new transaction; confirm before expiry disarms it.
 5. `show config transactions` / get / rollback-to-id read the store and reuse the commit path.
@@ -104,14 +104,14 @@ SetResponse extension mechanism where it fits. No new custom proto.
 - [ ] No bypassed layers (rollback-to-transaction goes through verify/apply, never raw file writes)
 - [ ] No unintended coupling (store is owned by the config component)
 - [ ] No duplicated functionality (reuses editor backups/archive for config bodies)
-- [ ] Registration over hardcoding -- new CLI verbs and RPCs register via existing dispatch registries (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding -- new CLI verbs and RPCs register via existing dispatch registries (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every committed config already has a durable revision (editor backup or archive) a record can reference | `editor.go:1019` ListBackups; archive package exists | Store must persist full config bodies itself | Trace commit path during design: does every commit write a backup? | unvalidated |
+| A-1 | Every committed config already has a durable revision (editor backup or archive) a record can reference | `editor.go` ListBackups; archive package exists | Store must persist full config bodies itself | Trace commit path during design: does every commit write a backup? | unvalidated |
 | A-2 | gNMI SetResponse can carry a transaction ID without breaking clients | gNMI proto has Extension fields | Need a separate RPC or omit gNMI exposure | Read gnmi proto + one client (gnmic) during design | unvalidated |
 | A-3 | A daemon restart during a pending confirmed commit must roll back on boot | NETCONF confirmed-commit semantics | Timer state must be persisted, not in-memory only | Design decision + test | unvalidated |
 
@@ -178,7 +178,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
 - `internal/component/config/transaction/orchestrator.go` - emit record on committed result
 - `internal/component/gnmi/set.go` - commit request gains comment/confirmed fields; response carries tx ID
 - `internal/component/config/cli/` - new commit/confirm/rollback/show verbs
-- YANG schema for retention config (owning module per `ai/rules/config-surface.md`)
+- YANG schema for retention config (owning module per `ai/rules/config.md`)
 
 ## Files to Create
 - `internal/component/config/transaction/store.go` - persistent transaction records
@@ -198,7 +198,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
 |-------|------------------------------|
 | Completeness | AC-1..AC-6 implemented with file:line |
 | Correctness | rollback path reuses verify/apply; no raw file writes |
-| Registration over hardcoding | verbs/RPCs registered, core discovers them (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | verbs/RPCs registered, core discovers them (`ai/rules/plugins.md`) |
 | Data flow | records reference revisions; single producer (coordinator) |
 
 ### Security Review Checklist

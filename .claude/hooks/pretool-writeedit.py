@@ -140,7 +140,7 @@ def session_id():
 
 
 # --------------------------------------------------------------------------- #
-# Phase-to-model boundary (ai/rules/model-selection.md).
+# Phase-to-model boundary (ai/rules/planning.md).
 #
 # Planning and review run on Opus 5. Implementation runs on Opus 4.8. Until this
 # check existed the rule said so and nothing enforced it: "No hook or gate checks
@@ -176,7 +176,7 @@ def _transcript_model(path):
     if not model:
         sys.stderr.write(
             "note: model-phase gate could not read a model from the transcript; "
-            "the phase boundary is UNCHECKED (ai/rules/model-selection.md)\n"
+            "the phase boundary is UNCHECKED (ai/rules/planning.md)\n"
         )
     return model
 
@@ -211,7 +211,7 @@ def c_model_phase(ctx):
         return None
     return (
         2,
-        "\u274c Blocked: phase-to-model boundary (ai/rules/model-selection.md).\n"
+        "\u274c Blocked: phase-to-model boundary (ai/rules/planning.md).\n"
         f"  This session is on {model}, the PLANNING and REVIEW model.\n"
         f"  Editing {fp} is implementation, and implementation runs on Opus 4.8.\n"
         "  Announce the boundary and stop, so the operator can switch or start an\n"
@@ -405,7 +405,7 @@ def c_sprintf_new(ctx):
             lines.append(f"  L{n}: {l.strip()}")
         detail = "\n".join(lines)
         fix = (
-            "\n  Replacements (ai/rules/no-sprintf-alloc.md):\n"
+            "\n  Replacements (ai/rules/performance.md):\n"
             '    fmt.Sprintf("%s: %v", x, err)    -> var tb textbuf.Buffer; tb.Str(x).Str(": ").Err(err).String()\n'
             "    fmt.Sprintf(\"%s:%d\", s, n)        -> var tb textbuf.Buffer; tb.Str(s).Byte(':').Int(int64(n)).String()\n"
             '    fmt.Sprintf("%d", n)              -> textbuf.StringInt(int64(n))  or  textbuf.StringUint(uint64(n))\n'
@@ -442,7 +442,7 @@ def c_string_concat(ctx):
             lines.append(f"  L{n}: {l.strip()}")
         detail = "\n".join(lines)
         fix = (
-            "\n  Replacements (ai/rules/no-sprintf-alloc.md):\n"
+            "\n  Replacements (ai/rules/performance.md):\n"
             "    a + \"/\" + b              -> var tb textbuf.Buffer; tb.Str(a).Byte('/').Str(b).String()\n"
             "    \"#\" + id                 -> var tb textbuf.Buffer; tb.Byte('#').Str(id).String()\n"
             '    "prefix:" + s            -> var tb textbuf.Buffer; tb.Str("prefix:").Str(s).String()\n'
@@ -553,7 +553,7 @@ def c_json_kebab(ctx):
             "\n  JSON tags must use kebab-case to match YANG/config naming:\n"
             '    camelCase "peerAddr"  -> "peer-addr"\n'
             '    snake_case "peer_addr" -> "peer-addr"\n'
-            "  See ai/rules/json-format.md"
+            "  See ai/rules/cli.md"
         )
         return (
             2,
@@ -798,7 +798,7 @@ def c_encoding_alloc(ctx):
             "\n  Encoding hot paths must be zero-alloc. Use:\n"
             "    WriteTo(buf []byte, off int) int   -- write into caller-owned buffer\n"
             "    pool.Get() / pool.Release()         -- for buffers that must be allocated\n"
-            "  See ai/rules/buffer-first.md, ai/rules/memory-architecture.md"
+            "  See ai/rules/performance.md, ai/rules/performance.md"
         )
         return (
             2,
@@ -849,7 +849,7 @@ def c_format_alloc(ctx):
             lines = [f"  L{n}: {l.strip()}" for n, l in hits[:4]]
             detail = "\n".join(lines)
             fix = (
-                "\n  Format files stay buffer-first (ai/rules/buffer-first.md):\n"
+                "\n  Format files stay buffer-first (ai/rules/performance.md):\n"
                 "    strings.Join/Builder/NewReplacer/ReplaceAll -> textbuf.Buffer helpers\n"
                 "    fmt.Sprintf/Fprintf -> textbuf.Buffer chain (see sprintf-new fixups)\n"
                 "  Comment lines naming these primitives are exempt."
@@ -948,7 +948,7 @@ def c_hardcoded_commands(ctx):
         fix = (
             "\n  Derive command lists from the registry, never hardcode.\n"
             "  Use the registration pattern: iterate registered commands at runtime.\n"
-            "  See ai/rules/derive-not-hardcode.md"
+            "  See ai/rules/evidence.md"
         )
         return (
             2,
@@ -1063,7 +1063,7 @@ def c_version_config(ctx):
             fix = (
                 "\n  Ze config is YANG-modeled and unversioned.\n"
                 "  Schema evolution uses YANG augment/deprecate, not version numbers.\n"
-                "  See ai/rules/config-design.md"
+                "  See ai/rules/config.md"
             )
             return (
                 2,
@@ -1107,7 +1107,7 @@ def c_fake_bufhandle(ctx):
         fix = (
             "\n  Use pool.Get() to obtain BufHandles, never construct with make().\n"
             "  Only noPoolBufID-tagged constructions are allowed (pool bootstrap).\n"
-            "  See ai/rules/memory-architecture.md"
+            "  See ai/rules/performance.md"
         )
         return (
             2,
@@ -1165,7 +1165,7 @@ def c_direct_fs_state(ctx):
         "\n  or your storage.Storage handle, not a loose file -- on the appliance only"
         "\n  database.zefs is managed/backed-up. Kernel/proc, ephemeral, external and"
         "\n  storage-layer writes are fine (allowlisted). Enforced by"
-        "\n  `make ze-fs-persistence-check`; see ai/rules/zefs-persistence.md."
+        "\n  `make ze-fs-persistence-check`; see ai/rules/architecture.md."
     )
     return (
         1,
@@ -1197,7 +1197,7 @@ def c_generated_files(ctx):
     fix = (
         f"\n  {base} is auto-generated. Edit the canonical source instead:\n"
         "    ai/INSTRUCTIONS.md  (then run the sync script)\n"
-        "  See ai/rules/canonical-sources.md"
+        "  See ai/rules/repo-maintenance.md"
     )
     return (2, f"BLOCKED: {base} is generated{fix}")
 
@@ -1332,7 +1332,7 @@ def c_design_without_lsp(ctx):
     # session: either the LSP tool was invoked (.lsp-invoked) OR an implementation
     # source file was read (.source-read). Reading the function that PRODUCES a
     # behavior is the verification we want before authoring a spec that claims
-    # something about that behavior. See ai/rules/no-fabrication.md.
+    # something about that behavior. See ai/rules/evidence.md.
     markers = (
         os.path.join(PROJECT_DIR, "tmp/session", f".lsp-invoked-{sid}"),
         os.path.join(PROJECT_DIR, "tmp/session", f".source-read-{sid}"),
@@ -1348,7 +1348,7 @@ def c_design_without_lsp(ctx):
             2,
             "❌ Blocked: no implementation investigated this session before a spec/design write.\n"
             "  Before specing a gap, READ the source that PRODUCES the behavior you are\n"
-            "  claiming, not its caller (ai/rules/no-fabrication.md, Behavioral claims).\n"
+            "  claiming, not its caller (ai/rules/evidence.md, Behavioral claims).\n"
             "  Reading the source a spec can be ABOUT satisfies this: .go under internal/\n"
             "  pkg/ cmd/, .py under scripts/, .sh under .claude/hooks/, the Makefile or\n"
             "  mk/ -- or using the LSP tool.",
@@ -1596,7 +1596,7 @@ def c_require_test_first(ctx):
                 f"{RED}{BOLD}❌ BLOCKED: TDD - Write test first{RESET}\n"
                 f"  Write the test file before the implementation:\n"
                 f"    {test_file}\n"
-                "  See ai/rules/tdd.md",
+                "  See ai/rules/testing.md",
             )
     return None
 
@@ -1680,7 +1680,7 @@ def c_system_tmp_we(ctx):
 # deletion on Edit). c_test_weakening also catches the quiet ways a failing test
 # gets neutered instead of the code being fixed: adding t.Skip, dropping *some*
 # assertions, downgrading require->assert, commenting assertions out, build-tag
-# 'ignore', and the same via Write/MultiEdit overwrite. Rule: ai/rules/no-test-deletion.md
+# 'ignore', and the same via Write/MultiEdit overwrite. Rule: ai/rules/testing.md
 _RELAX_TOKEN = re.compile(r"//[ \t]*test-relax:[ \t]*\S")
 _ASSERT_PAT = r"(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)"
 _FATAL_PAT = r"(?:t\.(?:Fatal|Fatalf|FailNow)|require\.)"
@@ -1755,7 +1755,7 @@ def _import_only_go_edit(old, new, fp):
     holds a tagged one always costs an operator approval: new tests need new imports, the
     import block sits outside every function so `_enclosing_tagged_scope` widens to the
     whole file, and `_behavior_bytes` then sees real code change (HOOK-FRICTION.md,
-    2026-08-01). That is the path `ai/rules/no-test-deletion.md` tells contributors to
+    2026-08-01). That is the path `ai/rules/testing.md` tells contributors to
     take ("ADD a new test case or function"), so the guard was charging the honest route.
 
     EVERY non-blank line on BOTH sides must match, which is what keeps it from becoming a
@@ -2009,7 +2009,7 @@ def _file_contains(path, needle):
 
 
 def c_switch_dispatch(ctx):
-    """ai/rules/registration-dispatch.md: no switch-based subcommand dispatch."""
+    """ai/rules/plugins.md: no switch-based subcommand dispatch."""
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
         return None
@@ -2021,7 +2021,7 @@ def c_switch_dispatch(ctx):
         detail = "\n".join(f"  L{n}: {l.strip()}" for n, l in hits[:6])
         fix = (
             "\n  Use subdispatch.New() + Register() instead of switch on args.\n"
-            "  Rule: ai/rules/registration-dispatch.md"
+            "  Rule: ai/rules/plugins.md"
         )
         return (
             2,
@@ -2036,7 +2036,7 @@ def c_ci_sleep_justification(ctx):
     # time.sleep( in a .ci functional test must carry a comment on the line above
     # it (or trailing it) saying why it is there / why it was not converted to a
     # deterministic wait. A blind sleep hides real races and hides why it was left.
-    # See ai/rules/ci-sleep-justification.md. Non-blocking: an Edit fragment may not
+    # See ai/rules/testing.md. Non-blocking: an Edit fragment may not
     # show the comment that already sits above the sleep in the file, so warn only.
     fp = ctx["fp"]
     if not fp.endswith(".ci") or "/test/" not in fp:
@@ -2074,7 +2074,7 @@ def c_ci_sleep_justification(ctx):
         "  is not a deterministic wait: poll interval, deliberate timer, needs-linux\n"
         "  effect, or no queryable readiness signal. Enforced at commit by the\n"
         "  inventory gate (scripts/dev/verify_wiring_docs.py);\n"
-        "  see ai/rules/ci-sleep-justification.md."
+        "  see ai/rules/testing.md."
     )
     return (
         1,
@@ -2082,8 +2082,78 @@ def c_ci_sleep_justification(ctx):
     )
 
 
+# A path plus a line number is a citation that is wrong as soon as anybody
+# edits the file, and the repo carried 15039 of them before this check existed.
+# The path and the symbol survive an edit, so those are what a citation names
+# (ai/rules/writing.md). Two things keep their numbers: a fenced code
+# block, where the number is quoted output rather than a citation, and
+# rfc/full/*.txt, because a published RFC never changes.
+_LINE_REF = re.compile(
+    r"(?<![A-Za-z0-9_])([A-Za-z0-9_./-]*\.(?:go|py|sh|md|mk|yang|ci|et|json|txt))"
+    r":\d+(?:-\d+)?"
+)
+_LINE_REF_PROSE = (".md",)
+# The harness passes an absolute path, so each root is matched with its leading
+# separator. The bare form is accepted too, so a relative path from a test or a
+# script reaches the same verdict.
+_LINE_REF_ROOTS = ("ai/", "docs/", "plan/", ".claude/")
+
+# A generated evidence ledger whose `file.go:line` entries point at one tagged
+# test unit: there the line IS the fact. It is generated, so a hand edit is
+# already refused, and `c_generated_files` is the check that should say so.
+_LINE_REF_EXEMPT = ("ai/RFC-REQUIREMENTS.md",)
+
+
+def _in_prose_root(fp):
+    if fp.endswith(_LINE_REF_EXEMPT):
+        return False
+    return any(f"/{r}" in fp or fp.startswith(r) for r in _LINE_REF_ROOTS)
+
+
+def c_line_number_ref(ctx):
+    fp = ctx["fp"]
+    if not fp.endswith(_LINE_REF_PROSE) or not _in_prose_root(fp):
+        return None
+    tool = ctx["tool"]
+    if tool == "Write":
+        new = ctx["ti"].get("content") or ""
+    elif tool == "MultiEdit":
+        new = "\n".join(
+            (e.get("new_string") or "") for e in (ctx["ti"].get("edits") or [])
+        )
+    elif tool == "Edit":
+        new = ctx["ti"].get("new_string") or ""
+    else:
+        return None
+    bad, fence = [], False
+    for n, line in enumerate(new.split("\n"), 1):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        if fence:
+            continue
+        for m in _LINE_REF.finditer(line):
+            if m.group(1).startswith("rfc/full/"):
+                continue
+            bad.append((n, m.group(0)))
+    if not bad:
+        return None
+    detail = "\n".join(f"  +{n}: {ref}" for n, ref in bad[:4])
+    fix = (
+        "\n  Cite the file and the SYMBOL, not the line: `session.go`, `handleOpen()`.\n"
+        "  A line number is right only when the line itself IS the fact, and then it\n"
+        "  belongs in a fenced block as quoted output. See ai/rules/writing.md.\n"
+        "  Sweep an existing file with: scripts/dev/line_refs.py --apply"
+    )
+    return (
+        2,
+        f"{RED}{BOLD}❌ BLOCKED: line-number citation in prose{RESET}\n{detail}{fix}",
+    )
+
+
 CHECKS = (
     c_model_phase,
+    c_line_number_ref,
     c_generated_files,
     c_design_without_lsp,
     c_claude_plans,

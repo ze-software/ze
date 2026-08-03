@@ -1,4 +1,4 @@
-// Design: ai/rules/doctor-checks.md -- doctor checks owned by the plugin that
+// Design: ai/rules/repo-maintenance.md -- doctor checks owned by the plugin that
 // owns the runtime dependency
 // Related: doctor.go -- checkVPPLCPPlugin and lcpEnabled under test
 
@@ -91,7 +91,7 @@ func TestCheckVPPLCPPluginSkipsWhenNotApplicable(t *testing.T) {
 //
 // VALIDATES: AC-7 -- the check is registered and its diagnostic code is known.
 //
-// PREVENTS: the shape ai/rules/doctor-checks.md exists to stop: a check that is
+// PREVENTS: the shape ai/rules/repo-maintenance.md exists to stop: a check that is
 // implemented and unit-tested but never runs, because nothing registered it.
 func TestVPPLCPPluginCheckIsRegistered(t *testing.T) {
 	// Built-in codes are registered by the binary entry point, not by init(),

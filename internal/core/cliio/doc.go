@@ -3,7 +3,7 @@
 // through one shared, tier-legal helper instead of ad-hoc `if path == "-"`
 // branches or none at all.
 //
-// The convention ("`-` for stdin", ai/rules/cli-patterns.md) predates this
+// The convention ("`-` for stdin", ai/rules/cli.md) predates this
 // package and was stated twice but enforced nowhere; the package-private
 // normaliser that implemented it (config/cli.loadConfigData) could not be
 // reached from other tiers, so most commands drifted. This leaf lives under
@@ -13,7 +13,7 @@
 // user-supplied path with a raw os call instead of this helper.
 //
 // stdin is consumable exactly once. ReadFile("-") and OpenReader("-") claim it
-// with a fail-closed guard (ai/rules/fail-closed-guards.md): a second claim in
+// with a fail-closed guard (ai/rules/evidence.md): a second claim in
 // the same process returns ErrStdinClaimed rather than a silent empty read.
 // stdout is not consumable, so writes to "-" are unguarded. Only the exact token
 // "-" is special: no /dev/* handling, no shell expansion.

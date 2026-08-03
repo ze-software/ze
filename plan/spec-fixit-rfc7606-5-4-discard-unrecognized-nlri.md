@@ -75,7 +75,7 @@ actually bind for Ze, given the "unless the relevant specification specifies
 otherwise" clause? A blanket discard across every typed family would break
 BGP-LS, where RFC 9552 requires the opposite. The likely shape is per-family and
 registry-driven, so a family whose specification overrides 5.4 declares that
-rather than being special-cased (`ai/rules/plugin-self-containment.md`).
+rather than being special-cased (`ai/rules/plugins.md`).
 
 ## Task list
 
@@ -106,7 +106,7 @@ rather than being special-cased (`ai/rules/plugin-self-containment.md`).
 ### Architecture Docs
 - [ ] `ai/rules/rfc-compliance.md`
   → Decision: the 2026-07-20 divergence ruling is VOID. Do not cite it as authority.
-- [ ] `ai/rules/plugin-self-containment.md`
+- [ ] `ai/rules/plugins.md`
   → Constraint: per-family behaviour is registry-driven; no family spelled in a central switch.
 
 **Key insights:** (minimal context to resume after compaction)
@@ -125,7 +125,7 @@ rather than being special-cased (`ai/rules/plugin-self-containment.md`).
 
 **Behavior to change:** an unrecognized NLRI type in a family that 5.4 binds is discarded instead of retained and propagated.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 The central question is WHERE recognition happens, since neither retaining path
 parses a route type today.
@@ -165,7 +165,7 @@ parses a route type today.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: no per-family spelling in a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: no per-family spelling in a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 

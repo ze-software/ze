@@ -73,9 +73,9 @@ The work splits into five child specs:
   -> Constraint: filters piped via PolicyFilterChain, text format, delta modify
 - [ ] `ai/patterns/registration.md` - plugin init/registry/blank-import pattern
   -> Constraint: new filter types register via registry.Registration with FilterTypes field
-- [ ] `ai/rules/plugin-design.md` - plugin isolation, cross-boundary value types
+- [ ] `ai/rules/plugins.md` - plugin isolation, cross-boundary value types
   -> Constraint: no cross-boundary pointers, ModAccumulator for wire-level ops
-- [ ] `ai/rules/config-design.md` - YANG augment vs grouping, listener pattern
+- [ ] `ai/rules/config.md` - YANG augment vs grouping, listener pattern
   -> Constraint: filter plugins augment bgp/policy; new sets container needs augment points
 
 ### Learned Summaries
@@ -97,9 +97,9 @@ The work splits into five child specs:
 - Six filter plugins already exist: prefix-list, as-path-list, community-match, modify, community tag/strip, loop-detection.
 - The modify filter is unconditional by design. Conditional modification = match filter + modify filter composed in chain.
 - show policy test (dry-run) was explicitly deferred in 572 as future work.
-- MP_REACH rewrite is explicitly outside scope (filter_delta.go:33-42). Filters needing per-NLRI decisions on non-CIDR families declare raw=true.
+- MP_REACH rewrite is explicitly outside scope (filter_delta.go). Filters needing per-NLRI decisions on non-CIDR families declare raw=true.
 - ModAccumulator supports five ops: Set, Add, Remove, Prepend, Suppress. Actions spec (pol-2) builds on these existing constants.
-- AttrModAdd and AttrModRemove constants exist (registry_bgp_filter.go:93-94) and are referenced by filter_community handler code, but only via Set paths today. The infrastructure for list-level add/remove is partially wired.
+- AttrModAdd and AttrModRemove constants exist (registry_bgp_filter.go) and are referenced by filter_community handler code, but only via Set paths today. The infrastructure for list-level add/remove is partially wired.
 
 ## Current Behavior (MANDATORY)
 
@@ -421,7 +421,7 @@ filter_community/handler.go) need Add/Remove branches alongside existing Set pat
 | Action returned | accept or reject |
 
 **Wire-level gap for remove-private-as:** textDeltaToModOps currently skips AS_PATH
-(filter_delta.go:198) to avoid clobbering EBGP prepend. remove-private-as needs to
+(filter_delta.go) to avoid clobbering EBGP prepend. remove-private-as needs to
 modify AS_PATH without conflicting with the EBGP prepend path. Options:
 1. New AttrModReplace action that replaces AS_PATH contents while preserving EBGP prepend ordering
 2. Plugin operates at wire level (raw=true) and rewrites AS_PATH directly
@@ -526,7 +526,7 @@ Within Phase 1, pol-1 and pol-2 are independent and can be implemented in parall
 
 | Item | Why |
 |------|-----|
-| MP_REACH rewrite | Explicitly outside v1 (filter_delta.go:33-42) |
+| MP_REACH rewrite | Explicitly outside v1 (filter_delta.go) |
 | General-purpose policy language (from/then terms) | Design decision D-1 |
 | IRR-based filtering | Separate spec, consumes pol-1 sets |
 | Flowspec-based filtering | Different mechanism (wire-encoded rules) |

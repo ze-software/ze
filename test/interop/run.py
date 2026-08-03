@@ -138,7 +138,7 @@ def main():
         #
         # Every scenario runs in containers, so an unreachable Docker means nothing was
         # verified -- and a runner that exits 0 over an absence reports success for work it
-        # never did (ai/rules/fail-closed-guards.md). This is load-bearing beyond tidiness: an
+        # never did (ai/rules/evidence.md). This is load-bearing beyond tidiness: an
         # interop scenario may now carry an `RFC requirement:` tag, and a tag is only
         # evidence if something executes the test (plan/spec-rfcgate-2-evidence.md AC-1).
         print(

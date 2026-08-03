@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- spec-feature-gate-12 Group A present validation
+// Design: ai/rules/plugins.md -- spec-feature-gate-12 Group A present validation
 //
 //go:build ze_flowexport && ze_ddos && ze_anomaly && ze_as112 && ze_geodns && ze_dhcpserver && ze_pxe && ze_trafficusage && ze_policyroute && ze_cos && ze_copp && ze_mpls
 

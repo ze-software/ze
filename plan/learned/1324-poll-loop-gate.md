@@ -15,13 +15,13 @@ reached for because the harness refuses a foreground `sleep`.
 - Gate on whether a loop CAN END, not on whether the wait is justified. A `timeout` in front of the loop is the escape, chosen over an allowlist of approved wait commands: the bound is the property that matters and it stays one word away, while a judgement about necessity is not mechanically checkable. Credit it PER LOOP, in the statement that loop's keyword opens. The first version searched the whole prefix, so `timeout 10 curl x; until ! pgrep -f qemu; do sleep 5; done` was accepted and the guard failed open.
 - Match `while`/`until` paired with a `sleep <n>` COMMAND, or with `pgrep` in the loop CONDITION, over matching `pgrep` anywhere. `pgrep -f x | while read pid` is a one-shot loop that ends by itself.
 - Require a digit or an expansion after `sleep`, so `grep -rn 'time.sleep(' test/plugin` over the `.ci` corpus stays usable.
-- A new rule file over a section in `bash-output.md`. That rule is already 160 lines, and its trigger names running a command rather than waiting for one. The trigger is the only part of a rule that routes.
+- A new rule file over a section in `commands.md`. That rule is already 160 lines, and its trigger names running a command rather than waiting for one. The trigger is the only part of a rule that routes.
 - The gate sees Bash TOOL CALLS, never scripts on disk. `scripts/evidence/*` keeps its internal QEMU waits. Only ad-hoc session watchers are refused.
 
 ## Consequences
 
 - A wait that really is the only signal is written `timeout 300 bash -c 'until [ -f <path> ]; do sleep 30; done'` and self-terminates. Repeated events belong to `Monitor`, whose `timeout_ms` deadline applies only while `persistent` is false.
-- Quoting a poll loop to test it is rejected too, the same coarseness `bash-output.md` documents for git verbs. Feed the payload from Python, as `hook-parity-check.py` does.
+- Quoting a poll loop to test it is rejected too, the same coarseness `commands.md` documents for git verbs. Feed the payload from Python, as `hook-parity-check.py` does.
 
 ## Gotchas
 
@@ -31,5 +31,5 @@ reached for because the harness refuses a foreground `sleep`.
 
 ## Files
 
-- `ai/rules/no-poll-loops.md` (new), `ai/rules/hook-mapping.md` (poll-loop row), `ai/INDEX.md` (keyword row), `plan/learned/HOOK-FRICTION.md` (F22)
+- `ai/rules/commands.md` (new), `ai/rules/repo-maintenance.md` (poll-loop row), `ai/INDEX.md` (keyword row), `plan/learned/HOOK-FRICTION.md` (F22)
 - `.claude/hooks/pretool-bash.py` (`check_poll_loop`), `scripts/dev/hook-parity-check.py` (14 corpus rows + golden)

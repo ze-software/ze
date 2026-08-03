@@ -13,7 +13,7 @@ homes, without touching the deliberate `internal/` tier architecture.
 - `etc/ze/bgp/` (91 config fixtures) -> `test/exabgp-compat/native/`
 - removed stray `plan/.claude/settings.local.json` and empty `package-lock.json`
 
-`etc/ze` is the dev runtime config root (`internal/core/paths/paths.go:50`
+`etc/ze` is the dev runtime config root (`internal/core/paths/paths.go`
 returns `etc/ze` for `./bin/ze`), so tracked test fixtures living there sat
 next to gitignored runtime state. They are parser fixtures, consumed only by
 `loader_test.go` (`TestParseAllConfigFiles`) and `serialize_test.go`
@@ -40,7 +40,7 @@ next to gitignored runtime state. They are parser fixtures, consumed only by
    scanning, leaving the format/JSON/`ExaBGPCompat`/`internal/exabgp` checks
    intact (unit-tested both ways).
 
-3. **Handover docs now live in `plan/handover/`.** `ai/rules/handoff.md`
+3. **Handover docs now live in `plan/handover/`.** `ai/rules/planning.md`
    previously forbade `plan/`; it now mandates `plan/handover/` and the rest
    of `plan/` stays specs + learned summaries. `check_doc_links.py` dropped
    the now-stale `handover` KNOWN_ROOT (covered by `plan`).
@@ -52,10 +52,10 @@ next to gitignored runtime state. They are parser fixtures, consumed only by
   FIXED in `07dd491a5`: `aihelp` no longer imports `cli/client`; it derives
   the command tree and dispatch keys directly from the `yang` package.
 - `check_doc_links.py` reported ~200 dangling Go `// Design:` references to
-  closed/deleted specs (closure debt, `ai/rules/planning.md:252`). FIXED by
+  closed/deleted specs (closure debt, `ai/rules/planning.md`). FIXED by
   rewriting each to its surviving learned summary (`NNN-<spec-slug>.md`).
 - DDoS detect YANG referenced an undefined `zt:decimal-2` typedef
-  (`ze-ddos-detect-conf.yang:34`), failing strict YANG resolution. FIXED by
+  (`ze-ddos-detect-conf.yang`), failing strict YANG resolution. FIXED by
   adding the `decimal-2` typedef (`decimal64`, 2 fraction digits) to
   `ze-types.yang`. The cycle had masked this; once `bgp/config` compiled it
   surfaced in `TestParseAllConfigFiles` / `TestExtractAuthzConfig`.

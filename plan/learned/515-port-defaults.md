@@ -10,7 +10,7 @@
 
 ## What was discovered
 
-- **MCP YANG was missing its port default.** Every other listener service (web 3443, LG 8443, SSH 2222) declared both ip and port defaults in YANG. MCP only declared ip; port 8080 was a Go runtime fallback in hub/main.go:243. Adding `refine port { default 8080; }` made all services consistent. The hub/main.go fallback is now redundant defense-in-depth.
+- **MCP YANG was missing its port default.** Every other listener service (web 3443, LG 8443, SSH 2222) declared both ip and port defaults in YANG. MCP only declared ip; port 8080 was a Go runtime fallback in hub/main.go. Adding `refine port { default 8080; }` made all services consistent. The hub/main.go fallback is now redundant defense-in-depth.
 
 - **ze-chaos has two kinds of port flags:** integer ports (--port, --ssh, --web-ui, --lg) and addr:port strings (--web, --pprof, --metrics). This required two different helpers. The spec caught this during research (Wrong Assumptions table).
 

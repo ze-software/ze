@@ -43,13 +43,13 @@ Out of scope: top-level `go.mod` (it does not reference `github.com/gokrazy/gokr
 
 ### Architecture Docs
 - [ ] `mk/gokrazy.mk` - image build + `ze-gokrazy-deps` modcache population
-  → Constraint: `gok` is pointed at a checked-in `GOMODCACHE` (`gokrazy/modcache/`) via `cmd/ze-gok/main.go`; `ze-gokrazy-deps` runs `go mod download all` per builddir (`mk/gokrazy.mk:58-61`). Bump builddir go.mods BEFORE running deps.
-  → Constraint: `E2FS` is hardcoded to a homebrew path (`mk/gokrazy.mk:44`); on Linux the build needs `E2FS=/usr/sbin`.
-  → Constraint: the pinned kernel handling (`mk/gokrazy.mk:167-179`) keys off the `rtr7/kernel` MODULE version, NOT the gokrazy version — bumping gokrazy does not touch the kernel pin.
+  → Constraint: `gok` is pointed at a checked-in `GOMODCACHE` (`gokrazy/modcache/`) via `cmd/ze-gok/main.go`; `ze-gokrazy-deps` runs `go mod download all` per builddir (`mk/gokrazy.mk`). Bump builddir go.mods BEFORE running deps.
+  → Constraint: `E2FS` is hardcoded to a homebrew path (`mk/gokrazy.mk`); on Linux the build needs `E2FS=/usr/sbin`.
+  → Constraint: the pinned kernel handling (`mk/gokrazy.mk`) keys off the `rtr7/kernel` MODULE version, NOT the gokrazy version — bumping gokrazy does not touch the kernel pin.
 - [ ] `cmd/ze-gok/main.go` - the gok wrapper
   → Constraint: defaults `GOMODCACHE` to `<wd>/gokrazy/modcache` then calls `gok.Context{}.Execute()`; the checked-in modcache IS the build's module source.
 - [ ] `vendor/github.com/gokrazy/tools/packer/gotool.go` - how gok compiles appliance packages
-  → Constraint: gok hardcodes `-mod=mod` (`:238,323,451`) and calls `go get` (`:217`). It has ZERO vendor support — a builddir `vendor/` tree would be ignored. This is why the modcache exists and why "full go mod vendor" was rejected.
+  → Constraint: gok hardcodes `-mod=mod` (`:238,323,451`) and calls `go get`. It has ZERO vendor support — a builddir `vendor/` tree would be ignored. This is why the modcache exists and why "full go mod vendor" was rejected.
 - [ ] `gokrazy/modcache/.gitignore` - what of the modcache is committed
   → Constraint: ignores `*`, whitelists only `github.com/gokrazy/gokrazy@*/**` (init source). The `@*` glob auto-whitelists the NEW version path on re-vendor. `docs/` and `website/` are re-ignored.
 - [ ] `docs/guide/appliance.md` - appliance build/run user surface
@@ -73,19 +73,19 @@ Out of scope: top-level `go.mod` (it does not reference `github.com/gokrazy/gokr
 - [ ] `gokrazy/modcache/github.com/gokrazy/gokrazy@...20260218.../go.mod` - the scanned manifest; line 24 `golang.org/x/net v0.38.0 // indirect`.
 - [ ] `gokrazy/modcache/.../gokrazy.go`, `.../reboot_amd64.go` - pristine upstream (single import commit `86960d858`, no local patches).
   → Constraint: re-vendoring is a clean replace — no local patches to preserve.
-- [ ] `plan/spec-kernel-lockdown-hardening.md:123-124` - references the OLD version path in two file anchors.
+- [ ] `plan/spec-kernel-lockdown-hardening.md` - references the OLD version path in two file anchors.
   → Constraint: `Status: design`, explicitly not scheduled; refreshing its path refs is a consistency fix, not a functional dependency.
 
 **Behavior to preserve:**
 - Appliance boots and the gokrazy init supervises ze + dhcp + ntp + heartbeat + randomd.
 - `ze-gokrazy-deps` remains an offline-enabling one-time download; the modcache whitelist mechanism is unchanged.
-- The kernel `replace`/modcache flow (`mk/gokrazy.mk:167-179`) is untouched.
+- The kernel `replace`/modcache flow (`mk/gokrazy.mk`) is untouched.
 
 **Behavior to change:**
 - gokrazy init module version (7 builddir modules + committed source tree).
 - Removal of the `x/net` pin + workaround comment (no longer needed).
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Build-time: `make ze-gokrazy` → `gok overwrite` reads the 7 builddir modules with `-mod=mod` against `GOMODCACHE=gokrazy/modcache`.
@@ -153,7 +153,7 @@ Out of scope: top-level `go.mod` (it does not reference `github.com/gokrazy/gokr
 | AC-4 | `grep 20260218074004 plan/spec-kernel-lockdown-hardening.md` | Zero hits; both anchors point at the new version path. |
 | AC-5 | Rebuild: `make ze-gokrazy E2FS=/usr/sbin USER=.. PASS=..` | Image builds; every appliance package (init/ze/dhcp/ntp/heartbeat/randomd) compiles against the new gokrazy. |
 | AC-6 | Boot the rebuilt gokrazy image in QEMU: `test/appliance/serial-login.ci` + `ze-deployment-gokrazy-l2tp-ppp-test`; plus `ze-qemu-integration-test` for ze regression | Appliance boots to login and supervises services on the NEW init; L2TP/PPP works end-to-end; ze functional suite still green. |
-| AC-7 | Recurrence guardrail present | BOTH: (a) `ai/rules/appliance-dep-bumps.md` documents this bump procedure + an `ai/INDEX.md` pointer row; (b) `.github/dependabot.yml` adds a grouped, weekly `gomod` update entry. Caveat recorded: dependabot.yml does NOT suppress the always-on security scan — its value is earlier update PRs. |
+| AC-7 | Recurrence guardrail present | BOTH: (a) `ai/rules/platform-linux.md` documents this bump procedure + an `ai/INDEX.md` pointer row; (b) `.github/dependabot.yml` adds a grouped, weekly `gomod` update entry. Caveat recorded: dependabot.yml does NOT suppress the always-on security scan — its value is earlier update PRs. |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -238,7 +238,7 @@ Driver targets: `ze-deployment-gokrazy-l2tp-ppp-test` (`scripts/evidence/effecti
 | 17 | Existing docs show examples for this area? | Yes | verify `docs/guide/appliance.md` has no pinned-version example that goes stale |
 
 ## Files to Create
-- `ai/rules/appliance-dep-bumps.md` - runbook for bumping a vendored gokrazy/modcache dependency (AC-7)
+- `ai/rules/platform-linux.md` - runbook for bumping a vendored gokrazy/modcache dependency (AC-7)
 - `ai/INDEX.md` - add a pointer row so the runbook is discoverable (AC-7)
 - `.github/dependabot.yml` - grouped weekly `gomod` update config (AC-7)
 
@@ -264,7 +264,7 @@ Driver targets: `ze-deployment-gokrazy-l2tp-ppp-test` (`scripts/evidence/effecti
    - Verify: comment gone; builds still resolve x/net >= 0.56.0.
 3. **Phase: Re-vendor init source** — `ze-gokrazy-deps`; `git rm` old tree; `git add` new whitelisted tree; `rm -rf` stale old-version dir; confirm `git status` clean (AC-3, R-3).
 4. **Phase: Refresh coupling** — update the two `plan/spec-kernel-lockdown-hardening.md` path refs (AC-4).
-5. **Phase: AC-7 guardrail** — write `ai/rules/appliance-dep-bumps.md` + `ai/INDEX.md` pointer + `.github/dependabot.yml` (grouped weekly gomod).
+5. **Phase: AC-7 guardrail** — write `ai/rules/platform-linux.md` + `ai/INDEX.md` pointer + `.github/dependabot.yml` (grouped weekly gomod).
 6. **Verification** — `make ze-gokrazy E2FS=/usr/sbin ...` build (AC-5) + boot proof + **full** `ze-deployment-gokrazy-l2tp-ppp-test` (AC-6, BLOCKS on green). If this host lacks root/xl2tpd/pppd/PPPoL2TP, provide setup + commands and keep the spec OPEN until the user confirms green elsewhere (R-6).
 7. **Complete spec** — audit, learned summary, two-commit closure.
 
@@ -324,10 +324,10 @@ Driver targets: `ze-deployment-gokrazy-l2tp-ppp-test` (`scripts/evidence/effecti
 - AC-3: deleted 7 stale go.sums, `ze-gokrazy-deps` regenerated them clean, re-vendored (58 removed/58 added), pruned old modcache dir; old dir did not reappear after build.
 - AC-4: refreshed the two `spec-kernel-lockdown-hardening.md` path refs; `loadModules`/`KexecFileLoad` still present in new source.
 - AC-5: `make ze-gokrazy E2FS=/usr/sbin` → "Build complete!", `tmp/gokrazy/ze.img`. New committed `go.mod:23` = `x/net v0.56.0` (scanned manifest now carries the fix).
-- AC-7: runbook `ai/rules/appliance-dep-bumps.md` (+ regenerated `ai/rules/INDEX.md`, `ai/INDEX.md` pointer) and `.github/dependabot.yml` (weekly grouped gomod + github-actions).
+- AC-7: runbook `ai/rules/platform-linux.md` (+ regenerated `ai/rules/INDEX.md`, `ai/INDEX.md` pointer) and `.github/dependabot.yml` (weekly grouped gomod + github-actions).
 - **AC-6 (BLOCKING) NOT done:** appliance QEMU boot + full L2TP proof unrunnable here (no qemu, no xl2tpd/pppd, non-root). Downstream review/closure paused; NOT committed; spec remains in-progress.
-- Added (user request, related to AC-6 provisioning): `scripts/dev/dev-setup.py` now lists `xl2tpd` + `ppp` as optional Linux L2TP-evidence deps, so `make ze-setup` surfaces them; `ai/INDEX.md:203` updated. Verified: ruff clean, `dev_setup_drift_test.go` green (its regex only matches `appliance-*` `APPLIANCE_CHECKS` keys, not the tool lists), `ze-setup --check` now reports `xl2tpd`/`ppp` as optional.
-- Fixed (Linux-support bug surfaced by AC-6): `mk/gokrazy.mk:44` hardcoded `E2FS := /opt/homebrew/...` (macOS), which a `:=` env var can't override, so the L2TP script's `make ze-gokrazy` failed the e2fsprogs guard on Linux. Now autodetects (`ifndef E2FS` → first of `/usr/sbin`,`/sbin`,`/usr/local/sbin`,homebrew Cellar with `mkfs.ext4`); `make -n` resolves `E2FS=/usr/sbin` here. Override still works via `make ... E2FS=`.
+- Added (user request, related to AC-6 provisioning): `scripts/dev/dev-setup.py` now lists `xl2tpd` + `ppp` as optional Linux L2TP-evidence deps, so `make ze-setup` surfaces them; `ai/INDEX.md` updated. Verified: ruff clean, `dev_setup_drift_test.go` green (its regex only matches `appliance-*` `APPLIANCE_CHECKS` keys, not the tool lists), `ze-setup --check` now reports `xl2tpd`/`ppp` as optional.
+- Fixed (Linux-support bug surfaced by AC-6): `mk/gokrazy.mk` hardcoded `E2FS := /opt/homebrew/...` (macOS), which a `:=` env var can't override, so the L2TP script's `make ze-gokrazy` failed the e2fsprogs guard on Linux. Now autodetects (`ifndef E2FS` → first of `/usr/sbin`,`/sbin`,`/usr/local/sbin`,homebrew Cellar with `mkfs.ext4`); `make -n` resolves `E2FS=/usr/sbin` here. Override still works via `make ... E2FS=`.
 
 Learned insight: gok's checked-in modcache means a Dependabot alert on `gokrazy/modcache/**/go.mod` is a stale *vendored upstream manifest*, and `go mod download all` after a version bump regenerates a deleted go.sum from the new build list — pruning the old version string cleanly without hand-editing hashes.
 

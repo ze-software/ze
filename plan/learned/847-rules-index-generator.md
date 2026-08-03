@@ -15,12 +15,12 @@ Agents had no compact overview of the 68 `ai/rules/*.md` files, so they discover
 ## Consequences
 
 - A new or renamed rule cannot land discoverable-free: `--check` fails if `ai/rules/INDEX.md` is stale or any rule yields no summary, and `make ze-regen` regenerates it alongside the other generated indexes.
-- `ai/rules/INDEX.md` is now a generated file even though `ai/rules/*.md` are otherwise hand-edited originals; `canonical-sources.md` carries the carve-out so nobody hand-edits it.
+- `ai/rules/INDEX.md` is now a generated file even though `ai/rules/*.md` are otherwise hand-edited originals; `repo-maintenance.md` carries the carve-out so nobody hand-edits it.
 - The session-start hook points at the index, so every session sees the pointer; `ai/INDEX.md` and `ai/INSTRUCTIONS.md` (hence CLAUDE.md/AGENTS.md) carry discovery rows.
 
 ## Gotchas
 
-- The extractor must require the exact `**When:**` marker, not `startswith("**When")`, or a bold heading like `**When to use sync.Pool...**` is mistaken for a trigger (hit in `memory-architecture.md`).
+- The extractor must require the exact `**When:**` marker, not `startswith("**When")`, or a bold heading like `**When to use sync.Pool...**` is mistaken for a trigger (hit in `performance.md`).
 - Paragraph grouping must drop code fences and break at `Rationale:`/`Principle:`/`Structural template:` pointer lines, else summaries pick up ASCII-art diagrams or trailing "Rationale: `file`" noise.
 - `ai/rules/INDEX.md` summaries are a faithful extraction and may contain em dashes that exist verbatim in source rule files; that is not authored prose.
 - `CLAUDE.md`/`AGENTS.md` are git-ignored generated artifacts: edit `ai/INSTRUCTIONS.md` and run `make ze-ai-instructions`; they never appear in `git status`.
@@ -30,12 +30,12 @@ Agents had no compact overview of the 68 `ai/rules/*.md` files, so they discover
 - `scripts/dev/rules_index.py`
 - `scripts/dev/rules_index_test.go`
 - `ai/rules/INDEX.md`
-- `ai/rules/canonical-sources.md`
-- `ai/rules/architecture-summary.md`
-- `ai/rules/design-principles.md`
+- `ai/rules/repo-maintenance.md`
+- `ai/rules/architecture.md`
+- `ai/rules/architecture.md`
 - `ai/rules/git-safety.md`
 - `ai/rules/go-standards.md`
-- `ai/rules/no-partial-completion.md`
+- `ai/rules/completion.md`
 - `Makefile`
 - `mk/inventory.mk`
 - `.claude/hooks/session-start.sh`

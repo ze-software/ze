@@ -1,4 +1,4 @@
-// Design: ai/rules/zefs-persistence.md -- runtime state persists in the managed
+// Design: ai/rules/architecture.md -- runtime state persists in the managed
 // zefs store, never as loose files.
 //
 // Package statestore is the sanctioned way for in-core plugins and components to

@@ -3,7 +3,7 @@
 // Design: docs/features/interfaces.md -- real-kernel macvlan backend proof
 // Overview: macvlan_linux.go -- CreateMacvlanDevice under test
 //
-// These run in the QEMU Alpine VM (ai/rules/qemu-testing.md): they create real
+// These run in the QEMU Alpine VM (ai/rules/platform-linux.md): they create real
 // macvlan devices via netlink in a throwaway network namespace and skip (never
 // fail) without CAP_NET_ADMIN. Component-level owned-device lifecycle (registry
 // -> reconcile -> orphan cleanup) is proven in the iface component's
@@ -26,7 +26,7 @@ import (
 
 // withMacvlanNetNS runs fn inside a fresh named network namespace so real
 // device creation cannot collide with host links. Skips (not fails) without
-// CAP_NET_ADMIN per ai/rules/qemu-testing.md.
+// CAP_NET_ADMIN per ai/rules/platform-linux.md.
 func withMacvlanNetNS(t *testing.T, fn func()) {
 	t.Helper()
 	runtime.LockOSThread()

@@ -39,7 +39,7 @@ func TestHandleShowWarningsEmpty(t *testing.T) {
 }
 
 // TestHandleShowAAAAccounting relocated to internal/component/aaa/cmd/show_test.go
-// for plugin self-containment (ai/rules/plugin-self-containment.md).
+// for plugin self-containment (ai/rules/plugins.md).
 
 // VALIDATES: AC-13 -- show audit returns structured audit records filterable by time range and action.
 // PREVENTS: Audit log existing on disk but being unavailable to operators.

@@ -202,7 +202,7 @@ var errShortRIBRecord = errors.New("analyze: RIB record too short to carry a pre
 //
 // It matches on the exported sentinels rather than the message text, so a
 // reworded error can never silently reclassify a record
-// (ai/rules/error-messages.md: one stable leading phrase per failure kind).
+// (ai/rules/cli.md: one stable leading phrase per failure kind).
 // The default arm is deliberately not "unknown": every arm names something an
 // operator can act on, and "damaged" is the honest fallback.
 func damageTag(err error) string {
@@ -413,7 +413,7 @@ func parsePeerIndexTable(data []byte) map[uint16]*mrtPeerInfo {
 // rather than a partial prefix of them.
 // It returns the decode error for a malformed record so the caller can count
 // and report it. Silently yielding no entries would make a damaged record
-// indistinguishable from an empty one (ai/rules/fail-closed-guards.md).
+// indistinguishable from an empty one (ai/rules/evidence.md).
 func forEachRIBEntry(data []byte, subtype uint16, fn func(peerIndex uint16, attrs []byte)) error {
 	var entries []mrt.RIBEntry
 

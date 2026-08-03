@@ -25,7 +25,7 @@ current code 2026-07-10):
 
 1. **Cease RA on teardown.** When the RA sender stops (session teardown, IPv6
    service stop), Ze just cancels the goroutine and closes the socket
-   (`startRASender` cancel closure, ra_linux.go:79-84). RFC 4861 Section 6.2.5
+   (`startRASender` cancel closure, ra_linux.go). RFC 4861 Section 6.2.5
    says a router ceasing to advertise SHOULD send a final RA with Router
    Lifetime 0 so hosts drop the default route immediately instead of holding it
    for up to the remaining lifetime (1800s today). Send one final
@@ -34,8 +34,8 @@ current code 2026-07-10):
 
 2. **Derive the periodic interval from RouterLifetime.** Today the invariant
    "refresh well inside the router lifetime" holds only by coincidence of two
-   unrelated constants: `raPeriodicInterval = 600s` (ra_linux.go:21) and
-   `RouterLifetime: 1800` hardcoded at the send site (ra_linux.go:115). If
+   unrelated constants: `raPeriodicInterval = 600s` (ra_linux.go) and
+   `RouterLifetime: 1800` hardcoded at the send site (ra_linux.go). If
    either constant changes (or lifetime becomes configurable), nothing keeps
    refresh < lifetime, and a lost RA near expiry silently drops the subscriber's
    default route. Make the periodic interval a function of the lifetime (osvbng
@@ -52,7 +52,7 @@ the LAN feature.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/research/l2tpv2-ze-integration.md` - RA design context (referenced by ra.go:1).
+- [ ] `docs/research/l2tpv2-ze-integration.md` - RA design context (referenced by ra.go).
   → Constraint: BNG RAs stay prefix-less (M+O direct subscribers to DHCPv6); the cease RA must keep that shape, only lifetime changes.
 - [ ] `plan/spec-router-advertisement.md` - encoding extraction + LAN cease decision.
   → Constraint: do not fork the RA builder; reuse whatever `BuildRA`/`internal/core/ndp` state exists when this is picked up.
@@ -63,13 +63,13 @@ the LAN feature.
 **Key insights:**
 - Both changes are confined to `ra_linux.go` (send loop + stop path) plus the
   constants; `BuildRA` already accepts an arbitrary `RouterLifetime`, so the
-  cease packet needs no encoder change (RAConfig at ra.go:21-30).
+  cease packet needs no encoder change (RAConfig at ra.go).
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (verified 2026-07-10; re-read at design time)
 - [ ] `internal/component/l2tp/ppp/ra_linux.go` - constants `raInitialCount=5`, `raInitialInterval=3s`, `raPeriodicInterval=600s` (:18-22). `raSenderLoop` (:108-146) sends RAs with hardcoded `RouterLifetime: 1800` (:115); initial burst then 600s ticker plus RS-triggered sends. `startRASender` returns a cancel closure (:79-84) that cancels the context and closes the socket; NO final RA is sent.
-- [ ] `internal/component/l2tp/ppp/ra.go` - `BuildRA` (:37) takes `RAConfig.RouterLifetime` (ra.go:25); a zero value encodes a valid cease RA already.
+- [ ] `internal/component/l2tp/ppp/ra.go` - `BuildRA` (:37) takes `RAConfig.RouterLifetime` (ra.go); a zero value encodes a valid cease RA already.
 - [ ] `internal/component/l2tp/ppp/ipv6_service_linux.go` - wires `startRASender` after IPv6CP; the stop path to extend (re-read at design).
 
 **Behavior to preserve:**
@@ -98,8 +98,8 @@ the LAN feature.
 | wire | one additional RA per teardown | [ ] |
 
 ### Integration Points
-- `startRASender` cancel closure (ra_linux.go:79-84) - cease send before close.
-- `raSenderLoop` (ra_linux.go:108) - interval derivation.
+- `startRASender` cancel closure (ra_linux.go) - cease send before close.
+- `raSenderLoop` (ra_linux.go) - interval derivation.
 
 ### Architectural Verification
 - [ ] No bypassed layers (cease uses the same builder + socket)
@@ -112,7 +112,7 @@ the LAN feature.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The socket is still usable at cancel time for the cease send (teardown ordering) | cancel closure owns the conn and closes it itself (ra_linux.go:79-84) | move cease send earlier in teardown | unit test + read teardown callers of the cancel func | unvalidated |
+| A-1 | The socket is still usable at cancel time for the cease send (teardown ordering) | cancel closure owns the conn and closes it itself (ra_linux.go) | move cease send earlier in teardown | unit test + read teardown callers of the cancel func | unvalidated |
 | A-2 | On abrupt session death the PPP interface may already be gone; best-effort cease is acceptable | kernel removes pppN on channel close | log-and-continue semantics | design review of teardown paths | unvalidated |
 | A-3 | Lifetime/3 remains the right margin | current constants embody it; osvbng uses the same | pick a different divisor | RFC 4861 Section 6.2.4 bounds check at design | unvalidated |
 
@@ -155,7 +155,7 @@ the LAN feature.
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| router lifetime | 0-65535 s (uint16, ra.go:25) | 65535 | N/A | N/A (type-bounded) |
+| router lifetime | 0-65535 s (uint16, ra.go) | 65535 | N/A | N/A (type-bounded) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |

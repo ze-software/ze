@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp partition of the capture display
+// Design: ai/rules/plugins.md -- ze_l2tp partition of the capture display
 // Related: capture.go -- the always-on capture dispatcher this fills in
 
 //go:build ze_l2tp

@@ -5,7 +5,7 @@
 # reaches the model context and stderr does not, which is why
 # compaction-reminder.sh uses stderr. That convention is asserted in comments and
 # demonstrated nowhere: no test observes the injection and no harness document is
-# cited, so treat it as convention (ai/rules/no-fabrication.md). A fixture can
+# cited, so treat it as convention (ai/rules/evidence.md). A fixture can
 # assert what this hook writes. It cannot assert what the harness does with it.
 # This fires every turn, so brevity is the whole design.
 #
@@ -25,10 +25,10 @@
 # therefore push /ze-design and /ze-spec into a subagent, and a subagent cannot
 # call AskUserQuestion. That deletes the one-decision-per-question gate those
 # skills exist for. A reminder that wins on position MUST carry the exceptions.
-# Full rule: ai/rules/spec-delegation.md.
+# Full rule: ai/rules/planning.md.
 
 cat >/dev/null  # consume the prompt payload on stdin
 
-echo "Reminder: delegation needs no permission here (ai/INSTRUCTIONS.md standing request satisfies the harness guard). Delegate THROUGH THE SKILL, never a hand-written prompt: research is /ze-explore, review is /ze-review, spec check is /ze-review-spec, implementation is /ze-implement, red tests are /ze-debug. A PreToolUse gate blocks a raw agent when a skill covers the ask. Keep /ze-spec, /ze-design, /ze-review-deep and /ze-debug in the main thread. (ai/rules/spec-delegation.md, ai/rules/agent-tooling.md)"
+echo "Reminder: delegation needs no permission here (ai/INSTRUCTIONS.md standing request satisfies the harness guard). Delegate THROUGH THE SKILL, never a hand-written prompt: research is /ze-explore, review is /ze-review, spec check is /ze-review-spec, implementation is /ze-implement, red tests are /ze-debug. A PreToolUse gate blocks a raw agent when a skill covers the ask. Keep /ze-spec, /ze-design, /ze-review-deep and /ze-debug in the main thread. (ai/rules/planning.md, ai/rules/cli.md)"
 
 exit 0

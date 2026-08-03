@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 // Related: service_rest.go -- the restBuildImpl this installs
 //
 // Build-tag-gated installation of the REST API build hook. Compiled only under

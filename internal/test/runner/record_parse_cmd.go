@@ -98,7 +98,7 @@ func parseCmdExec(mode, line string) (RunCommand, error) {
 //
 // name= is REQUIRED and must match the name= a prior cmd=background line assigned;
 // the step executor fails the test if it names no tracked background process
-// (fail-closed, ai/rules/fail-closed-guards.md). signal= defaults to "kill"
+// (fail-closed, ai/rules/evidence.md). signal= defaults to "kill"
 // (SIGKILL) so the target goes silent for the DPD proof; "term" sends SIGTERM.
 func parseCmdStop(line string) (RunCommand, error) {
 	seqMarker := markerSeq

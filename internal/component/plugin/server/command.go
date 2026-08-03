@@ -244,13 +244,13 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 // configured `peer peer1 { ... }` and typed `peer peer1 raw ...` got
 // "invalid peer address". This is the one resolver for all of them, so the two
 // existing copies stop being two and a sixth cannot appear
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 //
 // The wildcard is REFUSED, deliberately and by name. Every caller acts on a
 // single session -- injecting raw bytes, pausing a read loop -- and silently
 // fanning that across every peer is a footgun, so `*` is rejected with the
 // selector quoted rather than being allowed to mean something surprising
-// (ai/rules/fail-closed-guards.md). An ambiguous selector that matches several
+// (ai/rules/evidence.md). An ambiguous selector that matches several
 // peers is refused the same way: this returns ONE peer or an error, never a
 // guess at which one was meant.
 //
@@ -287,14 +287,14 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 	// would start erroring the day a third peer is configured. A destructive
 	// command whose target depends on how many peers happen to exist is not an
 	// interface, so this refuses the whole exclusion family up front rather than
-	// resolving it (ai/rules/fail-closed-guards.md).
+	// resolving it (ai/rules/evidence.md).
 	//
 	// The string check catches the forms ParseDefault cannot type: Parse rejects
 	// "!*", "!" and "!a,b", and ParseDefault turns a parse error into
 	// PeerName(s), so those would otherwise fall through to "no peer matches
 	// selector "!*"" -- an accurate refusal with unusable advice, since it sends
 	// the operator looking for a peer literally named "!*"
-	// (ai/rules/error-messages.md, leg 3 must be TRUE).
+	// (ai/rules/cli.md, leg 3 must be TRUE).
 	if parsed.IsExclude() || strings.HasPrefix(strings.TrimSpace(sel), "!") {
 		var tb textbuf.Buffer
 		msg := tb.Str(action).Str(": selector ").Quoted(sel).
@@ -350,7 +350,7 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 // selectors outright, so nothing reaches here with one today; the polarity is
 // still correct rather than merely unreachable, because a future caller reading
 // the doc line above has every right to expect the parity it claims
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func selectorMatchesPeer(sel *selector.Selector, p *plugin.PeerInfo) bool {
 	var match bool
 	switch sel.SelectorKind() {
@@ -403,7 +403,7 @@ type Command struct {
 // It answers with the dispatcher's OWN predicate (implicitSelectorDef over the
 // command's key tokens and ArgDefs) rather than a second hardcoded list, so a
 // caller that builds a command string cannot drift from what Dispatch accepts
-// (ai/rules/derive-not-hardcode.md). Callers outside the dispatcher -- notably
+// (ai/rules/evidence.md). Callers outside the dispatcher -- notably
 // the MCP tool generator, which must decide whether to advertise a `peer`
 // argument at all and where to splice its value -- rely on this.
 //
@@ -743,7 +743,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// <selector>` -- yields no selector at all and the guard below would
 		// reject the documented form. validateCommandArgs is the one place that
 		// binds a positional token to a leaf, so the guard consults ITS answer
-		// rather than re-deriving a second one (ai/rules/derive-not-hardcode.md).
+		// rather than re-deriving a second one (ai/rules/evidence.md).
 		//
 		// Only the RESULT is used early. The error is HELD and reported at its
 		// original place in the sequence, after authorization and the flag

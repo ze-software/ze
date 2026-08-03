@@ -134,7 +134,7 @@ func handleCommand(eng *engine, command string, args []string) (string, any, err
 
 // selectorValue extracts the value after a `name` selector keyword.
 //
-// The grammar is `show vrrp interface name <name>` (ai/rules/cli-grammar.md:
+// The grammar is `show vrrp interface name <name>` (ai/rules/cli.md:
 // a typed selector keyword before any free-form value), so the value is
 // whatever follows "name".
 func selectorValue(args []string) string {
@@ -158,5 +158,5 @@ func selectorValue(args []string) string {
 	return ""
 }
 
-// selectorKeyword types the interface selector (ai/rules/cli-grammar.md).
+// selectorKeyword types the interface selector (ai/rules/cli.md).
 const selectorKeyword = "name"

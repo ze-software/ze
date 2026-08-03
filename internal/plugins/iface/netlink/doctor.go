@@ -1,4 +1,4 @@
-// Design: ai/rules/doctor-checks.md -- self-contained doctor checks owned by
+// Design: ai/rules/repo-maintenance.md -- self-contained doctor checks owned by
 // the package that owns the runtime dependency.
 // Related: doctor_linux.go -- the real macvlan create/delete capability probe
 // Related: doctor_other.go -- non-Linux probe stub
@@ -9,7 +9,7 @@
 // doctor check surfaces a missing capability or a privilege gap via `ze doctor`
 // before a plugin's device create fails at apply. The capability is iface-owned
 // infrastructure with zero consumer-specific knowledge, so the check and its
-// diagnostic code (doctor-iface-macvlan) live with the backend (doctor-checks.md
+// diagnostic code (doctor-iface-macvlan) live with the backend (repo-maintenance.md
 // ownership rule).
 
 package ifacenetlink

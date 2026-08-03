@@ -79,8 +79,8 @@ func notifyLogSession(t *testing.T, sink *syncBuffer) (*Session, net.Conn) {
 //
 // message.NotifyErrorCode already has a String() (notification.go:144), so the numeric
 // form was throwing away a name that existed -- the exact hardcode-over-derive the
-// project refuses (ai/rules/derive-not-hardcode.md), and leg 2 of what an error owes its
-// reader (ai/rules/error-messages.md).
+// project refuses (ai/rules/evidence.md), and leg 2 of what an error owes its
+// reader (ai/rules/cli.md).
 func TestSendNotificationLogsCodeName(t *testing.T) {
 	sink := &syncBuffer{}
 	session, conn := notifyLogSession(t, sink)

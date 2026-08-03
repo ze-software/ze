@@ -8,7 +8,7 @@
 | Updated | 2026-07-22 |
 
 Phase note (was in the Phase cell; moved 2026-07-22): implementation landed --
-`ze-release-evidence` is defined at `mk/test-release.mk:83` and wired in the
+`ze-release-evidence` is defined at `mk/test-release.mk` and wired in the
 Makefile (commit `d0e9d388c` "test: add release evidence gate runner"). The
 outstanding step is the full evidence-matrix verification re-run.
 
@@ -39,11 +39,11 @@ check, with the tree having moved AGAINST it since:
 
 | Producer | Fact |
 |----------|------|
-| `test/static/004-show.ci:18`, `005-table-interface.ci:18` | both carry `option=needs-linux` |
-| `internal/test/runner/record_parse.go:445-449` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
-| `mk/test-functional.mk:190` (`all_suites`) | no `static`, so `make ze-verify` never runs it |
+| `test/static/004-show.ci`, `005-table-interface.ci` | both carry `option=needs-linux` |
+| `internal/test/runner/record_parse.go` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
+| `mk/test-functional.mk` (`all_suites`) | no `static`, so `make ze-verify` never runs it |
 | `scripts/evidence/qemu-all-tests.sh` (`fsuite` lines) | no `static`, so `make ze-qemu-needs-linux-test` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
-| `mk/test-functional.mk:299`, `mk/test-release.mk:71` | the suite's only two invocation sites tree-wide, and `ze-release-evidence` is invoked by no workflow |
+| `mk/test-functional.mk`, `mk/test-release.mk` | the suite's only two invocation sites tree-wide, and `ze-release-evidence` is invoked by no workflow |
 
 So a rewrite fixed a real defect in those tests and left them behind a gate no runner
 honors. They are not skipped honestly; they are simply never reached. Either add `static`
@@ -51,7 +51,7 @@ to the QEMU functional list, or make `ze-release-evidence` an invoked path -- th
 own subject.
 
 Carry with it: both tests run `ip link add` in `setup.py` (`004:26-30`, `005:28-35`) while
-declaring `option=needs-linux` with no `caps=net-admin`. `record_parse.go:413-433`
+declaring `option=needs-linux` with no `caps=net-admin`. `record_parse.go`
 documents that exact shape as fail-open: on an unprivileged Linux host they hang or fail
 rather than skipping honestly.
 
@@ -63,7 +63,7 @@ rather than skipping honestly.
   → Constraint: ZE_SKIP_SUITES mechanism for container-incompatible suites
 
 ### Source Files
-- [x] `mk/test-functional.mk:48-86` - shell runner pattern with continue-on-failure
+- [x] `mk/test-functional.mk` - shell runner pattern with continue-on-failure
   → Constraint: use same run_suite() pattern for category tracking
 - [x] `mk/test-integration.mk` - all heavy test targets and ze-deployment-preflight
   → Constraint: preflight checks tools before starting, exits non-zero on missing
@@ -307,17 +307,17 @@ against current code (followup-wave impact review):
 
 | 2026-05-24 blocker | Status today (verified firsthand) |
 |--------------------|-----------------------------------|
-| `wireManagedCommit` undefined breaks `go build ./cmd/ze` | resolved: defined `cmd/ze/hub/managed.go:15` (takes `audit.Recorder`), called `cmd/ze/hub/main.go:783` |
-| `buildSessionModelFactory` call sites missing `audit.Recorder` | resolved: signature carries `recorder audit.Recorder` at `cmd/ze/hub/session_factory.go:56` |
+| `wireManagedCommit` undefined breaks `go build ./cmd/ze` | resolved: defined `cmd/ze/hub/managed.go` (takes `audit.Recorder`), called `cmd/ze/hub/main.go` |
+| `buildSessionModelFactory` call sites missing `audit.Recorder` | resolved: signature carries `recorder audit.Recorder` at `cmd/ze/hub/session_factory.go` |
 | `make ze-test` blocked at ze-lint (service/web lint reds) | to be proven by the next full `make ze-verify` (ze-lint is a stage of it); a green run supersedes this row |
 
 Additional post-wave corrections:
 - Required Reading cites `Makefile:178-194` for verify composition; `ze-verify` is now
-  at `Makefile:276` and `_ze-verify-impl` (`:287`) carries a longer gate list
+  at `Makefile:276` and `_ze-verify-impl` carries a longer gate list
   (ze-tier-check, ze-iface-resolution-check, ze-plugin-boundary-check,
   ze-port-defaults-check, ze-platform-vet, ze-cli-grammar-check, ...).
 - The evidence matrix categories predate wave-added heavy suites; the re-run should
-  fold in `ze-deployment-vpp-iface-test` (`mk/test-integration.mk:113`) and the new
+  fold in `ze-deployment-vpp-iface-test` (`mk/test-integration.mk`) and the new
   functional `.ci` (as112-dot/doh, exabgp-bridge-internal, mcp-get-sse,
   test/traffic 020-026) via their existing category targets.
 

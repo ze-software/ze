@@ -188,7 +188,7 @@ var lcpNetnsBannedAdvice = []struct {
 
 // lcpNetnsRequiredAdvice are the properties every doctor-vpp-lcp-netns surface
 // must keep: name the subject, and name the one remedy that works today.
-// ai/rules/error-messages.md makes "what to do next" mandatory on doctor output,
+// ai/rules/cli.md makes "what to do next" mandatory on doctor output,
 // so removing the false advice without replacing it is not an option either.
 var lcpNetnsRequiredAdvice = []struct {
 	name string
@@ -207,7 +207,7 @@ func assertLCPNetnsAdvice(t *testing.T, surface, text string) {
 	}
 	for _, r := range lcpNetnsRequiredAdvice {
 		if !r.re.MatchString(text) {
-			t.Errorf("%s does not satisfy %q (ai/rules/error-messages.md: what / why / next)\ngot: %q", surface, r.name, text)
+			t.Errorf("%s does not satisfy %q (ai/rules/cli.md: what / why / next)\ngot: %q", surface, r.name, text)
 		}
 	}
 }

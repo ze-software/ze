@@ -332,7 +332,7 @@ func TestEmittableElicitationsRequestNoSecrets(t *testing.T) {
 // client declaring form-mode elicitation, comes back as an InputRequiredResult
 // through the real dispatch path rather than only from the constructor.
 // PREVENTS: the constructor existing while the handler still hard-fails, which
-// is the library-without-wiring defect ai/rules/wiring-completeness.md names.
+// is the library-without-wiring defect ai/rules/completion.md names.
 func TestZeExecutePromptsWhenFormModeDeclared(t *testing.T) {
 	runner := &server{
 		dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {

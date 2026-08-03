@@ -10,7 +10,7 @@
 | Updated | 2026-08-02 |
 
 Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
-(`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
+(`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
@@ -51,7 +51,7 @@ The fix is a runner GUARD that hard-errors on `reject=` inside a peer block,
 matching the precedent already in place for `option=env:`, plus an audit of the
 three sites once the guard fires. Patching the three call sites alone would leave
 the next one silent, which is the failure this spec exists to stop
-(`ai/rules/fail-closed-guards.md`).
+(`ai/rules/evidence.md`).
 
 Whether `reject=bgp:` should EXIST is a second question this spec must answer.
 The two sites that use it want to assert that a peer never received given bytes.
@@ -69,7 +69,7 @@ assertion still proves the behavior in the observed framing.
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
-- [ ] `ai/rules/fail-closed-guards.md` - a directive that neither denies nor speaks does not exist
+- [ ] `ai/rules/evidence.md` - a directive that neither denies nor speaks does not exist
 - [ ] `ai/patterns/functional-test.md` - `.ci` directive vocabulary
 
 ## Current Behavior (MANDATORY)
@@ -156,9 +156,9 @@ A `.ci` file containing `reject=` between `stdin=peer:` and its terminator.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Both defects addressed: the missing `bgp` reject type AND the peer-block drop. Fixing only the second leaves `reject=bgp:` a hard parse error waiting for the first author who writes it outside a block |
-| Correctness | The guard names the directive and the line, and it fires at PARSE time, before any process starts (`ai/rules/error-messages.md`) |
-| Rule: `ai/rules/fail-closed-guards.md` | A directive that neither denies nor speaks does not exist. `consumes` and the peer-block loop stay one decision, as the doc comment demands |
-| Rule: `ai/rules/no-test-deletion.md` | A dead line is removed only with a stated reason. It is never removed to quiet the new guard |
+| Correctness | The guard names the directive and the line, and it fires at PARSE time, before any process starts (`ai/rules/cli.md`) |
+| Rule: `ai/rules/evidence.md` | A directive that neither denies nor speaks does not exist. `consumes` and the peer-block loop stay one decision, as the doc comment demands |
+| Rule: `ai/rules/testing.md` | A dead line is removed only with a stated reason. It is never removed to quiet the new guard |
 | Registration over hardcoding | The guard derives its accepted directive set from the parser, not from a second hand-written list that can drift from `consumes` |
 
 ## Checklist

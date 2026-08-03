@@ -249,7 +249,7 @@ func TestVerifyAdvertisedClaimsLeavesStartupErrUntouched(t *testing.T) {
 // test in this file asserts on unbackedClaims() -- a different function -- and on
 // startupErr, which this never touches, so deleting the loop body left the suite
 // green while the guard fell silent. A guard that cannot deny MUST speak
-// (ai/rules/fail-closed-guards.md); an untested log is not speech.
+// (ai/rules/evidence.md); an untested log is not speech.
 func TestVerifyAdvertisedClaimsSpeaks(t *testing.T) {
 	orig := logger
 	t.Cleanup(func() { logger = orig })

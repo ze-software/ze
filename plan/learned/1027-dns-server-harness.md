@@ -6,7 +6,7 @@ geodns's DNS server internals (listener lifecycle, EDNS0 client-IP resolution,
 authoritative-answer/recursion-refusal shaping, CIDR longest-prefix matcher)
 were the only reusable primitives an upcoming second DNS plugin
 (`spec-as112-2-dns-server.md`) needs, but a plugin MUST NOT import a sibling
-plugin (`plugin-design.md:133`). The only sanctioned reuse path is a lower
+plugin (`plugins.md`). The only sanctioned reuse path is a lower
 tier -- the pattern `internal/core/probe` already set for ping+traceroute.
 This spec extracted those primitives into a new core leaf package
 `internal/core/dnsserver` and migrated geodns onto it behavior-preservingly,
@@ -15,9 +15,9 @@ unblocking as112 without touching it.
 ## Decisions
 
 - Extracted to `internal/core/dnsserver` (core leaf) over (a) as112 importing
-  geodns [forbidden, `plugin-design.md:133`], (b) duplicating the
+  geodns [forbidden, `plugins.md`], (b) duplicating the
   authoritative-only handler in as112 [security-sensitive duplication risk],
-  (c) a component [no config-driven lifecycle -> `module-tiers.md` puts it in
+  (c) a component [no config-driven lifecycle -> `architecture.md` puts it in
   core]. `internal/core/probe` is the precedent.
 - Overrode the "3+ use cases" heuristic at 2 consumers (geodns + approved
   imminent as112), same as `internal/core/probe` did for ping+traceroute --

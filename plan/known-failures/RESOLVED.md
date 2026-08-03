@@ -74,7 +74,7 @@ review caught it and the record is corrected rather than left standing.** The
 first attempt copied the established+`quiesce()` fence from
 `api-rib-clear-out.ci`, and it was vacuous twice over: the predicate substring
 `'established'` is satisfied by the KEY `connections-established` that every peer
-row carries (`internal/component/bgp/plugins/cmd/peer/peer.go:238`), so it
+row carries (`internal/component/bgp/plugins/cmd/peer/peer.go`), so it
 returned before any session existed, and `quiesce()` then also returned at once
 because `PendingSync` is false for an idle peer. Rewriting it to parse the real
 `state` field made the test FAIL, which is what exposed the deeper point: this
@@ -96,15 +96,15 @@ The headline issue -- reload tests failing on FIXED startup deadlines under
 deliberate CPU starvation (`peer did not start listening within 5s`) -- is fixed
 at source. Those inner readiness gates now scale by the same parallel headroom as
 the outer per-test budget: `withParallelHeadroom`
-(`internal/test/runner/runner_exec_util.go:147`) is applied to both ze-peer bind
-barriers (`runner_exec.go:148`, `:904`), both daemon.ready waits, the
-`await=stderr` fence (`await_stderr.go:87`), and the HTTP readiness
-wait/retry-count/per-request budgets (`runner_validate.go:508`, `:573`, `:722`).
+(`internal/test/runner/runner_exec_util.go`) is applied to both ze-peer bind
+barriers (`runner_exec.go`, `:904`), both daemon.ready waits, the
+`await=stderr` fence (`await_stderr.go`), and the HTTP readiness
+wait/retry-count/per-request budgets (`runner_validate.go`, `:573`, `:722`).
 Its doc comment names this shard as the class it closes. In 2026-07-23 this was
 blocked only because a concurrent session held those files.
 
 Found while closing it: `peerBindFailure`
-(`internal/test/runner/peer_contract.go:160`) still hardcoded "within 5s" in its
+(`internal/test/runner/peer_contract.go`) still hardcoded "within 5s" in its
 message, so a parallel run reported a budget it had never applied. It now takes
 the enforced deadline; its generic test asserts the widened value and rejects
 "within 5s", mutation-verified against a reverted producer.
@@ -133,7 +133,7 @@ CAP_NET_ADMIN remediation.
 Two stale details in the original finding, corrected: the failure is at stage 2
 (configure), not stage 3 -- the plugin-side stage-3 error is a consequence of the
 already-closed pipe -- and `ze <config>` as a bare positional no longer exists
-(`cmd/ze/ze_core_dispatch.go:402-404`). `ai/rules/qemu-testing.md` carried the
+(`cmd/ze/ze_core_dispatch.go`). `ai/rules/platform-linux.md` carried the
 same stage-3 wording and the same implication that the DAEMON hangs; it now says
 the TEST hangs, which is what actually happens (the check peer goes on waiting
 for a session the exited daemon will never open).
@@ -143,15 +143,15 @@ for a session the exited daemon will never open).
 The shard blamed the answering-side reliable-receive path: "ze's receive window
 does not advance past the second session's rapid-fire ICRQ". That has no producer.
 `OnReceive` classifies purely on `hdr.Ns == e.nextRecvSeq` and advances on every
-in-order delivery (`internal/component/l2tp/reliable.go:487-499`); there is no
+in-order delivery (`internal/component/l2tp/reliable.go`); there is no
 window gating on the receive path at all -- `e.win` governs only the send side. The
 `.ci` peer sends strictly increasing Ns 0..6, so the reorder queue is never touched.
 
 The real cause is the missing CAP_NET_ADMIN, which the test's own
 `option=needs-linux:caps=net-admin` marker already states: the genl tunnel create
 returns EPERM, `handleKernelError` tears the sessions down
-(`reactor_kernel.go:388-411` -> `session_fsm.go:434-455`), so `clearSessions`
-returns nil and the asserted log at `tunnel_fsm.go:596` is suppressed. The marker
+(`reactor_kernel.go` -> `session_fsm.go`), so `clearSessions`
+returns nil and the asserted log at `tunnel_fsm.go` is suppressed. The marker
 is correct and was kept.
 
 The investigation did find a separate REAL bug, now fixed (`baf45d6bd`):
@@ -166,7 +166,7 @@ no-op `clearSessions`.
 
 Root cause is the kernel, not the reconcile logic. `10.60.200.1/24` ->
 `10.60.200.2/24` is a renumber INSIDE one subnet, and the reconcile is
-make-before-break: `config_apply.go:898` adds the new address, which Linux marks
+make-before-break: `config_apply.go` adds the new address, which Linux marks
 `IFA_F_SECONDARY`, then `:916` removes the old one -- and `__inet_del_ifa` deletes
 every same-subnet secondary along with the primary unless
 `net.ipv4.conf.<dev>.promote_secondaries` is 1. Both `RemoveAddress` calls return
@@ -186,9 +186,9 @@ cases.
 ### ~~`bgp plugin` `role-otc-export-unknown` -- rare spurious withdraw~~ -- RESOLVED 2026-07-25: the test let its own source peer disconnect
 
 The daemon was right. Without `option=linger` a check peer closes the moment its
-script completes, ~1 ms after sending its UPDATE; `adj_rib_in/rib.go:573-576` then
+script completes, ~1 ms after sending its UPDATE; `adj_rib_in/rib.go` then
 deletes its RIB on session-down, and `bgp-rs` `handleStateDown` ->
-`sendBatchedWithdrawals` (`rs/server_handlers.go:90-149`) emits
+`sendBatchedWithdrawals` (`rs/server_handlers.go`) emits
 `del prefix 10.0.0.0/24` to the destination peer -- byte-for-byte the captured
 frame `001B:02:0004180A00000000`.
 
@@ -239,7 +239,7 @@ fix. If it returns, re-open with the daemon stderr rather than reusing this entr
 The shard (2026-07-22) predates the fix. `ebf0dfbad` (2026-07-24, "fix(test):
 install kernel suite green in isolated ze-verify layout") changed the 20 `.ci`
 files to resolve the repo as `${ZE_REPO_ROOT:-$(... command -v ze ...)}`, so the
-runner-exported `ZE_REPO_ROOT` (`internal/test/runner/runner_exec_util.go:118`)
+runner-exported `ZE_REPO_ROOT` (`internal/test/runner/runner_exec_util.go`)
 wins over the binary-neighbour derivation the shard blamed. Verified 2026-07-25
 by rebuilding the isolated layout by hand (`tmp/isolab/bin/{ze,ze-test}`) and
 running `ZE_BIN=... ZE_TEST_BIN=... ze-test install --all` -> `pass 37/37`
@@ -253,9 +253,9 @@ Both shard claims confirmed and fixed, and running the suite under QEMU surfaced
 three more:
 
 - 004 used the obsolete flat `next-hop <addr> { }` form; the schema models
-  `next { hop <addr> { } }` (`internal/plugins/static/yang/ze-static-conf.yang:77-119`).
+  `next { hop <addr> { } }` (`internal/plugins/static/yang/ze-static-conf.yang`).
 - 004 and 005 drove `ze cli -c "show static"`, which speaks SSH
-  (`internal/component/cli/client/main.go:380`) against configs declaring no SSH
+  (`internal/component/cli/client/main.go`) against configs declaring no SSH
   server -- unreachable on any platform. Both rewritten to dispatch through an
   external plugin, with structured assertions (route count, (prefix, table)
   pairs, named table id, interface-only next-hop) replacing substring matches.
@@ -265,11 +265,11 @@ three more:
   the dump). Now registered serial (`internal/test/cli/register.go`).
 - 006 asserted "no interface backend loaded", which is unreachable on Linux:
   omitting the `interface { backend }` stanza defaults to netlink
-  (`internal/component/iface/default_linux.go:8`), and on darwin the daemon never
+  (`internal/component/iface/default_linux.go`), and on darwin the daemon never
   reaches static. It could pass on no platform. Rewritten to assert the
   reachable behaviour (route skipped, interface named, daemon survives); the
   no-backend message keeps its deterministic unit test
-  (`internal/plugins/static/backend_linux_test.go:19`).
+  (`internal/plugins/static/backend_linux_test.go`).
 
 Verified: `ze-test static --all` under QEMU -> `pass 7/7`.
 
@@ -362,7 +362,7 @@ disproven entries above) and the diagnosis here was correct.
 
 Confirmed pre-existing 2026-07-15 by `git archive HEAD` into a scratch tree and
 running the test there: it failed identically on committed `HEAD`
-(`main_test.go:470: expected 13 system RPCs, got 14`), so the VRRP work did not
+(`main_test.go: expected 13 system RPCs, got 14`), so the VRRP work did not
 cause it. The 14 `ze-system-api` RPCs are all generic daemon methods; none is
 VRRP -- verified by enumerating them, `ze-system:quiesce` included.
 
@@ -370,7 +370,7 @@ Cause: the test hardcodes per-module RPC counts, and `ze-system:quiesce` was
 added without updating the literal.
 
 Fixed by bumping the literal to 14 (`main_test.go`). The suggestion to derive the
-expectation instead (`ai/rules/derive-not-hardcode.md`) was considered and NOT
+expectation instead (`ai/rules/evidence.md`) was considered and NOT
 taken: a count derived from the same registry the test reads would be
 tautological. The shape that actually catches silent removal is a golden snapshot
 file, as `plugin/all/testdata/*.snapshot` does. Left as a note in the test rather
@@ -379,10 +379,10 @@ whoever next touches that file.
 
 **A SECOND test had the same stale-`quiesce` root cause** and was only found when
 `make ze-verify` finally ran (2026-07-15): `internal/core/ipc` `TestExtractRPCs/system-api`
-(`yang_test.go:320-326`) asserts `ElementsMatch` against its own hardcoded
+(`yang_test.go`) asserts `ElementsMatch` against its own hardcoded
 `wantRPCs` list, which also predated `ze-system:quiesce`. Fixed by adding the
 entry. Two hardcoded copies of the same list drifted from one added RPC, which is
-precisely what `ai/rules/derive-not-hardcode.md` exists to prevent -- worth
+precisely what `ai/rules/evidence.md` exists to prevent -- worth
 remembering if a third copy surfaces.
 
 ### ~~`config/cli` -- 3 tests fail, pre-existing~~ -- RESOLVED 2026-07-15: DISPROVEN, same missing-build-tags artifact
@@ -393,7 +393,7 @@ Original entry (2026-07-03, "re-confirmed" 2026-07-09) claimed the validator
 produced no diagnostic "in this build", covering
 `TestValidateListenerConflictRelated` (cmd_validate_test.go),
 `TestConfigFixPlanRepairIDs` and `TestConfigFixPlanRepairIDsFromFix`
-(cmd_fix_test.go:106).
+(cmd_fix_test.go).
 
 Disproven 2026-07-15 by running the three tests both ways:
 
@@ -427,18 +427,18 @@ taken 30s into the freeze pinned it in two stacks:
 
 | Goroutine | Where |
 |---|---|
-| runner | `simWg.Wait()` (`runner.go:594`) -- the advance loop had ALREADY finished |
-| ze session | `VirtualClock.Sleep` (`virtualclock.go:49`) from `session.go:767` |
+| runner | `simWg.Wait()` (`runner.go`) -- the advance loop had ALREADY finished |
+| ze session | `VirtualClock.Sleep` (`virtualclock.go`) from `session.go` |
 
-The advance loop does exactly what `runner.go:427-430` implies: 60 virtual seconds
+The advance loop does exactly what `runner.go` implies: 60 virtual seconds
 in ~0.6s real. Then it exits -- and **nothing advances the clock again**.
 `session.Run()` polls for its connection with `s.clock.Sleep(10ms)`
-(`session.go:762-768`), and `VirtualClock.Sleep` is a bare `<-ch`
-(`virtualclock.go:47-50`); `clock.Clock.Sleep` takes no ctx, so `simCancel()`
+(`session.go`), and `VirtualClock.Sleep` is a bare `<-ch`
+(`virtualclock.go`); `clock.Clock.Sleep` takes no ctx, so `simCancel()`
 cannot reach a goroutine parked there -- only `Advance` can. ze's session was
 stranded mid-sleep, never finished the handshake, the simulator blocked forever on
 the reply that never came (`executeReconnectStorm` -> `readMsg`,
-`simulator_actions.go:233`), and `simWg.Wait()` hung until the test's own 90s
+`simulator_actions.go`), and `simWg.Wait()` hung until the test's own 90s
 context tore the sockets down. Hence 92.00s, and `established==1` because the peer
 was asleep, not because reconnect was broken.
 
@@ -459,14 +459,14 @@ Two lessons worth keeping. (1) This was logged as non-deterministic but failed
 **3/3 in BOTH modes** -- a deterministic red, which this file's own scope rule says
 never belongs here. Re-measure before inheriting a "flaky" label. (2) Three
 plausible mechanisms (the new iface chaos weights; the blocking timer send at
-`virtualclock.go:168`; "the advance loop is slow") were each disproven by
+`virtualclock.go`; "the advance loop is slow") were each disproven by
 experiment. The goroutine dump settled in one run what code-reading had got wrong
 three times: when a test hangs, dump the stacks before theorising.
 
 ### ~~`internal/component/l2tp` `TestPeerTeardownWithdrawsSubscriberRoute`~~ -- FIXED 2026-07-16 (`9af30c440`): the test violated a documented setter contract
 
-The diagnosis here was correct (write at `reactor_setters.go:114` vs read at
-`reactor_kernel.go:263`, the test calling `SetRouteObserver` after `Start()`), and
+The diagnosis here was correct (write at `reactor_setters.go` vs read at
+`reactor_kernel.go`, the test calling `SetRouteObserver` after `Start()`), and
 the suggested fix -- set the observer before `Start()` -- was the one taken.
 
 Two corrections for the record. **It was not load-sensitive and not 1-in-3**:
@@ -474,10 +474,10 @@ Two corrections for the record. **It was not load-sensitive and not 1-in-3**:
 "1/3 under `-race -count=3`" measurement understated it. And it was never a
 product bug: `SetRouteObserver` documents "MUST be called before `Start()`; the
 goroutine creation barrier synchronizes the write here with reads in the run
-loop" (`reactor_setters.go:106-109`), and the sole production caller honours it --
-`subsystem.go:241` installs the observer, `:313` starts the reactor 72 lines
+loop" (`reactor_setters.go`), and the sole production caller honours it --
+`subsystem.go` installs the observer, `:313` starts the reactor 72 lines
 later. The lock-free write is deliberate: the reload-time setters
-(`setHelloRetries` and friends, `reactor_setters.go:18-98`) DO take `tunnelsMu`
+(`setHelloRetries` and friends, `reactor_setters.go`) DO take `tunnelsMu`
 because `subsystem_reload.go` calls them on a live reactor, while the install-time
 setters trade the lock for the `Start()` happens-before edge. Adding a mutex would
 have weakened a working design to accommodate a misusing test.
@@ -500,12 +500,12 @@ the test is pure logic (no netlink, no privileges), so a container suffices:
 
 | Tree | Result on linux/amd64 |
 |---|---|
-| committed HEAD (`require.Nil(t, teardowns)`) | **FAIL** `reactor_kernel_linux_test.go:159: Expected nil, but got: []l2tp.kernelTeardownEvent{{localTID:0x66, localSID:0x9}}` |
+| committed HEAD (`require.Nil(t, teardowns)`) | **FAIL** `reactor_kernel_linux_test.go: Expected nil, but got: []l2tp.kernelTeardownEvent{{localTID:0x66, localSID:0x9}}` |
 | with the fix | **PASS**; full `./internal/component/l2tp/...` tree green |
 
 `0x66`/`0x9` are exactly the event the test seeds, confirming the producer:
 `collectKernelEventsLocked` drains `pendingKernelTeardowns` BEFORE the worker
-check and returns them (`reactor_kernel.go:23-27`), deliberately, so the route
+check and returns them (`reactor_kernel.go`), deliberately, so the route
 observer learns of torn sessions with no kernel worker present. That is the
 mechanism `TestPeerTeardownWithdrawsSubscriberRoute` depends on -- the same
 teardown-withdraw path whose `-race` bug was fixed today in `9af30c440`.
@@ -523,7 +523,7 @@ entries turned out that way today.
 
 Confirmed pre-existing (git-blame) 2026-07-10: the test asserts
 `require.Nil(t, teardowns)` from `collectKernelEventsLocked` when no kernel
-worker is present (`reactor_kernel_linux_test.go:159`, last touched 2026-06-12).
+worker is present (`reactor_kernel_linux_test.go`, last touched 2026-06-12).
 But commit `e231fbfdd` (2026-06-26, "withdraw subscriber routes on
 peer-initiated teardown") deliberately made `collectKernelEventsLocked`
 drain `pendingKernelTeardowns` **unconditionally** so the route observer learns
@@ -537,21 +537,21 @@ whichever session next touches `internal/component/l2tp/reactor_kernel_linux_tes
 
 ### 2026-07-26 -- the three load-blamed shards, all fixed at source
 
-Cleared under `ai/rules/fix-dont-record.md` (owner directive, same day), which
+Cleared under `ai/rules/completion.md` (owner directive, same day), which
 holds that a test failing only on a busy host asserts on elapsed time and gets
 fixed rather than recorded. None of the three was what its shard claimed.
 
 - **`verify-plugin-suite-load-sensitive-at-p20`** (222, 228, 514) -> `8e37508cf`.
   Not load-sensitivity. Two of them polled for the substring `established` in the
   peer-detail JSON, which every row carries as the key `connections-established`
-  (`cmd/peer/peer.go:238`), so the barrier returned on its first call and gated
+  (`cmd/peer/peer.go`), so the barrier returned on its first call and gated
   nothing. Now wait on `eor-sent`. Reproduced at stress invocation 9 before,
   60/60 after.
 - **`qemu-unit-chaos-inprocess-short-gap-collision`** -> `bbff8cb50`. No protocol
   defect: the test summed `EventEstablished` across both simulators, so "2" meant
   two SEQUENTIAL sessions. A second connection cannot reach Established while the
-  first holds the session (`session_connection.go:62-71`), and the RFC 4271
-  Section 6.8 check is correct (`reactor_connection.go:136-139`). The failure was
+  first holds the session (`session_connection.go`), and the RFC 4271
+  Section 6.8 check is correct (`reactor_connection.go`). The failure was
   materialised deterministically by forcing the adverse ordering, then made
   unreachable.
 - **`reload-config-apply-ordering-rotation`** -> `834f92629` + `62dcfcacd`. It
@@ -563,7 +563,7 @@ fixed rather than recorded. None of the three was what its shard claimed.
 
 ### 2026-07-08 -- `internal/plugins/ospf` `virtual_link.go` `-race` data race -> two bugs fixed at source
 
-**Resolved 2026-07-08.** The reported write was `virtual_link.go:160`
+**Resolved 2026-07-08.** The reported write was `virtual_link.go`
 (`rt.reachable = r.Reachable` in `(*engine).onVirtualLinksResolved`); a `-race`
 rerun surfaced the missing second stack, which pinned TWO distinct bugs:
 
@@ -571,15 +571,15 @@ rerun surfaced the missing second stack, which pinned TWO distinct bugs:
    `e.virtualLinks` map with `e.mu` but snapshotted `*virtualLinkRuntime` pointers
    and read their mutable fields (`cost`, `localAddr`, `cfg`) AFTER unlocking,
    racing `onVirtualLinksResolved`'s writes -- the retransmit loop
-   (`instance.go:730` -> `originateSelfLSAs` -> `virtualLinkTopology`) is a real
+   (`instance.go` -> `originateSelfLSAs` -> `virtualLinkTopology`) is a real
    lock-free reader. Fixed by snapshotting VALUES under `e.mu` (`virtualLinkConfig`
    is a pure-value struct); `virtualNeighbors` now takes the name string so no
    runtime pointer escapes the lock.
 2. **The reported race (test).** `TestVirtualLinkResolutionDrivesRuntime` drove
    `onVirtualLinksResolved` directly, which re-triggers SPF; the live computer's
    50ms back-off timer re-entered the callback on its own goroutine and wrote
-   `rt.reachable`/`rt.cost` (`virtual_link.go:160`) while the test read them
-   lock-free (`virtual_link_test.go:119`). In production the callback only ever
+   `rt.reachable`/`rt.cost` (`virtual_link.go`) while the test read them
+   lock-free (`virtual_link_test.go`). In production the callback only ever
    runs on the single SPF goroutine, so the overlap is test-only. Fixed with
    `e.spf.Stop()` up front (callback runs synchronously); also removes a latent
    flake -- with no transit topology the async run resolves the link back down.
@@ -607,7 +607,7 @@ structural gate as a bypassable known-red (see `ai/rules/git-safety.md`).
 were not "missing from the built tree." Commit `5f7c70f18` (the verb-first
 grammar gate) intentionally restructured `ze-iface-cmd.yang` -- `create interface
 dummy <name>` became `create interface dummy name <name>` (a typed `name`
-selector, cli-grammar.md R6) -- which moved `ze:command`/`ze:ensure-exists`/`unit`/
+selector, cli.md R6) -- which moved `ze:command`/`ze:ensure-exists`/`unit`/
 `address` from the `dummy` grouping onto the nested `name` node, but left this
 test navigating the old positions. The rollback behavior is preserved (the
 ensure-exists lives on the `name` node now). Fixed by retargeting the test's
@@ -643,7 +643,7 @@ Verified: 4 back-to-back parallel `ze-test install --pattern kernel` runs, all
 { ... } }`. The `authentication` container (added by spec 888, l2tp-env-promote)
 holds only PPP-phase `timeout`/`reauth-interval`; the RADIUS config path is
 `l2tp { auth { radius { ... } } }`, defined by the authradius plugin
-(`internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang:11`).
+(`internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang`).
 The fixtures named the wrong sibling container. Fixed both `.ci` files to `auth {}`;
 `ze config validate` now returns "configuration valid" (was `unknown field in
 authentication: radius`). Same class as the paths-limit.ci fixture fix. These
@@ -664,7 +664,7 @@ wired it into `ze config validate` (`cmd/ze/config/cmd_validate.go`). Re-run
 **Resolved 2026-07-01.** The 2026-06-17 triage flagged the env-var path bypassing
 the reauth safety floor. Spec 888 (l2tp-env-promote) removed the L2TP env vars
 entirely and moved `reauth-interval` into YANG with `range "0 | 5..86400"`
-(`internal/component/l2tp/yang/ze-l2tp-conf.yang:172`), deleting `clampReauthInterval`
+(`internal/component/l2tp/yang/ze-l2tp-conf.yang`), deleting `clampReauthInterval`
 and its test. Verified 2026-07-01: `ze config validate` rejects `reauth-interval 3`
 (`outside range 0, 5..86400`) and accepts 0/300 -- the floor is now enforced at
 commit time, a stronger guarantee than the old runtime clamp.
@@ -707,7 +707,7 @@ full run; every test passes individually. Expected reliable on a quiet CI
 host. Verified: each fixed test passes in isolation; `webtesting` unit tests
 green; `--web-only` server serves every exercised route.
 
-### 2026-06-18 -- Lint: `internal/analyze/inject.go:64` goconst
+### 2026-06-18 -- Lint: `internal/analyze/inject.go` goconst
 
 `--router-id` had 3 occurrences across inject.go, serve.go, replay.go.
 Added `//nolint:goconst` to inject.go and serve.go (replay.go already had it).
@@ -719,7 +719,7 @@ nexthop-self, `225` nexthop-unchanged, `308` rib-forward-handle-observed, `350`
 rr-basic. Triaged as "routes never appear in RIB within 15-20s timeout (product
 bug in forwarding)". Actually the same establishment-time EoR race as the exabgp
 suite: these tests have the mock peer wait for ze's End-of-RIB
-(`rib-forward-handle-observed.ci:21`) and an observer poll for the prefix; the
+(`rib-forward-handle-observed.ci`) and an observer poll for the prefix; the
 bgp-rs duplicate/misordered EoR perturbed establishment so the poll timed out.
 Fixed by `99c943404` (`AnnounceEOR` honors `ShouldQueue()`). Now 0 failures
 across 5 runs (~2-4s each, not the 15-20s timeout); full plugin suite 422/424
@@ -734,7 +734,7 @@ path-id (`00 00 00 00 18 0C 00 02`); the fixture expected it WITHOUT, so the
 decoder read the four path-id zero bytes as four `0.0.0.0/0` prefixes. ze is
 RFC 7911-correct: the config advertises add-path send/receive, the ze-peer mock
 MIRRORS the OPEN so it advertises receive, the family negotiates
-(`negotiated.go:279` gates on localSend && remoteReceive), and a path-id is then
+(`negotiated.go` gates on localSend && remoteReceive), and a path-id is then
 mandatory on every ipv4/unicast NLRI. The expected hex in
 `test/encode/paths-limit.ci` (added `56f48c85f`) omitted the path-id and was
 internally inconsistent. Fixed the fixture (user-authorized per
@@ -843,7 +843,7 @@ cores, having previously failed on invocation 1.
 not express the requirement.
 
 The seven tests carried `option=skip-os:value=darwin` ("skip on macOS").
-`ai/rules/qemu-testing.md` prescribes `option=needs-linux` for a `.ci` that boots
+`ai/rules/platform-linux.md` prescribes `option=needs-linux` for a `.ci` that boots
 a daemon which APPLIES Linux-only config, which is what these do. And
 `needs-linux` gated only on `runtime.GOOS`, so even the correct marker would not
 have helped on an unprivileged Linux host.
@@ -870,10 +870,10 @@ pass unprivileged still run.
 
 **What this does NOT claim.** These seven now execute in no automated pipeline:
 CI runs `make ze-verify` unprivileged (so they skip), and no workflow invokes
-`ze-qemu-needs-linux-test` -- `ai/rules/qemu-testing.md` already records the QEMU
+`ze-qemu-needs-linux-test` -- `ai/rules/platform-linux.md` already records the QEMU
 suites as run by "NOTHING automated". The change converts an opaque hang into an
 honest skip; it does not give these tests a gate. Two follow-ups, both recorded in
 `reload-transaction-tests-load-sensitive.md`: a workflow that runs the QEMU
 needs-linux target, and the daemon-side defect underneath (an unprivileged `ze`
 whose config names an interface hangs instead of failing, which is a
-`fail-closed-guards.md` violation in the product, not just in the tests).
+`evidence.md` violation in the product, not just in the tests).

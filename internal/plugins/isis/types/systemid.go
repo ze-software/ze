@@ -54,7 +54,7 @@ func (id SystemID) Bytes() []byte {
 
 // WriteTo writes the 6 big-endian octets into buf at off and returns the number
 // of bytes written (always SystemIDLen). Buffer-first per
-// ai/rules/buffer-first.md: no allocation, the caller owns buf. The caller is
+// ai/rules/performance.md: no allocation, the caller owns buf. The caller is
 // responsible for ensuring buf has room (off+SystemIDLen <= len(buf)).
 func (id SystemID) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], id[:])

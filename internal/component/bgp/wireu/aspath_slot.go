@@ -91,7 +91,7 @@ type ASPathEdit struct {
 // the matching-width route-server case and the no-AS_PATH-no-AGGREGATOR case.
 // An error means the payload could not be resolved; the caller MUST suppress the
 // route for this destination rather than forward it carrying an AS_PATH the
-// destination cannot read (ai/rules/fail-closed-guards.md).
+// destination cannot read (ai/rules/evidence.md).
 func (e *ASPathEdit) Record(mods *filterapi.ModAccumulator, payload []byte, in ASPathIntent) (bool, error) {
 	section, err := aspathAttrSection(payload)
 	if err != nil {

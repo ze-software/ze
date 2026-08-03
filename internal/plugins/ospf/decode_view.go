@@ -8,7 +8,7 @@
 // yields (type, length, value-hex) rows. A malformed body falls back to raw hex and bumps
 // ze_ospf_debug_decode_errors_total; it never panics (AC-3/AC-24). Generic code in this
 // file spells NO consumer body format: each typed decoder is registered self-containedly by
-// its owning consumer (ai/rules/plugin-self-containment.md).
+// its owning consumer (ai/rules/plugins.md).
 
 package ospf
 

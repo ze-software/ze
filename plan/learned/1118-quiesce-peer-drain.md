@@ -11,11 +11,11 @@ suite (472/474; the 2 reds were scratch debug files).
 
 `wait_for_ack` had ALWAYS called `self._call_engine("ze-bgp:peer-flush", ...)`.
 That RPC method **does not exist as a plugin-callable engine op**:
-`dispatchPluginRPC` (`internal/component/plugin/server/dispatch.go:79`) routes only
-`ze-plugin-engine:*` engineOps (`dispatch_registry.go:58` `engineOps`) plus codec
+`dispatchPluginRPC` (`internal/component/plugin/server/dispatch.go`) routes only
+`ze-plugin-engine:*` engineOps (`dispatch_registry.go` `engineOps`) plus codec
 RPCs. `ze-bgp:peer-flush` / `ze-system:quiesce` are api-yang RPCs registered in the
-**command dispatcher keyed by their YANG command PATH** (`command.go:53` LoadBuiltins;
-`cmd/peer/peer.go:43` maps `ze-bgp:peer-flush` -> command `request peer <sel> flush`).
+**command dispatcher keyed by their YANG command PATH** (`command.go` LoadBuiltins;
+`cmd/peer/peer.go` maps `ze-bgp:peer-flush` -> command `request peer <sel> flush`).
 So `_call_engine("ze-bgp:peer-flush")` returns `unknown method`, and
 `wait_for_ack`'s `except RuntimeError: pass` swallowed it. **The peer-flush barrier
 never ran; the `time.sleep(0.2*count)` did 100% of the work.**
@@ -36,8 +36,8 @@ was never invoked either.
 ## Why the second quiescer (`bgp-peer-sync`) is required
 
 Routes a plugin `send()`s while a peer is not-yet/just Established are queued in the
-peer's **opQueue** (`peer.go:844` `ShouldQueue`) and drained DIRECT to the session in
-`sendInitialRoutes` (`peer_initial_sync.go:348-405`), bypassing the forward pool.
+peer's **opQueue** (`peer.go` `ShouldQueue`) and drained DIRECT to the session in
+`sendInitialRoutes` (`peer_initial_sync.go`), bypassing the forward pool.
 `bgp-forward-pool` (`FlushForwardPool` -> `fwdPool.Barrier`) never sees them. Only
 `DrainPeerSync` (polls `!PendingSync()` = `sendingInitialRoutes==0 && opQueue empty`)
 waits until the initial-sync EOR is on the wire, so the NEXT `send()` lands as a

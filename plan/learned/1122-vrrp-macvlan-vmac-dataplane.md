@@ -77,7 +77,7 @@ worked:
   are installed it yields `fe80::1`. The first advert predates that: `InstallVIPs`
   calls `iface.RegisterOwnedAddresses`, which is ASYNCHRONOUS (it registers the
   addr in a map + fires a reconcile trigger and returns; the kernel apply happens
-  on a LATER reconcile pass -- `address_owner.go:80`). So the `SendAdvert` that
+  on a LATER reconcile pass -- `address_owner.go`). So the `SendAdvert` that
   runs in the same dispatcher loop resolves before `fe80::1` exists and picks the
   auto link-local. Reordering `promoteToMaster` to `InstallVIPs, SendAdvert, ...`
   was tried and PROVEN INEFFECTIVE against the keepalived IPv6 lab (first advert

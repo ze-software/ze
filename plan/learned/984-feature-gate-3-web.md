@@ -53,7 +53,7 @@ full builds and install-time TLS bootstrap behavior.
 ## Files
 
 - `feature-gates.txt`
-- `ai/rules/feature-gate-registration.md`
+- `ai/rules/plugins.md`
 - `cmd/ze/hub/service_registry.go`
 - `cmd/ze/hub/service_web.go`
 - `cmd/ze/hub/register_web.go`

@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 // Related: main.go -- resolves MCP listen/token/config to plain values and feeds them via ServiceDeps.MCP
 //
 // MCP (Model Context Protocol) service: built through the construction registry

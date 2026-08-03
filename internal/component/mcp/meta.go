@@ -84,7 +84,7 @@ type clientInfo struct {
 // zero clientCapabilities therefore denies rather than serves.
 //
 // There is deliberately no pointer and no third "unknown" state. Absence and
-// non-declaration are the same verdict (ai/rules/fail-closed-guards.md).
+// non-declaration are the same verdict (ai/rules/evidence.md).
 //
 // Only capabilities a CLIENT can declare belong here. A server capability
 // (resources, tools, prompts) is something this server offers, and not

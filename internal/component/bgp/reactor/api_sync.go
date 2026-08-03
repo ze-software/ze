@@ -202,7 +202,7 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // The miss must be loud. Nothing downstream can see it: the caller
 // (cmd/peer/session.go handlePeerSessionReady) still answers "peer ready
 // acknowledged", and the peer simply waits out waitForAPISync and sends its EOR
-// 2.5s late. See ai/rules/fail-closed-guards.md ("or say something").
+// 2.5s late. See ai/rules/evidence.md ("or say something").
 func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
 	peer, ok := r.lookupPeer(peerAddr)
 	if !ok {

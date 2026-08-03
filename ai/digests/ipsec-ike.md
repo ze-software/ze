@@ -19,111 +19,111 @@ tree.
 
 ## Flow
 1. **Plugin registration.** `init()` registers the `"ike"` plugin with
-   `ConfigRoots: ["vpn", "pki"]` and `RunEngine: runEngine` (`engine/register.go:150`,
-   `engine/register.go:163`); it also registers the IPsec health check and the `"ipsec"`
-   redistribute source (`engine/register.go:147`, `engine/register.go:148`).
-2. **Engine bring-up.** `runEngine` (`engine/register.go:169`) loads the XFRM dataplane
-   backend (`dataplane.Load("xfrm")`, `engine/register.go:173`), creates the shared
-   `SATable` (`engine/register.go:180`), and registers `OnConfigure` (`engine/register.go:226`).
-3. **Config → reconcile.** On each config push, `parseIPsecSections` (`engine/register.go:227`,
-   `config.go:16`) converts SDK JSON to a `config.Tree` (`treeFromMap`, `config.go:67`)
+   `ConfigRoots: ["vpn", "pki"]` and `RunEngine: runEngine` (`engine/register.go`,
+   `engine/register.go`); it also registers the IPsec health check and the `"ipsec"`
+   redistribute source (`engine/register.go`, `engine/register.go`).
+2. **Engine bring-up.** `runEngine` (`engine/register.go`) loads the XFRM dataplane
+   backend (`dataplane.Load("xfrm")`, `engine/register.go`), creates the shared
+   `SATable` (`engine/register.go`), and registers `OnConfigure` (`engine/register.go`).
+3. **Config → reconcile.** On each config push, `parseIPsecSections` (`engine/register.go`,
+   `config.go`) converts SDK JSON to a `config.Tree` (`treeFromMap`, `config.go`)
    and parses `ipsec.IPsecConfig` (peers, IKE/ESP groups). The first config with peers
-   starts a `UDPTransport` on `:500` (`engine/register.go:247-262`) and one on `:4500` for
-   NAT-T (RFC 3948) (`engine/register.go:265-280`), each with its own read goroutine
+   starts a `UDPTransport` on `:500` (`engine/register.go`) and one on `:4500` for
+   NAT-T (RFC 3948) (`engine/register.go`), each with its own read goroutine
    (`go tr.Run()`, `go dispatchInbound(...)` / `dispatchNATTInbound(...)`).
-   `reconcilePeers` (`engine/register.go:295`, `reconcile.go:111`) then diffs desired vs.
+   `reconcilePeers` (`engine/register.go`, `reconcile.go`) then diffs desired vs.
    active peers: changed/removed peers are stopped, their Child SA torn down and
-   `sa-down`/`child-down` events emitted (`reconcile.go:140-157`); new peers get
-   `startPeerSession` → `go ps.run(...)` (`reconcile.go:178`, `reconcile.go:198`,
-   `reconcile.go:215`), a PPPoE-style goroutine-per-peer with exponential reconnect
-   backoff (`reconcile.go:220-245`, `reconnectDelay` `fsm.go:44`).
-4. **Role dispatch.** `PeerSession.run` calls `runOnce` (`fsm.go:60`), which branches
-   on `ConnectionType`: `ConnectionInitiate` → `runInitiator` (`fsm.go:76`);
+   `sa-down`/`child-down` events emitted (`reconcile.go`); new peers get
+   `startPeerSession` → `go ps.run(...)` (`reconcile.go`, `reconcile.go`,
+   `reconcile.go`), a PPPoE-style goroutine-per-peer with exponential reconnect
+   backoff (`reconcile.go`, `reconnectDelay` `fsm.go`).
+4. **Role dispatch.** `PeerSession.run` calls `runOnce` (`fsm.go`), which branches
+   on `ConnectionType`: `ConnectionInitiate` → `runInitiator` (`fsm.go`);
    `ConnectionRespond` → `runResponder` (`fsm.go`), which polls for the responder SA
    created by the dispatch goroutine and adopts it into the owner loop once it
    establishes (spec-ipsec-14; see Invariants for the responder path).
 5. **IKE_SA_INIT request.** `runInitiator` builds a fresh SA (`newInitiatorSA`,
-   `initiator.go:18`, SPI/nonce/DH via `sa.go:121`, `sa.go:135`, `dh.go:43`), inserts
-   it into `SATable` keyed by initiator-SPI + zero responder-SPI (`fsm.go:91`,
-   `table.go:19`), builds SAi1/KEi/Ni + `SIGNATURE_HASH_ALGORITHMS` +
-   `NAT_DETECTION_*` payloads (`buildSAInitRequest`, `initiator.go:51`,
-   `buildNATDetectionPayloads` `initiator.go:91`), sends it (`fsm.go:104`,
-   `udp.go:64`), then retransmits with exponential backoff up to 7 attempts
-   (`fsm.go:110-142`, `retransmitBackoff` `fsm.go:595`).
-6. **Inbound dispatch.** `dispatchInbound`/`dispatchNATTInbound` (`engine/register.go:448`,
-   `engine/register.go:397`) read `UDPTransport.Recv()` (`udp.go:59`, `udp.go:89-120`),
-   token-bucket rate-limit at 100 pkt/s burst 200 (`engine/register.go:363-392`), validate
+   `initiator.go`, SPI/nonce/DH via `sa.go`, `sa.go`, `dh.go`), inserts
+   it into `SATable` keyed by initiator-SPI + zero responder-SPI (`fsm.go`,
+   `table.go`), builds SAi1/KEi/Ni + `SIGNATURE_HASH_ALGORITHMS` +
+   `NAT_DETECTION_*` payloads (`buildSAInitRequest`, `initiator.go`,
+   `buildNATDetectionPayloads` `initiator.go`), sends it (`fsm.go`,
+   `udp.go`), then retransmits with exponential backoff up to 7 attempts
+   (`fsm.go`, `retransmitBackoff` `fsm.go`).
+6. **Inbound dispatch.** `dispatchInbound`/`dispatchNATTInbound` (`engine/register.go`,
+   `engine/register.go`) read `UDPTransport.Recv()` (`udp.go`, `udp.go`),
+   token-bucket rate-limit at 100 pkt/s burst 200 (`engine/register.go`), validate
    the IKE major version and non-zero initiator SPI, and look the SA up by SPI pair
-   or by initiator SPI alone (`table.go:31`, `table.go:40`). NAT-T packets are first
-   passed through `StripNonESPMarker`/`IsNATKeepalive` (`engine/register.go:401`,
-   `engine/register.go:405`, `nat.go:67`, `nat.go:85`). No SATable match → `tryResponderSAInit`
+   or by initiator SPI alone (`table.go`, `table.go`). NAT-T packets are first
+   passed through `StripNonESPMarker`/`IsNATKeepalive` (`engine/register.go`,
+   `engine/register.go`, `nat.go`, `nat.go`). No SATable match → `tryResponderSAInit`
    creates a responder SA if the packet is an unsolicited IKE_SA_INIT request from a
    configured `respond` peer (spec-ipsec-14), else logged and dropped. A match calls
    `handleInbound` (`fsm.go`), which routes responder SAs to `handleResponderInbound`
    and otherwise switches on `sa.State`.
-7. **IKE_SA_INIT response.** `handleSAInitResponse` (`fsm.go:210`) re-keys the table
-   under the now-known responder SPI (`table.UpdateKey`, `fsm.go:224`), parses
+7. **IKE_SA_INIT response.** `handleSAInitResponse` (`fsm.go`) re-keys the table
+   under the now-known responder SPI (`table.UpdateKey`, `fsm.go`), parses
    SAr1/KEr/Nr and the NAT-detection notifies to set `sa.NATDetected`/`BehindNAT`
-   (`fsm.go:230-272`), negotiates the IKE proposal (`crypto.NegotiateIKE`,
-   `fsm.go:283`, `proposal.go:27`, first remote proposal matching local policy),
-   computes the DH shared secret (`fsm.go:295`, `dh.go:77`), and derives SKEYSEED +
-   the SK_* key hierarchy (`fsm.go:303-321`, `crypto.DeriveSKEYSEED` `keys.go:28`,
-   `crypto.DeriveSKKeys` `keys.go:45`).
-8. **IKE_AUTH request.** `buildAuthRequest` (`fsm.go:329`, `auth.go:80`) assembles
+   (`fsm.go`), negotiates the IKE proposal (`crypto.NegotiateIKE`,
+   `fsm.go`, `proposal.go`, first remote proposal matching local policy),
+   computes the DH shared secret (`fsm.go`, `dh.go`), and derives SKEYSEED +
+   the SK_* key hierarchy (`fsm.go`, `crypto.DeriveSKEYSEED` `keys.go`,
+   `crypto.DeriveSKKeys` `keys.go`).
+8. **IKE_AUTH request.** `buildAuthRequest` (`fsm.go`, `auth.go`) assembles
    IDi + (AUTH, or nothing if the auth mode is EAP) + optional CERT, plus the
    piggybacked Child SA proposal/TSi/TSr (`buildChildSAPayloads`,
-   `initiator.go:246`), then `buildEncryptedMessage` (`auth.go:157`) frames it as
-   AES-GCM (`buildSKMessageAEADWithMsgID`, `auth.go:505`) or AES-CBC+HMAC
-   (`buildSKMessageCBCWithMsgID`, `auth.go:459`) depending on the negotiated cipher;
-   `sa.State = StateAuthSent` (`fsm.go:336`).
-9. **IKE_AUTH response.** `handleAuthResponse` (`fsm.go:353`) decrypts the SK payload
-   (`decryptSKPayload`, `fsm.go:366`, `auth.go:564`), walks the inner chain
-   (`wire.ParsePayloadChain`, `fsm.go:373`, `chain.go:10`), verifies the remote AUTH
-   (`verifyRemoteAuth`, `fsm.go:395`, `auth.go:283`, PSK via
-   `subtle.ConstantTimeCompare` `auth.go:324`, X.509 digital signature, or legacy
+   `initiator.go`), then `buildEncryptedMessage` (`auth.go`) frames it as
+   AES-GCM (`buildSKMessageAEADWithMsgID`, `auth.go`) or AES-CBC+HMAC
+   (`buildSKMessageCBCWithMsgID`, `auth.go`) depending on the negotiated cipher;
+   `sa.State = StateAuthSent` (`fsm.go`).
+9. **IKE_AUTH response.** `handleAuthResponse` (`fsm.go`) decrypts the SK payload
+   (`decryptSKPayload`, `fsm.go`, `auth.go`), walks the inner chain
+   (`wire.ParsePayloadChain`, `fsm.go`, `chain.go`), verifies the remote AUTH
+   (`verifyRemoteAuth`, `fsm.go`, `auth.go`, PSK via
+   `subtle.ConstantTimeCompare` `auth.go`, X.509 digital signature, or legacy
    RSA), and captures `ChildOutboundSPI` and narrowed `NegotiatedTSi`/`NegotiatedTSr`
-   from the piggybacked SAr2/TS payloads (`fsm.go:407-419`). No EAP payload →
-   `sa.State = StateEstablished` (`fsm.go:435`).
+   from the piggybacked SAr2/TS payloads (`fsm.go`). No EAP payload →
+   `sa.State = StateEstablished` (`fsm.go`).
 10. **EAP branch (RFC 7296 §2.16).** If the response carries an EAP payload,
-    `startEAPExchange` (`fsm.go:430`, `fsm.go:441`) is entered only after the
+    `startEAPExchange` (`fsm.go`, `fsm.go`) is entered only after the
     server's AUTH is already verified; it drives `eap.PeerSession` (MSCHAPv2 or
-    TLS, `eap/peer.go:74`, `eap/peer.go:85`, `eap/peer.go:97`) round-trips through
-    `handleEAPResponse` (`fsm.go:485`), each response re-encrypted via
-    `buildEAPResponse` (`auth.go:129`) and sent through `sendEAPResponsePacket`
-    (`fsm.go:575`). On `result.Done`, AUTH is derived from the EAP MSK
-    (`ComputeAuthFromMSK`, `eap_auth.go:21`) and sent as a bare-AUTH IKE_AUTH
-    (`buildEAPAuthMessage`, `auth.go:145`); the peer's final AUTH response is
-    verified via `VerifyAuthFromMSK` inside `verifyRemoteAuth` (`auth.go:293`) on
+    TLS, `eap/peer.go`, `eap/peer.go`, `eap/peer.go`) round-trips through
+    `handleEAPResponse` (`fsm.go`), each response re-encrypted via
+    `buildEAPResponse` (`auth.go`) and sent through `sendEAPResponsePacket`
+    (`fsm.go`). On `result.Done`, AUTH is derived from the EAP MSK
+    (`ComputeAuthFromMSK`, `eap_auth.go`) and sent as a bare-AUTH IKE_AUTH
+    (`buildEAPAuthMessage`, `auth.go`); the peer's final AUTH response is
+    verified via `VerifyAuthFromMSK` inside `verifyRemoteAuth` (`auth.go`) on
     the next `handleAuthResponse` pass.
 11. **SA established.** `runInitiator`'s wait loop exits when `sa.State ==
-    StateEstablished` (`fsm.go:114`), emits `vpn-ipsec/sa-up` (`fsm.go:147`,
-    `events.go:28`), then calls `ps.runEstablished` (`fsm.go:159`,
-    `established.go:17`).
+    StateEstablished` (`fsm.go`), emits `vpn-ipsec/sa-up` (`fsm.go`,
+    `events.go`), then calls `ps.runEstablished` (`fsm.go`,
+    `established.go`).
 12. **First Child SA + XFRM install.** `runEstablished` resolves the XFRM if_id from
-    peer config (`resolveIfID`, `child.go:167`), derives ESP keys
-    (`crypto.DeriveChildSAKeys`, `established.go:30`, `child.go:103`,
-    `keys.go:109`), computes traffic selectors from the negotiated TS or falls back
-    to host/32 (`child.go:139-146`), and calls `installChildSA` (`child.go:167`,
-    `child.go:180`), which installs inbound + outbound `dataplane.SAParams` and a
-    matching pair of `SPParams` policies (`dataplane.go:143`, `dataplane.go:145`,
-    `xfrm_linux.go:21`, `xfrm_linux.go:100`), tolerating `ErrNotSupported` on
-    platforms without XFRM (`isXFRMUnsupported`, `child.go:22`).
-13. **Route + event fan-out.** `emitChildUp` + `emitRouteAdd` (`established.go:42`,
-    `established.go:171`, `redistribute.go:44`) publish `vpn-ipsec/child-up` and a
+    peer config (`resolveIfID`, `child.go`), derives ESP keys
+    (`crypto.DeriveChildSAKeys`, `established.go`, `child.go`,
+    `keys.go`), computes traffic selectors from the negotiated TS or falls back
+    to host/32 (`child.go`), and calls `installChildSA` (`child.go`,
+    `child.go`), which installs inbound + outbound `dataplane.SAParams` and a
+    matching pair of `SPParams` policies (`dataplane.go`, `dataplane.go`,
+    `xfrm_linux.go`, `xfrm_linux.go`), tolerating `ErrNotSupported` on
+    platforms without XFRM (`isXFRMUnsupported`, `child.go`).
+13. **Route + event fan-out.** `emitChildUp` + `emitRouteAdd` (`established.go`,
+    `established.go`, `redistribute.go`) publish `vpn-ipsec/child-up` and a
     `RouteChangeBatch` on the `"ipsec"` redistribute source registered at init
-    (`redistribute.go:18`), so the negotiated remote TS reaches the RIB/FIB. If
+    (`redistribute.go`), so the negotiated remote TS reaches the RIB/FIB. If
     `sa.NATDetected`, a `transport.Keepalive` goroutine starts sending RFC 3948
-    0xFF probes every 20s (`established.go:46-55`, `keepalive.go:43`).
-14. **Maintenance loop.** `maintainSA` (`established.go:65`) runs a 1s ticker:
-    sends DPD probes when due (`dpd.shouldSend`, `dpd.go:49`, `sendDPD` `dpd.go:70`)
-    and tears the tunnel down on timeout (`dpd.go:60`); on Child SA soft-lifetime
+    0xFF probes every 20s (`established.go`, `keepalive.go`).
+14. **Maintenance loop.** `maintainSA` (`established.go`) runs a 1s ticker:
+    sends DPD probes when due (`dpd.shouldSend`, `dpd.go`, `sendDPD` `dpd.go`)
+    and tears the tunnel down on timeout (`dpd.go`); on Child SA soft-lifetime
     expiry INITIATES a real CREATE_CHILD_SA rekey (`initiateChildRekey`,
     `rekey.go`, `established.go`) and tracks it in `PeerSession.pendingRekey`; on
     IKE SA soft expiry initiates an IKE-SA rekey (`initiateIKERekey`, KE mandatory);
     completion is driven by the inbound response (item 15). Hard-expiry teardown is
     suppressed while a rekey is in flight (`ps.pendingRekey == nil` guard); an
     unanswered rekey retransmits then tears down (`serviceRekeyRetransmit`). A 30s
-    ticker re-announces the route (`established.go:82-93`).
+    ticker re-announces the route (`established.go`).
 15. **Established-SA inbound (owner-loop, spec-ipsec-13).** Post-establishment
     packets are routed off the shared `dispatchInbound` goroutine to the owning
     `PeerSession.inbound` channel (`routeInbound`, `register.go`) so `maintainSA`
@@ -134,12 +134,12 @@ tree.
     the old SA; responder: `respondChildRekey`) and INFORMATIONAL/Delete/DPD. The
     old `handleEstablishedInbound`/`handleCreateChildSA` log-only path (`inbound.go`)
     remains only as the no-owner fallback on the `handleInbound` state switch.
-16. **Shutdown.** `PeerSession.Stop` (`reconcile.go:104`) closes `stopCh`;
+16. **Shutdown.** `PeerSession.Stop` (`reconcile.go`) closes `stopCh`;
     `maintainSA`'s select picks it up and calls `cleanupChild`
-    (`established.go:87`, `established.go:154`), which removes the XFRM SA/policy
-    pair (`removeChildSA`, `child.go:278`) and emits `child-down`/route-remove.
+    (`established.go`, `established.go`), which removes the XFRM SA/policy
+    pair (`removeChildSA`, `child.go`) and emits `child-down`/route-remove.
     Engine-wide shutdown (`p.Run` returns) stops every `PeerSession`, closes both
-    UDP transports, and calls `dataplane.CloseBackend()` (`engine/register.go:317-343`).
+    UDP transports, and calls `dataplane.CloseBackend()` (`engine/register.go`).
 
 ## Key files
 | File | Role |
@@ -240,18 +240,18 @@ tree.
 - **`sendDPD` is still unencrypted (pre-existing, out of spec-ipsec-13 scope).**
   `sendDPD` (`dpd.go`) builds and sends a bare, **unencrypted** INFORMATIONAL
   despite RFC 7296 §1.4 requiring SK wrapping for every post-IKE_SA_INIT exchange;
-  DPD defaults on (`config.go:26`, interval 30, cannot be 0). The owner loop DOES
+  DPD defaults on (`config.go`, interval 30, cannot be 0). The owner loop DOES
   answer inbound encrypted INFORMATIONAL requests, and the DPD probe *response* now
   clears the wait, correlated by message ID against the outstanding probe
   (`dpdState.probeMsgID` / `matchesProbe`, rejecting replays). The remaining gap is
   the unencrypted outbound probe itself (a separate DPD spec).
 - **`dataplane.Get()` returns nil until `Load("xfrm")` succeeds** (called once at
-  `runEngine` start, `engine/register.go:173`); `createFirstChildSA` then silently skips
-  the kernel install and only logs at Debug (`child.go:162-165`), easy to mistake
+  `runEngine` start, `engine/register.go`); `createFirstChildSA` then silently skips
+  the kernel install and only logs at Debug (`child.go`), easy to mistake
   for a working tunnel with zero SAs actually in the kernel.
 - **`SAParams.Sel` / `SPParams.IfIndex`/`UpperProto` are OSPFv3-only fields.** IKE
   Child SAs always leave `Sel` nil and `IfIndex`/`UpperProto` zero
-  (`child.go:186-271` never sets them); only the OSPFv3 manual-keyed IPsec-AH path
+  (`child.go` never sets them); only the OSPFv3 manual-keyed IPsec-AH path
   (`plan/learned/1038-ospf-ext-16-ipsec-auth.md`) populates them to scope a shared
   wildcard SA to one interface/protocol. Do not assume IKE ever sets a selector.
 - **Filename collision trap.** `internal/plugins/iface/netlink/xfrm_linux.go`
@@ -261,17 +261,17 @@ tree.
   path, not basename.
 - **No MOBIKE.** A site-to-site peer's IP change is not handled in-band; the only
   recovery is the reconnect-with-backoff loop after the session errors out
-  (`reconnectDelay`, `fsm.go:44`, `reconcile.go:230-245`).
+  (`reconnectDelay`, `fsm.go`, `reconcile.go`).
 - **Constant-time comparisons are used correctly** for PSK AUTH
-  (`subtle.ConstantTimeCompare`, `auth.go:324`) and MSK-derived AUTH
-  (`constantTimeEqualAuth`, `eap_auth.go:46`), but `computeSignedOctets`
-  (`auth.go:42`) takes an explicit `isInitiator` flag that callers must invert
+  (`subtle.ConstantTimeCompare`, `auth.go`) and MSK-derived AUTH
+  (`constantTimeEqualAuth`, `eap_auth.go`), but `computeSignedOctets`
+  (`auth.go`) takes an explicit `isInitiator` flag that callers must invert
   correctly depending on which side's signed octets are being built or verified
-  (`fsm.go:284` passes `!sa.IsInitiator` when verifying the *remote* AUTH), easy
+  (`fsm.go` passes `!sa.IsInitiator` when verifying the *remote* AUTH), easy
   to get backwards when adding a new call site.
 - **Soft lifetime is jittered, hard lifetime is not.** `newLifetimeState`
-  (`rekey.go:26`) applies up to 10% random jitter only to the soft (rekey-trigger)
-  deadline (`lifetimeJitter`, `rekey.go:42`); many peers configured with identical
+  (`rekey.go`) applies up to 10% random jitter only to the soft (rekey-trigger)
+  deadline (`lifetimeJitter`, `rekey.go`); many peers configured with identical
   ESP/IKE group lifetimes can still hard-expire in lockstep if rekeying stalls.
 - **Doc-vs-code drift:** `plan/learned/734-ipsec-3-data-model.md` describes the
   IPsec data model living at `internal/component/ipsec/*`; the code has since moved
@@ -289,4 +289,4 @@ tree.
 - `plan/learned/745-ipsec-10-cli-diag.md`, CLI/health/diagnostics (`internal/component/ike/cmd`)
 - `plan/learned/805-ipsec-11-interop-eap.md`, strongSwan interop validation (initiator + EAP scenarios only)
 - `plan/learned/1038-ospf-ext-16-ipsec-auth.md`, OSPFv3 manual-keyed IPsec consumer of the shared `dataplane` package
-- `ai/rules/architecture-summary.md`, one-page component map and boundaries
+- `ai/rules/architecture.md`, one-page component map and boundaries

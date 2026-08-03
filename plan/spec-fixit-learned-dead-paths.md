@@ -65,7 +65,7 @@ disappears.** Check its status before starting. Doing both is waste.
   → Constraint: read its status FIRST. If routing is proceeding, most of this spec is redundant.
 - [ ] `ai/rules/never-destroy-work.md` - governs any deletion
   → Constraint: deleting a path reference removes meaning from a sentence someone wrote. It needs explicit permission and is not assumed.
-- [ ] `ai/rules/fix-dont-record.md` - the opposing pull
+- [ ] `ai/rules/completion.md` - the opposing pull
   → Constraint: it forbids recording a defect instead of fixing it. The 229 are the case where no fix exists, which must be stated with evidence rather than asserted.
 
 **Key insights:**
@@ -89,7 +89,7 @@ disappears.** Check its status before starting. Doing both is waste.
 - The 77 resolvable paths are repointed.
 - The 229 unresolvable ones are either annotated or accepted, with the choice recorded.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - `make ze-learned-staleness` walks every summary and reports dead references.
@@ -118,7 +118,7 @@ disappears.** Check its status before starting. Doing both is waste.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | The repair reuses `learned_staleness.check` |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A, no wire path |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | N-A |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | N-A |
 
 ## Risks & Assumptions
 
@@ -255,7 +255,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | Correctness | The ceiling only ever tightened |
 | Evidence | AC-6: no summary sentence lost meaning. Verified by reading the diff, not by the count falling |
 | Rule: `ai/rules/never-destroy-work.md` | No reference deleted to improve the number |
-| Rule: `ai/rules/fix-dont-record.md` | The 229 are recorded as unfixable only with the per-sample evidence from AC-3 |
+| Rule: `ai/rules/completion.md` | The 229 are recorded as unfixable only with the per-sample evidence from AC-3 |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |

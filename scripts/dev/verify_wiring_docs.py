@@ -79,7 +79,7 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
 }
 
 # User-facing area -> functional suite directory expected to change with it
-# (ai/rules/functional-test-gate.md). Advisory, not blocking: a session that
+# (ai/rules/testing.md). Advisory, not blocking: a session that
 # changed user-facing behavior with no test/ change gets a named pointer.
 FUNCTIONAL_SUITE_BY_AREA = {
     "internal/component/cli/": "test/ui/ or test/editor/",
@@ -304,7 +304,7 @@ def _sleep_is_justified(lines: list[str], idx: int) -> bool:
     comment: either a `#` trailing the call on the same line, or a `#` comment on
     the nearest preceding non-blank line. Mirrors the placement the annotation
     playbook enforces so a reader can see why the sleep was not converted to a
-    deterministic wait (ai/rules/ci-sleep-justification.md)."""
+    deterministic wait (ai/rules/testing.md)."""
     after = lines[idx].split("time.sleep(", 1)[1]
     if "#" in after:
         return True
@@ -357,7 +357,7 @@ def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
             "  Add a `#` comment (poll interval, deliberate timer, needs-linux effect,"
         )
         print(
-            "  or no queryable readiness signal). See ai/rules/ci-sleep-justification.md."
+            "  or no queryable readiness signal). See ai/rules/testing.md."
         )
         return 1
     if checked:
@@ -380,7 +380,7 @@ def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
 
     Load is a mechanism, not a mystery: once a shard can say "it fails when the
     machine is busy", the diagnosis is that the test asserts on elapsed time
-    instead of on state, and the deliverable is the fix (ai/rules/fix-dont-record.md,
+    instead of on state, and the deliverable is the fix (ai/rules/completion.md,
     owner directive 2026-07-26). The shard directory stays open for a red whose
     mechanism is genuinely unknown, which is why this is a phrase check rather than
     a ban on shards.
@@ -417,7 +417,7 @@ def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
             print("    " + v)
         print("  Fix the test to wait on the condition (ze_api wait_until /")
         print("  dispatch_until / wait_for_event), then delete the shard. Raising a")
-        print("  timeout is not a fix. See ai/rules/fix-dont-record.md.")
+        print("  timeout is not a fix. See ai/rules/completion.md.")
         return 1
     print(f"known-failure load excuse OK ({len(shards)} shard(s) checked)")
     return 0
@@ -537,7 +537,7 @@ def functional_test_advisory(changed: Iterable[str]) -> str | None:
     lines = ["ADVISORY: user-facing code changed without a functional-test change"]
     for suite, paths in sorted(suites.items()):
         lines.append(f"  expected coverage in {suite} for: {', '.join(sorted(paths))}")
-    lines.append("  see ai/rules/functional-test-gate.md")
+    lines.append("  see ai/rules/testing.md")
     return "\n".join(lines)
 
 

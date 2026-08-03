@@ -138,7 +138,7 @@ func TestSwzPeerWindowSizeIsRead(t *testing.T) {
 //
 // RFC requirement: RFC7296-2.3-7 negative -- the 4-octet rule is a boundary, so 3 octets and 5
 // octets are each refused, and so is an empty body. Ze does not silently accept a
-// notification whose length RFC 7296 Section 2.3 fixes (ai/rules/exact-or-reject.md).
+// notification whose length RFC 7296 Section 2.3 fixes (ai/rules/protocol.md).
 // The IKE_AUTH ends and PeerWindowSize stays at zero on both paths.
 func TestSwzMalformedWindowSizeIsRefused(t *testing.T) {
 	for _, tc := range []struct {

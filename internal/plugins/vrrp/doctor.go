@@ -2,7 +2,7 @@
 //
 // The codes live here, not in internal/core/diagnostic's builtin list, so that
 // deleting this plugin removes its diagnostics with it
-// (ai/rules/doctor-checks.md, ai/rules/plugin-self-containment.md). The
+// (ai/rules/repo-maintenance.md, ai/rules/plugins.md). The
 // transport owns doctor-vrrp-raw-socket; the iface netlink backend owns
 // doctor-iface-macvlan. This file owns only what the CONFIG can be wrong about.
 //

@@ -75,6 +75,6 @@ Three changes landed mid-session and are not in `03-`.
 
 | Change | Effect |
 |--------|--------|
-| `ai/rules/detail-budget.md` (new) | Replies under 15 lines, tables before prose. Cite `file.go` `Symbol`, not `file:line`, unless a gate pins the line |
+| `ai/rules/writing.md` (new) | Replies under 15 lines, tables before prose. Cite `file.go` `Symbol`, not `file:line`, unless a gate pins the line |
 | ASD-STE100 is advisory | `ste_problems` prints its findings and lets the commit through |
 | `block-premature-stop.sh` re-registered on `Stop` | It fires again. A digest that still calls it inert is stale |

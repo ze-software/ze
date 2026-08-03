@@ -100,7 +100,7 @@ marker exists: `tmp/session/.lsp-invoked-<sid>` or `tmp/session/.source-read-<si
 where `<sid>` comes from that file's own `session_id()`.
 
 **What it blocks.** Writing a spec without having investigated the implementation
-first. The intent is sound and worth keeping (`ai/rules/no-fabrication.md`): read the
+first. The intent is sound and worth keeping (`ai/rules/evidence.md`): read the
 function that PRODUCES the behavior before authoring a spec that claims something
 about it.
 
@@ -162,13 +162,14 @@ added prose for un-homed deferral language (`DEFERRAL_PATTERNS`: `future work`,
 `out of scope`, `postpone`, `follow-up work`, ...) and BLOCKS unless
 `plan/deferrals.md` rides along. It already blanks quoted/backticked spans, so it <!-- doc-links: ignore (historical; deferrals are now sharded under plan/deferrals/) -->
 fires only on BARE prose — but the rule corpus is full of bare prose that
-DISCUSSES deferral policy: `no-parking.md` ("genuinely separable, out-of-scope
-`future work`"), `planning.md` (status vocab, Consequences), `handoff.md`
-("Speculative `future work`"), `config-design.md` ("as `follow-up work`"), and
-one true word-sense collision — `no-sprintf-alloc.md`'s "buffer goes `out of
-scope`" (lexical scope, unrelated to deferring work). The generated
-`ai/rules/CONDENSED.md` flattens all of them, so every `make ze-rules-condensed`
-regeneration commit re-tripped the gate.
+DISCUSSES deferral policy: `completion.md` ("genuinely separable, out-of-scope
+`future work`"), `planning.md` (status vocab, Consequences), `planning.md`
+("Speculative `future work`"), `config.md` ("as `follow-up work`"), and
+one true word-sense collision — `performance.md`'s "buffer goes `out of
+scope`" (lexical scope, unrelated to deferring work). The generated digest
+flattened all of them, so every `make ze-rules-condensed` regeneration commit
+re-tripped the gate. (That digest, CONDENSED.md, was deleted on 2026-08-03; the
+exemption still covers the rule corpus itself.)
 
 **Old workaround (bad).** Pass `plan/deferrals.md` in `--file`. This is <!-- doc-links: ignore (historical; deferrals are now sharded under plan/deferrals/) -->
 all-or-nothing: it disables the ENTIRE gate for that commit, so a genuine un-homed
@@ -190,7 +191,7 @@ in scope — that is where a real deferral gets written and must be homed. Prove
 ## Filed 2026-07-16: seven frictions, one session, zero reports
 
 One long session hit every friction below and filed none of them at the time.
-They are recorded here in the Format `ai/rules/friction-reporting.md` prescribes
+They are recorded here in the Format `ai/rules/repo-maintenance.md` prescribes
 (Friction / Pattern / Impact / Rule decision / Proposed fix) rather than this
 file's older Trigger/Blocks/Workaround shape, because most are not hook false
 positives: two are a validator that passes without checking, one is a gate whose
@@ -223,20 +224,20 @@ script that takes a path.
 
 **Impact:** Unbounded and silent, which is the worst combination. Every spec
 "validated" this way passed unchecked, and the agent then reported the spec as
-validated in good faith. This is exactly `ai/rules/fail-closed-guards.md`'s
+validated in good faith. This is exactly `ai/rules/evidence.md`'s
 zero-value trap: exit 0 is a legitimate-looking answer, so the miss is invisible
 at every later layer.
 
-**Rule decision:** No new rule. `ai/rules/fail-closed-guards.md` (committed the
+**Rule decision:** No new rule. `ai/rules/evidence.md` (committed the
 same day, `c49a6dcd9`) already names this shape precisely: "a guard must fail
 closed or say something", and "a zero value that downstream reads as a legitimate
 answer is how it hides". The rule was right and nothing applied it to the hook
 layer. What was missing was a durable filing destination, which is F8.
 
 **Proposed fix:** DONE. `validate-spec.sh` now distinguishes the two cases: an
-unparseable payload (`:32-34`) or an absent tool name (`:35-37`) calls
-`usage_refusal()` (`:21`) and exits 2 with the correct invocation; a tool name
-that is present but not `Write`/`Edit` still exits 0 quietly (`:41-44`). The early
+unparseable payload or an absent tool name calls
+`usage_refusal()` and exits 2 with the correct invocation; a tool name
+that is present but not `Write`/`Edit` still exits 0 quietly. The early
 exit was never the bug and is kept: a hook MUST no-op on tools it does not
 handle. Locked by three new fixtures in `scripts/dev/hook-fixture-check.py`
 (`validate-spec-argv-no-stdin-refuses`, `-absent-tool-name-refuses`,
@@ -247,19 +248,19 @@ can only mean no check ran. `make ze-hook-test`: 131/131 parity + 37/37 fixtures
 
 ### F2: `validate-spec.sh` rejects the citation form the rules mandate
 
-**Friction:** The Current Behavior check (`:125`, `:127`) requires a source-file
+**Friction:** The Current Behavior check requires a source-file
 bullet matching `` `path.(go|py|rs|ts|js)` `` with the closing backtick
-IMMEDIATELY after the extension. So it REJECTS `` - [ ] `authz.go:385` ``, the
+IMMEDIATELY after the extension. So it REJECTS `` - [ ] `authz.go` ``, the
 `file:line` form `CLAUDE.md` ("cite the function that PRODUCES the behavior as
-`file:line`") and `ai/rules/fail-closed-guards.md` (`validator.go:631`) both
+`file:line`") and `ai/rules/evidence.md` (`validator.go`) both
 require, and ACCEPTS only `` `authz.go` `` or `` `authz.go` line 385 ``.
 Verified against the live regex, six forms:
 
 | Bullet | Verdict |
 |---|---|
-| `` - [ ] `commit_helper.py:193` `` | REJECT |
+| `` - [ ] `commit_helper.py` `` | REJECT |
 | `` - [ ] `commit_helper.py` line 193 `` | ACCEPT |
-| `` - [ ] `internal/component/authz/authz.go:385` `` | REJECT |
+| `` - [ ] `internal/component/authz/authz.go` `` | REJECT |
 | `` - [ ] `internal/component/authz/authz.go` `` | ACCEPT |
 | `` - [ ] `.claude/hooks/validate-spec.sh` `` | REJECT |
 | `` - [ ] `Makefile:243` `` | REJECT |
@@ -272,12 +273,12 @@ and such a spec cannot satisfy the check at all except by citing an unrelated
 `.go` file.
 
 **Pattern:** Recurs for every spec whose subject is not Go, and for every agent
-who follows `no-fabrication.md` literally. Two rules in the same repo demand
+who follows `evidence.md` literally. Two rules in the same repo demand
 opposite things; the agent obeys one and a gate rejects it for obeying.
 
 **Impact:** Minutes per spec, plus a worse second-order effect: the fix that makes
 the gate green is to DROP the line number, degrading the citation precision
-`no-fabrication.md` exists to enforce. A gate that rewards weaker evidence is
+`evidence.md` exists to enforce. A gate that rewards weaker evidence is
 worse than no gate.
 
 **Rule decision:** Update the hook, not the rules. The rules are right:
@@ -312,7 +313,7 @@ the six-row table is defending. It also produces false self-reports: an agent th
 "loaded LSP" and got nothing may believe it complied.
 
 **Nuance that the folklore version gets wrong.** The gate is still *clearable*.
-`block-until-lsp.sh:88-97` writes the marker when the ToolSearch **query text**
+`block-until-lsp.sh` writes the marker when the ToolSearch **query text**
 matches `/LSP/i` (`grep -qi "LSP"` on `$QUERY`), not when a tool actually loads.
 So running the mandated command clears the block even though no LSP tool exists.
 The rule is unsatisfiable in the CAPABILITY sense (a subagent can never use LSP),
@@ -325,26 +326,26 @@ rule for main sessions, where it is load-bearing and its diagnosis is right.
 
 **Proposed fix:** Add one row to the checklist scoping step 1: if `select:LSP`
 returns no match (subagent context), that is a known environment limit, not an
-excuse. Proceed, and satisfy `no-fabrication.md` by reading the producing `.go`
+excuse. Proceed, and satisfy `evidence.md` by reading the producing `.go`
 source instead, which `mark-source-read.sh` already accepts as equivalent evidence
 for the `design-without-lsp` gate. That equivalence already exists in the hook
-layer (`hook-mapping.md:83`); the rule text has simply not caught up. NOT done
+layer (`repo-maintenance.md`); the rule text has simply not caught up. NOT done
 here: `.claude/rules/session-start.md` was out of scope for this task.
 
 ---
 
 ### F4: the commit gate's structural-red advice does not do what it says
 
-**Friction:** `commit_helper.py`'s structural-gate refusal (`:1125-1135`) says:
+**Friction:** `commit_helper.py`'s structural-gate refusal says:
 "re-run `make " + gate_reds[0] + "` (or `make ze-verify`) until green. If you
 already fixed it, that re-run refreshes tmp/ze-verify-failures.json and clears
 this." It does not. `gate_reds[0]` is a stage name from `STRUCTURAL_GATES`
 (`:492-503`: `ze-lint`, `ze-lint-changed`, `ze-tier-check`, ...), and running that
 stage directly never writes the JSON. Verified at the producer: the only writer of
-`tmp/ze-verify-failures.json` is `scripts/status/verify_run.go:326`
+`tmp/ze-verify-failures.json` is `scripts/status/verify_run.go`
 (`os.WriteFile(filepath.Join(root, failuresJSONPath), ...)`, path constant at
 `:28`), and `verify_run.go` is invoked only by `ze-verify` (Makefile:279-280) and
-`ze-verify-changed` (`:293-294`). `make ze-lint-changed` (`:243-247`) is
+`ze-verify-changed`. `make ze-lint-changed` is
 `golangci-lint run $pkgs` and touches nothing else. Only the parenthetical
 `make ze-verify` actually clears the gate; the advice the message leads with does
 not, for any of the eight gates.
@@ -358,7 +359,7 @@ identical refusal with no indication why. The tree is fixed and the gate still
 says it is broken, so you start doubting the fix rather than the message.
 
 **Rule decision:** No rule change. This is a wrong string in a tool, and
-`ai/rules/git-safety.md:224` already documents the JSON's refresh semantics
+`ai/rules/git-safety.md` already documents the JSON's refresh semantics
 correctly ("which `verify_run.go` rewrites after every run"). The rule is right;
 the error message contradicts it.
 
@@ -431,7 +432,7 @@ looks dangerous (quoting a flag with its argument, `--mode sink`) works.
 
 **Rule decision:** **No rule, and no fix.** This entry is filed for a different
 reason than the other six: as the worked example of why
-`ai/rules/no-fabrication.md` applies to friction reports too. It was passed on as
+`ai/rules/evidence.md` applies to friction reports too. It was passed on as
 a confident claim, cost was attributed to it, and driving the producer showed the
 stated trigger was not the real one. A false entry in the friction record is the
 same disease the record exists to cure: a future agent would have spent time
@@ -440,12 +441,12 @@ before filing it, exactly as for any other behavioral claim.
 
 ---
 
-### F7: `deferral-tracking.md` taught `deferred` while its gate checked `open`
+### F7: `planning.md` taught `deferred` while its gate checked `open`
 
 **Friction:** The rule taught a status vocabulary its own gate did not read.
 `deferral_unassigned_problems` filtered `if status != "open": continue` while 40
 of 68 rows in `plan/deferrals.md` carried `deferred`, the word <!-- doc-links: ignore (historical; deferrals are now sharded under plan/deferrals/) -->
-`ai/rules/deferral-tracking.md` uses for exactly that state. The gate never looked
+`ai/rules/planning.md` uses for exactly that state. The gate never looked
 at them. Fixed today in `c4f570214`.
 
 **Pattern:** Recurs whenever a rule and the gate enforcing it name the same
@@ -465,7 +466,7 @@ than a one-word patch would have. The status check became a DENYLIST of terminal
 states (`done`, `cancelled`, `resolved`) rather than an allowlist of live ones, so
 an unknown status is now live and gets checked. An allowlist re-runs this bug the
 next time the vocabulary drifts, which is precisely how `deferred` got through.
-`deferral-tracking.md` gained a Status Vocabulary table naming the exact terminal
+`planning.md` gained a Status Vocabulary table naming the exact terminal
 set the gate reads.
 
 **Proposed fix:** None outstanding. The transferable lesson, and the reason it is
@@ -479,7 +480,7 @@ input take the quiet path.
 
 ### F8: the rule fired zero times in the session that generated seven
 
-**Friction:** `ai/rules/friction-reporting.md` says to report friction
+**Friction:** `ai/rules/repo-maintenance.md` says to report friction
 "immediately", with a Format and a rule decision. Across one very long session
 that hit at least seven reportable frictions, it fired **zero** times. Not once
 late. Never. Worse, F1 was found INDEPENDENTLY by two to three agents, and each
@@ -501,7 +502,7 @@ seven. It is why they arrived as an end-of-session batch instead of seven timely
 reports, and why F1 cost three agents instead of one. A handoff is not a record:
 it reaches exactly one successor and dies there.
 
-**Rule decision:** Update `ai/rules/friction-reporting.md`, minimally. Its
+**Rule decision:** Update `ai/rules/repo-maintenance.md`, minimally. Its
 diagnosis is correct and its Format is the right one; every entry in this section
 uses it. The single missing element was a destination. Do not rewrite a rule that
 is right about everything except where the output goes.
@@ -548,7 +549,7 @@ for each). It was recoverable only because the authoring agent still had it in
 context. After a compaction it would simply have been gone -- which is exactly
 the case post-compaction.md exists to cover.
 
-**Exact mechanism** (`.claude/hooks/session-end-summary.sh:74-79`): the write is
+**Exact mechanism** (`.claude/hooks/session-end-summary.sh`): the write is
 `{ echo "# Session State"; echo "$NEW_SNAPSHOT"; ...previous... } > "$STATE_FILE"`
 -- a truncating redirect. What it carries forward is only what its awk at
 `:60-66` extracts from the old file: printing starts at the FIRST line matching
@@ -575,7 +576,7 @@ shared and changing it mid-session would race other live sessions.
 
 ### F10: `stress-repro.py` was broken for every sub-suite, and said so as "reproduced"
 
-**Friction:** `ai/rules/flaky-under-load.md` sends you to
+**Friction:** `ai/rules/testing.md` sends you to
 `scripts/dev/stress-repro.py` for exactly the failure class this session was
 working. Three defects, in descending cost:
 
@@ -604,7 +605,7 @@ tests whatever `bin/ze` already is, so a landed fix still "reproduces" against a
 stale binary until you rebuild.
 
 **Rule decision:** rule updated, not just the tool.
-`ai/rules/flaky-under-load.md` gains the sub-suite form, an explicit
+`ai/rules/testing.md` gains the sub-suite form, an explicit
 "a crash is not the only reproduction -- pass `--any-failure` for assertion
 flakes" paragraph, and the stale-`bin/ze` warning; `ai/INDEX.md`'s tool row
 gains the same three facts, since that is where an agent looks first.
@@ -623,12 +624,12 @@ a reproduction.
 ### F14: `verify_run.go` dry-run guard vs `ZE_VERIFY_LOG=` make override (FIXED at source)
 
 **Friction:** `make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-gate12.log` -- the
-exact invocation `ai/rules/bash-output.md` and the `pipe-tail` Bash hook print
+exact invocation `ai/rules/commands.md` and the `pipe-tail` Bash hook print
 as the sanctioned form -- exited 2 with the "refusing to run under make -n"
 message. GNU make 3.81 (the macOS system make) writes a command-line variable
 override into MAKEFLAGS as the FIRST word with no `--` separator
 (`MAKEFLAGS="ZE_VERIFY_LOG=tmp/ze-verify-gate12.log"`, captured), and
-`makeDryRun` (scripts/status/verify_run.go:111) read that word as concatenated
+`makeDryRun` (scripts/status/verify_run.go) read that word as concatenated
 short flags: `ContainsAny(field, "ntq")` matched the 't' in "tmp".
 
 **Pattern:** the guard's negative-side test table was built from GNU make 4.x
@@ -653,7 +654,7 @@ orphan (`ze start ze-bgp.conf`, ppid 1) was found still running after 1h01m from
 an earlier functional run.
 
 The mechanism: a gate spawns `ze` with stdin at EOF. `ze -` reads its config
-from stdin (`cmd/ze/ze_core_dispatch.go:404`), gets an empty config, and starts a
+from stdin (`cmd/ze/ze_core_dispatch.go`), gets an empty config, and starts a
 daemon -- which by design never exits. `commit_helper.py` itself never invokes
 `ze` (`grep` for `bin/ze`/`ZE_BIN` in it returns nothing), so the call is inside a
 gate it shells out to; the log line `warning: running without root; privileged
@@ -662,7 +663,7 @@ itself.
 
 **Pattern:** a fail-open subprocess contract. Nothing bounds the child, and an
 empty config is indistinguishable from a valid one, so "no config" degrades into
-"run forever" instead of erroring. Compare `ai/rules/fail-closed-guards.md`: a
+"run forever" instead of erroring. Compare `ai/rules/evidence.md`: a
 check that cannot complete must say so, not hang.
 
 **Workaround used:** wrap the generation in a loop that reaps any `ze -` older
@@ -682,13 +683,13 @@ Every Bash tool call then failed, because the tool could not create its own
 output file -- an unrecoverable state from inside the session.
 
 `Makefile:17` sets `export GOCACHE := $(CURDIR)/cache/go-cache`, with `cache/`
-symlinked to `~/.cache/ze` (`scripts/dev/ensure-links.py:59-64`). Make `export`
+symlinked to `~/.cache/ze` (`scripts/dev/ensure-links.py`). Make `export`
 only reaches processes make spawns. A `go` command run directly inherits nothing
 and falls back to Go's platform default, `os.UserCacheDir()/go-build` =
 `~/Library/Caches/go-build` on macOS. `GOLANGCI_LINT_CACHE` (`Makefile:18`) has
 the same scope, and the post-edit format hook runs `golangci-lint` directly.
 
-**Pattern:** two rules pull in opposite directions. `ai/rules/bash-output.md`
+**Pattern:** two rules pull in opposite directions. `ai/rules/commands.md`
 says prefer `make`, but also that a bare `go test` lies without the feature tags
 -- so agents run `go test -tags "ze_core <36 tags>" ./...` directly, dozens of
 times, and every distinct tag set / `GOOS` / `-race` combination is a separate
@@ -697,7 +698,7 @@ again. The tag guidance is right; it just silently opts out of the cache
 relocation the Makefile arranges.
 
 **Proposed fix:** export `GOCACHE` at the shell level (profile or `.envrc`) so it
-covers direct invocations, and state in `ai/rules/bash-output.md` that a direct
+covers direct invocations, and state in `ai/rules/commands.md` that a direct
 `go test` must carry `GOCACHE=$(pwd)/cache/go-cache` alongside the tags. `go
 clean -cache` is the safe recovery; nothing but rebuild time is lost.
 
@@ -718,7 +719,7 @@ and re-tested, and the daemon was run by hand against the extracted config (wher
 it emitted the awaited line immediately). All of them were innocent.
 
 The mechanism: the functional suites are NOT meant to be launched by running the
-runner binary. `mk/test-functional.mk:140` builds ISOLATED, BARE-NAMED binaries
+runner binary. `mk/test-functional.mk` builds ISOLATED, BARE-NAMED binaries
 into `$(ZE_ALT_BIN)` -- and the daemon it builds carries the `zetest` build tag
 (`ze_core ze_distro ze_setup zetest ...`), which the ordinary `make ze` daemon
 does not. `:145` then runs the suite as
@@ -731,7 +732,7 @@ green in 2.0s.
 **Pattern:** a harness whose contract lives only in a makefile variable. The
 binary accepts the invocation and produces a plausible product failure, so the
 diagnosis points at the code under test rather than at the launch. Compare
-`ai/rules/bash-output.md`, which already says to prefer `make` because a bare
+`ai/rules/commands.md`, which already says to prefer `make` because a bare
 `go test` drops feature tags and fakes reds -- this is the same failure one layer
 out, and the rule does not yet cover it.
 
@@ -787,7 +788,7 @@ semantics change, and it would have removed the whole investigation both times.
 
 ### F11: `validate-spec.sh` RFC-existence check is dead code (regex typo)
 
-**Friction:** the RFC-summary existence check at `.claude/hooks/validate-spec.sh:199`
+**Friction:** the RFC-summary existence check at `.claude/hooks/validate-spec.sh`
 greps with the pattern `'\rfc/short/rfc[0-9]+\.md'`. The leading `\r` is a
 carriage-return escape in grep -E, so the pattern can never match a literal
 `rfc/short/...` path; `RFC_REFS` is always empty and the check silently
@@ -795,7 +796,7 @@ approves every spec. Found during the 2026-07-22 plan-folder review:
 `plan/spec-ike-post-quantum.md` references `rfc/short/rfc9370.md` and <!-- doc-links: ignore (the finding IS that this path does not exist) -->
 `rfc/short/rfc4304.md`, neither of which exists, and the hook said nothing. <!-- doc-links: ignore (same: deliberately nonexistent) -->
 
-**Pattern:** a fail-open guard (`ai/rules/fail-closed-guards.md`): the check
+**Pattern:** a fail-open guard (`ai/rules/evidence.md`): the check
 that cannot fire looks identical to the check that found nothing.
 
 **Proposed fix:** change the pattern to `'rfc/short/rfc[0-9]+\.md'` (drop the
@@ -879,7 +880,7 @@ strengthening that happens to be shorter than what it replaces.**
 
 **Do NOT use `Write` to route around it.** The catalog said so for a
 long time and it is now wrong: the check runs on `Write` and
-`MultiEdit` as well as `Edit` (`ai/rules/hook-mapping.md`). A session
+`MultiEdit` as well as `Edit` (`ai/rules/repo-maintenance.md`). A session
 following the old advice loses the time twice.
 
 **Never.** Do not attempt to collapse 4 lines to 1 — the hook will
@@ -1195,7 +1196,7 @@ collide.
 
 ### F-mrtr-1: a MUST-adjacent spec quote cannot be written in a Go comment
 
-**Trigger.** `c_layering` (`.claude/hooks/pretool-writeedit.py:505`) blocks any
+**Trigger.** `c_layering` (`.claude/hooks/pretool-writeedit.py`) blocks any
 non-test `.go` file whose text matches `backwards.?compatib` or
 `backward.?compatib`, anywhere, including inside a quotation.
 
@@ -1225,7 +1226,7 @@ remedy.
 
 ### F-rfcgate1b-1: a newly authored RFC-tagged test cannot be iterated on
 
-**Trigger.** `c_test_weakening` (`.claude/hooks/pretool-writeedit.py:1766`) calls
+**Trigger.** `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`) calls
 `_rfc_tagged_change_err` for any test file carrying `RFC requirement:`. Once the
 tag is on disk, every later Edit whose hunk changes behavior bytes is refused,
 and removing the tag is refused first. The check has no notion of whether the
@@ -1258,8 +1259,8 @@ gate reads and drops this class of false positive.
 
 **Status: FIXED** in commit `0a5de3eb3`.
 
-**Trigger.** `check_frozen_verbs` (`scripts/dev/ste_check.py:947`) scans with
-`GERUND_CLAUSE` (`:415`), which is
+**Trigger.** `check_frozen_verbs` (`scripts/dev/ste_check.py`) scans with
+`GERUND_CLAUSE`, which is
 `\b(before|after|while|without|when)\s+([a-z]+ing)\b`. The second group accepts
 any lowercase word that ends in `ing`, so a pronoun after one of the five
 prepositions reads as a gerund clause.
@@ -1284,7 +1285,7 @@ the STE rule's own "fix the tool" instruction, so the defect was filed rather
 than patched. Three agents hit it independently in one rewrite, which is the
 recurrence signal, not a single unlucky sentence.
 
-**The fix.** `NOT_GERUND` (`scripts/dev/ste_check.py:425`) holds the indefinite
+**The fix.** `NOT_GERUND` (`scripts/dev/ste_check.py`) holds the indefinite
 pronouns and the common `-ing` nouns that are not verb forms.
 `check_frozen_verbs` skips a match whose second group is in that set. A denylist
 is the right shape, because the `-ing` ending carries no information about
@@ -1298,7 +1299,7 @@ gerund clauses are still reported, so the fix cannot decay into a no-op.
 
 **Status: FIXED** in commit `f8751a908`.
 
-**Trigger.** `ABBREVIATIONS` (`scripts/dev/ste_check.py:775`) contained `No.`,
+**Trigger.** `ABBREVIATIONS` (`scripts/dev/ste_check.py`) contained `No.`,
 together with `Dr.`, `Fig.`, `Mr.`, `Ms.`, `approx.`, `e.g.`, `etc.`, `i.e.` and
 `vs.`. `sentences()` held every dot in that tuple unconditionally.
 
@@ -1310,7 +1311,7 @@ finding. The fix was to move the quotation into its own paragraph, which is
 better STE anyway.
 
 **The fix.** `No.` and `Fig.` abbreviate only in front of the number they label,
-so `NUMBERED_ABBREVIATION` (`scripts/dev/ste_check.py:794`) holds their dot only
+so `NUMBERED_ABBREVIATION` (`scripts/dev/ste_check.py`) holds their dot only
 when a digit follows. The other eight entries stay unconditional. Two tests pin
 both directions: `No. 5` stays one sentence, and `answered Yes/No. Every Yes
 names a file` is two.
@@ -1345,12 +1346,12 @@ often the answer changes. Count what the gate reports, then decide.
 **One report in the same pass stays unverified.** It says a quotation containing
 a period loses its closing quote before the word count collapses it. A probe did
 NOT reproduce that. It is recorded as unverified and it is not filed as fact
-(`ai/rules/no-fabrication.md`).
+(`ai/rules/evidence.md`).
 
 **Suggested fix.** Exclude the closed set of `-ing` words that are not verbs:
 `nothing`, `anything`, `everything`, `something`, `string`, `thing`, `ring`,
 `spring`, `king`, `during`. A negative lookahead in the second group is enough,
-and it changes no true positive. `ai/rules/simplified-technical-english.md` asks
+and it changes no true positive. `ai/rules/writing.md` asks
 for the case to land in `scripts/dev/ste_check_test.py` in the same change. The
 checker is untracked while its author is still writing it, so this session left
 the tool alone rather than edit another session's uncommitted file.
@@ -1359,12 +1360,12 @@ the tool alone rather than edit another session's uncommitted file.
 
 **Status: OPEN.** No fix applied. The workaround is at the end.
 
-**Trigger.** `ste_problems` (`scripts/dev/commit_helper.py:1473`) hands the
-commit's own `.md`, `.go` and `.yang` paths to `ste_check.py --check` (`:1494`).
+**Trigger.** `ste_problems` (`scripts/dev/commit_helper.py`) hands the
+commit's own `.md`, `.go` and `.yang` paths to `ste_check.py --check`.
 The checker reads each path from the WORKING TREE and compares it against that
 path's HEAD version.
 
-The docstring gives the reason (`:1478-1484`). Several sessions share this
+The docstring gives the reason. Several sessions share this
 checkout. A tree-wide prose gate reports a colleague's in-flight sentences, and
 such a gate gets disabled. The files of one commit are the right unit.
 
@@ -1374,8 +1375,8 @@ the whole working-tree copy, so it sees both authors at once. The second session
 cannot commit that file until the first session lands its work.
 
 **What it cost.** On 2026-07-30 this session added a new UserPromptSubmit hook
-and documented it in `ai/rules/hook-mapping.md`, which
-`ai/rules/discovery-updates.md` requires. A concurrent session was rewriting the
+and documented it in `ai/rules/repo-maintenance.md`, which
+`ai/rules/repo-maintenance.md` requires. A concurrent session was rewriting the
 `rfc-tagged-test` row in the same file, at line 119. That row grew habit 5.
 
 This session verified its own prose with `ste_check.py --check` over its own
@@ -1394,7 +1395,7 @@ add that file once the other session commits. Establish ownership first with
 
 **Suggested fix.** Judge the lines the commit ADDS, not the whole file. Note that
 nothing is staged at gate time: `ste_problems` runs from `commit_gate_problems`
-(`scripts/dev/commit_helper.py:1640`) during `create()`, and `git add` is only
+(`scripts/dev/commit_helper.py`) during `create()`, and `git add` is only
 emitted into the generated script (`render_git_add`, `:380-385`). So the source
 is `git diff HEAD -- <add_paths>`, never `--cached`. That diff and
 `ste_check.py`, which already reports a line number for every finding, are the
@@ -1402,7 +1403,7 @@ two halves. Intersect them.
 
 A habit that grows on a line you did not touch then belongs to whoever touched
 it. This keeps the per-author attribution the docstring asks for, and it removes
-the shared-file deadlock. `ai/rules/simplified-technical-english.md` asks for the
+the shared-file deadlock. `ai/rules/writing.md` asks for the
 case to land in `scripts/dev/ste_check_test.py` in the same change.
 
 ---
@@ -1461,7 +1462,7 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
 ### F22: `check_poll_loop` blocks a command that QUOTES a wait loop
 
 **Friction:** `echo`-ing or here-doc-ing a `while`/`until` + `sleep` string to test the gate is refused, because the check matches the command TEXT.
-**Pattern:** Same class as the git-verb false positive in `ai/rules/bash-output.md`: a coarse text match cannot tell a loop you RUN from one you QUOTE.
+**Pattern:** Same class as the git-verb false positive in `ai/rules/commands.md`: a coarse text match cannot tell a loop you RUN from one you QUOTE.
 **Impact:** One rejected call while testing or demonstrating the gate.
 **Workaround (session-verified):** Feed the payload from Python, as `scripts/dev/hook-parity-check.py` does; the loop string then never reaches a Bash command line.
 **Already handled:** A loop keyword inside a SEARCH argument is exempt (`SEARCH_COMMANDS`), so `grep -rn 'until ! pgrep' ai/rules` and `git log -S` pass. Only the run-shaped quoting above is refused.
@@ -1504,7 +1505,7 @@ env ZE_BIN=$PWD/bin/ze-<sid> ZE_TEST_BIN=$PWD/bin/ze-test-<sid> \
 2. Refuse to start when the resolved binary is older than the newest `.go` or
    `.ci` under the suite, naming the path and its mtime. Under an AI session the
    canonical binary is `bin/<name>-<session-id>`, so a bare `bin/ze-test` is
-   nearly always the wrong one (`ai/rules/bash-output.md`).
+   nearly always the wrong one (`ai/rules/commands.md`).
 3. Treat "exit non-zero with empty output" as a tooling error rather than a
    reproduction: no test ran, so nothing was reproduced.
 
@@ -1570,7 +1571,7 @@ edited hunk. Putting it at the top of the file, which is where a reader would lo
 for it, does not satisfy the check.
 
 **The general case.** Adding coverage to a file that already proves an RFC
-obligation is the normal way coverage grows, and `ai/rules/no-test-deletion.md`
+obligation is the normal way coverage grows, and `ai/rules/testing.md`
 prescribes exactly that ("ADD a new test case or function for the new issue").
 The guard cannot distinguish it from a rewrite, so growing a tagged file always
 costs an operator approval even when no existing assertion is touched.
@@ -1660,4 +1661,4 @@ scratch and rewrote the file complete in one `Write`.
 on stdin and NOTHING on argv, and says so loudly when given argv. That is good
 design, but the manual-invocation line it prints is the only place the contract
 is written; a reader who reaches for `bash validate-spec.sh <path>` first learns
-it by failing. Worth one line in `ai/rules/hook-mapping.md`.
+it by failing. Worth one line in `ai/rules/repo-maintenance.md`.

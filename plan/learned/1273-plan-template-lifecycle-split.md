@@ -47,7 +47,7 @@ header-plus-separator table asks nothing of the reader.
   and none carry the new one: a hard cutover would have made them un-editable.
 - **Placeholder guards became status-aware.** A `skeleton` spec is the documented
   shape of a deferral holder (fill `## Task`, leave the rest,
-  `ai/rules/deferral-tracking.md`), yet the hook rejected placeholders on every
+  `ai/rules/planning.md`), yet the hook rejected placeholders on every
   edit. That contradiction made one correctly-authored skeleton un-editable.
   Placeholders now warn at `skeleton` and block from `design` onward, where the
   status is itself a claim that the section is written.
@@ -115,4 +115,4 @@ header-plus-separator table asks nothing of the reader.
 - `scripts/dev/hook-fixture-check.py` -- 6 new validate-spec fixtures (14 -> 20)
 - `scripts/dev/check_doc_links.py` -- link-check the closure template
 - `ai/skills/ze-implement.md`, `ai/skills/ze-spec.md`, `ai/rules/planning.md`,
-  `ai/rules/implementation-audit.md`, `ai/INDEX.md`, `plan/README.md`
+  `ai/rules/completion.md`, `ai/INDEX.md`, `plan/README.md`

@@ -10,7 +10,7 @@ import (
 // TestFeatureGateTagsFromManifest verifies the functional-test build tags are
 // read from feature-gates.txt (the single source of truth) rather than a
 // hand-maintained list, so declaring a gate there is enough for the test ze
-// binary to exercise it. See ai/rules/feature-gate-registration.md.
+// binary to exercise it. See ai/rules/plugins.md.
 func TestFeatureGateTagsFromManifest(t *testing.T) {
 	tags := featureGateTags()
 	assert.NotEmpty(t, tags, "feature-gates.txt should yield at least one gate tag")

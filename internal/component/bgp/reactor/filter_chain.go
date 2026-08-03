@@ -382,7 +382,7 @@ const policyFilterTimeout = 5 * time.Second
 // runs -- a filter that returns a text delta, and a modification that then
 // cannot be applied -- have no other entry point. Testing those on the helper
 // instead of on runIngressPolicyChain / runEgressPolicyChainASN4 proves the
-// helper and not that a caller reaches it (ai/rules/fail-closed-guards.md).
+// helper and not that a caller reaches it (ai/rules/evidence.md).
 func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 	if r.policyFilterSeam != nil {
 		return r.policyFilterSeam

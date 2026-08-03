@@ -91,7 +91,7 @@ func (s *Streamable) serverDiscover(req *request) *response {
 // Section "Extension Negotiation" says "an empty object indicates support with
 // no additional settings", and neither extension defines a server-side settings
 // member. An invented member would assert a schema the extension does not
-// specify (ai/rules/no-fabrication.md).
+// specify (ai/rules/evidence.md).
 func serverCapabilities() map[string]any {
 	return map[string]any{
 		"tools":     map[string]any{},

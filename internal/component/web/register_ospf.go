@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- OSPF web routes self-registration
+// Design: ai/rules/plugins.md -- OSPF web routes self-registration
 // Related: handler_ospf.go -- the neighbor and database views these routes serve
 //
 // Inject is never surfaced on the web (spec-ospf-ext-14 R-6): only read-only

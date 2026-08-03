@@ -48,7 +48,7 @@ not, by itself, stop an attacker who can rewrite the boot media.
 | Fork | Decision | Rationale |
 |------|----------|-----------|
 | Module strategy | Ephemeral per-build module key: `CONFIG_MODULE_SIG_FORCE`, per-build keypair auto-generated inside the build container, modules signed, pubkey embedded in vmlinux, privkey destroyed | Chosen over config-only "build the remaining modules in" (which lockdown integrity already enforces). User chose defense-in-depth. **Ephemeral is correct here: signer = verifier = same build.** |
-| kexec OTA (amd64 only) | Sign the kernel **image** with a **stable release key** (NOT ephemeral): `CONFIG_KEXEC_SIG` + `CONFIG_KEXEC_BZIMAGE_VERIFY_SIG`, cert embedded via `CONFIG_SYSTEM_TRUSTED_KEYS` in every build | Chosen over the full-reboot fallback to preserve fast OTA. **Corrected after review (C-1): ephemeral keys CANNOT do cross-build kexec — the old running kernel must already trust the new image's signer. This forces a stable, managed image-signing key (a key-management cost the user should weigh; see "Key strategy" + Known Limitations).** arm64 is excluded (C-2): gokrazy `reboot.go:8-10` never kexecs on `!amd64`. |
+| kexec OTA (amd64 only) | Sign the kernel **image** with a **stable release key** (NOT ephemeral): `CONFIG_KEXEC_SIG` + `CONFIG_KEXEC_BZIMAGE_VERIFY_SIG`, cert embedded via `CONFIG_SYSTEM_TRUSTED_KEYS` in every build | Chosen over the full-reboot fallback to preserve fast OTA. **Corrected after review (C-1): ephemeral keys CANNOT do cross-build kexec — the old running kernel must already trust the new image's signer. This forces a stable, managed image-signing key (a key-management cost the user should weigh; see "Key strategy" + Known Limitations).** arm64 is excluded (C-2): gokrazy `reboot.go` never kexecs on `!amd64`. |
 | Coverage | Lockdown integrity + module signing on the **runtime** kernel (both arches); image/kexec signing **amd64 only**; KASLR (`RANDOMIZE_BASE`) + `DMESG_RESTRICT` on **both** runtime and installer | Installer is ephemeral; lockdown there adds little. KASLR/dmesg are cheap everywhere. arm64 gets lockdown+KASLR+dmesg+module-signing but no image signing (it cannot kexec). |
 
 ### Mode decision (integrity, never confidentiality)
@@ -75,7 +75,7 @@ key-management cost that the declined "accept full-reboot fallback" option avoid
 cost is unwanted, the fallback path (no image signing; OTA full-reboots under lockdown) is the
 escape hatch and defers ALL image signing to the Secure Boot track. This spec documents the
 stable-key path as primary per the gate decision; the fallback remains a one-line reversal
-(set the updater default to `kexec=off`, `updater.go:201-202`).
+(set the updater default to `kexec=off`, `updater.go`).
 
 ## Required Reading
 
@@ -84,7 +84,7 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
   → Constraint: one driver `tools/kernel-builder/run.py` resolves fragments and calls `build.py` in docker/qemu; both Makefiles AND `ze appliance kernel` go through it. Any signing step lives in `build.py` (runs in-container), not on the host.
   → Constraint: config floors enforced by paired `.require` files; the Go path `internal/appliance/kernelreg.go` resolves fragments+manifests, the actual `=y` assertion is `build.py:enforce_required_symbols` (143-160). A missing required `=y` symbol fails the build.
   → Constraint: resolved `.config` (defconfig + merge_config + olddefconfig) is the cheaply-diffable artifact; unrelated symbols must stay byte-identical.
-- [ ] `ai/rules/doctor-checks.md` — runtime-dependency readiness checks
+- [ ] `ai/rules/repo-maintenance.md` — runtime-dependency readiness checks
   → Constraint: a new runtime dependency (here: the `/sys/kernel/security/lockdown` procfs/securityfs path) requires a registered `ze doctor` check. The appliance is a component, not a plugin, so register via `diagnostic.RegisterDoctorCheck()` from the owning package init(); add a `doctor-<component>-<condition>` code to `internal/core/diagnostic/codes.go`, explainable via `ze explain`. Needs a Linux-tagged unit test + a `ze doctor --json` functional test + QEMU coverage.
 
 ### Source Files Read (Current Behavior)
@@ -99,12 +99,12 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 - [ ] `gokrazy/kernel/runtime.require` — current floor (CONFIG_MODULES, PPP/L2TP set, BPF_SYSCALL/JIT, ...). Extension point for the new mandatory `=y` symbols.
 - [ ] `tools/installer-kernel/hardware.config` (72L) — installer hw profile, `CONFIG_EFI=y`/`EFI_STUB=y`. No hardening flags.
 - [ ] `internal/appliance/kernelreg.go` (233L) — Go-side fragment+manifest resolver mirroring run.py; the `.require` floor is resolved here, enforced in build.py.
-- [ ] `internal/component/vpp/dpdk.go` (37) / `dpdk_linux.go` (17-22) — VFIO modprobe (`vfio`, `vfio_pci`, `vfio_iommu_type1`), only when DPDK interfaces configured (`vpp.go:161,167`; skipped in External mode `vpp.go:172`).
+- [ ] `internal/component/vpp/dpdk.go` (37) / `dpdk_linux.go` (17-22) — VFIO modprobe (`vfio`, `vfio_pci`, `vfio_iommu_type1`), only when DPDK interfaces configured (`vpp.go,167`; skipped in External mode `vpp.go`).
 - [ ] `internal/plugins/trafficusage/attach_linux.go` (46-64) — `link.AttachTCX` + `AttachTCXIngress/Egress`; pure networking BPF, no `bpf_probe_read`. Only privileged step is `rlimit.RemoveMemlock` (33), not lockdown-gated.
 - [ ] `gokrazy/modcache/.../modules.go` (21-45) — gokrazy boot loads exactly one module, `pwm-fan.ko` (Pi 5 fan); `FinitModule` swallows EEXIST/EBUSY/ENODEV/ENOENT.
 - [ ] `gokrazy/modcache/.../gokrazy.go` (232-234) — `loadModules()` error is logged, NOT fatal. A refused pwm-fan under lockdown does not block boot.
 - [ ] `gokrazy/modcache/.../reboot_amd64.go` (14-50) — OTA reboot uses `KexecFileLoad`; on ANY error logs + falls back to `LINUX_REBOOT_CMD_RESTART`. Graceful degrade already present.
-- [ ] `internal/appliance/updater/updater.go` (188-227) — OTA default `kexec:true`; `kexec=off` query forces full reboot. Caller `cmd_push.go:404` uses the default.
+- [ ] `internal/appliance/updater/updater.go` (188-227) — OTA default `kexec:true`; `kexec=off` query forces full reboot. Caller `cmd_push.go` uses the default.
 
 **Key insights:**
 - Nothing in ze code uses `/dev/mem`, `iopl`, or `ioperm` (grep: only vendored `x/sys`). Lockdown's hardware-poke restrictions affect nothing we do.
@@ -128,7 +128,7 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 - OTA update still succeeds (signed-kexec when the image verifies; otherwise the existing full-reboot fallback).
 - trafficusage TCX eBPF byte accounting keeps working (integrity preserves networking BPF — A-1, confirmed).
 - DPDK NIC binding keeps working when configured (VFIO available without an unsigned modprobe).
-- gokrazy boot module load (pwm-fan on Pi) does not hard-fail the boot (A-2, confirmed at gokrazy.go:232-234).
+- gokrazy boot module load (pwm-fan on Pi) does not hard-fail the boot (A-2, confirmed at gokrazy.go).
 - Resolved `.config` for unrelated symbols stays byte-identical (no incidental kernel behaviour change).
 - Installer still installs (its disk/partition/mount ops are normal syscalls, unaffected by KASLR/dmesg, and the installer has no lockdown).
 
@@ -149,9 +149,9 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 2. docker/qemu → `build.py:main` (353-401): `merge_config` → `olddefconfig` → `enforce_required_symbols` (the `=y` floor) → `build_kernel` (384).
 3. **NEW signing setup — BEFORE `build_kernel`:384** (corrected, C-3): provision the **stable image-signing cert** at `CONFIG_SYSTEM_TRUSTED_KEYS` and let the kernel auto-generate (or pre-place) the **ephemeral module key** at `CONFIG_MODULE_SIG_KEY`. Both pubkeys/certs MUST exist before `build_kernel` so they are compiled into `vmlinux`'s `.builtin_trusted_keys`. A key generated *after* `build_kernel` is never embedded.
 4. `build_kernel` (384) compiles vmlinux with both certs embedded.
-5. **Signing — DURING/AFTER `copy_runtime_outputs`** (C-3): modules signed by the ephemeral key during `modules_install` (`MODULE_SIG_ALL=y`, build.py:287-292, reached at build.py:389); then (amd64) the `bzImage` is sbsigned with the stable image key. **Last:** the ephemeral module private key is destroyed; the stable image private key is NOT in the container (it is injected for the sign step only, or signing happens in CI).
+5. **Signing — DURING/AFTER `copy_runtime_outputs`** (C-3): modules signed by the ephemeral key during `modules_install` (`MODULE_SIG_ALL=y`, build.py, reached at build.py); then (amd64) the `bzImage` is sbsigned with the stable image key. **Last:** the ephemeral module private key is destroyed; the stable image private key is NOT in the container (it is injected for the sign step only, or signing happens in CI).
 6. `copy_runtime_outputs` (283-308): signed `vmlinuz` + signed modules → gok pack → appliance image.
-7. **Runtime:** lockdown active early (`LOCKDOWN_LSM_EARLY`, `FORCE_INTEGRITY`) → unsigned `FinitModule` (gokrazy `modules.go:27`) refused, logged, non-fatal → on **amd64**, `KexecFileLoad` (`reboot_amd64.go:35`) of a stable-key-signed image accepted, unsigned refused → full-reboot fallback; on **arm64**, `reboot.go:8-10` always full-reboots (no kexec) → `ze doctor` reports the active mode.
+7. **Runtime:** lockdown active early (`LOCKDOWN_LSM_EARLY`, `FORCE_INTEGRITY`) → unsigned `FinitModule` (gokrazy `modules.go`) refused, logged, non-fatal → on **amd64**, `KexecFileLoad` (`reboot_amd64.go`) of a stable-key-signed image accepted, unsigned refused → full-reboot fallback; on **arm64**, `reboot.go` always full-reboots (no kexec) → `ze doctor` reports the active mode.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -167,27 +167,27 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 
 ### Architectural Verification
 - [ ] No bypassed layers (build floor + runtime doctor check are complementary, not redundant)
-- [ ] Registration over hardcoding — the doctor check registers and is core-discovered; no new per-feature field/switch/factory added to a core/shared package (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding — the doctor check registers and is core-discovered; no new per-feature field/switch/factory added to a core/shared package (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Lockdown integrity does NOT block the trafficusage TCX program load | R-lpc; `attach_linux.go:46-64` uses TCX networking hooks, no `bpf_probe_read` | trafficusage breaks on hardened appliance | QEMU evidence: attach TCX with lockdown=integrity active | **confirmed (code+source)** |
-| A-2 | gokrazy boot does not hard-fail when pwm-fan.ko load is refused/absent under lockdown | `gokrazy.go:232-234` logs and continues; `modules.go:21-44` swallows ENOENT | appliance fails to boot | code read | **confirmed (code)** |
-| A-3 | `KexecFileLoad` with `KEXEC_SIG` accepts our build-signed image and the gokrazy OTA path still works | `reboot_amd64.go:34-40` | OTA kexec always fails → silent full-reboot fallback masks a real break | QEMU OTA evidence: signed kexec succeeds, fallback NOT taken | unvalidated |
-| A-4 | The **ephemeral module** key can be generated, used, and destroyed in-container with no key material in the image; the **stable image** key is a managed secret kept OUT of the container/image | `build.py` runs in-container; named-volume caching of `/tmp/kbuild` is the hazard (run.py:273-274) | module privkey leaks into image/volume, or stable image privkey ends up embedded | review signing stage; grep image + `ze-kernel-build` volume for PEM/key | unvalidated |
+| A-1 | Lockdown integrity does NOT block the trafficusage TCX program load | R-lpc; `attach_linux.go` uses TCX networking hooks, no `bpf_probe_read` | trafficusage breaks on hardened appliance | QEMU evidence: attach TCX with lockdown=integrity active | **confirmed (code+source)** |
+| A-2 | gokrazy boot does not hard-fail when pwm-fan.ko load is refused/absent under lockdown | `gokrazy.go` logs and continues; `modules.go` swallows ENOENT | appliance fails to boot | code read | **confirmed (code)** |
+| A-3 | `KexecFileLoad` with `KEXEC_SIG` accepts our build-signed image and the gokrazy OTA path still works | `reboot_amd64.go` | OTA kexec always fails → silent full-reboot fallback masks a real break | QEMU OTA evidence: signed kexec succeeds, fallback NOT taken | unvalidated |
+| A-4 | The **ephemeral module** key can be generated, used, and destroyed in-container with no key material in the image; the **stable image** key is a managed secret kept OUT of the container/image | `build.py` runs in-container; named-volume caching of `/tmp/kbuild` is the hazard (run.py) | module privkey leaks into image/volume, or stable image privkey ends up embedded | review signing stage; grep image + `ze-kernel-build` volume for PEM/key | unvalidated |
 | A-4b | A stable image-signing key whose cert is embedded via `CONFIG_SYSTEM_TRUSTED_KEYS` lets an OLD running kernel verify a NEW build's signed image (kexec_file_load checks `.builtin_trusted_keys`; Secure Boot `.platform` keyring is an *additional*, not *required*, source) | independent review (keyrings patchwork) | kexec OTA fails every update → silent full-reboot | amd64 QEMU OTA across two builds signed by the same key | unvalidated |
 | A-5 | Installer disk/partition/mount ops are unaffected by KASLR + DMESG_RESTRICT (no lockdown there) | `hardware.config`; install ops are normal syscalls | install breaks | existing install QEMU evidence still passes | unvalidated |
 | A-6 | With `LOCKDOWN_LSM_EARLY=y` + `FORCE_INTEGRITY=y`, lockdown is active in integrity mode regardless of `CONFIG_LSM` string ordering | kernel lockdown design (R-man); default `CONFIG_LSM` includes lockdown | lockdown silently inactive; floor can't catch it | QEMU: assert `/sys/kernel/security/lockdown` shows `[integrity]` (AC-4) | unvalidated |
-| A-7 | arm64 (Pi) gokrazy does **NOT** kexec — OTA always full-reboots — so arm64 needs lockdown + KASLR + dmesg + module signing but **no image signing** | `gokrazy/.../reboot.go:8-10` (`!amd64`) ignores `tryKexec`, always `LINUX_REBOOT_CMD_RESTART` | wasted arm64 image-signing work; dead `KEXEC_*` config on arm64 | code read | **confirmed (code)** — image/kexec signing is amd64-only |
+| A-7 | arm64 (Pi) gokrazy does **NOT** kexec — OTA always full-reboots — so arm64 needs lockdown + KASLR + dmesg + module signing but **no image signing** | `gokrazy/.../reboot.go` (`!amd64`) ignores `tryKexec`, always `LINUX_REBOOT_CMD_RESTART` | wasted arm64 image-signing work; dead `KEXEC_*` config on arm64 | code read | **confirmed (code)** — image/kexec signing is amd64-only |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Lockdown silently disables a runtime feature we did not enumerate (perf, debugfs, a future /dev poke) | feature fails only on the appliance, not in unit tests | QEMU evidence exercising trafficusage + DPDK + OTA + install end-to-end with lockdown active; document the enumerated allowed surface |
-| R-2 | Signed-kexec verification fails on the appliance → every OTA silently full-reboots, hiding the regression | OTA works but slower; nothing surfaced | Doctor/telemetry signal that kexec succeeded; gokrazy already logs "kexec reboot failed" (reboot_amd64.go:46) — surface that log |
+| R-2 | Signed-kexec verification fails on the appliance → every OTA silently full-reboots, hiding the regression | OTA works but slower; nothing surfaced | Doctor/telemetry signal that kexec succeeded; gokrazy already logs "kexec reboot failed" (reboot_amd64.go) — surface that log |
 | R-3 | Ephemeral module key not actually destroyed / persists in the docker named volume or squashfs image | key file present in image or the `ze-kernel-build` volume (`/tmp/kbuild`, where the reused build tree + `certs/` live — C-9) | build.py deletes key in same container invocation; test greps image + `ze-kernel-build` + asserts no `certs/signing_key.pem` in the cached tree |
 | R-8 | Stable image-signing private key is mishandled (committed, baked into the image, or lost) | key in git/image, or OTA verification suddenly fails after a key rotation | keep the privkey in CI secret storage; sign the image in CI (not in the shared build container); rotate via dual-trust (embed old+new cert) |
 | R-4 | `DMESG_RESTRICT` hides boot diagnostics field engineers rely on | support bundle missing dmesg for non-root | ze support tooling runs as root (verify); document the change |
@@ -220,7 +220,7 @@ observes it.
 | AC-4 | Booted runtime kernel (QEMU) | `/sys/kernel/security/lockdown` shows `[integrity]` (not `[none]`, not `[confidentiality]`) |
 | AC-5 | Booted runtime kernel (QEMU) | trafficusage TCX program attaches successfully (A-1) |
 | AC-6 | OTA update under lockdown (QEMU, **amd64**) | Stable-key-signed kexec path succeeds; the full-reboot fallback is NOT silently taken. (arm64 always full-reboots by design — not an AC failure.) |
-| AC-7 | Built runtime image + `ze-kernel-build` volume | No **ephemeral module** private key present: `certs/signing_key.pem` absent from the image AND from the in-tree `linux-<ver>-yes/certs/` inside the `ze-kernel-build` named volume (`/tmp/kbuild`, run.py:273-274 — C-9). The stable image private key is intentionally never placed in the image. |
+| AC-7 | Built runtime image + `ze-kernel-build` volume | No **ephemeral module** private key present: `certs/signing_key.pem` absent from the image AND from the in-tree `linux-<ver>-yes/certs/` inside the `ze-kernel-build` named volume (`/tmp/kbuild`, run.py — C-9). The stable image private key is intentionally never placed in the image. |
 | AC-8 | `ze doctor` on the appliance | Reports lockdown integrity active; flags a clear `doctor-appliance-lockdown` diagnostic if mode is none/confidentiality |
 | AC-9 | DPDK configured (QEMU, if in scope for the evidence host) | VFIO bind works without an unsigned-module rejection (VFIO built in) |
 | AC-10 | Installer kernel boot (QEMU) | Install completes; KASLR/dmesg active; no lockdown present |
@@ -257,7 +257,7 @@ observes it.
 | `kernel-lockdown-config` | `test/install/*.ci` | resolved runtime .config has the full symbol set; installer has KASLR+dmesg but no lockdown | |
 | `ze doctor --json` lockdown | `internal/component/doctor` functional suite | doctor surfaces `doctor-appliance-lockdown` | |
 
-### QEMU Evidence Tests (MANDATORY — Linux-only kernel behavior, `ai/rules/qemu-testing.md`)
+### QEMU Evidence Tests (MANDATORY — Linux-only kernel behavior, `ai/rules/platform-linux.md`)
 | Scenario | Target | What it proves | Status |
 |----------|--------|----------------|--------|
 | `ze-qemu-lockdown-active` | runtime kernel (amd64) | `/sys/kernel/security/lockdown` == `[integrity]`; trafficusage TCX attaches | |
@@ -278,7 +278,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 - `tools/kernel-builder/build.py` — signing: provision both certs BEFORE `build_kernel` (384); sign modules via `MODULE_SIG_ALL` during `modules_install` (in `copy_runtime_outputs`); sbsign the amd64 `bzImage` with the stable key; destroy the ephemeral module key LAST; never let it persist in the `/tmp/kbuild` tree (C-3, R-3)
 - `tools/kernel-builder/Dockerfile` — add `sbsigntool` + `openssl` for image + key handling
 - `internal/appliance/doctor_checks.go` — register `doctor-appliance-lockdown`; gate it on a **running-on-appliance** signal so it is a no-op (not a warning) on a dev host where `/sys/kernel/security/lockdown` is absent or `[none]` (C-8)
-- `internal/appliance/dev_setup_drift_test.go` — add `appliance-lockdown` to the `buildArtifactChecks` skip-set; it is a runtime check, not a host build prerequisite, so it does NOT belong in `dev-setup.py` (C-7, `dev_setup_drift_test.go:17-20`)
+- `internal/appliance/dev_setup_drift_test.go` — add `appliance-lockdown` to the `buildArtifactChecks` skip-set; it is a runtime check, not a host build prerequisite, so it does NOT belong in `dev-setup.py` (C-7, `dev_setup_drift_test.go`)
 - `internal/core/diagnostic/codes.go` — register the `doctor-appliance-lockdown` code (title/description/examples, `ze explain`)
 - `internal/appliance/kernelreg.go` (+ `_test.go`) — if the floor gains a string-symbol / `=n` check for `CONFIG_LSM` and `# CONFIG_KEXEC is not set` (R-7, C-5), it lands here and in build.py
 
@@ -297,7 +297,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 | Editor autocomplete | No | — |
 | Functional test for new behavior | Yes | `test/install/kernel-*.ci`, doctor functional |
 | Env var registration | No | — |
-| Doctor check for runtime dependencies | **Yes** | `internal/appliance/doctor_checks.go` + `internal/core/diagnostic/codes.go` — the securityfs `/sys/kernel/security/lockdown` dependency (`ai/rules/doctor-checks.md`) |
+| Doctor check for runtime dependencies | **Yes** | `internal/appliance/doctor_checks.go` + `internal/core/diagnostic/codes.go` — the securityfs `/sys/kernel/security/lockdown` dependency (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters | No (optional) | Could expose a `lockdown_active` gauge; deferred unless wanted |
 
 ### Documentation Update Checklist
@@ -332,7 +332,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 ## Known Limitations
 - **At-rest integrity is a separate follow-on.** Without UEFI Secure Boot + signed GRUB/kernel + dm-verity root, a root attacker who can write the boot media can ship an image with lockdown disabled. Lockdown defends the running kernel only. The stable image-signing key added here (`KEXEC_SIG` + `SYSTEM_TRUSTED_KEYS`) is a building block the Secure Boot track reuses.
 - **Stable image-signing key = key management now.** Preserving kexec OTA forces a long-lived image key (storage, rotation, CI access), which the "accept full-reboot fallback" option avoided (C-1). This is the cost of the gate decision; it is reversible (set updater default `kexec=off`).
-- **arm64 OTA always full-reboots.** gokrazy has no arm64 kexec (`reboot.go:8-10`), so image signing is amd64-only; arm64 still gets lockdown + KASLR + dmesg + module signing (C-2).
+- **arm64 OTA always full-reboots.** gokrazy has no arm64 kexec (`reboot.go`), so image signing is amd64-only; arm64 still gets lockdown + KASLR + dmesg + module signing (C-2).
 - Confidentiality mode is deliberately out of scope (would break perf / tracing-BPF and likely `/proc/config.gz`).
 - On Raspberry Pi 5, pwm-fan must be built in or signed under lockdown; the upstream gokrazy ability to unload it for custom fan control is lost on hardened images.
 - The `.require` floor cannot assert string-valued config (`CONFIG_LSM`), `=n` (`# CONFIG_KEXEC is not set`), nor "confidentiality not forced"; the runtime doctor check + a dedicated resolved-`.config` grep test are the authoritative guarantees (R-7, C-5).
@@ -363,12 +363,12 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 | # | Severity | Finding | Resolution in spec |
 |---|----------|---------|--------------------|
 | C-1 | BLOCKER | Ephemeral per-build key is incompatible with signed-kexec OTA: kexec verifies the NEW image against the OLD running kernel's keyring, which only trusts a key it embedded at its own build. A throwaway key makes every OTA fail → silent full-reboot; AC-6 unsatisfiable. | Split keys: ephemeral for MODULES, **stable release key for the IMAGE** (see "Key strategy"); scope decision table + A-4b + Known Limitations updated; image no longer "signed with the same key." |
-| C-2 | BLOCKER | arm64 gokrazy never kexecs (`reboot.go:8-10`, `!amd64`, ignores `tryKexec`), so the entire arm64 image-signing track is dead code. | Image/kexec signing scoped **amd64-only**; arm64 gets lockdown+KASLR+dmesg+module-signing; A-7 confirmed-by-code; AC-1b, arm64 QEMU test, Coverage row updated. |
-| C-3 | BLOCKER | The documented signing order is impossible: the module pubkey is embedded into `vmlinux` DURING `build_kernel`, and `MODULE_SIG_ALL` signs DURING `modules_install` (inside `copy_runtime_outputs`, build.py:389) — so "keygen after 384, destroy before 389" yields an unembedded key and destroys it before signing. | Data Flow rewritten: provision certs BEFORE `build_kernel`; sign during/after `modules_install`; destroy ephemeral key LAST. Implementation step 2 + Files-to-Modify build.py line corrected. |
+| C-2 | BLOCKER | arm64 gokrazy never kexecs (`reboot.go`, `!amd64`, ignores `tryKexec`), so the entire arm64 image-signing track is dead code. | Image/kexec signing scoped **amd64-only**; arm64 gets lockdown+KASLR+dmesg+module-signing; A-7 confirmed-by-code; AC-1b, arm64 QEMU test, Coverage row updated. |
+| C-3 | BLOCKER | The documented signing order is impossible: the module pubkey is embedded into `vmlinux` DURING `build_kernel`, and `MODULE_SIG_ALL` signs DURING `modules_install` (inside `copy_runtime_outputs`, build.py) — so "keygen after 384, destroy before 389" yields an unembedded key and destroys it before signing. | Data Flow rewritten: provision certs BEFORE `build_kernel`; sign during/after `modules_install`; destroy ephemeral key LAST. Implementation step 2 + Files-to-Modify build.py line corrected. |
 | C-4 | ISSUE | AC-1 listed `KEXEC_SIG` but omitted `KEXEC_BZIMAGE_VERIFY_SIG`; on x86, `KEXEC_SIG` alone gives no bzImage verify method, so kexec is refused under lockdown. | AC-1 now requires `KEXEC_BZIMAGE_VERIFY_SIG=y` (amd64) + `SYSTEM_TRUSTED_KEYS`; `kernel-lockdown-config.ci` asserts it. |
 | C-5 | ISSUE | "No `CONFIG_KEXEC=y`" is true of the fragment but FALSE of the resolved config — `make defconfig` (x86_64_defconfig) sets `CONFIG_KEXEC=y` (legacy kexec_load). Same fragment-vs-resolved trap the spec warns about. | Add `# CONFIG_KEXEC is not set` to the runtime fragment; note the `=y`-only floor can't enforce a `=n` (R-7). |
 | C-6 | ISSUE | arm64 image-sign prerequisites (`CONFIG_EFI`, `EFI_STUB`, `SIGNED_PE_FILE_VERIFICATION`) were unstated. | Moot after C-2 (arm64 image signing dropped); recorded so the arm64 track is not silently underspecified if ever revisited. |
-| C-7 | ISSUE | A new `appliance-lockdown` doctor check breaks `TestDevSetupMatchesDoctor` (`dev_setup_drift_test.go:14-67`) unless it is in `dev-setup.py` or the `buildArtifactChecks` skip-set. | Added `dev_setup_drift_test.go` to Files-to-Modify: classify `appliance-lockdown` as a runtime (not build-prereq) check via the skip-set. |
+| C-7 | ISSUE | A new `appliance-lockdown` doctor check breaks `TestDevSetupMatchesDoctor` (`dev_setup_drift_test.go`) unless it is in `dev-setup.py` or the `buildArtifactChecks` skip-set. | Added `dev_setup_drift_test.go` to Files-to-Modify: classify `appliance-lockdown` as a runtime (not build-prereq) check via the skip-set. |
 | C-8 | ISSUE | Existing appliance doctor checks are build-HOST prerequisites; a lockdown check reads securityfs and would warn on every dev run (absent on macOS, `[none]` on plain Linux). | Gate the check on a running-on-appliance signal; no-op (not warn) off-appliance. Files-to-Modify doctor line updated. |
 | C-9 | ISSUE | AC-7/R-3 grepped the wrong volume: the reused build tree + `certs/` live in `/tmp/kbuild` → `ze-kernel-build` volume, not `ze-kernel-work` (`/build`). | AC-7 + R-3 now target `ze-kernel-build` + the in-tree `linux-<ver>-yes/certs/`. |
 | C-10 | NOTE | `/proc/kcore` is a confidentiality restriction, not integrity (only `/dev/mem`+`/dev/kmem` are integrity). | Task wording corrected. |
@@ -439,5 +439,5 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 
 Registry-context refresh only, no design change. Re-verified after the followup-vpp-iface wave:
 
-- `internal/core/diagnostic/codes.go` grew: the wave registered `doctor-vpp-wireguard` (codes.go:283) and `doctor-vpp-lcp-netns` (codes.go:289). The planned `doctor-appliance-lockdown` code therefore joins a registry that keeps growing by append; the registration mechanism this spec relies on (add a code entry to codes.go, register the check via `diagnostic.RegisterDoctorCheck()` from the owning package) is unchanged and freshly exercised by those two additions, which are current working examples to copy.
-- DPDK/VFIO citations hold: `vfioModules` (`vfio`, `vfio_pci`, `vfio_iommu_type1`) still at `internal/component/vpp/dpdk.go:37` and `loadModuleLinux` modprobe still at `internal/component/vpp/dpdk_linux.go:17-22`; the wave did not touch either file, so R-6 and the build-VFIO-in decision stand as written.
+- `internal/core/diagnostic/codes.go` grew: the wave registered `doctor-vpp-wireguard` (codes.go) and `doctor-vpp-lcp-netns` (codes.go). The planned `doctor-appliance-lockdown` code therefore joins a registry that keeps growing by append; the registration mechanism this spec relies on (add a code entry to codes.go, register the check via `diagnostic.RegisterDoctorCheck()` from the owning package) is unchanged and freshly exercised by those two additions, which are current working examples to copy.
+- DPDK/VFIO citations hold: `vfioModules` (`vfio`, `vfio_pci`, `vfio_iommu_type1`) still at `internal/component/vpp/dpdk.go` and `loadModuleLinux` modprobe still at `internal/component/vpp/dpdk_linux.go`; the wave did not touch either file, so R-6 and the build-VFIO-in decision stand as written.

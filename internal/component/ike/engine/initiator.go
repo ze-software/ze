@@ -146,7 +146,7 @@ func buildNATDetectionPayloads(spiI, spiR [8]byte, localIP, remoteIP net.IP, por
 // wire keeps the meaning the RFC gives it.
 //
 // The config parser bounds a group at ipsec.MaxProposalsPerGroup. The value i+1
-// therefore always fits the one-octet field (ai/rules/exact-or-reject.md).
+// therefore always fits the one-octet field (ai/rules/protocol.md).
 func offerProposalNum(i int) uint8 {
 	return uint8(i + 1)
 }
@@ -483,7 +483,7 @@ func lookupIntegrity(hash ipsec.HashAlgo) crypto.IntegrityTransform {
 // KEYMAT. That moved the responder encryption key 32 octets past the offset the peer
 // reads it at. The wire offer stayed correct, because espProposalToWire omits the
 // integrity transform for an AEAD cipher. Both kernels accepted their keys, and one
-// direction of the tunnel decrypted nothing (ai/rules/fail-closed-guards.md).
+// direction of the tunnel decrypted nothing (ai/rules/evidence.md).
 //
 // The verdict comes from the Transform ID, never from the IsAEAD field, for the reason
 // crypto.EncryptionID.IsAEAD gives.
@@ -501,7 +501,7 @@ func espTransforms(p ipsec.ESPProposal) (crypto.EncryptionTransform, crypto.Inte
 // the Transform ID. Both readers of a peer's SA payload call it, so neither one has
 // to remember that property on its own. A reader that filled the ID and the key
 // length alone left IsAEAD at false for every cipher. That false value reads as a
-// valid "not AEAD" answer (ai/rules/fail-closed-guards.md).
+// valid "not AEAD" answer (ai/rules/evidence.md).
 func wireEncryptionTransform(t wire.Transform) crypto.EncryptionTransform {
 	var keyLength uint16
 	for _, a := range t.Attrs {

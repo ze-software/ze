@@ -3,9 +3,9 @@
 ## Context
 
 The BGP RIB publishes best-path changes as `BestChangeBatch` deltas on the event bus
-(`internal/component/bgp/plugins/rib/events/events.go:90`, emitted via
-`rib_bestchange.go:1218`; bridged to generic redistribution by `EmitBestChange`,
-`internal/component/bgp/redistribute/producer.go:40`). Each consumer rebuilds its own
+(`internal/component/bgp/plugins/rib/events/events.go`, emitted via
+`rib_bestchange.go`; bridged to generic redistribution by `EmitBestChange`,
+`internal/component/bgp/redistribute/producer.go`). Each consumer rebuilds its own
 view from the delta stream. The open design question (rib-arch-1) was whether to replace
 this with an engine-owned central per-protocol store consumers query directly. Triage
 recorded the move trigger as "a second consumer beyond bgp-redistribute makes the delta
@@ -17,7 +17,7 @@ model painful." This spec was the DECISION, not speculative construction.
   over an engine-owned store because a store would not remove the expensive work and is
   not a cleaner abstraction — see Consequences.
 - The second-consumer trigger DID fire: `flowexport`'s `bgpEnrichBuilder`
-  (`internal/plugins/flowexport/enrichbgp.go:63,107`) is now a genuine second production
+  (`internal/plugins/flowexport/enrichbgp.go,107`) is now a genuine second production
   consumer that accumulates its own `map[netip.Prefix]enrich.ASEntry` and rebuilds a
   prefix→AS radix tree. Assumption A-1 ("bgp-redistribute is the only delta consumer") is
   therefore **broken**. The decision overrides the naive "trigger fired → build store"
@@ -50,8 +50,8 @@ model painful." This spec was the DECISION, not speculative construction.
   `internal/component/sysrib/events`). The FIB plugins consume Stream B, not Stream A.
   Conflating them is the main analysis trap.
 - `BestChangeEntry.ECMPNextHops` and `BackupNextHop` are `json:"-"` in-process hints set
-  only on the sysrib/Loc-RIB path (`sysrib.go:1092/1095`), never on the BGP-RIB producer
-  path (`rib_bestchange.go:368` sets a single scalar next-hop). Do not assume the
+  only on the sysrib/Loc-RIB path (`sysrib.go/1095`), never on the BGP-RIB producer
+  path (`rib_bestchange.go` sets a single scalar next-hop). Do not assume the
   cross-process delta carries ECMP.
 
 ## Files

@@ -12,7 +12,7 @@ See also: `/ze-implement` (produces the diff this closes), `/ze-review` (the BLO
 
 ## Delegation
 
-`ai/rules/spec-delegation.md`: the main thread supervises, it does not run this
+`ai/rules/planning.md`: the main thread supervises, it does not run this
 phase itself.
 
 - **If you are the main thread:** spawn an agent to run this skill, hand it the
@@ -23,11 +23,11 @@ phase itself.
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
-  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
   unverified is fabrication with an extra hop. Report the conclusion and the
   evidence that would overturn it, never the search. Under 40 lines
-  (`ai/rules/detail-budget.md`).
+  (`ai/rules/writing.md`).
 
 ## Why this is not part of /ze-implement
 
@@ -40,7 +40,7 @@ in-progress specs, while sections authors added when they needed them were
 untouched in 0%. `plan/TEMPLATE-CLOSURE.md` was split out of `plan/TEMPLATE.md`
 for exactly this reason; this skill is the same fix applied to the instructions.
 
-**Model.** `ai/rules/model-selection.md` puts implementation on Opus 4.8 and
+**Model.** `ai/rules/planning.md` puts implementation on Opus 4.8 and
 "the Review Gate, spec closure, implementation audit" on Opus 5. A single skill
 spanning both forced a phase boundary to be crossed silently mid-file. Announce
 the boundary and let the operator switch before starting this skill.
@@ -102,16 +102,16 @@ still missing, go back: this skill does not implement.
    - If plugins, commands, event types, send types, or capabilities changed, refresh runtime inventory docs from the registry or binary output, not memory.
    - If any existing doc has a `<!-- source: changed/file.go -- ... -->` anchor, re-read that doc claim and update it if stale.
    - Every factual doc update MUST include or update a `<!-- source: path -- symbol -->` anchor immediately after the claim.
-   - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/doctor-checks.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
-   - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, update the matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`, and reconcile `docs/comparison.md` / `docs/features.md` when the support level changes. Per `ai/rules/discovery-updates.md`.
+   - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
+   - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, update the matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`, and reconcile `docs/comparison.md` / `docs/features.md` when the support level changes. Per `ai/rules/repo-maintenance.md`.
    - Write the doc updates, run `make ze-doc-test`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 5. **/ze-review gate (BLOCKING -- the final review before closure):** `/ze-implement`'s inline reviews check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
    - Invoke `/ze-review` on the uncommitted changes. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
    - **Record the machine artifact, not just prose:** `python3 scripts/dev/review_gate.py record --spec <spec> ...`, then `check`. `commit_helper.py` runs that same `check` on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path and the `check` result in the Review Gate table.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by) so the learned summary can carry them forward. NOTEs do not block: record and proceed.
-   - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/diagnosis-before-fix.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
+   - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/completion.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
    - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
-   - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask the user.
+   - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
 6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**
    Precondition: the spec's **Review Gate** section (step 5) shows a final `/ze-review` run with
@@ -128,13 +128,13 @@ still missing, go back: this skill does not implement.
      **Add `--remove plan/deferrals/<spec-stem>.md` ONLY when every row in that
      shard is terminal.** A shard still holding a live row outlives its source
      spec: the row is homed at another spec and the shard is only where it is
-     written down (`ai/rules/deferral-tracking.md`).
+     written down (`ai/rules/planning.md`).
      `deferral_shard_removal_problems` BLOCKS the removal if you get this wrong.
      **Then check the shards your resolutions just emptied.** Setting the last
      live row of a FOREIGN shard to `done` makes that shard residue, and you are
      the actor who removes it: add `--remove plan/deferrals/<that-stem>.md` in the
      same commit. Left for whoever comes next, it is never collected -- 14 such
-     shards existed on 2026-08-03 (`ai/rules/deferral-tracking.md`).
+     shards existed on 2026-08-03 (`ai/rules/planning.md`).
    Running the commit script finishes the work. There is no step 7. The script is the
    final action. Everything below MUST be in that single script.
 
@@ -175,8 +175,8 @@ still missing, go back: this skill does not implement.
 
 ## Rules
 
-- **Diagnosis before fix (BLOCKING).** When a review finding or a red gate appears, write the five-part Diagnosis before editing (`ai/rules/diagnosis-before-fix.md`). It gives the symptom, the root cause as a producing function, the owning layer, two fixes labeled `[workaround]`/`[source]`, and why not the workaround. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix.
-- **No deferred work.** Closure is not a place to discover that something was skipped. If a deliverable is missing, the spec is not ready to close: return to `/ze-implement` and finish it, or raise the scope question with the user (`ai/rules/no-partial-completion.md`).
+- **Diagnosis before fix (BLOCKING).** When a review finding or a red gate appears, write the five-part Diagnosis before editing (`ai/rules/completion.md`). It gives the symptom, the root cause as a producing function, the owning layer, two fixes labeled `[workaround]`/`[source]`, and why not the workaround. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix.
+- **No deferred work.** Closure is not a place to discover that something was skipped. If a deliverable is missing, the spec is not ready to close: return to `/ze-implement` and finish it, or raise the scope question with the user (`ai/rules/completion.md`).
 - **The Review Gate (step 5) is BLOCKING and is not optional.** Step 6 may not prepare the commit script until the spec's **Review Gate** section shows a final `/ze-review` run with 0 BLOCKER and 0 ISSUE.
 - If the spec is missing a **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before it can be closed.
 - Before reporting done, re-read the spec and confirm each item is actually implemented in the code.

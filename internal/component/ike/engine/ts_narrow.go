@@ -263,7 +263,7 @@ func intersectProto(a, b uint8) (uint8, bool) {
 // programmablePair keeps a narrowed pair only when BOTH halves can be programmed
 // exactly.
 //
-// ai/rules/exact-or-reject.md, applied at negotiation time rather than at commit time.
+// ai/rules/protocol.md, applied at negotiation time rather than at commit time.
 // The operator's policy passes ipsec.ValidateTrafficSelectors, but the PEER'S PROPOSAL
 // never does: it is attacker-controlled and arrives long after commit. A proposal Ze
 // answers but cannot program would put one set of selectors on the wire and a different
@@ -576,7 +576,7 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 	iSels := wireToSelectors(tsi.TrafficSelectors)
 	rSels := wireToSelectors(tsr.TrafficSelectors)
-	// A GUARD MUST DENY OR SAY SOMETHING (ai/rules/fail-closed-guards.md). Both exits
+	// A GUARD MUST DENY OR SAY SOMETHING (ai/rules/evidence.md). Both exits
 	// below used to `return nil`, which skipped checkAnswerWithin AND left
 	// NegotiatedPairs unset: the answer was neither checked nor adopted, and the caller
 	// read success. The SA then went up with no negotiated selector at all, and the
@@ -586,7 +586,7 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 	// Refusing is the conformant answer, not merely the safe one. RFC 7296 Section 2.9
 	// gives the responder one legal move, to narrow, and an answer this node cannot read
 	// or cannot program is not a narrowing it can adopt. Installing the proposal instead
-	// would program traffic the responder never agreed to (ai/rules/exact-or-reject.md).
+	// would program traffic the responder never agreed to (ai/rules/protocol.md).
 	if len(iSels) == 0 || len(rSels) == 0 {
 		return fmt.Errorf("%w: the responder answered with %d TSi and %d TSr selectors this node could not decode",
 			errTSUnusable, len(iSels), len(rSels))
@@ -619,7 +619,7 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 //
 // An EMPTY ceiling permits everything and is not a refusal: it is the wildcard proposal and
 // the unconfigured policy, both of which mean "no constraint". Every non-empty ceiling is
-// absolute (ai/rules/fail-closed-guards.md: a pair matching nothing is refused, never
+// absolute (ai/rules/evidence.md: a pair matching nothing is refused, never
 // admitted by default).
 func checkAnswerWithin(answer, ceiling []tsPair, what string) error {
 	if len(ceiling) == 0 {

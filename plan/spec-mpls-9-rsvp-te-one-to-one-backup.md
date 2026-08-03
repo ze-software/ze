@@ -74,7 +74,7 @@ per-protected-LSP detour LSP signaling, and detour **merging** (RFC 4090 Section
   to tear-down on failure. One-to-one adds per-LSP detour signaling and the DETOUR
   object codec (`ClassDetour` currently has no codec/caller).
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Config: a tunnel with `fast-reroute { backup one-to-one }`.

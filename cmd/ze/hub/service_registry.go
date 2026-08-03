@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 //
 // Construction registry for optional, compile-out-able daemon services. A
 // feature registers a ServiceFactory from an init() guarded by its

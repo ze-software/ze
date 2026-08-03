@@ -30,7 +30,7 @@ import (
 // The ambiguity is a reason to report the outcome honestly, not a reason to stay
 // silent. Either way the Child SA carries no ESP. createFirstChildSA therefore
 // records ESPInstalled false and the peer reports degraded rather than up
-// (ai/rules/fail-closed-guards.md). The tolerance survives, because a platform with
+// (ai/rules/evidence.md). The tolerance survives, because a platform with
 // no XFRM must still run the control plane. The false "everything is fine" does not.
 func isXFRMUnsupported(err error) bool {
 	if errors.Is(err, dataplane.ErrNotSupported) {
@@ -302,7 +302,7 @@ func createFirstChildSA(
 //
 // The message names the consequence rather than the platform. The errno cannot tell
 // a kernel with no XFRM from a kernel that refused this state. An operator acts on
-// the same fact in both cases (ai/rules/error-messages.md).
+// the same fact in both cases (ai/rules/cli.md).
 func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 	child.ESPInstalled = false
 	log.Warn("child-sa: dataplane refused the ESP state, tunnel is degraded and carries no encrypted traffic",

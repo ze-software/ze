@@ -41,7 +41,7 @@ const eapTLSMaxReassembly = 65536
 // looks like: runTLSServer returns, and every later feed is pure accumulation.
 // EAP-TLS runs before the peer is authenticated, so those octets come from an
 // unauthenticated party and the refusal must be an error rather than more memory
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 const eapTLSMaxPeerBuffered = 2 * eapTLSMaxReassembly
 
 // tlsFragmenter holds fragmentation and reassembly state shared by
@@ -98,7 +98,7 @@ func (f *tlsFragmenter) reassemble(typeData []byte) error {
 		// never set L left inExpected at 0, skipped the check, and grew this
 		// buffer without any limit. EAP-TLS runs before the peer is
 		// authenticated, so the octets arrive from an unauthenticated party
-		// (ai/rules/fail-closed-guards.md). Checking after the append would
+		// (ai/rules/evidence.md). Checking after the append would
 		// still let each fragment overshoot by its own length.
 		grown := len(f.inBuf) + len(typeData) - off
 		if grown > eapTLSMaxReassembly {
@@ -119,7 +119,7 @@ func (f *tlsFragmenter) reassemble(typeData []byte) error {
 // that says only "I have stopped sending", never "you have it all". Feeding a
 // short buffer to crypto/tls produces the opaque "local error: tls: error
 // decoding message" several layers away from the cause, so the caller checks
-// this before it drains (ai/rules/fail-closed-guards.md).
+// this before it drains (ai/rules/evidence.md).
 //
 // A message that declared no length has nothing to check against and is
 // reported complete: RFC 5216 Section 2.1.5 requires the L flag only when a
@@ -215,7 +215,7 @@ var eapTLSTypeCode = []byte{TypeTLS}
 // all-zero MSK is a valid-looking answer the caller cannot tell from a real key:
 // ze would compute its IKEv2 AUTH payload (RFC 7296 Section 2.16) over 64 zero
 // octets, and two ends that both failed this way would agree on zeros and
-// authenticate nothing (ai/rules/fail-closed-guards.md).
+// authenticate nothing (ai/rules/evidence.md).
 func exportEAPTLSMSK(cs tls.ConnectionState) ([64]byte, error) {
 	var msk [64]byte
 	if !cs.HandshakeComplete {
@@ -510,7 +510,7 @@ func (m *tlsMethod) runTLSServer() {
 // RFC 5216 MSK, the two keys disagree, and the IKEv2 AUTH payload built from them
 // (RFC 7296 Section 2.16) fails to verify with no usable reason. A locally
 // invented key is indistinguishable from a real one at the call site, which is
-// what makes it dangerous (ai/rules/fail-closed-guards.md).
+// what makes it dangerous (ai/rules/evidence.md).
 func (m *tlsMethod) deriveMSK() ([64]byte, error) {
 	if m.conn == nil {
 		return [64]byte{}, errors.New("eap-tls: no TLS connection to derive the MSK from")
@@ -582,7 +582,7 @@ func newEAPTLSTransport() *eapTLSTransport {
 // The caller MUST report that error and end the exchange: an engine that has
 // stopped reading never drains what is already queued, so continuing would
 // accumulate whatever an unauthenticated peer chooses to send
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func (t *eapTLSTransport) feedPeerData(data []byte) error {
 	t.mu.Lock()
 	// Check BEFORE the append, so the refused message is never held at all.
@@ -608,7 +608,7 @@ func (t *eapTLSTransport) feedPeerData(data []byte) error {
 // finished flight, and its return value cannot tell the two apart: both can be
 // empty. A caller that does not read this therefore treats "the handshake was
 // rejected" as "the engine produced nothing this round" and answers with a bare
-// fragment ACK forever (ai/rules/fail-closed-guards.md). This mirrors the peer
+// fragment ACK forever (ai/rules/evidence.md). This mirrors the peer
 // side, which keeps the same error in PeerSession.tlsErr and reports it from
 // deriveTLSMSK.
 func (t *eapTLSTransport) handshakeError() error {

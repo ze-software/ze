@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_gnmi compile-out seam
+// Design: ai/rules/plugins.md -- ze_gnmi compile-out seam
 //
 // The gNMI side of the compile-out seam (see gnmi_infra.go). This file is the
 // only hub code that imports internal/component/gnmi; absent ze_gnmi, the seam

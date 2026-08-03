@@ -362,7 +362,7 @@ func TestJSONEncoderNotification(t *testing.T) {
 	assert.Equal(t, float64(2), payload["subcode"])
 	assert.NotEmpty(t, payload["data"], "data field must be present")
 
-	// Human-readable names (hyphenated per json-format.md)
+	// Human-readable names (hyphenated per cli.md)
 	assert.Equal(t, "Cease", payload["code-name"])
 	assert.Equal(t, "Administrative Shutdown", payload["subcode-name"])
 }

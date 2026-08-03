@@ -720,11 +720,11 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 // state this branch runs in. Reading that 0 raw makes `PeerAS > LocalAS` false
 // against any real LocalAS, so the tie-break silently always preserved the local
 // connection -- the zero value selecting a valid-looking answer
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 //
 // This is the same fallback validateOpenIdentifier applies one function away
 // (session_open_validation.go); that call site was fixed and this sibling was
-// missed (ai/rules/before-writing-code.md, Sibling Call-Site Audit).
+// missed (ai/rules/architecture.md, Sibling Call-Site Audit).
 //
 // Both colliding connections belong to the SAME peer, so the OPEN already
 // received on this connection carries the AS that the pending connection would
@@ -788,7 +788,7 @@ func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subc
 	if err := s.sendNotification(conn, code, subcode, data); err != nil {
 		// Same rendering as the success WARN in session_write.go: the line an operator
 		// reads when the NOTIFICATION could NOT be sent must not be the less readable of
-		// the two (ai/rules/error-messages.md).
+		// the two (ai/rules/cli.md).
 		sessionLogger().Debug("notification send failed",
 			"peer", s.settings.Address,
 			"code", code, "subcode", notifySubcodeValue(code, subcode),

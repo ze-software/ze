@@ -28,17 +28,17 @@ can run today.
 ### Ze is CONFORMANT-AS-BOUNDED today. This spec raises a platform limit
 
 **This is not a record of an outstanding violation.** Both obligations are landed and
-gated. `RFC7296-2.23-10` (`rfc/short/rfc7296.md:509`) and `RFC7296-2.23-11` (`:510`) each
+gated. `RFC7296-2.23-10` (`rfc/short/rfc7296.md`) and `RFC7296-2.23-11` each
 carry a tagged positive and a tagged negative test in
 `internal/component/ike/engine/rfc7296_natt_bothforms_test.go`. Neither is a `{gap}` and
 neither is a `partial`.
 
-Ze receives both forms ACROSS its Child SAs. `TestBfmBothESPFormsAreReachable` (`:108`)
+Ze receives both forms ACROSS its Child SAs. `TestBfmBothESPFormsAreReachable`
 asserts that both forms are actually programmed across the three combinations of NAT
 verdict and port. Ze cannot receive both forms WITHIN one Child SA, and
-`TestBfmOneFormPerChildSA` (`:145`) pins that boundary as a property the code has.
+`TestBfmOneFormPerChildSA` pins that boundary as a property the code has.
 
-The limit is disclosed. `docs/features/rfc-status.md:229` states it in the Remaining
+The limit is disclosed. `docs/features/rfc-status.md` states it in the Remaining
 column and names the measurement behind it.
 
 ### What a peer must do to expose the limit
@@ -59,7 +59,7 @@ decides whether this spec is urgent or theoretical.
 
 Thomas ruled on 2026-08-01, in two steps, on the two held rows of
 `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. The open owner question was OR-WP8-4
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1548`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 **Step one.** Land both rows in the pilot with tags that record a measured platform limit,
 rather than annotate either as a gap. That step is complete.
@@ -78,13 +78,13 @@ a landed, gated, disclosed limit still gets a spec.
 | `RFC7296-2.23-11` | MUST | `Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected` | `rfc/full/rfc7296.txt:3624-3625` |
 
 **The antecedent of `-2.23-10` is TRUE for Ze, so the MUST binds.** Ze emits
-`NAT_DETECTION_SOURCE_IP` in its IKE_SA_INIT (`internal/component/ike/engine/initiator.go:129`)
-and consumes the peer's (`responder.go:351`, `fsm.go:483`). NAT-T is supported, so the
+`NAT_DETECTION_SOURCE_IP` in its IKE_SA_INIT (`internal/component/ike/engine/initiator.go`)
+and consumes the peer's (`responder.go`, `fsm.go`). NAT-T is supported, so the
 conditional is satisfied and the obligation is live.
 
 **Two neighbouring sentences bound the problem.** Either side decides on encapsulation
 without regard to the other side's choice (`rfc/full/rfc7296.txt:3548-3550`). Both devices
-must use encapsulation when a NAT is detected (`:3550-3551`). The second sentence is why
+must use encapsulation when a NAT is detected. The second sentence is why
 the alternating case needs a NAT-free path.
 
 The `(§2.23)` citation on each row is load-bearing. `parse_checklist_line`
@@ -107,41 +107,41 @@ two of the owner's ruling rejected permanence.
 
 **Route A is the leading candidate, and the probe already supports half of it.**
 `TestEncapKernelBindsOneESPFormPerState` measures that a template-free inbound state
-ACCEPTS bare ESP (`encap_integration_linux_test.go:210`). If userspace can present every
+ACCEPTS bare ESP (`encap_integration_linux_test.go`). If userspace can present every
 inbound ESP datagram in bare form, one template-free state serves both wire forms. Ze
 already reads port 4500 in userspace and discards every datagram that is not IKE
-(`internal/component/ike/engine/register.go:531`, `:544-547`), so the read side exists.
+(`internal/component/ike/engine/register.go`, `:544-547`), so the read side exists.
 That is a hypothesis with a named test, and it is not a finding.
 
 **Route C is bounded by a fact, not by a wait.** The appliance ships Linux 6.19.11
 (`gokrazy/modcache/github.com/rtr7/kernel@v0.0.0-20260403073601-5a996da3a37b/_build/upstream-url.txt`,
-with `CONFIG_XFRM_USER=y` at `_build/config.addendum.txt:36`). The measurement was taken
+with `CONFIG_XFRM_USER=y` at `_build/config.addendum.txt`). The measurement was taken
 against a real kernel. Waiting for a newer kernel is not a route, because Ze already runs
 a current one. Answer route C by reading the 6.19.11 receive path, and record the answer.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/design-context.md` - both dataplanes
+- [ ] `ai/rules/architecture.md` - both dataplanes
   → Constraint: a netlink-only capability creates drift. The VPP backend needs the
     capability or an explicit refusal in the same work.
-- [ ] `ai/rules/qemu-testing.md` - Linux-only code needs QEMU coverage
+- [ ] `ai/rules/platform-linux.md` - Linux-only code needs QEMU coverage
   → Constraint: the receive path is `//go:build linux`, so it needs a QEMU integration
     test. A virtual substitute is mandatory, and "needs hardware" is never an answer.
-- [ ] `ai/rules/exact-or-reject.md` - backend translation honesty
+- [ ] `ai/rules/protocol.md` - backend translation honesty
   → Constraint: a backend that cannot receive the form the operator's peer sends must say
     so, and never approximate.
-- [ ] `ai/rules/memory-architecture.md` - a userspace receive path is a hot path
+- [ ] `ai/rules/performance.md` - a userspace receive path is a hot path
   → Constraint: route A puts every encapsulated ESP datagram through userspace. The
     buffer comes from a pool, and the copy count is the design question.
-- [ ] `ai/rules/no-parking.md` - the owner's step two
+- [ ] `ai/rules/completion.md` - the owner's step two
   → Constraint: a recorded limit is not an addressed limit. This spec exists to close one.
 - [ ] `plan/spec-fixit-vpp-ipsec-inoperable.md` - the VPP backend's real state
   → Constraint: route B is gated behind this spec. Its AC-7 says nothing runs Ze's IPsec
     against a real VPP today.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc7296.md` - IKEv2. Rows `-2.23-10` (`:509`) and `-2.23-11` (`:510`)
+- [ ] `rfc/short/rfc7296.md` - IKEv2. Rows `-2.23-10` and `-2.23-11`
   → Constraint: port 4500 is reserved for UDP-encapsulated ESP and IKE, and UDP
     encapsulation is forbidden on port 500 (`rfc/full/rfc7296.txt:3535`, `:3544`).
   → Constraint: sending encapsulated ESP is optional on port 4500, and understanding
@@ -159,48 +159,48 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (verified in the working tree on 2026-08-01)
-- [ ] `internal/component/ike/dataplane/encap_integration_linux_test.go:195` -
+- [ ] `internal/component/ike/dataplane/encap_integration_linux_test.go` -
   `TestEncapKernelBindsOneESPFormPerState`, the measurement. It installs TWO states on TWO
-  different SPIs, one with an ESP-in-UDP template and one without (`:198-199`). It then
-  asserts a four-row truth table (`:210-213`). A template-free state accepts bare ESP and
+  different SPIs, one with an ESP-in-UDP template and one without. It then
+  asserts a four-row truth table. A template-free state accepts bare ESP and
   refuses encapsulated ESP. A state with a template does the reverse. A fifth assertion
   (`:225`) is the discriminator: an SPI with no state raises a THIRD counter, so the four
   rows are real readings.
-- [ ] `internal/component/ike/dataplane/encap_integration_linux_test.go:189-191` - the
+- [ ] `internal/component/ike/dataplane/encap_integration_linux_test.go` - the
   claim that two states on ONE SPI do not help is stated in the doc comment. **No test case
   installs two states on one SPI.** The file's own cases use two distinct SPIs. See A-1.
-- [ ] `internal/component/ike/engine/child.go:249` - the encapsulation decision, one
+- [ ] `internal/component/ike/engine/child.go` - the encapsulation decision, one
   expression: `sa.NATDetected || sa.localPort == transport.NATTPort`. It is a DISJUNCTION.
   The port term is an added signal, and it did not replace the NAT verdict. See A-2.
-- [ ] `internal/component/ike/engine/child.go:340-347` - the `MEASURED KERNEL CONSTRAINT`
+- [ ] `internal/component/ike/engine/child.go` - the `MEASURED KERNEL CONSTRAINT`
   comment, which names the probe.
-- [ ] `internal/component/ike/engine/child.go:348-352` and `:376-380` - `installChildSA`
+- [ ] `internal/component/ike/engine/child.go` and `:376-380` - `installChildSA`
   applies the one boolean to the inbound state and the outbound state together. Both use
   `transport.NATTPort` for both ports.
-- [ ] `internal/component/ike/dataplane/xfrm_linux.go:78-85` - the only place a template is
+- [ ] `internal/component/ike/dataplane/xfrm_linux.go` - the only place a template is
   built. `state.Encap` stays nil when `p.UDPEncap` is false.
-- [ ] `internal/component/ike/dataplane/dataplane.go:202-205` - `SAParams` carries
+- [ ] `internal/component/ike/dataplane/dataplane.go` - `SAParams` carries
   `UDPEncap`, `UDPEncapSPort` and `UDPEncapDPort`.
-- [ ] `internal/component/ike/dataplane/dataplane.go:293-306` - the `Dataplane` interface.
+- [ ] `internal/component/ike/dataplane/dataplane.go` - the `Dataplane` interface.
   Seven methods, all installation, removal or listing. **No receive method exists**, so a
   userspace receive path is a new seam and not a new backend.
-- [ ] `internal/component/ike/transport/encap_linux.go:36` - `EnableESPInUDP` sets
-  `UDP_ENCAP_ESPINUDP` (`:46`). `internal/component/ike/transport/encap_other.go:27`
+- [ ] `internal/component/ike/transport/encap_linux.go` - `EnableESPInUDP` sets
+  `UDP_ENCAP_ESPINUDP`. `internal/component/ike/transport/encap_other.go`
   refuses on every other platform.
-- [ ] `internal/component/ike/engine/register.go:401` - the socket option is applied to the
+- [ ] `internal/component/ike/engine/register.go` - the socket option is applied to the
   port-4500 socket only. Nothing sets it on the port-500 socket.
-- [ ] `internal/component/ike/engine/register.go:531` - `dispatchNATTInbound` reads port
-  4500 in userspace and drops every datagram that is not IKE (`:544-547`).
-- [ ] `internal/component/ike/engine/udpencap.go:79` - `checkIPsecUDPEncap` reads a cached
-  atomic written at listener build time (`register.go:402`, `:407`). It never reads the
-  live socket. `ESPInUDPEnabled` (`transport/encap_linux.go:58`) has no production caller.
-- [ ] `internal/component/ike/dataplane/vpp.go:94-95` - the VPP backend hardcodes
+- [ ] `internal/component/ike/engine/register.go` - `dispatchNATTInbound` reads port
+  4500 in userspace and drops every datagram that is not IKE.
+- [ ] `internal/component/ike/engine/udpencap.go` - `checkIPsecUDPEncap` reads a cached
+  atomic written at listener build time (`register.go`, `:407`). It never reads the
+  live socket. `ESPInUDPEnabled` (`transport/encap_linux.go`) has no production caller.
+- [ ] `internal/component/ike/dataplane/vpp.go` - the VPP backend hardcodes
   `UDPSrcPort: 0, UDPDstPort: 0` and never reads `p.UDPEncap`. Its hand-rolled
-  `ipsecSAEntry` (`:206-220`) has NO flags field, so the VPP UDP-encap flag cannot be sent.
-- [ ] `internal/component/ike/dataplane/vpp.go:228` - every message declares CRC
+  `ipsecSAEntry` has NO flags field, so the VPP UDP-encap flag cannot be sent.
+- [ ] `internal/component/ike/dataplane/vpp.go` - every message declares CRC
   `"00000000"` (also `:237`, `:257`, `:266`), so GoVPP refuses each one at identifier
   resolution and the backend installs nothing.
-- [ ] `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go:37-38` - `EncapType` has
+- [ ] `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go` - `EncapType` has
   exactly two values, both meaning a template is present. **There is no wildcard value**,
   so a single state cannot declare that it accepts either form.
 
@@ -216,7 +216,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 **Behavior to change:**
 - One established Child SA accepts BOTH ESP forms, rather than one.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - An inbound ESP datagram arrives from the peer, in one of two wire forms.
@@ -228,7 +228,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 1. The kernel routes the datagram by IP protocol. Protocol 50 goes straight to the XFRM
    receive path. Protocol 17 to port 4500 goes to the socket Ze holds.
 2. The port-4500 socket carries `UDP_ENCAP_ESPINUDP` today
-   (`transport/encap_linux.go:46`, applied at `engine/register.go:401`), so the kernel
+   (`transport/encap_linux.go`, applied at `engine/register.go`), so the kernel
    strips the UDP header and hands the ESP bytes to the XFRM receive path with an
    encapsulation type set.
 3. XFRM looks the state up by destination, SPI, protocol and family. The lookup ignores the
@@ -243,17 +243,17 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 |----------|-----|----------|
 | Wire ↔ kernel | IP protocol 50, or UDP port 4500 | No |
 | Kernel ↔ userspace | `UDP_ENCAP` socket option today. Route A replaces it with a userspace read | No |
-| Engine ↔ dataplane | `dataplane.SAParams`, installation only (`dataplane.go:293-306`) | No |
-| Engine ↔ transport | `transport.EnableESPInUDP` (`encap_linux.go:36`) | No |
+| Engine ↔ dataplane | `dataplane.SAParams`, installation only (`dataplane.go`) | No |
+| Engine ↔ transport | `transport.EnableESPInUDP` (`encap_linux.go`) | No |
 
 ### Integration Points
-- `installChildSA` (`internal/component/ike/engine/child.go:285`) - the one producer of
+- `installChildSA` (`internal/component/ike/engine/child.go`) - the one producer of
   inbound state parameters.
-- `createFirstChildSA` (`child.go:154`) - the one place the encapsulation boolean is
+- `createFirstChildSA` (`child.go`) - the one place the encapsulation boolean is
   decided, at `:249`.
-- `rekey.go:362` - a rekey INHERITS the old encapsulation rather than recomputing it, so a
+- `rekey.go` - a rekey INHERITS the old encapsulation rather than recomputing it, so a
   route that changes the decision must revisit the rekey path.
-- `dispatchNATTInbound` (`engine/register.go:531`) - the existing userspace reader on port
+- `dispatchNATTInbound` (`engine/register.go`) - the existing userspace reader on port
   4500, and route A's insertion point.
 
 ### Architectural Verification
@@ -263,20 +263,20 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugin-self-containment.md`) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Two XFRM states on ONE SPI do not let both forms through | Asserted in prose at `encap_integration_linux_test.go:189-191` and `child.go:345-346`. **No test case installs two states on one SPI.** The probe uses two distinct SPIs (`:198-199`) | A cheap route exists that nobody costed, and route A is unnecessary | Extend the probe with a two-states-on-one-SPI case. Phase 1 | **confirmed** (2026-08-02), and the REASONED mechanism was wrong |
-| A-2 | The encapsulation decision reads the NAT verdict as well as the port | `child.go:249` is `sa.NATDetected \|\| sa.localPort == transport.NATTPort`, a disjunction. The comment at `child.go:329-330` says the port replaces the verdict, which OVERSTATES the code | Prose in the pilot spec, the rfc-status row and this spec describe code that does not exist | Read `child.go:249`. The spec author did this on 2026-08-01 | **confirmed** (2026-08-01) |
-| A-3 | Re-injected bare ESP reaches the same XFRM state as a natively bare datagram | Not established. The probe sends bare ESP from a raw socket (`encap_integration_linux_test.go:149`) and it is accepted, but it never re-injects a stripped datagram | Route A fails and the leading candidate is gone | Extend the probe: strip a UDP-encapsulated datagram in userspace, re-inject, assert the template-free state accepts it. Phase 1 | **confirmed** (2026-08-02) |
+| A-1 | Two XFRM states on ONE SPI do not let both forms through | Asserted in prose at `encap_integration_linux_test.go` and `child.go`. **No test case installs two states on one SPI.** The probe uses two distinct SPIs | A cheap route exists that nobody costed, and route A is unnecessary | Extend the probe with a two-states-on-one-SPI case. Phase 1 | **confirmed** (2026-08-02), and the REASONED mechanism was wrong |
+| A-2 | The encapsulation decision reads the NAT verdict as well as the port | `child.go` is `sa.NATDetected \|\| sa.localPort == transport.NATTPort`, a disjunction. The comment at `child.go` says the port replaces the verdict, which OVERSTATES the code | Prose in the pilot spec, the rfc-status row and this spec describe code that does not exist | Read `child.go`. The spec author did this on 2026-08-01 | **confirmed** (2026-08-01) |
+| A-3 | Re-injected bare ESP reaches the same XFRM state as a natively bare datagram | Not established. The probe sends bare ESP from a raw socket (`encap_integration_linux_test.go`) and it is accepted, but it never re-injects a stripped datagram | Route A fails and the leading candidate is gone | Extend the probe: strip a UDP-encapsulated datagram in userspace, re-inject, assert the template-free state accepts it. Phase 1 | **confirmed** (2026-08-02) |
 | A-4 | A real peer changes ESP form on an established SA | Not established. RFC 7296 permits it (`rfc/full/rfc7296.txt:3548-3550`). No interop scenario exercises it, and no scenario sets any encapsulation option | The work is theoretical, and its priority drops. It does NOT become unnecessary, because the MUST binds regardless | Drive strongSwan through a form change on one SA. Phase 1 | **confirmed**, and it is NOT the forcing case |
 | A-7 | One netns probe per test BINARY is all the harness supports | Discovered 2026-08-02. Every `encapNetns` test passes alone. Run together, the FIRST passes and every later one reads a namespace where its packets never reach XFRM, so no counter moves | The QEMU integration target goes red whenever the package holds more than one namespace probe, and the failure reads as a product defect rather than a harness one | Run the pre-existing probe with `-count=2` in one process. Phase 1 | see Phase 1 Evidence |
 | A-5 | Linux 6.19.11 has no encapsulation-aware state lookup | Not established. The appliance ships 6.19.11 (`_build/upstream-url.txt`) and the probe measures a mismatch. The probe ran on the QEMU Alpine kernel, and not on the appliance kernel | Route C is the cheapest answer and the other three are unnecessary | Read the 6.19.11 XFRM receive path, then rerun the probe on the appliance kernel. Phase 1 | **confirmed** (2026-08-02) |
-| A-6 | VPP's inbound SA lookup is encapsulation-aware | Not established in-repo. VPP carries `IPSEC_API_SAD_FLAG_UDP_ENCAP = 16` and a per-entry UDP port pair (`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go:182`), which says the flag exists and not what the lookup does | Route B cannot deliver the capability either, and the drift argument changes | Read VPP's own C source for the ESP receive node. Phase 1 | **confirmed** (2026-08-02), by the opposite mechanism to the one the wording expects |
+| A-6 | VPP's inbound SA lookup is encapsulation-aware | Not established in-repo. VPP carries `IPSEC_API_SAD_FLAG_UDP_ENCAP = 16` and a per-entry UDP port pair (`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go`), which says the flag exists and not what the lookup does | Route B cannot deliver the capability either, and the drift argument changes | Read VPP's own C source for the ESP receive node. Phase 1 | **confirmed** (2026-08-02), by the opposite mechanism to the one the wording expects |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -311,7 +311,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | AC-2 | The SAME inbound state for the SAME SPI, and a UDP-encapsulated ESP datagram | The datagram reaches the crypto check. No `XfrmInStateMismatch` is raised |
 | AC-3 | An SPI with no state at all | `XfrmInNoStates` is raised, so AC-1 and AC-2 are real readings and not a counter that never moves |
 | AC-4 | An established Child SA, and the peer changes ESP form | Traffic keeps flowing in both directions. The SA is not rekeyed and not deleted |
-| AC-5 | The VPP dataplane is selected and cannot receive both forms | `ze config verify` fails with an error naming the backend and the unsupported capability, per `ai/rules/exact-or-reject.md` |
+| AC-5 | The VPP dataplane is selected and cannot receive both forms | `ze config verify` fails with an error naming the backend and the unsupported capability, per `ai/rules/protocol.md` |
 | AC-6 | Phase 1 completes | Every assumption A-1 to A-6 is `confirmed` or `broken`, each with a named command or test |
 | AC-7 | The route is chosen | The Key Design Decisions table records the chosen route and each rejected route, with its measured cost |
 
@@ -329,7 +329,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestChildSAAcceptsBothESPForms` | `internal/component/ike/engine/child_test.go` | An installed Child SA declares both forms permitted | |
-| `TestRekeyInheritsBothFormAcceptance` | `internal/component/ike/engine/rekey_test.go` | A rekey does not narrow the SA back to one form (`rekey.go:362`) | |
+| `TestRekeyInheritsBothFormAcceptance` | `internal/component/ike/engine/rekey_test.go` | A rekey does not narrow the SA back to one form (`rekey.go`) | |
 | `TestVPPRejectsDualFormWhenUnsupported` | `internal/component/ike/dataplane/vpp_test.go` | The VPP backend fails closed rather than reporting success | |
 
 ### Boundary Tests (numeric inputs)
@@ -346,12 +346,12 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | `ipsec-esp-form-change` | `test/ipsec/ipsec-esp-form-change.ci` | The peer changes form on an established SA, and traffic keeps flowing | |
 | `ipsec-esp-form-vpp-reject` | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | An operator selects VPP and gets a clear refusal | |
 
-The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk:192` and `:217`), so a
+The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk` and `:217`), so a
 `.ci` there earns a verify tier.
 
 ### QEMU Integration Tests
 
-**Mandatory.** The receive path is `//go:build linux`, and `ai/rules/qemu-testing.md` makes
+**Mandatory.** The receive path is `//go:build linux`, and `ai/rules/platform-linux.md` makes
 a QEMU test blocking for such code.
 
 | Test | Package | Validates | Status |
@@ -364,7 +364,7 @@ a QEMU test blocking for such code.
 flips exactly one row of the truth table.
 
 1. Install ONE inbound state for ONE SPI, in a fresh network namespace (`encapNetns`,
-   `encap_integration_linux_test.go:36`).
+   `encap_integration_linux_test.go`).
 2. Send a bare ESP datagram for that SPI. Assert the kernel raises
    `XfrmInStateProtoError`, which means the state matched and the payload reached the
    crypto check.
@@ -375,12 +375,12 @@ flips exactly one row of the truth table.
    Assert `XfrmInNoStates`. Without this control the two rows above prove nothing.
 5. Keep one goroutine and no subtests. `runtime.LockOSThread` binds the namespace to the
    thread, and a subtest gets a different thread that reads the HOST namespace
-   (`encap_integration_linux_test.go:201-203`).
+   (`encap_integration_linux_test.go`).
 
 **The probe's package is already selected automatically.** `ZE_QEMU_INTEGRATION_PKGS`
-(`mk/test-integration.mk:523`) greps for the `integration && linux` build tag, so the file
+(`mk/test-integration.mk`) greps for the `integration && linux` build tag, so the file
 needs no Makefile edit. **Nothing runs that target automatically**
-(`ai/rules/qemu-testing.md`), so phase 1 must run it by hand and paste the output.
+(`ai/rules/platform-linux.md`), so phase 1 must run it by hand and paste the output.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -397,17 +397,17 @@ No existing scenario sets any encapsulation option, and no scenario directory ma
 `*nat*`. Both scenarios are new.
 
 ## Files to Modify
-- `internal/component/ike/engine/child.go` - the encapsulation decision (`:249`) and the
-  inbound and outbound programming (`:348-352`, `:376-380`)
-- `internal/component/ike/engine/register.go` - the port-4500 reader (`:531`) and the
-  socket option site (`:401`), for route A
-- `internal/component/ike/dataplane/dataplane.go` - the `Dataplane` seam (`:293-306`), if
+- `internal/component/ike/engine/child.go` - the encapsulation decision and the
+  inbound and outbound programming
+- `internal/component/ike/engine/register.go` - the port-4500 reader and the
+  socket option site, for route A
+- `internal/component/ike/dataplane/dataplane.go` - the `Dataplane` seam, if
   the chosen route needs a receive method
-- `internal/component/ike/dataplane/xfrm_linux.go` - the template decision (`:78-85`)
-- `internal/component/ike/transport/encap_linux.go` - `EnableESPInUDP` (`:36`), if route A
+- `internal/component/ike/dataplane/xfrm_linux.go` - the template decision
+- `internal/component/ike/transport/encap_linux.go` - `EnableESPInUDP`, if route A
   stops using the socket option
-- `internal/component/ike/engine/rekey.go` - the inherited encapsulation (`:362`)
-- `docs/features/rfc-status.md` - RFC 7296, its Remaining column (`:229`), when the limit
+- `internal/component/ike/engine/rekey.go` - the inherited encapsulation
+- `docs/features/rfc-status.md` - RFC 7296, its Remaining column, when the limit
   lifts
 
 ## Files to Create
@@ -418,16 +418,16 @@ No existing scenario sets any encapsulation option, and no scenario directory ma
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
 | YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
 | CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli-grammar.md` |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
 | Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/pipe-completeness.md` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | Yes | `doctor-ipsec-udp-encap` (`internal/component/ike/engine/udpencap.go:79`) reports a cached setsockopt outcome. A route that stops using the socket option makes that check report on a mechanism Ze no longer uses. Revisit the check and its diagnostic code |
+| Doctor check for runtime dependencies | Yes | `doctor-ipsec-udp-encap` (`internal/component/ike/engine/udpencap.go`) reports a cached setsockopt outcome. A route that stops using the socket option makes that check report on a mechanism Ze no longer uses. Revisit the check and its diagnostic code |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | N-A | This is IPsec, not BGP |
 
@@ -441,8 +441,8 @@ No existing scenario sets any encapsulation option, and no scenario directory ma
 | 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7296.md` rows `:509` and `:510`, and the `docs/features/rfc-status.md:229` Remaining column, which today discloses the limit this spec lifts |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7296.md` rows `:509` and `:510`, and the `docs/features/rfc-status.md` Remaining column, which today discloses the limit this spec lifts |
 | 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | | `docs/comparison.md` |
 | 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
@@ -492,12 +492,12 @@ choice. Phase 2 is the wiring phase the template asks for.
 | Feature completeness | Every user story has a working path, no broken links |
 | Correctness | The dual-form QEMU test raises `XfrmInStateProtoError` on BOTH rows, and the no-state control still raises `XfrmInNoStates`. Without the control the test proves nothing |
 | Correctness | A form change does not rekey, does not delete, and does not reset the replay window |
-| Naming | The new seam is named for what it does, and not for the kernel mechanism behind it (`ai/rules/naming.md`) |
+| Naming | The new seam is named for what it does, and not for the kernel mechanism behind it (`ai/rules/go-standards.md`) |
 | Data flow | The cryptography stays in XFRM. A route that moves decryption into userspace is a different spec |
 | Rule: `ai/rules/testing.md` | The two tagged RFC pairs are edited only with the owner's written approval, recorded in the spec |
-| Rule: `ai/rules/exact-or-reject.md` | A backend that cannot receive both forms refuses at config verify, and never reports success |
-| Rule: `ai/rules/qemu-testing.md` | The QEMU test was RUN, and its output is pasted. The target is not automated |
-| Rule: `ai/rules/no-fabrication.md` | Every claim about kernel or VPP behavior cites source that was read, not a comment that asserts it. A-1 exists because a comment asserted a measurement that no test made |
+| Rule: `ai/rules/protocol.md` | A backend that cannot receive both forms refuses at config verify, and never reports success |
+| Rule: `ai/rules/platform-linux.md` | The QEMU test was RUN, and its output is pasted. The target is not automated |
+| Rule: `ai/rules/evidence.md` | Every claim about kernel or VPP behavior cites source that was read, not a comment that asserts it. A-1 exists because a comment asserted a measurement that no test made |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -514,9 +514,9 @@ choice. Phase 2 is the wiring phase the template asks for.
 |-------|-----------------|
 | Input validation | A userspace path that strips a UDP header must bound the length before it slices. An 8-octet header on a 7-octet datagram is an attacker-supplied read |
 | Anti-replay | The kernel owns the replay window. A route that presents datagrams differently must not let a replayed packet take a second path into the same state |
-| Resource exhaustion | An unauthenticated datagram on port 4500 must not allocate per packet. The buffer comes from a pool (`ai/rules/memory-architecture.md`) |
+| Resource exhaustion | An unauthenticated datagram on port 4500 must not allocate per packet. The buffer comes from a pool (`ai/rules/performance.md`) |
 | Spoofing | Accepting both forms on one state widens what an off-path attacker can inject. The crypto check still rejects it, and the cost of reaching that check must stay bounded |
-| Fail closed | A backend that cannot express dual-form reception refuses, and never installs a state that silently drops (`ai/rules/fail-closed-guards.md`) |
+| Fail closed | A backend that cannot express dual-form reception refuses, and never installs a state that silently drops (`ai/rules/evidence.md`) |
 
 ### Failure Routing
 
@@ -549,7 +549,7 @@ commented "if the peer supports NAT-T, we switch to port 4500 even if no NAT is
 detected". `mobike` defaults to `yes`. `COND_NAT_ANY` stays FALSE, so the ESP form
 stays bare (`child_create.c:1776`).
 
-**Ze's root cause is the second term of `child.go:268`,
+**Ze's root cause is the second term of `child.go`,
 `sa.NATDetected || sa.localPort == transport.NATTPort`.** A port float is a MOBIKE
 artifact. Ze reads it as an encapsulation signal and encapsulates in BOTH directions,
 because `installChildSA` applies that one boolean to the inbound and the outbound state
@@ -562,7 +562,7 @@ together.
 | A. Userspace demultiplex | **VIABLE, and the only one buildable today** | `TestEncapReinjectedBareESPAccepted` re-injected a userspace-read datagram with the peer's source preserved and the template-free state took it: `XfrmInStateProtoError`. The kernel already hands those datagrams to userspace when the socket carries no encap type (`net/ipv4/xfrm4_input.c:91-94`, `if (!encap_type) return 1;`) |
 | B. VPP | **Capable, and blocked** | VPP's inbound lookup is encapsulation-BLIND, keyed on peer address and SPI (`ipsec_tun_in.c` `ipsec_tun_protect_input_inline`, which picks the ESP offset per packet from the wire and then keys `ipsec4_tunnel_mk_key`). `ipsec_tun.c` `ipsec_tun_register_nodes` points proto-50 AND UDP/4500 at the same node unconditionally. So ONE VPP SA takes both forms. Ze cannot use it: `plan/spec-fixit-vpp-ipsec-inoperable.md` establishes the backend installs no SA at all |
 | C. A newer kernel | **CLOSED** | Linux 6.19.11 `net/xfrm/xfrm_input.c:634` is `if ((x->encap ? x->encap->encap_type : 0) != encap_type)`. It is SYMMETRIC, so a template-free state demands `encap_type == 0`. Byte-identical at v6.6 and v6.12. No wildcard encap type exists, and `xfrm_state.c:2233-2237` REFUSES to add, remove, or change an encap template on a live state (`-EINVAL`) |
-| D. No peer does this | **REJECTED, and it answers a different question** | strongSwan DOES change form on a live SA, through `kernel_netlink_ipsec.c` `update_sa`, which deletes and re-adds the state (`:2514`, `:2528`) and restores the replay counter by hand. It is driven by MOBIKE (`ike_mobike.c:543-545`). But the measured red is an ESTABLISHMENT-time disagreement, not a mid-SA change |
+| D. No peer does this | **REJECTED, and it answers a different question** | strongSwan DOES change form on a live SA, through `kernel_netlink_ipsec.c` `update_sa`, which deletes and re-adds the state and restores the replay counter by hand. It is driven by MOBIKE (`ike_mobike.c:543-545`). But the measured red is an ESTABLISHMENT-time disagreement, not a mid-SA change |
 
 ### The kernel limit, now measured rather than reasoned
 
@@ -691,12 +691,12 @@ added when the receiver refuses, rather than stranding one.
 
 ## Design Insights
 
-- **A comment that asserts a measurement is not a measurement.** `child.go:345-346` and
-  `encap_integration_linux_test.go:189-191` both state that two states on one SPI do not
+- **A comment that asserts a measurement is not a measurement.** `child.go` and
+  `encap_integration_linux_test.go` both state that two states on one SPI do not
   help. No test case installs two states on one SPI. A-1 exists because of that gap, and
-  `ai/rules/no-fabrication.md` predicts exactly this failure.
-- **The prose about the encapsulation decision overstates the code.** `child.go:249` reads
-  the NAT verdict AND the port. The comment at `child.go:329-330` says the port replaced
+  `ai/rules/evidence.md` predicts exactly this failure.
+- **The prose about the encapsulation decision overstates the code.** `child.go` reads
+  the NAT verdict AND the port. The comment at `child.go` says the port replaced
   the verdict. Both readings give the same answer today, so nothing is broken, and the
   description is still wrong.
 - **`Dataplane` has no receive method.** Every route that changes reception adds a seam
@@ -709,9 +709,9 @@ added when the receiver refuses, rather than stranding one.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | **Route A is chosen for the receive path** (2026-08-02) | B, C, D, and route E | C is closed by the kernel: the encapsulation check is symmetric, there is no wildcard type, and a live state's template cannot be changed. B is capable but its backend installs nothing and is gated on another spec. D answers a different question, because strongSwan's own float is a MOBIKE artifact and the measured red is at establishment. A is the only route buildable today, and A-3 measured its one unproven mechanism working: a userspace-read datagram re-injected with the peer's source preserved reached the template-free state |
-| **The forcing case needs a SECOND change beside route A** (2026-08-02) | Treat this spec as receive-only | The measured red is ze's SEND form. `child.go:268` treats a port float as an encapsulation signal, so ze encapsulates toward a peer that expects bare. Route A alone fixes what ze ACCEPTS and leaves what ze SENDS wrong, so scenario 07 would stay red. The outbound form must follow the NAT verdict rather than the port |
+| **The forcing case needs a SECOND change beside route A** (2026-08-02) | Treat this spec as receive-only | The measured red is ze's SEND form. `child.go` treats a port float as an encapsulation signal, so ze encapsulates toward a peer that expects bare. Route A alone fixes what ze ACCEPTS and leaves what ze SENDS wrong, so scenario 07 would stay red. The outbound form must follow the NAT verdict rather than the port |
 | Phase 1 is evidence, and it precedes wiring | Start with route A immediately | Four routes are open and none is measured. Committing to a seam before A-1, A-3 and A-5 are answered risks building a seam that a cheaper route makes unnecessary |
-| The spec exists even though Ze is conformant as bounded | Close the question with the landed rows | The owner's step two. A landed limit that nobody owns becomes permanent, and `ai/rules/no-parking.md` names that failure |
+| The spec exists even though Ze is conformant as bounded | Close the question with the landed rows | The owner's step two. A landed limit that nobody owns becomes permanent, and `ai/rules/completion.md` names that failure |
 
 ## Acceptance Criteria status (2026-08-02)
 
@@ -727,7 +727,7 @@ added when the receiver refuses, rather than stranding one.
 
 ## What is NOT done
 
-Stated plainly rather than left to be discovered (`ai/rules/no-partial-completion.md`).
+Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 
 | Item | State |
 |------|-------|
@@ -824,7 +824,7 @@ Plus two bookkeeping items:
 - `ai/RFC-REQUIREMENTS.md` regeneration is still owed after the tagged-test rename.
 - The spec's line anchors are stale: the encapsulation decision and the inbound and outbound
   programming sites have all moved since they were written. Prefer symbol names over line
-  numbers on the next edit (`ai/rules/detail-budget.md`).
+  numbers on the next edit (`ai/rules/writing.md`).
 
 **Until AC-4 has a test, either the test lands or the `rfc-status.md` sentence narrows to
 what is measured.** Leaving a public claim ahead of its evidence is the one thing here that

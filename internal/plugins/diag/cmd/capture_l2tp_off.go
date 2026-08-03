@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp-off capture stub
+// Design: ai/rules/plugins.md -- ze_l2tp-off capture stub
 // Related: capture_l2tp.go -- the real l2tp branch (ze_l2tp builds)
 
 //go:build !ze_l2tp

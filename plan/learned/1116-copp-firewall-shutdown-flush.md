@@ -70,7 +70,7 @@ caught by unit tests, all in the copp -> firewall-registry -> nft path.
   if a `firewall` section is present; a copp-only config leaves the package
   default (true), which is why copp-withdraw passes with no firewall block.
 - **`events.Event.Emit` returns the count of OUT-OF-PROCESS (RPC) subscribers
-  only, not in-process ones** (`typed.go:98`). An engine/in-process subscriber
+  only, not in-process ones** (`typed.go`). An engine/in-process subscriber
   (ddos-local, copp, ...) is delivered to synchronously but NOT counted, so
   `Emit` returns 0 even when it just ran an in-process handler. The `fakeddos`
   injector first looped "emit Detected until n>0" to wait for the responder to

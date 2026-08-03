@@ -36,7 +36,7 @@ Add referential-integrity validation for VPP interface usage:
 ### Architecture Docs
 - [ ] `docs/research/vpp-deployment-reference.md` - VPP feature/interface model.
   → Constraint: features validate independently today; this adds a cross-feature check.
-- [ ] `ai/rules/plugin-self-containment.md` - each VPP feature owns its config.
+- [ ] `ai/rules/plugins.md` - each VPP feature owns its config.
   → Constraint: the cross-reference check needs a shared, discoverable registry of "interface used by <feature>", not a hardcoded list embedded in one feature.
 
 **Key insights:**
@@ -46,10 +46,10 @@ Add referential-integrity validation for VPP interface usage:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/vpp/register.go` - `verifyVPPConfig` (register.go:69-83, wired as `InProcessConfigVerifier` at :40) only parses each vpp section and calls `Validate()`; no interface-reference inspection.
-- [ ] `internal/plugins/firewall/vpp/verify.go` - `Verify` (verify.go:39-47) checks only unsupported match/action expression types; it does not inspect which interface a rule binds relative to other features.
-- [ ] `internal/plugins/flowexport/config.go` - `SamplingConfig.validate` (config.go:327-345) checks only that `interface` is non-empty and ranges; `Config.Validate` (config.go:303-325) never cross-references the sampling interface.
-- [ ] `internal/component/iface/operation.go` - defines apply-ordering ops for bridge membership (operation.go:75-84) but those are transaction dependency-ordering, not a referential-integrity verify against VPP features.
+- [ ] `internal/component/vpp/register.go` - `verifyVPPConfig` (register.go, wired as `InProcessConfigVerifier` at :40) only parses each vpp section and calls `Validate()`; no interface-reference inspection.
+- [ ] `internal/plugins/firewall/vpp/verify.go` - `Verify` (verify.go) checks only unsupported match/action expression types; it does not inspect which interface a rule binds relative to other features.
+- [ ] `internal/plugins/flowexport/config.go` - `SamplingConfig.validate` (config.go) checks only that `interface` is non-empty and ranges; `Config.Validate` (config.go) never cross-references the sampling interface.
+- [ ] `internal/component/iface/operation.go` - defines apply-ordering ops for bridge membership (operation.go) but those are transaction dependency-ordering, not a referential-integrity verify against VPP features.
 
 **Behavior to preserve:**
 - Each feature's own validation is unchanged; this adds a cross-feature layer.
@@ -78,7 +78,7 @@ Add referential-integrity validation for VPP interface usage:
 | iface delete ↔ registry | deletion checked against outstanding references | [ ] |
 
 ### Integration Points
-- `verifyVPPConfig` (`vpp/register.go:69-83`) - host of, or coordinator for, the cross-feature check.
+- `verifyVPPConfig` (`vpp/register.go`) - host of, or coordinator for, the cross-feature check.
 - firewall/flowexport verify paths - contribute their interface references (via a shared discovery mechanism, not a hardcoded list in one place).
 - `iface/operation.go` ordering - complemented by the new verify-time integrity check.
 
@@ -167,7 +167,7 @@ Add referential-integrity validation for VPP interface usage:
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | Functional test for new behaviour | [ ] yes | `test/plugin/vpp-interface-in-use.ci` |
-| Registration over hardcoding | [ ] yes | features register interface-use contributions; `ai/rules/plugin-self-containment.md` |
+| Registration over hardcoding | [ ] yes | features register interface-use contributions; `ai/rules/plugins.md` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -287,9 +287,9 @@ The followup-vpp-iface implementation wave (closed at commit fe6aa242f and earli
 
 | New role | Producer (verified 2026-07-10) | Reference shape |
 |----------|-------------------------------|-----------------|
-| SPAN mirror destination | `SetupMirror(srcIface, dstIface string, ingress, egress bool)` at `internal/plugins/iface/vpp/mirror.go:28` (teardown `RemoveMirror` :51); backend surface `internal/component/iface/backend.go:194`; config fields `MirrorIngress`/`MirrorEgress` at `internal/component/iface/config.go:196-197`, parsed from the unit `mirror` map at `config.go:932-934` | interface-to-interface: the source unit names a destination interface; deleting the destination while a source mirrors to it dangles the SPAN session |
-| LCP pairing | `SetupLCPPair(vppIface, hostName string)` at `internal/plugins/iface/vpp/lcp.go:43` (no-op when LCP disabled; validates host name, reserves collision-checked TAP name); backend surface `internal/component/iface/backend.go:203` | interface-to-host-TAP: the VPP interface carries an LCP-paired role; conflict/delete checks must treat a paired interface as referenced |
-| VPP tunnel interfaces | `createGRETunnel` at `internal/plugins/iface/vpp/tunnel.go:73`, `createIPIPTunnel` at `tunnel.go:113`, `createVxlanTunnel` at `internal/plugins/iface/vpp/vxlan.go:31` | tunnels are keyed by ADDRESS endpoints (`tunnelEndpoints` parses LocalAddress/RemoteAddress), not by interface references; the new fact for this spec is that they create additional VPP-backed interface KINDS that participate in the usage map as reference TARGETS (a tunnel interface can be a mirror destination, a feature-referenced interface, or be deleted while referenced) |
+| SPAN mirror destination | `SetupMirror(srcIface, dstIface string, ingress, egress bool)` at `internal/plugins/iface/vpp/mirror.go` (teardown `RemoveMirror` :51); backend surface `internal/component/iface/backend.go`; config fields `MirrorIngress`/`MirrorEgress` at `internal/component/iface/config.go`, parsed from the unit `mirror` map at `config.go` | interface-to-interface: the source unit names a destination interface; deleting the destination while a source mirrors to it dangles the SPAN session |
+| LCP pairing | `SetupLCPPair(vppIface, hostName string)` at `internal/plugins/iface/vpp/lcp.go` (no-op when LCP disabled; validates host name, reserves collision-checked TAP name); backend surface `internal/component/iface/backend.go` | interface-to-host-TAP: the VPP interface carries an LCP-paired role; conflict/delete checks must treat a paired interface as referenced |
+| VPP tunnel interfaces | `createGRETunnel` at `internal/plugins/iface/vpp/tunnel.go`, `createIPIPTunnel` at `tunnel.go`, `createVxlanTunnel` at `internal/plugins/iface/vpp/vxlan.go` | tunnels are keyed by ADDRESS endpoints (`tunnelEndpoints` parses LocalAddress/RemoteAddress), not by interface references; the new fact for this spec is that they create additional VPP-backed interface KINDS that participate in the usage map as reference TARGETS (a tunnel interface can be a mirror destination, a feature-referenced interface, or be deleted while referenced) |
 
 Consequences for the design (extends, does not replace, the existing Transformation Path):
 - Usage-aggregation step 2 ("Collect VPP member assignments") widens to: bridge membership AND mirror-destination references AND LCP-paired status.

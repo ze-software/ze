@@ -47,7 +47,7 @@ func newVPPBackend() (Dataplane, error) {
 // PORT SELECTORS. The SPD entry carries no port range, so a port-restricted policy would
 // install as any-port and protect more traffic than was negotiated.
 //
-// Refusing is the minimum ai/rules/exact-or-reject.md allows. Implementing transport mode
+// Refusing is the minimum ai/rules/protocol.md allows. Implementing transport mode
 // here means the GoVPP SAD tunnel flag plus the matching SPD entry, and it is the better
 // answer whenever someone can test it against a real VPP.
 func vppUnsupportedSelector(p SPParams) error {
@@ -104,7 +104,7 @@ func (b *vppBackend) InstallSA(p SAParams) error {
 	// same node unconditionally. ONE VPP SA therefore receives both ESP forms already,
 	// where Linux XFRM binds one state to one form.
 	//
-	// So this backend does NOT refuse the capability under ai/rules/exact-or-reject.md:
+	// So this backend does NOT refuse the capability under ai/rules/protocol.md:
 	// it can express what the caller asked for. It refuses everything else instead. Every
 	// message this backend declares carries CRC "00000000", so GoVPP fails identifier
 	// resolution and no SA is installed at all

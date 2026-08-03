@@ -2,7 +2,7 @@
 """Advisory protocol-skeleton conformance report.
 
 Lists each protocol's subpackages classified against the standard skeleton
-(ai/rules/protocol-skeleton.md): canonical module, RFC-named per-peer state,
+(ai/rules/protocol.md): canonical module, RFC-named per-peer state,
 wire-version dir, domain module, or documented legacy exception. Prints a
 one-line summary by default; --verbose shows the per-protocol table.
 
@@ -24,7 +24,7 @@ import sys
 # The protocol manifest: display name -> repo-relative root. Protocols are not
 # mechanically discoverable ("is a dir a protocol?" needs judgment), so this
 # small list is declared here and mirrored by the probe table in
-# ai/rules/protocol-skeleton.md. Add a row when a protocol lands.
+# ai/rules/protocol.md. Add a row when a protocol lands.
 PROTOCOLS = {
     "bgp": "internal/component/bgp",
     "bfd": "internal/component/bfd",
@@ -35,8 +35,8 @@ PROTOCOLS = {
     "rsvpte": "internal/plugins/rsvpte",
 }
 
-# Canonical skeleton modules (ai/rules/protocol-skeleton.md, speaking the
-# ai/rules/naming.md glossary).
+# Canonical skeleton modules (ai/rules/protocol.md, speaking the
+# ai/rules/go-standards.md glossary).
 CANONICAL = {
     "packet",
     "transport",
@@ -52,7 +52,7 @@ CANONICAL = {
 RFC_STATE = {"session", "adjacency", "neighbor", "fsm"}
 
 # Documented legacy exceptions ((protocol, module)): kept names that predate
-# the glossary. Mirrors the exceptions table in ai/rules/protocol-skeleton.md.
+# the glossary. Mirrors the exceptions table in ai/rules/protocol.md.
 LEGACY_EXCEPTIONS = {
     ("bgp", "message"),
     ("bgp", "wireu"),
@@ -142,7 +142,7 @@ def render(report: dict, verbose: bool) -> str:
         f"version {counts['version']}, domain {counts['domain']}, "
         f"legacy {counts['legacy-exception']}"
         f"{missing_note} "
-        "(ai/rules/protocol-skeleton.md; --verbose for detail)"
+        "(ai/rules/protocol.md; --verbose for detail)"
     )
     return "\n".join(lines)
 

@@ -1,12 +1,12 @@
 # Handover Documents
 
-Live home for handovers, per `ai/rules/handoff.md` ("Handover Documents
+Live home for handovers, per `ai/rules/planning.md` ("Handover Documents
 (`plan/handover/`)"): a handoff that must survive beyond the chat is written
 here as `NN-<slug>.md`, `NN` being the highest existing number plus one.
 
 **This file exists so the directory does.** Git does not track empty
 directories, so when the last handover is closed the directory disappears from
-the tree, and every reference to `plan/handover/` in `ai/rules/handoff.md` and
+the tree, and every reference to `plan/handover/` in `ai/rules/planning.md` and
 `ai/rules/CONDENSED.md` becomes a broken path -- `make ze-doc-links` (inside
 `ze-verify-wiring-docs`, a deterministic structural gate) then fails, and
 `scripts/dev/commit_helper.py` refuses every commit in the repo until it is

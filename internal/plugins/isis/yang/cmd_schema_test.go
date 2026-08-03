@@ -5,7 +5,7 @@
 // VALIDATES: the IS-IS command YANG (owned by the isis component) declares every
 // ze-show:isis-* show token and every ze-clear:isis-* clear token, so removing
 // the isis component removes the whole show/clear surface together with the
-// handlers (the owner half of ai/rules/plugin-self-containment.md). The central
+// handlers (the owner half of ai/rules/plugins.md). The central
 // show/clear schemas assert the matching central-guard half (none of these
 // tokens may appear there).
 // PREVENTS: a show/clear command whose schema silently drifts out of the owner,

@@ -21,7 +21,7 @@ var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.debug", Type: "bool", Descrip
 // The out-of-tree kernel is selected per build, never by leftover state. It is
 // an env var rather than a YANG leaf because it is a developer knob for testing
 // a locally built kernel, not something an operator sets on an appliance
-// (ai/rules/config-surface.md). `make ze-kernel` prints the exact command.
+// (ai/rules/config.md). `make ze-kernel` prints the exact command.
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.kernel-package", Type: "string", Description: "Path to an out-of-tree kernel package to build the appliance image against (default: the pinned github.com/rtr7/kernel)"})
 
 const (

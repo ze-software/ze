@@ -42,7 +42,7 @@ func TestCIFrameLengthsWellFormed(t *testing.T) {
 	if _, err := os.Stat(root); err != nil {
 		// Deliberately fatal, not a skip. A gate that disappears when its input
 		// moves is worse than no gate: it reads green forever
-		// (ai/rules/fail-closed-guards.md).
+		// (ai/rules/evidence.md).
 		t.Fatalf("test fixture tree not reachable from %s: %v", root, err)
 	}
 

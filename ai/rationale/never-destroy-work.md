@@ -73,7 +73,7 @@ disposable?"
   those either. This rule fills the filesystem gap.
 - `ai/rules/planning.md`: design-discussion phase explicitly forbids
   editing without approval. Same spirit extended to destruction.
-- `ai/rules/anti-rationalization.md`: the three excuses above are the
+- `ai/rules/completion.md`: the three excuses above are the
   same family as "it probably works, ship it" — post-hoc
   justifications for skipping a discipline that exists to protect the
   user.

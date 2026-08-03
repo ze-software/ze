@@ -298,7 +298,7 @@ func TestCheckAS112GlobalOriginCoordination_RemoteASNBoundaries(t *testing.T) {
 
 // TestDoctorAS112CoordinationFunctional exercises both checks through the
 // real user entry point (ze doctor --json <config>), not just the check
-// functions directly, per ai/rules/doctor-checks.md's functional-test
+// functions directly, per ai/rules/repo-maintenance.md's functional-test
 // requirement. The config text omits the mandatory watchdog{withdraw true}
 // marker (AC-10) and sets asn.local 112 + replace-as against a public
 // remote ASN (AC-11) on the same peer, so both codes must appear together.

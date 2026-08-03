@@ -31,18 +31,18 @@ concurrently with an incoming UPDATE being relayed (verified via stress-repro, 3
 - `351` redistribute-l2tp-multi-peer-nexthop: multi-peer forward mismatch (same class; not individually reproduced yet).
 
 **Verified root cause — two egress rails disagree.** A route relayed from peer A to peer B reaches B via:
-- **Forward rail (correct):** `forwardUpdateCore` (`reactor_api_forward.go:249`) runs `orderedEgressSteps`
+- **Forward rail (correct):** `forwardUpdateCore` (`reactor_api_forward.go`) runs `orderedEgressSteps`
   (export policy chain + in-process role/OTC/community filters) on the RECEIVED wire, THEN prepends
-  local AS, writes PRE-FILTERED (`forward_pool.go:186`, `forward_rs.go:71`).
+  local AS, writes PRE-FILTERED (`forward_pool.go`, `forward_rs.go`).
 - **Replay rail (buggy):** on B's peer-up, adj-rib-in replays the stored RAW route as an announce
-  `update hex … add` (`adj_rib_in/rib.go:563-572`, `:736-743`, `formatHexCommand:774-778`). The
+  `update hex … add` (`adj_rib_in/rib.go`, `:736-743`, `formatHexCommand:774-778`). The
   announce builder prepends local AS FIRST, THEN the session write gate runs ONLY `facts.exportFilters`
-  on the already-prepended wire (`egress_inject_filter.go:43-91`, esp. `:76`, `:66`), skipping the
-  in-process role/OTC filters (`role/register.go:22-31` registers OTC via `filterapi`, not
+  on the already-prepended wire (`egress_inject_filter.go`, esp. `:76`, `:66`), skipping the
+  in-process role/OTC filters (`role/register.go` registers OTC via `filterapi`, not
   `facts.exportFilters`). Wrong order (prepend→filter) + incomplete filter set.
 - **372:** replay prepends 65000 → remove-private-as REPLACE rewrites private 65000 → 65002.
 - **378:** no export filter → replay bytes == forward bytes → duplicate; amplified by a DOUBLE replay
-  trigger (adj-rib-in self-replay + bgp-rs `request bgp adj-rib-in replay`, `rs/server_handlers.go:149-208`).
+  trigger (adj-rib-in self-replay + bgp-rs `request bgp adj-rib-in replay`, `rs/server_handlers.go`).
 - **394:** in-process OTC egress step never runs on the replay rail (exact withdraw byte UNVERIFIED).
 
 **Fix (owner decision 2026-07-24): route the peer-up replay through the FORWARD rail** so a relayed
@@ -65,7 +65,7 @@ identical". Never widen a test to green (these are real product bugs — `no-par
 - [ ] `internal/component/bgp/reactor/reactor_api_forward_batch.go` — `ForwardUpdatesDirect` (:53); `resolveSourceInfo` (:202).
 - [ ] `internal/component/bgp/reactor/recent_cache.go` — `recentUpdates` is consumer-ack + 5-min valve (:25-67). adj-rib-in routes are NEVER cache-resident.
 - [ ] `internal/component/bgp/plugins/adj_rib_in/rib.go` — `RawRoute` (:71-77): Family/AttrHex/NHopHex/NLRIHex; source peer is the `ribIn` map key but dropped at replay; `buildReplayCommands` (:750); ingest (:249-330).
-- [ ] `internal/component/plugin/types_bgp.go` — `ReactorCacheCoordinator` (:361); `pkg/plugin/sdk/sdk_engine.go:69` (`ForwardCached`); `plugin/server/dispatch_cached.go:24`; `pkg/plugin/rpc/bridge.go:452`.
+- [ ] `internal/component/plugin/types_bgp.go` — `ReactorCacheCoordinator` (:361); `pkg/plugin/sdk/sdk_engine.go` (`ForwardCached`); `plugin/server/dispatch_cached.go`; `pkg/plugin/rpc/bridge.go`.
 - [ ] `internal/component/bgp/plugins/rs/server_handlers.go` — `replayForPeer` (:149-208), needs a synchronous completion signal for EOR (:212-263).
 
 **Behavior to preserve:**
@@ -76,7 +76,7 @@ identical". Never widen a test to green (these are real product bugs — `no-par
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-adj-rib-in `handleState`/`handleStructuredState` on a peer `isUp` event (`rib.go:563-572`).
+adj-rib-in `handleState`/`handleStructuredState` on a peer `isUp` event (`rib.go`).
 
 ### Transformation Path
 1. Today: `buildReplayCommands` → `formatHexCommand` (`update hex … add`) → announce rail (prepend→gate).
@@ -91,32 +91,32 @@ adj-rib-in `handleState`/`handleStructuredState` on a peer `isUp` event (`rib.go
 | reactor ↔ session write | forward rail writes pre-filtered (no re-gate) | [ ] |
 
 ### Integration Points
-- `forwardUpdateCore` (`reactor_api_forward.go:249`) — the single egress transform the replay must reuse.
-- `ReactorCacheCoordinator` (`types_bgp.go:361`) / DirectBridge (`bridge.go:452`) — where `RelayStoredRoute` plugs in beside `ForwardCached`.
-- `exportFilterForBody` (`egress_inject_filter.go:43`) — stays for originated/injected/redistribute; the replay stops using it.
+- `forwardUpdateCore` (`reactor_api_forward.go`) — the single egress transform the replay must reuse.
+- `ReactorCacheCoordinator` (`types_bgp.go`) / DirectBridge (`bridge.go`) — where `RelayStoredRoute` plugs in beside `ForwardCached`.
+- `exportFilterForBody` (`egress_inject_filter.go`) — stays for originated/injected/redistribute; the replay stops using it.
 
 ### Architectural Verification
 - [ ] One egress transform for relayed routes (no rail divergence)
-- [ ] No new communication mechanism (typed coordinator call, not a new pattern — `plugin-design.md`)
+- [ ] No new communication mechanism (typed coordinator call, not a new pattern — `plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | `AttrsWire.Packed()` excludes MP_REACH/UNREACH but includes type-3 NEXT_HOP | comment `rib.go:67`; MP/legacy nhop split `rib.go:264` vs `:282` | MP reconstruction step changes | read the wire splitter that populates `AttrsWire` | **BROKEN** |
-| A-2 | the replay rail prepends local AS before the egress gate | inferred from `SendAnnounce` (`session_write.go:509,514`) | order claim wrong | read the announce builder body | **confirmed** |
-| A-3 | add-path path-id is lost on structured ingest (`rib.go:314-323`) vs legacy (`:861-868`) | two ingest paths differ | add-path replay wrong through forward rail | add-path replay test | unvalidated |
-| A-4 | on peer-up BOTH adj-rib-in self-replay and bgp-rs `replayForPeer` fire; only rs gates the concurrent forward (`Replaying`) | `rib.go:563-572` + `rs/server_handlers.go:149-208` | 378 needs a different dedupe | read both peer-up handlers | **confirmed** |
+| A-1 | `AttrsWire.Packed()` excludes MP_REACH/UNREACH but includes type-3 NEXT_HOP | comment `rib.go`; MP/legacy nhop split `rib.go` vs `:282` | MP reconstruction step changes | read the wire splitter that populates `AttrsWire` | **BROKEN** |
+| A-2 | the replay rail prepends local AS before the egress gate | inferred from `SendAnnounce` (`session_write.go,514`) | order claim wrong | read the announce builder body | **confirmed** |
+| A-3 | add-path path-id is lost on structured ingest (`rib.go`) vs legacy | two ingest paths differ | add-path replay wrong through forward rail | add-path replay test | unvalidated |
+| A-4 | on peer-up BOTH adj-rib-in self-replay and bgp-rs `replayForPeer` fire; only rs gates the concurrent forward (`Replaying`) | `rib.go` + `rs/server_handlers.go` | 378 needs a different dedupe | read both peer-up handlers | **confirmed** |
 
 **A-1 BROKEN — evidence.** `RawMessage.AttrsWire` is assigned `wireUpdate.Attrs()`
-(`internal/component/bgp/reactor/reactor_notify.go:331,345`), and `WireUpdate.Attrs()`
+(`internal/component/bgp/reactor/reactor_notify.go,345`), and `WireUpdate.Attrs()`
 builds it over `u.sections.Attrs(u.payload)` — the WHOLE path-attribute section
-(`internal/component/bgp/wireu/wire_update.go:106`). `Packed()` returns those bytes
-verbatim (`internal/core/bgp/attribute/wire.go:52-54`). So a stored `AttrHex` for an
+(`internal/component/bgp/wireu/wire_update.go`). `Packed()` returns those bytes
+verbatim (`internal/core/bgp/attribute/wire.go`). So a stored `AttrHex` for an
 MP family CONTAINS the entire MP_REACH_NLRI attribute, including every NLRI of the
-originating UPDATE — not just this route's. The `rib.go:67` doc comment asserting
-otherwise is its author's belief, not a producer fact (`no-fabrication.md`).
+originating UPDATE — not just this route's. The `rib.go` doc comment asserting
+otherwise is its author's belief, not a producer fact (`evidence.md`).
 → Constraint: the reconstruction MUST strip attribute types 14/15 from the stored
    block and re-synthesize a single-NLRI MP_REACH, otherwise a replayed MP route
    emits a duplicate MP_REACH and re-announces the whole original NLRI set.
@@ -125,23 +125,23 @@ otherwise is its author's belief, not a producer fact (`no-fabrication.md`).
 
 **A-2 confirmed — evidence.** The replay rail is `update hex … add` →
 `handleUpdateWire`/`DispatchNLRIGroups`
-(`internal/component/bgp/plugins/cmd/update/update_wire.go:391-403`,
-`update_text.go:767-798`) → `AnnounceNLRIBatch`
-(`internal/component/bgp/reactor/reactor_api_batch.go:33`), whose AS_PATH builder
+(`internal/component/bgp/plugins/cmd/update/update_wire.go`,
+`update_text.go`) → `AnnounceNLRIBatch`
+(`internal/component/bgp/reactor/reactor_api_batch.go`), whose AS_PATH builder
 prepends local AS for a non-RS-client eBGP peer
 (`buildBatchASPath` :317-345, `packedWithLocalASPrepended` :385) BEFORE
 `sendUpdateWithSplit` → `writeUpdateGated(update, gate=true)`
-(`session_write.go:246,268-289`) runs `exportFilterForBody`
-(`egress_inject_filter.go:43-91`). Prepend-then-filter, and the gate runs ONLY
-`facts.exportFilters` (`egress_inject_filter.go:50,76`), never the in-process
-`orderedEgressSteps` that carry role/OTC (`role/register.go:22-31` registers via
+(`session_write.go,268-289`) runs `exportFilterForBody`
+(`egress_inject_filter.go`). Prepend-then-filter, and the gate runs ONLY
+`facts.exportFilters` (`egress_inject_filter.go,76`), never the in-process
+`orderedEgressSteps` that carry role/OTC (`role/register.go` registers via
 `filterapi.Register`, i.e. the forward rail's `orderedEgressSteps` only).
 
 **A-4 confirmed — evidence.** 378's duplicate is NOT two replays: it is one replay
 plus one forward. `bgp-rs` marks a peer `Replaying` and excludes it from forward
-targets until replay completes (`rs/server_handlers.go:157-162`), so the rs replay
+targets until replay completes (`rs/server_handlers.go`), so the rs replay
 is already race-free. adj-rib-in's OWN peer-up self-replay
-(`rib.go:563-572`, `:732-744`) has no such gate, so under load it emits the route a
+(`rib.go`, `:732-744`) has no such gate, so under load it emits the route a
 second time alongside the reactor forward.
 → Constraint: the dedupe is "rs owns replay, adj-rib-in stands down", not
    "collapse two replays into one".
@@ -219,9 +219,9 @@ second time alongside the reactor forward.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| "route via forward rail" = point replay at `ForwardCached` | `ForwardCached`/`recentUpdates` is cache-keyed; adj-rib-in routes never cache-resident | mechanism investigation (`recent_cache.go:25-67`) | needs a NEW `RelayStoredRoute` primitive, not a redirect |
-| A-1: stored `AttrHex` excludes MP_REACH/UNREACH | it is the FULL attribute section, MP attributes included (`reactor_notify.go:345` → `wire_update.go:106` → `attribute/wire.go:52`) | read the producer chain during the audit, before any code | reconstruction gains a mandatory strip-14/15 step; without it an MP replay duplicates MP_REACH and re-announces the source UPDATE's whole NLRI set |
-| 378's duplicate is two replays racing | it is ONE replay plus the reactor forward; rs already gates its own replay with `Replaying` | read both peer-up handlers (`rib.go:563`, `rs/server_handlers.go:157`) | dedupe is "rs owns replay, adj-rib-in stands down", not "merge two replays" |
+| "route via forward rail" = point replay at `ForwardCached` | `ForwardCached`/`recentUpdates` is cache-keyed; adj-rib-in routes never cache-resident | mechanism investigation (`recent_cache.go`) | needs a NEW `RelayStoredRoute` primitive, not a redirect |
+| A-1: stored `AttrHex` excludes MP_REACH/UNREACH | it is the FULL attribute section, MP attributes included (`reactor_notify.go` → `wire_update.go` → `attribute/wire.go`) | read the producer chain during the audit, before any code | reconstruction gains a mandatory strip-14/15 step; without it an MP replay duplicates MP_REACH and re-announces the source UPDATE's whole NLRI set |
+| 378's duplicate is two replays racing | it is ONE replay plus the reactor forward; rs already gates its own replay with `Replaying` | read both peer-up handlers (`rib.go`, `rs/server_handlers.go`) | dedupe is "rs owns replay, adj-rib-in stands down", not "merge two replays" |
 
 ## Critical Review Checklist
 
@@ -234,7 +234,7 @@ second time alongside the reactor forward.
 | C-5 | Originated/injected/redistribute routes STILL run `exportFilterForBody` (/1231 private-ASN leak stays fixed) | existing egress_inject_filter tests + private-asn `.ci` still green |
 | C-6 | The relay path never re-enters the write gate (no double filtering, /1161) | `writeUpdatePreFiltered` is the only write reached; assert via the 372 golden bytes |
 | C-7 | Standalone adj-rib-in (no bgp-rs) still replays on peer-up | `.ci` without the rs plugin |
-| C-8 | No new communication mechanism: typed coordinator call mirroring `ForwardCached`, JSON RPC fallback for forked plugins | code read against `ai/rules/plugin-design.md` DirectBridge section |
+| C-8 | No new communication mechanism: typed coordinator call mirroring `ForwardCached`, JSON RPC fallback for forked plugins | code read against `ai/rules/plugins.md` DirectBridge section |
 
 ## Deliverables Checklist
 
@@ -309,15 +309,15 @@ second time alongside the reactor forward.
 | AC-1 (372 AS_PATH) | **MET** | `ze-test bgp plugin --pattern remove-private-as-replace-peer` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 372" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-372-20260724-233009.log`). Previously `AS_PATH [65002 ...]` (`bgp-plugin-372-20260724-183402.log`). |
 | AC-2 (378 duplicate) | **MET** | `pass 1/1`; stress-repro 10 invocations, not reproduced (`bgp-plugin-378-20260724-233020.log`). |
 | AC-3 (394/395 OTC) | **MET** | both `pass 1/1`; 394 stress-repro 10 invocations, not reproduced (`bgp-plugin-394-20260724-233021.log`). |
-| AC-4 (351 multi-peer nexthop) | **MET, but NOT attributable to this spec** | `ze-test bgp plugin --pattern redistribute-l2tp-multi-peer-nexthop` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 351" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-351-20260725-000715.log`). **351 does not exercise the replay rail at all**: it launches `ze -` with no `--plugin` flags (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci:204`) and its `plugin {}` block loads only `l2tp-nexthop-test`, `redistribute-orchestrator` and `fakel2tp` (`:121-131`) -- neither `bgp-adj-rib-in` nor `bgp-rs` is present, so no peer-up replay exists in that test and `RelayStoredRoute` is never reached. Its load-dependent failure was the RFC 6286 duplicate BGP Identifier race, fixed by commit `e4076920c` (which gave the second ze-peer a distinct identifier, `+option=open:value=router-id:id=1.2.3.6`). 351 was mis-triaged into this spec's cluster; the egress-rail change neither caused nor fixed it. |
-| AC-5 (dedupe) | **PARTIAL** | The GATE is proven: `TestReplayOwnerDedupe` covers both directions (standalone still replays, owned stands down) and is mutation-verified (removing `!r.replayOwned.Load()` turns it RED). The AC's full text -- "both plugins loaded, peer-up: exactly one replay" -- is NOT proven, and a third review pass (2026-07-25) downgraded this row from MET. The test's own premise is that "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go:930`), which is exactly the ordering R2-4 shows is unenforced: `sendPostStartupToAll` does not wait before `StartPeers` (`plugin/server/startup.go:220-258`), so a peer establishing immediately can still be replayed twice, as `claimReplayOwnership` itself documents (`rs/server_handlers.go:146-152`). The test asserts the flag mechanism and therefore cannot fail when the race is lost. Deterministic ownership is homed in `plan/spec-fixit-stored-route-relay-hardening.md`. |
+| AC-4 (351 multi-peer nexthop) | **MET, but NOT attributable to this spec** | `ze-test bgp plugin --pattern redistribute-l2tp-multi-peer-nexthop` -> `pass 1/1`; `stress-repro.py bgp --test "plugin 351" --iterations 12 --any-failure` -> "not reproduced in 12 invocation(s) under load" (`tmp/stress-repro/bgp-plugin-351-20260725-000715.log`). **351 does not exercise the replay rail at all**: it launches `ze -` with no `--plugin` flags (`test/plugin/redistribute-l2tp-multi-peer-nexthop.ci`) and its `plugin {}` block loads only `l2tp-nexthop-test`, `redistribute-orchestrator` and `fakel2tp` -- neither `bgp-adj-rib-in` nor `bgp-rs` is present, so no peer-up replay exists in that test and `RelayStoredRoute` is never reached. Its load-dependent failure was the RFC 6286 duplicate BGP Identifier race, fixed by commit `e4076920c` (which gave the second ze-peer a distinct identifier, `+option=open:value=router-id:id=1.2.3.6`). 351 was mis-triaged into this spec's cluster; the egress-rail change neither caused nor fixed it. |
+| AC-5 (dedupe) | **PARTIAL** | The GATE is proven: `TestReplayOwnerDedupe` covers both directions (standalone still replays, owned stands down) and is mutation-verified (removing `!r.replayOwned.Load()` turns it RED). The AC's full text -- "both plugins loaded, peer-up: exactly one replay" -- is NOT proven, and a third review pass (2026-07-25) downgraded this row from MET. The test's own premise is that "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go`), which is exactly the ordering R2-4 shows is unenforced: `sendPostStartupToAll` does not wait before `StartPeers` (`plugin/server/startup.go`), so a peer establishing immediately can still be replayed twice, as `claimReplayOwnership` itself documents (`rs/server_handlers.go`). The test asserts the flag mechanism and therefore cannot fail when the race is lost. Deterministic ownership is homed in `plan/spec-fixit-stored-route-relay-hardening.md`. |
 
 ### Gates
 
 | Gate | Result |
 |------|--------|
 | `make ze-race-reactor` (`-race -count=20`) | **clean** -- 0 data races, `ok ... reactor 118.140s` |
-| `go vet ./internal/... ./pkg/...` | clean (only the pre-existing, deliberate `textbuf.go:161` noescape warning) |
+| `go vet ./internal/... ./pkg/...` | clean (only the pre-existing, deliberate `textbuf.go` noescape warning) |
 | `make ze-test-bgp` | green after dropping the OTC fallback (see Deviations) |
 | `make ze-test-plugins` | only `TestISISLSDBSync` red -- IS-IS LSDB, unrelated subsystem, untouched by this spec |
 | `ze-test bgp plugin --all` (495 tests) | 470 pass. **Zero** `relay-stored-route` errors anywhere. 3 failures (223/254/351) carry the RFC 6286 subcode-3 signature; the remaining 22 predate this work or belong to other in-flight sessions and need a clean-tree baseline to attribute. |
@@ -382,24 +382,24 @@ one of those fixes INTRODUCED a blocker and that two others rested on false prem
 
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
-| R2-1 | BLOCKER | A route legitimately suppressed by egress policy was counted as a failed relay. `forwardUpdateCore` returns `errNoEstablishedPeersToForwardTo` when no destination was dispatched to (`reactor_api_forward.go:689-691`), and with the single peer this call targets that is exactly what correct suppression looks like -- RFC 7947 community policy (`:470-472`), RFC 4456 reflection (`:474-479`) and the RFC 9234 role step (`:513-514`) all `continue` past the peer. My `relayed < eligible` check then failed the WHOLE replay, `replayCommand` returned `statusError`, and bgp-rs skipped its delta-convergence loop -- strictly FEWER routes delivered than before the guard existed, and the common case on a route server. | **FIXED**: `errors.Is(fwdErr, errNoEstablishedPeersToForwardTo)` now counts as handled, not dropped. |
+| R2-1 | BLOCKER | A route legitimately suppressed by egress policy was counted as a failed relay. `forwardUpdateCore` returns `errNoEstablishedPeersToForwardTo` when no destination was dispatched to (`reactor_api_forward.go`), and with the single peer this call targets that is exactly what correct suppression looks like -- RFC 7947 community policy, RFC 4456 reflection and the RFC 9234 role step all `continue` past the peer. My `relayed < eligible` check then failed the WHOLE replay, `replayCommand` returned `statusError`, and bgp-rs skipped its delta-convergence loop -- strictly FEWER routes delivered than before the guard existed, and the common case on a route server. | **FIXED**: `errors.Is(fwdErr, errNoEstablishedPeersToForwardTo)` now counts as handled, not dropped. |
 | R2-2 | ISSUE | The `eligible` counter fell open: `eligible++` came AFTER the unparseable-source `continue`, so a route dropped for a bad source was invisible to the completeness check and the call returned nil having relayed nothing. Also made `errRelayIncomplete` unreachable. | **FIXED**: `eligible++` moved above the parse guard; `source == destination` decrements it (never eligible). |
-| R2-3 | ISSUE | Three comments asserted bgp-rs sends End-of-RIB only on a successful replay. FALSE: `rs/server_handlers.go:236-240` sends EOR on the failure path too ("Always send EOR when replay terminates"). The fail-closed claim those comments made was not honored by the consumer. | **FIXED**: all three corrected to state what error propagation actually buys (ERROR visibility + skipping the delta loop), and that EOR suppression lives in bgp-rs. |
+| R2-3 | ISSUE | Three comments asserted bgp-rs sends End-of-RIB only on a successful replay. FALSE: `rs/server_handlers.go` sends EOR on the failure path too ("Always send EOR when replay terminates"). The fail-closed claim those comments made was not honored by the consumer. | **FIXED**: all three corrected to state what error propagation actually buys (ERROR visibility + skipping the delta loop), and that EOR suppression lives in bgp-rs. |
 
 ### Open -- design decisions, NOT mechanical fixes
 
 | # | Severity | Finding | Why not fixed here |
 |---|----------|---------|--------------------|
-| R2-4 | ISSUE | `OnAllPluginsReady` is NOT ordered before session establishment. `startup.go:220-242` spawns one goroutine per plugin and does not wait; `startup.go:207-212` then calls `SignalPluginStartupComplete` -> `bgpReactor.StartPeers()` (`bgp/plugin/register.go:174-180`). No happens-before edge, so the ownership claim races TCP connect + OPEN. Narrower than the old first-replay latch, but AC-5 rests on an unenforced race. | The fix is declarative ownership (bgp-rs declares it in Stage 1 `declare-registration`, or `signalStartupComplete` waits for post-startup delivery before starting peers). Both change plugin-startup semantics for every plugin. |
-| R2-5 | ISSUE | The claim does not survive an adj-rib-in respawn (`SendPostStartup` has one call site, inside `signalStartupComplete`; `process/manager.go` `Respawn` gets no post-startup callback), so a respawned adj-rib-in resumes self-replay and the duplicate returns. Separately, event delivery is per-peer per-plugin (`reactor/config.go:723-800`), so a peer whose `process` block gives `state` to adj-rib-in but not bgp-rs leaves NOBODY replaying -- a config away, not a crash away. | Needs scoped (per-peer) ownership or a re-confirm/expiry protocol. |
-| R2-6 | ISSUE | The ADD-PATH refusal removes behavior that previously WORKED. Both reviewers independently established that the old rail emitted `nlri <fam> add <hex>` with no `addpath` keyword, `parseWireNLRISection` defaults `addPath=false` (`cmd/update/update_wire.go:272-278`), and the structured ingest stores bare prefixes (`nlri/iterator.go:71-96`) -- so add-path-sourced routes replayed correctly, collapsed to path-id 0, for single-path prefixes. The refusal keys on the SOURCE context, so one add-path peer now kills replay of its routes to EVERY destination. | Reviewer's proposed fix -- tag the reconstruction with `bgpctx.EncodingContextForASN4` (ASN4 width, no add-path) instead of `src.ctxID` -- is plausible and would restore reach, but it silently collapses multi-path routes and needs its own correctness argument. Recorded as a functional regression accepted as an interim, per `ai/rules/no-parking.md`, not as a fix. |
+| R2-4 | ISSUE | `OnAllPluginsReady` is NOT ordered before session establishment. `startup.go` spawns one goroutine per plugin and does not wait; `startup.go` then calls `SignalPluginStartupComplete` -> `bgpReactor.StartPeers()` (`bgp/plugin/register.go`). No happens-before edge, so the ownership claim races TCP connect + OPEN. Narrower than the old first-replay latch, but AC-5 rests on an unenforced race. | The fix is declarative ownership (bgp-rs declares it in Stage 1 `declare-registration`, or `signalStartupComplete` waits for post-startup delivery before starting peers). Both change plugin-startup semantics for every plugin. |
+| R2-5 | ISSUE | The claim does not survive an adj-rib-in respawn (`SendPostStartup` has one call site, inside `signalStartupComplete`; `process/manager.go` `Respawn` gets no post-startup callback), so a respawned adj-rib-in resumes self-replay and the duplicate returns. Separately, event delivery is per-peer per-plugin (`reactor/config.go`), so a peer whose `process` block gives `state` to adj-rib-in but not bgp-rs leaves NOBODY replaying -- a config away, not a crash away. | Needs scoped (per-peer) ownership or a re-confirm/expiry protocol. |
+| R2-6 | ISSUE | The ADD-PATH refusal removes behavior that previously WORKED. Both reviewers independently established that the old rail emitted `nlri <fam> add <hex>` with no `addpath` keyword, `parseWireNLRISection` defaults `addPath=false` (`cmd/update/update_wire.go`), and the structured ingest stores bare prefixes (`nlri/iterator.go`) -- so add-path-sourced routes replayed correctly, collapsed to path-id 0, for single-path prefixes. The refusal keys on the SOURCE context, so one add-path peer now kills replay of its routes to EVERY destination. | Reviewer's proposed fix -- tag the reconstruction with `bgpctx.EncodingContextForASN4` (ASN4 width, no add-path) instead of `src.ctxID` -- is plausible and would restore reach, but it silently collapses multi-path routes and needs its own correctness argument. Recorded as a functional regression accepted as an interim, per `ai/rules/completion.md`, not as a fix. |
 | R2-7 | ISSUE | `relayChunkSize` chunks by ROUTE COUNT, which does not bound BYTES. `AttrHex` is hex (~2x the attribute block), so 4096 routes x a 4 KB block is ~33 MB, already over `rpc.MaxMessageSize` (16 MB). Fails closed, so availability not corruption. | Needs a byte-budget accumulator. |
 | R2-8 | NOTE | `relayRoutes`' test seam `routeRelayer` has no error return, so `replayCommand`'s new `statusError` path cannot be driven by a test. | Small, but it is test-seam design. |
-| R2-9 | NOTE | `rs.claimReplayOwnership` has no test; `relay_payload_test.go:33` asserts `n <= size` where `n == size` is the real contract; `test/plugin/adj-rib-in-replay-on-peerup.ci:5` still says "routeSender spy". | Cleanup. |
+| R2-9 | NOTE | `rs.claimReplayOwnership` has no test; `relay_payload_test.go` asserts `n <= size` where `n == size` is the real contract; `test/plugin/adj-rib-in-replay-on-peerup.ci` still says "routeSender spy". | Cleanup. |
 
 ### Verified correct by Run 2
 
-- Add-path guard PLACEMENT: precedes every buffer acquisition and cache insertion; the nil-context bypass needs `src.ctxID == 0`, only reachable when no add-path knowledge exists anywhere (benign) or on registry exhaustion (already logged). No establishment race -- `setEncodingContexts` runs before `setState(Established)` (`peer_run.go:344-346`).
+- Add-path guard PLACEMENT: precedes every buffer acquisition and cache insertion; the nil-context bypass needs `src.ctxID == 0`, only reachable when no add-path knowledge exists anywhere (benign) or on registry exhaustion (already logged). No establishment race -- `setEncodingContexts` runs before `setState(Established)` (`peer_run.go`).
 - Payload arithmetic: `relayPayloadLen` matches `writeRelayPayload` byte-for-byte on all three branches; `maxUpdateBodyLen = 65516` correctly bounds the 64K pool buffer.
 - Deferred Release: exactly-once on every path including early `forwardUpdateCore` error; no leak.
 - Dead code: clean, `make ze-lint-changed` exit 0.
@@ -424,10 +424,10 @@ contradict the code they cite.
 
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
-| R3-1 | ISSUE | Run 2's own R2-1 fix reopened the fail-open on a different axis. `errors.Is(fwdErr, errNoEstablishedPeersToForwardTo)` counted as handled, but `forwardUpdateCore` returns that same error whenever `dispatchedCount == 0` (`reactor_api_forward.go:689-691`), which at least five NON-suppression branches reach with a single destination: EBGP wire build incl. read-pool exhaustion (`:542`), transcode buffer exhaustion (`:554`, `:578`), `buildFwdBody` failure (`:648`), and both dispatch attempts failing (`:678-685`). Several are silent. Under pool exhaustion -- the load condition this spec exists for -- a dropped route was counted as relayed and `relayed < eligible` could never fire. | **FIXED** at the owning layer: new sentinel `errAllDestinationsSuppressed` returned only when EVERY matching peer was skipped by policy; the relay now tests for it. Two tests, both mutation-verified (reverting to the old sentinel turns them RED). |
-| R3-2 | ISSUE | `plan/deferrals/fixit-bgp-egress-rail-divergence.md` claimed "the startup ORDERING race ... was made deterministic here (`sendPostStartupToAll` now waits before `StartPeers`)". The landed function does NOT wait (`plugin/server/startup.go:220-258`), and its own comment says so. R2-4 agrees. A future reader of the shard would believe the race is closed. | **FIXED**: row corrected to state the wait was tried and reverted (deadlock), with the correction dated. |
-| R3-3 | ISSUE | AC-5 was marked MET on `TestReplayOwnerDedupe`, whose own premise is "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go:930`) -- exactly the ordering R2-4 shows is unenforced. The test asserts the flag mechanism and cannot fail when the race is lost, so it does not prove the AC's text ("exactly one replay"). | **FIXED**: AC-5 downgraded to PARTIAL, with the gate-vs-AC distinction stated. |
-| R3-4 | ISSUE | `plan/known-failures/bgp-plugin-role-otc-export-unknown.md` sent the next investigator to `mods.IsWithdraw()`. `SetWithdraw` has exactly one producer (`gr/gr_egress.go:109`) and 398 loads neither `bgp-gr` nor `bgp-rs` (`role-otc-export-unknown.ci:145`), so that path cannot fire there. Its exculpatory evidence was also weak: "zero `relay-stored-route` log lines" rules out relay ERRORS, not relay involvement (a successful relay logs nothing; suppression logs at Debug, `reactor_api_relay.go:268`), and 398 DOES load adj-rib-in without bgp-rs, so the new rail runs in it by construction. | **FIXED**: candidate marked ruled-out with its reason, attribution softened to what the evidence supports. |
+| R3-1 | ISSUE | Run 2's own R2-1 fix reopened the fail-open on a different axis. `errors.Is(fwdErr, errNoEstablishedPeersToForwardTo)` counted as handled, but `forwardUpdateCore` returns that same error whenever `dispatchedCount == 0` (`reactor_api_forward.go`), which at least five NON-suppression branches reach with a single destination: EBGP wire build incl. read-pool exhaustion, transcode buffer exhaustion, `buildFwdBody` failure, and both dispatch attempts failing. Several are silent. Under pool exhaustion -- the load condition this spec exists for -- a dropped route was counted as relayed and `relayed < eligible` could never fire. | **FIXED** at the owning layer: new sentinel `errAllDestinationsSuppressed` returned only when EVERY matching peer was skipped by policy; the relay now tests for it. Two tests, both mutation-verified (reverting to the old sentinel turns them RED). |
+| R3-2 | ISSUE | `plan/deferrals/fixit-bgp-egress-rail-divergence.md` claimed "the startup ORDERING race ... was made deterministic here (`sendPostStartupToAll` now waits before `StartPeers`)". The landed function does NOT wait (`plugin/server/startup.go`), and its own comment says so. R2-4 agrees. A future reader of the shard would believe the race is closed. | **FIXED**: row corrected to state the wait was tried and reverted (deadlock), with the correction dated. |
+| R3-3 | ISSUE | AC-5 was marked MET on `TestReplayOwnerDedupe`, whose own premise is "bgp-rs claims ownership at startup, before any session establishes" (`rib_test.go`) -- exactly the ordering R2-4 shows is unenforced. The test asserts the flag mechanism and cannot fail when the race is lost, so it does not prove the AC's text ("exactly one replay"). | **FIXED**: AC-5 downgraded to PARTIAL, with the gate-vs-AC distinction stated. |
+| R3-4 | ISSUE | `plan/known-failures/bgp-plugin-role-otc-export-unknown.md` sent the next investigator to `mods.IsWithdraw()`. `SetWithdraw` has exactly one producer (`gr/gr_egress.go`) and 398 loads neither `bgp-gr` nor `bgp-rs` (`role-otc-export-unknown.ci`), so that path cannot fire there. Its exculpatory evidence was also weak: "zero `relay-stored-route` log lines" rules out relay ERRORS, not relay involvement (a successful relay logs nothing; suppression logs at Debug, `reactor_api_relay.go`), and 398 DOES load adj-rib-in without bgp-rs, so the new rail runs in it by construction. | **FIXED**: candidate marked ruled-out with its reason, attribution softened to what the evidence supports. |
 | R3-5 | NOTE | The learned summary described replay ownership as claimed "on the first explicit `request bgp adj-rib-in replay`" -- the superseded latch design, not the shipped explicit `claim-replay` command. The summary is the artifact that survives the spec. | **FIXED**: rewritten to the shipped mechanism, keeping why the latch was dropped. |
 | R3-6 | NOTE | The summary recorded neither the ADD-PATH refusal (an accepted functional regression, R2-6) nor AC-5's unenforced race. | **FIXED**: both added under Consequences. |
 | R3-7 | NOTE | ~~`hex.Decode(dst, []byte(route.AttrHex))` allocated three times per stored route~~ **WITHDRAWN, the premise was false** -- see R4-2. `hex.Decode` does not leak `src`, so the conversion is elided and the old form allocates zero. | **REVERTED** in `b1bcaacc4`. The finding itself was wrong, not just its fix. |
@@ -435,15 +435,15 @@ contradict the code they cite.
 ### Verified correct by Run 3 (re-checked against producers, not taken from Run 2)
 
 - Buffer lifecycle is exactly-once. The pending flag blocks eviction between `Add` and
-  `RetainN` (`recent_cache.go:579`), the deferred `Release` survives a panic in
-  `forwardUpdateCore` (`reactor_api_relay.go:248-251`), and the scratch slices are copied
+  `RetainN` (`recent_cache.go`), the deferred `Release` survives a panic in
+  `forwardUpdateCore` (`reactor_api_relay.go`), and the scratch slices are copied
   into `out.Buf` before `defer ReturnReadBuffer` fires.
-- `maxUpdateBodyLen = 65516` (`relay_payload.go:43`) does bound the 65535-byte extended
-  pool buffer (`session.go:83`, `header.go:24`).
-- `AddPath` and `AddPathFor` are the same function (`context.go:200-203`), so the add-path
+- `maxUpdateBodyLen = 65516` (`relay_payload.go`) does bound the 65535-byte extended
+  pool buffer (`session.go`, `header.go`).
+- `AddPath` and `AddPathFor` are the same function (`context.go`), so the add-path
   guard reads what it intends.
 - Fail-closed source resolution costs nothing: peer-down purges the store
-  (`adj_rib_in/rib.go:556-559`).
+  (`adj_rib_in/rib.go`).
 - No `.ci` or Go test asserts on the `no established peers to forward to` string, so
   splitting the sentinel breaks no expectation.
 
@@ -467,7 +467,7 @@ input-handling equivalence + test quality). They reviewed the LANDED commits
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
 | R4-1 | BLOCKER | Run 3's fix left the fail-open on a THIRD axis. `accept == false` out of the ordered egress pass is overloaded: four producers reach it with no filter having decided anything -- a filter-plugin IPC error under the default fail-closed `FilterOnError` (`filter_chain.go` `policyFilterFunc`; `plugin/server/server.go` returns `OnErrorReject` for a missing process or an undeclared filter), an unparseable filter response, the nil-API guard (`filter_ordered.go`, whose own comment calls it a guard MISS), and a filter panic recovered by `safeEgressFilter` (`reactor_notify.go`). A forked export-filter plugin timing out under load therefore dropped every route of a replay while `RelayStoredRoute` reported it complete. | **FIXED** in `b1bcaacc4`: the reason is threaded from each producer (`PolicyResponse.Failed` -> `PolicyChainResult.Failed` -> `egressStepResult.failed`; `safeEgressFilter` returns `panicked`), and `forwardUpdateCore` counts suppression only when the step decided. Regression test drives the panic path, mutation-verified. |
-| R4-2 | ISSUE | The justification for `decodeHexInto` was FALSE. `hex.Decode(dst, []byte(s))` does not allocate: `hex.Decode` never leaks `src`, so the conversion is elided (`-gcflags=-m` reports "zero-copy string->[]byte conversion"; `AllocsPerRun` over the pre-commit form gives 0). The premise was never traced to a producer -- the failure `ai/rules/no-fabrication.md` describes, committed by the session that had just flagged the same class in someone else's work. | **FIXED**: decoder reverted to `encoding/hex`; the hand-rolled parser is gone from an untrusted-input path. |
+| R4-2 | ISSUE | The justification for `decodeHexInto` was FALSE. `hex.Decode(dst, []byte(s))` does not allocate: `hex.Decode` never leaks `src`, so the conversion is elided (`-gcflags=-m` reports "zero-copy string->[]byte conversion"; `AllocsPerRun` over the pre-commit form gives 0). The premise was never traced to a producer -- the failure `ai/rules/evidence.md` describes, committed by the session that had just flagged the same class in someone else's work. | **FIXED**: decoder reverted to `encoding/hex`; the hand-rolled parser is gone from an untrusted-input path. |
 | R4-3 | ISSUE | `TestDecodeHexIntoDoesNotAllocate` could not fail: the form it claimed to guard against also allocates zero, so it pinned nothing. | **FIXED**: deleted (not ported), with the reason recorded in a `test-relax:` note. The malformed-input boundaries were KEPT, re-pointed at `encoding/hex`, and strengthened with a high-bit case the old table never reached -- its "unicode digit" case was rejected on LENGTH, never on alphabet. |
 | R4-4 | ISSUE | The dispatch-failure test drives only the `facts == nil` branch, not the pool-exhaustion / body-build branches the commit message names. A future `suppressedCount++` added to those paths would reintroduce the hole with both tests green. | Partly addressed: the R4-1 regression test adds a second, genuinely different failure branch (a failing egress step). The named branches are not reachable from a unit fixture; recorded as a coverage gap in `plan/deferrals/fixit-bgp-egress-rail-divergence.md`. |
 | R4-5 | NOTE | The new tests had been inserted INTO `TestRelayStoredRouteFailsClosedWithoutSource`'s godoc block, orphaning its header sentence. | **FIXED**. |
@@ -549,8 +549,8 @@ sixth? It found one, and it is structural rather than a missed line.
 
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
-| R6-1 | ISSUE | **The in-process egress half has no failure channel.** `filterapi.EgressFilterFunc` returns a bare `bool` (`filterapi/filterapi.go:92`), so `safeEgressFilter` can only report the one failure it causes itself (a recovered panic). Already live in one filter: `OTCEgressFilter` rejects on the destination's role not being in the source's export set (`role/otc.go:412-419`), reading a map whose empty value means BOTH "advertised no role" (decision) and "never recorded" (failure). A validate-open RPC timeout (`bgp/server/validate.go:175-177`), a plugin conn not yet up, a missing process manager, or a plugin respawn nulling the map (`role/role.go:61`) all produce the second. Consequence: with a source configured `role { export ... }` and a destination whose role went unrecorded, every stored route is suppressed and counted as handled. | **HOMED, NOT FIXED** in `plan/spec-fixit-stored-route-relay-hardening.md`. Pre-existing and separable; the fix needs a signature change across three filter plugins AND role-recording semantics that separate "no role" from "not recorded". Recorded here rather than closed over: this spec's mechanism cannot see a failure the filter has no way to report. |
-| R6-2 | NOTE | Two non-decision ACCEPTS in `runEgressPolicyChainASN4` (`filter_ordered.go:289`, `:302-308`): a raw override of 1..3 bytes is discarded by `decodeFilterRawOverride`, and a `buildModifiedPayload` failure on a malformed payload is discarded, both falling through to `accept: true` -- so the route goes out UNMODIFIED and indistinguishable from "the filter accepted it as-is". Same family, opposite polarity, and the RFC 6996 private-ASN leak class this file exists to prevent. | **HOMED** in the same spec. |
+| R6-1 | ISSUE | **The in-process egress half has no failure channel.** `filterapi.EgressFilterFunc` returns a bare `bool` (`filterapi/filterapi.go`), so `safeEgressFilter` can only report the one failure it causes itself (a recovered panic). Already live in one filter: `OTCEgressFilter` rejects on the destination's role not being in the source's export set (`role/otc.go`), reading a map whose empty value means BOTH "advertised no role" (decision) and "never recorded" (failure). A validate-open RPC timeout (`bgp/server/validate.go`), a plugin conn not yet up, a missing process manager, or a plugin respawn nulling the map (`role/role.go`) all produce the second. Consequence: with a source configured `role { export ... }` and a destination whose role went unrecorded, every stored route is suppressed and counted as handled. | **HOMED, NOT FIXED** in `plan/spec-fixit-stored-route-relay-hardening.md`. Pre-existing and separable; the fix needs a signature change across three filter plugins AND role-recording semantics that separate "no role" from "not recorded". Recorded here rather than closed over: this spec's mechanism cannot see a failure the filter has no way to report. |
+| R6-2 | NOTE | Two non-decision ACCEPTS in `runEgressPolicyChainASN4` (`filter_ordered.go`, `:302-308`): a raw override of 1..3 bytes is discarded by `decodeFilterRawOverride`, and a `buildModifiedPayload` failure on a malformed payload is discarded, both falling through to `accept: true` -- so the route goes out UNMODIFIED and indistinguishable from "the filter accepted it as-is". Same family, opposite polarity, and the RFC 6996 private-ASN leak class this file exists to prevent. | **HOMED** in the same spec. |
 
 ### Confirmed complete by Run 6
 

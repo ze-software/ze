@@ -281,7 +281,7 @@ func TestChildSAKeymatAEADCarriesSalt(t *testing.T) {
 // VALIDATES: the KEYMAT length of an AEAD Child SA follows the transform ID, not the
 // IsAEAD field. A construction site that fills the ID and leaves the field at its zero
 // value still gets the salt.
-// PREVENTS: the zero-value trap of ai/rules/fail-closed-guards.md. wireProposalsToESP
+// PREVENTS: the zero-value trap of ai/rules/evidence.md. wireProposalsToESP
 // filled the ID alone, and a false IsAEAD reads as a valid answer that shortens every
 // AES-GCM key by four octets.
 func TestChildSAKeymatAEADIgnoresUnsetFlag(t *testing.T) {

@@ -375,7 +375,7 @@ func (j *testJournal) Discard() {
 // netip.ParseAddr with an Is4 test and no non-zero check, so 0.0.0.0 produced a
 // RouterID of 0 and a malformed value was swallowed into that same 0 -- a zero
 // that reads as a valid answer rather than a rejection
-// (ai/rules/fail-closed-guards.md). The YANG `ze:validate "nonzero-ipv4"` on the
+// (ai/rules/evidence.md). The YANG `ze:validate "nonzero-ipv4"` on the
 // leaf is the outer defense; this test pins the inner one so the two parses of
 // one leaf cannot drift apart.
 //

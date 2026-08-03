@@ -1,4 +1,4 @@
-// Design: ai/rules/doctor-checks.md -- managed hub reachability check registration
+// Design: ai/rules/repo-maintenance.md -- managed hub reachability check registration
 // Related: doctor.go -- the hub-unreachable reachability check registered here
 
 package managed

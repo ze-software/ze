@@ -95,7 +95,7 @@ This boots the runtime kernel in a QEMU Alpine VM, installs `accel-ppp` from
 Alpine community, and runs `scripts/evidence/effective-pppoe-accel.py` -- the
 netns sibling of this lab (Ze client + accel-ppp server in two namespaces joined
 by a veth, no Docker). It is the canonical way to run this proof on a dev
-machine. See `ai/rules/qemu-testing.md` ("Interop Labs ... Need a QEMU Runner Too").
+machine. See `ai/rules/platform-linux.md` ("Interop Labs ... Need a QEMU Runner Too").
 
 ## Scenarios
 
@@ -119,7 +119,7 @@ client stops.
 
 The Docker lab and the QEMU runner prove the same thing with the same peer
 (accel-ppp from Alpine community); the QEMU runner is the one that works on a
-macOS dev machine. Per `ai/rules/qemu-testing.md`, a Linux-only interop lab must
+macOS dev machine. Per `ai/rules/platform-linux.md`, a Linux-only interop lab must
 ship both.
 
 The `.ci` tests exercise Ze as the access concentrator with a synthetic Python

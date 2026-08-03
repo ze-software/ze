@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 //
 // Build-tag-gated registration of the looking-glass service factory. Compiled
 // only under //go:build ze_lg; absent the tag this init() does not exist, so

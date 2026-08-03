@@ -27,7 +27,7 @@ the kernel, and they are easy to conflate:
 `BestChangeBatch`) is a DIFFERENT bus: it carries route changes for redistribution INTO
 other protocols' advertisement (e.g. "redistribute static into BGP"), consumed by
 `bgp/plugins/redistribute_egress`, `ospf/redistribute`, `isis/redistribute`. It never
-installs a kernel route (`internal/plugins/isis/spf/install.go:1-10` states this
+installs a kernel route (`internal/plugins/isis/spf/install.go` states this
 contract explicitly). Static and connected emit on both buses (redistevents for
 advertisement, and, for static, direct netlink for the FIB); BGP/OSPF/IS-IS emit only
 into Loc-RIB for the FIB path.
@@ -37,110 +37,110 @@ Route wins in a protocol, then gets programmed in the kernel:
 
 1. **Protocol computes its best path.** BGP: `bgp-rib`'s `checkBestPathChange` (see
    `rib.md`) mirrors the winner into Loc-RIB via `r.locRIB.InsertForward(fam, pfx,
-   locrib.Path{...}, forward)` (`internal/component/bgp/plugins/rib/rib_bestchange.go:820`),
+   locrib.Path{...}, forward)` (`internal/component/bgp/plugins/rib/rib_bestchange.go`),
    stamping `AdminDistance` from the operator's `bgp/admin-distance` ebgp/ibgp config
    (defaults 20/200). OSPF: `Installer.insert` inserts one `locrib.Path` per equal-cost
-   next-hop (`internal/plugins/ospf/spf/install.go:139`, `InsertForward` at `:163`),
+   next-hop (`internal/plugins/ospf/spf/install.go`, `InsertForward` at `:163`),
    `AdminDistance` hardcoded to `DefaultAdminDistance=110`
-   (`internal/plugins/ospf/spf/install.go:25`).
-   IS-IS: same shape, `internal/plugins/isis/spf/install.go:179` (`InsertForward` at
-   `:195`), `DefaultAdminDistance=115` (`internal/plugins/isis/spf/install.go:54`). Each uses a distinct
+   (`internal/plugins/ospf/spf/install.go`).
+   IS-IS: same shape, `internal/plugins/isis/spf/install.go` (`InsertForward` at
+   `:195`), `DefaultAdminDistance=115` (`internal/plugins/isis/spf/install.go`). Each uses a distinct
    `Instance` per equal-cost next-hop so a protocol's own ECMP siblings live in one
-   `PathGroup` (`internal/core/rib/locrib/candidate.go:36`).
-2. **Loc-RIB arbitrates.** `RIB.insert` (`internal/core/rib/locrib/manager.go:160`) takes
+   `PathGroup` (`internal/core/rib/locrib/candidate.go`).
+2. **Loc-RIB arbitrates.** `RIB.insert` (`internal/core/rib/locrib/manager.go`) takes
    the owning shard's lock, `PathGroup.upsert` recomputes the winner via `selectBest`
-   (`internal/core/rib/locrib/entry.go:74`: lower `AdminDistance` wins, then lower
+   (`internal/core/rib/locrib/entry.go`: lower `AdminDistance` wins, then lower
    `Metric`, then first-seen). `siblingNextHops` computes the winner's intra-protocol
-   ECMP siblings while the group is in hand (`locrib/manager.go:244`). Depending on
+   ECMP siblings while the group is in hand (`locrib/manager.go`). Depending on
    outcome, `sh.subs.dispatch` fires a `Change{Kind: ChangeAdd|ChangeUpdate}`
-   (`locrib/manager.go:212`, `:215`, `:218`) under the shard write lock; `RIB.Remove`
-   (`locrib/manager.go:289`) fires `ChangeRemove` only when the whole `PathGroup` empties
+   (`locrib/manager.go`, `:215`, `:218`) under the shard write lock; `RIB.Remove`
+   (`locrib/manager.go`) fires `ChangeRemove` only when the whole `PathGroup` empties
    (`:344`) or a synthetic `ChangeUpdate` when a non-winning path's removal changes ECMP
-   membership without changing the winner (`:357`).
+   membership without changing the winner.
 3. **sysrib subscribes and replays on startup.** `sysRIB.run`
-   (`internal/component/sysrib/sysrib.go:836`) wires `loc.OnChange` into a bounded channel
+   (`internal/component/sysrib/sysrib.go`) wires `loc.OnChange` into a bounded channel
    (`:849`, avoids deadlocking the shard lock) drained by a worker goroutine calling
-   `processLocRIBChange` (`:874`, `:912`); before that, it walks every existing family via
-   `loc.Iterate` and seeds itself with `replayPath` (`:861-869`, `:1102`) so routes already
+   `processLocRIBChange`; before that, it walks every existing family via
+   `loc.Iterate` and seeds itself with `replayPath` so routes already
    in Loc-RIB before sysrib subscribed are not lost. A forked/multi-process deployment (no
    shared singleton) falls back to subscribing `ribevents.BestChange`, the BGP RIB's OWN
-   event (`internal/core/bgp/ribevents/ribevents.go`), instead (`sysrib.go:886`).
-4. **Convert and arbitrate.** `changeToBatch` (`sysrib.go:1025`) maps a `locrib.Change` to
+   event (`internal/core/bgp/ribevents/ribevents.go`), instead (`sysrib.go`).
+4. **Convert and arbitrate.** `changeToBatch` (`sysrib.go`) maps a `locrib.Change` to
    sysrib's internal batch shape, resolving the source protocol name via
-   `redistevents.ProtocolName(c.Best.Source)` (`:1062`) and tagging `FromLocRIB: true`
-   (`:1076`). `processEvent` (`sysrib.go:260`) applies the OPERATOR admin-distance override
+   `redistevents.ProtocolName(c.Best.Source)` and tagging `FromLocRIB: true`
+   (`:1076`). `processEvent` (`sysrib.go`) applies the OPERATOR admin-distance override
    (`effectivePriority`, `:246`, from the `rib/admin-distance` YANG config), but because
    `FromLocRIB` is true it REPLACES the whole per-protocol map with just the Loc-RIB's
    single already-chosen winner (`s.routes[key] = map[string]*protocolRoute{proto: pr}`,
-   `sysrib.go:340`) rather than upserting alongside other protocols, so a prior winner from
+   `sysrib.go`) rather than upserting alongside other protocols, so a prior winner from
    a different protocol cannot linger as a ghost entry (comment at `:307-317`).
-5. **recomputeBest** (`sysrib.go:414`) selects lowest `priority` (tiebreak by protocol name
+5. **recomputeBest** (`sysrib.go`) selects lowest `priority` (tiebreak by protocol name
    string, `:442`), resolves the next-hop recursively via `nhResolver.Resolve` (repeated
    `RIB.LPM` lookups up to `maxRecursionDepth=8`, terminating at a connected, zero
-   next-hop, route: `internal/component/sysrib/nhresolver.go:48`), collects ECMP siblings
+   next-hop, route: `internal/component/sysrib/nhresolver.go`), collects ECMP siblings
    with `ecmpCollect` (inter-protocol ties plus the winner's own path-group siblings,
-   `internal/component/sysrib/ecmp.go:25`), and computes the fast-reroute backup from
-   `BackupNextHop`/`BackupRepairLabels` (`ecmp.go:76`). An SRv6 winner whose SID has no
+   `internal/component/sysrib/ecmp.go`), and computes the fast-reroute backup from
+   `BackupNextHop`/`BackupRepairLabels` (`ecmp.go`). An SRv6 winner whose SID has no
    covering Loc-RIB route (RFC 9252 §5) is withdrawn instead of installed
-   (`sysrib.go:459`, `:500`, `:625`). Returns an `outgoingChange` (Add/Update/Withdraw).
+   (`sysrib.go`, `:500`, `:625`). Returns an `outgoingChange` (Add/Update/Withdraw).
 6. **Cascade on next-hop change.** When a covering prefix's own best changes, `nhResolver`
    dependents are re-evaluated by `processCascade`/`cascadeRecompute`
-   (`sysrib.go:718`, `:571`) so a recursive next-hop's reachability change reprograms every
+   (`sysrib.go`, `:571`) so a recursive next-hop's reachability change reprograms every
    dependent prefix without waiting for its own protocol to re-announce.
-7. **Publish.** `publishChanges` (`sysrib.go:766`) emits one `sysribevents.BestChange` batch
-   per family (`internal/component/sysrib/events/events.go:79`) on the EventBus.
+7. **Publish.** `publishChanges` (`sysrib.go`) emits one `sysribevents.BestChange` batch
+   per family (`internal/component/sysrib/events/events.go`) on the EventBus.
 8. **fib-kernel installs.** `fibKernel.processEvent`
-   (`internal/plugins/fib/kernel/fibkernel.go:245`) dispatches each entry by
-   `c.Action.Verb()` (`internal/core/bgp/routeaction/routeaction.go:109`: Install/Replace/Remove)
-   to `addChange`/`replaceChange`/`delChange` (`fibkernel.go:211`, `:223`, `:235`), using
-   the `richRouteBackend` path (`internal/plugins/fib/kernel/richroute.go:33`) whenever the
-   entry carries labels/ECMP/SRv6/backup/table-ID (`hasRichFields`, `fibkernel.go:192`), or
+   (`internal/plugins/fib/kernel/fibkernel.go`) dispatches each entry by
+   `c.Action.Verb()` (`internal/core/bgp/routeaction/routeaction.go`: Install/Replace/Remove)
+   to `addChange`/`replaceChange`/`delChange` (`fibkernel.go`, `:223`, `:235`), using
+   the `richRouteBackend` path (`internal/plugins/fib/kernel/richroute.go`) whenever the
+   entry carries labels/ECMP/SRv6/backup/table-ID (`hasRichFields`, `fibkernel.go`), or
    the plain prefix+next-hop path otherwise. The Linux backend programs via netlink tagged
-   `RTPROT_ZE=250` (`internal/plugins/fib/kernel/backend_linux.go:26`, `addRoute:51`,
+   `RTPROT_ZE=250` (`internal/plugins/fib/kernel/backend_linux.go`, `addRoute:51`,
    `replaceRoute:71`, `delRoute:59`); labels are validated first
-   (`internal/plugins/fib/kernel/mpls.go:23`). Failures raise a `fib-sync-failure` report
+   (`internal/plugins/fib/kernel/mpls.go`). Failures raise a `fib-sync-failure` report
    and track the prefix as pending for a 30s `fib-programming-lag` warning
-   (`fibkernel.go:270`, `:359`).
+   (`fibkernel.go`, `:359`).
 9. **Deletion/withdraw.** A Loc-RIB `ChangeRemove` (protocol withdraws, or the whole
    `PathGroup` empties) becomes `RouteActionWithdraw` in `changeToBatch`
-   (`sysrib.go:1043`); `processEvent`'s withdraw branch deletes the protocol's `routes[key]`
+   (`sysrib.go`); `processEvent`'s withdraw branch deletes the protocol's `routes[key]`
    entry (proto=="" deletes every protocol, matching the Loc-RIB-empty invariant asserted at
-   `sysrib.go:1069`) and `recomputeBest` emits `RouteActionWithdraw` when no route remains
-   (`:431`). `fib-kernel.delChange` (`fibkernel.go:235`) calls `rb.delRichRoute` or
-   `backend.delRoute` → netlink `RouteDel` (`internal/plugins/fib/kernel/backend_linux.go:59`).
+   `sysrib.go`) and `recomputeBest` emits `RouteActionWithdraw` when no route remains
+   (`:431`). `fib-kernel.delChange` (`fibkernel.go`) calls `rb.delRichRoute` or
+   `backend.delRoute` → netlink `RouteDel` (`internal/plugins/fib/kernel/backend_linux.go`).
 10. **Startup reconciliation (fib-kernel side).** `runFIBKernelPlugin`'s `OnStarted`
-    (`internal/plugins/fib/kernel/register.go:137`) calls `startupSweep`
-    (`fibkernel.go:395`, lists existing `RTPROT_ZE` routes as "stale"), starts `f.run`
-    (`internal/plugins/fib/kernel/register.go:144`), then after `sweep-delay` (default 30s, `internal/plugins/fib/kernel/backend.go:18`) calls
-    `sweepStale` (`fibkernel.go:414`) to delete any route sysrib never refreshed
-    (crash recovery). `f.run` (`fibkernel.go:446`) also emits `sysribevents.ReplayRequest`
-    on start (`:463`) so sysrib always replays even if fib-kernel started after it,
+    (`internal/plugins/fib/kernel/register.go`) calls `startupSweep`
+    (`fibkernel.go`, lists existing `RTPROT_ZE` routes as "stale"), starts `f.run`
+    (`internal/plugins/fib/kernel/register.go`), then after `sweep-delay` (default 30s, `internal/plugins/fib/kernel/backend.go`) calls
+    `sweepStale` (`fibkernel.go`) to delete any route sysrib never refreshed
+    (crash recovery). `f.run` (`fibkernel.go`) also emits `sysribevents.ReplayRequest`
+    on start so sysrib always replays even if fib-kernel started after it,
     independent of which side came up first.
 11. **External-change re-assertion.** `fib-kernel`'s route monitor
-    (`internal/plugins/fib/kernel/monitor_linux.go:20`) registers on the shared
+    (`internal/plugins/fib/kernel/monitor_linux.go`) registers on the shared
     `routewatch.Global()` watcher; `handleExternalChange`
-    (`internal/plugins/fib/kernel/monitor.go:33`) re-asserts (`backend.replaceRoute`) any
+    (`internal/plugins/fib/kernel/monitor.go`) re-asserts (`backend.replaceRoute`) any
     ze-managed prefix that changed underneath it and publishes `(fib,
-    external-change)` (`monitor.go:64`) for observability.
+    external-change)` (`monitor.go`) for observability.
 12. **Parallel MPLS channel (bypasses sysrib).** RSVP-TE/LDP publish
-    `(mpls-fib, entry)` batches (`internal/core/mplsfib/events.go:79`) directly to
-    fib-kernel; `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go:47`) programs
+    `(mpls-fib, entry)` batches (`internal/core/mplsfib/events.go`) directly to
+    fib-kernel; `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go`) programs
     push entries through the rich-route path and swap/pop entries (AF_MPLS, label-keyed,
     do not fit a prefix-keyed best-path table) through a dedicated `mplsBackend`
-    (`mplsentry.go:69`, `:135`).
+    (`mplsentry.go`, `:135`).
 13. **Parallel static path (bypasses sysrib and Loc-RIB entirely).**
     `routeManager.applyRouteLocked`/`programRouteLocked`
-    (`internal/plugins/static/inject.go:95`, `:139`) call `backend.applyRoute`/
+    (`internal/plugins/static/inject.go`, `:139`) call `backend.applyRoute`/
     `removeRoute` directly: netlink `RouteReplace`/`RouteDel` tagged `RTPROT_STATIC=251`
-    (`internal/plugins/static/backend_linux.go:41`, `:49`), on every `OnConfigure`/
-    `OnConfigApply` (`internal/plugins/static/register.go:126`, `:138`, `:148`). A named
+    (`internal/plugins/static/backend_linux.go`, `:49`), on every `OnConfigure`/
+    `OnConfigApply` (`internal/plugins/static/register.go`, `:138`, `:148`). A named
     routing-table is resolved to a kernel table ID via
-    `internal/core/routingtable.Registry.Resolve` (`internal/core/routingtable/registry.go:23`,
-    called from `internal/plugins/static/config.go:48`). Static ALSO emits
-    `redistevents.RouteChange` (`inject.go:354`) purely so `bgp/plugins/redistribute_egress`
+    `internal/core/routingtable.Registry.Resolve` (`internal/core/routingtable/registry.go`,
+    called from `internal/plugins/static/config.go`). Static ALSO emits
+    `redistevents.RouteChange` (`inject.go`) purely so `bgp/plugins/redistribute_egress`
     etc. can advertise the route; that emit never reaches sysrib or the kernel.
 14. **Connected routes.** `routeObserver.handleAddrAdded`/`emit`
-    (`internal/plugins/connected/connected.go:59`, `:130`) only emit
+    (`internal/plugins/connected/connected.go`, `:130`) only emit
     `redistevents.RouteChange` for redistribution; there is no kernel-install call anywhere
     in the package. The OS's own interface-address code creates the route.
 
@@ -176,17 +176,17 @@ Route wins in a protocol, then gets programmed in the kernel:
 
 ## Invariants & gotchas
 - **The real cross-protocol decision happens in Loc-RIB, not sysrib.** `selectBest`
-  (`locrib/entry.go:74`) picks the winner using each producer's raw `AdminDistance` (BGP's
+  (`locrib/entry.go`) picks the winner using each producer's raw `AdminDistance` (BGP's
   operator-configurable `bgp/admin-distance`; OSPF/IS-IS's hardcoded, non-configurable
   `DefaultAdminDistance` 110/115 set once at `Installer` construction
-  (`internal/plugins/ospf/spf/install.go:74`,
-  `internal/plugins/isis/spf/install.go:112`) and never mutated afterward, no
+  (`internal/plugins/ospf/spf/install.go`,
+  `internal/plugins/isis/spf/install.go`) and never mutated afterward, no
   setter exists). By the time sysrib sees the `Change` (`FromLocRIB=true`), only ONE
   protocol's route is present in `s.routes[key]`, so sysrib's own `recomputeBest` has
   nothing left to arbitrate: sysrib's `rib/admin-distance` override changes only the
   reported `priority` number (visible in `show rib` and change-detection), never which
   protocol wins, in the default in-process deployment. **Doc-vs-code drift:** the YANG
-  description at `sysrib/yang/ze-rib-conf.yang:20-22` ("Used by the system RIB to select
+  description at `sysrib/yang/ze-rib-conf.yang` ("Used by the system RIB to select
   the best route across protocols") overstates this for OSPF/IS-IS/BGP; only a forked,
   multi-process deployment without a shared Loc-RIB would let sysrib's own map hold
   competing entries to arbitrate for real (see next point).
@@ -195,40 +195,40 @@ Route wins in a protocol, then gets programmed in the kernel:
   (default 0) and `rib/admin-distance/static` (default 10) in the YANG have NO effect on
   any actual route-install decision anywhere in the codebase today.
 - **Forked/multi-process deployment loses OSPF/IS-IS entirely.** `locrib.Default()`
-  returns nil when `ze.plugin.hub.token` is set (`locrib/default.go:32`), which makes every
+  returns nil when `ze.plugin.hub.token` is set (`locrib/default.go`), which makes every
   OSPF/IS-IS `InsertForward`/`Remove` call a no-op (guard `if in.loc == nil` at
-  `internal/plugins/ospf/spf/install.go:148` and
-  `internal/plugins/isis/spf/install.go:189`). sysrib's fallback subscribes
+  `internal/plugins/ospf/spf/install.go` and
+  `internal/plugins/isis/spf/install.go`). sysrib's fallback subscribes
   ONLY `ribevents.BestChange` (the BGP RIB plugin's own event), so in that deployment
   shape OSPF and IS-IS routes cannot reach the kernel via sysrib at all; only BGP's
   best-path can. Confirm before treating "forked" as a supported OSPF/IS-IS deployment.
 - **Ghost-entry fix depends on `FromLocRIB` being a full-entry replace, not an upsert.**
-  `sysrib.go:336-346`: a Loc-RIB-sourced change REPLACES `s.routes[key]` wholesale (map
+  `sysrib.go`: a Loc-RIB-sourced change REPLACES `s.routes[key]` wholesale (map
   with exactly the new winner) instead of upserting under `[proto]`, specifically so a
   best switching from protocol A to B does not leave A's stale entry able to win
   `recomputeBest` after a later admin-distance reconfig. The event-bus fallback path keeps
   the per-protocol upsert because it genuinely needs multiple concurrent entries.
 - **Loc-RIB `OnChange` handlers run under the shard write lock.** sysrib's handler
-  (`sysrib.go:849`) only enqueues to a channel: it must never call back into `Insert`/
+  (`sysrib.go`) only enqueues to a channel: it must never call back into `Insert`/
   `Remove` on the same RIB or block; the actual arbitration runs off-lock on the worker
-  goroutine (`sysrib.go:874`). Getting this wrong deadlocks every Loc-RIB writer.
+  goroutine (`sysrib.go`). Getting this wrong deadlocks every Loc-RIB writer.
 - **`routewatch`'s `IsZe` filter, not fib-kernel logic, prevents self-conflict.**
   `routewatch.deliver` drops any event whose protocol is `RTPROT_ZE`/`RTPROT_STATIC`/
   `RTPROT_PolicyRoute` before any consumer sees it
-  (`internal/core/routewatch/routewatch.go:106`),
+  (`internal/core/routewatch/routewatch.go`),
   so fib-kernel's external-change monitor never mistakes its own or static's writes for an
   externally injected route needing re-assertion. It does NOT prevent static and
   fib-kernel from independently installing routes for the SAME prefix if configured to:
   there is no admin-distance arbitration across that boundary, and whichever netlink write
   lands last wins in the kernel.
 - **Same-best short-circuits skip labeled routes.** Both BGP's mirror
-  (`internal/component/bgp/plugins/rib/rib_bestchange.go:778`, see `rib.md`) and
+  (`internal/component/bgp/plugins/rib/rib_bestchange.go`, see `rib.md`) and
   sysrib's own `recomputeBest` compare the full
   previous state (not just next-hop) before suppressing a republish specifically so a
   relabel (same next-hop, new MPLS stack) or ECMP-membership-only change still reaches the
-  kernel (`sysrib.go:482`, `ecmp.go:106` `ecmpChanged` compares labels too).
+  kernel (`sysrib.go`, `ecmp.go` `ecmpChanged` compares labels too).
 - **fib-kernel is the single kernel-FIB owner for the Loc-RIB path and for MPLS.** Design
-  comment at `internal/core/mplsfib/events.go:6-8`: RSVP-TE/LDP route through fib-kernel rather than
+  comment at `internal/core/mplsfib/events.go`: RSVP-TE/LDP route through fib-kernel rather than
   writing netlink themselves, to keep stale-sweep/re-assertion/metrics unified. Static is
   the one dynamic exception (its own backend), justified by static routes needing no
   best-path machinery at all.
@@ -238,8 +238,8 @@ Route wins in a protocol, then gets programmed in the kernel:
   code. Running more than one against the same kernel/dataplane simultaneously is an
   operator misconfiguration, not something the code prevents.
 - **Startup ordering is replay-request-driven, not sequence-dependent.** Both sysrib (on
-  `(system-rib, replay-request)`, `sysrib.go:900`) and fib-kernel (emits it at boot,
-  `fibkernel.go:463`) are written so either side can start first: fib-kernel always asks
+  `(system-rib, replay-request)`, `sysrib.go`) and fib-kernel (emits it at boot,
+  `fibkernel.go`) are written so either side can start first: fib-kernel always asks
   for a fresh replay rather than assuming sysrib already ran.
 
 ## See also

@@ -81,7 +81,7 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 - [ ] `internal/component/bgp/plugins/gr/gr.go` - `decodeGR` (:799) parses the *peer's* GR capability, extracting the R-bit (`Restarting`, :812) and N-bit (`Notification`, :813); the N-bit is stored (`grResult.Notification`, :791) but consumed **only cosmetically** in `formatGRText` (:841-842). `handleStructuredState` (:346) computes `wasNotification := reason == "notification"` (:358) and calls `onSessionDown` (:365); on activation it dispatches helper-side retention (`purge-stale`/`retain-routes`/`mark-stale`, :367-369). EOR handling (`handleEOREvent`, :567) purges stale routes for a family (RFC 4724 Section 4.2, receiving side).
 - [ ] `internal/component/bgp/plugins/gr/gr_state.go` - `onSessionDown` (:114) short-circuits `if cap == nil || wasNotification { clearPeerLocked; return false }` (:118): **any** NOTIFICATION-triggered down disables retention, ignoring the N-bit. `onEORReceived` (:241) purges stale per family.
 - [ ] `internal/component/bgp/message/notification.go` - `NotifyCeaseHardReset uint8 = 9 // RFC 8538` (:127) and its `String()` case "Hard Reset" (:429) exist, but there is **no** Hard Reset build (wrap `[origCode][origSubcode][origData]`) or unwrap logic anywhere in `internal/component/bgp/`.
-- [ ] `internal/core/bgp/attribute/attribute.go` - attribute codes stop at `AttrPrefixSID = 40` / `AttrLargeCommunity = 32` (plus internal `AttrTombstone = 252`); **attribute code 128 (ATTR_SET) is not defined**. L3VPN NLRI scaffolding exists (`family.SAFIVPN`; `internal/component/bgp/plugins/nlri/vpn/types.go`; `internal/component/bgp/plugins/rib/rib_nlri.go:52`) but the ATTR_SET path-attribute does not.
+- [ ] `internal/core/bgp/attribute/attribute.go` - attribute codes stop at `AttrPrefixSID = 40` / `AttrLargeCommunity = 32` (plus internal `AttrTombstone = 252`); **attribute code 128 (ATTR_SET) is not defined**. L3VPN NLRI scaffolding exists (`family.SAFIVPN`; `internal/component/bgp/plugins/nlri/vpn/types.go`; `internal/component/bgp/plugins/rib/rib_nlri.go`) but the ATTR_SET path-attribute does not.
 
 **Behavior to preserve:**
 - Existing Helper-side GR/LLGR behaviour: stale-route retention on non-notification down, EOR-driven purge (RFC 4724 Section 4.2), LLGR long-lived retention (RFC 9494), and the restart-time=0+LLGR fast path in `onSessionDown`.
@@ -93,16 +93,16 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 - Add Hard Reset (Cease subcode 9) build/unwrap and wire it into the send/receive paths.
 - Add a Restarting-Speaker Selection Deferral Timer (RFC 4724 Section 4.1) that holds best-path selection/advertisement.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A peer sends a NOTIFICATION (plain or Cease/subcode-9 Hard Reset) that tears the session down; delivered to GR as a structured `SessionStateDown` state event with a reason string (`internal/component/bgp/plugins/gr/gr.go:346`).
-- ze itself restarts and re-establishes sessions; peers send UPDATEs then EOR markers, delivered to GR as `eor` events (`gr.go:421`).
+- A peer sends a NOTIFICATION (plain or Cease/subcode-9 Hard Reset) that tears the session down; delivered to GR as a structured `SessionStateDown` state event with a reason string (`internal/component/bgp/plugins/gr/gr.go`).
+- ze itself restarts and re-establishes sessions; peers send UPDATEs then EOR markers, delivered to GR as `eor` events (`gr.go`).
 - Operator/engine decides to hard-reset a peer; the NOTIFICATION send path emits Cease/subcode-9 instead of the raw code.
 
 ### Transformation Path
-1. Session-down reason and the peer's negotiated GR capability (`peerCaps`) are read in `handleStructuredState` (gr.go:360-363).
-2. `onSessionDown` (gr_state.go:114) decides retention. New: when `wasNotification` and both local+peer N-bits were negotiated (and it was not a Hard Reset), run helper retention instead of flushing.
+1. Session-down reason and the peer's negotiated GR capability (`peerCaps`) are read in `handleStructuredState` (gr.go).
+2. `onSessionDown` (gr_state.go) decides retention. New: when `wasNotification` and both local+peer N-bits were negotiated (and it was not a Hard Reset), run helper retention instead of flushing.
 3. A received Cease/subcode-9 is unwrapped in the message layer to recover the original [code][subcode][data]; GR treats it as a forced flush (never retain).
 4. On ze's own restart, a Selection Deferral Timer in the reactor holds best-path selection until EOR-from-all-GR-peers or timer expiry, then selection runs once and routes are advertised.
 
@@ -125,17 +125,17 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 - [ ] No bypassed layers (data flows through intended path)
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing GR, does not recreate)
-- [ ] Registration over hardcoding - any new CLI/config surface registers and is core-discovered, not hardcoded into a core/shared package (`ai/rules/plugin-self-containment.md`)
+- [ ] Registration over hardcoding - any new CLI/config surface registers and is core-discovered, not hardcoded into a core/shared package (`ai/rules/plugins.md`)
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | ze does not yet advertise its own N-bit in the GR capability it sends | `decodeGR` (gr.go:799) is decode-only; no GR encoder found in `internal/core/bgp/capability` during research | N-bit negotiation may be partly present; scope shrinks | grep/read the GR capability encoder at design time | unvalidated |
+| A-1 | ze does not yet advertise its own N-bit in the GR capability it sends | `decodeGR` (gr.go) is decode-only; no GR encoder found in `internal/core/bgp/capability` during research | N-bit negotiation may be partly present; scope shrinks | grep/read the GR capability encoder at design time | unvalidated |
 | A-2 | ze has no Restarting-Speaker restart tracking (only Helper) | grep for "deferral" in `gr/*.go` returns nothing; R-bit is parsed only from the peer's capability | Selection-deferral scope changes | LSP/grep at design time | unvalidated |
 | A-3 | RFC 6368 ATTR_SET is absent and is an L3VPN (not GR) feature | attribute.go has no code 128; RFC 6368 is "iBGP as PE-CE" | If partly present, re-scope the deferral | grep at design time + RFC 6368 summary | unvalidated |
-| A-4 | The Cease/subcode-9 constant is defined but unused for build/unwrap | notification.go:127/429 define the code + String only; grep found no wrap/unwrap | Less to build | grep at design time | unvalidated |
+| A-4 | The Cease/subcode-9 constant is defined but unused for build/unwrap | notification.go/429 define the code + String only; grep found no wrap/unwrap | Less to build | grep at design time | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -211,9 +211,9 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (Selection Deferral Timer leaf) | [ ] | `internal/component/bgp/yang/` — read `ai/rules/config-surface.md` + `ai/rules/config-naming.md` |
+| YANG schema (Selection Deferral Timer leaf) | [ ] | `internal/component/bgp/yang/` — read `ai/rules/config.md` + `ai/rules/config.md` |
 | YANG validation constraints (range on the timer) | [ ] | `range 0..65535` (default TBD at design) |
-| CLI grammar (if a `request bgp ... hard-reset` verb is added) | [ ] | `ai/rules/cli-grammar.md` |
+| CLI grammar (if a `request bgp ... hard-reset` verb is added) | [ ] | `ai/rules/cli.md` |
 | Functional test for new behaviour | [ ] | `test/plugin/gr-hard-reset.ci`, `test/plugin/gr-selection-deferral.ci` |
 | Prometheus counters (hard resets sent/received; deferral timer expiries) | [ ] | reuse GR metrics registry; list names at design time |
 | RFC status ledger | [ ] | `docs/features/rfc-status.md` (RFC 8538 row; RFC 4724 Section 4.1 row) |
@@ -240,7 +240,7 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | Hard Reset always flushes; N-bit retention only when both sides negotiated |
-| Registration over hardcoding | New config/CLI surface registers and is core-discovered, not hardcoded into a core/shared package (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | New config/CLI surface registers and is core-discovered, not hardcoded into a core/shared package (`ai/rules/plugins.md`) |
 | Data flow | Retention decision stays in the GR plugin; message layer owns wrap/unwrap; reactor owns deferral |
 | Rule: no-fabrication | RFC claims cite the generated RFC 8538 summary + section, not memory |
 
@@ -290,5 +290,5 @@ short summary with the `ze-rfc` skill before quoting it.
 - [ ] Interop tests for protocol behaviour
 
 ## Notes
-- Skeleton = captured intent, not a designed spec (`ai/rules/deferral-tracking.md`). Moves to `design` when picked up.
+- Skeleton = captured intent, not a designed spec (`ai/rules/planning.md`). Moves to `design` when picked up.
 - Created 2026-07-08 as the destination for umbrella item 1 ("GR advanced"). The umbrella's item-1 row points here.

@@ -4,18 +4,18 @@ Umbrella closing DESIGN-REVIEW.md finding #1 ("ownership inversion: the BGP reac
 owns the system's nervous system"). Research (six mapping passes + direct source
 verification) found the headline claim **substantially stale**: production ownership
 was already correct before this umbrella — the hub constructs the plugin `Server`
-(`cmd/ze/hub/main.go:441`), uses it as the global `ze.EventBus` (`main.go:453`), builds
-`engine.NewEngine(...)` (`main.go:502`) and owns the server lifecycle; BGP loads as a
+(`cmd/ze/hub/main.go`), uses it as the global `ze.EventBus` (`main.go`), builds
+`engine.NewEngine(...)` (`main.go`) and owns the server lifecycle; BGP loads as a
 config-driven plugin and merely *borrows* hub-owned infra via `SetPluginServerAny`/
-`SetEventBusAny` (`internal/component/bgp/plugin/register.go:144,149`), with zero
+`SetEventBusAny` (`internal/component/bgp/plugin/register.go,149`), with zero
 hub→bgp imports. The review had read the reactor's `api` field but not the wiring — a
-textbook caller-vs-producer trap (`ai/rules/no-fabrication.md`).
+textbook caller-vs-producer trap (`ai/rules/evidence.md`).
 
 Only three genuinely-open remnants existed; each was decomposed into an **independent,
 non-competing** child and delivered:
 - **P1 ownership-1-rs-invariant** (`ff686e4a2`, learned 1063): the reactor RS fast path
   is now activated by the `rs` plugin via the `filterapi` capability seam
-  (`EnableRSForwarding`/`RSForwardingEnabled`, `filterapi.go:244/253`), cached once in
+  (`EnableRSForwarding`/`RSForwardingEnabled`, `filterapi.go/253`), cached once in
   reactor `New`, gated by a single short-circuiting `&& r.rsForwardingEnabled`
   (`reactor_notify.go`); the `rs-fast-path`/`rs-client` YANG leaves moved to
   `plugins/rs/yang/`. Delete the plugin → capability inert → no RS forwarding. Invariant

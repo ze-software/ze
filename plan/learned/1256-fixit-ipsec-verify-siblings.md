@@ -12,12 +12,12 @@ what the record said they were, and chasing the third surfaced a considerably la
 ## Decisions
 
 - **Read the producer before trusting the record.** 1255 called the responder swallow a
-  "fail-open". It is not one. `newTLSMethod` (`ike/eap/eap_tls.go:150-174`) hands crypto/tls
+  "fail-open". It is not one. `newTLSMethod` (`ike/eap/eap_tls.go`) hands crypto/tls
   a non-nil but EMPTY `x509.CertPool` as `ClientCAs` with `RequireAndVerifyClientCert`, and
   an empty non-nil pool REJECTS every chain: only a `nil` Roots falls back to the host root
   store, and that code never passes nil. The responder failed CLOSED, silently and late.
   Measured, not reasoned, then pinned by two tests so the distinction cannot rot. It still
-  deserved fixing (`fail-closed-guards.md`: a guard that denies while saying nothing does not
+  deserved fixing (`evidence.md`: a guard that denies while saying nothing does not
   exist), but the label sent the fix in the wrong direction.
 
 - **Where a check belongs is decided by what kind of fact it asserts.** A config-consistency
@@ -44,7 +44,7 @@ what the record said they were, and chasing the third surfaced a considerably la
 
 - `ze doctor` now reports `doctor-ipsec-iface`, and `ValidateInterfaceRef` finally has a
   non-test caller. It had been implemented, tested and reachable from nothing -- the same
-  shape as the wiring gaps `ai/rules/wiring-completeness.md` exists to catch.
+  shape as the wiring gaps `ai/rules/completion.md` exists to catch.
 
 - A successful reload is observable for the first time, by operators and by tests. Every
   reload `.ci` can now fence deterministically on `await=stderr:contains=reload complete`
@@ -54,7 +54,7 @@ what the record said they were, and chasing the third surfaced a considerably la
   skips (10s), and two `plan/known-failures/` shards were archived as genuinely resolved.
 
 - **`vpn ipsec remote-access` is inert**, which is a larger defect than the one this spec set
-  out to fix: the virtual IP pool is built then discarded (`ike/engine/register.go:372` is
+  out to fix: the virtual IP pool is built then discarded (`ike/engine/register.go` is
   `_ = ipPool`), `ra.Auth` and every `eap-user` have no consumer, and `matchResponderPeer`
   admits only configured site-to-site peers, so a road warrior can never establish. An
   operator can write a complete remote-access VPN, have it accepted by `ze config validate`
@@ -77,7 +77,7 @@ what the record said they were, and chasing the third surfaced a considerably la
   and a sub-suite is passed as ONE argument (`"bgp reload"`).
 
 - **`option=skip-os:value=darwin` on a test that APPLIES Linux config is the wrong marker.**
-  `ai/rules/qemu-testing.md` prescribes `needs-linux`, which also enrols the test in the QEMU
+  `ai/rules/platform-linux.md` prescribes `needs-linux`, which also enrols the test in the QEMU
   run. Unprivileged, those tests do not fail -- the interface plugin dies mid-handshake, the
   daemon never reaches the asserted state, and the test HANGS to the suite timeout. That is
   why they looked load-sensitive.
@@ -89,7 +89,7 @@ what the record said they were, and chasing the third surfaced a considerably la
 - **A bare `go run` of a registry-importing tool fakes reds.** `commit_helper.py` ran
   `scripts/docvalid/doc_drift.go` with no build tags, so every feature-gated NLRI plugin was
   compiled out and all 11 address-family claims in `docs/comparison.md` and `docs/DESIGN.md`
-  were reported as drift on a tree whose `make ze-doc-test` was green. `doc_drift.go:21`
+  were reported as drift on a tree whose `make ze-doc-test` was green. `doc_drift.go`
   blank-imports `plugin/all`; the sibling tools (`plugin_imports.go`, `inert_tests.go`) are
   stdlib-only source scanners and correctly need no tags.
 

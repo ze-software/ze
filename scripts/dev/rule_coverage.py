@@ -7,11 +7,9 @@ instead. That plan rests on one assumption (A-4) which no amount of code reading
 can settle: that a model which SEES a matching trigger will actually open the
 rule. This detector measures it instead of betting on it.
 
-It runs in the CURRENT world, where `ai/rules/CONDENSED.md` is still imported
-eagerly and every rule body is already in context. A miss reported here is
-therefore a session that never consulted a rule its own file types matched, even
-with the whole digest in front of it. That is exactly the population that would
-break once the body stops being eager.
+A miss reported here is a session that never consulted a rule its own file types
+matched, even with that rule's trigger line in front of it. That is exactly the
+population routing has to serve.
 
 Only `blocking` rules are reported. An advisory miss is not worth an operator's
 attention and would bury the ones that are.
@@ -28,7 +26,7 @@ cannot be acted on teaches the reader to skip the lines that can.
 ## The blind spot, stated rather than hidden
 
 A trigger that names an ACTION rather than a file type cannot be matched from
-touched files at all. `ai/rules/fail-closed-guards.md` ("writing or reviewing a
+touched files at all. `ai/rules/evidence.md` ("writing or reviewing a
 guard: an auth check, validator, constraint, ratchet, or lookup that gates
 behavior") is the standing example: no file extension implies it. A large
 minority of the routable blocking rules are unmatchable this way.
@@ -42,15 +40,15 @@ wrong (`ai/rules/stale-comments.md`).
 The detector therefore UNDER-reports, which is the safe direction: it never
 claims coverage it has not observed. Silence from this tool is NOT evidence that
 a session read what it needed. Every report line carries `unmatchable` so a
-reader can never mistake one for the other (`ai/rules/fail-closed-guards.md`,
+reader can never mistake one for the other (`ai/rules/evidence.md`,
 "or say something").
 
 ## What counts as reading a rule
 
-Only a direct read of `ai/rules/<name>.md`. Reading `ai/rules/CONDENSED.md` does
-NOT count, and that is deliberate: the digest is loaded in every session today,
-so counting it would mark every rule read and the detector would measure
-nothing. The question being asked is whether the session opened the rule.
+Only a direct read of `ai/rules/<name>.md`. Reading a digest artifact does NOT
+count, and that is deliberate: a digest is loaded in every session, so counting
+it would mark every rule read and the detector would measure nothing. The
+question being asked is whether the session opened the rule.
 
 Main-thread and subagent (`isSidechain`) turns are both counted. A subagent's
 edits are the session's edits, and a rule a subagent read HAS been consulted;
@@ -96,7 +94,7 @@ RULES_DIR = "ai/rules/"
 # The rule paths `ai/rules/CORE.md` carries, one per section heading. Membership
 # is DERIVED from that file at every run, never listed here: `make
 # ze-rules-condensed` regenerates CORE.md, and a list in this file would go stale
-# the moment it does (`ai/rules/derive-not-hardcode.md`).
+# the moment it does (`ai/rules/evidence.md`).
 CORE_RULE_LINE = re.compile(
     r"^`" + re.escape(RULES_DIR) + r"([^`/]+\.md)`\s*$", re.MULTILINE
 )
@@ -104,7 +102,7 @@ CORE_RULE_LINE = re.compile(
 # The file-kind vocabulary. Each entry is (kind, path predicate, trigger words
 # that NAME work on that kind of file). Matching is keyword -> file kind, never
 # rule name -> file kind: adding a rule needs no edit here, which is what
-# `ai/rules/derive-not-hardcode.md` asks for.
+# `ai/rules/evidence.md` asks for.
 #
 # The word lists are a FLOOR on recall, not a ceiling. They were tuned against
 # the live corpus until a Go-editing session matched roughly a quarter of the
@@ -238,7 +236,7 @@ def always_on_rules(rules_dir: Path) -> set[str]:
     the reader to skip the whole thing.
 
     Every way this can fail excludes nothing and SAYS so
-    (`ai/rules/fail-closed-guards.md`). Over-reporting is the safe direction, but
+    (`ai/rules/evidence.md`). Over-reporting is the safe direction, but
     silent over-reporting is indistinguishable from the 87%-noise state this
     exists to remove, so the operator is told which one they are looking at.
     """
@@ -274,7 +272,7 @@ def load_rules(rules_dir: Path) -> list[dict]:
     A second parser here would drift from the one the gate enforces.
 
     Generated artifacts are skipped by SHAPE (an all-caps stem, the repo's
-    convention for `CONDENSED.md` / `INDEX.md` / the forthcoming `TRIGGERS.md`)
+    convention for `INDEX.md` / `TRIGGERS.md` / `CORE.md`)
     rather than by a list that would need editing when the next one lands.
     """
     always_on = always_on_rules(rules_dir)
@@ -330,7 +328,7 @@ def read_transcript(path: str) -> tuple[set[str], set[str]]:
     A transcript that cannot be read yields two empty sets AND says so on
     stderr. `touched=0` alone does not say it: a session that wrote nothing
     produces exactly the same number, so silence here is indistinguishable from
-    a genuinely read-only session (ai/rules/fail-closed-guards.md -- a guard that
+    a genuinely read-only session (ai/rules/evidence.md -- a guard that
     cannot evaluate must speak). The resolved-but-missing case in `main` already
     speaks; this is the unreadable case, and it stays advisory, never fatal.
     """
@@ -418,6 +416,32 @@ def analyse(rules: list[dict], written: set[str], rules_read: set[str]) -> dict:
     }
 
 
+def previous_missed(root: Path, session: str) -> list[str] | None:
+    """The missed set this session last recorded, or None when it has none yet.
+
+    Read BEFORE append_report, so the comparison is against the PREVIOUS turn
+    rather than the line this run is about to write.
+
+    None and [] are deliberately different: None means "no prior record", which
+    must print, while [] means "the last turn missed nothing", which must stay
+    silent when this turn also misses nothing.
+    """
+    path = root / REPORT_PATH
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if row.get("session") == session:
+            return list(row.get("missed") or [])
+    return None
+
+
 def append_report(result: dict, session: str, root: Path) -> Path:
     """Append one line. A failure to record must never fail the caller."""
     path = root / REPORT_PATH
@@ -488,6 +512,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rules-dir", default=None, help="rule directory to parse")
     ap.add_argument("--json", action="store_true", help="emit JSON instead of text")
     ap.add_argument("--no-append", action="store_true", help="do not record a line")
+    ap.add_argument(
+        "--quiet",
+        action="store_true",
+        help=(
+            "one summary line, and only when the missed set CHANGED since this "
+            "session's last record (for the Stop hook, which runs every turn)"
+        ),
+    )
     args = ap.parse_args(argv)
 
     root = repo_root()
@@ -514,12 +546,28 @@ def main(argv: list[str] | None = None) -> int:
     written, rules_read = read_transcript(transcript)
     result = analyse(rules, written, rules_read)
 
+    session = args.session or "unknown"
+    # Read the prior record BEFORE appending, or the comparison is against this
+    # run's own line and nothing ever looks changed.
+    prior = previous_missed(root, session) if args.quiet else None
+
     report_path = root / REPORT_PATH
     if not args.no_append:
-        report_path = append_report(result, args.session or "unknown", root)
+        report_path = append_report(result, session, root)
 
     if args.json:
         print(json.dumps(result, indent=2))
+    elif args.quiet:
+        # The Stop hook runs on EVERY turn. Re-printing an unchanged list of
+        # ~30 rule names each time costs the reader context and tells them
+        # nothing new, so a repeat is silent: the evidence is accumulating in
+        # the ndjson either way, which is what the experiment consumes.
+        if prior is None or sorted(prior) != sorted(result["missed"]):
+            print(
+                f"rule-coverage: {len(result['missed'])} of "
+                f"{result['blocking-total']} matched blocking rule(s) unread "
+                f"-> {report_path}"
+            )
     else:
         print(format_text(result, report_path))
 

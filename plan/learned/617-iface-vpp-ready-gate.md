@@ -30,7 +30,7 @@ unchanged.
 - **Gate at `IsConnected()`, not `NewChannel()`.** `vpp.Connector`
   exposes both. The original `ensureChannel` called `NewChannel()` and
   relied on it returning `"govpp: not connected"`. But
-  `setActiveConnector(m.connector)` in `vpp.go:147` runs *before*
+  `setActiveConnector(m.connector)` in `vpp.go` runs *before*
   `runOnce` calls `Connect()` -- so `GetActiveConnector() != nil` is
   true before the handshake completes, and `NewChannel()` is the only
   thing that detects the pre-handshake state. Wrapping that error text

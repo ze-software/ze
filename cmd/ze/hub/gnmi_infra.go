@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_gnmi compile-out seam
+// Design: ai/rules/plugins.md -- ze_gnmi compile-out seam
 //
 // The gNMI compile-out seam. Always-on daemon startup code asks this seam to
 // build gNMI if an implementation is registered, but never imports the concrete

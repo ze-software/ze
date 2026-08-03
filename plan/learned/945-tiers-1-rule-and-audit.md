@@ -13,7 +13,7 @@ The `internal/component/` vs `internal/plugins/` split was historical placement,
 
 ## Consequences
 
-- `make ze-tier-check` (in `_ze-verify-impl` and the changed variant) now blocks any new config-driven engine landing in the wrong tier; the rule `ai/rules/module-tiers.md` tells authors where to put new packages.
+- `make ze-tier-check` (in `_ze-verify-impl` and the changed variant) now blocks any new config-driven engine landing in the wrong tier; the rule `ai/rules/architecture.md` tells authors where to put new packages.
 - The clean enforced set is exactly 8: `isis, ldp, rsvpte, flowexport, mrt` (→ plugins) and `bfd, sysctl, sysrib` (→ component). `mpls` is NOT enforced (it has no `sdk.NewWithConn`; it is a forwarding helper). These moves are child specs tiers-2 (component→plugins) and tiers-3 (plugins→component).
 - An empty baseline = full engine-placement enforcement with zero exceptions; the baseline is regenerated after a move with `dep_audit.py --write-baseline`.
 
@@ -21,12 +21,12 @@ The `internal/component/` vs `internal/plugins/` split was historical placement,
 
 - A naive top-level-dir gate flags `plugins/iface` (a grouping dir whose engine is the nested `iface/dhcp`) because a sibling backend is depended-on. Engine-package granularity with the depended-on check scoped to the engine package's own subtree fixes this -- `plugins/iface` is correctly NOT flagged.
 - `mpls` looked like a 5th edge-out candidate but is not an engine; the engine probe is the source of truth, not the directory's apparent role.
-- `CLAUDE.md`/`AGENTS.md` are generated from `ai/INSTRUCTIONS.md`, and `ai/rules/INDEX.md` from `rules_index.py`; the Before-You row and rule summary must be added to the sources and regenerated, never hand-edited (`ai/rules/canonical-sources.md`).
+- `CLAUDE.md`/`AGENTS.md` are generated from `ai/INSTRUCTIONS.md`, and `ai/rules/INDEX.md` from `rules_index.py`; the Before-You row and rule summary must be added to the sources and regenerated, never hand-edited (`ai/rules/repo-maintenance.md`).
 - `--selftest` caught a real bug: `write_baseline` did not create its parent dir.
 
 ## Files
 
-- `ai/rules/module-tiers.md` -- the canonical 3-tier rule + gate + baseline mechanism
+- `ai/rules/architecture.md` -- the canonical 3-tier rule + gate + baseline mechanism
 - `scripts/dev/dep_audit.py` -- `--check` (Path C gate), `--write-baseline`, `--selftest`, pluginDirs parse
 - `scripts/dev/tier_migration_baseline.txt` -- 8 baselined engines (transitional)
 - `scripts/dev/dep_audit_gate_test.go` -- Go tests bringing the gate into `go test`

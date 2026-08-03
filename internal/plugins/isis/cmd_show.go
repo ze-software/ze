@@ -18,7 +18,7 @@
 // module); the owner command YANG (yang/ze-isis-cmd.yang) ships the command-tree
 // nodes that bind them. Owned by the isis component so removing it removes the
 // `show isis ...` / `clear isis ...` commands, their schema, and these handlers
-// together (ai/rules/plugin-self-containment.md).
+// together (ai/rules/plugins.md).
 
 package isis
 

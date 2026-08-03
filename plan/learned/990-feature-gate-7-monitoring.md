@@ -32,7 +32,7 @@ working when the exporter is gated out.
   ze_telemetry) simply leaves the hook nil.
 - **The dummy is always-on and AVAILABLE, not a forced GetMetricsRegistry default.**
   The user asked for a "dummy default." Forcing `registry.GetMetricsRegistry()` to
-  return a `NopRegistry` instead of nil would REGRESS `ike/engine/register.go:216`,
+  return a `NopRegistry` instead of nil would REGRESS `ike/engine/register.go`,
   which gates a 5s ticker GOROUTINE on `GetMetricsRegistry() != nil` -- a Nop would
   spin that idle ticker (and risk other control-signal consumers) when telemetry is
   off, for zero functional gain (skip vs no-op-record are observably identical). So
@@ -105,4 +105,4 @@ working when the exporter is gated out.
   `internal/component/config/all_schemas_test.go` (relocated import),
   `feature-gates.txt`, `.golangci.yml`, `internal/component/plugin/all/all.go`,
   `docs/features.md`, `docs/guide/{monitoring,configuration}.md`,
-  `ai/rules/module-tiers.md`, `ai/rules/feature-gate-registration.md`
+  `ai/rules/architecture.md`, `ai/rules/plugins.md`

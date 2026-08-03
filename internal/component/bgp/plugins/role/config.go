@@ -226,7 +226,7 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 			// ever look up PeerFilterInfo.Address.String(). Storing it anyway
 			// produced config nothing could find, and a nil cfg sends the
 			// RFC 9234 Section 5 gates down their permissive branch -- the
-			// zero-value trap of ai/rules/fail-closed-guards.md, where a miss is
+			// zero-value trap of ai/rules/evidence.md, where a miss is
 			// indistinguishable from "this peer has no role configured". Such a
 			// peer also never establishes (reactor/config.go:76-78 fails the
 			// empty remote IP with ErrIncompleteConfig and :516-521 skips it),

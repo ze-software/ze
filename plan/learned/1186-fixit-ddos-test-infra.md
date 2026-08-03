@@ -18,12 +18,12 @@ AC-6 execution) is left to the human/CI run recorded in the drain recipe.
   the in-daemon `ze_api` probe.** The handshake is alive (armed for background `ze`), and
   the assertion REQUIRES reading the nft ruleset (no dispatch surface carries the hook,
   `local/show.go`), which needs the privileged foreground driver the runner deliberately
-  keeps root (`internal/test/runner/runner_exec.go:740-744`). Migrate only the two
+  keeps root (`internal/test/runner/runner_exec.go`). Migrate only the two
   `time.sleep` poll loops to `ze_api.wait_until` (module-level import), mirroring the green
-  pattern of record `test/vrrp/vrrp-instance-up.ci:123`.
+  pattern of record `test/vrrp/vrrp-instance-up.ci`.
 - **Transit test structure follows the producer's once-per-generation emit.**
   `AttackDetected`/`AttackCharacterized` emit exactly once per attack generation at onset
-  (`internal/plugins/ddos/detect/detector.go:310-333`, `characterize.go:138-160`); only
+  (`internal/plugins/ddos/detect/detector.go`, `characterize.go`); only
   `AttackOngoing` re-emits (empty target). So `hookForDirection` is consulted only at attack
   onset, and AC-4 (forward-mitigation ON -> FORWARD drop) and AC-5 (OFF -> defer, no drop)
   each need a DISTINCT generation. The single `ddos-transit-forward-drop.ci` uses two phases
@@ -32,7 +32,7 @@ AC-6 execution) is left to the human/CI run recorded in the drain recipe.
   OFF via SIGHUP (rewrite `ze-bgp.conf`, vrrp precedent); Phase B drives a fresh generation
   that must defer (proven by the `deferring to flowspec` stderr log) with no drop installed.
 - **No `firewall {}` block (D-2).** `ApplyAll` autoloads nft on demand for plugin-owned
-  tables (`internal/component/firewall/registry.go:104-109`), so ddos-local is the sole nft
+  tables (`internal/component/firewall/registry.go`), so ddos-local is the sole nft
   driver and the two-driver combination behind the R-1 deadlock is avoided.
 - **Remote victim = a connected-but-unassigned address.** setup.py addresses the box end of
   a veth `203.0.113.1/24`, leaving `203.0.113.9` inside the connected /24 but owned by no

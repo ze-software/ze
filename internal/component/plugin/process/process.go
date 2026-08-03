@@ -148,7 +148,7 @@ type startupFailure struct{ err error }
 // (e.g. `iface: create dummy "zdiag0": operation not permitted`) was logged at
 // Debug and dropped, and ze exited with only "plugin interface failed during
 // startup at stage Config" -- an error with no evidence and no corrective
-// action (ai/rules/error-messages.md).
+// action (ai/rules/cli.md).
 //
 // Only the FIRST cause is kept: it is the one that actually stopped startup,
 // and later errors are usually its consequences (a closed pipe, an aborted
@@ -165,7 +165,7 @@ func (p *Process) SetStartupError(err error) {
 // StartupError returns the cause recorded by SetStartupError, or nil when the
 // handshake never failed or failed without a reported cause. Callers MUST treat
 // nil as "no cause available" and still report the failure -- the absence of a
-// cause is not evidence of success (ai/rules/fail-closed-guards.md).
+// cause is not evidence of success (ai/rules/evidence.md).
 //
 // Safe for concurrent use.
 func (p *Process) StartupError() error {

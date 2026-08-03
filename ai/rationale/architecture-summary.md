@@ -1,6 +1,6 @@
 # Architecture Summary Rationale
 
-Why: `ai/rules/architecture-summary.md`
+Why: `ai/rules/architecture.md`
 
 ## System Diagram
 

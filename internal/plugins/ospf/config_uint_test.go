@@ -13,7 +13,7 @@ import (
 // into a different, valid-looking setting (4294967296 -> 0). The config file
 // parser already rejects such values against the leaf's YANG type, but relying on
 // a guard three layers up fails OPEN for any entry point that skips it
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func TestConfigUintRejectsAboveMax(t *testing.T) {
 	t.Run("uint8", func(t *testing.T) {
 		tests := []struct {

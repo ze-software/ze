@@ -40,8 +40,8 @@ the spec-layout umbrella; both gaps closed as additive, baseline-protected gates
 ## Gotchas
 
 - `qos-map`-style token confusion has a twin in anchors: `make ze-doc-test`
-  failed on a `*` glob source anchor (`docs/features/rfc-status.md:83`) that
-  `check_path_exists` (code_to_docs.py:62-65) never expands -- anchors must name
+  failed on a `*` glob source anchor (`docs/features/rfc-status.md`) that
+  `check_path_exists` (code_to_docs.py) never expands -- anchors must name
   a real file or directory, never a glob.
 - The pretool hook bans string `+` concatenation even in `//go:build ignore`
   scripts; `path.Join` is the clean way to build derived root paths (and matches
@@ -55,5 +55,5 @@ the spec-layout umbrella; both gaps closed as additive, baseline-protected gates
 - `scripts/dev/core_import_baseline.txt` (new, 10 rows)
 - `scripts/checks/plugin_process_boundary.go` (+_test.go): loadScanRootsFrom,
   --print-roots, derivation selftest
-- `ai/rules/module-tiers.md`, `ai/rules/plugin-process-boundary.md`,
+- `ai/rules/architecture.md`, `ai/rules/plugins.md`,
   `docs/plugin-overview.md`, `docs/features/rfc-status.md`

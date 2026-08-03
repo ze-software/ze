@@ -31,7 +31,7 @@ lifecycle.
   wrapping every UPDATE builder shares (`wireu.buildUpdatePayload` is unexported), so it
   is built inline in `assembleUpdateBody` -- not a parallel encoder.
 - **Broadcast replay for the initial dump.** On enable, bmp emits a broadcast
-  `ribevents.ReplayRequest` (mirrors sysrib.go:896) so an operator turning on Loc-RIB BMP
+  `ribevents.ReplayRequest` (mirrors sysrib.go) so an operator turning on Loc-RIB BMP
   on a running router sees the current table (RFC 9069 "Initial dump sends full Loc-RIB
   contents"). The hop is broadcast -> every best-change subscriber (sysrib) re-processes;
   those paths dedup, so it is safe, just redundant work. Verified safe: the `.ci` runs

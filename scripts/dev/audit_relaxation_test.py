@@ -8,7 +8,7 @@ python_tests_test.go either way.)
 
 Driven end-to-end through the real entry point (subprocess) rather than by
 calling run_audit() directly, per the test corollary in
-ai/rules/fail-closed-guards.md: a unit test on a guard helper proves the helper
+ai/rules/evidence.md: a unit test on a guard helper proves the helper
 works, not that the caller reaches it with the input that matters. The exit code
 IS the gate, so the gate is what gets asserted.
 

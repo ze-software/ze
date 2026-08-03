@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — show rr proxy handlers.
 // Owned by the bgp-rr plugin so that removing the route-reflector surface
 // removes the `show rr ...` command, its schema, and these handlers together.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 
 package rr
 

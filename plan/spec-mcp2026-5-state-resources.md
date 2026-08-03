@@ -33,8 +33,8 @@ Three reasons, from the umbrella:
 | Reason | Detail |
 |--------|--------|
 | Shape | `notifications/resources/updated` carries only the changed URI, so the client re-reads. That is naturally coalescing, which is what an agent wants and what a raw event stream is not |
-| Volume | The bus carries `*BestChangeBatch` (`internal/core/bgp/ribevents/ribevents.go:157`), which is BGP best-path churn and can be thousands of events per second. SSE to an LLM client is the wrong sink |
-| Coupling | Bus payloads are internal typed Go values. A Ze-specific notification type would freeze them into a public wire contract that no third-party client understands anyway (`ai/rules/plugin-design.md`, cross-boundary value types) |
+| Volume | The bus carries `*BestChangeBatch` (`internal/core/bgp/ribevents/ribevents.go`), which is BGP best-path churn and can be thousands of events per second. SSE to an LLM client is the wrong sink |
+| Coupling | Bus payloads are internal typed Go values. A Ze-specific notification type would freeze them into a public wire contract that no third-party client understands anyway (`ai/rules/plugins.md`, cross-boundary value types) |
 
 The rejected alternative stays on the record: a Ze extension
 (`io.ze-software/events`) adding its own filter field and notification type is
@@ -45,8 +45,8 @@ justifies it. A third-party MCP client would ignore it.
 **Work this spec must cover:**
 
 1. **Implement `subscriptions/listen`.** Not implemented by the cutover (umbrella A-4, confirmed: there was nothing to advertise). The request opens a long-lived SSE response stream; the server MUST send `notifications/subscriptions/acknowledged` first, carrying `io.modelcontextprotocol/subscriptionId` in `_meta`, and MUST NOT send notification types the client did not request. The acknowledgment's `notifications` field reflects only the subset the server honours. Graceful closure sends the empty `subscriptions/listen` response before closing.
-2. **Choose the state worth exposing.** The low-rate transitions are the useful ones. Candidates from the registered typed events: protocol session up/down (`internal/plugins/isis/events.go:56-57`, `internal/plugins/ldp/events.go:40-41`, `internal/plugins/rsvpte/events.go:34-35`), OSPF neighbour and interface state (`internal/plugins/ospf/events.go:55-61`), VRRP state change (`internal/plugins/vrrp/telemetry.go:46`). The route-change batches are explicitly **not** candidates.
-3. **Design the `ze://` URI space.** It must be stable, enumerable through `resources/list`, and readable through `resources/read`. Note the existing `ui://` scheme (`resources.go:19`) is a separate namespace serving embedded assets; this adds a second one backed by live state rather than an embedded FS, which is a structural change to `resources.go`.
+2. **Choose the state worth exposing.** The low-rate transitions are the useful ones. Candidates from the registered typed events: protocol session up/down (`internal/plugins/isis/events.go`, `internal/plugins/ldp/events.go`, `internal/plugins/rsvpte/events.go`), OSPF neighbour and interface state (`internal/plugins/ospf/events.go`), VRRP state change (`internal/plugins/vrrp/telemetry.go`). The route-change batches are explicitly **not** candidates.
+3. **Design the `ze://` URI space.** It must be stable, enumerable through `resources/list`, and readable through `resources/read`. Note the existing `ui://` scheme (`resources.go`) is a separate namespace serving embedded assets; this adds a second one backed by live state rather than an embedded FS, which is a structural change to `resources.go`.
 4. **Bridge the event bus to resource-updated notifications.** `EventBus.Subscribe` handlers "run synchronously when an event is emitted and MUST NOT block on I/O" (`pkg/ze/eventbus.go`), so the bridge must hand off to the subscription stream without blocking the emitting goroutine, and must coalesce: many bus events for one resource collapse into one `notifications/resources/updated`.
 5. **Bound it.** Long-lived streams per client, subscription counts, and the coalescing buffer all need caps. The cutover deleted the session caps that used to bound concurrent client state, so this is the first feature to reintroduce long-lived per-client state and it must carry its own limits.
 6. **Decide the authorization model.** A subscription outlives the request that created it. Whether a revoked identity's stream is torn down, and how, is a real question that per-request auth does not answer by itself.
@@ -60,7 +60,7 @@ becomes revisitable, though polling remains the spec default and is not wrong.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - the event bus design
 - [ ] `docs/architecture/mcp/overview.md` - resources model
-- [ ] `ai/rules/plugin-design.md` - cross-boundary value types
+- [ ] `ai/rules/plugins.md` - cross-boundary value types
 
 ### Protocol Specification (Scope: protocol)
 - [ ] `https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions` - filter, acknowledgment, subscription IDs, graceful closure
@@ -83,7 +83,7 @@ becomes revisitable, though polling remains the spec default and is not wrong.
 **Behavior to change:**
 - Additive only. Nothing existing changes behaviour.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - HTTP POST `subscriptions/listen` carrying a `notifications` filter with `resourceSubscriptions` listing `ze://` URIs.

@@ -7,7 +7,7 @@ package main
 //
 // The selftest needs neither QEMU nor a download, so it runs on any host.
 //
-// Rule: ai/rules/qemu-testing.md. Spec: plan/learned/1173-relocate-scratch-and-cache.md.
+// Rule: ai/rules/platform-linux.md. Spec: plan/learned/1173-relocate-scratch-and-cache.md.
 
 import (
 	"context"

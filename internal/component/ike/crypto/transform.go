@@ -132,7 +132,7 @@ var aeadSaltBytes = map[EncryptionID]int{
 // wire. A caller that holds an EncryptionTransform asks this method on the ID rather
 // than read the IsAEAD field. The field is a cached view. A construction site can
 // leave it at its zero value, and that false value reads as a valid "not AEAD"
-// answer (ai/rules/fail-closed-guards.md). The ID cannot lie in that way.
+// answer (ai/rules/evidence.md). The ID cannot lie in that way.
 //
 // Membership in aeadSaltBytes IS the AEAD property. A miss means the cipher is not
 // AEAD. A hit gives that cipher's own salt. Neither answer can be a zero value that
@@ -224,7 +224,7 @@ func LookupEncryption(name string) (EncryptionTransform, error) {
 
 // SupportedEncryptionNames lists every encryption algorithm this build implements, in
 // sorted order. The config parser names the list in the error it returns for an
-// algorithm it refuses, so the two can never disagree (ai/rules/derive-not-hardcode.md).
+// algorithm it refuses, so the two can never disagree (ai/rules/evidence.md).
 func SupportedEncryptionNames() []string {
 	return sortedKeys(encryptionRegistry)
 }
@@ -244,7 +244,7 @@ func SupportedPRFNames() []string {
 // ascending order. RFC 7296 Section 3.3.2 assigns Transform Type 4 a far wider number
 // space than any build carries. The config parser therefore names this list in the error
 // it returns for a group it refuses, so the two can never disagree
-// (ai/rules/derive-not-hardcode.md).
+// (ai/rules/evidence.md).
 func SupportedDHGroupIDs() []uint8 {
 	ids := make([]uint8, 0, len(dhGroupRegistry))
 	for id := range dhGroupRegistry {

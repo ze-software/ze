@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- web route registry (registration over hardcoding)
+// Design: ai/rules/plugins.md -- web route registry (registration over hardcoding)
 // Related: handler_l2tp.go, handler_isis.go, handler_ospf.go -- in-tree feature routes that self-register
 //
 // WebRoute lets in-tree web features (L2TP, IS-IS, OSPF, the gokrazy portal)

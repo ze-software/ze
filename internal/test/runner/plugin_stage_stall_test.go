@@ -16,7 +16,7 @@ import (
 // exceeds the budget (clamp) so the watchdog's precise message still wins the
 // race against the outer test timeout.
 // PREVENTS: regressing to a fixed constant, which is sized against one machine
-// and lies at a different speed (ai/rules/fix-dont-record.md: "generous is a
+// and lies at a different speed (ai/rules/completion.md: "generous is a
 // synonym for unknown").
 func TestPluginStageStallDerivation(t *testing.T) {
 	const floor = pluginStageStallFloor // 10s

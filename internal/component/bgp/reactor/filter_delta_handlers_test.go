@@ -268,7 +268,7 @@ func TestMPReachNextHopHandler_IPv4NextHopThroughMPReach(t *testing.T) {
 // overflow by copying the source through, which forwarded the route carrying
 // exactly the next-hop the policy existed to rewrite. RFC 4271 Section 4.3 caps
 // an attribute value at 65535 octets, so the plan now REFUSES and the caller
-// suppresses the route for this destination (ai/rules/fail-closed-guards.md).
+// suppresses the route for this destination (ai/rules/evidence.md).
 // Both outcomes prevent a truncated length field reaching the wire, which is
 // what this test is for; only refusal also stops the unmodified route.
 func TestMPReachNextHopHandler_RejectsOverflow(t *testing.T) {

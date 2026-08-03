@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_tacacs AAA composition root gating
+// Design: ai/rules/plugins.md -- ze_tacacs AAA composition root gating
 //
 // TACACS+ backend registration for the AAA composition root, gated on
 // ze_tacacs. This is the hand-written sibling of the generated

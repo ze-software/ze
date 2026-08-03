@@ -43,9 +43,9 @@ drops a bound is caught, not a live crash fix.
   — bumping it by 3 keeps the table self-consistent without pretending to fix the separate drift.
 - Adding a test file to a package runs `ze-verify-changed`, whose `ze-verify-wiring-docs` stage scans
   the WHOLE tree for `// Design:` refs — so a pre-existing broken ref anywhere (here
-  `vrrp/packet/checksum.go:3`, the only `// Design: RFC` in the tree) becomes a deterministic
+  `vrrp/packet/checksum.go`, the only `// Design: RFC` in the tree) becomes a deterministic
   STRUCTURAL gate red that `commit_helper --unverified` cannot bypass and that blocks EVERY commit.
-  Fix: wrap the note in parentheses — `check_doc_links.py:201` skips `// Design: (…)` as a
+  Fix: wrap the note in parentheses — `check_doc_links.py` skips `// Design: (…)` as a
   parenthetical (88 existing uses like `// Design: (none -- predates documentation)`). The
   `doc-links: ignore` marker only works for markdown, not Go Design refs.
 - `tmp/ze-verify-failures.json` (the file `commit_helper` reads for structural-gate reds) is rewritten

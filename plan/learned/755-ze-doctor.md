@@ -11,7 +11,7 @@ Key choices:
 - **Severity model**: error = cannot start, warning = will start but degraded. The `ready` flag in JSON output is false if any error-severity diagnostic exists.
 - **Platform split**: `checks_linux.go` for kernel modules (`/proc/modules`), interface link state (`/sys/class/net/`), XFRM support. `checks_other.go` stubs for macOS/test builds.
 - **Shared resolve package**: `cmd/ze/internal/resolve/` extracts storage and config path resolution previously duplicated between `cmd/ze/main.go` and `cmd/ze/doctor/`.
-- **Extensibility rule**: `ai/rules/doctor-checks.md` requires any future feature that adds a runtime dependency to include a corresponding doctor check.
+- **Extensibility rule**: `ai/rules/repo-maintenance.md` requires any future feature that adds a runtime dependency to include a corresponding doctor check.
 
 ## Consequences
 - Agents call `ze doctor --json` before daemon start and parse the result.

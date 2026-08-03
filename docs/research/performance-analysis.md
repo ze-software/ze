@@ -104,7 +104,7 @@ a theoretical ~164,000 UPDATEs/sec per source peer if write workers keep up.
 #### 1. Send Hold Timer Recreation Per Write
 
 **Cost:** 2,000-4,800 ns + 2 allocs (120 B) per write
-**Location:** `session_write.go:116-122` (resetSendHoldTimer)
+**Location:** `session_write.go` (resetSendHoldTimer)
 **Frequency:** Every successful message write (UPDATEs, KEEPALIVEs)
 
 ```
@@ -137,7 +137,7 @@ s.sendHoldTimer.Reset(d)
 #### 2. env.GetDuration() Called Per Forward Batch
 
 **Cost:** 618-4,750 ns + 1 alloc (24 B) per batch
-**Location:** `forward_pool.go:90` (fwdBatchHandler)
+**Location:** `forward_pool.go` (fwdBatchHandler)
 **Frequency:** Every forward batch (1000s/sec under load)
 
 ```go
@@ -157,7 +157,7 @@ The value never changes at runtime.
 #### 3. Cache Retain/Release: N Write-Locks Per UPDATE
 
 **Cost:** 64 ns per Retain + 64 ns per Release, multiplied by peer count
-**Location:** `reactor_api_forward.go:393-394` (ForwardUpdate loop)
+**Location:** `reactor_api_forward.go` (ForwardUpdate loop)
 **Frequency:** N times per UPDATE (N = number of matching peers)
 
 ```go
@@ -188,7 +188,7 @@ cache.RetainN(id, len(matchingPeers))
 #### 4. BufMux Mutex Contention Under Parallel Load
 
 **Cost:** 70 ns serial, 200-300 ns under contention
-**Location:** `bufmux.go:219-224, 255-272` (Get/Return)
+**Location:** `bufmux.go, 255-272` (Get/Return)
 **Frequency:** Every message read + return
 
 Under 16 goroutines, BufMux Get/Return cost increases 3-4x due to mutex contention.
@@ -228,7 +228,7 @@ per UPDATE.
 #### 6. Bus Notification Map Allocation Per UPDATE
 
 **Cost:** ~400 ns + 1 alloc (16 B) per UPDATE
-**Location:** `reactor_notify.go:374-377` (publishBusNotification)
+**Location:** `reactor_notify.go` (publishBusNotification)
 **Frequency:** Every received UPDATE
 
 ```go

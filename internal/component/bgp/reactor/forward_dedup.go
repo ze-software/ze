@@ -94,7 +94,7 @@ func recordDedupHit() {
 // refused candidate is correct behavior rather than an error. It is counted
 // because a silent refusal would hide the one observable that separates "the
 // hash is doing its job" from "the hash has become degenerate"
-// (ai/rules/fail-closed-guards.md: a guard must fail closed or say something).
+// (ai/rules/evidence.md: a guard must fail closed or say something).
 func recordDedupCollision() {
 	fwdDedupCollisions.Add(1)
 	if m := fwdDedupMetricsPtr.Load(); m != nil {
@@ -248,11 +248,11 @@ func putFwdDedupTable(t *fwdDedupTable) {
 // fingerprint SELECTS candidates. filterapi.EditDigestEqual AUTHORIZES the
 // reuse, unconditionally and with no fast path, because a fingerprint match
 // between two different edit sets would otherwise send this destination another
-// destination's wire (ai/rules/fail-closed-guards.md).
+// destination's wire (ai/rules/evidence.md).
 // A nil table is the DISABLED state, and every method reads it as "share
 // nothing". That is the fail-closed direction: a destination that is told
 // nothing is shareable rebuilds its own bytes, which is exactly the behavior
-// this change replaces (ai/rules/fail-closed-guards.md).
+// this change replaces (ai/rules/evidence.md).
 func (t *fwdDedupTable) begin(id fwdDedupIdentity, mods *filterapi.ModAccumulator) ([]byte, fwdDedupCand) {
 	if t == nil {
 		return nil, fwdDedupCand{}

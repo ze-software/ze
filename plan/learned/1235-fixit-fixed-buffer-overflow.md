@@ -42,7 +42,7 @@ NO_PROPOSAL/INVALID_KE notifies; the parsed DHCPv6 ClientID is capped at
   asserting `Len()==WriteTo` for every type.
 - **IKE `sendSAInitNotify`/`sendDPD`/`buildSAInitResponse` call `CheckedWriteTo`
   and SKIP+LOG on overflow** (D-3): a truncated IKE message is malformed, worse
-  than a panic (`ai/rules/no-workarounds-for-missing-behavior.md`), so never
+  than a panic (`ai/rules/completion.md`), so never
   copy-truncate. `buildSAInitResponse` gained an `error` return; its sole caller
   (`handleSAInitRequest`) logs peer+length and sets `StateDead`.
 - **IKE `buildSAInitRequest` uses `make([]byte, msg.Len())` (Len-first sizing),
@@ -84,8 +84,8 @@ NO_PROPOSAL/INVALID_KE notifies; the parsed DHCPv6 ClientID is capped at
   Prefer Len-first sizing (no signature change) when the message length is
   ze-controlled; reserve the error-returning checked path for the
   remotely-influenced sites.
-- OUT OF SCOPE (noted follow-up, `ai/rules/no-partial-completion.md`): `BuildRA`
-  (`ra.go:37`, into `var buf [256]byte` at `ra_linux.go:111`) is the same
+- OUT OF SCOPE (noted follow-up, `ai/rules/completion.md`): `BuildRA`
+  (`ra.go`, into `var buf [256]byte` at `ra_linux.go`) is the same
   unguarded-builder pattern with a variable-length RDNSS option; it cannot
   overflow today only because its sole caller passes a fixed no-RDNSS `RAConfig`.
   It should adopt the same `Checked*` bound in a follow-up.

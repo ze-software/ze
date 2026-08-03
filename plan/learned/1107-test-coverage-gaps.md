@@ -51,8 +51,8 @@ passing test.
 ## Gotchas
 
 - **Startup event subscriptions are namespace-locked to bgp**: `registerSubscriptions`
-  -> `DefaultEventNamespace()` (`plugin/server/dispatch.go:148`), and delivered events
-  carry no ns/name envelope (`payloadToJSON`, `dispatch.go:286-304`). So the ipsec
+  -> `DefaultEventNamespace()` (`plugin/server/dispatch.go`), and delivered events
+  carry no ns/name envelope (`payloadToJSON`, `dispatch.go`). So the ipsec
   `sa-up`/`child-up` event assertions and the `monitor vpn ipsec` stream test could
   not be written; the `.ci`s prove establishment via `show vpn ipsec sa`/`peer` gated
   on the negotiated aes-cbc algorithm instead. Owner: `spec-fixit-plugin-event-subscription.md`.

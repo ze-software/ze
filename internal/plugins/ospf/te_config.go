@@ -3,7 +3,7 @@
 //
 // The per-interface `traffic-engineering` block and its `inter-as` sub-block are TE-owned
 // config, kept out of the generic config.go so removing the TE consumer removes all TE
-// spelling (ai/rules/plugin-self-containment.md). Cross-field validation (inter-as needs a
+// spelling (ai/rules/plugins.md). Cross-field validation (inter-as needs a
 // remote-as and at least one remote-asbr, RFC 5392 sec 3.2.1/3.3.1) lives in the plugin's
 // validateConfig, which is the authoritative in-process verifier: a per-leaf YANG
 // ze:validate cannot express a requirement spanning sibling leaves.

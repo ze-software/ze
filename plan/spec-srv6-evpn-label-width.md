@@ -20,7 +20,7 @@
 
 `labelWidthForSAFI` returns 24 for EVPN (RFC 9252 Section 6.2: "Transposition
 Length MUST be less than or equal to 24"). But `pool.ResolveLabels` stores MPLS
-labels as 20-bit values (see `route_labeled.go:27`: "MaxMPLSLabel is the maximum
+labels as 20-bit values (see `route_labeled.go`: "MaxMPLSLabel is the maximum
 valid MPLS label value (20 bits)").
 
 If an EVPN peer advertises `transposLen > 20`, `ApplyTransposition` reads bits
@@ -38,8 +38,8 @@ transposed value are lost.
 
 ### Key source files
 
-- `internal/component/bgp/plugins/rib/pool/srv6sid.go:147` - ApplyTransposition with labelWidth
-- `internal/component/bgp/plugins/rib/rib_bestchange.go:897` - labelWidthForSAFI
+- `internal/component/bgp/plugins/rib/pool/srv6sid.go` - ApplyTransposition with labelWidth
+- `internal/component/bgp/plugins/rib/rib_bestchange.go` - labelWidthForSAFI
 - `internal/component/bgp/plugins/rib/pool/labels.go` - InternLabels, ResolveLabels
 - `internal/component/bgp/route/route_labeled.go` - MaxMPLSLabel (20 bits)
 - `internal/component/bgp/plugins/nlri/` - EVPN NLRI label parsing
@@ -91,8 +91,8 @@ transposed value are lost.
 | Label pool -> transposition | ResolveLabels -> ApplyTransposition | [ ] |
 
 ### Integration Points
-- `ApplyTransposition` (`internal/component/bgp/plugins/rib/pool/srv6sid.go:147`) - consumes the stored label with `labelWidth`; where the 24-bit read happens
-- `labelWidthForSAFI` (`internal/component/bgp/plugins/rib/rib_bestchange.go:897`) - already returns 24 for EVPN; the width the storage must honor
+- `ApplyTransposition` (`internal/component/bgp/plugins/rib/pool/srv6sid.go`) - consumes the stored label with `labelWidth`; where the 24-bit read happens
+- `labelWidthForSAFI` (`internal/component/bgp/plugins/rib/rib_bestchange.go`) - already returns 24 for EVPN; the width the storage must honor
 - `InternLabels` / `ResolveLabels` (`internal/component/bgp/plugins/rib/pool/labels.go`) - label storage that may need to keep the full 24-bit field
 - `MaxMPLSLabel` (`internal/component/bgp/route/route_labeled.go`) - the 20-bit cap in conflict with EVPN transposition
 - EVPN NLRI label parsing (`internal/component/bgp/plugins/nlri/`) - source of the label value; investigation item 1

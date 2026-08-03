@@ -6,7 +6,7 @@
 // static R3 check that no `--flag` appears in any .yang file. Category-exempt
 // commands (bridge / wire-protocol / editor) are skipped and counted.
 //
-// This is Feeder 1 of the grammar gate (ai/rules/cli-grammar.md). The plugin
+// This is Feeder 1 of the grammar gate (ai/rules/cli.md). The plugin
 // registration check (validateCommandName) is Feeder 2; the in-process runtime
 // guard (TestRuntimeBuiltinSurfaceGrammar / TestRegistrationRejectsBadGrammar in
 // internal/component/plugin/server) is Feeder 3.
@@ -66,7 +66,7 @@ type result struct {
 }
 
 // pendingNamespaceSplit lists command paths that violate R9 (sibling namespace
-// collision, ai/rules/cli-grammar.md "Compound Token vs Namespace Split") but are
+// collision, ai/rules/cli.md "Compound Token vs Namespace Split") but are
 // already shipped and are scheduled for the agreed rename migration (split the
 // hyphenated member into `namespace member`). They are tracked debt, NOT a permanent
 // category exemption (those are structural, keyed on wire method, in
@@ -117,7 +117,7 @@ var treeNamespaceExempt = map[string]bool{
 	// type 4, OSPFv3 function code 12. The `router` sibling is the Router-LSA
 	// (Type 1), a different LSA type that shares the word by accident and owns
 	// nothing under it; `show ospf database router information` would file an
-	// Opaque LSA under Type 1. ai/rules/cli-grammar.md R9 test 2 lists
+	// Opaque LSA under Type 1. ai/rules/cli.md R9 test 2 lists
 	// `router-information` by name as a keep-the-hyphen LSA name.
 	"show ospf database router-information":      true,
 	"show ospf ipv6 database router-information": true,
@@ -188,7 +188,7 @@ func run() result {
 
 	res.FlagInYANG = flagInYANG()
 
-	// Feeder 4: the root namespace (ai/rules/cli-grammar.md). Root handlers are
+	// Feeder 4: the root namespace (ai/rules/cli.md). Root handlers are
 	// registered outside the YANG command tree, so the walk above never sees them;
 	// a hyphenated root whose left segment names a namespace on another surface
 	// (a YANG verb or object container) would sit undetected -- exactly how

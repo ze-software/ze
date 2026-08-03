@@ -5,11 +5,11 @@
 The request was to restrict `--user` to root: only root could name a user, everyone
 else would be forced to their OS login name. Research killed the premise. `ze cli
 --user` is only SSH: the flag picks the username in the handshake and the daemon
-authenticates it (`internal/component/ssh/ssh.go:433-453`), so a client-side gate
+authenticates it (`internal/component/ssh/ssh.go`), so a client-side gate
 guards nothing that `ssh alice@host` does not walk around. The user then raised role
 accounts -- an OS user `thomas` may need to log into kit as `noc` -- which killed the
 login-name rule too, and would have broken the project's own install guide
-(`docs/guide/ubuntu-build-install.md:194` documents `ze cli --user noc`). Nothing was
+(`docs/guide/ubuntu-build-install.md` documents `ze cli --user noc`). Nothing was
 implemented from the original request. The investigation instead uncovered two real
 defects in the same over-constrained resolver, and those became the spec.
 
@@ -27,7 +27,7 @@ defects in the same over-constrained resolver, and those became the spec.
   safe-by-default and structurally prevents recurrence, but costs a 10-site diff for a
   bug with one victim. The footgun remains: prompting is still the default, deterred
   only by a doc comment. Revisit if a second caller ever hangs.
-- **Named it `NoPrompt`, not `NonInteractive`.** `client_test.go:226` already used
+- **Named it `NoPrompt`, not `NonInteractive`.** `client_test.go` already used
   "NonInteractive" to mean "stdin is not a tty" -- a different concept. Overloading it
   would have misled the next reader.
 - **Classified store-open failures rather than treating all as fatal or all as absent.**
@@ -41,7 +41,7 @@ defects in the same over-constrained resolver, and those became the spec.
 - The zefs store is now one credential source among several, not a precondition. A
   YANG user with `--user` + `ze.ssh.password` logs in with no readable store -- which
   is every non-installing user, since the store is one shared `0600` file under a
-  binary-derived `/etc/ze` (`paths.go:48-51`, `store.go:507`).
+  binary-derived `/etc/ze` (`paths.go`, `store.go`).
 - A store-less user loses the `meta/ssh/default` pointer and falls back to
   `127.0.0.1:2222`; a non-default daemon needs `ze.ssh.host`/`ze.ssh.port` or
   `--remote`. Documented, not guessed.
@@ -57,7 +57,7 @@ defects in the same over-constrained resolver, and those became the spec.
   prompt, and 11 callers treated it as cheap. Any change that makes such a function
   succeed *more often* widens the blast radius of its side effects. Ask "who is allowed
   to block?" before "what is the default value?".
-- **The hang was reachable by following the docs.** `authentication.md:110-117` said
+- **The hang was reachable by following the docs.** `authentication.md` said
   `export ZE_SSH_USERNAME=alice` / `export ZE_SSH_PASSWORD=... # or use a key-locked
   secret store` -- taking the comment's advice and omitting the password produced the
   hang. The docs were the bug report nobody filed.
@@ -71,7 +71,7 @@ defects in the same over-constrained resolver, and those became the spec.
   same classification branch unconditionally, and guard the genuine permission case on
   `os.Geteuid() != 0`.
 - **The `cmd/ze/internal/ssh/client` facade is dead** -- zero Go importers; only a
-  `// Related:` comment in `pkg/zefs/store.go:10` mentions it. The spec said to
+  `// Related:` comment in `pkg/zefs/store.go` mentions it. The spec said to
   re-export there "so the facade stays complete"; that added a dead symbol and the
   /ze-review wiring step caught it. Check a facade has importers before extending it.
 - **The `nilnil` linter rejects `return nil, nil`** for "absent but fine". Use a
@@ -79,13 +79,13 @@ defects in the same over-constrained resolver, and those became the spec.
 - **A pretool hook blocks `fmt.Fprint(os.Stderr, ...)` outside `cmd/`**, which fires
   even when merely re-indenting existing prompt code into a `var` form. Add the seam as
   a separate `var x = existingFunc` indirection instead of touching those lines.
-- `zefs` preserves the syscall error through `%w` at every hop (`mmap_unix.go:19-21` ->
-  `store.go:330-331` -> `store.go:78`), so `errors.Is(err, fs.ErrPermission)` works
+- `zefs` preserves the syscall error through `%w` at every hop (`mmap_unix.go` ->
+  `store.go` -> `store.go`), so `errors.Is(err, fs.ErrPermission)` works
   through `zefs.Open`, while `decode` corruption errors correctly do not match.
 - **Making resolution succeed more often moved a command out of the offline fallback.**
   `ze cli --user alice -c "show crashes"` with no store used to answer from local data:
   not by design, but because credential resolution failed and
-  `internal/component/cli/client/main.go:282-292` routes a credential error to the
+  `internal/component/cli/client/main.go` routes a credential error to the
   in-process fallback. With `--user` now working, the command reaches the daemon and
   prompts instead. That is the better answer (the operator named a user; a daemon reply
   beats a local guess), and the no-username case still errors, which is what keeps the
@@ -97,7 +97,7 @@ defects in the same over-constrained resolver, and those became the spec.
   and `passwordPrompter` (and `os.Stdin` in the completion pty test) are swapped by tests;
   two parallel tests would race on the assignment and silently observe each other's stub.
   In practice `t.Setenv` already forbids it -- the testing package refuses `t.Parallel`
-  for any test using it (`$GOROOT/src/testing/testing.go:1752`, `parallelConflict`) -- but
+  for any test using it (`$GOROOT/src/testing/testing.go`, `parallelConflict`) -- but
   that guard is incidental, so the constraint is written on the seams and on
   `stubPromptPolicy`.
 - **`ze-validate` scopes to the working-tree diff, not the whole repo.** It reported

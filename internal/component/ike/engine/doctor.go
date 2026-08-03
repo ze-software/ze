@@ -57,7 +57,7 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		// unparseable esp-group AND the missing interface silently gone.
 		//
 		// A guard that can neither evaluate nor speak does not exist
-		// (ai/rules/fail-closed-guards.md). Where the validation ultimately
+		// (ai/rules/evidence.md). Where the validation ultimately
 		// belongs is a separate, larger question; being unable to answer it is
 		// not a license to stay quiet here.
 		// Error, not warning. ParseIPsecConfig returns an error from exactly one
@@ -104,7 +104,7 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 	// malformed rather than as a confusing "not found". This is a message-quality
 	// guard, NOT a security boundary: net.InterfaceByName does an RTM_GETLINK
 	// netlink dump and a string compare -- there is no filesystem or resolver
-	// behind it to traverse (ai/rules/no-fabrication.md: do not claim a safety
+	// behind it to traverse (ai/rules/evidence.md: do not claim a safety
 	// property the code does not provide).
 	//
 	// Mirrors the kernel's dev_valid_name: "." and ".." exactly, anything with

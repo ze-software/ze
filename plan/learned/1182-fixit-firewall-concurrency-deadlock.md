@@ -62,7 +62,7 @@ D-3 ddos-local atomic status snapshot (`plugins/ddos/local`), D-4 anomaly-shape
   lock a plugin holds across `ApplyAll`). The `EngineEventHandler` "MUST NOT block on
   external I/O" contract already existed and was violated by two of two plugins that had the
   opportunity -- a documented contract with no mechanical gate; candidate for
-  `ai/rules/friction-reporting.md`.
+  `ai/rules/repo-maintenance.md`.
 
 ## Consequences
 

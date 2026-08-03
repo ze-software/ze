@@ -18,7 +18,7 @@
 // improves the number).
 //
 // The tag universe is DERIVED from the make files and feature-gates.txt, never
-// hardcoded (ai/rules/derive-not-hardcode.md): a new gated feature must not
+// hardcoded (ai/rules/evidence.md): a new gated feature must not
 // silently make its tests orphans, and deleting a target must surface the tests
 // it stranded.
 //
@@ -104,7 +104,7 @@ type baseline struct {
 func main() {
 	jsonOut, checkMode, selftestMode, trackedOnly := false, false, false, false
 	// root is overridable so the gate's own tests can drive this entry point
-	// against a fixture tree. ai/rules/fail-closed-guards.md requires the guard
+	// against a fixture tree. ai/rules/evidence.md requires the guard
 	// be tested from its entry point, not from its helpers, and the live tree
 	// cannot be doctored to prove the ratchet fires.
 	root := "."
@@ -235,7 +235,7 @@ func readBaseline(path string) (baseline, error) {
 
 // scanTree walks the in-repo test roots and runs both detectors. It fails
 // closed: a scan that finds no test files at all is a broken scan, not a clean
-// tree (ai/rules/fail-closed-guards.md).
+// tree (ai/rules/evidence.md).
 func scanTree(root string, trackedOnly bool) (*result, error) {
 	universe, err := testTagUniverse(root)
 	if err != nil {
@@ -909,7 +909,7 @@ func trackedTestFiles(root string) ([]string, error) {
 		//
 		// Deliberately narrow: ONLY a not-exist error is tolerated. An
 		// unreadable-but-present file still fails the run rather than silently
-		// shrinking the count the ratchet accepts (ai/rules/fail-closed-guards.md).
+		// shrinking the count the ratchet accepts (ai/rules/evidence.md).
 		if _, statErr := os.Stat(abs); statErr != nil {
 			if os.IsNotExist(statErr) {
 				fmt.Fprintf(os.Stderr,

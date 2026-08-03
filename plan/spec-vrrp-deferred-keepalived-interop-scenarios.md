@@ -23,13 +23,13 @@ removed, so this file is the work's home. The surviving
 about the VPP path, not these kernel-path scenarios.
 
 The keepalived interop lab `scripts/evidence/effective-vrrp-keepalived.py`
-(driven by `make ze-qemu-vrrp-keepalived-test`, `mk/test-integration.mk:443`)
+(driven by `make ze-qemu-vrrp-keepalived-test`, `mk/test-integration.mk`)
 implements three scenarios and declares five more as not implemented. Verified
 2026-07-16:
 
 | Scenario | State | Evidence |
 |----------|-------|----------|
-| QS-1 v3 IPv4 election (ze prio 200 vs keepalived prio 100) | implemented | `SCENARIOS` dict, `effective-vrrp-keepalived.py:1625-1628` |
+| QS-1 v3 IPv4 election (ze prio 200 vs keepalived prio 100) | implemented | `SCENARIOS` dict, `effective-vrrp-keepalived.py` |
 | QS-2 node-death failover and ze preempt return | implemented | `:1629` |
 | QS-3 graceful stop, Priority-0 skew path | implemented | `:1630` |
 | QS-4 reverse mastership and preempt false | NOT IMPLEMENTED | `PENDING_SCENARIOS`, `:1637` |
@@ -44,14 +44,14 @@ row is incomplete rather than wrong: QS-4, QS-7 and QS-8 sit in the same
 and the design phase decides the order.
 
 Supporting facts, verified:
-- v3 IPv4 is proven against keepalived 2.3.1 (`effective-vrrp-keepalived.py:812`
+- v3 IPv4 is proven against keepalived 2.3.1 (`effective-vrrp-keepalived.py`
   records the probe date 2026-07-15; `Lab.keepalived_version` at `:1117` reports
   the live version on failure). The implemented scenarios pin `vrrp_version 3`
-  in the peer config because keepalived speaks v2 by default (`:788-790`).
+  in the peer config because keepalived speaks v2 by default.
 - v2 has codec coverage but no wire exchange with a peer: `TestEncodeGoldenV2`
-  (`internal/plugins/vrrp/packet/packet_test.go:86`) asserts the exact golden
-  bytes and `TestRoundTrip` (`:170`) covers v2 encode-decode, while the
-  config-rejection path is covered by `test/vrrp/vrrp-config-invalid.ci:185-208`
+  (`internal/plugins/vrrp/packet/packet_test.go`) asserts the exact golden
+  bytes and `TestRoundTrip` covers v2 encode-decode, while the
+  config-rejection path is covered by `test/vrrp/vrrp-config-invalid.ci`
   and `test/vrrp/vrrp-doctor-fires.ci`. No scenario puts a ze v2 advertisement in
   front of keepalived.
 - IPv6 v3 is not in the committed lab at all. The row says IPv6 interop was once
@@ -67,18 +67,18 @@ This is test infrastructure, not a protocol gap.
   → Constraint: new scenarios follow the same shape, no new lab harness
 - [ ] `ai/rules/interop-and-goal-validation.md` - when interop evidence is required and what counts
   → Constraint: proof comes from outside ze (tcpdump wire fields, keepalived notify markers, ping exit codes); ze log lines are readiness markers only
-- [ ] `ai/rules/qemu-testing.md` - QEMU integration tests are mandatory for linux-only code, never skipped for "needs hardware"
+- [ ] `ai/rules/platform-linux.md` - QEMU integration tests are mandatory for linux-only code, never skipped for "needs hardware"
   → Constraint: these run in the stock Alpine VM via `make ze-qemu-vrrp-keepalived-test`
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc3768.md` - the v2 wire format QS-5 exercises
-  → Constraint: v2 carries the interval in whole seconds and the Auth Type/Data fields v3 dropped; the golden bytes at `packet_test.go:23` are the encode contract
+  → Constraint: v2 carries the interval in whole seconds and the Auth Type/Data fields v3 dropped; the golden bytes at `packet_test.go` are the encode contract
 - [ ] `rfc/short/rfc9568.md` - v3 for both families, and the v2/v3 relationship
-  → Constraint: no on-the-wire compatibility between v2 and v3 (§7.1 discards the other version), so QS-5 must pin keepalived to v2, not mix versions (`rfc/short/rfc9568.md:428`)
+  → Constraint: no on-the-wire compatibility between v2 and v3 (§7.1 discards the other version), so QS-5 must pin keepalived to v2, not mix versions (`rfc/short/rfc9568.md`)
 
 **Key insights:**
-- The lab's third-party observer namespace already sees every flooded frame, so IPv6 multicast (ff02::12) needs no new topology (`effective-vrrp-keepalived.py:348` notes the existing setup covers it).
-- `print_scenarios` (`:1645-1649`) prints implemented and pending scenarios together, so each landing scenario moves one row from `PENDING_SCENARIOS` into `SCENARIOS`.
+- The lab's third-party observer namespace already sees every flooded frame, so IPv6 multicast (ff02::12) needs no new topology (`effective-vrrp-keepalived.py` notes the existing setup covers it).
+- `print_scenarios` prints implemented and pending scenarios together, so each landing scenario moves one row from `PENDING_SCENARIOS` into `SCENARIOS`.
 
 ## Current Behavior (MANDATORY)
 
@@ -100,15 +100,15 @@ This is test infrastructure, not a protocol gap.
 - QS-5 and QS-6 move from `PENDING_SCENARIOS` into `SCENARIOS` with real scenario functions
 - The lab's IPv4-only constants gain an IPv6 counterpart and the keepalived config generator gains a v2 form
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `make ze-qemu-vrrp-keepalived-test` (`mk/test-integration.mk:443`) boots the stock Alpine VM and runs `python3 scripts/evidence/effective-vrrp-keepalived.py`
+- `make ze-qemu-vrrp-keepalived-test` (`mk/test-integration.mk`) boots the stock Alpine VM and runs `python3 scripts/evidence/effective-vrrp-keepalived.py`
 - The script also takes scenario names on the command line and `--list` (`usage`, `:1652`), so a single scenario can be run alone
 
 ### Transformation Path
 1. `main()` builds the four namespaces, veths and bridge, then probes kernel support (module docstring `:13-23`, `ensure_kernel_support`)
-2. A generated ze config and a generated keepalived config start both routers on the shared segment (`:747-812`)
+2. A generated ze config and a generated keepalived config start both routers on the shared segment
 3. tcpdump on the observer namespace captures every advertisement; keepalived's notify script writes the state marker file (`MARKER_NAME`, `:81`)
 4. Each scenario function asserts wire fields, timing bands measured from tcpdump timestamps, and reachability, then raises `RuntimeError` on failure
 5. `main()` owns teardown and the PASS marker; artifacts are kept when a scenario fails
@@ -123,9 +123,9 @@ This is test infrastructure, not a protocol gap.
 | lab ↔ wire truth | tcpdump fields and timestamps; `ip -j neigh`; ping exit codes | [ ] |
 
 ### Integration Points
-- `SCENARIOS` / `PENDING_SCENARIOS` dicts (`:1625-1642`): each landing scenario is a `scenario_qsN(lab)` moved from one dict to the other
+- `SCENARIOS` / `PENDING_SCENARIOS` dicts: each landing scenario is a `scenario_qsN(lab)` moved from one dict to the other
 - The `Lab` class helpers (`keepalived_version` at `:1117`, `ka_state`, the LineCollector predicate waits) are reused as-is
-- The keepalived config generator (`:786-812`) gains a v2 variant for QS-5 and an IPv6 variant for QS-6
+- The keepalived config generator gains a v2 variant for QS-5 and an IPv6 variant for QS-6
 - `internal/plugins/vrrp/packet/packet.go` interval encodings: what QS-5 proves on the wire against a real v2 peer
 
 ## Risks & Assumptions
@@ -133,10 +133,10 @@ This is test infrastructure, not a protocol gap.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | keepalived 2.3.1 speaks v2 well enough to pair with ze's v2 opt-in | keepalived defaults to v2, which the lab currently pins away from (`:788-790`) | QS-5 shrinks to a capture-only proof or a different peer | Design phase: run keepalived without `vrrp_version 3` and capture | unvalidated |
+| A-1 | keepalived 2.3.1 speaks v2 well enough to pair with ze's v2 opt-in | keepalived defaults to v2, which the lab currently pins away from | QS-5 shrinks to a capture-only proof or a different peer | Design phase: run keepalived without `vrrp_version 3` and capture | unvalidated |
 | A-2 | The existing bridge topology carries IPv6 VRRP multicast with no change | `:348` states the setup covers the ff02::12 case | QS-6 needs topology work | Design phase: capture ff02::12 on the observer | unvalidated |
-| A-3 | The stock Alpine kernel needs no extra modules for the IPv6 path | `ensure_kernel_support` probes macvlan, bridge and veth only (`:9-11`) | The VM needs a custom kernel, which the target explicitly avoids | Extend the probe and run | unvalidated |
-| A-4 | ze's IPv6 first-advert source quirk does not red QS-6 | `plan/learned/1124-vrrp-first-hop-redundancy.md:125-131`: the first IPv6 advert sources from the transient EUI-64 link-local, judged cosmetic and not fixable by action ordering | QS-6 asserts a source address that will not hold; assert on later adverts | Read learned 1122 before writing the assertion | unvalidated |
+| A-3 | The stock Alpine kernel needs no extra modules for the IPv6 path | `ensure_kernel_support` probes macvlan, bridge and veth only | The VM needs a custom kernel, which the target explicitly avoids | Extend the probe and run | unvalidated |
+| A-4 | ze's IPv6 first-advert source quirk does not red QS-6 | `plan/learned/1124-vrrp-first-hop-redundancy.md`: the first IPv6 advert sources from the transient EUI-64 link-local, judged cosmetic and not fixable by action ordering | QS-6 asserts a source address that will not hold; assert on later adverts | Read learned 1122 before writing the assertion | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -169,8 +169,8 @@ Skeleton level; the design phase expands these.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (existing) `TestEncodeGoldenV2` | `internal/plugins/vrrp/packet/packet_test.go:86` | the v2 byte shape QS-5 asserts on the wire; already passing, referenced as the contract | |
-| (existing) `TestRoundTrip` | `internal/plugins/vrrp/packet/packet_test.go:170` | v2 and v3 IPv6 codec coverage the scenarios rely on | |
+| (existing) `TestEncodeGoldenV2` | `internal/plugins/vrrp/packet/packet_test.go` | the v2 byte shape QS-5 asserts on the wire; already passing, referenced as the contract | |
+| (existing) `TestRoundTrip` | `internal/plugins/vrrp/packet/packet_test.go` | v2 and v3 IPv6 codec coverage the scenarios rely on | |
 | new codec test only if QS-5 or QS-6 exposes a real wire defect | `internal/plugins/vrrp/packet/` | regression for whatever the interop run finds | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -233,7 +233,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 
 At implementation: each scenario carries the RFC citation for the field it
 asserts, matching the lab's existing style (for example
-`effective-vrrp-keepalived.py:104-116` cites RFC 9568 Sections 5.2.7, 7.3 and
+`effective-vrrp-keepalived.py` cites RFC 9568 Sections 5.2.7, 7.3 and
 5.1.1.3 above the constants they pin). Update the RFC 3768 and RFC 9568 IPv6
 rows in `docs/features/rfc-status.md` with the new interop evidence.
 

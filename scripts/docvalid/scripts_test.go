@@ -37,7 +37,7 @@ const scriptTimeout = 60 * time.Second
 // internal/component/plugin/all, so an untagged `go run` sees only the
 // always-on subset -- since spec-feature-gate-10-bgp that excludes the whole BGP
 // subtree -- and reports drift against documentation that is in fact correct.
-// Derived from the manifest, never hardcoded (ai/rules/feature-gate-registration.md).
+// Derived from the manifest, never hardcoded (ai/rules/plugins.md).
 func shippedTags(t *testing.T) string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(repoRoot(t), "feature-gates.txt"))

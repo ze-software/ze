@@ -10,7 +10,7 @@ import (
 // must NOT declare any traceroute or probe-round command node, and this
 // dedicated traceroute module MUST declare all of them. Together they prove the
 // traceroute surface moved rather than vanished. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 func TestTracerouteCmdSchemaOwnsTraceroute(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:traceroute"`,

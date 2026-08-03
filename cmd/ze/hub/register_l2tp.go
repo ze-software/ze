@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_l2tp hub registration gating
+// Design: ai/rules/plugins.md -- ze_l2tp hub registration gating
 //
 // L2TP/PPPoE (BNG) subsystem construction for the hub composition root, gated
 // on ze_l2tp: fills the bngRegister seam (bng_infra.go) with the construction

@@ -27,7 +27,7 @@ plus a NEW `show anomaly observe` query surface the detect recent-incident ring
 
 The behavioral anomaly detector (`anomaly/detect`, closed as learned 1048) emits
 `anomalyevent` incidents and keeps only a bounded, in-memory, Detected-only ring
-(`detector.inc`, capped at `incidentRingSize = 128`, `detector.go:32,297-300`)
+(`detector.inc`, capped at `incidentRingSize = 128`, `detector.go,297-300`)
 surfaced by `show anomaly detect`. That ring holds no incident **lifecycle**: it
 never records when an incident cleared, so an operator cannot see a finalized
 incident's duration or query recent history.
@@ -50,7 +50,7 @@ It is NOT a bare mirror of `ddos/observe`: the template's incident struct is a
 destination `VectorTuple`; this child's is a source `netip.Prefix`. It subscribes
 to `anomalyevent`, not `ddosevent`. Crucially it also FIXES a latent template gap:
 `ddos/observe.sweepStale()` is never wired to a ticker in production
-(`store_test.go:105` is its only caller), so its `stale-incident-timeout` leaf is
+(`store_test.go` is its only caller), so its `stale-incident-timeout` leaf is
 dead. This child wires the stale sweep so open-but-never-cleared incidents finalize.
 
 In-memory ring only (no durable store exists in the repo; verified). No web card
@@ -65,30 +65,30 @@ In-memory ring only (no durable store exists in the repo; verified). No web card
 - [ ] `ai/patterns/registration.md` - all registration mechanisms
   → Decision: the show command uses TWO registries at once: the RPC handler via `pluginserver.RegisterRPCs(RPCRegistration{WireMethod, Handler})` in `show.go`, and the CLI path via a `ze:command "ze-show:anomaly-observe"` node in a `cmd/yang/` module (`configyang.RegisterModule`). WireMethod→CLI-path is unioned by the YANG loader.
   → Constraint: a NEW `<plugin>/yang/` and `<plugin>/cmd/yang/` package (each with a `register.go` importing `config/yang`) is auto-discovered; run `go run scripts/codegen/plugin_imports.go` (or `make generate`) to refresh `all.go`, then `-update` the `plugins`/`wire-methods` snapshots.
-- [ ] `ai/rules/plugin-self-containment.md` - the removal test
+- [ ] `ai/rules/plugins.md` - the removal test
   → Constraint: deleting `internal/plugins/anomaly/observe/` + its `all.go` imports MUST remove the config subtree, the `show anomaly observe` node, its handler, its YANG, and its store together, leaving `anomaly/detect`, `anomaly/shape`, and the core building green. The command schema lives in the plugin's own `cmd/yang/`, NOT any central `show` verb schema.
   → Constraint: `anomaly` is a shared namespace container: `show anomaly detect` (detect plugin), `show anomaly shape` (shape plugin), and `show anomaly observe` (this plugin) each container-merge one child node onto the same `container show { container anomaly {...} }`. Add a `self_containment_test.go` in `cmd/yang/` asserting the `ze:command` + container tokens are declared here (mirror `ddos/observe/cmd/yang/self_containment_test.go`).
-- [ ] `ai/rules/doctor-checks.md` - runtime-dependency checks
+- [ ] `ai/rules/repo-maintenance.md` - runtime-dependency checks
   → Decision: N/A. The store is in-memory subscribed to the in-process event bus; it introduces no file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, or netlink use, so no runtime-dependency doctor check applies. `ddos/observe` (the mirror) registers none. The "detect disabled" case is already covered by `anomaly-detect`'s own `anomaly-detect-feature-source` check (an empty store is harmless).
 
 ### Reference Implementations (grounding, not doc)
 - [ ] `internal/plugins/ddos/observe/store.go` - the ring skeleton to reuse
-  → Constraint: reuse `newStore(cap, staleTimeout)`, the `mu`/`ring`/`cap`/`nextID`/`staleTimeout` fields, and the method set `open`/`finalize`/`activeCount`/`count`/`list`/`sweepStale`/`evictOldest` VERBATIM in shape, changing ONLY the incident struct (dest `VectorTuple` → source `netip.Prefix`) and the finalize match key (`Target.DstPrefix` → `Entity`). `list()` returns newest-first (`store.go:100-109`); `evictOldest()` drops the oldest FINALIZED incident, falling back to the head (`store.go:124-132`).
-  → Constraint: `sweepStale()` exists (`store.go:111-122`) but is DEAD in the ddos template (only `store_test.go:105` calls it). This child MUST wire it to a ticker so `stale-incident-timeout` is functional.
+  → Constraint: reuse `newStore(cap, staleTimeout)`, the `mu`/`ring`/`cap`/`nextID`/`staleTimeout` fields, and the method set `open`/`finalize`/`activeCount`/`count`/`list`/`sweepStale`/`evictOldest` VERBATIM in shape, changing ONLY the incident struct (dest `VectorTuple` → source `netip.Prefix`) and the finalize match key (`Target.DstPrefix` → `Entity`). `list()` returns newest-first (`store.go`); `evictOldest()` drops the oldest FINALIZED incident, falling back to the head (`store.go`).
+  → Constraint: `sweepStale()` exists (`store.go`) but is DEAD in the ddos template (only `store_test.go` calls it). This child MUST wire it to a ticker so `stale-incident-timeout` is functional.
 - [ ] `internal/plugins/ddos/observe/register.go` - the SDK lifecycle + subscribe pattern
-  → Constraint: `activeStore atomic.Pointer[store]` publishes the live ring to the in-process show handlers (`register.go:23`). Subscribe in `OnConfigure`; re-subscribe (unsub old, new store, subscribe) in `OnConfigApply`; `defer activeStore.Store(nil)`. `ConfigureEventBus` stores `eventBusPtr`; `loadBus()` errors if unset. `Run` budgets: `VerifyBudget: 2`, `ApplyBudget: 10`.
+  → Constraint: `activeStore atomic.Pointer[store]` publishes the live ring to the in-process show handlers (`register.go`). Subscribe in `OnConfigure`; re-subscribe (unsub old, new store, subscribe) in `OnConfigApply`; `defer activeStore.Store(nil)`. `ConfigureEventBus` stores `eventBusPtr`; `loadBus()` errors if unset. `Run` budgets: `VerifyBudget: 2`, `ApplyBudget: 10`.
 - [ ] `internal/plugins/ddos/observe/show.go` - the in-process show handler pattern
   → Constraint: handler reads `activeStore.Load()`; nil → `{enabled:false, incidents:[]incident{}}`; else `{enabled:true, active-count, incidents: s.list()}` in a `plugin.Map`, `Status: plugin.StatusDone`. Register via `pluginserver.RegisterRPCs` in a `show.go` init().
 - [ ] `internal/plugins/ddos/observe/config.go` - config parse/validate + wrapping
   → Constraint: `configRoot = "anomaly/observe"`; the section is delivered wrapped as `{"anomaly":{"observe":{...}}}` by `ExtractConfigSubtree`; `ParseConfig` unwraps both levels. Defaults `IncidentRingSize=1000`, `StaleIncidentTimeout=3600`; `Validate` ranges `[1,100000]` and `[1,86400]`. No `enabled` leaf - the store is always-on when the plugin is loaded (uniform with `ddos/observe`).
 - [ ] `internal/core/anomalyevent/event.go` - the event contract subscribed to
-  → Constraint: namespace `"anomaly-detect"` (`event.go:19`); `Detected`/`Ongoing`/`Cleared` registered via `events.Register[T]` (`event.go:21-28`); subscribe with `anomalyevent.Detected.Subscribe(bus, func(*AnomalyDetected))`. `AnomalyDetected` carries `Interface,Entity netip.Prefix,Cohort,FiredFeatures []FeatureSignal,Score,Severity,At time.Time,Observable` (`event.go:69-78`). `AnomalyCleared` carries `Entity netip.Prefix,Observable` (`event.go:90-93`) - finalize matches on `Entity`. `AnomalyOngoing` carries `Entity,Score,Observable` (`event.go:82-86`).
+  → Constraint: namespace `"anomaly-detect"` (`event.go`); `Detected`/`Ongoing`/`Cleared` registered via `events.Register[T]` (`event.go`); subscribe with `anomalyevent.Detected.Subscribe(bus, func(*AnomalyDetected))`. `AnomalyDetected` carries `Interface,Entity netip.Prefix,Cohort,FiredFeatures []FeatureSignal,Score,Severity,At time.Time,Observable` (`event.go`). `AnomalyCleared` carries `Entity netip.Prefix,Observable` (`event.go`) - finalize matches on `Entity`. `AnomalyOngoing` carries `Entity,Score,Observable` (`event.go`).
 - [ ] `internal/plugins/anomaly/detect/register.go` + `show.go` + `detector.go` - the sibling producer
-  → Constraint: detect emits from `activate`/`emitOngoing`/`emitCleared` (`detector.go:287-331`); the recent ring is `detector.inc []AnomalyDetected` capped at 128 (`detector.go:32,297-300`), surfaced by `handleShowAnomaly` / wire method `ze-show:anomaly` (`show.go:16-22`). This is the Detected-only surface with NO lifecycle - the exact gap this child fills.
-  → Decision: for a background ticker inside the SDK lifecycle, mirror detect's `startTicker`/`stopTicker` (`register.go:97-132`): a `stopCh chan struct{}` + `sync.WaitGroup` with `wg.Go`, `time.NewTicker`, closed and waited on reconfigure/shutdown. Use this for the stale-sweep goroutine.
+  → Constraint: detect emits from `activate`/`emitOngoing`/`emitCleared` (`detector.go`); the recent ring is `detector.inc []AnomalyDetected` capped at 128 (`detector.go,297-300`), surfaced by `handleShowAnomaly` / wire method `ze-show:anomaly` (`show.go`). This is the Detected-only surface with NO lifecycle - the exact gap this child fills.
+  → Decision: for a background ticker inside the SDK lifecycle, mirror detect's `startTicker`/`stopTicker` (`register.go`): a `stopCh chan struct{}` + `sync.WaitGroup` with `wg.Go`, `time.NewTicker`, closed and waited on reconfigure/shutdown. Use this for the stale-sweep goroutine.
 - [ ] `internal/plugins/anomaly/detect/chain_integration_test.go` - the end-to-end injection pattern
-  → Decision: for the Go integration proof, publish synthetic flows via `observation.Global().Publish(...)` (`chain_integration_test.go:48-55`) through a real `trafficfeature.NewService` into a real detector on a `chainTestBus` (`chain_integration_test.go:19-44`), then assert the observe store captured and finalized. Gate with `if testing.Short()` (real 1s ticks, ~10s).
-  → Constraint: the `.ci` harness CANNOT synthesize per-source feature deviations without a traffic generator (stated in `anomaly-show.ci:6-8`), so the `.ci` proves wiring (`show anomaly observe` resolves, `enabled=true`, empty list); the lifecycle (open→finalize→EndTime) is proven by unit + Go integration tests.
+  → Decision: for the Go integration proof, publish synthetic flows via `observation.Global().Publish(...)` (`chain_integration_test.go`) through a real `trafficfeature.NewService` into a real detector on a `chainTestBus` (`chain_integration_test.go`), then assert the observe store captured and finalized. Gate with `if testing.Short()` (real 1s ticks, ~10s).
+  → Constraint: the `.ci` harness CANNOT synthesize per-source feature deviations without a traffic generator (stated in `anomaly-show.ci`), so the `.ci` proves wiring (`show anomaly observe` resolves, `enabled=true`, empty list); the lifecycle (open→finalize→EndTime) is proven by unit + Go integration tests.
 
 **Key insights:**
 - Copy the `ddos/observe` skeleton verbatim; change only (a) the incident struct key (source prefix), (b) the event namespace (`anomalyevent`), (c) wire the stale-sweep ticker the template left dead.
@@ -104,7 +104,7 @@ In-memory ring only (no durable store exists in the repo; verified). No web card
 - [ ] `internal/plugins/ddos/observe/show.go` - two wire methods (`ze-show:ddos-status`, `ze-show:ddos-incidents`); this child uses ONE (`ze-show:anomaly-observe`) to match the single-node `show anomaly detect`/`show anomaly shape` siblings.
 - [ ] `internal/plugins/ddos/observe/cmd/yang/ze-ddos-cmd.yang` + `self_containment_test.go` - the `ze:command` node + the presence test proving the command lives in the plugin's own schema.
 - [ ] `internal/core/anomalyevent/event.go` - the event structs subscribed to (fields cited in Required Reading).
-- [ ] `internal/plugins/anomaly/detect/detector.go` - the Detected-only 128-ring this child supersedes with a lifecycle store (`detector.go:106,297-300,349-355`).
+- [ ] `internal/plugins/anomaly/detect/detector.go` - the Detected-only 128-ring this child supersedes with a lifecycle store (`detector.go,297-300,349-355`).
 - [ ] `internal/plugins/anomaly/detect/cmd/yang/ze-anomaly-cmd.yang` - the shared `container show { container anomaly { container detect ... } }`; this child adds a sibling `container observe`.
 - [ ] `internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang` - the AUGMENT pattern (`augment "/ad:anomaly" { container shape {...} }`, `import ze-anomaly-detect-conf { prefix ad; }`); this child copies its shape for `container observe`.
 - [ ] `internal/component/plugin/all/all.go` + `all_test.go` + `testdata/{plugins,wire-methods}.snapshot` - blank-import list + golden snapshots gating plugin names and wire methods.
@@ -120,12 +120,12 @@ In-memory ring only (no durable store exists in the repo; verified). No web card
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Typed events on the in-process `ze.EventBus`: `anomalyevent.Detected` / `Ongoing` / `Cleared`, emitted by `anomaly/detect` (`detector.go:287-331`). Operator query enters via `show anomaly observe` (CLI → `ze-show:anomaly-observe`). Operator tuning enters via config `anomaly { observe { incident-ring-size ...; stale-incident-timeout ... } }`.
+- Typed events on the in-process `ze.EventBus`: `anomalyevent.Detected` / `Ongoing` / `Cleared`, emitted by `anomaly/detect` (`detector.go`). Operator query enters via `show anomaly observe` (CLI → `ze-show:anomaly-observe`). Operator tuning enters via config `anomaly { observe { incident-ring-size ...; stale-incident-timeout ... } }`.
 
 ### Transformation Path
-1. Detector confirms an incident → `anomalyevent.Detected.Emit(bus, *AnomalyDetected)` (`detector.go:305`).
+1. Detector confirms an incident → `anomalyevent.Detected.Emit(bus, *AnomalyDetected)` (`detector.go`).
 2. `anomaly-observe` subscribe closure `Detected.Subscribe(bus, s.open)` → `store.open(*AnomalyDetected)` appends a lifecycle `incident{Active:true, StartTime:=e.At}` keyed on `Entity`.
-3. On resolve, detector emits `anomalyevent.Cleared` (`detector.go:326`) → `Cleared.Subscribe(bus, ...)` → `store.finalize(e.Entity)` sets `Active=false`, `EndTime=time.Now()` on the newest active incident for that entity.
+3. On resolve, detector emits `anomalyevent.Cleared` (`detector.go`) → `Cleared.Subscribe(bus, ...)` → `store.finalize(e.Entity)` sets `Active=false`, `EndTime=time.Now()` on the newest active incident for that entity.
 4. Stale sweep ticker → `store.sweepStale()` finalizes open incidents older than `stale-incident-timeout` (covers a `Detected` with no matching `Cleared`, e.g. detector eviction).
 5. `show anomaly observe` → `handleShowAnomalyObserve` reads `activeStore.Load()` → `store.list()` (newest-first) → `plugin.Map{enabled, active-count, incidents}`.
 
@@ -155,20 +155,20 @@ In-memory ring only (no durable store exists in the repo; verified). No web card
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The `ddos/observe` ring skeleton transfers with only key-type + event-type changes | `ddos/observe/store.go` read in full | more code than planned | port the store, run `TestObserveIncidentLifecycle` | unvalidated |
-| A-2 | `AnomalyCleared` carries the source `Entity` prefix, so `finalize(entity)` can match the open incident | `anomalyevent/event.go:90-93` | cannot finalize; incidents leak active | unit test emitting Detected then Cleared for the same entity | unvalidated |
-| A-3 | The section is delivered wrapped `{"anomaly":{"observe":{...}}}` (two-level unwrap) | `ddos/observe/config.go:57-65`, `detect/config.go:48-61` | config parses to defaults silently | `TestParseObserveConfig` with a wrapped payload | unvalidated |
-| A-4 | A NEW `observe/yang` + `observe/cmd/yang` package is auto-discovered by `plugin_imports.go` and only needs a `make generate` + snapshot `-update` | `plugin-self-containment.md` "How to carve", `all.go:93-96,113-114` | plugin/command unreachable; snapshot test fails | `make generate`; `TestRegisteredPluginNames`, `TestRegisteredWireMethods` after `-update` | unvalidated |
-| A-5 | The `.ci` harness cannot inject feature deviations, so `.ci` proves wiring and unit/Go tests prove lifecycle | `anomaly-show.ci:6-8` states exactly this | over-scoped `.ci` flakes | write `.ci` for wiring-only; lifecycle in unit + `chain`-style Go test | unvalidated |
+| A-2 | `AnomalyCleared` carries the source `Entity` prefix, so `finalize(entity)` can match the open incident | `anomalyevent/event.go` | cannot finalize; incidents leak active | unit test emitting Detected then Cleared for the same entity | unvalidated |
+| A-3 | The section is delivered wrapped `{"anomaly":{"observe":{...}}}` (two-level unwrap) | `ddos/observe/config.go`, `detect/config.go` | config parses to defaults silently | `TestParseObserveConfig` with a wrapped payload | unvalidated |
+| A-4 | A NEW `observe/yang` + `observe/cmd/yang` package is auto-discovered by `plugin_imports.go` and only needs a `make generate` + snapshot `-update` | `plugins.md` "How to carve", `all.go,113-114` | plugin/command unreachable; snapshot test fails | `make generate`; `TestRegisteredPluginNames`, `TestRegisteredWireMethods` after `-update` | unvalidated |
+| A-5 | The `.ci` harness cannot inject feature deviations, so `.ci` proves wiring and unit/Go tests prove lifecycle | `anomaly-show.ci` states exactly this | over-scoped `.ci` flakes | write `.ci` for wiring-only; lifecycle in unit + `chain`-style Go test | unvalidated |
 | A-6 | `anomaly-observe` needs no plugin `Dependencies` (events are pub/sub, order-independent) | `ddos/observe/register.go` declares none | load-order race, missed early events | daemon starts; `.ci` returns `enabled=true` | unvalidated |
 | A-7 | No web card / durable store is in scope (none exists in the repo) | umbrella Known Limitations; web grep in umbrella A-2 | scope creep | grep confirms no ddos/anomaly web surface | confirmed (umbrella) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Open incidents that never receive a `Cleared` (detector evicts the entity after 10 idle ticks, `detector.go:178`) leak as permanently Active | `active-count` climbs and never falls under churn | wire the stale-sweep ticker (the template's dead `sweepStale`); `stale-incident-timeout` default 3600s; `TestObserveStaleSweep` |
+| R-1 | Open incidents that never receive a `Cleared` (detector evicts the entity after 10 idle ticks, `detector.go`) leak as permanently Active | `active-count` climbs and never falls under churn | wire the stale-sweep ticker (the template's dead `sweepStale`); `stale-incident-timeout` default 3600s; `TestObserveStaleSweep` |
 | R-2 | Store memory grows unbounded | RSS climbs; `count()` == `cap` constantly | ring capped at `incident-ring-size` (default 1000, max 100000); `evictOldest` drops finalized-first; `TestObserveRingEviction` |
-| R-3 | Duplicate `Detected` for an already-active entity opens a second incident (detector emits `activate` once per confirm, but re-confirm after clear is legitimate) | two active incidents for one entity | `open` always appends (each confirm is a distinct incident); `finalize` matches the NEWEST active for the entity (`ddos` `store.go:70-76` reverse scan) - a re-fire after clear is a new lifecycle, which is correct |
-| R-4 | Event ordering: a `Cleared` arrives before its `Detected` (bus is synchronous in-process, `chain_integration_test.go:26-34`, so Detected-before-Cleared holds) - but a reconfigure that rebuilds the store mid-incident drops the open record, so a later `Cleared` no-ops | finalize finds no active incident (silent) | acceptable: reconfigure is operator-initiated and rare; `finalize` no-ops safely (reverse scan finds nothing); document in Known Limitations |
+| R-3 | Duplicate `Detected` for an already-active entity opens a second incident (detector emits `activate` once per confirm, but re-confirm after clear is legitimate) | two active incidents for one entity | `open` always appends (each confirm is a distinct incident); `finalize` matches the NEWEST active for the entity (`ddos` `store.go` reverse scan) - a re-fire after clear is a new lifecycle, which is correct |
+| R-4 | Event ordering: a `Cleared` arrives before its `Detected` (bus is synchronous in-process, `chain_integration_test.go`, so Detected-before-Cleared holds) - but a reconfigure that rebuilds the store mid-incident drops the open record, so a later `Cleared` no-ops | finalize finds no active incident (silent) | acceptable: reconfigure is operator-initiated and rare; `finalize` no-ops safely (reverse scan finds nothing); document in Known Limitations |
 | R-5 | The new `ze-show:anomaly-observe` wire method or `anomaly-observe` plugin name is not added to the golden snapshots | `TestRegisteredPluginNames` / wire-method snapshot test fails in CI | run the `-update` step in Implementation Steps; both snapshots are in Files to Modify |
 | R-6 | `show anomaly observe` collides with the shared `anomaly` container ownership (parent owned by detect cmd yang) | schema load error / duplicate container | container-MERGE (re-declare `container show { container anomaly { container observe ...}}` in a standalone module), NOT augment - same as `detect`/`shape` cmd yang; unique namespace/prefix |
 
@@ -414,8 +414,8 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
-- The umbrella's A-2 said `ddos/observe` has "no show handler" and `list()` is test-only (`store.go:92`); that is now STALE against the code - `ddos/observe/show.go` registers `ze-show:ddos-status`/`ze-show:ddos-incidents` and `list()` is live (`show.go:60`). The child is therefore EASIER: a fuller template exists. The genuine divergences remain: source-prefix key vs dest-tuple, `anomalyevent` vs `ddosevent`, single-node `show anomaly observe` vs the ddos two-node split, and the stale-sweep wiring the ddos template lacks.
-- The stale-sweep ticker is the one place this child does MORE than its template rather than less: it makes `stale-incident-timeout` a real control, closing the open-incident leak the detector's 10-idle-tick eviction (`detector.go:178`) would otherwise cause (Detected with no Cleared).
+- The umbrella's A-2 said `ddos/observe` has "no show handler" and `list()` is test-only (`store.go`); that is now STALE against the code - `ddos/observe/show.go` registers `ze-show:ddos-status`/`ze-show:ddos-incidents` and `list()` is live (`show.go`). The child is therefore EASIER: a fuller template exists. The genuine divergences remain: source-prefix key vs dest-tuple, `anomalyevent` vs `ddosevent`, single-node `show anomaly observe` vs the ddos two-node split, and the stale-sweep wiring the ddos template lacks.
+- The stale-sweep ticker is the one place this child does MORE than its template rather than less: it makes `stale-incident-timeout` a real control, closing the open-incident leak the detector's 10-idle-tick eviction (`detector.go`) would otherwise cause (Detected with no Cleared).
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

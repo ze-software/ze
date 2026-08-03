@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `ai/rules/fail-closed-guards.md`, `ai/rules/plugin-design.md`, `ai/rules/plugin-self-containment.md`, `rfc/short/rfc4724.md`
+3. `ai/rules/evidence.md`, `ai/rules/plugins.md`, `ai/rules/plugins.md`, `rfc/short/rfc4724.md`
 4. `internal/component/bgp/reactor/peer_run.go`, `peer_initial_sync.go`, `peer.go`, `api_sync.go`, `internal/component/bgp/plugins/rib/rib_replay.go`, `internal/component/bgp/config/peers.go`
 
 ## Task
@@ -20,13 +20,13 @@
 A BGP session withholds its EOR until every plugin that "may send updates" has
 signalled readiness. **The set that is COUNTED is not the set that SIGNALS.**
 
-The counter (`peer_run.go:361-367`) counts, per peer, every config `process`
+The counter (`peer_run.go`) counts, per peer, every config `process`
 binding carrying `send [ update ]`. The signal (`request peer <addr> plugin
 session ready`) has exactly ONE production emitter in the tree: `bgp-rib`. Every
 other plugin an operator can legally bind with `send [ update ]` is counted and
 never speaks, so the session waits out `waitForAPISync(2s)`
-(`peer_initial_sync.go:177`) after a 500ms floor (`:176`) and its EOR lands at
-+2.5s (`:334`).
+(`peer_initial_sync.go`) after a 500ms floor and its EOR lands at
++2.5s.
 
 The question this spec exists to answer, and which is Thomas's call, not the
 implementer's:
@@ -39,30 +39,30 @@ FIXED in `5c4421541` and is NOT this spec's subject. That commit closed one
 member of the counted set. This spec is about the shape of the set itself.
 
 Not an RFC violation. RFC 4724 Section 2 only RECOMMENDS sending EOR and sets no
-deadline (`rfc/short/rfc4724.md:174`, `:415`). The cost is convergence latency at
+deadline (`rfc/short/rfc4724.md`, `:415`). The cost is convergence latency at
 the peer, which defers route selection until our EOR or its own
-Selection_Deferral_Timer (`rfc/short/rfc4724.md:147`).
+Selection_Deferral_Timer (`rfc/short/rfc4724.md`).
 
 ## Required Reading
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
-- [ ] `ai/rules/fail-closed-guards.md` - the wait is a guard; this is arguably a fail-OPEN wait
-  → Constraint: "A guard must fail closed or say something." The API-sync timeout neither denies nor speaks: `peer.go:441-444` logs the timeout at **Debug**, then proceeds. Compare `api_sync.go:201-204`, where the unknown-peer miss on the SAME chain was deliberately raised to **Warn** with the reason recorded in the comment (`:187-190`). The two ends of one chain disagree about loudness.
+- [ ] `ai/rules/evidence.md` - the wait is a guard; this is arguably a fail-OPEN wait
+  → Constraint: "A guard must fail closed or say something." The API-sync timeout neither denies nor speaks: `peer.go` logs the timeout at **Debug**, then proceeds. Compare `api_sync.go`, where the unknown-peer miss on the SAME chain was deliberately raised to **Warn** with the reason recorded in the comment. The two ends of one chain disagree about loudness.
   → Constraint: "Make the miss explicit at the producer." The layer that knows a counted plugin never signalled is the reactor at timeout. Nothing downstream can see it.
-- [ ] `ai/rules/plugin-design.md` - Registration Fields table; the contract would be a new registration field
+- [ ] `ai/rules/plugins.md` - Registration Fields table; the contract would be a new registration field
   → Constraint: no `Registration` field today expresses "this plugin signals session readiness". The nearest fields (`SendTypes`, `EventTypes`, `Features`) are about wire/event surface, not establishment participation.
-  → Decision: the signal is already generic and needs no new protocol. It is the RPC `ze-plugin:session-peer-ready` (`plugins/cmd/peer/session.go:13`), reachable by ANY plugin, internal or external, via `DispatchCommand("request peer <addr> plugin session ready")`.
-- [ ] `ai/rules/plugin-self-containment.md` - the counter is plugin knowledge held in the reactor
+  → Decision: the signal is already generic and needs no new protocol. It is the RPC `ze-plugin:session-peer-ready` (`plugins/cmd/peer/session.go`), reachable by ANY plugin, internal or external, via `DispatchCommand("request peer <addr> plugin session ready")`.
+- [ ] `ai/rules/plugins.md` - the counter is plugin knowledge held in the reactor
   → Constraint: the reactor must not learn plugin names. Any remedy must stay a registry/declaration lookup, not a spelling of `bgp-rib` in `reactor/`.
-- [ ] `docs/architecture/api/architecture.md` (`:1278`, `:1288`) - documents "RIB signals ready" as the design
+- [ ] `docs/architecture/api/architecture.md` - documents "RIB signals ready" as the design
   → Decision: the doc describes the bgp-rib path only. It does not claim other plugins signal, so it is not wrong; it is silent on the gap. A remedy changes what this doc must say.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4724.md` - EOR semantics
-  → Constraint: Section 2 is `[RECOMMENDED]` (`:174`, `:415`): send EOR on completion of the initial update even without GR. No deadline is set, so no delay here violates the RFC.
-  → Constraint: Section 4.1 (`:147`): the receiver defers route selection until EOR from all peers OR its Selection_Deferral_Timer expires. Our late EOR is therefore a real convergence cost at the peer, not a cosmetic one.
-  → Constraint: Section 4 (`:126`): EOR MUST be sent once the initial routing update completes. An EOR sent BEFORE a counted plugin's routes is a violation of this in spirit: it claims a completion that has not happened.
+  → Constraint: Section 2 is `[RECOMMENDED]`: send EOR on completion of the initial update even without GR. No deadline is set, so no delay here violates the RFC.
+  → Constraint: Section 4.1: the receiver defers route selection until EOR from all peers OR its Selection_Deferral_Timer expires. Our late EOR is therefore a real convergence cost at the peer, not a cosmetic one.
+  → Constraint: Section 4: EOR MUST be sent once the initial routing update completes. An EOR sent BEFORE a counted plugin's routes is a violation of this in spirit: it claims a completion that has not happened.
 - [ ] `rfc/short/rfc2918.md` - route-refresh, the capability whose config rule creates the forced binding
 
 **Key insights:**
@@ -74,19 +74,19 @@ Selection_Deferral_Timer (`rfc/short/rfc4724.md:147`).
 
 **Source files read:** (must read BEFORE writing this spec)
 - [ ] `internal/component/bgp/reactor/peer_run.go` - FSM Established callback; `:361-367` counts the bindings and calls `ResetAPISync`
-  → Constraint: the predicate is exactly `binding.SendUpdate` over `p.settings.ProcessBindings` (`:362-366`). Nothing else narrows it. Comment `:359-360` states the intent: "count plugins with SendUpdate permission. They will signal 'plugin session ready' after replaying routes." That sentence is the bug: it is true of bgp-rib and false of every other member.
+  → Constraint: the predicate is exactly `binding.SendUpdate` over `p.settings.ProcessBindings`. Nothing else narrows it. Comment `:359-360` states the intent: "count plugins with SendUpdate permission. They will signal 'plugin session ready' after replaying routes." That sentence is the bug: it is true of bgp-rib and false of every other member.
 - [ ] `internal/component/bgp/reactor/peer_initial_sync.go` - `sendInitialRoutes`; `:171-178` the wait, `:329-337` the EOR
-  → Constraint: the wait is armed by `apiSyncExpected > 0` (`:172`) and costs an UNCONDITIONAL 500ms floor (`:176`) plus up to 2s (`:177`). The 500ms is deliberate and separate: comment `:164-170` explains it covers external plugins whose state=up handling is pipe round-trips not tracked by apiSync. Even a perfect signaller cannot bring the EOR below +500ms.
-  → Constraint: the EOR for every negotiated family is sent only after that wait returns (`:332-337`), under `session.HoldWrites()` (`:322`).
+  → Constraint: the wait is armed by `apiSyncExpected > 0` and costs an UNCONDITIONAL 500ms floor plus up to 2s. The 500ms is deliberate and separate: comment `:164-170` explains it covers external plugins whose state=up handling is pipe round-trips not tracked by apiSync. Even a perfect signaller cannot bring the EOR below +500ms.
+  → Constraint: the EOR for every negotiated family is sent only after that wait returns, under `session.HoldWrites()`.
 - [ ] `internal/component/bgp/reactor/peer.go` - `:392-446` the sync primitive
-  → Constraint: `ResetAPISync` (`:395-402`) stores the count and a fresh channel. `SignalAPIReady` (`:409-419`) increments an ANONYMOUS counter and closes the channel only when `count >= expected` (`:413`). Signals are NOT attributed to a plugin: two signals from one plugin satisfy two slots.
-  → Constraint: `waitForAPISync` (`:423-446`) returns on the channel or the FULL timeout. Nothing shortens it. The timeout branch logs Debug (`:443`) and returns.
+  → Constraint: `ResetAPISync` stores the count and a fresh channel. `SignalAPIReady` increments an ANONYMOUS counter and closes the channel only when `count >= expected`. Signals are NOT attributed to a plugin: two signals from one plugin satisfy two slots.
+  → Constraint: `waitForAPISync` returns on the channel or the FULL timeout. Nothing shortens it. The timeout branch logs Debug and returns.
 - [ ] `internal/component/bgp/reactor/api_sync.go` - `:191-209` `SignalPeerAPIReady` routes a signal to a peer
-  → Decision: `:187-190` already argues, in prose, that a miss on this chain "must be loud" because "the peer simply waits out waitForAPISync and sends its EOR 2.5s late", citing `ai/rules/fail-closed-guards.md`. The precedent for the remedy's diagnostic half is already in the file.
-  → Constraint: naming collision, do not confuse. `Reactor.SignalAPIReady` (`:117`, process-wide startup gate) and `Peer.SignalAPIReady` (`peer.go:409`, per-session) are different functions with the same name. `plugins/rs/server.go:287` mentions the FORMER and is not a session-ready signaller.
+  → Decision: `:187-190` already argues, in prose, that a miss on this chain "must be loud" because "the peer simply waits out waitForAPISync and sends its EOR 2.5s late", citing `ai/rules/evidence.md`. The precedent for the remedy's diagnostic half is already in the file.
+  → Constraint: naming collision, do not confuse. `Reactor.SignalAPIReady` (`:117`, process-wide startup gate) and `Peer.SignalAPIReady` (`peer.go`, per-session) are different functions with the same name. `plugins/rs/server.go` mentions the FORMER and is not a session-ready signaller.
 - [ ] `internal/component/bgp/plugins/rib/rib_replay.go` - the only signaller
   → Constraint: `replayRoutesWithCursor` emits at `:259` (nothing to replay) and `:283` (after replay). These are the ONLY two production emitters in the tree.
-  → Constraint: `resendRoutesWithCursor` (`:287-288`) and `rib_commands.go:649` deliberately do NOT signal (manual resend is not establishment).
+  → Constraint: `resendRoutesWithCursor` and `rib_commands.go` deliberately do NOT signal (manual resend is not establishment).
 - [ ] `internal/component/bgp/plugins/rib/rib.go` - `:1075-1080` calls the replay on the down-to-up transition (`cameUp`), including with zero groups
   → Decision: this is the `5c4421541` fix. Closed, not this spec's subject.
 - [ ] `internal/component/bgp/plugins/cmd/peer/session.go` - `:11-28` registers `ze-plugin:session-peer-ready` and calls `ctx.Reactor().SignalPeerAPIReady(ctx.Peer)`
@@ -94,17 +94,17 @@ Selection_Deferral_Timer (`rfc/short/rfc4724.md:147`).
 - [ ] `internal/component/bgp/reactor/config.go` - `:723-763` builds `ProcessBindings` from the peer tree's `process` map; `:829-837` `parseOneSendFlag` sets `SendUpdate = true` for the token `update`
   → Constraint: membership of the counted set is decided by OPERATOR CONFIG per peer, not by plugin code. A plugin cannot opt out today, and a peer with no `process` block gets `apiSendCount == 0` and no wait at all.
 - [ ] `internal/component/bgp/config/peers.go` - `:540-589` `validatePeerProcessCaps`
-  → Decision: **this does NOT force `send [ update ]` onto route_refresh.** It requires that a peer carrying the route-refresh or graceful-restart capability has AT LEAST ONE binding with `SendUpdate` (`:566-575`), else config is REJECTED (`:577-586`). Comment `:537-539`: "These capabilities require a process to resend routes on demand."
+  → Decision: **this does NOT force `send [ update ]` onto route_refresh.** It requires that a peer carrying the route-refresh or graceful-restart capability has AT LEAST ONE binding with `SendUpdate`, else config is REJECTED. Comment `:537-539`: "These capabilities require a process to resend routes on demand."
 - [ ] `internal/component/bgp/plugins/route_refresh/route_refresh.go`, `register.go` - what bgp-route-refresh actually is
-  → Constraint: it is a CAPABILITY DECODER. `register.go:18-36`: `Features: "capa yang"`, `SupportsCapa: true`, `CapabilityCodes: [2, 70]`. `RunRouteRefreshPlugin` (`route_refresh.go:62-87`) registers only `WantsConfig: ["bgp"]` and a NO-OP `OnConfigure` whose comment (`:71-73`) says "Route-refresh has no payload. Config just enables the capability. Engine handles config-driven capability advertisement in reactor/config.go." It never sends a route and has no replay path.
+  → Constraint: it is a CAPABILITY DECODER. `register.go`: `Features: "capa yang"`, `SupportsCapa: true`, `CapabilityCodes: [2, 70]`. `RunRouteRefreshPlugin` (`route_refresh.go`) registers only `WantsConfig: ["bgp"]` and a NO-OP `OnConfigure` whose comment says "Route-refresh has no payload. Config just enables the capability. Engine handles config-driven capability advertisement in reactor/config.go." It never sends a route and has no replay path.
   → Decision: `send [ update ]` on this plugin is therefore SEMANTICALLY VACUOUS. It grants a permission the plugin cannot exercise. The validator asks "does this peer have a route sender" and accepts a "yes" from a capability decoder.
 
 **The two sets, enumerated (this is the spec's subject, so it is measured, not estimated):**
 
 | Set | Definition (producer) | Members |
 |-----|----------------------|---------|
-| COUNTED | `peer_run.go:362-366`: every `ProcessBinding` with `SendUpdate == true`, per peer. Populated from config by `reactor/config.go:724-763` + `:831-832`. | Config-chosen. In-tree internal plugins observed bound this way: `bgp-rib`, `bgp-gr`, `bgp-persist`, `bgp-rs`, `bgp-route-refresh`. External/test plugins observed bound this way: `my-process`, `cursor-test`, `text-test`, `test-plugin`, `cli-grammar-test`, `commit-lifecycle-test`, `commit-workflow-test`, `acme-traffic-filter`, `flowspec`, `summary-check`. |
-| SIGNALS | Emitters of `request peer <addr> plugin session ready` (grep of the literal across `internal/`, `pkg/`, `cmd/`, `test/`, excluding `_test.go` and mocks) | `bgp-rib` ONLY, at `rib_replay.go:259` and `rib_replay.go:283`, both inside `replayRoutesWithCursor`, reached only from `rib.go:1078-1080` and the `handleState` equivalent. |
+| COUNTED | `peer_run.go`: every `ProcessBinding` with `SendUpdate == true`, per peer. Populated from config by `reactor/config.go` + `:831-832`. | Config-chosen. In-tree internal plugins observed bound this way: `bgp-rib`, `bgp-gr`, `bgp-persist`, `bgp-rs`, `bgp-route-refresh`. External/test plugins observed bound this way: `my-process`, `cursor-test`, `text-test`, `test-plugin`, `cli-grammar-test`, `commit-lifecycle-test`, `commit-workflow-test`, `acme-traffic-filter`, `flowspec`, `summary-check`. |
+| SIGNALS | Emitters of `request peer <addr> plugin session ready` (grep of the literal across `internal/`, `pkg/`, `cmd/`, `test/`, excluding `_test.go` and mocks) | `bgp-rib` ONLY, at `rib_replay.go` and `rib_replay.go`, both inside `replayRoutesWithCursor`, reached only from `rib.go` and the `handleState` equivalent. |
 
 **Gap:** 4 of the 5 in-tree plugins and 10 of 10 external test plugins observed
 in the counted set never emit the signal. Method: repository-wide scan of `.ci`,
@@ -116,43 +116,43 @@ plugin names.
 **Behavior to preserve:** (unless user explicitly said to change)
 - The default direction of failure: when readiness is unknown, WAIT. Never emit an EOR ahead of a bound plugin's routes.
 - `bgp-rib`'s signal on the down-to-up edge, including the empty-Adj-RIB-Out case (`5c4421541`, `TestPeerUpEmptyRibOutSignalsReady`, `TestPeerUpEmptyRibOutSignalsReadyOnceOnly`).
-- The 500ms floor (`peer_initial_sync.go:176`) and its stated purpose, unless the spec explicitly reopens it.
+- The 500ms floor (`peer_initial_sync.go`) and its stated purpose, unless the spec explicitly reopens it.
 - `resendRoutesWithCursor` and `rib_commands.go` sendRoutes NOT signalling.
 - The generic, plugin-agnostic `ze-plugin:session-peer-ready` RPC as the signal transport.
 - Config rejection of a route-refresh/GR peer with no route sender, IF the validator's intent survives the review in Open Question Q4.
 
 **Behavior to change:** UNDECIDED. This is a skeleton. Options are laid out below and the choice is Thomas's.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- BGP FSM reaches `Established`: `peer_run.go:338` (`to == fsm.StateEstablished` in the FSM callback set at `:332`).
-- Config entry: the peer's `process <name> { send [ update ] }` leaf-list, parsed at `reactor/config.go:756-760`.
+- BGP FSM reaches `Established`: `peer_run.go` (`to == fsm.StateEstablished` in the FSM callback set at `:332`).
+- Config entry: the peer's `process <name> { send [ update ] }` leaf-list, parsed at `reactor/config.go`.
 
 ### Transformation Path
-1. `peer_run.go:361-366` counts `ProcessBindings` where `SendUpdate` is true into `apiSendCount`.
-2. `peer_run.go:367` `ResetAPISync(apiSendCount)` stores `apiSyncExpected` and a fresh `apiSyncReady` channel (`peer.go:395-402`).
-3. `peer_run.go:376` sets `sendingInitialRoutes`; `:383-384` notifies plugins of peer-established; `:397` spawns `sendInitialRoutes`.
-4. Plugin side: `bgp-rib` sees the state event, `rib.go:1078-1080` calls `replayRoutesWithCursor`, which dispatches `request peer <addr> plugin session ready` (`rib_replay.go:259` or `:283`). No other plugin does anything here.
-5. Engine side: the dispatcher routes it to `handlePeerSessionReady` (`plugins/cmd/peer/session.go:18`), which calls `Reactor.SignalPeerAPIReady` (`api_sync.go:191`), which resolves the peer and calls `Peer.SignalAPIReady` (`peer.go:409`).
-6. `Peer.SignalAPIReady` increments an anonymous count and closes `apiSyncReady` only when `count >= expected` (`peer.go:413`).
-7. `peer_initial_sync.go:174-178`: sleep 500ms, then `waitForAPISync(2s)` (`peer.go:423`) blocks on that channel or times out (`peer.go:441-444`, Debug log).
-8. `peer_initial_sync.go:332-337` sends EOR for every negotiated family.
+1. `peer_run.go` counts `ProcessBindings` where `SendUpdate` is true into `apiSendCount`.
+2. `peer_run.go` `ResetAPISync(apiSendCount)` stores `apiSyncExpected` and a fresh `apiSyncReady` channel (`peer.go`).
+3. `peer_run.go` sets `sendingInitialRoutes`; `:383-384` notifies plugins of peer-established; `:397` spawns `sendInitialRoutes`.
+4. Plugin side: `bgp-rib` sees the state event, `rib.go` calls `replayRoutesWithCursor`, which dispatches `request peer <addr> plugin session ready` (`rib_replay.go` or `:283`). No other plugin does anything here.
+5. Engine side: the dispatcher routes it to `handlePeerSessionReady` (`plugins/cmd/peer/session.go`), which calls `Reactor.SignalPeerAPIReady` (`api_sync.go`), which resolves the peer and calls `Peer.SignalAPIReady` (`peer.go`).
+6. `Peer.SignalAPIReady` increments an anonymous count and closes `apiSyncReady` only when `count >= expected` (`peer.go`).
+7. `peer_initial_sync.go`: sleep 500ms, then `waitForAPISync(2s)` (`peer.go`) blocks on that channel or times out (`peer.go`, Debug log).
+8. `peer_initial_sync.go` sends EOR for every negotiated family.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config -> Reactor | `process <name> { send [ update ] }` -> `ProcessBinding.SendUpdate` (`reactor/config.go:724-763`, `:831-832`) | [ ] |
-| Reactor -> Plugin | peer-established event (`peer_run.go:383-384`) -> `rib.go` handleState / handleStructuredState | [ ] |
-| Plugin -> Engine | `DispatchCommand("request peer <addr> plugin session ready")` -> RPC `ze-plugin:session-peer-ready` (`plugins/cmd/peer/session.go:13`) | [ ] |
-| Engine -> Peer | `SignalPeerAPIReady` (`api_sync.go:191`) -> `Peer.SignalAPIReady` (`peer.go:409`) -> channel close | [ ] |
+| Config -> Reactor | `process <name> { send [ update ] }` -> `ProcessBinding.SendUpdate` (`reactor/config.go`, `:831-832`) | [ ] |
+| Reactor -> Plugin | peer-established event (`peer_run.go`) -> `rib.go` handleState / handleStructuredState | [ ] |
+| Plugin -> Engine | `DispatchCommand("request peer <addr> plugin session ready")` -> RPC `ze-plugin:session-peer-ready` (`plugins/cmd/peer/session.go`) | [ ] |
+| Engine -> Peer | `SignalPeerAPIReady` (`api_sync.go`) -> `Peer.SignalAPIReady` (`peer.go`) -> channel close | [ ] |
 | Registry -> Reactor (PROPOSED, does not exist) | a declaration that a plugin participates in session readiness | [ ] |
 
 ### Integration Points
 - `registry.Registration` (`internal/component/plugin/registry/`) - where a declaration would live under Option A/D.
 - `pkg/plugin/sdk/` - external plugins would need the same declaration path (stage 1 `declare-registration`) under Option A/D.
-- `ProcessBinding` (`reactor/peersettings.go:493`) - the field the counter reads.
-- `internal/component/bgp/config/peers.go:540` - the validator that creates the forced binding.
+- `ProcessBinding` (`reactor/peersettings.go`) - the field the counter reads.
+- `internal/component/bgp/config/peers.go` - the validator that creates the forced binding.
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -170,7 +170,7 @@ binding names via `internal <name> { use <plugin> }`. 80 peer blocks qualify.
 | Counted set for the peer | Peers | Can the wait end early? | Status |
 |--------------------------|-------|------------------------|--------|
 | `[bgp-rib]` only | 47 | Yes, since `5c4421541` | Healthy |
-| `[bgp-gr, bgp-rib]` | 10 | **No.** `expected == 2`, only bgp-rib ever signals, so `count >= expected` (`peer.go:413`) is never satisfied and the channel never closes. | **Broken, and NOT fixed by `5c4421541`** |
+| `[bgp-gr, bgp-rib]` | 10 | **No.** `expected == 2`, only bgp-rib ever signals, so `count >= expected` (`peer.go`) is never satisfied and the channel never closes. | **Broken, and NOT fixed by `5c4421541`** |
 | No `bgp-rib` at all | 23 | No. Nothing in the counted set has a signaller. | Broken |
 
 The 23 with no bgp-rib: `bgp-gr` alone (6: `graceful-restart.ci`,
@@ -185,20 +185,20 @@ examples in `docs/guide/route-reflection.md`), an unresolved `gr` binding
 | Case | Status | Evidence |
 |------|--------|----------|
 | `bgp-route-refresh` alone (`api-route-refresh.ci`) | **DEMONSTRATED** | Recorded in `plan/spec-fixit-redistribute-establishment-stall.md` rows E1/E2 (run 2026-07-16 by the investigating session; **NOT re-run by this spec's author**). E1: log shows `sleeping for API routes duration=500ms` @14.187, `waiting for API sync expected=1` @14.688, then NO `API sync complete` and NO `sent EOR`. E2: raising the test plugin's sleep to 2.0/3.0/4.0s makes the EOR arrive and both expectations match. The EOR is LATE, not absent. |
-| `[bgp-gr, bgp-rib]` two-binding peers (10) | **THEORETICAL** | Producer chain read end to end (`peer_run.go:362-366` -> `peer.go:397` -> `peer.go:413`); no `bgp-gr` signaller exists (grep). No repro run. This is the highest-value experiment to run next: it would show `5c4421541` did not close these. |
+| `[bgp-gr, bgp-rib]` two-binding peers (10) | **THEORETICAL** | Producer chain read end to end (`peer_run.go` -> `peer.go` -> `peer.go`); no `bgp-gr` signaller exists (grep). No repro run. This is the highest-value experiment to run next: it would show `5c4421541` did not close these. |
 | `bgp-persist`, `bgp-rs`, `bgp-gr` alone | **THEORETICAL** | Same chain, no signaller in those packages (grep). No repro run. |
 | External/test plugins bound `send [ update ]` (10) | **THEORETICAL** | No `plugin session ready` emitter in any `.ci` python body (grep over `test/`). No repro run. Suspected cost: 2.5s per affected peer of functional-suite wall clock. |
 
 ## Why `send [ update ]` is forced on route_refresh at all
 
-**Correction to the framing.** `peers.go:578-585` is not a force targeted at
+**Correction to the framing.** `peers.go` is not a force targeted at
 route_refresh. It is the ERROR ARM of `validatePeerProcessCaps`
-(`peers.go:540-589`), which requires that a peer carrying the route-refresh
-capability (`:546-550`) or graceful-restart (`:551-561`) has AT LEAST ONE
-binding with `SendUpdate` anywhere in its `process` set (`:566-575`). If none
-does, config is rejected (`:577-586`). The rule names no plugin.
+(`peers.go`), which requires that a peer carrying the route-refresh
+capability or graceful-restart has AT LEAST ONE
+binding with `SendUpdate` anywhere in its `process` set. If none
+does, config is rejected. The rule names no plugin.
 
-The force lands on route_refresh in `test/plugin/api-route-refresh.ci:95-99`
+The force lands on route_refresh in `test/plugin/api-route-refresh.ci`
 only because that peer binds nothing else that could satisfy it: `bgp-rib` is
 not bound there, so the only way to make the config load is to put
 `send [ update ]` on the route-refresh binding itself. Row E5 of
@@ -210,8 +210,8 @@ does NOT dissolve the mismatch.
 
 | Finding | Basis |
 |---------|-------|
-| The validator's stated intent is sound | `peers.go:537-539`: route-refresh and GR "require a process to resend routes on demand". A peer that can be asked to resend and has nothing that can resend is a real misconfiguration. |
-| Its test is too weak for its intent | It accepts ANY binding with `SendUpdate`, including `bgp-route-refresh` itself, which is a capability decoder (`register.go:18-36`: `Features: "capa yang"`, `CapabilityCodes: [2, 70]`) with a no-op `OnConfigure` (`route_refresh.go:70-74`) and no route-sending code at all. The permission is vacuous: it cannot be exercised. |
+| The validator's stated intent is sound | `peers.go`: route-refresh and GR "require a process to resend routes on demand". A peer that can be asked to resend and has nothing that can resend is a real misconfiguration. |
+| Its test is too weak for its intent | It accepts ANY binding with `SendUpdate`, including `bgp-route-refresh` itself, which is a capability decoder (`register.go`: `Features: "capa yang"`, `CapabilityCodes: [2, 70]`) with a no-op `OnConfigure` (`route_refresh.go`) and no route-sending code at all. The permission is vacuous: it cannot be exercised. |
 | Tightening it would not close the gap | If the validator demanded a genuine route sender, `api-route-refresh.ci` would become invalid config (correctly: it has no route sender). But `bgp-gr`, `bgp-persist`, `bgp-rs` and every external plugin would still be counted and still never signal. The 10 `[bgp-gr, bgp-rib]` peers would be untouched. |
 
 Conclusion: the force is a real, separate defect worth its own decision (Q4
@@ -232,11 +232,11 @@ standing.
 
 The asymmetry is the whole argument:
 
-1. Today's failure is a **2.5s convergence delay**. It is recoverable, bounded, and costs the peer some deferral time (RFC 4724 S4.1, `rfc4724.md:147`). No RFC is violated (S2 sets no deadline, `rfc4724.md:174`).
-2. The opposite failure is an **EOR sent before a plugin's routes**. That is a claim of completion that is false (RFC 4724 S4, `rfc4724.md:126`), it is unbounded (the peer may make selection decisions on an incomplete view and propagate them), and nothing anywhere notices.
+1. Today's failure is a **2.5s convergence delay**. It is recoverable, bounded, and costs the peer some deferral time (RFC 4724 S4.1, `rfc4724.md`). No RFC is violated (S2 sets no deadline, `rfc4724.md`).
+2. The opposite failure is an **EOR sent before a plugin's routes**. That is a claim of completion that is false (RFC 4724 S4, `rfc4724.md`), it is unbounded (the peer may make selection decisions on an incomplete view and propagate them), and nothing anywhere notices.
 3. A remedy should therefore make a MISTAKE LOUD rather than fast. Option A and Option C both convert a forgotten step into the correctness failure, silently. Option B converts a forgotten step into the status quo latency: the worst case of B is exactly today.
-4. `ai/rules/fail-closed-guards.md` names this shape: the wait IS the guard, and A/C make a miss "fall through to the permissive branch". B keeps the deny.
-5. B's own weakness (the forgotten signaller is silent) is cheap to close and the codebase already argues for it. `api_sync.go:187-190` raised the unknown-peer miss on this exact chain to Warn precisely because "the peer simply waits out waitForAPISync and sends its EOR 2.5s late". The timeout branch at `peer.go:443` is still Debug. Making it a Warn that names the peer, the expected count, and the received count turns every remaining instance of this bug class into an operator-visible line instead of an archaeology exercise. That is the "or say something" half of the rule.
+4. `ai/rules/evidence.md` names this shape: the wait IS the guard, and A/C make a miss "fall through to the permissive branch". B keeps the deny.
+5. B's own weakness (the forgotten signaller is silent) is cheap to close and the codebase already argues for it. `api_sync.go` raised the unknown-peer miss on this exact chain to Warn precisely because "the peer simply waits out waitForAPISync and sends its EOR 2.5s late". The timeout branch at `peer.go` is still Debug. Making it a Warn that names the peer, the expected count, and the received count turns every remaining instance of this bug class into an operator-visible line instead of an archaeology exercise. That is the "or say something" half of the rule.
 6. D is the strongest alternative and the one to consider if Thomas wants the forgotten opt-in to be impossible rather than merely harmless. It is the only option that makes the omission a build-or-boot failure. Its cost is the SDK and stage-1 protocol change; its benefit is that the counter set becomes self-describing AND cannot silently shrink.
 
 Argument AGAINST B, recorded honestly: it asks `bgp-route-refresh` to signal
@@ -251,48 +251,48 @@ D does not have.
 | # | Question | Why it matters |
 |---|----------|----------------|
 | Q1 | Which option (A/B/C/D)? | The whole spec. |
-| Q2 | Should the API-sync timeout be loud (Warn naming the peer and the shortfall)? Independent of Q1 and cheap. | `peer.go:443` is Debug; `api_sync.go:202` on the same chain is Warn. The inconsistency is why the 2.5s stall survived so long. |
-| Q3 | Signals are anonymous (`peer.go:409-413` counts, does not attribute). Should a signal carry the plugin identity so two signals from one plugin cannot satisfy two slots? | Under B this becomes load-bearing: the 10 `[bgp-gr, bgp-rib]` peers need TWO distinct signallers, and an anonymous double-signal from bgp-rib would fake it. |
+| Q2 | Should the API-sync timeout be loud (Warn naming the peer and the shortfall)? Independent of Q1 and cheap. | `peer.go` is Debug; `api_sync.go` on the same chain is Warn. The inconsistency is why the 2.5s stall survived so long. |
+| Q3 | Signals are anonymous (`peer.go` counts, does not attribute). Should a signal carry the plugin identity so two signals from one plugin cannot satisfy two slots? | Under B this becomes load-bearing: the 10 `[bgp-gr, bgp-rib]` peers need TWO distinct signallers, and an anonymous double-signal from bgp-rib would fake it. |
 | Q4 | Should `validatePeerProcessCaps` demand a genuine route sender rather than any `SendUpdate` binding? | It would invalidate `api-route-refresh.ci`'s config (arguably correctly) and remove B's awkward case. It is a config-surface break for any operator relying on the loose check. |
-| Q5 | The 500ms floor (`peer_initial_sync.go:176`) is unconditional whenever the count is above zero. Even a perfect signaller cannot beat +500ms. In scope or not? | It is half the "fast" case's cost and is a blind sleep, which `spec-fixit-migrate-sleeps-infra` is removing elsewhere. |
+| Q5 | The 500ms floor (`peer_initial_sync.go`) is unconditional whenever the count is above zero. Even a perfect signaller cannot beat +500ms. In scope or not? | It is half the "fast" case's cost and is a blind sleep, which `spec-fixit-migrate-sleeps-infra` is removing elsewhere. |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `bgp-rib` is the ONLY production emitter of the ready signal. | Grep of the literal `plugin session ready` across `internal/`, `pkg/`, `cmd/`, `test/`, `docs/`. Only non-test hits that DISPATCH are `rib_replay.go:259` and `:283`. | Every count in the Blast Radius table is wrong. | Re-grep at implementation start; also grep the external SDK and python plugins for the RPC name `session-peer-ready`. | unvalidated |
-| A-2 | The counted set is decided by per-peer CONFIG, not by any plugin declaration. | `peer_run.go:362-366` reads `p.settings.ProcessBindings`; `reactor/config.go:724-763` builds them solely from the peer tree's `process` map. | Option A/D may already have a partial home. | Read `peersettings.go:493` and confirm no registry field feeds `SendUpdate`. | unvalidated |
-| A-3 | A peer with `[bgp-gr, bgp-rib]` burns the full 2s despite `5c4421541`, because `count >= expected` (`peer.go:413`) needs 2 signals and only 1 arrives. | `peer.go:409-419` read; no bgp-gr signaller found by grep. | The blast radius shrinks by 10 peers and the "not fixed by 5c4421541" claim is false. | Run `test/plugin/gr-mark-stale.ci` with `option=env:var=ze.log.bgp.routes:value=debug` and read the log for `waiting for API sync expected=2` followed by `API sync timeout` rather than `API sync complete`. **NOT run for this skeleton.** | unvalidated |
-| A-4 | `bgp-route-refresh` cannot send a route, so `send [ update ]` on it is vacuous. | `register.go:18-36` (capa/decoder registration), `route_refresh.go:62-87` (`RunRouteRefreshPlugin`, no-op `OnConfigure`, no send path). | Q4's premise collapses and the validator is fine as written. | Grep the package for any reactor send/announce call. | unvalidated |
-| A-5 | RFC 4724 sets no EOR deadline, so no option here is an RFC violation on the latency axis. | `rfc/short/rfc4724.md:174`, `:415` ([RECOMMENDED], Section 2). | Option B/D's latency is a conformance issue, not just a cost. | Re-read `rfc/short/rfc4724.md` Sections 2 and 4. | unvalidated |
-| A-6 | The 500ms floor is deliberate and covers external plugins not tracked by apiSync. | Comment `peer_initial_sync.go:164-170`. Note per `ai/rules/no-fabrication.md` this is a COMMENT, i.e. its author's belief, not a decision record. | Q5's framing is wrong. | Search `plan/learned/` and `plan/deferrals.md` for the decision that introduced the 500ms sleep before treating the comment as intent. | unvalidated |
+| A-1 | `bgp-rib` is the ONLY production emitter of the ready signal. | Grep of the literal `plugin session ready` across `internal/`, `pkg/`, `cmd/`, `test/`, `docs/`. Only non-test hits that DISPATCH are `rib_replay.go` and `:283`. | Every count in the Blast Radius table is wrong. | Re-grep at implementation start; also grep the external SDK and python plugins for the RPC name `session-peer-ready`. | unvalidated |
+| A-2 | The counted set is decided by per-peer CONFIG, not by any plugin declaration. | `peer_run.go` reads `p.settings.ProcessBindings`; `reactor/config.go` builds them solely from the peer tree's `process` map. | Option A/D may already have a partial home. | Read `peersettings.go` and confirm no registry field feeds `SendUpdate`. | unvalidated |
+| A-3 | A peer with `[bgp-gr, bgp-rib]` burns the full 2s despite `5c4421541`, because `count >= expected` (`peer.go`) needs 2 signals and only 1 arrives. | `peer.go` read; no bgp-gr signaller found by grep. | The blast radius shrinks by 10 peers and the "not fixed by 5c4421541" claim is false. | Run `test/plugin/gr-mark-stale.ci` with `option=env:var=ze.log.bgp.routes:value=debug` and read the log for `waiting for API sync expected=2` followed by `API sync timeout` rather than `API sync complete`. **NOT run for this skeleton.** | unvalidated |
+| A-4 | `bgp-route-refresh` cannot send a route, so `send [ update ]` on it is vacuous. | `register.go` (capa/decoder registration), `route_refresh.go` (`RunRouteRefreshPlugin`, no-op `OnConfigure`, no send path). | Q4's premise collapses and the validator is fine as written. | Grep the package for any reactor send/announce call. | unvalidated |
+| A-5 | RFC 4724 sets no EOR deadline, so no option here is an RFC violation on the latency axis. | `rfc/short/rfc4724.md`, `:415` ([RECOMMENDED], Section 2). | Option B/D's latency is a conformance issue, not just a cost. | Re-read `rfc/short/rfc4724.md` Sections 2 and 4. | unvalidated |
+| A-6 | The 500ms floor is deliberate and covers external plugins not tracked by apiSync. | Comment `peer_initial_sync.go`. Note per `ai/rules/evidence.md` this is a COMMENT, i.e. its author's belief, not a decision record. | Q5's framing is wrong. | Search `plan/learned/` and `plan/deferrals.md` for the decision that introduced the 500ms sleep before treating the comment as intent. | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Option A/D ships and one plugin's declaration is forgotten, producing a premature EOR that no test asserts. | Nothing. That is the risk. | Do not ship A without D's mandatory-declaration gate. Add a test that a NON-declaring bound plugin fails startup rather than racing. |
-| R-2 | Anonymous signal counting (`peer.go:413`) lets a duplicate signal from one plugin satisfy another's slot, converting a latency bug into a correctness bug under B. | A peer whose EOR arrives fast despite a known non-signaller in its counted set. | Q3. Attribute signals per plugin, or keep `TestPeerUpEmptyRibOutSignalsReadyOnceOnly`'s once-per-edge invariant as a hard rule for every signaller. |
-| R-3 | The remedy spells plugin names in `reactor/`, breaking `ai/rules/plugin-self-containment.md`. | A `case "bgp-rib"` or an import of a plugin package appearing under `reactor/`. | Keep the declaration in the registry; the reactor reads a bool it does not interpret. |
-| R-4 | Fixing the latency makes existing `.ci` tests that pass BECAUSE of the delay start failing (a test that polls long enough today may race a fast EOR tomorrow). | `.ci` reds in `test/plugin/` appearing only after the fix. | Expect it. Per `ai/rules/no-workarounds-for-missing-behavior.md`, fix the test's synchronisation, never re-add a sleep. |
+| R-2 | Anonymous signal counting (`peer.go`) lets a duplicate signal from one plugin satisfy another's slot, converting a latency bug into a correctness bug under B. | A peer whose EOR arrives fast despite a known non-signaller in its counted set. | Q3. Attribute signals per plugin, or keep `TestPeerUpEmptyRibOutSignalsReadyOnceOnly`'s once-per-edge invariant as a hard rule for every signaller. |
+| R-3 | The remedy spells plugin names in `reactor/`, breaking `ai/rules/plugins.md`. | A `case "bgp-rib"` or an import of a plugin package appearing under `reactor/`. | Keep the declaration in the registry; the reactor reads a bool it does not interpret. |
+| R-4 | Fixing the latency makes existing `.ci` tests that pass BECAUSE of the delay start failing (a test that polls long enough today may race a fast EOR tomorrow). | `.ci` reds in `test/plugin/` appearing only after the fix. | Expect it. Per `ai/rules/completion.md`, fix the test's synchronisation, never re-add a sleep. |
 | R-5 | The 2.5s stall is currently load-bearing for some test's timing and its removal exposes an unrelated race. | Flaky reds in the GR/LLGR suites after the change. | Land the loud-timeout diagnostic (Q2) FIRST and separately, so the before/after picture is legible. |
-| R-6 | Whichever option lands, `docs/architecture/api/architecture.md:1278-1288` still describes the bgp-rib-only design and goes stale. | A doc review finding. | Documentation Update Checklist row 12/15. |
+| R-6 | Whichever option lands, `docs/architecture/api/architecture.md` still describes the bgp-rib-only design and goes stale. | A doc review finding. | Documentation Update Checklist row 12/15. |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
 <!-- Provisional. Names are concrete, but the entry-point column depends on the option chosen (Q1). -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Peer with a counted binding whose plugin never signals reaches Established | → | `waitForAPISync` timeout path (`reactor/peer.go:441-444`) | `TestAPISyncTimeoutIsLoud` (`internal/component/bgp/reactor/api_sync_test.go`) |
-| Peer bound `[bgp-gr, bgp-rib]` reaches Established | → | `Peer.SignalAPIReady` count vs expected (`reactor/peer.go:409-419`) | `TestAPISyncTwoBindingsOneSignaller` (`internal/component/bgp/reactor/api_sync_test.go`) |
-| Session establishment with a non-signalling counted plugin, end to end on the wire | → | EOR emission (`reactor/peer_initial_sync.go:332-337`) | `test/plugin/session-ready-contract.ci` |
+| Peer with a counted binding whose plugin never signals reaches Established | → | `waitForAPISync` timeout path (`reactor/peer.go`) | `TestAPISyncTimeoutIsLoud` (`internal/component/bgp/reactor/api_sync_test.go`) |
+| Peer bound `[bgp-gr, bgp-rib]` reaches Established | → | `Peer.SignalAPIReady` count vs expected (`reactor/peer.go`) | `TestAPISyncTwoBindingsOneSignaller` (`internal/component/bgp/reactor/api_sync_test.go`) |
+| Session establishment with a non-signalling counted plugin, end to end on the wire | → | EOR emission (`reactor/peer_initial_sync.go`) | `test/plugin/session-ready-contract.ci` |
 
 ## Acceptance Criteria
 
 <!-- Provisional. AC-1..AC-3 hold under EVERY option and can be written now. AC-4..AC-6 depend on Q1. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A peer's API-sync wait reaches its timeout with `count < expected`. | The reactor logs at Warn, naming the peer, the expected count, and the received count. The miss is visible without a debug build. (Independent of Q1; matches `api_sync.go:187-190`'s stated principle.) |
+| AC-1 | A peer's API-sync wait reaches its timeout with `count < expected`. | The reactor logs at Warn, naming the peer, the expected count, and the received count. The miss is visible without a debug build. (Independent of Q1; matches `api_sync.go`'s stated principle.) |
 | AC-2 | A peer is bound to two plugins with `send [ update ]`, only one of which signals. | The behavior is DEFINED and tested, not incidental. Whichever option lands, a test pins what happens. |
 | AC-3 | A plugin bound `send [ update ]` sends its ready signal twice for one establishment. | It cannot satisfy another plugin's slot. (Depends on Q3.) |
 | AC-4 | A peer bound only to plugins that participate correctly. | Its EOR is sent without waiting for the 2s timeout. |
@@ -305,7 +305,7 @@ D does not have.
 |---|-----------|--------------------|-----------------------|
 | 1 | Brings up a BGP peer bound to a route-sending plugin and expects prompt convergence | FSM Established -> counter -> plugin replay -> ready signal -> EOR | `test/plugin/session-ready-contract.ci` |
 | 2 | Binds a plugin that never signals and wonders why convergence is slow | FSM Established -> counter -> timeout -> Warn naming the peer and shortfall | `TestAPISyncTimeoutIsLoud` |
-| 3 | Configures a route-refresh peer per `docs/guide/` | config validation (`peers.go:540`) -> establishment -> EOR | `test/plugin/api-route-refresh.ci` |
+| 3 | Configures a route-refresh peer per `docs/guide/` | config validation (`peers.go`) -> establishment -> EOR | `test/plugin/api-route-refresh.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -319,8 +319,8 @@ D does not have.
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| `apiSyncExpected` | 0..N bindings | N | N/A (0 means no wait, `peer.go:432`) | N/A |
-| API-sync timeout | 2s today (`peer_initial_sync.go:177`) | 2s | (fill during design, Q5) | (fill during design, Q5) |
+| `apiSyncExpected` | 0..N bindings | N | N/A (0 means no wait, `peer.go`) | N/A |
+| API-sync timeout | 2s today (`peer_initial_sync.go`) | 2s | (fill during design, Q5) | (fill during design, Q5) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -338,11 +338,11 @@ D does not have.
 
 ## Files to Modify
 <!-- Provisional. The exact set depends on Q1. -->
-- `internal/component/bgp/reactor/peer.go` - the timeout path's diagnostic (`:441-444`); possibly the counting/attribution (`:409-419`)
-- `internal/component/bgp/reactor/peer_run.go` - the counter predicate (`:361-367`) if the counted set changes
-- `internal/component/bgp/reactor/api_sync.go` - `SignalPeerAPIReady` (`:191`) if signals gain identity
+- `internal/component/bgp/reactor/peer.go` - the timeout path's diagnostic; possibly the counting/attribution
+- `internal/component/bgp/reactor/peer_run.go` - the counter predicate if the counted set changes
+- `internal/component/bgp/reactor/api_sync.go` - `SignalPeerAPIReady` if signals gain identity
 - `internal/component/plugin/registry/` - a participation declaration (Options A/D only)
-- `internal/component/bgp/config/peers.go` - `validatePeerProcessCaps` (`:540-589`) if Q4 says yes
+- `internal/component/bgp/config/peers.go` - `validatePeerProcessCaps` if Q4 says yes
 - `internal/component/bgp/plugins/route_refresh/` - only if Option B and only if Q4 says the binding stays
 - `docs/architecture/api/architecture.md` - `:1278-1288` describes the bgp-rib-only design
 
@@ -362,9 +362,9 @@ D does not have.
 | 3 | CLI command added/changed? | [ ] | (answer at design) |
 | 4 | API/RPC added/changed? | [ ] | `docs/architecture/api/commands.md` (`:295` lists `plugin session ready`) |
 | 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
-| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugin-design.md` Registration Fields table (Options A/D) |
+| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugins.md` Registration Fields table (Options A/D) |
 | 9 | RFC behavior implemented, changed, or newly proven? | [ ] | `rfc/short/rfc4724.md`, `docs/features/rfc-status.md` |
-| 12 | Internal architecture changed? | [ ] | `docs/architecture/api/architecture.md:1278-1288` |
+| 12 | Internal architecture changed? | [ ] | `docs/architecture/api/architecture.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | [ ] | `docs/plugin-overview.md` (Options A/D add a registration field) |
 | 16 | Any changed source file is referenced by existing doc source anchors? | [ ] | Grep `docs/` for anchors on `peer_run.go`, `api_sync.go`, `rib_replay.go` |
 
@@ -402,7 +402,7 @@ D does not have.
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | The counted set and the signalling set are provably identical, or their difference is declared and tested |
 | Data flow | No plugin name appears in `reactor/`; the reactor reads a declaration it does not interpret |
-| Registration over hardcoding | Any declaration is a registry field the core discovers (`ai/rules/plugin-self-containment.md`) |
+| Registration over hardcoding | Any declaration is a registry field the core discovers (`ai/rules/plugins.md`) |
 | Rule: fail-closed-guards | The guard still denies on a miss, and the miss says something |
 | Rule: no-workarounds | No `.ci` test was closed by lengthening a sleep |
 
@@ -416,7 +416,7 @@ D does not have.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | A plugin-supplied ready signal is already unauthenticated beyond the plugin token. Under B, more plugins send it. Confirm a signal for peer X from a plugin not bound to peer X cannot shorten X's wait. |
-| Resource exhaustion | A plugin that floods the signal must not corrupt other peers' counts (`peer.go:410` is an unbounded increment) |
+| Resource exhaustion | A plugin that floods the signal must not corrupt other peers' counts (`peer.go` is an unbounded increment) |
 
 ### Failure Routing
 | Failure | Route To |
@@ -431,22 +431,22 @@ D does not have.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| `peers.go:578-585` forces `send [ update ]` onto route_refresh specifically (task framing, and `5c4421541`'s trailer). | It is the error arm of `validatePeerProcessCaps` (`peers.go:540-589`), which requires ANY binding with `SendUpdate` on a route-refresh/GR peer and names no plugin. It lands on route_refresh in `api-route-refresh.ci` only because that peer binds nothing else. | Read the producer at `config/peers.go:540-589`. | The remedy space is wider than "fix route_refresh". Recorded so the next reader does not go looking for a route_refresh special case that is not there. |
-| `5c4421541` closed the `bgp-rib` case. | It closed the `[bgp-rib]`-only case (47 peers). The 10 `[bgp-gr, bgp-rib]` peers still cannot satisfy `count >= expected` (`peer.go:413`) because bgp-gr never signals. | Config scan + reading `peer.go:409-419`. | THEORETICAL (A-3), not demonstrated. Must be run before this claim is relied on. |
+| `peers.go` forces `send [ update ]` onto route_refresh specifically (task framing, and `5c4421541`'s trailer). | It is the error arm of `validatePeerProcessCaps` (`peers.go`), which requires ANY binding with `SendUpdate` on a route-refresh/GR peer and names no plugin. It lands on route_refresh in `api-route-refresh.ci` only because that peer binds nothing else. | Read the producer at `config/peers.go`. | The remedy space is wider than "fix route_refresh". Recorded so the next reader does not go looking for a route_refresh special case that is not there. |
+| `5c4421541` closed the `bgp-rib` case. | It closed the `[bgp-rib]`-only case (47 peers). The 10 `[bgp-gr, bgp-rib]` peers still cannot satisfy `count >= expected` (`peer.go`) because bgp-gr never signals. | Config scan + reading `peer.go`. | THEORETICAL (A-3), not demonstrated. Must be run before this claim is relied on. |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
-| Enumerate the counted set from plugin names or registry metadata. | Membership is per-peer config (`reactor/config.go:724-763`), not a plugin property. A name-based list would be a guess. | Scanned every in-repo peer config and resolved binding names through `internal <name> { use <plugin> }`. |
+| Enumerate the counted set from plugin names or registry metadata. | Membership is per-peer config (`reactor/config.go`), not a plugin property. A name-based list would be a guess. | Scanned every in-repo peer config and resolved binding names through `internal <name> { use <plugin> }`. |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
-| A wait/guard whose two ends disagree about loudness (`api_sync.go:202` Warn vs `peer.go:443` Debug) let a 2.5s stall live indefinitely. | 2nd instance on this chain in one day (see `plan/learned/1157-fail-open-auth-empty-profiles.md` for the class). | Possible addition to `ai/rules/fail-closed-guards.md`: when a guard has a timeout arm and an error arm, both must speak at the same level. | Propose after Q2 is answered. |
+| A wait/guard whose two ends disagree about loudness (`api_sync.go` Warn vs `peer.go` Debug) let a 2.5s stall live indefinitely. | 2nd instance on this chain in one day (see `plan/learned/1157-fail-open-auth-empty-profiles.md` for the class). | Possible addition to `ai/rules/evidence.md`: when a guard has a timeout arm and an error arm, both must speak at the same level. | Propose after Q2 is answered. |
 
 ## Design Insights
-- The signal transport is already generic and public (`ze-plugin:session-peer-ready`, `plugins/cmd/peer/session.go:13`). The gap is not a missing mechanism, it is a missing DECLARATION and a missing convention. That makes Option B far cheaper than it looks and Option D a protocol change rather than a plumbing change.
-- The counter's comment (`peer_run.go:359-360`, "They will signal 'plugin session ready' after replaying routes") is a promise the type system does not keep. It reads as documentation and functions as an assumption. This is the shape `ai/rules/no-fabrication.md` warns about: a comment states its author's belief, and here the belief is true of exactly one plugin.
+- The signal transport is already generic and public (`ze-plugin:session-peer-ready`, `plugins/cmd/peer/session.go`). The gap is not a missing mechanism, it is a missing DECLARATION and a missing convention. That makes Option B far cheaper than it looks and Option D a protocol change rather than a plumbing change.
+- The counter's comment (`peer_run.go`, "They will signal 'plugin session ready' after replaying routes") is a promise the type system does not keep. It reads as documentation and functions as an assumption. This is the shape `ai/rules/evidence.md` warns about: a comment states its author's belief, and here the belief is true of exactly one plugin.
 - The bug hid for so long because BOTH its failure mode (slow) and its detection surface (Debug logs) are quiet. Fixing the loudness is separable from fixing the contract and is worth landing first.
 
 ## Core Insight
@@ -468,7 +468,7 @@ almost every config that arms the wait.
 ## RFC Documentation
 
 Add `// RFC 4724 Section 2: "<quoted requirement>"` above the EOR emission
-(`peer_initial_sync.go:332-337`) and `// RFC 4724 Section 4` above the wait,
+(`peer_initial_sync.go`) and `// RFC 4724 Section 4` above the wait,
 recording that the deferral is a local policy choice and not an RFC deadline.
 
 ## Implementation Summary

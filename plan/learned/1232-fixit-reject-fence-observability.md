@@ -17,14 +17,14 @@ changed.
   reload-generation counter queried with `dispatch_until` is smaller than adding a
   subscribable event, and sufficient for the reload case.
 - **Increment at the END of `doReload` (`cmd/ze/hub/main_reload.go`), NOT inside
-  `Server.reloadConfig`.** The l2tp reject WARN is produced by `eng.Reload` (`:163`) AFTER
-  `s.ReloadConfig` (`:151`); a counter bumped inside `reloadConfig` would advance BEFORE l2tp
+  `Server.reloadConfig`.** The l2tp reject WARN is produced by `eng.Reload` AFTER
+  `s.ReloadConfig`; a counter bumped inside `reloadConfig` would advance BEFORE l2tp
   processed the change, so an observer could read the listener port before the reject ran. The
-  test would still pass, but only vacuously ("absence of X proves Y", `ai/rules/tdd.md`).
+  test would still pass, but only vacuously ("absence of X proves Y", `ai/rules/testing.md`).
   `doReload` is the only function that knows every reload step has completed.
 - **`show reload-status` stays CENTRAL**, not under `config-cli`'s subtree: the counter is
   process-global daemon state with no removable owner, the same class as `show warnings` /
-  `show health` (`ai/rules/plugin-self-containment.md`). Putting a centrally-handled command
+  `show health` (`ai/rules/plugins.md`). Putting a centrally-handled command
   in a plugin's subtree would invert the removal test.
 
 ## Consequences

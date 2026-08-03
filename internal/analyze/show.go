@@ -197,7 +197,7 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 // them as if they were the whole story -- returning a bare 0, as this did,
 // printed a cut IPv6 MP_REACH carrying 40 prefixes with no A= field at all,
 // indistinguishable from an UPDATE that announced nothing
-// (ai/rules/fail-closed-guards.md: a guard that neither denies nor speaks does
+// (ai/rules/evidence.md: a guard that neither denies nor speaks does
 // not exist). ok=false is what the caller renders the damage marker from.
 func mpReachCount(attrs []mrt.PathAttribute) (count int, ok bool) {
 	a := mrt.FindAttribute(attrs, mrt.AttrMPReachNLRI)

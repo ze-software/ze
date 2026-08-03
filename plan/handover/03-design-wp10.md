@@ -4,7 +4,7 @@
 
 Rows: `RFC7296-3.6-1`, `-2`, `-3`, `RFC7296-3.5-2`, `-3`, `-4`, `RFC7296-3.3.4-1`,
 `RFC7296-4-4`, `RFC7296-2.15-3`.
-Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 14 (`:717-721`).
+Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 14.
 
 **Read-only design. No tracked file was modified.** Every `file:line` below was read in the
 working tree on 2026-07-31. Other agents are editing `internal/component/ike/engine/`, so
@@ -76,18 +76,18 @@ manufactured gap.
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The local identity string is operator-supplied | `parseAuthConfig` | `internal/component/ike/ipsec/config.go:581-583` (`auth.LocalID = v` from leaf `local-id`) |
-| The YANG leaf that carries it | leaf `local-id` | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:383` |
-| The ID payload is built from it | `buildIDPayload` | `internal/component/ike/engine/auth.go:568-583` (`idStr = sa.PeerCfg.Auth.LocalID` at `:574-576`) |
-| The type is derived from the string's SHAPE | `encodeIKEID` | `internal/component/ike/engine/auth.go:590-598` |
-| An IPv4 literal becomes ID_IPV4_ADDR | `encodeIKEID` | `auth.go:592-594` |
-| An IPv6 literal becomes ID_IPV6_ADDR | `encodeIKEID` | `auth.go:595` |
-| Anything else becomes ID_FQDN | `encodeIKEID` | `auth.go:597` |
-| Nothing ever sends ID_RFC822_ADDR or ID_KEY_ID | `encodeIKEID` | `auth.go:590-598`, the function has no branch producing either |
+| The local identity string is operator-supplied | `parseAuthConfig` | `internal/component/ike/ipsec/config.go` (`auth.LocalID = v` from leaf `local-id`) |
+| The YANG leaf that carries it | leaf `local-id` | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` |
+| The ID payload is built from it | `buildIDPayload` | `internal/component/ike/engine/auth.go` (`idStr = sa.PeerCfg.Auth.LocalID` at `:574-576`) |
+| The type is derived from the string's SHAPE | `encodeIKEID` | `internal/component/ike/engine/auth.go` |
+| An IPv4 literal becomes ID_IPV4_ADDR | `encodeIKEID` | `auth.go` |
+| An IPv6 literal becomes ID_IPV6_ADDR | `encodeIKEID` | `auth.go` |
+| Anything else becomes ID_FQDN | `encodeIKEID` | `auth.go` |
+| Nothing ever sends ID_RFC822_ADDR or ID_KEY_ID | `encodeIKEID` | `auth.go`, the function has no branch producing either |
 
-`buildIDPayload` has three non-test callers: `computeSignedOctets` (`auth.go:69`),
-`buildAuthRequest` (`auth.go:98`), the responder IKE_AUTH (`responder.go:642`), and the
-responder EAP path (`responder_eap.go:164`). All four route through `encodeIKEID`, so there
+`buildIDPayload` has three non-test callers: `computeSignedOctets` (`auth.go`),
+`buildAuthRequest` (`auth.go`), the responder IKE_AUTH (`responder.go`), and the
+responder EAP path (`responder_eap.go`). All four route through `encodeIKEID`, so there
 is exactly ONE type-selection producer. This is not the second-producer shape.
 
 ### Is it conformant?
@@ -102,15 +102,15 @@ The argument rests on a property the code HAS -- `encodeIKEID` has a branch for 
 named types, driven by a config leaf -- not on the absence of a guard. It does not expire.
 
 **What is NOT claimed.** Ze cannot send ID_RFC822_ADDR, ID_KEY_ID, or ID_DER_ASN1_DN under
-ANY configuration: `encodeIKEID` has exactly three return statements (`auth.go:593`, `:595`,
+ANY configuration: `encodeIKEID` has exactly three return statements (`auth.go`, `:595`,
 `:597`) and none produces those types, so an email-shaped `local-id` goes out as ID_FQDN.
 That fails the SHOULD at `:5113-5114`, and it is load-bearing for `RFC7296-4-4` (section 6).
 It does not fail `3.5-2`.
 
 ### A constraint on `local-id` that the tag must name
 
-`ValidatePKIRefs` (`internal/component/ike/ipsec/validate.go:98`) refuses an X.509 peer whose
-`local-id` does not equal the certificate's common name (`validate.go:164-171`):
+`ValidatePKIRefs` (`internal/component/ike/ipsec/validate.go`) refuses an X.509 peer whose
+`local-id` does not equal the certificate's common name (`validate.go`):
 
     if peer.Auth.Mode == AuthX509 && peer.Auth.LocalID != "" {
         cn := certCN(cert)
@@ -146,7 +146,7 @@ stronger sentence.
 This is the discriminating half. Assert that the type is a CONSEQUENCE OF CONFIG and not a
 constant:
 
-1. With `LocalID` empty, `buildIDPayload` falls back to `sa.PeerName` (`auth.go:573`).
+1. With `LocalID` empty, `buildIDPayload` falls back to `sa.PeerName` (`auth.go`).
    Assert the payload then carries the peer name as ID_FQDN. This proves the fallback is
    itself a real path, and it documents that a peer named `10.0.0.1` silently sends
    ID_IPV4_ADDR -- which is a genuine operator trap worth pinning.
@@ -158,10 +158,10 @@ constant:
 
 | Mutation | Site | Must redden |
 |----------|------|-------------|
-| `return wire.IDTypeIPv4Addr, v4` becomes `return wire.IDTypeFQDN, []byte(id)` | `encodeIKEID`, `auth.go:593` | the positive (IPv4 row) and the negative (the two SAs stop differing) |
-| `return wire.IDTypeFQDN, []byte(id)` becomes `return wire.IDTypeFQDN, nil` | `encodeIKEID`, `auth.go:597` | the positive's `IDData` assertion ONLY. This is the mutation that proves the byte assertion earns its place |
-| `idStr = sa.PeerCfg.Auth.LocalID` is deleted | `buildIDPayload`, `auth.go:574-576` | the negative. `local-id` stops steering the type, and "operator-controlled" is false |
-| `encodeIKEID` returns `IDTypeIPv4Addr` unconditionally | `auth.go:590` | the negative ONLY, if the positive's fixtures were address-shaped. Run it: it is the check that the positive is not vacuous |
+| `return wire.IDTypeIPv4Addr, v4` becomes `return wire.IDTypeFQDN, []byte(id)` | `encodeIKEID`, `auth.go` | the positive (IPv4 row) and the negative (the two SAs stop differing) |
+| `return wire.IDTypeFQDN, []byte(id)` becomes `return wire.IDTypeFQDN, nil` | `encodeIKEID`, `auth.go` | the positive's `IDData` assertion ONLY. This is the mutation that proves the byte assertion earns its place |
+| `idStr = sa.PeerCfg.Auth.LocalID` is deleted | `buildIDPayload`, `auth.go` | the negative. `local-id` stops steering the type, and "operator-controlled" is false |
+| `encodeIKEID` returns `IDTypeIPv4Addr` unconditionally | `auth.go` | the negative ONLY, if the positive's fixtures were address-shaped. Run it: it is the check that the positive is not vacuous |
 
 ---
 
@@ -172,7 +172,7 @@ constant:
 > "MUST be configurable to accept all of these four types."
 
 `rfc/full/rfc7296.txt:5112`, continuing the sentence begun at `:5110`. "These four types"
-resolves to ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID (`:5111`).
+resolves to ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID.
 
 Appendix A's row text reads "Implementations MUST be configurable to accept all of these
 four types (§3.5)". It restores the subject "Implementations" from `:5110`. That is a
@@ -183,22 +183,22 @@ explicitly, because "these four" is unresolvable out of context.
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The accept-side policy gate | `checkRemoteIdentity` | `internal/component/ike/engine/remote_id.go:234-270` |
-| Which types can be compared at all | `assertedIdentity` | `remote_id.go:114-134` -- ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID return `comparable == true` |
-| The comparison itself | `remoteIDMatches` | `remote_id.go:203-225` |
-| ID_IPV4_ADDR / ID_IPV6_ADDR compare as addresses | `remoteIDMatches` | `remote_id.go:209-218`, via `assertedAddr` (`remote_id.go:73-91`) |
-| ID_FQDN / ID_RFC822_ADDR compare as case-folded ASCII | `remoteIDMatches` | `remote_id.go:219-220` -- ONE case arm covers both |
-| ID_KEY_ID compares as exact octets | `remoteIDMatches` | `remote_id.go:221-222` |
-| ID_DER_ASN1_DN / ID_DER_ASN1_GN are refused | `assertedIdentity` default arm | `remote_id.go:132-133` returns `comparable == false`; `checkRemoteIdentity` then errors at `:247-251` |
-| An unset `remote-id` accepts every type | `checkRemoteIdentity` | `remote_id.go:236-238` returns nil before any type test |
-| The YANG leaf | leaf `remote-id` | `ze-ipsec-conf.yang:388` |
+| The accept-side policy gate | `checkRemoteIdentity` | `internal/component/ike/engine/remote_id.go` |
+| Which types can be compared at all | `assertedIdentity` | `remote_id.go` -- ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID return `comparable == true` |
+| The comparison itself | `remoteIDMatches` | `remote_id.go` |
+| ID_IPV4_ADDR / ID_IPV6_ADDR compare as addresses | `remoteIDMatches` | `remote_id.go`, via `assertedAddr` (`remote_id.go`) |
+| ID_FQDN / ID_RFC822_ADDR compare as case-folded ASCII | `remoteIDMatches` | `remote_id.go` -- ONE case arm covers both |
+| ID_KEY_ID compares as exact octets | `remoteIDMatches` | `remote_id.go` |
+| ID_DER_ASN1_DN / ID_DER_ASN1_GN are refused | `assertedIdentity` default arm | `remote_id.go` returns `comparable == false`; `checkRemoteIdentity` then errors at `:247-251` |
+| An unset `remote-id` accepts every type | `checkRemoteIdentity` | `remote_id.go` returns nil before any type test |
+| The YANG leaf | leaf `remote-id` | `ze-ipsec-conf.yang` |
 
-The package doc comment states the design intent verbatim (`remote_id.go:108-113`): "Ze
+The package doc comment states the design intent verbatim (`remote_id.go`): "Ze
 compares five of the seven types RFC 7296 Section 3.5 assigns ... Those are the four every
 implementation MUST accept, plus the address type an IPv6-capable implementation MUST
 accept."
 
-**Do not cite that comment as evidence.** `ai/rules/no-fabrication.md` bans treating a
+**Do not cite that comment as evidence.** `ai/rules/evidence.md` bans treating a
 comment as the design record. It happens to be TRUE here, and the evidence is
 `remoteIDMatches`' four reachable arms, which I read.
 
@@ -210,20 +210,20 @@ all of these four types".
 
 ### The hardening item that is NOT a violation
 
-`remoteIDMatches` folds ID_FQDN and ID_RFC822_ADDR into one case arm (`remote_id.go:219`).
+`remoteIDMatches` folds ID_FQDN and ID_RFC822_ADDR into one case arm (`remote_id.go`).
 An operator who writes `remote-id user@example.com` therefore accepts a peer asserting
 EITHER type, and cannot express "ID_RFC822_ADDR only". The same is true of ID_KEY_ID versus
 the text types once the value is byte-equal, gated only by the exact-versus-folded
 comparison.
 
-`configuredClass` (`remote_id.go:150-155`) does separate the ADDRESS class from the TEXT
+`configuredClass` (`remote_id.go`) does separate the ADDRESS class from the TEXT
 class, and `remoteIDMatches` refuses a cross-class match at `:204-207`. So the widening is
 confined to within the text class. That is three types collapsing to one acceptance
 decision, not seven.
 
 **This does not violate `3.5-3`, which requires acceptance and says nothing about
 restriction.** It is a fail-open widening of an identity check, so
-`ai/rules/fail-closed-guards.md` has an interest in it, and section 9 files it as the
+`ai/rules/evidence.md` has an interest in it, and section 9 files it as the
 package's one deliberate non-goal with a named home.
 
 ### The tagged pair
@@ -238,7 +238,7 @@ type's shape, build a `wire.PayloadID` of that type carrying the matching octets
 not accidentally satisfied by the text arm.
 
 **Anti-vacuity guard, mandatory.** `checkRemoteIdentity` returns nil when `remote-id` is
-empty (`remote_id.go:236-238`). A sub-test that forgot to set `remote-id` would pass for
+empty (`remote_id.go`). A sub-test that forgot to set `remote-id` would pass for
 every type including ID_DER_ASN1_DN, and the whole positive would be vacuous. The test MUST
 assert, once per sub-test, that the same payload with a DELIBERATELY WRONG `remote-id` is
 refused. Without that, this test proves nothing at all.
@@ -246,7 +246,7 @@ refused. Without that, this test proves nothing at all.
 **Negative -- `TestRemoteIDRefusesTypesItCannotCompare`.**
 Assert that ID_DER_ASN1_DN (9) and ID_DER_ASN1_GN (10) are REFUSED with an error naming the
 five comparable types, and that the refusal is the `comparable == false` branch
-(`remote_id.go:247-251`), not a value mismatch. Assert the error text contains
+(`remote_id.go`), not a value mismatch. Assert the error text contains
 `"cannot compare"`. This is the discriminating half: it proves the positive's four passes
 are a property of those four types rather than of a check that accepts everything.
 
@@ -255,9 +255,9 @@ are a property of those four types rather than of a check that accepts everythin
 | Mutation | Site | Must redden |
 |----------|------|-------------|
 | The `IDTypeRFC822Addr` case label is deleted from `:219` | `remoteIDMatches` | the positive's RFC822 sub-test |
-| The `IDTypeKeyID` arm returns false | `remoteIDMatches`, `remote_id.go:221-222` | the positive's KEY_ID sub-test |
-| `assertedIdentity` returns `comparable == true` in its default arm | `remote_id.go:132-133` | the negative |
-| `checkRemoteIdentity` returns nil unconditionally | `remote_id.go:234` | the anti-vacuity guard in the positive AND the negative. If this mutation leaves the positive green, the guard was not written |
+| The `IDTypeKeyID` arm returns false | `remoteIDMatches`, `remote_id.go` | the positive's KEY_ID sub-test |
+| `assertedIdentity` returns `comparable == true` in its default arm | `remote_id.go` | the negative |
+| `checkRemoteIdentity` returns nil unconditionally | `remote_id.go` | the anti-vacuity guard in the positive AND the negative. If this mutation leaves the positive green, the guard was not written |
 
 ---
 
@@ -285,11 +285,11 @@ from code rather than from assumption.
 
 | Evidence | `file:line` |
 |----------|-------------|
-| `encodeIKEID` emits ID_IPV6_ADDR for an IPv6 literal | `internal/component/ike/engine/auth.go:595` |
-| `assertedAddr` accepts a 16-octet ID_IPV6_ADDR | `internal/component/ike/engine/remote_id.go:79-81` |
-| `assertedIdentity` reports ID_IPV6_ADDR comparable | `remote_id.go:119-125` |
-| `remoteIDMatches` compares it as `netip.Addr` | `remote_id.go:209-218` |
-| `idTypeName` names it | `remote_id.go:30-31` |
+| `encodeIKEID` emits ID_IPV6_ADDR for an IPv6 literal | `internal/component/ike/engine/auth.go` |
+| `assertedAddr` accepts a 16-octet ID_IPV6_ADDR | `internal/component/ike/engine/remote_id.go` |
+| `assertedIdentity` reports ID_IPV6_ADDR comparable | `remote_id.go` |
+| `remoteIDMatches` compares it as `netip.Addr` | `remote_id.go` |
+| `idTypeName` names it | `remote_id.go` |
 
 Ze is IPv6-capable in the sense this section means: it both generates and accepts an IPv6
 identity. The antecedent holds, so the consequent is owed.
@@ -298,13 +298,13 @@ identity. The antecedent holds, so the consequent is owed.
 
 **Yes.** `remoteIDMatches` compares ID_IPV6_ADDR under `remote-id`, exactly as it compares
 ID_IPV4_ADDR. `assertedAddr` enforces the 16-octet length RFC 7296 Section 3.5 assigns
-(`remote_id.go:79-81`), so a truncated or over-long payload is refused rather than
+(`remote_id.go`), so a truncated or over-long payload is refused rather than
 silently zero-padded.
 
 One nuance worth a line in the tag: `assertedAddr` returns `addr.Unmap()`
-(`remote_id.go:90`), and `remoteIDMatches` unmaps the configured value too (`:218`). So a
+(`remote_id.go`), and `remoteIDMatches` unmaps the configured value too. So a
 peer sending `::ffff:10.0.0.1` as a 16-octet ID_IPV6_ADDR matches a `remote-id` of
-`10.0.0.1`. That is deliberate and documented at `remote_id.go:71-72`. It is an acceptance
+`10.0.0.1`. That is deliberate and documented at `remote_id.go`. It is an acceptance
 WIDENING across the v4/v6 boundary within the address class. It does not violate `3.5-4`,
 and it belongs in the tag so a reviewer is not surprised by it.
 
@@ -327,9 +327,9 @@ table rather than a single length constant.
 
 | Mutation | Site | Must redden |
 |----------|------|-------------|
-| `len(p.IDData) != 16` becomes `len(p.IDData) < 4` | `assertedAddr`, `remote_id.go:80` | the negative |
-| The `IDTypeIPv6Addr` case is deleted from `assertedAddr` | `remote_id.go:79` | the positive |
-| `encodeIKEID`'s IPv6 branch returns `IDTypeFQDN` | `auth.go:595` | the positive's send half |
+| `len(p.IDData) != 16` becomes `len(p.IDData) < 4` | `assertedAddr`, `remote_id.go` | the negative |
+| The `IDTypeIPv6Addr` case is deleted from `assertedAddr` | `remote_id.go` | the positive |
+| `encodeIKEID`'s IPv6 branch returns `IDTypeFQDN` | `auth.go` | the positive's send half |
 
 ---
 
@@ -346,8 +346,8 @@ table rather than a single length constant.
 > local policy.  The implementation MUST reject SA proposals that are
 > not authorized by these IKE suite controls."
 
-`rfc/full/rfc7296.txt:4771-4778`. `3.3.4-1` is the first sentence (`:4771-4773`); `3.3.4-2`
-is the second (`:4773-4777`); `3.3.4-3` is the third (`:4777-4778`).
+`rfc/full/rfc7296.txt:4771-4778`. `3.3.4-1` is the first sentence; `3.3.4-2`
+is the second; `3.3.4-3` is the third.
 
 The trailing sentence bounds all three and should be in the tag:
 
@@ -363,11 +363,11 @@ The trailing sentence bounds all three and should be in the tag:
 
 | Row | Positive | Negative |
 |-----|----------|----------|
-| `3.3.4-2` | `internal/component/ike/crypto/rfc7296_proposal_test.go:119` | `:125` |
-| `3.3.4-3` | `internal/component/ike/crypto/rfc7296_proposal_test.go:157` | `:161` |
+| `3.3.4-2` | `internal/component/ike/crypto/rfc7296_proposal_test.go` | `:125` |
+| `3.3.4-3` | `internal/component/ike/crypto/rfc7296_proposal_test.go` | `:161` |
 
-Both are `unit/verify` tier in the ledger (`ai/RFC-REQUIREMENTS.md:3767-3768`).
-`TestPropTransformIDsComparedAgainstLocalPolicy` (`rfc7296_proposal_test.go:128-155`) drives
+Both are `unit/verify` tier in the ledger (`ai/RFC-REQUIREMENTS.md`).
+`TestPropTransformIDsComparedAgainstLocalPolicy` (`rfc7296_proposal_test.go`) drives
 `NegotiateIKE(offer, policy)` and asserts that WIDENING the policy changes the outcome
 (`:143-154`). That is proof the policy is data rather than a constant.
 
@@ -375,13 +375,13 @@ Both are `unit/verify` tier in the ledger (`ai/RFC-REQUIREMENTS.md:3767-3768`).
 
 | Property | Producing site | `file:line` |
 |----------|----------------|-------------|
-| The operator-facing suite list | YANG `list proposal` under `list ike-group` | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:179-217` |
-| Bounded at 255 proposals, citing RFC 7296 Section 3.3.1 | same | `ze-ipsec-conf.yang:181-184` |
-| Encryption transform, mandatory | leaf `encryption` | `ze-ipsec-conf.yang:193-197` |
-| PRF and integrity transform, mandatory | leaf `hash` | `ze-ipsec-conf.yang:199-208` |
-| Diffie-Hellman group, mandatory, range 1..31 | leaf `dh-group` | `ze-ipsec-conf.yang:210-216` |
-| Priority ordering | leaf `number`, list key | `ze-ipsec-conf.yang:180, 186-191` |
-| The comparison against that policy | `NegotiateIKE` | `internal/component/ike/crypto/` (proven by `rfc7296_proposal_test.go:128-186`) |
+| The operator-facing suite list | YANG `list proposal` under `list ike-group` | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` |
+| Bounded at 255 proposals, citing RFC 7296 Section 3.3.1 | same | `ze-ipsec-conf.yang` |
+| Encryption transform, mandatory | leaf `encryption` | `ze-ipsec-conf.yang` |
+| PRF and integrity transform, mandatory | leaf `hash` | `ze-ipsec-conf.yang` |
+| Diffie-Hellman group, mandatory, range 1..31 | leaf `dh-group` | `ze-ipsec-conf.yang` |
+| Priority ordering | leaf `number`, list key | `ze-ipsec-conf.yang, 186-191` |
+| The comparison against that policy | `NegotiateIKE` | `internal/component/ike/crypto/` (proven by `rfc7296_proposal_test.go`) |
 
 ### Is it conformant?
 
@@ -403,23 +403,23 @@ The facility accepts a suite it cannot honour, and it accepts it silently.
 
 | Fact | `file:line` |
 |------|-------------|
-| YANG accepts any DH group 1..31 | `ze-ipsec-conf.yang:211-213` (`range "1..31"`) |
-| `ValidDHGroup` accepts the same range | `internal/component/ike/ipsec/types.go:112-114` |
-| Only three groups have a transform | `dhGroupRegistry`, `internal/component/ike/crypto/transform.go:210-214` -- 14, 19, 20 |
-| `encryption` IS gated at parse | `EncryptionImplemented` (`crypto/algorithm_support.go:25`) called at `config.go:210` and `:383` |
-| `hash` IS gated at parse | `HashImplemented` (`crypto/algorithm_support.go:33`) called at `config.go:232` and `:401` |
-| **`dh-group` is NOT gated at parse** | `parseIKEProposal` reads it at `config.go:407` with no registry check |
-| A miss returns the ZERO transform, not an error | `lookupEncryption` / `lookupPRF` / `lookupIntegrity`, `initiator.go:338`, `:346`, `:354` |
+| YANG accepts any DH group 1..31 | `ze-ipsec-conf.yang` (`range "1..31"`) |
+| `ValidDHGroup` accepts the same range | `internal/component/ike/ipsec/types.go` |
+| Only three groups have a transform | `dhGroupRegistry`, `internal/component/ike/crypto/transform.go` -- 14, 19, 20 |
+| `encryption` IS gated at parse | `EncryptionImplemented` (`crypto/algorithm_support.go`) called at `config.go` and `:383` |
+| `hash` IS gated at parse | `HashImplemented` (`crypto/algorithm_support.go`) called at `config.go` and `:401` |
+| **`dh-group` is NOT gated at parse** | `parseIKEProposal` reads it at `config.go` with no registry check |
+| A miss returns the ZERO transform, not an error | `lookupEncryption` / `lookupPRF` / `lookupIntegrity`, `initiator.go`, `:346`, `:354` |
 
 `dh-group 5` therefore commits, and the proposal Ze offers or accepts carries a zero DH
-transform. `ai/rules/exact-or-reject.md` is explicit: a backend that cannot deliver exactly
+transform. `ai/rules/protocol.md` is explicit: a backend that cannot deliver exactly
 what the config asks for must fail at verify with a clear error. The two sibling leaves
 already do this; `dh-group` was missed.
 
-**This is in scope.** `ai/rules/no-parking.md` makes a defect I am the entry point for mine
+**This is in scope.** `ai/rules/completion.md` makes a defect I am the entry point for mine
 to fix, and this one sits inside the very facility `3.3.4-1` asserts. It is also small: add
 a `DHGroupImplemented` beside the two existing predicates and call it from
-`parseIKEProposal` at `config.go:407`, mirroring `config.go:210` exactly. Fix it in this
+`parseIKEProposal` at `config.go`, mirroring `config.go` exactly. Fix it in this
 package and let the negative test below prove it.
 
 Note this does NOT make `3.3.4-1` non-conformant. The MUST is that a facility exist. The
@@ -440,12 +440,12 @@ suite and assert the parsed policy differs. The two-tree differential is what ma
 facility test rather than a parser test.
 
 **Negative -- `TestIKESuitePolicyRejectsAnUnhonourableSuite`.**
-The three transform leaves are `mandatory true` (`ze-ipsec-conf.yang:195, 201, 214`). Assert:
+The three transform leaves are `mandatory true` (`ze-ipsec-conf.yang, 201, 214`). Assert:
 
 1. A proposal omitting `dh-group` is REFUSED.
-2. `dh-group 0` and `dh-group 32` are refused by `range "1..31"` (`:211-213`).
+2. `dh-group 0` and `dh-group 32` are refused by `range "1..31"`.
 3. **`dh-group 5` is refused** -- the defect above. 5 is inside the YANG range, passes
-   `ValidDHGroup`, and has no entry in `dhGroupRegistry` (`crypto/transform.go:210-214`).
+   `ValidDHGroup`, and has no entry in `dhGroupRegistry` (`crypto/transform.go`).
    Today it commits. After the fix it must be refused at parse with an error naming the
    group and the implemented set, exactly as `encryption chacha20poly1305` is refused today.
 4. `dh-group 14`, `19` and `20` are ACCEPTED, so the new gate is a filter and not a blanket
@@ -459,13 +459,13 @@ it is recording a wish.
 
 | Mutation | Site | Must redden |
 |----------|------|-------------|
-| The `proposal` list parse drops `dh-group` | `parseIKEProposal`, `config.go:407` | the positive's exact-preservation assertion |
-| `range "1..31"` is widened to `0..255` | `ze-ipsec-conf.yang:212` | the negative's row 2 |
-| `mandatory true` is removed from `dh-group` | `ze-ipsec-conf.yang:214` | the negative's row 1 |
-| The new `DHGroupImplemented` call is deleted | `parseIKEProposal`, `config.go:407` | the negative's row 3 ONLY. This is the mutation that proves the defect fix is live |
+| The `proposal` list parse drops `dh-group` | `parseIKEProposal`, `config.go` | the positive's exact-preservation assertion |
+| `range "1..31"` is widened to `0..255` | `ze-ipsec-conf.yang` | the negative's row 2 |
+| `mandatory true` is removed from `dh-group` | `ze-ipsec-conf.yang` | the negative's row 1 |
+| The new `DHGroupImplemented` call is deleted | `parseIKEProposal`, `config.go` | the negative's row 3 ONLY. This is the mutation that proves the defect fix is live |
 | `DHGroupImplemented` returns true always | `crypto/algorithm_support.go` | the negative's row 3 |
 | `DHGroupImplemented` returns false always | same | the negative's row 4, which is why row 4 exists |
-| The parser returns a hardcoded proposal list, ignoring the tree | `parseIKEGroup`, `config.go:246` | the positive's two-tree differential ONLY. Run this one: it is the mutation the single-tree half cannot see |
+| The parser returns a hardcoded proposal list, ignoring the tree | `parseIKEGroup`, `config.go` | the positive's two-tree differential ONLY. Run this one: it is the mutation the single-tree half cannot see |
 
 ---
 
@@ -488,12 +488,12 @@ first-certificate rule at `:5274-5276` is `RFC7296-1.2-2`, already proven (secti
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The CERT payload chain Ze sends | `buildCertPayloads` | `internal/component/ike/engine/auth.go:600-631` |
-| Capacity hint says two | `buildCertPayloads` | `auth.go:612` (`make([]wire.PayloadEntry, 0, 2)`) |
-| The leaf, always first | `buildCertPayloads` | `auth.go:613-618` |
-| At most ONE intermediate | `buildCertPayloads` | `auth.go:622-629`, guarded by `len(entry.RawInter) > 0` |
-| The structural cause: the PKI entry holds ONE intermediate | `CertificateEntry` | `internal/component/pki/types.go:23-30` (`Intermediate *x509.Certificate`, `RawInter []byte` -- both singular) |
-| The YANG leaf is singular | `parseCertificate` | `internal/component/pki/config.go:147-158` (`tree.Get("intermediate")`, one value) |
+| The CERT payload chain Ze sends | `buildCertPayloads` | `internal/component/ike/engine/auth.go` |
+| Capacity hint says two | `buildCertPayloads` | `auth.go` (`make([]wire.PayloadEntry, 0, 2)`) |
+| The leaf, always first | `buildCertPayloads` | `auth.go` |
+| At most ONE intermediate | `buildCertPayloads` | `auth.go`, guarded by `len(entry.RawInter) > 0` |
+| The structural cause: the PKI entry holds ONE intermediate | `CertificateEntry` | `internal/component/pki/types.go` (`Intermediate *x509.Certificate`, `RawInter []byte` -- both singular) |
+| The YANG leaf is singular | `parseCertificate` | `internal/component/pki/config.go` (`tree.Get("intermediate")`, one value) |
 
 **The send cap is not in the IKE layer.** `buildCertPayloads` faithfully sends everything
 the PKI entry holds. The entry can hold two certificates and no more, so the maximum Ze can
@@ -504,17 +504,17 @@ and only then to `buildCertPayloads`.
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| CERT payloads are collected into a slice | initiator path | `internal/component/ike/engine/fsm.go:598-601` |
-| Same, responder path | responder path | `internal/component/ike/engine/responder.go:383-386` |
-| Both filter on encoding and non-empty data | both | `fsm.go:599` (`p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0`) |
-| The slice is stored with no count limit | `storeRemoteCerts` | `internal/component/ike/engine/auth.go:441-450` |
-| First becomes the peer certificate | `storeRemoteCerts` | `auth.go:445` |
-| Every later one becomes an intermediate | `storeRemoteCerts` | `auth.go:447-449`, an unbounded `append` |
-| All of them are parsed and pooled | `getRemoteCert` | `auth.go:488-499` |
+| CERT payloads are collected into a slice | initiator path | `internal/component/ike/engine/fsm.go` |
+| Same, responder path | responder path | `internal/component/ike/engine/responder.go` |
+| Both filter on encoding and non-empty data | both | `fsm.go` (`p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0`) |
+| The slice is stored with no count limit | `storeRemoteCerts` | `internal/component/ike/engine/auth.go` |
+| First becomes the peer certificate | `storeRemoteCerts` | `auth.go` |
+| Every later one becomes an intermediate | `storeRemoteCerts` | `auth.go`, an unbounded `append` |
+| All of them are parsed and pooled | `getRemoteCert` | `auth.go` |
 
 There is no cap at any of the four sites. A peer may send as many CERT payloads as fit in
 an IKE message, and Ze will parse every one into an `x509.CertPool`
-(`auth.go:490-499`).
+(`auth.go`).
 
 ### Is it conformant?
 
@@ -530,7 +530,7 @@ an IKE message, and Ze will parse every one into an `x509.CertPool`
 The spec anticipated exactly this and named it a security risk: "Accepting up to four
 certificates means accepting an attacker-supplied chain: the first certificate MUST carry
 the AUTH key (`RFC7296-1.2-2`) and chain validation must not be weakened to accommodate the
-new count" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:343`).
+new count" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 ### Production design
 
@@ -538,12 +538,12 @@ new count" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:343`).
 
 | Change | File, function |
 |--------|----------------|
-| `CertificateEntry.Intermediate` / `.RawInter` become slices | `internal/component/pki/types.go:23-30` |
-| The YANG `leaf intermediate` becomes a `leaf-list` (or a keyed `list`) | `internal/component/pki/yang/ze-pki-conf.yang:56` |
-| Parse every value instead of one | `internal/component/pki/config.go:147-158`, `parseCertificate` |
-| Every existing reader of `RawInter` follows the type change | `internal/component/pki/show.go:171-172`, `:197-198`, `internal/component/pki/store.go:217-218` |
+| `CertificateEntry.Intermediate` / `.RawInter` become slices | `internal/component/pki/types.go` |
+| The YANG `leaf intermediate` becomes a `leaf-list` (or a keyed `list`) | `internal/component/pki/yang/ze-pki-conf.yang` |
+| Parse every value instead of one | `internal/component/pki/config.go`, `parseCertificate` |
+| Every existing reader of `RawInter` follows the type change | `internal/component/pki/show.go`, `:197-198`, `internal/component/pki/store.go` |
 
-This is the sibling call-site audit `ai/rules/before-writing-code.md` requires: `RawInter`
+This is the sibling call-site audit `ai/rules/architecture.md` requires: `RawInter`
 has four non-test readers and all four must change together. The `show` and `store` readers
 build PEM bundles and are already loop-friendly.
 
@@ -555,45 +555,45 @@ than a silent one.
 
 **Layer 2 -- `internal/component/ike/engine/auth.go`, the send-side assembly.**
 
-`buildCertPayloads` (`auth.go:600-631`) loops over the intermediate slice instead of testing
+`buildCertPayloads` (`auth.go`) loops over the intermediate slice instead of testing
 one value. The leaf stays first, unconditionally, because `RFC7296-1.2-2` requires it and
 `TestAutFirstCertificateCarriesTheAuthKey` proves it. Change `:612`'s capacity hint to
 `1 + len(entry.RawInter)`.
 
 **Layer 3 -- the configurable bound, both directions.**
 
-A new YANG leaf under the peer's `authentication` container (`ze-ipsec-conf.yang:363`),
-named per `ai/rules/config-naming.md` (kebab-case, noun, no unit in the name, no `max-`
+A new YANG leaf under the peer's `authentication` container (`ze-ipsec-conf.yang`),
+named per `ai/rules/config.md` (kebab-case, noun, no unit in the name, no `max-`
 prefix that duplicates the type):
 
 | Leaf | Type | Default | Meaning |
 |------|------|---------|---------|
 | `certificate-count` | `uint8 { range "1..4" }` | `4` | The maximum number of X.509 certificates Ze sends, and the maximum it accepts, for this peer |
 
-The RFC's number is four, and the range encodes it. `ai/rules/config-design.md` requires
+The RFC's number is four, and the range encodes it. `ai/rules/config.md` requires
 native validation, and `ai/patterns/config-option.md` is the structural template.
 
 **The wiring trap every new `AuthConfig` field in this package must clear.** `peersEqual`
-(`internal/component/ike/ipsec/types.go:523`) decides whether a reloaded peer config counts
-as CHANGED, and it compares six auth fields explicitly (`types.go:531-536`:
+(`internal/component/ike/ipsec/types.go`) decides whether a reloaded peer config counts
+as CHANGED, and it compares six auth fields explicitly (`types.go`:
 `Mode`, `PSK`, `LocalID`, `RemoteID`, `CACertificate`, `Certificate`). A new field that is
 not added there is INERT ON RELOAD: an operator edits `certificate-count`, commits, and
-nothing renegotiates. That is exactly the "inert config surface" `ai/rules/no-parking.md`
+nothing renegotiates. That is exactly the "inert config surface" `ai/rules/completion.md`
 names. **Every leaf this package adds -- `certificate-count`, `pre-shared-secret-encoding`,
 `remote-id-type`, `hash-and-url`, `certificate-url` -- must land in `peersEqual` in the same
-commit, with a reload test.** Note also that `AuthConfig` (`types.go:376-386`) carries NO
+commit, with a reload test.** Note also that `AuthConfig` (`types.go`) carries NO
 struct tags at all, so a field holding anything secret needs `json:"-"` explicitly, as
-`EAPUser.Password` does at `types.go:404`.
+`EAPUser.Password` does at `types.go`.
 
 **Why a default of 4 and not 2.** The RFC's figure is the interoperability floor. A default
 of 4 means an operator who never touches the leaf gets exactly the conformant behaviour, and
-`ai/rules/config-surface.md`'s "defaults are requirements" applies. A lower default would
+`ai/rules/config.md`'s "defaults are requirements" applies. A lower default would
 make the conformant case opt-in.
 
 **Layer 4 -- enforcing the bound on ACCEPT, and this is the load-bearing half.**
 
-`storeRemoteCerts` (`auth.go:441-450`) gains the cap. The design decision is what to do on
-overflow, and `ai/rules/fail-closed-guards.md` decides it: **refuse the message, do not
+`storeRemoteCerts` (`auth.go`) gains the cap. The design decision is what to do on
+overflow, and `ai/rules/evidence.md` decides it: **refuse the message, do not
 truncate**.
 
 Truncating is the tempting choice and it is wrong. A peer that sends five certificates
@@ -601,12 +601,12 @@ where the first four do not chain, but the fifth does, would authenticate under 
 truncating implementation only by luck of ordering; and under a silently-truncating one the
 operator never learns the bound was hit. Worse, truncation makes the bound invisible to the
 test that is supposed to prove it. Return an error naming the count and the configured
-limit, per `ai/rules/error-messages.md`'s what/why/next.
+limit, per `ai/rules/cli.md`'s what/why/next.
 
-`storeRemoteCerts` currently returns nothing (`auth.go:441`). It gains an `error` return,
-and both call sites (`fsm.go:620`, `responder.go:412`) handle it by moving the SA to
+`storeRemoteCerts` currently returns nothing (`auth.go`). It gains an `error` return,
+and both call sites (`fsm.go`, `responder.go`) handle it by moving the SA to
 `StateDead` with a warning, which is the shape both sites already use for
-`recordPeerWindowSize` immediately below (`fsm.go:622-626`, `responder.go:414-418`). That
+`recordPeerWindowSize` immediately below (`fsm.go`, `responder.go`). That
 is a two-line change at each site, following an existing local pattern.
 
 **Why the engine layer owns the accept cap.** The cap is per-peer policy, and the peer
@@ -646,11 +646,11 @@ The discriminating half, and the security half.
 
 | Mutation | Site | Must redden |
 |----------|------|-------------|
-| The intermediate loop sends only `entry.RawInter[0]` | `buildCertPayloads`, `auth.go:622-629` | the positive's send half |
-| The leaf is appended after the intermediates | `buildCertPayloads`, `auth.go:613` | `TestAutFirstCertificateCarriesTheAuthKey` (existing, `rfc7296_auth_test.go:254`) AND the positive's first-certificate assertion |
-| The cap in `storeRemoteCerts` truncates instead of erroring | `auth.go:441` | the negative's step 3 ONLY. Run it: it is the only mutation that separates a bound from a silent trim |
+| The intermediate loop sends only `entry.RawInter[0]` | `buildCertPayloads`, `auth.go` | the positive's send half |
+| The leaf is appended after the intermediates | `buildCertPayloads`, `auth.go` | `TestAutFirstCertificateCarriesTheAuthKey` (existing, `rfc7296_auth_test.go`) AND the positive's first-certificate assertion |
+| The cap in `storeRemoteCerts` truncates instead of erroring | `auth.go` | the negative's step 3 ONLY. Run it: it is the only mutation that separates a bound from a silent trim |
 | The cap reads a constant 4 instead of `sa.PeerCfg` | `storeRemoteCerts` | the negative's step 2 |
-| The `storeRemoteCerts` error is dropped at one call site | `fsm.go:620` or `responder.go:412` | the negative, but ONLY on the path that site serves. **Mutate BOTH sites separately.** This is the second-producer shape the spec has recorded three times, and there are exactly two producers here |
+| The `storeRemoteCerts` error is dropped at one call site | `fsm.go` or `responder.go` | the negative, but ONLY on the path that site serves. **Mutate BOTH sites separately.** This is the second-producer shape the spec has recorded three times, and there are exactly two producers here |
 
 ---
 
@@ -693,30 +693,30 @@ an obligation, and an enumeration hole is exactly the signal it names.
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The private key is parsed from config | `parsePrivateKey` | `internal/component/pki/config.go:164` |
-| Signing selects an algorithm from the key type | `selectSignatureAlgorithm` | `internal/component/ike/engine/auth.go:283` |
-| Verification uses the certificate's public key | `verifyX509Auth` | `auth.go:384-409`, `verifySignature` at `:409` |
-| Legacy RSA AUTH method 1 is also accepted | `verifyLegacyRSAAuth` | `auth.go:353` |
+| The private key is parsed from config | `parsePrivateKey` | `internal/component/pki/config.go` |
+| Signing selects an algorithm from the key type | `selectSignatureAlgorithm` | `internal/component/ike/engine/auth.go` |
+| Verification uses the certificate's public key | `verifyX509Auth` | `auth.go`, `verifySignature` at `:409` |
+| Legacy RSA AUTH method 1 is also accepted | `verifyLegacyRSAAuth` | `auth.go` |
 
 Ze imposes no key-size floor or ceiling that would exclude 1024 or 2048. Confirm during
 implementation by minting both sizes in the test fixture rather than by reading code -- key
 size is enforced, if at all, inside `crypto/x509` and `crypto/rsa`, and the only honest
 proof is a round trip. **Do not claim this half conformant from a code read.**
 
-**The shared-key half is satisfied**, via `parseAuthConfig` (`internal/component/ike/ipsec/config.go:589-600`)
-and `computePSKAuth` (`internal/component/ike/engine/auth.go:237-264`), both already proven
+**The shared-key half is satisfied**, via `parseAuthConfig` (`internal/component/ike/ipsec/config.go`)
+and `computePSKAuth` (`internal/component/ike/engine/auth.go`), both already proven
 by the `2.15-1`/`-2` pairs.
 
 **The ID-type clause FAILS, in two places.**
 
 | Required ID type | PKIX bullet | Shared-key bullet | Ze's behaviour |
 |------------------|-------------|-------------------|----------------|
-| ID_FQDN | required | required | works. `certificateCarriesIdentity` `remote_id.go:350-357`; PSK via `checkRemoteIdentity` |
-| ID_RFC822_ADDR | required | required | works. `certificateCarriesIdentity` `remote_id.go:358-365` |
-| ID_KEY_ID | required | required | **PKIX FAILS.** `certificateCarriesIdentity` has no ID_KEY_ID arm and falls to `return false` at `remote_id.go:367`. Shared-key works (`remoteIDMatches` `:221-222`) |
-| ID_DER_ASN1_DN | required | not required | **FAILS.** `assertedIdentity` returns `comparable == false` (`remote_id.go:132-133`), so `checkRemoteIdentity` refuses at `:247-251` before any certificate is read |
+| ID_FQDN | required | required | works. `certificateCarriesIdentity` `remote_id.go`; PSK via `checkRemoteIdentity` |
+| ID_RFC822_ADDR | required | required | works. `certificateCarriesIdentity` `remote_id.go` |
+| ID_KEY_ID | required | required | **PKIX FAILS.** `certificateCarriesIdentity` has no ID_KEY_ID arm and falls to `return false` at `remote_id.go`. Shared-key works (`remoteIDMatches` `:221-222`) |
+| ID_DER_ASN1_DN | required | not required | **FAILS.** `assertedIdentity` returns `comparable == false` (`remote_id.go`), so `checkRemoteIdentity` refuses at `:247-251` before any certificate is read |
 
-The ID_KEY_ID refusal is DELIBERATE and documented (`remote_id.go:321-322`): "ID_KEY_ID
+The ID_KEY_ID refusal is DELIBERATE and documented (`remote_id.go`): "ID_KEY_ID
 never binds. A certificate holds no field that corresponds to an opaque vendor identity, so
 the check denies rather than guesses". That reasoning is sound as a fail-closed choice and
 it still leaves the MUST unmet: RFC 7296 Section 4 requires it be POSSIBLE TO CONFIGURE Ze
@@ -725,11 +725,11 @@ to accept a PKIX certificate where the ID passed is ID_KEY_ID.
 ### The escape hatch that is not one
 
 With `remote-id` unset, `getRemoteCert` warns and returns the certificate
-(`auth.go:530-538`), so a PKIX peer asserting ID_KEY_ID or ID_DER_ASN1_DN IS accepted.
+(`auth.go`), so a PKIX peer asserting ID_KEY_ID or ID_DER_ASN1_DN IS accepted.
 
 **Do not count that as satisfying `4-4`.** It is acceptance by the absence of a check, and
 the log line at `:533-537` says so in as many words: "remote-id is not set, so every
-certificate this authority issued authenticates as this peer". `ai/rules/fail-closed-guards.md`
+certificate this authority issued authenticates as this peer". `ai/rules/evidence.md`
 treats that as a guard that cannot deny and says so, which is the correct behaviour for an
 unset expectation and is not a configured acceptance of an identity type. A tag arguing
 otherwise would be the expiring-negative shape the spec has recorded twice.
@@ -746,39 +746,39 @@ The narrow design, which is what the MUST actually requires:
 
 | Change | File, function |
 |--------|----------------|
-| **The config-time refusal of a DN must be lifted** | `ValidateIdentities`, `internal/component/ike/ipsec/validate.go:73-92` |
-| ID_DER_ASN1_DN becomes comparable: parse the DER distinguished name and render it in RFC 4514 string form | `assertedIdentity`, `internal/component/ike/engine/remote_id.go:118-134` |
-| ID_DER_ASN1_DN binds against the certificate's own `RawSubject` | `certificateCarriesIdentity`, `remote_id.go:323-368` -- a new arm comparing the asserted DER to `cert.RawSubject` |
+| **The config-time refusal of a DN must be lifted** | `ValidateIdentities`, `internal/component/ike/ipsec/validate.go` |
+| ID_DER_ASN1_DN becomes comparable: parse the DER distinguished name and render it in RFC 4514 string form | `assertedIdentity`, `internal/component/ike/engine/remote_id.go` |
+| ID_DER_ASN1_DN binds against the certificate's own `RawSubject` | `certificateCarriesIdentity`, `remote_id.go` -- a new arm comparing the asserted DER to `cert.RawSubject` |
 | ID_KEY_ID binds when the operator opts in | `certificateCarriesIdentity`, new arm |
-| The YANG `remote-id` description stops saying a DN is refused | `ze-ipsec-conf.yang:388-398` |
+| The YANG `remote-id` description stops saying a DN is refused | `ze-ipsec-conf.yang` |
 
 **The third site is the one that is easy to miss, and it fails FIRST.** `ValidateIdentities`
-(`validate.go:73`) walks `{"local-id", auth.LocalID}` and `{"remote-id", auth.RemoteID}`
-(`validate.go:80-81`) and REFUSES a DN-shaped value at commit (`validate.go:86-89`):
+(`validate.go`) walks `{"local-id", auth.LocalID}` and `{"remote-id", auth.RemoteID}`
+(`validate.go`) and REFUSES a DN-shaped value at commit (`validate.go`):
 
 > "is a distinguished name, and ze cannot compare ID_DER_ASN1_DN. Set it to an address, an
 > FQDN, a mail address, or a key id"
 
-It is called from `validateIPsecSections` (`internal/component/ike/engine/config.go:149`),
-and the YANG description repeats the rule in prose (`ze-ipsec-conf.yang:393-397`: "a
+It is called from `validateIPsecSections` (`internal/component/ike/engine/config.go`),
+and the YANG description repeats the rule in prose (`ze-ipsec-conf.yang`: "a
 distinguished name is refused at commit"). So a `remote-id` naming a DN never reaches
 `assertedIdentity` at all -- the config is rejected before the daemon runs. An implementer
 who changes only the two engine functions will watch the positive fail at config parse and
 be unable to see why.
 
-`ValidateIdentities` was correct when it was written: it is `ai/rules/exact-or-reject.md`
+`ValidateIdentities` was correct when it was written: it is `ai/rules/protocol.md`
 applied honestly, refusing config the engine could not honour. Lifting it is only legitimate
 BECAUSE the engine gains the capability in the same commit. **Do not lift it first.** Its
-tests (`internal/component/ike/ipsec/validate_identity_test.go:27`, `:60`, and
-`internal/component/ike/engine/config_verify_test.go:88`
+tests (`internal/component/ike/ipsec/validate_identity_test.go`, `:60`, and
+`internal/component/ike/engine/config_verify_test.go`
 `TestValidateIPsecSectionsRejectsADistinguishedNameRemoteID`) will redden, and each must be
-rewritten to assert the new contract rather than deleted -- `ai/rules/no-test-deletion.md`
+rewritten to assert the new contract rather than deleted -- `ai/rules/testing.md`
 makes a rewrite-as-replacement a reviewable event, and `rfc-tagged-test` does not cover
 these because they carry no tag.
 
 **ID_DER_ASN1_DN is the tractable one and should be done by DER comparison, not by string
 comparison.** `assertedIdentity`'s doc already names the obstacle
-(`remote_id.go:111-113`): "comparing one against configured text needs a canonical form that
+(`remote_id.go`): "comparing one against configured text needs a canonical form that
 no rule in RFC 7296 states. Ze does not guess at one." That objection is correct for
 comparing against operator TEXT, and it dissolves for comparing against the CERTIFICATE:
 `cert.RawSubject` is DER and the asserted identity is DER, so `bytes.Equal` is exact and
@@ -828,7 +828,7 @@ Two halves:
    certificate the authority issued, which is exactly the state `remote-id` exists to fix.
 2. `remote-id` UNSET is not the same as configured acceptance. Assert that an unset
    `remote-id` logs the "every certificate this authority issued authenticates as this
-   peer" warning (`auth.go:533-537`). Pin the warning, because if it ever disappears the
+   peer" warning (`auth.go`). Pin the warning, because if it ever disappears the
    fail-open path becomes silent and this row's evidence becomes indistinguishable from it.
 
 ### Mutations
@@ -837,7 +837,7 @@ Two halves:
 |----------|------|-------------|
 | The ID_DER_ASN1_DN arm compares rendered strings instead of DER | `certificateCarriesIdentity` | the negative's half 1, via a DN whose rendering collides |
 | The ID_KEY_ID arm returns true regardless of `remote-id-type` | `certificateCarriesIdentity` | the negative's half 1 |
-| `assertedIdentity` reports ID_DER_ASN1_DN not comparable again | `remote_id.go:132-133` | the positive's sub-test 3 |
+| `assertedIdentity` reports ID_DER_ASN1_DN not comparable again | `remote_id.go` | the positive's sub-test 3 |
 | The RSA-1024 fixture is swapped for 2048 | the test's own fixture | nothing -- which is the point. If sub-test 1 stays green after this, the key-size half is untested and the fixture must be parameterised |
 
 ---
@@ -897,15 +897,15 @@ The payload contents:
 
 | Property | Evidence | `file:line` |
 |----------|----------|-------------|
-| Encoding 12 has a constant | `CertEncodingHashURL uint8 = 12` | `internal/component/ike/wire/payload_cert.go:8` |
-| That constant has NO non-test referent | grep over `internal/component/ike/` excluding `_test.go` returns only the declaration | `payload_cert.go:8` |
-| Encoding 13 has no constant at all | the const block holds two values, 4 and 12 | `payload_cert.go:6-9` |
-| Ze SENDS only encoding 4 | `buildCertPayloads` | `internal/component/ike/engine/auth.go:615`, `:625` |
-| Ze DISCARDS any received payload whose encoding is not 4 | both collection loops | `fsm.go:599`, `responder.go:384-385` |
+| Encoding 12 has a constant | `CertEncodingHashURL uint8 = 12` | `internal/component/ike/wire/payload_cert.go` |
+| That constant has NO non-test referent | grep over `internal/component/ike/` excluding `_test.go` returns only the declaration | `payload_cert.go` |
+| Encoding 13 has no constant at all | the const block holds two values, 4 and 12 | `payload_cert.go` |
+| Ze SENDS only encoding 4 | `buildCertPayloads` | `internal/component/ike/engine/auth.go`, `:625` |
+| Ze DISCARDS any received payload whose encoding is not 4 | both collection loops | `fsm.go`, `responder.go` |
 | `HTTP_CERT_LOOKUP_SUPPORTED` (16392) is not implemented | grep for `HTTPCertLookup` / `16392` over `internal/component/ike/` returns nothing | -- |
 | Ze performs no outbound HTTP for certificates | no fetch site exists | -- |
 
-**Verdict: absent, both rows.** The received-payload filter at `fsm.go:599` is a genuine
+**Verdict: absent, both rows.** The received-payload filter at `fsm.go` is a genuine
 fail-closed guard -- a hash-and-URL payload is dropped rather than misparsed as DER -- so
 today's behaviour is safe, and it is not conformant.
 
@@ -955,7 +955,7 @@ Three facts, each quoted:
 | Accept and RESOLVE a received hash-and-URL | yes, gated on the SAME leaf, default OFF | **yes, and only here** |
 
 With the leaf off -- the default -- Ze never advertises the notification, so a conforming
-peer never sends a hash-and-URL, and the existing `fsm.go:599` filter continues to drop a
+peer never sends a hash-and-URL, and the existing `fsm.go` filter continues to drop a
 non-conforming one. **The SSRF surface does not exist in the default configuration.**
 
 **Do not let this become an argument for skipping the fetch.** `ai/rules/rfc-compliance.md`
@@ -967,7 +967,7 @@ in the form `ai/rules/rfc-compliance.md` requires.
 
 ### The bound, if the fetch is built
 
-Every one of these is mandatory, and each has a stated reason. `ai/rules/fail-closed-guards.md`
+Every one of these is mandatory, and each has a stated reason. `ai/rules/evidence.md`
 applies to all of them: on a miss, deny.
 
 | Control | Bound | Why |
@@ -993,9 +993,9 @@ applies to all of them: on a miss, deny.
 established, the fetch deadlocks the handshake it is part of. The timeout bounds it; the
 doctor check below is what tells an operator why it failed.
 
-**Doctor check.** The spec requires one (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:564`): the
+**Doctor check.** The spec requires one (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`): the
 hash-and-URL fetch is an outbound network dependency. Register it from the owning package
-per `ai/rules/doctor-checks.md`, with a `doctor-ike-cert-url-*` code in
+per `ai/rules/repo-maintenance.md`, with a `doctor-ike-cert-url-*` code in
 `internal/core/diagnostic/codes.go`. It should verify the configured local publication URL
 resolves, and warn when the allowlist would deny it.
 
@@ -1003,15 +1003,15 @@ resolves, and warn when the allowlist would deny it.
 
 | File | Change |
 |------|--------|
-| `internal/component/ike/wire/payload_cert.go` | Add `CertEncodingHashURLBundle uint8 = 13`. `PayloadCERT` already carries an opaque `CertData` (`:12-15`), so no codec change is needed: the 20-octet hash plus URL is just `CertData` |
+| `internal/component/ike/wire/payload_cert.go` | Add `CertEncodingHashURLBundle uint8 = 13`. `PayloadCERT` already carries an opaque `CertData`, so no codec change is needed: the 20-octet hash plus URL is just `CertData` |
 | `internal/component/ike/wire/payload_notify.go` | Add `NotifyHTTPCertLookupSupported uint16 = 16392` |
-| `internal/component/ike/engine/auth.go` | `buildCertPayloads` (`:600`) emits encoding 12 or 13 when configured; `buildAuthRequest` (`:104-106`) and the responder's CERTREQ path add the notification when the leaf is on |
-| `internal/component/ike/engine/certurl.go` (new) | The bounded fetcher. A new file because `auth.go` is already 31 KB and this is a distinct concern (`ai/rules/file-modularity.md`) |
-| `internal/component/ike/engine/fsm.go:598-601`, `responder.go:383-386` | Accept encodings 12 and 13 when the leaf is on. **Both sites. Two producers.** |
+| `internal/component/ike/engine/auth.go` | `buildCertPayloads` emits encoding 12 or 13 when configured; `buildAuthRequest` and the responder's CERTREQ path add the notification when the leaf is on |
+| `internal/component/ike/engine/certurl.go` (new) | The bounded fetcher. A new file because `auth.go` is already 31 KB and this is a distinct concern (`ai/rules/go-standards.md`) |
+| `internal/component/ike/engine/fsm.go`, `responder.go` | Accept encodings 12 and 13 when the leaf is on. **Both sites. Two producers.** |
 | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` | The leaf set below |
 | `internal/core/diagnostic/codes.go` | The doctor codes |
 
-**Config leaves**, under the peer `authentication` container (`ze-ipsec-conf.yang:363`):
+**Config leaves**, under the peer `authentication` container (`ze-ipsec-conf.yang`):
 
 | Leaf | Type | Default | Meaning |
 |------|------|---------|---------|
@@ -1019,7 +1019,7 @@ resolves, and warn when the allowlist would deny it.
 | `certificate-url` | `string` | absent | The http URL at which Ze's own certificate is published |
 | `certificate-url-allow` | `leaf-list` of `zt:ip-prefix` | absent | Destinations a received URL may resolve to. Empty means the built-in deny-private default only |
 
-`ai/rules/config-surface.md` puts all three in YANG rather than env vars: an operator would
+`ai/rules/config.md` puts all three in YANG rather than env vars: an operator would
 change them during normal deployment, they need validation and commit/rollback, and they
 belong in `show configuration`.
 
@@ -1069,8 +1069,8 @@ compares the hash afterwards passes every other row and is still exploitable.
 | `CheckRedirect` is left at the Go default | `certurl.go` | the redirect row |
 | The hash comparison moves to after the parse | `certurl.go` | the hash row's "parser never reached" assertion ONLY. Run it |
 | The private-range deny is dropped | `certurl.go` | the destination row |
-| The leaf gate is applied to the advertisement only, not the fetch path | `fsm.go:599` | `3.6-2`'s negative, the received-payload half |
-| Encoding 13 is accepted at `fsm.go:599` but not at `responder.go:384` | one site only | `3.6-2` positive on the responder path ONLY. **Mutate both sites separately** |
+| The leaf gate is applied to the advertisement only, not the fetch path | `fsm.go` | `3.6-2`'s negative, the received-payload half |
+| Encoding 13 is accepted at `fsm.go` but not at `responder.go` | one site only | `3.6-2` positive on the responder path ONLY. **Mutate both sites separately** |
 
 ---
 
@@ -1096,11 +1096,11 @@ as part of this one.
 
 | Row | Positive | Negative |
 |-----|----------|----------|
-| `2.15-1` | `internal/component/ike/ipsec/rfc7296_test.go:32` | `:37` |
-| `2.15-2` | `internal/component/ike/ipsec/rfc7296_test.go:79` | `:84` |
+| `2.15-1` | `internal/component/ike/ipsec/rfc7296_test.go` | `:37` |
+| `2.15-2` | `internal/component/ike/ipsec/rfc7296_test.go` | `:84` |
 
-`TestPSKAcceptsAtLeast64ASCIIOctets` (`rfc7296_test.go:40-77`) asserts that the FULL
-printable-ASCII range 0x20..0x7e survives the parse byte for byte (`:57-69`).
+`TestPSKAcceptsAtLeast64ASCIIOctets` (`rfc7296_test.go`) asserts that the FULL
+printable-ASCII range 0x20..0x7e survives the parse byte for byte.
 
 **That test is the design constraint for this row, and it is why autodetection is banned.**
 An ASCII secret of `"abcdef0123456789"` is valid printable ASCII, valid under `2.15-1`, and
@@ -1108,18 +1108,18 @@ also a valid hex string. Any implementation that guesses the encoding from the v
 silently reinterpret that operator's secret as eight binary octets, break an established
 deployment, and violate `2.15-1` at the same time. The spec named this risk directly:
 "Hex PSK decoding (`2.15-3`) must not change how an existing ASCII PSK is interpreted"
-(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:343`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 ### What Ze does today
 
 | Property | Producing function | `file:line` |
 |----------|--------------------|-------------|
-| The management interface | `parseAuthConfig` | `internal/component/ike/ipsec/config.go:568-600` |
-| The PSK leaf is read and assigned through | `parseAuthConfig` | `config.go:589-600` |
-| An existing at-rest encoding IS already handled | `parseAuthConfig` | `config.go:591-596`, via `secret.IsEncoded` / `secret.Decode` |
-| That mechanism uses an EXPLICIT PREFIX MARKER | `IsEncoded` | `internal/component/config/secret/secret.go:249-251`, marker `"$9$"` at `:21-22` |
-| The YANG leaf | leaf `pre-shared-secret` | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:377` |
-| The secret is used as raw octets | `computePSKAuth` | `internal/component/ike/engine/auth.go:250` (`[]byte(psk)` into `ikecrypto.PRF`) |
+| The management interface | `parseAuthConfig` | `internal/component/ike/ipsec/config.go` |
+| The PSK leaf is read and assigned through | `parseAuthConfig` | `config.go` |
+| An existing at-rest encoding IS already handled | `parseAuthConfig` | `config.go`, via `secret.IsEncoded` / `secret.Decode` |
+| That mechanism uses an EXPLICIT PREFIX MARKER | `IsEncoded` | `internal/component/config/secret/secret.go`, marker `"$9$"` at `:21-22` |
+| The YANG leaf | leaf `pre-shared-secret` | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` |
+| The secret is used as raw octets | `computePSKAuth` | `internal/component/ike/engine/auth.go` (`[]byte(psk)` into `ikecrypto.PRF`) |
 | No hex decoding anywhere in the IKE tree | grep for `hex.Decode` over `internal/component/ike/` | none |
 
 **The precedent is already in the function that needs changing.** `secret.IsEncoded` is an
@@ -1142,7 +1142,7 @@ at the interface.
 
 | Option | Shape | Assessment |
 |--------|-------|------------|
-| **A. Sibling enum leaf** | `leaf pre-shared-secret-encoding { type enumeration { enum ascii; enum hex; } default ascii; }` | **Recommended.** Explicit, visible in `show configuration`, diffable, and impossible to collide with a value. `ai/rules/config-surface.md` favours it |
+| **A. Sibling enum leaf** | `leaf pre-shared-secret-encoding { type enumeration { enum ascii; enum hex; } default ascii; }` | **Recommended.** Explicit, visible in `show configuration`, diffable, and impossible to collide with a value. `ai/rules/config.md` favours it |
 | B. Value prefix, e.g. `0x` | mirrors `secret.Prefix` | Rejected. `0x...` is itself a legal ASCII secret, so it re-introduces the collision the marker was meant to remove. `$9$` is safe only because it is already reserved |
 
 With option A, `parseAuthConfig` reads the encoding leaf and, when `hex`, runs
@@ -1150,19 +1150,19 @@ With option A, `parseAuthConfig` reads the encoding leaf and, when `hex`, runs
 hex secret obfuscated at rest. Order matters: `$9$` unwrapping first, hex second.
 
 **Fail closed on a malformed value.** `hex.DecodeString` errors on an odd length or a
-non-hex digit. Return the error and refuse the config, per `ai/rules/exact-or-reject.md` --
+non-hex digit. Return the error and refuse the config, per `ai/rules/protocol.md` --
 never fall back to treating the value as ASCII. A silent fallback would make a typo in a hex
 secret produce a working-looking config that authenticates against nothing, and the operator
 would debug the peer instead of the typo.
 
 **Naming.** `pre-shared-secret-encoding` mirrors the leaf it modifies, is kebab-case, and
-carries no abbreviation, per `ai/rules/config-naming.md`. If a matching env var is added it
+carries no abbreviation, per `ai/rules/config.md`. If a matching env var is added it
 must be `ze.ike.<path>.pre-shared-secret-encoding`.
 
 ### The tagged pair
 
 Add to `internal/component/ike/ipsec/rfc7296_test.go`, beside `2.15-1` and `-2`. The spec's
-phase list names the test `TestHexPSKDecoding` (`:718`); prefer a name matching the file's
+phase list names the test `TestHexPSKDecoding`; prefer a name matching the file's
 existing convention and record the rename.
 
 **Positive -- `TestPSKAcceptsHexEncoding`.**
@@ -1196,16 +1196,16 @@ Three assertions, and the first is the one that protects existing deployments:
 | The hex branch is applied whenever the value parses as hex | `parseAuthConfig` | the negative's step 1. This is THE mutation the package exists to prevent -- run it explicitly |
 | `hex.DecodeString`'s error is discarded and the raw string is kept | `parseAuthConfig` | the negative's steps 2 and 3 |
 | The decode runs before `secret.Decode` | `parseAuthConfig` | a `$9$`-wrapped hex secret fails. Add one positive row covering the combination so this ordering is pinned |
-| The decoded value is stored but `computePSKAuth` re-encodes it | `auth.go:250` | the positive's end-to-end half ONLY. Run it: the parse-only assertion cannot see this |
-| The encoding leaf default changes from `ascii` to `hex` | `ze-ipsec-conf.yang` | the negative's step 1, and `TestPSKAcceptsAtLeast64ASCIIOctets` (`rfc7296_test.go:40`) |
+| The decoded value is stored but `computePSKAuth` re-encodes it | `auth.go` | the positive's end-to-end half ONLY. Run it: the parse-only assertion cannot see this |
+| The encoding leaf default changes from `ascii` to `hex` | `ze-ipsec-conf.yang` | the negative's step 1, and `TestPSKAcceptsAtLeast64ASCIIOctets` (`rfc7296_test.go`) |
 
 ---
 
 ## 9. Id allocation
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py:477`, refusal at `:503`) refuses a
+`check_id_allocation` (`scripts/dev/rfc_requirements.py`, refusal at `:503`) refuses a
 new id whose ordinal is at or below its section's high-water mark. The mark is computed from
-the COMMITTED HEAD summary by `_git_baseline_ids` (`:1280`), which runs
+the COMMITTED HEAD summary by `_git_baseline_ids`, which runs
 `git show HEAD:<path>` -- not the index, not the working tree. **A section with no committed
 id is skipped entirely** (`:500-502`).
 
@@ -1235,7 +1235,7 @@ Commands:
 | `RFC7296-2.15` | -1, -2 | **2** | `2.15-3` | **accepted as-is.** 3 > 2 |
 | `RFC7296-3.3.4` | -2, -3 | **3** | `3.3.4-1` | **REFUSED.** Must land as `3.3.4-4` or higher |
 
-`_head_of` keys on the section STRING (`scripts/dev/rfc_requirements.py:454-457`), so
+`_head_of` keys on the section STRING (`scripts/dev/rfc_requirements.py`), so
 `RFC7296-3.5` and `RFC7296-3.5.x` are distinct scopes, as are `RFC7296-4` and
 `RFC7296-4.1`. They do not share marks.
 
@@ -1246,7 +1246,7 @@ management-facility sentence is the FIRST of the three in §3.3.4, and its row w
 in the checklist, after the two sentences that depend on it. That is unavoidable -- `-2` and
 `-3` were committed first -- and it is worth one line in the row text so a reader is not
 confused. Correct Appendix A in the same commit, per the precedent set for `1.4-2` to
-`1.4-5` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1399-1414`).
+`1.4-5` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`).
 
 ### The contiguity warning: §3.6 and §4
 
@@ -1278,17 +1278,17 @@ Appendix A ordinal order.**
 | WP-9 first (taking `4-1`, `4-2`), then WP-10 | **`4-3`** |
 
 **Recompute at the moment of landing. Never hardcode.** Three renumberings have already
-cost this spec time (`:1363-1387`, `:1399-1414`, `:1416-1438`).
+cost this spec time.
 
-WP-10 is scheduled at phase item 14 and WP-9 at item 15 (`:717`, `:725`), so on the phase
+WP-10 is scheduled at phase item 14 and WP-9 at item 15, so on the phase
 list WP-10 lands FIRST and would take `4-1`. But the 2026-07-30 re-triage renumbered every
-package (`:1540-1574`), so the landing order is genuinely open. Do not assume it.
+package, so the landing order is genuinely open. Do not assume it.
 
 ### If `RFC7296-3.3.4-1` moves to WP-9
 
 The re-triage's WP-9 is "Crypto suite policy and management facility" (`:1573`), which is
 this row's subject matter almost word for word. If the owner routes it there, WP-10 drops to
-eight rows -- matching the re-triage's count of 8 (`:1574`) and resolving the discrepancy
+eight rows -- matching the re-triage's count of 8 and resolving the discrepancy
 noted at the top of this document. That is the most likely explanation of the mismatch, and
 section 11 raises it. This design's section 4 travels with the row wherever it goes.
 
@@ -1298,23 +1298,23 @@ section 11 raises it. This design's section 4 travels with the row wherever it g
 
 | Invariant | Why it is at risk | The guard |
 |-----------|-------------------|-----------|
-| **`RFC7296-1.2-2`, send side.** The first CERT payload holds the AUTH key | Section 5 rewrites `buildCertPayloads` to emit up to four payloads. Appending the leaf after a loop over intermediates would invert the order | `TestAutFirstCertificateCarriesTheAuthKey` (`internal/component/ike/engine/rfc7296_auth_test.go:254`, tags at `:250-253`) reddens. **Its tag cites `auth.go:476` for `buildCertPayloads`, which is now at `auth.go:600`.** Correct the comment in the same commit -- and note that this is a tagged block, so `.claude/hooks/pretool-writeedit.py`'s `rfc-tagged-test` check applies. A comment-only edit passes it; do not touch the assertions |
-| **`RFC7296-1.2-2`, receive side.** The FIRST CERT payload is the peer certificate and later ones are intermediates | Section 5 adds a cap to `storeRemoteCerts`, the exact function this proves | `TestRccTwoLevelChainAuthenticates` (`internal/component/ike/engine/remote_cert_chain_test.go:216`, tags at `:210-215`) reddens. It asserts BOTH orders on BOTH roles, so a cap that reorders or drops is caught four ways |
-| **`RFC7296-2.15-1`.** The interface accepts 64+ ASCII octets, full printable range | Section 8 changes the PSK parse path | `TestPSKAcceptsAtLeast64ASCIIOctets` (`internal/component/ike/ipsec/rfc7296_test.go:40`) reddens, specifically its printable-ASCII sweep at `:57-69` |
-| **`RFC7296-2.15-2`.** No null terminator added, none stripped | Same path | `TestPSKHasNoNullTerminatorAdded` (`rfc7296_test.go:87`) reddens |
-| **`RFC7296-3.3.4-2` and `-3`.** Transform IDs compared against local policy; unauthorized proposals rejected | Section 4 touches no code, but a YANG change to `list proposal` while adding the auth leaves could disturb the parse | `TestPropTransformIDsComparedAgainstLocalPolicy` (`internal/component/ike/crypto/rfc7296_proposal_test.go:128`) and `TestPropUnauthorizedProposalRejected` (`:164`) both redden |
-| **The two-level chain deployment.** A leaf signed by an intermediate authenticates | Section 5 changes `CertificateEntry.RawInter` from a scalar to a slice, and four non-test readers depend on it | `TestRccMissingIntermediateNamesTheChain` (`remote_cert_chain_test.go:244`). Audit `internal/component/pki/show.go:171-172`, `:197-198`, `internal/component/pki/store.go:217-218` in the same commit |
-| **`TestRccSentCertPayloadsCarryTheIntermediate` asserts EXACTLY TWO payloads** | It calls `buildCertPayloads(sa)` DIRECTLY (`remote_cert_chain_test.go:269`, call at `:274`) and asserts the count. Section 5 raises the count to four | **This test WILL redden, by design, and it is the one place the implementer must edit an existing assertion.** It carries NO `RFC requirement:` tag, so `rfc-tagged-test` does not gate it -- but `c_test_weakening` does. Do not relax the count to `>= 1`. Change it to assert the exact number the fixture configures, so it keeps discriminating |
-| **The remote-id policy gate.** Section 6 adds arms to `certificateCarriesIdentity` and `assertedIdentity` | Every existing remote-id test | `internal/component/ike/engine/remote_id_test.go`, twelve test functions from `:89` to `:425`. `TestRidDeniesAnIdentityTypeItCannotCompare` (`:333`) asserts a DN DENIES and is the direct contradiction of section 6 -- it must be rewritten to assert the new contract, not deleted. Also `remote_cert_trust_test.go:112`, `:138`, `remote_cert_eku_test.go:58`. Run the whole engine package |
-| **`encodeIKEID`'s direct test table** | Section 1 adds tests beside it; a later implementer may be tempted to extend `encodeIKEID` for section 6's types | `responder_test.go:214-219` holds a table over `encodeIKEID` type and length. Section 1's tests must not duplicate it -- extend that table or cite it |
-| **`ValidateIdentities` and its three tests** | Section 6 lifts the DN refusal | `internal/component/ike/ipsec/validate_identity_test.go:27`, `:60`, and `internal/component/ike/engine/config_verify_test.go:88`. Rewrite each to the new contract in the same commit |
-| **The unset-`remote-id` warning stays.** `auth.go:533-537` | Section 6 restructures the identity binding around it | Section 6's negative half 2 pins the warning text. Without it, the fail-open path could go silent |
-| **`test/ipsec/` `.ci` suite stays green** -- 8 files: `ipsec-child-rekey`, `ipsec-clear-reestablish-peer`, `ipsec-clear-reestablish`, `ipsec-clear-sa`, `ipsec-sa-installed`, `ipsec-show-peer`, `ipsec-show-sa`, `ipsec-show-status` | Every YANG leaf this package adds enters the config those tests parse | `make ze-ipsec-test`. **The suite genuinely earns a verify tier**: `ipsec` is in `all_suites` (`mk/test-functional.mk:192`) AND has a `run_suite` line (`:217`). A historical defect where it was listed but never ran is recorded at `mk/test-functional.mk:288-291` and is fixed. Do not re-open it |
-| **`test/ipsec/` has ZERO certificate or identity coverage** | All eight `.ci` files configure `mode pre-shared-secret` with `pre-shared-secret test-key-1234` and set NO `local-id`, `remote-id`, `certificate`, or `ca-certificate` (`ipsec-sa-installed.ci:76` and `:144`, and the seven siblings) | **The `.ci` layer cannot guard sections 5, 6 or 7 at all.** `ai/rules/functional-test-gate.md` requires a functional test per user-facing behaviour, and every YANG leaf this package adds is user-facing. WP-10 must ADD `.ci` coverage, not merely avoid breaking it: at minimum `ipsec-psk-hex` (named by the spec at `:718`), plus one certificate-auth `.ci`. The suite earns a verify tier, so this coverage is merge-gating |
-| **`test/ipsec-interop/` scenarios stay green** | Sections 5, 6 and 7 change wire bytes: more CERT payloads, new encodings, a new notification. Ten scenarios exist (01-05, 07-11; there is no 06) and ALL TEN set both `local-id` and `remote-id` | `make ze-ipsec-interop-test` (`mk/test-integration.mk:41`); one scenario via `IPSEC_INTEROP_SCENARIO=<name>`. **Scenario 04 (EAP-TLS) is ALREADY FAILING for an unrelated reason**, owned by `plan/spec-fixit-eap-tls-clienthello-race.md`. Record its failure SIGNATURE before the package starts and compare signatures, not pass/fail. Do not adopt that failure and do not let it mask a new one |
-| **Scenario 04's fixture is the CN-fallback path** | `test/ipsec-interop/scenarios/04-eap-tls/ze.conf` sets `local-id "ze-test-client"` and `remote-id "172.28.0.3"`, and `gen-pki.sh` mints `client.pem` with CN `ze-test-client` and **no SAN extension**, beside `server.pem` which DOES carry `subjectAltName=IP:172.28.0.3` | Section 6 changes `certificateCarriesIdentity`, whose CN fallback is conditional on `hasSubjectAltName` (`remote_id.go:328-330`). Scenarios 03, 04 and 08 are the only cert-bearing ones, and all three ride this fixture. `TestRidAcceptsACommonNameWhenNoSubjectAltNameExists` (`remote_id_test.go:128`) is its unit-test mirror |
-| **The interop PKI plumbing refuses a multi-certificate PEM** | Section 5 needs interop fixtures with more intermediates. `lab.py:489-560` REFUSES a two-certificate bundle and a certificate beside a key, deliberately and fail-closed | Adding intermediates to an interop scenario means one file per certificate and one `%%PKI_B64:<file>%%` placeholder each (`lab.py:479-482`, `:575-632`), never a concatenated bundle. `test/ipsec-interop/lab_test.py:306` `test_every_pki_scenario_resolves_to_decodable_der` iterates every scenario's `ze.conf` and would catch a malformed one -- **but `lab_test.py` is wired to no make target**, so it will not run unless invoked directly. Say so rather than relying on it |
-| **strongSwan interop on identity types** | `encodeIKEID`'s doc records that strongSwan rejects an IP value sent as ID_FQDN with "constraint check failed" (`auth.go:585-589`). Section 6's `remote-id-type` leaf must not change the default SEND behaviour | The interop suite. Section 1's tests pin the send-side type selection unchanged |
+| **`RFC7296-1.2-2`, send side.** The first CERT payload holds the AUTH key | Section 5 rewrites `buildCertPayloads` to emit up to four payloads. Appending the leaf after a loop over intermediates would invert the order | `TestAutFirstCertificateCarriesTheAuthKey` (`internal/component/ike/engine/rfc7296_auth_test.go`, tags at `:250-253`) reddens. **Its tag cites `auth.go` for `buildCertPayloads`, which is now at `auth.go`.** Correct the comment in the same commit -- and note that this is a tagged block, so `.claude/hooks/pretool-writeedit.py`'s `rfc-tagged-test` check applies. A comment-only edit passes it; do not touch the assertions |
+| **`RFC7296-1.2-2`, receive side.** The FIRST CERT payload is the peer certificate and later ones are intermediates | Section 5 adds a cap to `storeRemoteCerts`, the exact function this proves | `TestRccTwoLevelChainAuthenticates` (`internal/component/ike/engine/remote_cert_chain_test.go`, tags at `:210-215`) reddens. It asserts BOTH orders on BOTH roles, so a cap that reorders or drops is caught four ways |
+| **`RFC7296-2.15-1`.** The interface accepts 64+ ASCII octets, full printable range | Section 8 changes the PSK parse path | `TestPSKAcceptsAtLeast64ASCIIOctets` (`internal/component/ike/ipsec/rfc7296_test.go`) reddens, specifically its printable-ASCII sweep at `:57-69` |
+| **`RFC7296-2.15-2`.** No null terminator added, none stripped | Same path | `TestPSKHasNoNullTerminatorAdded` (`rfc7296_test.go`) reddens |
+| **`RFC7296-3.3.4-2` and `-3`.** Transform IDs compared against local policy; unauthorized proposals rejected | Section 4 touches no code, but a YANG change to `list proposal` while adding the auth leaves could disturb the parse | `TestPropTransformIDsComparedAgainstLocalPolicy` (`internal/component/ike/crypto/rfc7296_proposal_test.go`) and `TestPropUnauthorizedProposalRejected` both redden |
+| **The two-level chain deployment.** A leaf signed by an intermediate authenticates | Section 5 changes `CertificateEntry.RawInter` from a scalar to a slice, and four non-test readers depend on it | `TestRccMissingIntermediateNamesTheChain` (`remote_cert_chain_test.go`). Audit `internal/component/pki/show.go`, `:197-198`, `internal/component/pki/store.go` in the same commit |
+| **`TestRccSentCertPayloadsCarryTheIntermediate` asserts EXACTLY TWO payloads** | It calls `buildCertPayloads(sa)` DIRECTLY (`remote_cert_chain_test.go`, call at `:274`) and asserts the count. Section 5 raises the count to four | **This test WILL redden, by design, and it is the one place the implementer must edit an existing assertion.** It carries NO `RFC requirement:` tag, so `rfc-tagged-test` does not gate it -- but `c_test_weakening` does. Do not relax the count to `>= 1`. Change it to assert the exact number the fixture configures, so it keeps discriminating |
+| **The remote-id policy gate.** Section 6 adds arms to `certificateCarriesIdentity` and `assertedIdentity` | Every existing remote-id test | `internal/component/ike/engine/remote_id_test.go`, twelve test functions from `:89` to `:425`. `TestRidDeniesAnIdentityTypeItCannotCompare` asserts a DN DENIES and is the direct contradiction of section 6 -- it must be rewritten to assert the new contract, not deleted. Also `remote_cert_trust_test.go`, `:138`, `remote_cert_eku_test.go`. Run the whole engine package |
+| **`encodeIKEID`'s direct test table** | Section 1 adds tests beside it; a later implementer may be tempted to extend `encodeIKEID` for section 6's types | `responder_test.go` holds a table over `encodeIKEID` type and length. Section 1's tests must not duplicate it -- extend that table or cite it |
+| **`ValidateIdentities` and its three tests** | Section 6 lifts the DN refusal | `internal/component/ike/ipsec/validate_identity_test.go`, `:60`, and `internal/component/ike/engine/config_verify_test.go`. Rewrite each to the new contract in the same commit |
+| **The unset-`remote-id` warning stays.** `auth.go` | Section 6 restructures the identity binding around it | Section 6's negative half 2 pins the warning text. Without it, the fail-open path could go silent |
+| **`test/ipsec/` `.ci` suite stays green** -- 8 files: `ipsec-child-rekey`, `ipsec-clear-reestablish-peer`, `ipsec-clear-reestablish`, `ipsec-clear-sa`, `ipsec-sa-installed`, `ipsec-show-peer`, `ipsec-show-sa`, `ipsec-show-status` | Every YANG leaf this package adds enters the config those tests parse | `make ze-ipsec-test`. **The suite genuinely earns a verify tier**: `ipsec` is in `all_suites` (`mk/test-functional.mk`) AND has a `run_suite` line. A historical defect where it was listed but never ran is recorded at `mk/test-functional.mk` and is fixed. Do not re-open it |
+| **`test/ipsec/` has ZERO certificate or identity coverage** | All eight `.ci` files configure `mode pre-shared-secret` with `pre-shared-secret test-key-1234` and set NO `local-id`, `remote-id`, `certificate`, or `ca-certificate` (`ipsec-sa-installed.ci` and `:144`, and the seven siblings) | **The `.ci` layer cannot guard sections 5, 6 or 7 at all.** `ai/rules/testing.md` requires a functional test per user-facing behaviour, and every YANG leaf this package adds is user-facing. WP-10 must ADD `.ci` coverage, not merely avoid breaking it: at minimum `ipsec-psk-hex` (named by the spec at `:718`), plus one certificate-auth `.ci`. The suite earns a verify tier, so this coverage is merge-gating |
+| **`test/ipsec-interop/` scenarios stay green** | Sections 5, 6 and 7 change wire bytes: more CERT payloads, new encodings, a new notification. Ten scenarios exist (01-05, 07-11; there is no 06) and ALL TEN set both `local-id` and `remote-id` | `make ze-ipsec-interop-test` (`mk/test-integration.mk`); one scenario via `IPSEC_INTEROP_SCENARIO=<name>`. **Scenario 04 (EAP-TLS) is ALREADY FAILING for an unrelated reason**, owned by `plan/spec-fixit-eap-tls-clienthello-race.md`. Record its failure SIGNATURE before the package starts and compare signatures, not pass/fail. Do not adopt that failure and do not let it mask a new one |
+| **Scenario 04's fixture is the CN-fallback path** | `test/ipsec-interop/scenarios/04-eap-tls/ze.conf` sets `local-id "ze-test-client"` and `remote-id "172.28.0.3"`, and `gen-pki.sh` mints `client.pem` with CN `ze-test-client` and **no SAN extension**, beside `server.pem` which DOES carry `subjectAltName=IP:172.28.0.3` | Section 6 changes `certificateCarriesIdentity`, whose CN fallback is conditional on `hasSubjectAltName` (`remote_id.go`). Scenarios 03, 04 and 08 are the only cert-bearing ones, and all three ride this fixture. `TestRidAcceptsACommonNameWhenNoSubjectAltNameExists` (`remote_id_test.go`) is its unit-test mirror |
+| **The interop PKI plumbing refuses a multi-certificate PEM** | Section 5 needs interop fixtures with more intermediates. `lab.py` REFUSES a two-certificate bundle and a certificate beside a key, deliberately and fail-closed | Adding intermediates to an interop scenario means one file per certificate and one `%%PKI_B64:<file>%%` placeholder each (`lab.py`, `:575-632`), never a concatenated bundle. `test/ipsec-interop/lab_test.py` `test_every_pki_scenario_resolves_to_decodable_der` iterates every scenario's `ze.conf` and would catch a malformed one -- **but `lab_test.py` is wired to no make target**, so it will not run unless invoked directly. Say so rather than relying on it |
+| **strongSwan interop on identity types** | `encodeIKEID`'s doc records that strongSwan rejects an IP value sent as ID_FQDN with "constraint check failed" (`auth.go`). Section 6's `remote-id-type` leaf must not change the default SEND behaviour | The interop suite. Section 1's tests pin the send-side type selection unchanged |
 | **A conformant peer never triggers a fetch by default** | Section 7 | `3.6-2`'s negative asserts no HTTP_CERT_LOOKUP_SUPPORTED is advertised with the leaf off, and that a received encoding-12 payload is dropped |
 | **`ai/RFC-REQUIREMENTS.md` stays fresh** | Nine new tagged tests move line numbers throughout | Run `make ze-rfc-index` and commit the ledger in the SAME commit. `ze-rfc-check` fails on a stale ledger in both verify modes (`ai/rules/testing.md`, RFC-Tagged Tests) |
 
@@ -1327,19 +1327,19 @@ section 11 raises it. This design's section 4 travels with the row wherever it g
 | R-WP10-1 | **The hash-and-URL fetch ships as an unbounded SSRF.** The natural implementation is `http.Get(url)`, which follows up to 10 redirects, reads without limit, has no timeout, and accepts any scheme the URL names. Every one of those is a control in section 7 | none from any existing test; a bounded and an unbounded fetcher both make the positive green | Section 7's negative is table-driven with ONE ROW PER CONTROL, and the mutation table names the site for each. The row that matters most is hash-before-parse. Treat a missing row as a missing control |
 | R-WP10-2 | **Hex PSK autodetection is introduced and silently breaks a deployed ASCII secret** that happens to be hex-shaped. It also violates `2.15-1`, which is already green | `TestPSKAcceptsAtLeast64ASCIIOctets` may stay green: its fixtures are letters and full printable ASCII, not a pure hex string | Section 8's negative step 1 asserts `"abcdef0123456789"` parses as ASCII with the leaf absent. Run the autodetect mutation explicitly; it is the one this row exists to prevent |
 | R-WP10-3 | **The certificate cap truncates instead of refusing.** Truncation looks like a bound, passes a count assertion, and hides from the operator that a limit was hit | none. A truncating implementation passes any count-based test | Section 5's negative step 3 asserts the chain is EMPTY and the SA is not established after a refusal. Run the truncate mutation |
-| R-WP10-4 | **The accept cap lands at one of two collection sites.** `fsm.go:620` and `responder.go:412` both call `storeRemoteCerts`, and both must handle its new error | a single-path test stays green | `storeRemoteCerts` is the single funnel, so the cap itself is one site. The ERROR HANDLING is two sites. Mutate each independently, per section 5's table. This is the second-producer shape the spec has recorded three times |
-| R-WP10-5 | **`4-4` is classified partial without an owner ruling, or is "fixed" by pointing at the unset-`remote-id` path.** Accepting via an absent check is acceptance by fail-open, and `ai/rules/rfc-compliance.md:56` voids prior answers that point away from full compliance | none mechanical | Section 12. Raise before landing. Section 6's negative half 2 pins the warning so the fail-open path stays visible |
+| R-WP10-4 | **The accept cap lands at one of two collection sites.** `fsm.go` and `responder.go` both call `storeRemoteCerts`, and both must handle its new error | a single-path test stays green | `storeRemoteCerts` is the single funnel, so the cap itself is one site. The ERROR HANDLING is two sites. Mutate each independently, per section 5's table. This is the second-producer shape the spec has recorded three times |
+| R-WP10-5 | **`4-4` is classified partial without an owner ruling, or is "fixed" by pointing at the unset-`remote-id` path.** Accepting via an absent check is acceptance by fail-open, and `ai/rules/rfc-compliance.md` voids prior answers that point away from full compliance | none mechanical | Section 12. Raise before landing. Section 6's negative half 2 pins the warning so the fail-open path stays visible |
 | R-WP10-6 | **Four rows are classified conformant against an Appendix A that says NOT IMPL.** Four such reclassifications in one package invites a reviewer to suspect the package rather than the classification | a reviewer challenges the whole set | Each of sections 1 to 4 cites the producing function and, for `3.3.4-1`, two ALREADY-GREEN dependent tests. Present the evidence per row, never as a block. Note the precedent: the 2026-07-30 triage found the walk "wrong in both directions, for the third time" (`:1594-1598`) |
 | R-WP10-7 | **`4-4`'s Appendix A text elides the ID-type clause**, so a reader working from the row alone classifies it conformant and closes it | none; the row reads as satisfied | Section 6 restores the clause. Fix the row text when it lands, and read `rfc/full/rfc7296.txt:6895-6910` for the third bullet the walk did not capture |
 | R-WP10-8 | **§4 ordinals are stranded.** WP-10 lands `4-4` alone, the mark jumps to 4, and WP-9's `4-2`/`4-3` become unusable | `check_id_allocation` fails on WP-9's commit, weeks later, in someone else's session | Section 9's contiguous-block rule. Recompute the mark at landing. Coordinate with WP-9, which owns two of the four §4 rows |
 | R-WP10-9 | **The `remote-id-type` leaf changes the SEND path.** Section 6 introduces it for the accept side; an implementer may wire it into `encodeIKEID` too, changing which type Ze sends and breaking strongSwan interop | the interop suite reddens, but only in the nightly tier | Section 1's positive pins `encodeIKEID`'s behaviour against `local-id` alone. Keep the leaf accept-side only, or add a separate `local-id-type` -- do not overload one leaf across both directions |
-| R-WP10-10 | **Interop scenario 04 masks a real regression.** EAP-TLS is failing before this package starts (`plan/spec-fixit-eap-tls-clienthello-race.md`) | a WP-10 change makes 04 fail differently and nobody notices | Capture the scenario-04 failure signature BEFORE any edit. Compare signatures, not pass/fail. `ai/rules/no-parking.md`: a pre-existing red is not a licence to stop looking |
+| R-WP10-10 | **Interop scenario 04 masks a real regression.** EAP-TLS is failing before this package starts (`plan/spec-fixit-eap-tls-clienthello-race.md`) | a WP-10 change makes 04 fail differently and nobody notices | Capture the scenario-04 failure signature BEFORE any edit. Compare signatures, not pass/fail. `ai/rules/completion.md`: a pre-existing red is not a licence to stop looking |
 | R-WP10-11 | **`3.6-3` is quietly satisfied by the send half alone.** "Support the http: scheme for hash-and-URL LOOKUP" is about fetching. A send-only implementation leaves it unmet while `3.6-2` goes green | `3.6-2`'s tests pass and `3.6-3` has no test that performs a lookup | Section 7's `3.6-3` positive requires a real `httptest.Server` fetch. If that test is not written, `3.6-3` is not proven, whatever `3.6-2` shows |
-| R-WP10-12 | **Engine line numbers move.** Other agents are editing `internal/component/ike/engine/` now; `auth.go` and `responder.go` both changed today | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name and re-read before quoting a line in a tag. `rfc7296_auth_test.go:250` is already a live example of a tag with a stale locator |
-| R-WP10-13 | **A new config leaf is INERT ON RELOAD.** `peersEqual` (`internal/component/ike/ipsec/types.go:523`) compares six auth fields by name (`:531-536`). A seventh that is not added there means an operator's edit commits and changes nothing | none. The config shows the new value, `show configuration` agrees, and the session never renegotiates | Add EVERY new leaf to `peersEqual` in the same commit, and write one reload test per leaf. This is the shape `ai/rules/no-parking.md` calls an inert config surface, and it is invisible to every test in this design that parses config without reloading |
-| R-WP10-14 | **`ValidateIdentities`' DN refusal is lifted before the engine can handle a DN**, leaving a config that commits and an SA that dies at IKE_AUTH | section 6's positive sub-test 3 fails at the daemon rather than at parse, which reads as a test bug | Lift `validate.go:86-89` in the SAME commit as the `certificateCarriesIdentity` arm, never before. Rewrite its three tests to the new contract rather than deleting them (`ai/rules/no-test-deletion.md`) |
-| R-WP10-15 | **The `.ci` layer is silently skipped.** `ze-functional-test` honours `ZE_SKIP_SUITES` (`mk/test-functional.mk:188`, checked at `:195` and `:199-201`), and the ipsec suite is a documented skip candidate in Docker-constrained environments | a green functional run that never executed a single ipsec test | Assert the suite ran, not that the run was green. When claiming `.ci` evidence for this package, paste the ipsec suite's own result line. The suite once sat in `all_suites` with no `run_suite` line and was credited a tier it did not earn (`mk/test-functional.mk:288-291`) -- the same class of false evidence |
-| R-WP10-16 | **The `dh-group` gate fix is dropped as out of scope.** It surfaced while establishing `3.3.4-1`, not from the row text | none; `3.3.4-1` can be classified conformant without it | `ai/rules/no-parking.md`: finding a defect while doing something else is the reason you are the one who fixes it. It is a one-predicate change mirroring `config.go:210`. Section 4's negative row 3 is its test. If the owner rules it out of scope, it needs a named destination spec, not a note |
+| R-WP10-12 | **Engine line numbers move.** Other agents are editing `internal/component/ike/engine/` now; `auth.go` and `responder.go` both changed today | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name and re-read before quoting a line in a tag. `rfc7296_auth_test.go` is already a live example of a tag with a stale locator |
+| R-WP10-13 | **A new config leaf is INERT ON RELOAD.** `peersEqual` (`internal/component/ike/ipsec/types.go`) compares six auth fields by name. A seventh that is not added there means an operator's edit commits and changes nothing | none. The config shows the new value, `show configuration` agrees, and the session never renegotiates | Add EVERY new leaf to `peersEqual` in the same commit, and write one reload test per leaf. This is the shape `ai/rules/completion.md` calls an inert config surface, and it is invisible to every test in this design that parses config without reloading |
+| R-WP10-14 | **`ValidateIdentities`' DN refusal is lifted before the engine can handle a DN**, leaving a config that commits and an SA that dies at IKE_AUTH | section 6's positive sub-test 3 fails at the daemon rather than at parse, which reads as a test bug | Lift `validate.go` in the SAME commit as the `certificateCarriesIdentity` arm, never before. Rewrite its three tests to the new contract rather than deleting them (`ai/rules/testing.md`) |
+| R-WP10-15 | **The `.ci` layer is silently skipped.** `ze-functional-test` honours `ZE_SKIP_SUITES` (`mk/test-functional.mk`, checked at `:195` and `:199-201`), and the ipsec suite is a documented skip candidate in Docker-constrained environments | a green functional run that never executed a single ipsec test | Assert the suite ran, not that the run was green. When claiming `.ci` evidence for this package, paste the ipsec suite's own result line. The suite once sat in `all_suites` with no `run_suite` line and was credited a tier it did not earn (`mk/test-functional.mk`) -- the same class of false evidence |
+| R-WP10-16 | **The `dh-group` gate fix is dropped as out of scope.** It surfaced while establishing `3.3.4-1`, not from the row text | none; `3.3.4-1` can be classified conformant without it | `ai/rules/completion.md`: finding a defect while doing something else is the reason you are the one who fixes it. It is a one-predicate change mirroring `config.go`. Section 4's negative row 3 is its test. If the owner rules it out of scope, it needs a named destination spec, not a note |
 
 ---
 
@@ -1364,10 +1364,10 @@ questions about HOW, and none proposes doing less.**
 
 `rfc/full/rfc7296.txt:5279`.
 
-**Ze today.** `CertEncodingHashURL uint8 = 12` (`internal/component/ike/wire/payload_cert.go:8`)
+**Ze today.** `CertEncodingHashURL uint8 = 12` (`internal/component/ike/wire/payload_cert.go`)
 has no non-test referent; encoding 13 has no constant; `buildCertPayloads`
-(`internal/component/ike/engine/auth.go:600-631`) emits encoding 4 only; both collection
-loops discard anything else (`fsm.go:599`, `responder.go:384-385`); and
+(`internal/component/ike/engine/auth.go`) emits encoding 4 only; both collection
+loops discard anything else (`fsm.go`, `responder.go`); and
 HTTP_CERT_LOOKUP_SUPPORTED (16392) is absent.
 
 **What full compliance costs.** The send half plus the notification is roughly a day. The
@@ -1377,7 +1377,7 @@ row, plus a doctor check and three YANG leaves. Call it three to four days, most
 security bound rather than the protocol.
 
 **The finding that shapes the question.** RFC 7296 gates a peer's use of hash-and-URL on Ze
-advertising HTTP_CERT_LOOKUP_SUPPORTED (`:5140-5143`, `:5395-5399`), and the obligation's
+advertising HTTP_CERT_LOOKUP_SUPPORTED, and the obligation's
 verb is "capable of being CONFIGURED". So the fetch can be built behind a leaf that defaults
 OFF, and the SSRF surface does not exist for any operator who does not opt in. That is the
 design in section 7, and it is full compliance with a safe default -- not a reduction.
@@ -1400,29 +1400,29 @@ with its own review? If it splits, `3.6-3` stays OPEN and un-annotated -- it is 
 `rfc/full/rfc7296.txt:6877-6880`.
 
 **Ze today.** `certificateCarriesIdentity`
-(`internal/component/ike/engine/remote_id.go:323-368`) has arms for ID_FQDN (`:350-357`) and
-ID_RFC822_ADDR (`:358-365`) and falls to `return false` (`:367`) for ID_KEY_ID.
-`assertedIdentity` (`remote_id.go:118-134`) reports ID_DER_ASN1_DN not comparable, so
+(`internal/component/ike/engine/remote_id.go`) has arms for ID_FQDN and
+ID_RFC822_ADDR and falls to `return false` for ID_KEY_ID.
+`assertedIdentity` (`remote_id.go`) reports ID_DER_ASN1_DN not comparable, so
 `checkRemoteIdentity` refuses it at `:247-251`. Two of the four required types cannot be
 accepted with `remote-id` set. The ID_KEY_ID refusal is a deliberate fail-closed choice
-documented at `remote_id.go:321-322`.
+documented at `remote_id.go`.
 
 **What full compliance costs.** ID_DER_ASN1_DN is tractable and cheap: compare the asserted
 DER against `cert.RawSubject` with `bytes.Equal`, which is exact and needs no canonical form
--- so the objection recorded at `remote_id.go:111-113` does not apply to the certificate
+-- so the objection recorded at `remote_id.go` does not apply to the certificate
 comparison. Half a day. ID_KEY_ID cannot bind to any certificate field by construction, so
 it needs an operator opt-in; section 6 proposes `remote-id-type`, which costs about a day
 and also closes the fail-open widening in section 2.
 
 **The question.** "`RFC7296-4-4` requires PKIX acceptance where the ID is ID_KEY_ID or
-ID_DER_ASN1_DN, and `certificateCarriesIdentity` (`remote_id.go:367`) denies both. Section 6
+ID_DER_ASN1_DN, and `certificateCarriesIdentity` (`remote_id.go`) denies both. Section 6
 proposes a `remote-id-type` enum leaf that satisfies the MUST as an explicit operator
 decision, and as a side effect lets an operator pin ID_RFC822_ADDR against ID_FQDN, closing
-a fail-open widening at `remote_id.go:219`. Do you want the narrow fix (DN binding plus a
+a fail-open widening at `remote_id.go`. Do you want the narrow fix (DN binding plus a
 key-id opt-in) or the leaf, which costs about a day more and closes both?"
 
 State plainly, in the same message: **the unset-`remote-id` path is NOT an answer.** It
-accepts those types today by having no check, and `auth.go:533-537` logs that every
+accepts those types today by having no check, and `auth.go` logs that every
 certificate the authority issued authenticates as the peer.
 
 ### OR-WP10-C: `3.3.4-1`'s home, and the row-count discrepancy
@@ -1430,19 +1430,19 @@ certificate the authority issued authenticates as the peer.
 Not a compliance question -- a scope question, and it is the likely explanation of the
 8-versus-9 mismatch.
 
-The phase list gives WP-10 nine rows including `RFC7296-3.3.4-1` (`:717`). The re-triage
-table gives WP-10 eight rows (`:1574`) and creates WP-9 "Crypto suite policy and management
+The phase list gives WP-10 nine rows including `RFC7296-3.3.4-1`. The re-triage
+table gives WP-10 eight rows and creates WP-9 "Crypto suite policy and management
 facility" (`:1573`), which is `3.3.4-1`'s subject matter almost word for word.
 
 **The question.** "Does `RFC7296-3.3.4-1` belong to WP-10 or to the re-triage's WP-9? It is
 conformant either way -- the `ike-group / proposal` YANG list
-(`ze-ipsec-conf.yang:179-217`) is the management facility, and `3.3.4-2`/`-3` are already
+(`ze-ipsec-conf.yang`) is the management facility, and `3.3.4-2`/`-3` are already
 proven against it. Routing it to WP-9 makes WP-10 eight rows and reconciles the tables. It
 also removes the package's only forced renumbering, since `3.3.4-1` must become `3.3.4-4`
 (section 9)."
 
 This is a proposal about where work sits, not about doing less, so it needs no permission
-under `ai/rules/no-asking.md`. Raise it with A and B so all three are answered together.
+under `ai/rules/completion.md`. Raise it with A and B so all three are answered together.
 
 ---
 
@@ -1502,17 +1502,17 @@ production surfaces and three YANG leaves into one review.
 
 | Commit | Rows | Content |
 |--------|------|---------|
-| 1 | `3.5-2`, `3.5-3`, `3.5-4`, `3.3.4-1` | Eight tagged tests, four summary rows, plus the ONE production fix section 4 found: the `dh-group` parse gate (`DHGroupImplemented` called from `config.go:407`). The stale-locator fix in `rfc7296_auth_test.go:250` rides here |
+| 1 | `3.5-2`, `3.5-3`, `3.5-4`, `3.3.4-1` | Eight tagged tests, four summary rows, plus the ONE production fix section 4 found: the `dh-group` parse gate (`DHGroupImplemented` called from `config.go`). The stale-locator fix in `rfc7296_auth_test.go` rides here |
 | 2 | `2.15-3` | `parseAuthConfig`, one YANG leaf, its `peersEqual` entry, and the `ipsec-psk-hex` `.ci`. Self-contained, and the smallest of the build half |
-| 3 | `3.6-1`, `4-4` | Certificate count and identity binding. Both touch the same PKI and remote-id surfaces, so splitting them costs a second audit of the same call sites. Carries the `ValidateIdentities` lift, the `remote_cert_chain_test.go:274` count change, and the first certificate-auth `.ci` |
+| 3 | `3.6-1`, `4-4` | Certificate count and identity binding. Both touch the same PKI and remote-id surfaces, so splitting them costs a second audit of the same call sites. Carries the `ValidateIdentities` lift, the `remote_cert_chain_test.go` count change, and the first certificate-auth `.ci` |
 | 4 | `3.6-2`, `3.6-3` | Hash-and-URL and the bounded fetcher. Its own commit and its own review, because it is the only one that adds an outbound network path |
 
 Commit 4 is the natural boundary if OR-WP10-A splits the work.
 
 **Each of commits 2, 3 and 4 adds a user-facing config leaf, so each owes a `.ci`**
-(`ai/rules/functional-test-gate.md`). `test/ipsec/` has no certificate or identity coverage
+(`ai/rules/testing.md`). `test/ipsec/` has no certificate or identity coverage
 today, so this package is building that surface rather than extending it. Budget for it.
 
 **All four are implementation, so they run on Opus 4.8, and each review runs on Opus 5
-(`ai/rules/model-selection.md`). This design was produced in a planning phase; announce the
+(`ai/rules/planning.md`). This design was produced in a planning phase; announce the
 boundary before any code is written.**

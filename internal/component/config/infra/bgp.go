@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- inversion-of-control seams for the gated BGP engine
+// Design: ai/rules/plugins.md -- inversion-of-control seams for the gated BGP engine
 // Related: hook.go -- the daemon-startup hook the same engine calls back through
 
 package infra
@@ -72,7 +72,7 @@ var errNoBGPEngine = errors.New(
 // empty tree there would let `ze config dump` print a config with its whole BGP
 // section missing, or `ze config validate` call it valid without having checked
 // any of it. The guard lives here, not in each caller, so every consumer of the
-// seam inherits it (ai/rules/fail-closed-guards.md).
+// seam inherits it (ai/rules/evidence.md).
 func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	if bgpTreeResolver == nil {
 		if tree != nil && tree.GetContainer("bgp") != nil {

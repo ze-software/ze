@@ -579,7 +579,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		// (rs/server_withdrawal.go) and forwards to nobody. So set it ONLY when
 		// this rail actually dispatched to someone, and say something on every
 		// path that declines -- a guard that neither denies nor speaks does not
-		// exist (ai/rules/fail-closed-guards.md). Both branches below used to be
+		// exist (ai/rules/evidence.md). Both branches below used to be
 		// silent, which is why a rail switch was invisible in the logs.
 		update, ok := r.recentUpdates.Get(messageID)
 		switch {

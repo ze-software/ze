@@ -59,7 +59,7 @@ func (e *UnsupportedCritError) Is(target error) bool { return target == ErrUnsup
 //
 // It fails closed. Any other error, and a nil error, report false with a zero type.
 // A caller can therefore never read the zero as a valid payload type
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func CriticalPayloadType(err error) (uint8, bool) {
 	var uc *UnsupportedCritError
 	if errors.As(err, &uc) && uc != nil {

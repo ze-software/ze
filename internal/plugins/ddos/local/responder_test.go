@@ -3,7 +3,9 @@ package local
 import (
 	"errors"
 	"net/netip"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -147,22 +149,45 @@ func TestLocalNarrowsInPlace(t *testing.T) {
 
 func TestLocalApplyFailureRollsBack(t *testing.T) {
 	// VALIDATES: on a failed nft apply the responder rolls the registry back to
-	// nil and clears active, rather than leaving a phantom active mitigation with
-	// the registry empty while the kernel keeps the last rule (review Run-4 NOTE).
+	// nil and clears active AND the published snapshot, rather than leaving a
+	// phantom active mitigation with the registry empty while the kernel keeps
+	// the last rule (review Run-4 NOTE).
 	origReg := registerTables
 	origApply := applyAll
 	var lastTables []firewall.Table
+	fail := false
 	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
-	applyAll = func() error { return errors.New("nft apply failed") }
+	applyAll = func() error {
+		if fail {
+			return errors.New("nft apply failed")
+		}
+		return nil
+	}
 	defer func() { registerTables = origReg; applyAll = origApply }()
 
+	victim := netip.MustParsePrefix("10.0.0.1/32")
 	r := newResponder(&Config{ResponseLevel: "enforce"}, nil)
-	r.onDetected(&ddosevent.AttackDetected{
-		Target: ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32")},
+	// Arm first. A responder that was never active cannot show whether the
+	// failure path CLEARS the mitigation state or merely never set it -- that is
+	// what made the snapshot assertion below vacuous when the failure landed on
+	// the very first apply.
+	r.onDetected(&ddosevent.AttackDetected{Target: ddosevent.VectorTuple{DstPrefix: victim}})
+	if active, _ := r.status(); !active {
+		t.Fatal("the first apply must install a drop: without it the failure path below proves nothing")
+	}
+
+	fail = true
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target: ddosevent.VectorTuple{DstPrefix: victim, Proto: 17},
 	})
 
 	if r.active {
 		t.Error("a failed apply must not leave the responder active")
+	}
+	// The published snapshot must agree: `show ddos local` claiming a drop the
+	// kernel no longer holds is the same fail-open as claiming a withdrawn one.
+	if active, target := r.status(); active {
+		t.Errorf("status() = (active, %+v) after a failed apply: show ddos local reports a drop that was rolled back", target)
 	}
 	if lastTables != nil {
 		t.Errorf("registry must be rolled back to nil on apply failure, got %v", lastTables)
@@ -396,4 +421,109 @@ func TestKernelTimeoutSkipsRollbackReconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestResponderStatusDuringSlowApply proves the show surface reads the
+// mitigation state without waiting on a firewall reconcile.
+// VALIDATES: spec-fixit-firewall-concurrency-deadlock D-3 / AC-3 -- show.go
+// handleShowDdosLocal calls status(), which used to take the same r.mu that
+// applyMitigation holds across applyAll (a full netlink round trip).
+// PREVENTS: a wedged kernel holding the management plane's read hostage for the
+// whole reconcile, which is the head-of-line block Finding 3 describes.
+func TestResponderStatusDuringSlowApply(t *testing.T) {
+	origReg, origApply := registerTables, applyAll
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	registerTables = func(string, []firewall.Table) {}
+	applyAll = func() error {
+		close(entered)
+		<-release
+		return nil
+	}
+	t.Cleanup(func() {
+		registerTables = origReg
+		applyAll = origApply
+	})
+
+	r := newResponder(&Config{ResponseLevel: responseEnforce}, nil)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		r.onDetected(&ddosevent.AttackDetected{
+			Interface: "xe0",
+			Target:    ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17},
+			Family:    ddosevent.FamilyUDPFlood,
+			Direction: ddosevent.DirectionLocal,
+		})
+	})
+	<-entered // the reconcile is in flight and r.mu is held
+
+	done := make(chan struct{})
+	go func() {
+		r.status()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		close(release)
+		wg.Wait()
+		t.Fatal("status() blocked behind the in-flight reconcile: show ddos local is hostage to kernel latency")
+	}
+
+	close(release)
+	wg.Wait()
+
+	// The snapshot the show handler reads must still track the mitigation.
+	if active, target := r.status(); !active || target.Proto != 17 {
+		t.Fatalf("status() after a successful apply = (%v, %+v), want active with the installed vector", active, target)
+	}
+}
+
+// TestLocalClearRepublishesStatus covers the CLEAR half of the snapshot
+// contract. Arming is proven by TestResponderStatusDuringSlowApply; removing was
+// proven nowhere, so `r.active = false` in place of the setStatus funnel left
+// every test in the package green.
+//
+// VALIDATES: removeMitigation writes through setStatus, so the lock-free
+// snapshot stops claiming a drop once the drop is gone. Both entries to it are
+// covered: the detector's AttackCleared and the policy flip to exempt.
+// PREVENTS: a permanently stale, fail-open report -- `show ddos local` naming an
+// active mitigation and a victim prefix for a rule the kernel no longer holds,
+// with no later event able to correct it.
+func TestLocalClearRepublishesStatus(t *testing.T) {
+	defer withNoopFirewall()()
+	victim := netip.MustParsePrefix("10.0.0.1/32")
+	arm := func() *responder {
+		r := newResponder(&Config{ResponseLevel: responseEnforce}, nil)
+		r.onDetected(&ddosevent.AttackDetected{
+			Target:    ddosevent.VectorTuple{DstPrefix: victim, Proto: 17},
+			Direction: ddosevent.DirectionLocal,
+		})
+		if active, _ := r.status(); !active {
+			t.Fatal("arming did not publish an active mitigation: the test proves nothing about the clear")
+		}
+		return r
+	}
+
+	t.Run("detector clear", func(t *testing.T) {
+		r := arm()
+		r.onCleared(&ddosevent.AttackCleared{Target: ddosevent.VectorTuple{DstPrefix: victim}})
+		if active, target := r.status(); active {
+			t.Fatalf("status() = (active, %+v) after AttackCleared: show ddos local reports a drop the kernel no longer holds", target)
+		}
+	})
+
+	t.Run("policy flip to exempt", func(t *testing.T) {
+		r := arm()
+		r.onCharacterized(&ddosevent.AttackCharacterized{
+			Target:             ddosevent.VectorTuple{DstPrefix: victim},
+			Direction:          ddosevent.DirectionLocal,
+			SuppressMitigation: true,
+		})
+		if active, target := r.status(); active {
+			t.Fatalf("status() = (active, %+v) after the characterized exemption withdrew the drop", target)
+		}
+	})
 }

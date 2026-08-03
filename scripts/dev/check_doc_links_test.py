@@ -2,7 +2,7 @@
 """Unit tests for check_doc_links.py, the corpus path-reference gate.
 
 Driven end-to-end through the real entry point (subprocess) per the guard test
-corollary in ai/rules/fail-closed-guards.md: the exit code IS the gate. Each
+corollary in ai/rules/evidence.md: the exit code IS the gate. Each
 fixture builds a throwaway git repo so a test never depends on the real tree.
 
 VALIDATES: a reference to a gitignored (generated) path is not reported missing
@@ -120,7 +120,7 @@ class InRepo:
 
 
 class PointerBudgetTest(unittest.TestCase):
-    """The `ai/rules/detail-budget.md` budget: 120 characters after the link.
+    """The `ai/rules/writing.md` budget: 120 characters after the link.
 
     VALIDATES: AC-1 -- an over-long curated-index entry is named with its
                length and its file:line.

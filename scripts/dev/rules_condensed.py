@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Generate the three rule-digest artifacts from ONE parse of ai/rules/*.md.
+"""Generate the two rule-digest artifacts from ONE parse of ai/rules/*.md.
 
-  CONDENSED.md  every rule's directives. The historical artifact, still generated
   TRIGGERS.md   one routing line per rule -- path, severity, `**When:**` trigger
   CORE.md       the directives of the rules that must never sit behind a trigger
 
-CONDENSED.md was imported eagerly into every session, which cost about 99,600
-tokens on every turn whether or not any of it applied. TRIGGERS.md plus CORE.md
-replace that: every rule stays NAMED in every session, so nothing becomes
-undiscoverable, while only the always-on core carries its body eagerly.
+A third artifact, CONDENSED.md, held every rule's directives in one file. It was
+deleted on 2026-08-03: nothing loaded it, and it cost a 5,182-line regeneration
+on every rule edit. TRIGGERS.md keeps every rule NAMED in every session, so no
+rule became undiscoverable, and the rule's own file is one Read away.
 
-All three come from the same parse. A second source would drift, and a routed
+Both come from the same parse. A second source would drift, and a routed
 section must read identically to the digest section it replaces.
 
 Extraction relies on the canonical rule format (ai/rules/rule-format.md): a
@@ -31,7 +30,7 @@ and 2 (irreversible action; correctness owed to someone outside this repo) are
 the rules that apply before a task type is even known. This generator PARSES
 that table. Rename a rule there and the core follows; a filename list here would
 read the same until the ladder changed underneath it
-(`ai/rules/derive-not-hardcode.md`).
+(`ai/rules/evidence.md`).
 
 Two further members are structural, not editorial:
 
@@ -39,14 +38,14 @@ Two further members are structural, not editorial:
     against, so it cannot be the one thing behind a trigger.
   - Any rule the router provably cannot route: no trigger, an unknown severity,
     or a trigger with no term to match on. It goes INTO the core rather than
-    being dropped from both artifacts (`ai/rules/fail-closed-guards.md`).
+    being dropped from both artifacts (`ai/rules/evidence.md`).
 
-Derived mechanically -- never hand-edited. Kept fresh by `make ze-rules-condensed`;
-`--check` fails when any of the three is stale.
+Derived mechanically, never hand-edited. Kept fresh by `make ze-rules-condensed`;
+`--check` fails when either artifact is stale.
 
 Usage:
-    python3 scripts/dev/rules_condensed.py            # regenerate all three
-    python3 scripts/dev/rules_condensed.py --check    # exit 1 if any is stale
+    python3 scripts/dev/rules_condensed.py            # regenerate both
+    python3 scripts/dev/rules_condensed.py --check    # exit 1 if either is stale
     python3 scripts/dev/rules_condensed.py --payload  # measure the always-on load
 """
 
@@ -55,9 +54,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-# Generated artifacts are skipped by SHAPE -- an all-caps stem, the repo's
-# convention for CONDENSED.md / INDEX.md / TRIGGERS.md / CORE.md -- so adding a
-# fourth artifact needs no edit here and no artifact can be parsed as a rule.
+# Generated artifacts are skipped by SHAPE, an all-caps stem, the repo's
+# convention for INDEX.md / TRIGGERS.md / CORE.md, so adding a third artifact
+# needs no edit here and no artifact can be parsed as a rule. CONDENSED.md stays
+# listed so a stale copy left in a working tree is never parsed as a rule.
 SKIP = {"INDEX.md", "CONDENSED.md"}
 
 SEVERITIES = {"blocking", "advisory"}
@@ -69,8 +69,7 @@ MAX_TRIGGER_LINE = 200
 # AC-5. The budget the always-loaded payload must come in under.
 TOKEN_BUDGET = 40000
 
-# Bytes per token. The spec's own arithmetic: 398,354 bytes of CONDENSED.md read
-# as "about 99,600 tokens".
+# Bytes per token, used by the payload report.
 BYTES_PER_TOKEN = 4
 
 # Terms that carry no routing signal. A trigger is unroutable when nothing but
@@ -108,7 +107,7 @@ def significant_terms(text):
     return terms
 
 
-# A trigger word appearing in more than this many of the 97 triggers carries no
+# A trigger word appearing in more than this many triggers carries no
 # routing signal: it is the vocabulary every rule shares.
 MAX_TRIGGER_DF = 8
 
@@ -149,14 +148,14 @@ def unreachable_blocking(rules, corpus):
     This is the population routing puts at risk, and it is why the corpus is a
     generator input rather than a report an operator is trusted to act on. A
     hand-copied list of these names would read identically until the next rule
-    landed (`ai/rules/derive-not-hardcode.md`).
+    landed (`ai/rules/evidence.md`).
 
     `corpus is None` means the caller did not ask for this derivation, which is
     what `rules_router` does on purpose. An EMPTY corpus is a different fact:
     the caller DID ask and the read returned nothing, so seven blocking rules
     leave the core with no signal. Both return the same set, so the empty case
     says so on stderr rather than passing for a real result
-    (`ai/rules/fail-closed-guards.md`).
+    (`ai/rules/evidence.md`).
     """
     if corpus is None:
         return set()
@@ -287,7 +286,7 @@ def trigger_lines(rules, core=frozenset()):
 
     A rule with no trigger still gets a line. Dropping it would make the one
     thing this index promises -- that every rule stays named -- untrue for
-    exactly the rules that are hardest to route (`fail-closed-guards.md`).
+    exactly the rules that are hardest to route (`evidence.md`).
     """
     lines = []
     for rule in rules:
@@ -312,7 +311,7 @@ class LadderError(RuntimeError):
     Raised instead of returning an empty set. An empty ladder and an unreadable
     one produce the same value, and the caller cannot tell them apart, so the
     layer that KNOWS it missed is the only one that can say so
-    (`ai/rules/fail-closed-guards.md`).
+    (`ai/rules/evidence.md`).
     """
 
 
@@ -499,29 +498,6 @@ def rule_block(rule):
     return "\n".join(block).rstrip()
 
 
-def build(rules_dir):
-    """CONDENSED.md: every rule's directives, in one file, read on demand."""
-    blocks = [rule_block(rule) for rule in load_rules(rules_dir)]
-
-    header = [
-        "# Ze Rules -- Condensed",
-        "",
-        "<!-- GENERATED by scripts/dev/rules_condensed.py -- do not edit -->",
-        "<!-- Regenerate: make ze-rules-condensed -->",
-        "",
-        "The actionable core of every rule under `ai/rules/`, condensed for eager",
-        "loading into every session. Directives are kept; rationale and examples are",
-        "dropped. When a rule governs your current action, open its full file (the",
-        "path under each heading) before acting -- this digest maps directives, it is",
-        "not a substitute for the rule.",
-        "",
-        f"Rules: {len(blocks)}",
-        "",
-    ]
-    content = "\n".join(header) + "\n---\n\n" + "\n\n---\n\n".join(blocks) + "\n"
-    return content, len(blocks)
-
-
 def build_triggers(rules_dir, corpus=None):
     """TRIGGERS.md: every rule named, in one line each, always loaded."""
     rules = load_rules(rules_dir)
@@ -536,8 +512,7 @@ def build_triggers(rules_dir, corpus=None):
         "Every rule under `ai/rules/`, one line each. When a trigger matches the work",
         "in hand, READ that rule's file before acting. A row marked `always-on` is",
         "already loaded in full (`ai/rules/CORE.md`) and needs no read; every other",
-        "rule's body is one Read away, and `ai/rules/CONDENSED.md` holds all of them in",
-        "one file when several apply at once.",
+        "rule's body is one Read away at the path in its row.",
         "",
         f"Rules: {len(rules)} ({blocking} blocking, {len(rules) - blocking} advisory). "
         f"Always-on: {len(core)}.",
@@ -594,11 +569,8 @@ def build_core(rules_dir, corpus=None):
 
 
 # Every artifact this generator owns: (filename, builder). `--check` walks all of
-# them, so adding one here is the only edit a new artifact needs. The builders
-# take (rules_dir, corpus); CONDENSED.md ignores the corpus, and takes it only so
-# the walk stays one loop rather than a special case.
+# them, so adding one here is the only edit a new artifact needs.
 ARTIFACTS = (
-    ("CONDENSED.md", lambda rules_dir, corpus: build(rules_dir)),
     ("TRIGGERS.md", build_triggers),
     ("CORE.md", build_core),
 )
@@ -627,26 +599,18 @@ def payload_report(root):
         (p, len(p.read_text(encoding="utf-8")) if p.is_file() else 0) for p in parts
     ]
     total = sum(n for _, n in sizes)
-    digest = rules_dir / "CONDENSED.md"
-    before = len((root / "ai" / "INSTRUCTIONS.md").read_text(encoding="utf-8")) + (
-        len(digest.read_text(encoding="utf-8")) if digest.is_file() else 0
-    )
     lines = [
         f"  {p.relative_to(root)}: {n} chars ({estimate_tokens(n)} tokens)"
         for p, n in sizes
     ]
     lines.append(f"  TOTAL: {total} chars ({estimate_tokens(total)} tokens)")
     lines.append(
-        f"  before (INSTRUCTIONS + CONDENSED): {before} chars "
-        f"({estimate_tokens(before)} tokens)"
-    )
-    saving = 100.0 * (before - total) / before if before else 0.0
-    lines.append(f"  saving: {saving:.1f}%")
-    lines.append(
         f"  budget: {TOKEN_BUDGET} tokens -- "
         f"{'MET' if estimate_tokens(total) < TOKEN_BUDGET else 'EXCEEDED'}"
     )
-    return "\n".join(lines), estimate_tokens(total), saving
+    headroom = 100.0 * (TOKEN_BUDGET - estimate_tokens(total)) / TOKEN_BUDGET
+    lines.append(f"  headroom: {headroom:.1f}%")
+    return "\n".join(lines), estimate_tokens(total), headroom
 
 
 def main():

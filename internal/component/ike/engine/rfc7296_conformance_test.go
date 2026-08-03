@@ -275,7 +275,7 @@ func TestCfmConformanceSetDoesNotAcceptWhatItMustNot(t *testing.T) {
 	t.Run("ID_KEY_ID is refused without remote-id-type key-id", func(t *testing.T) {
 		// The identical configuration that PASSES in the positive, minus the opt-in.
 		// An opaque key id corresponds to no certificate field, so ze denies rather
-		// than guessing (ai/rules/fail-closed-guards.md).
+		// than guessing (ai/rules/evidence.md).
 		der, key := cfmRSALeaf(t, 2048, pkix.Name{CommonName: fqdn}, []string{fqdn}, nil)
 		sa := ridCertSA(t, cfmCAName, keyi)
 		sa.RemoteCertRaw = der

@@ -3,7 +3,7 @@
 // one-shot show handlers.
 // Owned by the ike component so that removing it removes the `show vpn ipsec ...`
 // command, its schema, and these handlers together. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 
 package cmd
 

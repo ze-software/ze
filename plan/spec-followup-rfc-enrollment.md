@@ -59,7 +59,7 @@ document that is not an RFC. Second, does `rfc/enrolled.txt` accept a stem that
 `rfc/full/<stem>.txt` cannot hold, because the MCP specification is a website
 rather than a text file. No enrollment is the status quo, so this blocks
 nothing.
-→ Constraint (`ai/rules/derive-not-hardcode.md`): only the test-side `RFC requirement:` tag is
+→ Constraint (`ai/rules/evidence.md`): only the test-side `RFC requirement:` tag is
   authored; the ledger derives the reverse. Enrolment adds tags, never hand-written back-links.
 
 ## Required Reading

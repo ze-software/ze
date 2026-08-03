@@ -767,7 +767,7 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 // parseReceiveFlags sets receive flags on a ProcessBinding from a space-separated list.
 // Base event types are mapped to bool fields. Plugin-registered event types (validated
 // against events.IsValidEvent) are stored in ReceiveCustom.
-// Unknown event types cause a config parse error (fail-on-unknown per config-design.md).
+// Unknown event types cause a config parse error (fail-on-unknown per config.md).
 func parseReceiveFlags(s string, b *ProcessBinding) error {
 	for token := range strings.FieldsSeq(s) {
 		if err := parseOneReceiveFlag(token, b); err != nil {

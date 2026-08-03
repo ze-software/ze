@@ -266,7 +266,7 @@ type lockedBuilder struct {
 // drops output at maxOutputBytes.
 //
 // The cap must SAY it fired. A silent cap is a guard that neither denies nor
-// speaks (ai/rules/fail-closed-guards.md): a positive `expect=stdout:pattern=`
+// speaks (ai/rules/evidence.md): a positive `expect=stdout:pattern=`
 // whose needle lands past the cap fails over a capture that looks complete, and
 // the failure reads as "the daemon never printed it". The runner sets
 // SLOG_LEVEL=DEBUG for every client, so 10 MB is reachable.

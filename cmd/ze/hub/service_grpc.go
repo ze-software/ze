@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 // Related: api_infra.go -- the always-on seam (grpcBuild hook / apiShared) this installs
 //
 // ze_grpc-gated gRPC API server construction. This file (with register_grpc.go)

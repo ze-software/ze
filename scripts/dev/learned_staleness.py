@@ -12,7 +12,7 @@ What it reports, one finding per bad reference:
   * A `plan/learned/NNN` citation, anywhere in the summary, that names no
     surviving summary.
   * A summary with no `## Files` section at all, or one that cannot be read.
-    That is a FINDING, never a silent pass (`ai/rules/fail-closed-guards.md`):
+    That is a FINDING, never a silent pass (`ai/rules/evidence.md`):
     an empty finding list must mean "every summary was read and every reference
     resolved", never "nothing could be read".
 
@@ -21,7 +21,7 @@ Section parsing reads `## Files` AND every `## Files <qualifier>` section
 qualified section holding 12 paths that a parser reading only the exact heading
 would skip. The fix belongs in this parser rather than in those three files, so
 corpus uniformity is never a precondition for the gate being correct
-(`ai/rules/no-workarounds-for-missing-behavior.md`).
+(`ai/rules/completion.md`).
 
 Path safety (spec Security Review): a token containing `..` is REPORTED as
 invalid rather than resolved, a token whose real path escapes the repository
@@ -61,7 +61,7 @@ from pathlib import Path
 
 # The repo's one definition of "which backtick token is a path" lives in the
 # doc-links checker; deriving from it keeps the two gates from disagreeing
-# about the same corpus (`ai/rules/derive-not-hardcode.md`).
+# about the same corpus (`ai/rules/evidence.md`).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from check_doc_links import (
     KNOWN_ROOTS,
@@ -295,7 +295,7 @@ def write_baseline(root: Path, count: int, *, raise_reason: str | None = None) -
     Shrink-only is enforced here, at the producer. The docstring used to say the
     caller enforced it, and no caller did: one `--write-baseline` over a
     regression rewrote the ceiling upward and exited 0, which is the whole
-    ratchet defeated by a single command (ai/rules/fail-closed-guards.md).
+    ratchet defeated by a single command (ai/rules/evidence.md).
 
     `raise_reason` is the operator overriding that refusal. It is written into
     the file, because a re-blessing nobody can read later is indistinguishable
@@ -383,7 +383,7 @@ def enforce(root: Path, findings: list[dict], baseline: int | None) -> int:
     under its own explicit flag.
 
     An unrecorded ceiling cannot deny, so it says so instead of printing a green
-    line it has not earned (`ai/rules/fail-closed-guards.md`)."""
+    line it has not earned (`ai/rules/evidence.md`)."""
     count = len(findings)
     summaries = len(summary_files(root))
 

@@ -14,21 +14,21 @@ for the bootstrap admin and keeping internal plugin RPC working.
 ## Decisions
 
 - **Fail closed, always.** S-1 (no auth), S-2 (no applicable profile), and S-3
-  (assignment names only undefined profiles) all `return Deny` (`authz.go:387/440/484`).
+  (assignment names only undefined profiles) all `return Deny` (`authz.go/440/484`).
   `BuiltinAdminProfile()` now has zero production callers -- the allow-all default is
   gone. An empty username at `Authorize` is Deny, not a wildcard.
 - **Break-glass via a RESERVED recovery profile, not a config assignment.** The `ze init`
   bootstrap admin carries `aaa.ReservedRecoveryProfile` -- a NUL-prefixed (`\x00ze:`),
   un-typeable name outside the config namespace -- delivered ONLY through login-resolved
   profiles (`UserCredential.Profiles -> AuthResult.Profiles -> RecordLoginProfiles`,
-  `main_servers.go:144`), never via `AssignProfiles`. `Authorize` honors this reserved
+  `main_servers.go`), never via `AssignProfiles`. `Authorize` honors this reserved
   name regardless of the store's profiles, so a wrong/partial authorization config can
   never lock the bootstrap admin out. The older "define a config `admin` user" route
   survives as a second, operator-controlled recovery path.
 - **Internal RPC dispatch injects a RESERVED internal identity.** All five internal
   CommandContext constructions in `plugin/server` (`opUpdateRoute`
-  dispatch_registry.go:247; `handleUpdateRouteSelDirect` dispatch.go:478;
-  `dispatchCommandArgs` :541; `dispatchCommand` :576; `wrapHandler` server.go:137)
+  dispatch_registry.go; `handleUpdateRouteSelDirect` dispatch.go;
+  `dispatchCommandArgs` :541; `dispatchCommand` :576; `wrapHandler` server.go)
   set `Username: internalPluginIdentity(proc.Name())`, which authorizes via a reserved
   trusted profile. These engineOps are reachable ONLY over the plugin->engine RPC socket
   (a connected plugin process), never an operator/CLI/remote surface, so the trusted
@@ -41,8 +41,8 @@ for the bootstrap admin and keeping internal plugin RPC working.
   security review found a BLOCKER: a hostile TACACS+/RADIUS server could return a
   `\x00ze:` reserved profile name in its reply and have `Authorize` short-circuit to
   Allow. Fix: every UNTRUSTED wire backend drops reserved names before assembling
-  profiles -- `radius mapProfiles` (authenticator.go:203 `IsReservedName`),
-  `tacacs handlePass` (authenticator.go:114 `FilterReservedNames`). `AuthResult` has no
+  profiles -- `radius mapProfiles` (authenticator.go `IsReservedName`),
+  `tacacs handlePass` (authenticator.go `FilterReservedNames`). `AuthResult` has no
   Username field, so a hostile server cannot inject an identity via the reply, only a
   profile -- which is now filtered.
 - **Do NOT centralize the reserved-profile filter at the auth choke point.** The obvious
@@ -52,7 +52,7 @@ for the bootstrap admin and keeping internal plugin RPC working.
   exact `result.Profiles` path (`main_servers.go` usersFromZefsDB), so a central strip
   erases the break-glass grant. Filtering therefore lives in each untrusted backend,
   which never has a legitimate reason to emit a reserved name. An anti-pattern comment
-  at `login_profiles.go:92` documents this so a future agent does not "helpfully"
+  at `login_profiles.go` documents this so a future agent does not "helpfully"
   centralize it. (A Go unit test seeding `LoginProfiles` directly passes either way --
   only the full-login `.ci` catches the lockout.)
 - **The reserved USERNAME is a separate spoof surface.** `profileRecordingAuthenticator`
@@ -62,7 +62,7 @@ for the bootstrap admin and keeping internal plugin RPC working.
   internal identities bypass authentication entirely and are unaffected. Config
   tokenization + `ValidateAuthzConfig` reject NUL/reserved names, so no local reserved
   user can exist either.
-- **`reactor.ExecuteCommand` (reactor.go:740) builds an empty-username CommandContext.**
+- **`reactor.ExecuteCommand` (reactor.go) builds an empty-username CommandContext.**
   Pre-existing, no production caller, can only fail closed -- left as-is (a NOTE, not a
   hole).
 

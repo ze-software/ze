@@ -21,7 +21,7 @@ proc-count and digit-parse helpers copy-pasted between them.
 ## Decisions
 
 - Aligned both QEMU DUT builds with `internal/test/runner` `TestBuildTags`
-  (`runner.go:50`) / line 257: `ze_core zetest ze_distro ze_setup $(ZE_FEATURES)`.
+  (`runner.go`) / line 257: `ze_core zetest ze_distro ze_setup $(ZE_FEATURES)`.
   Made the in-recipe comment reference the sibling targets by NAME, not line
   number -- inserting the comment had itself shifted the line numbers a reviewer
   then flagged as stale.

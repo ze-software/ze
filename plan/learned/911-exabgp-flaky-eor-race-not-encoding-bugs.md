@@ -61,7 +61,7 @@ real encoding bug.
   the expected hex in `test/encode/paths-limit.ci` (`56f48c85f`) omitted it. Same
   trap as the exabgp suite, inverted: here the inherited "failure" was a stale
   fixture, not the code. Fixture corrected (user-authorized); encode suite 53/53.
-- `internal/analyze/inject.go:64` goconst lint (`3215ece93`) -- still open,
+- `internal/analyze/inject.go` goconst lint (`3215ece93`) -- still open,
   unrelated to BGP.
 
 ## Files

@@ -44,7 +44,7 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
   -> Constraint: this is the seam that must pass the configured throttle into the Computer.
 - [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` and `internal/plugins/ospf/config.go` - the OSPF `spf-delay-ms`/`spf-hold-ms`/`spf-max-hold-ms` leaves + parse.
   -> Decision: mirror the OSPF leaf names, units (ms), and back-off semantics for cross-protocol consistency.
-- [ ] `ai/rules/config-naming.md` - kebab-case leaf naming.
+- [ ] `ai/rules/config.md` - kebab-case leaf naming.
   -> Constraint: reuse the OSPF names so operators see one convention.
 
 **Key insights:**
@@ -54,9 +54,9 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/isis/spf/computer.go` - `DefaultDebounce = 200 * time.Millisecond` (computer.go:34); `NewComputer` sets `deb := cfg.Debounce; if deb <= 0 { deb = DefaultDebounce }` (computer.go:146-149). A single flat debounce, no delay/hold/max back-off.
-- [ ] `internal/plugins/isis/spf_wiring.go` - `initSPF` (spf_wiring.go:38) builds `spf.NewComputer(spf.Config{Source, Resolver, Levels, Installer, ResolverV6, InstallerV6})` (spf_wiring.go:40-53); it never sets `Debounce`, so the hardcoded 200ms is always used.
-- [ ] `internal/plugins/isis/config.go` - `LSPLifetime` / `LSPRefreshInterval` are parsed (config.go:373, config.go:376) into the config struct (config.go:168-169); there is no SPF-timer or `lsp-gen-interval` field.
+- [ ] `internal/plugins/isis/spf/computer.go` - `DefaultDebounce = 200 * time.Millisecond` (computer.go); `NewComputer` sets `deb := cfg.Debounce; if deb <= 0 { deb = DefaultDebounce }` (computer.go). A single flat debounce, no delay/hold/max back-off.
+- [ ] `internal/plugins/isis/spf_wiring.go` - `initSPF` (spf_wiring.go) builds `spf.NewComputer(spf.Config{Source, Resolver, Levels, Installer, ResolverV6, InstallerV6})` (spf_wiring.go); it never sets `Debounce`, so the hardcoded 200ms is always used.
+- [ ] `internal/plugins/isis/config.go` - `LSPLifetime` / `LSPRefreshInterval` are parsed (config.go, config.go) into the config struct (config.go); there is no SPF-timer or `lsp-gen-interval` field.
 - [ ] `internal/plugins/isis/yang/ze-isis-conf.yang` - `lsp-lifetime` (yang:48) and `lsp-refresh-interval` (yang:55) exist; there is no `spf-*` or `lsp-gen-interval` leaf.
 
 **Behavior to preserve:**
@@ -106,7 +106,7 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The Computer's single debounce can become a delay/hold/max back-off without reworking SPF | computer.go:146-149 already has a `Debounce` hook | a larger Computer change is needed | prototype the back-off in a unit test | unvalidated |
+| A-1 | The Computer's single debounce can become a delay/hold/max back-off without reworking SPF | computer.go already has a `Debounce` hook | a larger Computer change is needed | prototype the back-off in a unit test | unvalidated |
 | A-2 | The OSPF back-off semantics transfer to IS-IS unchanged | ospf spf-timer leaves + parse | IS-IS needs different bounds | compare against the OSPF throttle during design | unvalidated |
 | A-3 | An own-LSP generation floor can be added without starving legitimate updates | IS-IS origination is event-driven | a floor delays a critical LSP | default 0 (off); cap the floor; test | unvalidated |
 

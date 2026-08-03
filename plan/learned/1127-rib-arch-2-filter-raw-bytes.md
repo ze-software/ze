@@ -25,7 +25,7 @@ ambiguous perf.
   4-byte-minimum guard (a valid UPDATE body is withdrawn-len(2) + attr-len(2)).
   `PolicyResponse.Raw` / `PolicyChainResult.Raw` became `[]byte` to match.
 - **Two `raw=true` plugins updated in lockstep** (Ze carries no compat burden,
-  `ai/rules/compatibility.md`): `filter_family` reads `in.Raw` bytes / returns `out.Raw` bytes;
+  `ai/rules/go-standards.md`): `filter_family` reads `in.Raw` bytes / returns `out.Raw` bytes;
   `filter_remove_private_as` calls the pre-existing `hasPrivateAS4PathPayload([]byte)` directly
   (the `hasPrivateAS4Path(string)` hex wrapper is deleted).
 

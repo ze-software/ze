@@ -27,7 +27,7 @@ const nttOddPort = 34567
 //
 // Both bind an ephemeral port, so the test needs no privilege. That is the same
 // reason production reads the role off the transport instead of comparing a number
-// (ai/rules/fail-closed-guards.md).
+// (ai/rules/evidence.md).
 func nttNATTLink(t *testing.T) (peerTr, ikeTr, nattTr *transport.UDPTransport) {
 	t.Helper()
 	log := slogutil.DiscardLogger()
@@ -329,7 +329,7 @@ func TestNattReplyLeavesFromTheArrivalSocket(t *testing.T) {
 // RFC requirement: RFC7296-2.11-3 negative
 //
 // A guard that cannot evaluate must say so rather than appear to succeed
-// (ai/rules/fail-closed-guards.md). Without this, the positive above would pass for
+// (ai/rules/evidence.md). Without this, the positive above would pass for
 // an implementation that silently dropped every reply.
 func TestNattReplyRefusesWithoutADestination(t *testing.T) {
 	_, ikeTr, _ := nttNATTLink(t)
@@ -458,7 +458,7 @@ func TestNattNoFloatWithoutNAT(t *testing.T) {
 // RFC requirement: RFC7296-2.23-8 negative
 //
 // RFC 7296 Section 2.23 says ALL subsequent traffic leaves from port 4500. There is
-// no permitted fallback, so the guard denies (ai/rules/fail-closed-guards.md).
+// no permitted fallback, so the guard denies (ai/rules/evidence.md).
 func TestNattFloatedSAWithoutNATTSocketSendsNothing(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)

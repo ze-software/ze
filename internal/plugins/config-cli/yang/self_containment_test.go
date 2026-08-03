@@ -8,7 +8,7 @@ import (
 // TestConfigCliCmdSchemaOwnsConfigCommands is the owner half of the
 // self-containment invariant: the central show schema must NOT declare the
 // config inspection commands, and this package MUST.
-// See ai/rules/plugin-self-containment.md.
+// See ai/rules/plugins.md.
 func TestConfigCliCmdSchemaOwnsConfigCommands(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:config-dump"`,

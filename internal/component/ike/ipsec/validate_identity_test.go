@@ -97,7 +97,7 @@ func TestVidTerminatorCheckFollowsTheIDType(t *testing.T) {
 // PREVENTS: a config that commits cleanly and then asserts an identity no peer expecting
 // a distinguished name accepts. encodeIKEID derives the type ze SENDS from the shape of
 // the value, and it has no ID_DER_ASN1_DN branch. A distinguished-name local-id therefore
-// goes out as ID_FQDN carrying the literal text (ai/rules/exact-or-reject.md).
+// goes out as ID_FQDN carrying the literal text (ai/rules/protocol.md).
 func TestVidDistinguishedNameLocalIDIsRefusedAtVerify(t *testing.T) {
 	for _, tc := range []struct {
 		name  string

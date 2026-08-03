@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestShowSchemaHasNoBGPPluginCommands enforces ai/rules/plugin-self-containment.md
+// TestShowSchemaHasNoBGPPluginCommands enforces ai/rules/plugins.md
 // for the central `show` verb schema.
 //
 // VALIDATES: the central show schema declares no part of the `show bgp ...`
@@ -32,12 +32,12 @@ func TestShowSchemaHasNoBGPPluginCommands(t *testing.T) {
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {
-			t.Errorf("central show schema declares BGP-owned command %q; move it to %s (see ai/rules/plugin-self-containment.md)", token, owner)
+			t.Errorf("central show schema declares BGP-owned command %q; move it to %s (see ai/rules/plugins.md)", token, owner)
 		}
 	}
 }
 
-// TestShowSchemaHasNoMigratedOwnerCommands enforces ai/rules/plugin-self-containment.md
+// TestShowSchemaHasNoMigratedOwnerCommands enforces ai/rules/plugins.md
 // for non-BGP owners whose `show ...` subtree has been relocated to the owning
 // component or plugin schema package.
 //
@@ -107,7 +107,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {
-			t.Errorf("central show schema declares owner command %q; move it to %s (see ai/rules/plugin-self-containment.md)", token, owner)
+			t.Errorf("central show schema declares owner command %q; move it to %s (see ai/rules/plugins.md)", token, owner)
 		}
 	}
 }

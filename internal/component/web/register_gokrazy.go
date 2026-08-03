@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-self-containment.md -- gokrazy portal web route self-registration
+// Design: ai/rules/plugins.md -- gokrazy portal web route self-registration
 // Related: webroute.go -- WebRoute.Enabled/Portal fields this route uses
 //
 // The gokrazy appliance UI is embedded via an iframe portal. Unlike the L2TP/

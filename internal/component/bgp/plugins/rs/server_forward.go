@@ -213,7 +213,7 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 		// Say it: this arm discards the UPDATE for every destination, and the
 		// only rail that can recover it is the announce-only Adj-RIB-In replay,
 		// so a withdrawal discarded here is lost outright
-		// (ai/rules/fail-closed-guards.md).
+		// (ai/rules/evidence.md).
 		//
 		// "peers-known" alone was not enough to act on: it says how many peers
 		// exist, not why each was skipped, and the two causes need opposite

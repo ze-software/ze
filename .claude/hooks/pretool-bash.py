@@ -120,7 +120,7 @@ def check_root_build(cmd, _ctx):
     )
 
 
-# ai/rules/bash-output.md scopes this to EXPENSIVE producers: "Never pipe `make`,
+# ai/rules/commands.md scopes this to EXPENSIVE producers: "Never pipe `make`,
 # `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any test/verify/build
 # command through `head`, `tail`, `grep`, `awk`, `sed`, `cat`." The reason is
 # specific to those: their output is the evidence, truncating it fakes a green,
@@ -136,7 +136,7 @@ EXPENSIVE_COMMAND = re.compile(
     r"pytest|"
     r"ze-test|"
     r"(\./)?bin/ze[\w-]*|"
-    # "or any test/verify/build command" (ai/rules/bash-output.md): the repo's own
+    # "or any test/verify/build command" (ai/rules/commands.md): the repo's own
     # gates, whose output IS the verdict. Everything under scripts/evidence/ counts
     # (QEMU boots, docker interop labs); elsewhere it is by role in the filename, so
     # cheap utilities (spec-session.sh, session-scratch.sh) stay usable.
@@ -231,7 +231,7 @@ def _is_expensive(segment):
 def check_pipe_tail(cmd, _ctx):
     """block-pipe-tail.sh: no lossy pipe on an expensive command's output.
 
-    Scoped to the producers ai/rules/bash-output.md names. The previous form
+    Scoped to the producers ai/rules/commands.md names. The previous form
     blocked EVERY `| tail` (so `git log | tail -3` and `wc -l | tail -1` were
     rejected, teaching sessions to route around the hook) while letting
     `go test ./... | head -50` through, which is the exact case the rule exists
@@ -269,10 +269,10 @@ def check_pipe_tail(cmd, _ctx):
     return None
 
 
-# ai/rules/no-poll-loops.md. A Bash command started with run_in_background
+# ai/rules/commands.md. A Bash command started with run_in_background
 # re-invokes the session when it exits, so a loop that watches one carries no
 # information the completion notification does not already carry. The harm is
-# not the fork cost no-fork-loops.md measures: it is the WAKE and its LIFETIME.
+# not the fork cost commands.md measures: it is the WAKE and its LIFETIME.
 # A watcher ticking every few seconds competes with QEMU, Docker and ze-verify
 # for the same cores, and it keeps doing so long after its reason expired.
 POLL_LOOP_KEYWORD = re.compile(r"\b(while|until)\b")
@@ -309,7 +309,7 @@ SEARCH_COMMANDS = {
 
 
 def check_poll_loop(cmd, _ctx):
-    """no-poll-loops.md: no unbounded wait loop.
+    """commands.md: no unbounded wait loop.
 
     Blocks `while`/`until` paired with a `sleep` call or a `pgrep` condition,
     unless a `timeout` bounds THAT loop. The bound is the escape on purpose: a
@@ -343,7 +343,7 @@ def check_poll_loop(cmd, _ctx):
             continue
         return (
             2,
-            "❌ Blocked: unbounded wait loop (ai/rules/no-poll-loops.md)\n"
+            "❌ Blocked: unbounded wait loop (ai/rules/commands.md)\n"
             "  -- A command you started with run_in_background notifies you when it\n"
             "     exits. Waiting for one you launched needs no loop: delete it.\n"
             "  -- A poll that is the only signal must die on its own. Put the bound\n"

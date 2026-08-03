@@ -273,7 +273,7 @@ re-derive it from the RFC text, and ask again if it still reads as less than ful
 
 The link is two-way, but only ONE side is authored: the test tags itself.
 `ai/RFC-REQUIREMENTS.md` renders the reverse direction and is GENERATED — never hand-write
-a test path into a summary (`ai/rules/derive-not-hardcode.md`). A hand-written back-link
+a test path into a summary (`ai/rules/evidence.md`). A hand-written back-link
 survives deletion of the test it names; a tag dies with the test.
 
 The rendered link carries the test's `file:line`, so the ledger drifts whenever a tagged
@@ -304,7 +304,7 @@ Rules:
   (e.g. `TestRFC7606SystematicLengthCorruption` spans ~100 cases across a dozen
   requirements) — a function-level tag there stays green after the one enforcing case
   is deleted, which is exactly the rot this system exists to catch.
-- `.ci` tags must start at the line start (`internal/test/runner/parsing.go:248`) and must
+- `.ci` tags must start at the line start (`internal/test/runner/parsing.go`) and must
   not sit inside a `terminator=` block, where `#` is raw file content, not a comment.
 
 ## Changing an RFC Test (BLOCKING)

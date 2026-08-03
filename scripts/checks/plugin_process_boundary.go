@@ -1,4 +1,4 @@
-// Design: ai/rules/plugin-process-boundary.md -- process-boundary guard
+// Design: ai/rules/plugins.md -- process-boundary guard
 //
 // plugin_process_boundary enforces an invariant discovered during the
 // AS112/cos advisory-doctor-check review (plan/learned/1032-as112-review-hardening.md):

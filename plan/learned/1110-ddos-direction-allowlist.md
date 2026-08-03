@@ -13,7 +13,7 @@ destination-only, mitigation-only, and duplicated across `local`/`flowspec`.
 ## Decisions
 - **Detector is the single enforcement point; the event carries the decision** over each
   responder reading the policy. Plugins receive only their own config subtree
-  (`reload.go:225-241`), so responders cannot read the detect-owned policy; the detector
+  (`reload.go`), so responders cannot read the detect-owned policy; the detector
   evaluates it once and encodes the outcome on the event (`SuppressMitigation` flag). This
   also lets `observe` record an incident while responders skip mitigation.
 - **`SuppressMitigation` (not `Mitigate`)** so the bool zero value = mitigate = fail-safe
@@ -44,9 +44,9 @@ destination-only, mitigation-only, and duplicated across `local`/`flowspec`.
 
 ## Gotchas
 - **Ordered YANG list order does NOT survive plugin config delivery.** The config Tree keeps
-  order in a side-slice (`tree.go:42-43` `listOrder`) but plugins receive a plain
+  order in a side-slice (`tree.go` `listOrder`) but plugins receive a plain
   `map[string]any` (JSON), which is unordered. `policyroute` (the exact ordered-by-user rule
-  precedent) works around this with an explicit `order` leaf + `sort.Slice` (`config.go:99`).
+  precedent) works around this with an explicit `order` leaf + `sort.Slice` (`config.go`).
   Caught in the implement audit BEFORE writing the parser; resolved by switching to
   longest-prefix-match. Validate the delivery format before committing to ordering semantics.
 - **The `daemon.pid`/`daemon.ready` file handshake in `ddos-detect-mitigate.ci` does not

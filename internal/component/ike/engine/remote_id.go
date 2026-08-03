@@ -223,7 +223,7 @@ func assertedClass(idType uint8) (identityClass, bool) {
 // classMismatchHint explains a refusal whose two sides print the same characters. An
 // address-valued remote-id names an address, so ID_FQDN carrying the text of that address
 // is refused while it renders identically. Without the hint an operator reads
-// "asserted 10.0.0.1, expects 10.0.0.1" and sees no difference (ai/rules/error-messages.md).
+// "asserted 10.0.0.1, expects 10.0.0.1" and sees no difference (ai/rules/cli.md).
 func classMismatchHint(want string, p *wire.PayloadID) string {
 	var b textbuf.Buffer
 	b.Str(" The two texts agree and the types do not. The peer asserted ")
@@ -250,7 +250,7 @@ func classMismatchHint(want string, p *wire.PayloadID) string {
 // whose text reads 10.0.0.1. For X.509 and EAP certificateCarriesIdentity then denied that
 // peer, because it binds an address value against cert.IPAddresses alone. A
 // pre-shared-secret peer has no certificate half, so nothing denied it. The policy half
-// now refuses the class the operator did not write (ai/rules/fail-closed-guards.md).
+// now refuses the class the operator did not write (ai/rules/evidence.md).
 func remoteIDMatches(want string, p *wire.PayloadID) bool {
 	class, known := assertedClass(p.IDType)
 	if !known || class != configuredClass(want) {
@@ -413,7 +413,7 @@ func hasSubjectAltName(cert *x509.Certificate) bool {
 // constrained. An authority that permits only dNSName .branch.example.com therefore binds
 // the alternative name and leaves the common name free. Reading the common name after a
 // present alternative name authenticates the holder as the identity the authority
-// constrained it away from (ai/rules/fail-closed-guards.md).
+// constrained it away from (ai/rules/evidence.md).
 //
 // The test is the EXTENSION, not the field. A certificate CAN carry an address
 // alternative name and no name, and only the extension tells "the authority named nothing
@@ -426,10 +426,10 @@ func hasSubjectAltName(cert *x509.Certificate) bool {
 // "172.28.0.3" was satisfiable as ID_IPV4_ADDR against cert.IPAddresses, and equally as
 // ID_FQDN against cert.DNSNames. One configured value reached two certificate fields, and
 // the peer chose. An authority issues an address alternative name under a tighter policy
-// than a name, so the peer chose the weaker field (ai/rules/fail-closed-guards.md).
+// than a name, so the peer chose the weaker field (ai/rules/evidence.md).
 //
 // ID_KEY_ID never binds. A certificate holds no field that corresponds to an opaque
-// vendor identity, so the check denies rather than guesses (ai/rules/fail-closed-guards.md).
+// vendor identity, so the check denies rather than guesses (ai/rules/evidence.md).
 func certificateCarriesIdentity(cert *x509.Certificate, p *wire.PayloadID, want string, pinnedType uint8) bool {
 	if cert == nil || p == nil || len(p.IDData) == 0 {
 		return false

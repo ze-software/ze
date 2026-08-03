@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: ai/rules/doctor-checks.md -- macvlan capability probe (non-Linux stub)
+// Design: ai/rules/repo-maintenance.md -- macvlan capability probe (non-Linux stub)
 // Overview: ifacenetlink.go -- package hub
 //
 // The macvlan owned-device mechanism only touches the kernel on Linux, so off

@@ -15,7 +15,7 @@ ONE code point (252) so producer, receiver and merge all agree.
 ## Decisions
 
 - **Single constant in the lowest shared tier.** `attribute.AttrTombstone = 252`
-  (`internal/core/bgp/attribute/attribute.go:66`) is the sole declaration; both `wireu` and
+  (`internal/core/bgp/attribute/attribute.go`) is the sole declaration; both `wireu` and
   `message` already import that package, so no new import edge (O-2). Deleted the message-tier
   `attrCodeAttrDiscard = 253` and the wireu `attrTombstoneLegacy`/`isTombstoneCode`
   dual-recognition shim (the 706b77b7d bridge is no longer needed once both tiers use 252).
@@ -34,13 +34,13 @@ ONE code point (252) so producer, receiver and merge all agree.
 
 ## Consequences
 
-- `ExtractUpstreamAttrDiscard` (`attr_discard.go:154`) and the rebuild/merge lookups
+- `ExtractUpstreamAttrDiscard` (`attr_discard.go`) and the rebuild/merge lookups
   (`:100,:132,:156,:165,:177`) now search/stamp `AttrTombstone`, so ze recognises its own
   egress tombstone markers on the merge path (Section 5.1 merge works end-to-end).
 - AC-4: the eBGP-boundary Transitive-bit clear (Section 5.3, from 706b77b7d) is preserved --
-  `aspath_rewrite.go:528` now gates on `code == attribute.AttrTombstone` instead of the deleted
+  `aspath_rewrite.go` now gates on `code == attribute.AttrTombstone` instead of the deleted
   `isTombstoneCode(code)`, still calling `clearTombstoneTransitive`.
-- `test/plugin/remove-private-as-export.ci:49` on-wire expectation is `C0FC` (was `C0FD`);
+- `test/plugin/remove-private-as-export.ci` on-wire expectation is `C0FC` (was `C0FD`);
   flags `0xC0` unchanged (see Gotchas).
 
 ## Gotchas

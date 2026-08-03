@@ -77,7 +77,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	// Every clear command is fully owned: its handler AND its YANG schema live
 	// in the owning component. The central clear verb package is a bare
 	// verb-root anchor that declares no owner command (each owner merges its own
-	// `clear <noun> ...` subtree). See ai/rules/plugin-self-containment.md.
+	// `clear <noun> ...` subtree). See ai/rules/plugins.md.
 	for _, ownerHandler := range []string{
 		"internal/component/resolve/cmd/dns.go", // ze-clear:dns-cache (schema: resolve/yang)
 		"internal/component/ike/cmd/ipsec.go",   // ze-clear:vpn-ipsec-sa (schema: ike/yang)

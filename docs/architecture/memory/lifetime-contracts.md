@@ -5,7 +5,7 @@
 > one shared vocabulary and one shared debug-only enforcement so a violation
 > crashes loudly in debug instead of silently returning recycled bytes.
 > See `docs/architecture/pool-architecture.md` for the attrpool internals and
-> `ai/rules/memory-architecture.md` / `ai/rules/buffer-first.md` for the
+> `ai/rules/performance.md` / `ai/rules/performance.md` for the
 > zero-copy discipline these contracts implement.
 
 ## TL;DR

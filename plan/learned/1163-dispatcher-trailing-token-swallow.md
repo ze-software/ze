@@ -6,17 +6,17 @@ remembering.
 
 ## The bug
 
-`matchCommandTokens` (`internal/component/plugin/server/command.go:380`) walks
+`matchCommandTokens` (`internal/component/plugin/server/command.go`) walks
 only the KEY's tokens and never checks that the input is exhausted. Line 428
 returns the unmatched tail as `args` and reports a SUCCESSFUL match. `Dispatch`
 then validates args only when the matched command has ArgDefs
-(`command.go:609`), and `extractArgDefs`
+(`command.go`), and `extractArgDefs`
 (`internal/component/config/yang/command.go`) reads YANG **leaf** children only,
 so a node whose children are all containers has none.
 
 Net effect: `ze l2tp show --user alice tunnels` matched `show l2tp` (whose
 `ze:command` is `ze-l2tp-api:summary`), the validator was skipped, and
-`handleSummary` (`internal/component/l2tp/cmd/l2tp.go:77`) discarded the tail via
+`handleSummary` (`internal/component/l2tp/cmd/l2tp.go`) discarded the tail via
 `_ []string`. The operator got the SUMMARY for the DEFAULT user, **exit 0**, with
 no hint that `--user alice` and `tunnels` were both ignored. A wrong answer that
 reports success is worse than an error.
@@ -33,11 +33,11 @@ nodes have no leaves. Measured casualties of that rule:
 - **`clear l2tp tunnel id 42`** -- the clear tree declares no leaf while the show
   tree does, so teardown would stop working entirely;
 - **the whole RIB filter feature.** `foldFilters`
-  (`internal/component/command/pipe.go:181`) rewrites `show bgp rib | peer X |
+  (`internal/component/command/pipe.go`) rewrites `show bgp rib | peer X |
   family ipv4` into the plain string `show bgp rib peer X family ipv4` BEFORE it
   is sent, so pipe filters arrive as exactly the trailing args the rule would
   reject;
-- `TestDispatcherDispatch` (`command_test.go:51`), which registers a zero-ArgDef
+- `TestDispatcherDispatch` (`command_test.go`), which registers a zero-ArgDef
   command and asserts trailing tokens reach the handler -- its comment reads
   "PREVENTS: Command misdirection or lost arguments".
 
@@ -50,10 +50,10 @@ zero-leaf YANG node at dispatch time.
 Reject only FLAG-SHAPED leftovers (`firstFlagToken`, `command.go`): a leading
 dash followed by a letter. Justification, not taste:
 
-- no `ArgKind` is signed (`internal/component/command/node.go:17-20`: ArgString,
+- no `ArgKind` is signed (`internal/component/command/node.go`: ArgString,
   ArgEnum, ArgUint, ArgUnion), so no valid value starts with `-`;
 - pipe folding only ever emits bare filter names and their values;
-- `firstPositionalArg` (`internal/component/l2tp/cmd/l2tp.go:400-407`) already
+- `firstPositionalArg` (`internal/component/l2tp/cmd/l2tp.go`) already
   skips `-`-prefixed args deliberately -- which is part of why `--user` slid
   through.
 

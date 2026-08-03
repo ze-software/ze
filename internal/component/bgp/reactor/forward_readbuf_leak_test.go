@@ -251,7 +251,7 @@ func (g *gatedWorkers) awaitEntered(t testing.TB, addr netip.Addr) {
 // takes the next batch, so a sentinel batch reaching the handler PROVES the
 // forwarded batch's done() has already run. Sampling on a timer instead would
 // make the ordering assertion below load-sensitive, which is the failure mode
-// ai/rules/fix-dont-record.md exists to stop.
+// ai/rules/completion.md exists to stop.
 func (g *gatedWorkers) finishWrite(t testing.TB, pool *fwdPool, addr netip.AddrPort) {
 	t.Helper()
 	gate := g.gates[addr.Addr()]

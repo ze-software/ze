@@ -39,7 +39,7 @@ user approval; AC-2/AC-3 execution legs env-blocked with recorded runbooks.
 ## Consequences
 
 - Property, stress (web/fleet), and chaos-iface tiers now exist and are
-  discoverable (`docs/functional-tests.md`, reachable from `ai/INDEX.md:344`).
+  discoverable (`docs/functional-tests.md`, reachable from `ai/INDEX.md`).
   Evidence-tier targets: `make ze-stress-web-test`, `make ze-stress-fleet-test`
   (both need `CGO_ENABLED=1` on the command line for `-race`, see Gotchas).
 - The traffic suite runs as root under QEMU serially (`-p 1`: qdisc state on eth0
@@ -51,12 +51,12 @@ user approval; AC-2/AC-3 execution legs env-blocked with recorded runbooks.
 ## Gotchas
 
 - **THE LLGR RAIL GAP (the big one)**: RFC 9494 per-peer egress divergence never
-  fires end-to-end in production. `LLGREgressFilter` (gr_egress.go:57) runs ONLY on
-  the ForwardUpdate rail (forward_rs.go:324, reactor_api_forward.go:490); the only
-  producer of `meta["stale"]` is the RIB readvertise path (rib_replay.go:299), which
+  fires end-to-end in production. `LLGREgressFilter` (gr_egress.go) runs ONLY on
+  the ForwardUpdate rail (forward_rs.go, reactor_api_forward.go); the only
+  producer of `meta["stale"]` is the RIB readvertise path (rib_replay.go), which
   flows `updateRouteWithMeta` -> `MethodUpdateRoute` -> `DispatchNLRIGroups` ->
-  `AnnounceNLRIBatch` (reactor_api_batch.go:28) -- a rail that DROPS `ctx.Meta` and
-  calls NO egress filter (documented at sdk_engine.go:42). Unit tests pass by
+  `AnnounceNLRIBatch` (reactor_api_batch.go) -- a rail that DROPS `ctx.Meta` and
+  calls NO egress filter (documented at sdk_engine.go). Unit tests pass by
   calling the filter directly; the single-peer `.ci` passes because reconnect
   replay needs no stamping. Moral: green unit tests + a green single-peer `.ci`
   can coexist with a feature that is entirely unwired on its production path.

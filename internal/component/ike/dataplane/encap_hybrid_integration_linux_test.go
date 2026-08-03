@@ -80,7 +80,7 @@ func encapInjectRaw(t *testing.T, dst string, pkt []byte) {
 	if err != nil {
 		// test-relax: capability gate, not a relaxation. CAP_NET_RAW is absent on some
 		// hosts and every sibling probe in this package skips the same way
-		// (ai/rules/os-specific-tests.md). encapOwnProcess propagates a child SKIP as a
+		// (ai/rules/testing.md). encapOwnProcess propagates a child SKIP as a
 		// parent SKIP rather than reading it as PASS.
 		t.Skipf("no raw socket (needs CAP_NET_RAW): %v", err)
 	}

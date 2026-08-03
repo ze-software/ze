@@ -12,7 +12,7 @@
 // re-Dispatch the command string, which would re-match this same builtin and
 // recurse until the stack overflows. Owned by the rsvp-te component so that
 // removing it removes the `show rsvp-te ...` command, its schema, and these
-// handlers together. See ai/rules/plugin-self-containment.md and
+// handlers together. See ai/rules/plugins.md and
 // internal/component/bgp/plugins/cmd/rib/rib.go for the canonical proxy.
 
 package rsvpte

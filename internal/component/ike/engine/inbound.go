@@ -84,7 +84,7 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// The token bucket is the second guard, and both are needed. The sibling
 		// site in handleResponderInbound (responder.go) carries the identical pair.
 		// A guard added to one replay site, with the other left open, is the
-		// failure ai/rules/before-writing-code.md names.
+		// failure ai/rules/architecture.md names.
 		if !sa.cachedReplayAllowed() {
 			log.Debug("ike: cached response replay rate limited",
 				"peer", ps.peerName, "msgid", msg.Header.MessageID)

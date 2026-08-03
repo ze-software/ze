@@ -9,7 +9,7 @@ The forwarded egress path was correct; the originated path had drifted. The goal
 the operator's export policy actually fire on originated routes, and to remove the structural
 cause of the drift so it cannot recur. Root cause was two independent fail-open defects in
 `exportFilterForBody`, both instances of "a permissive default standing in for an answer
-nobody asked for" (the zero-value trap, `ai/rules/fail-closed-guards.md`).
+nobody asked for" (the zero-value trap, `ai/rules/evidence.md`).
 
 ## Decisions
 
@@ -26,7 +26,7 @@ nobody asked for" (the zero-value trap, `ai/rules/fail-closed-guards.md`).
   the slice would be a latent aliasing bug.
 - **No unit test at this seam, by design.** `Reactor.api` is a concrete `*pluginserver.Server`,
   not an interface, so the guard is driven from the real entry point via two deterministic
-  functional tests (`ai/rules/fail-closed-guards.md`: drive the guard from the entry point).
+  functional tests (`ai/rules/evidence.md`: drive the guard from the entry point).
 
 ## Consequences
 

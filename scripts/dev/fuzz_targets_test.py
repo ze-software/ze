@@ -9,7 +9,7 @@ mk/test-fuzz-targets.mk fragment. These tests pin the four behaviours the spec
 anchoring, exact package paths, and stale-fragment detection.
 
 The stale check (AC-6) is driven through the real CLI entry point (subprocess),
-per the guard-testing corollary in ai/rules/fail-closed-guards.md: the exit code
+per the guard-testing corollary in ai/rules/evidence.md: the exit code
 IS the gate, so the gate is what gets asserted, not just the render helper.
 """
 

@@ -28,7 +28,7 @@ Audit against three baselines:
 
 - Strictly read-only: no code changes, no commits, no heavy gates rerun (no `make ze-verify`).
 - Agents may run cheap read-only commands (grep, git log, single-package `go vet`); no full builds or test suites. Cheap analysis scripts allowed with a short timeout, abandoned if slow.
-- Every finding must cite the producing code as `file:line` (`ai/rules/no-fabrication.md`); uncited claims are dropped or labeled unverified.
+- Every finding must cite the producing code as `file:line` (`ai/rules/evidence.md`); uncited claims are dropped or labeled unverified.
 - BLOCKER/HIGH findings must survive adversarial verification (Phase 2) before entering the report.
 
 ## Severity scale
@@ -55,7 +55,7 @@ Audit against three baselines:
 
 ## Dimensions 4-10 outcome (2026-07-16)
 
-Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `make ze-verify`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ze-yang-glue-check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go:587-610, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go:59-73). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
+Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `make ze-verify`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ze-yang-glue-check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
 
 Each agent returns a fixed schema: 2-3 genuine strengths; findings ranked by severity, each with `file:line` citation(s), concrete failure scenario, suggested fix; and its single highest-leverage recommendation. Max ~12 findings per agent, quality over quantity.
 
@@ -91,7 +91,7 @@ one audit finding (see the consolidated report / spec Notes). Notable outcomes:
 - forward-readbuf: fix = adopt handles onto ReceivedUpdate, drain at eviction (proven post-write); perf-next-1 lockfree code already committed (b5ad2cabe); found 2 more out-of-scope leaks.
 - rfc7606: split Class-A (drop) vs Class-B (withdraw) producers; reuse existing withdraw delivery.
 - mgmt-guard: corrected the audit — doctor already probes MCP, gNMI is schema-discovered; real gaps narrower; found SIGHUP reload re-exposure (AC-7); LG made an explicit exemption.
-- bcrypt: found a 4th remote surface (REST/gRPC bearer `hub/api.go:91`) the audit missed; transport signal via aaa.AuthRequest; round-trip-safe masking via display clone + upload guard (AC-8).
+- bcrypt: found a 4th remote surface (REST/gRPC bearer `hub/api.go`) the audit missed; transport signal via aaa.AuthRequest; round-trip-safe masking via display clone + upload guard (AC-8).
 - concurrency: all 4 leads confirmed REAL (lead 2 sent-path only); lead 4 has real protocol impact (RIB silently drops MP routes on duplicate-ORIGIN UPDATE).
 
 ### New specs authored (all `plan/spec-fixit-*.md`, now Status: design)
@@ -101,7 +101,7 @@ one audit finding (see the consolidated report / spec Notes). Notable outcomes:
 | `spec-fixit-bgp-session-fsm-lifecycle.md` | B1 hold-timer permanent-disarm; H5 keepalive/Session retention leak; M1 OPEN-in-Established; FSM.Event sentinel + policy-teardown spin | BLOCKER+HIGH+MEDIUM |
 | `spec-fixit-forward-readbuf-leak.md` | B2 forward-path read-buffer leak (6 sites). **Depends: spec-perf-next-1-ebgp-wire-lockfree** (in-progress, same code) | BLOCKER |
 | `spec-fixit-rfc7606-treat-as-withdraw.md` | H4 RFC 7606 treat-as-withdraw drops routes | HIGH |
-| `spec-fixit-mgmt-listener-auth-guard.md` | B3 gNMI unauth; H2 MCP boot fail-open; H3 insecure-web env bypass; M3 LG unauth/TLS. Unified boot-time fail-closed guard (mirrors API `main.go:862`) | BLOCKER+HIGH+MEDIUM |
+| `spec-fixit-mgmt-listener-auth-guard.md` | B3 gNMI unauth; H2 MCP boot fail-open; H3 insecure-web env bypass; M3 LG unauth/TLS. Unified boot-time fail-closed guard (mirrors API `main.go`) | BLOCKER+HIGH+MEDIUM |
 | `spec-fixit-bcrypt-hash-credential.md` | H1 bcrypt hash-as-token (restrict-to-local + mask-on-export); M4 SSH exec log credential redaction | HIGH+MEDIUM |
 | `spec-fixit-parser-fuzz-gaps.md` | M5 fuzz harnesses for BMP TLV, RADIUS VSA, DHCP | MEDIUM |
 | `spec-fixit-bgp-concurrency-races.md` | 4 UNVERIFIED concurrency leads (FSM.change callback overlap, peer.session unlocked read, dynamic-peer settings race, duplicate-attribute policy). Verify-first. | MEDIUM |

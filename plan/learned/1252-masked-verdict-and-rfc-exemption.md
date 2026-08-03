@@ -16,7 +16,7 @@ RFC 4271 violation sitting behind a comment that made it look deliberate.
   (`peer_contract.go` `failedCheckPeers`, replacing a `strings.Contains` over the
   concatenation of all peers' output in `runner_exec.go`). Chose per-peer
   evaluation over adding a warning: a warning does not fail a test, and
-  `ai/rules/fail-closed-guards.md` requires a guard to deny or speak. The peer
+  `ai/rules/evidence.md` requires a guard to deny or speak. The peer
   label is captured at launch rather than reconstructed at verdict time, because
   per-peer attribution is the whole diagnostic value.
 - **Repaired the malformed frames rather than deleting the tests.** The tests

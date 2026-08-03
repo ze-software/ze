@@ -32,7 +32,7 @@ import (
 )
 
 // Relay reconstruction failures. Each names the specific defect so a malformed
-// stored route is greppable rather than an anonymous drop (ai/rules/error-messages.md).
+// stored route is greppable rather than an anonymous drop (ai/rules/cli.md).
 //
 // Reconstruction is not a detail that can be guessed. A stored AttrHex holds the
 // WHOLE path-attribute section as received, MP_REACH/MP_UNREACH included, carrying
@@ -42,7 +42,7 @@ import (
 // order of the surviving attributes -- see relay_payload.go.
 //
 // Every one of these fails the route CLOSED. A silent success that relayed
-// nothing would look exactly like a working replay (ai/rules/fail-closed-guards.md).
+// nothing would look exactly like a working replay (ai/rules/evidence.md).
 var (
 	errRelayFamily     = errors.New("relay-stored-route: unknown address family")
 	errRelayHex        = errors.New("relay-stored-route: stored route hex does not decode")

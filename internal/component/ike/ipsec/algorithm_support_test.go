@@ -57,7 +57,7 @@ func TestParseESPProposalAcceptsAEADWithoutHash(t *testing.T) {
 // PREVENTS: ENCR Transform ID 0 on the wire. RFC 7296 Section 3.3.2 reserves that ID.
 // lookupEncryption returns the zero transform for an unknown name. Ze therefore once
 // started, offered ID 0 with no Key Length attribute, derived a zero-length key, and
-// handed it to the kernel (ai/rules/fail-closed-guards.md).
+// handed it to the kernel (ai/rules/evidence.md).
 func TestParseRejectsUnimplementedEncryption(t *testing.T) {
 	for _, algo := range []string{"chacha20poly1305", "3des"} {
 		t.Run(algo, func(t *testing.T) {

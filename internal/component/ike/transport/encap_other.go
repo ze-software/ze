@@ -19,7 +19,7 @@ import (
 // option. No other platform Ze builds for carries an IPsec dataplane at all.
 //
 // The named error states the limitation. It does not let a caller read success from
-// a nil error (ai/rules/fail-closed-guards.md).
+// a nil error (ai/rules/evidence.md).
 var ErrNoESPInUDP = errors.New("transport: this platform cannot decapsulate ESP in UDP")
 
 // EnableESPInUDP reports ErrNoESPInUDP on every platform that is not Linux.

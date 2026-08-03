@@ -57,7 +57,7 @@ func (h *LANHello) EncodedLen() int {
 }
 
 // WriteTo serializes the LAN IIH into buf at off and returns the new offset.
-// The PDU Length field is filled by skip-and-backfill (ai/rules/buffer-first.md)
+// The PDU Length field is filled by skip-and-backfill (ai/rules/performance.md)
 // rather than a Len()-then-WriteTo() double pass. Buffer-first: the caller
 // guarantees room (>= EncodedLen()).
 //

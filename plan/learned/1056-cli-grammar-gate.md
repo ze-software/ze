@@ -2,7 +2,7 @@
 
 ## Context
 
-`ai/rules/cli-grammar.md` defined the verb-first CLI grammar (verb-noun-action,
+`ai/rules/cli.md` defined the verb-first CLI grammar (verb-noun-action,
 typed selectors, no `--flag` in YANG) but nothing enforced it: agents kept drifting
 (noun-first commands, `--flag` leaks). `plan/learned/829-command-verb-first.md`
 migrated plugin commands to verb-first and explicitly noted a mechanical gate was
@@ -29,7 +29,7 @@ places: learned-829 (8 verbs), `command_registry.go` `commandVerbs` (7, added
   editor `ze-editor:`) -- a structural identity, never a per-command allowlist.
 - `create` blessed as a canonical runtime-resource-lifecycle verb (user-ratified): the
   iface `create interface …` commands are immediate netlink operations, NOT config-tree
-  mutation (which has a separate `ze-iface-conf.yang` path), and cli-grammar.md permits
+  mutation (which has a separate `ze-iface-conf.yang` path), and cli.md permits
   operational verbs for runtime actions.
 - `archive` stays a noun: `request config archive`, not an `archive` verb -- keeps the
   verb set small (learned-829) and consistent with `request commit`/`request reload`.
@@ -56,7 +56,7 @@ places: learned-829 (8 verbs), `command_registry.go` `commandVerbs` (7, added
   `show route [<cidr>] | lookup` fork and the correct `... name <n> unit` shape. R7 must
   NOT list `create` (a verb) or `del` (only the completion prefix of `delete`).
 - Moving a `ze:command` container is a wire break: `config archive`->`request config archive`
-  broke `cmd_archive.go:57`, which sent the bare path `"config archive "+name` over SSH from
+  broke `cmd_archive.go`, which sent the bare path `"config archive "+name` over SSH from
   the offline `ze config archive` tool. Grep for programmatic senders (`ExecCommand`,
   `DispatchCommand`) of any renamed path. iface `create`/`delete` had none (user-typed only).
 - The keyword/value distinction is structural, not naming: YANG container -> `Node.Children`
@@ -70,4 +70,4 @@ places: learned-829 (8 verbs), `command_registry.go` `commandVerbs` (7, added
 **Gate:** `internal/component/command/verbs.go` (+test), `internal/component/command/grammar/checker.go` (+test), `scripts/checks/cli_grammar.go` (+`cli_grammar_test.go`), `mk/inventory.mk`, `Makefile` (`_ze-verify-impl`/`_ze-verify-changed-impl`)
 **Feeder 2:** `internal/component/plugin/server/command_registry.go` (+`command_registry_test.go`)
 **Fixes:** `internal/plugins/config-archive-cmd/yang/ze-config-archive-cmd.yang`, `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-poolstats-cmd.yang`, `internal/plugins/mpls-cmd/yang/ze-mpls-cmd.yang`, `internal/plugins/diag/yang/ze-diag-cmd.yang`, `internal/component/iface/yang/ze-iface-cmd.yang`, `internal/component/config/cli/cmd_archive.go`
-**Docs:** `ai/rules/cli-grammar.md`, `ai/rules/cli-patterns.md`, `ai/INDEX.md`, `docs/features/interfaces.md`, `docs/architecture/api/commands.md`, `docs/features.md`
+**Docs:** `ai/rules/cli.md`, `ai/rules/cli.md`, `ai/INDEX.md`, `docs/features/interfaces.md`, `docs/architecture/api/commands.md`, `docs/features.md`

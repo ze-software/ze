@@ -81,6 +81,6 @@ is `OPEN_WORK`, set at `:193` and assembled at `:225-228`.
 
 So the question above is permitted when no work remains. It is refused with exit 2
 while a spec is open. The question is mandated behavior once the task is done. The
-same words mid-spec are premature stopping (`ai/rules/no-asking.md`). Fixtures:
+same words mid-spec are premature stopping (`ai/rules/completion.md`). Fixtures:
 `stop-phrase-what-next-allowed-when-no-open-work` and
 `stop-phrase-what-next-blocks-with-open-work`.

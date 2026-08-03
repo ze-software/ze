@@ -67,8 +67,8 @@ paid per session rather than per relevance.
   criterion requiring a token its target file never contained, and one that never
   named its measuring instrument, so two defensible readings straddle its
   threshold.
-- Retirement governs records of COMPLETED WORK. `ai/rules/no-parking.md` and
-  `ai/rules/fix-dont-record.md` govern DEFECT records, and nothing here licenses
+- Retirement governs records of COMPLETED WORK. `ai/rules/completion.md` and
+  `ai/rules/completion.md` govern DEFECT records, and nothing here licenses
   pruning a `plan/known-failures/` shard. The two directions look alike and are
   opposite.
 

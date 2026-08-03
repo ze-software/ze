@@ -45,7 +45,7 @@
 - Every acceptance criterion must have working code + test before you claim completion.
 - If you cannot finish an item: say so, keep the spec open, ask the user. Do not ship partial work as complete.
 - Scope reduction requires explicit user approval. You may not unilaterally drop ACs.
-- Full rule: `ai/rules/no-partial-completion.md`
+- Full rule: `ai/rules/completion.md`
 
 ## Parking a blocker or reducing coverage to reach green is FORBIDDEN
 - When a defect blocks a goal your work exists to achieve, FIX IT. Do not park it,
@@ -66,7 +66,7 @@
   be recorded instead of fixed is a failure you actively tried and FAILED to
   reproduce, and its shard must carry the reproduction attempt and the next step.
   Anything deterministic or reproducible gets fixed.
-- Full rule: `ai/rules/no-parking.md`
+- Full rule: `ai/rules/completion.md`
 
 ## On violation: STOP immediately
 "The task requires it" is not valid. Nothing overrides these prohibitions.
@@ -83,7 +83,7 @@ for a reader. Never rewrite a sentence only to satisfy a word count: an edit tha
 changes no meaning is overhead, which is the thing the guideline removes. The
 checker reports and lets the work through. It covers `docs/`, code comments, error
 messages, CLI output, YANG descriptions, `ai/` rules, `plan/` specs, and commit
-messages. Full rule: `ai/rules/simplified-technical-english.md`. Working guide,
+messages. Full rule: `ai/rules/writing.md`. Working guide,
 committed and complete on its own: `docs/contributing/writing-style.md`.
 
 Six habits are banned. Each one has a numbered STE rule behind it:
@@ -122,10 +122,10 @@ already answered here. Delegating needs no permission, no announcement, and no
 user prompt to trigger it.
 
 - Every spec phase (research, design, implementation, review, audit, closure)
-  runs in a subagent through its `ze-*` skill. Full rule: `ai/rules/spec-delegation.md`.
+  runs in a subagent through its `ze-*` skill. Full rule: `ai/rules/planning.md`.
 - Independent work goes out in ONE message with parallel `Agent` calls.
 - The main thread supervises: it launches, verifies each report against source
-  (`ai/rules/no-fabrication.md`), decides, and gates the next phase.
+  (`ai/rules/evidence.md`), decides, and gates the next phase.
 - The exceptions are narrow and stay in the main thread: anything the user must
   answer, and anything needing LSP (subagents have no LSP tool).
 
@@ -135,11 +135,11 @@ Before stating what code does, or recommending work premised on a behavioral
 claim, read the function that PRODUCES the behavior. Reading a value's caller
 and inferring its producer is not evidence. If you have not read the producer,
 label the claim "unverified" and do not recommend work on it. A coherent story
-is a hypothesis, not a finding. Full rule: `ai/rules/no-fabrication.md`.
+is a hypothesis, not a finding. Full rule: `ai/rules/evidence.md`.
 
 Verification is what you DO. The citation is a separate decision, made for the
 reader. Name the file and the symbol. Use a line number only when the line IS
-the fact. Full rule: `ai/rules/detail-budget.md`.
+the fact. Full rule: `ai/rules/writing.md`.
 
 ## Say it once, say it short
 
@@ -148,7 +148,7 @@ changes their next action: what changed, what it means, what is not done. A fact
 they can recover by opening the code is not written down. The search that found
 it is never narrated. One example settles one point. When a directive can be
 read two ways, give both readings rather than a third example. Full rule:
-`ai/rules/detail-budget.md`.
+`ai/rules/writing.md`.
 
 ## Core Architecture
 
@@ -264,39 +264,39 @@ means "no rule applies".
 
 | Action | Read first |
 |--------|-----------|
-| Write ANY prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/simplified-technical-english.md` -- a GUIDELINE, not a gate. ASD-STE100 Issue 9. No synonym rotation, no hedging, no frozen verbs, no marketing adjectives, no run-ons, no phrasal verbs |
+| Write ANY prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/writing.md` -- a GUIDELINE, not a gate. ASD-STE100 Issue 9. No synonym rotation, no hedging, no frozen verbs, no marketing adjectives, no run-ons, no phrasal verbs |
 | Start a session | `.claude/rules/session-start.md` |
-| Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
-| Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
-| Start a planning, implementation, or review phase | `ai/rules/model-selection.md` -- planning and review run on Opus 5, implementation runs on Opus 4.8; announce the boundary and stop rather than crossing it on the wrong model |
-| Work on ANY spec (research, design, implement, review, close) | `ai/rules/spec-delegation.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
-| Make a behavioral claim about code, or recommend work based on one | `ai/rules/no-fabrication.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |
-| Write a report, a rule, a doc, a commit body, or a learned summary | `ai/rules/detail-budget.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |
-| Find recurring development friction or problem patterns | `ai/rules/friction-reporting.md` -- report the pattern and decide whether a new or changed rule would prevent it |
-| Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
-| Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/fail-closed-guards.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |
+| Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
+| Design or implement anything | `ai/rules/architecture.md` -- grep ze before proposing, never default to trained instincts |
+| Start a planning, implementation, or review phase | `ai/rules/planning.md` -- planning and review run on Opus 5, implementation runs on Opus 4.8; announce the boundary and stop rather than crossing it on the wrong model |
+| Work on ANY spec (research, design, implement, review, close) | `ai/rules/planning.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
+| Make a behavioral claim about code, or recommend work based on one | `ai/rules/evidence.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |
+| Write a report, a rule, a doc, a commit body, or a learned summary | `ai/rules/writing.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |
+| Find recurring development friction or problem patterns | `ai/rules/repo-maintenance.md` -- report the pattern and decide whether a new or changed rule would prevent it |
+| Write any code | `ai/rules/architecture.md`, relevant `ai/patterns/`, `ai/rules/repo-maintenance.md` (which checks will fire) |
+| Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/evidence.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |
 | Add terminal colors or TUI styling | `docs/architecture/cli/color-system.md` -- 7 semantic roles, consistent palette across all surfaces |
-| Touch wire encoding, allocate memory, or build strings | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`, `ai/rules/no-sprintf-alloc.md` -- load-bearing divergence from standard Go |
-| Add a YANG leaf, env var, or config option | `ai/rules/config-surface.md` (YANG vs env var decision), `ai/rules/config-naming.md` (naming), `ai/patterns/config-option.md` (structural template) |
-| Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
-| Create a new package (pick internal/core vs component vs plugins) | `ai/rules/module-tiers.md` -- tier = dependency direction; a misplaced config-driven engine fails `make ze-tier-check` |
-| Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
-| Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
-| Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source; never weaken the test |
-| Hit a blocker, a red test, a hang, or ANY defect (yours or not) | `ai/rules/no-parking.md` -- FIX THE ROOT CAUSE, ALWAYS. Recording it (`plan/known-failures/`, a spec, a report) is not addressing it. Never park it, move it to `tmp/`, or offer to drop the deliverable. "Pre-existing" says when it started, not whose it is. Reducing coverage to reach green is banned. Only a failure you tried and could not reproduce may be recorded instead of fixed |
+| Touch wire encoding, allocate memory, or build strings | `ai/rules/performance.md`, `ai/rules/performance.md`, `ai/rules/performance.md` -- load-bearing divergence from standard Go |
+| Add a YANG leaf, env var, or config option | `ai/rules/config.md` (YANG vs env var decision), `ai/rules/config.md` (naming), `ai/patterns/config-option.md` (structural template) |
+| Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugins.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
+| Create a new package (pick internal/core vs component vs plugins) | `ai/rules/architecture.md` -- tier = dependency direction; a misplaced config-driven engine fails `make ze-tier-check` |
+| Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/repo-maintenance.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
+| Write tests | `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/interop-and-goal-validation.md` |
+| Fix a failing test, gate, demo, or user-visible problem | `ai/rules/completion.md` -- implement missing behavior at the source; never weaken the test |
+| Hit a blocker, a red test, a hang, or ANY defect (yours or not) | `ai/rules/completion.md` -- FIX THE ROOT CAUSE, ALWAYS. Recording it (`plan/known-failures/`, a spec, a report) is not addressing it. Never park it, move it to `tmp/`, or offer to drop the deliverable. "Pre-existing" says when it started, not whose it is. Reducing coverage to reach green is banned. Only a failure you tried and could not reproduce may be recorded instead of fixed |
 | Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- conformance is not negotiable. When full compliance AND full testing of it is reachable, that IS the answer: IMPLEMENT it and prove it with a tagged test, and do NOT ask Thomas to choose between it and something narrower. Ask only when you are about to do LESS (`{gap}`, `{not-applicable}`, "partial", untested MUST, deferral), and then ask which way to fix it, never whether to skip it. Every earlier answer pointing away from full compliance is VOID (2026-07-27) and must be re-raised, not cited |
-| Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
+| Write linux-only code | `ai/rules/platform-linux.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
-| Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/language-and-spelling.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
-| Claim work is done | `ai/rules/no-partial-completion.md`, `ai/rules/wiring-completeness.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
-| Review code, or close a spec | `ai/rules/critical-review.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Spawn reviewer subagents, loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
-| Finish Go edits | `ai/rules/lint-gate.md` -- run `make ze-lint-changed` before claiming done |
+| Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
+| Claim work is done | `ai/rules/completion.md`, `ai/rules/completion.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
+| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Spawn reviewer subagents, loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
+| Finish Go edits | `ai/rules/commands.md` -- run `make ze-lint-changed` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
-| Run any test/build/lint command | `ai/rules/bash-output.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after |
+| Run any test/build/lint command | `ai/rules/commands.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
-| Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
+| Complete work autonomously | `ai/rules/completion.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
 | Decide whether to stop, ask, delegate, or continue when two rules disagree | `ai/rules/rule-precedence.md` -- one ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy. Stopping at a phase boundary is not asking permission; a forced question is always "which way", never "may I skip it" |
-| Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/ze-divergences.md` |
+| Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/architecture.md` |
 | Check past decisions or known traps | `ai/LEARNED-INDEX.md` -> `plan/learned/`, `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md` |
 
 ## Every Rule's Trigger (loaded below)
@@ -317,10 +317,7 @@ followed.
 apply before the shape of a task is known, so they sit behind no trigger. The
 index marks them `always-on`, and such a rule needs no read.
 
-`ai/rules/CONDENSED.md` still holds every rule's directives in one file, and it
-is NOT loaded. Open it when several triggers match at once.
-
-All three come from one parse by `make ze-rules-condensed`, in the canonical
+Both come from one parse by `make ze-rules-condensed`, in the canonical
 rule format (`ai/rules/rule-format.md`). The "Before You..." dispatch above
 still applies, and so does `ai/rules/INDEX.md`.
 

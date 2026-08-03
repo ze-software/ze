@@ -44,7 +44,7 @@ live, tested, and discoverable without weakening any existing gate.
 ## Consequences
 
 - `make ze-hook-test` runs both `hook-parity-check.py` (golden exit codes) and
-  `hook-fixture-check.py` (behavioural fixtures); listed in `hook-mapping.md`.
+  `hook-fixture-check.py` (behavioural fixtures); listed in `repo-maintenance.md`.
 - The deferral and spec-audit gates are now LIVE on every commit-script
   creation: an open unassigned deferral, a prose deferral without a
   `plan/deferrals.md` entry, or a closure commit with an unfilled `Pre-Commit
@@ -83,4 +83,4 @@ live, tested, and discoverable without weakening any existing gate.
 - `scripts/dev/hook-parity-check.py` -- portable fixture dir
 - `scripts/dev/hook-fixture-check.py` -- NEW behavioural fixtures
 - `Makefile` -- `ze-hook-test` target
-- `ai/rules/hook-mapping.md` -- corrected stale rows
+- `ai/rules/repo-maintenance.md` -- corrected stale rows

@@ -51,7 +51,7 @@ const (
 // SPAction is what a Security Policy DOES with the traffic its selector matches.
 //
 // The zero value is SPActionProtect on purpose, and that choice is the fail-closed
-// one (ai/rules/fail-closed-guards.md). This enumeration is the exception to the
+// one (ai/rules/evidence.md). This enumeration is the exception to the
 // 1-based convention Mode and SADir follow above, and the reason is the direction
 // each mistake fails in. An unset Mode made the kernel protect traffic in the WRONG
 // mode, silently, so zero had to be invalid there. An unset Action gives the
@@ -261,7 +261,7 @@ type SAParams struct {
 	// a backend serves the second form beside the kernel rather than through it.
 	//
 	// A backend that cannot receive both forms MUST reject the install rather than
-	// report success (ai/rules/exact-or-reject.md). An SA installed for one form only
+	// report success (ai/rules/protocol.md). An SA installed for one form only
 	// silently drops the other, which is the quietest failure this subsystem has: the
 	// tunnel establishes and carries no traffic.
 	AcceptBothESPForms bool
@@ -305,7 +305,7 @@ type SPParams struct {
 	// Action is what the policy does with matching traffic. The zero value protects
 	// it (see SPAction). SPActionBypass installs a template-free policy, and a
 	// backend that cannot express one MUST reject the install rather than fall back
-	// to protecting (ai/rules/exact-or-reject.md): a bypass silently downgraded to a
+	// to protecting (ai/rules/protocol.md): a bypass silently downgraded to a
 	// protect policy black-holes the traffic it was meant to let through.
 	Action SPAction
 
@@ -330,7 +330,7 @@ type SPParams struct {
 	// So the second install is REFUSED instead, which is what the kernel did through
 	// EEXIST before the upsert landed. Ownership is what separates the refusal from
 	// the rekey: a rekey re-installs an IDENTICAL selector under the SAME owner and
-	// must still upsert (ai/rules/exact-or-reject.md).
+	// must still upsert (ai/rules/protocol.md).
 	//
 	// An empty Owner is the historical, unowned policy. It collides only with another
 	// empty one, so a caller that never sets it installs exactly what it installed

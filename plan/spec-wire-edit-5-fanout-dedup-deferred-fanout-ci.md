@@ -9,7 +9,7 @@
 | Updated | 2026-08-02 |
 
 Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
-(`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
+(`ai/rules/planning.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task

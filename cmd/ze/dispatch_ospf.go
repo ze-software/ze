@@ -1,4 +1,4 @@
-// Design: ai/rules/feature-gate-registration.md -- ze_ospf dispatch-root CLI gating
+// Design: ai/rules/plugins.md -- ze_ospf dispatch-root CLI gating
 //
 // OSPF CLI + transport registration for the ze dispatch composition root, gated
 // on ze_ospf. This is the SECOND composition root (the first is the generated

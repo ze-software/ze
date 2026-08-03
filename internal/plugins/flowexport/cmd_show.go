@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — show flow export handler.
 // Owned by the flow-export component so that removing it removes the
 // `show flow export` command, its schema, and this handler together. See
-// ai/rules/plugin-self-containment.md.
+// ai/rules/plugins.md.
 
 package flowexport
 

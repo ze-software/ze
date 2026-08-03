@@ -34,7 +34,7 @@ instead of being left as an unexplained annotation.
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
 - [ ] `docs/architecture/wire/mp-nlri-ordering.md` - the Section 5.1 FIRST-bullet divergence
   → Constraint: MP_UNREACH-first / MP_REACH-last ordering is deliberate and must not change.
-- [ ] `ai/rules/buffer-first.md` - encoding must not allocate per message
+- [ ] `ai/rules/performance.md` - encoding must not allocate per message
   → Constraint: the zero-copy forward path is the thing at risk here.
 
 ### RFC Summaries (MUST for protocol work)
@@ -53,13 +53,13 @@ instead of being left as an unexplained annotation.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/reactor/forward_body.go` - `buildFwdBody` (`:37-107`).
+- [ ] `internal/component/bgp/reactor/forward_body.go` - `buildFwdBody`.
   → Constraint: `:51-65` is the same-context zero-copy path. When the ContextID matches and
     the UPDATE fits, `:64` does `result.rawBodies = append(result.rawBodies, peerWire.Payload())`
     -- a slice-header append, no parse, no copy. The comment at `:48-50` states it is placed
     "before any parse or re-encode" deliberately.
   → Constraint: `:99` appends a re-encoded `destUpdate` whole when it fits. That one IS ze
-    constructing an UPDATE -- `fwdUpdateForDestination` (`:82`) rebuilt its sections for the
+    constructing an UPDATE -- `fwdUpdateForDestination` rebuilt its sections for the
     destination context -- so it is the weaker of the two justifications for leaving it.
   → Constraint: the oversize branches already split (`:55` via `wireu.SplitWireUpdate`,
     `:93` via `fwdSplitParsedUpdate`), and both splitters are now one-field-per-message. Only
@@ -71,8 +71,8 @@ instead of being left as an unexplained annotation.
 - [ ] `internal/component/bgp/message/update_split.go` - `splitUpdateWithMP` likewise emits
   one field per chunk (fixed 2026-07-20 in `574e3c596`).
 - [ ] Origination is already compliant: `UpdateBuilder.BuildUnicast`
-  (`update_build.go:380-383`) sets NLRI without WithdrawnRoutes; withdrawals are
-  withdraw-only (`peer_rib_routes.go:170-199`).
+  (`update_build.go`) sets NLRI without WithdrawnRoutes; withdrawals are
+  withdraw-only (`peer_rib_routes.go`).
 
 **Behavior to preserve:**
 - Receive-side tolerance of any position or combination (Section 5.1 requires it).
@@ -84,7 +84,7 @@ instead of being left as an unexplained annotation.
 **Behavior to change:**
 - A relayed UPDATE that mixes NLRI-bearing fields is split before being sent on.
 
-## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A received UPDATE being forwarded to a peer, via `buildFwdBody`.
@@ -99,10 +99,10 @@ instead of being left as an unexplained annotation.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Receive ↔ forward | `*wireu.WireUpdate` shared across peers in the forward loop | [ ] |
-| Forward ↔ wire | raw payload append (`:64`), or parsed `*message.Update` (`:99`) | [ ] |
+| Forward ↔ wire | raw payload append, or parsed `*message.Update` | [ ] |
 
 ### Integration Points
-- `buildFwdBody` (`reactor/forward_body.go:37`), its two fits branches.
+- `buildFwdBody` (`reactor/forward_body.go`), its two fits branches.
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -117,13 +117,13 @@ instead of being left as an unexplained annotation.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Mixed-field UPDATEs are rare in practice | unmeasured | the cost is charged on every forward rather than rarely | count mixed shapes on a real feed before implementing | unvalidated |
-| A-2 | The mix/no-mix decision can be made once per RECEIVED UPDATE, not once per peer | the same `*wireu.WireUpdate` pointer is shared across the forward loop and is part of the `bodySlots` cache key (`forward_rs.go:420-431`) | the cost multiplies by peer count | read the loop and the cache key | unvalidated |
+| A-2 | The mix/no-mix decision can be made once per RECEIVED UPDATE, not once per peer | the same `*wireu.WireUpdate` pointer is shared across the forward loop and is part of the `bodySlots` cache key (`forward_rs.go`) | the cost multiplies by peer count | read the loop and the cache key | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Splitting relayed UPDATEs costs the zero-copy same-context forward | throughput regression on a route-reflector benchmark | scan once at receive and mark the WireUpdate, so only mixed ones lose zero-copy |
-| R-2 | Message counts change, moving the supersede/dedup identity | `fwdSupersedeKey` hit-rate change (`forward_pool.go:926-938`) | correctness holds either way; measure the hit rate |
+| R-2 | Message counts change, moving the supersede/dedup identity | `fwdSupersedeKey` hit-rate change (`forward_pool.go`) | correctness holds either way; measure the hit rate |
 | R-3 | `fwdIsWithdrawal` classification changes for split items | ordering/priority treatment differs | re-check the classifier against the new shapes |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
@@ -206,7 +206,7 @@ instead of being left as an unexplained annotation.
 - `docs/architecture/wire/mp-nlri-ordering.md` - enforcement points
 - `test/interop/interop.py` - injector-sidecar support
 - `docs/architecture/testing/interop.md`, `ai/INDEX.md` - discovery for the sidecar
-- `ai/INSTRUCTIONS.md` + `ai/rules/no-parking.md` (new), `ai/rules/interop-and-goal-validation.md` - ethos rules (owner directive)
+- `ai/INSTRUCTIONS.md` + `ai/rules/completion.md` (new), `ai/rules/interop-and-goal-validation.md` - ethos rules (owner directive)
 
 ### BGP Family Checklist (if new SAFI / capability / attribute)
 N/A — no new family, capability or attribute.
@@ -232,7 +232,7 @@ N/A — no new family, capability or attribute.
 - `internal/component/bgp/wireu/shape_rfc7606_test.go`, `shape_bench_test.go`, `split_eor_test.go`
 - `internal/component/bgp/reactor/forward_body_rfc7606_test.go`, `reactor_api_batch_dedup_test.go`
 - `test/interop/scenarios/47-rfc7606-relay-shape-frr/` (ze.conf, frr.conf, inject.msg, inject-args, check.py)
-- `ai/rules/no-parking.md`
+- `ai/rules/completion.md`
 - `plan/learned/1225-rfc7606-relay-shape.md`
 
 ## Implementation Steps
@@ -294,11 +294,11 @@ N/A — no new family, capability or attribute.
 | An allocation assertion can prove the shape verdict is cached | neither side allocates, so `AllocsPerRun == 0` held with the cache deleted | mutation testing: the cache-removal mutant survived | a test that claimed to pin the cache proved nothing. Second occurrence of this shape in two specs (1224's `Enabled()` guard test) |
 | A fixture carrying all four fields exercises the two-field threshold | `> 1` becoming `> 2` still splits a four-field UPDATE | the threshold mutant survived inside the wireu package | the boundary was pinned only by a test in another package |
 | The frequency of mixed UPDATEs decides whether this is worth doing (A-1) | it only decides that if the check is charged per relay; caching makes the question moot | writing the benchmark to settle A-1 | the spec's first implementation phase was unnecessary |
-| Declaring the peers' End-of-RIB in the `.ci` makes the ordering deterministic | it opts INTO the race: an unmatched EOR is silently accepted, but a declared one competes with the real message for the same rule | two flaky failures on an unchanged tree | cost two debugging rounds before reading `checker.go:400-418` |
+| Declaring the peers' End-of-RIB in the `.ci` makes the ordering deterministic | it opts INTO the race: an unmatched EOR is silently accepted, but a declared one competes with the real message for the same rule | two flaky failures on an unchanged tree | cost two debugging rounds before reading `checker.go` |
 | A green plugin `.ci` suite means a peer would accept the output | `ze-peer` asserts only the bytes it was told to expect; FRR applies RFC 7606 and discarded every relayed UPDATE over a duplicate NEXT_HOP | building the interop scenario | a real duplicate-NEXT_HOP defect had been invisible to the whole `.ci` suite -- now fixed |
 | A passing interop scenario proves the fix works | the first scenario PASSED with all three fixes reverted -- FRR accepts an unsplit mix by RFC, and the live-forward path never duplicates NEXT_HOP, so nothing under test was exercised | reverting all fixes and re-running, at the owner's prompting that ze "is not ALWAYS a route server" | a vacuous interop test was about to ship as evidence. Redesigned to route the asserted prefix through the REPLAY path, where the duplicate-NEXT_HOP defect is a real FRR rejection; now RED when the fix is reverted. Rule added: `interop-and-goal-validation.md` "Prove the test discriminates" |
 | Ze IS a route server (implied by the scenario's framing) | Ze is a general BGP speaker; route-server is one CONFIGURED mode, and `no bgp enforce-first-as` on FRR is correct RS-client config (RFC 7947), not a workaround | owner correction | scenario comments and `ze.conf`/`frr.conf` reworded to say "configured as a route server" |
-| Parking the interop scenario in `tmp/` with an offer to drop it was an acceptable way to handle a pre-existing blocker | it was not: the owner's standard is that a non-interoperating daemon is worthless, and "pre-existing" is not out of scope once your work depends on the path | owner rejection, twice | the blocker was fixed at source and the scenario delivered; rules added (`no-parking.md`) so this cannot recur |
+| Parking the interop scenario in `tmp/` with an offer to drop it was an acceptable way to handle a pre-existing blocker | it was not: the owner's standard is that a non-interoperating daemon is worthless, and "pre-existing" is not out of scope once your work depends on the path | owner rejection, twice | the blocker was fixed at source and the scenario delivered; rules added (`completion.md`) so this cannot recur |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -352,14 +352,14 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
 - **Duplicate NEXT_HOP on the route-server replay/re-advertise path (FIXED).** Surfaced by the
   interop scenario: FRR installed ZERO of ze's relayed routes and logged `BGP attribute type 3
   appears twice in a message - discard attribute` (RFC 7606 Section 3(g)). Root cause:
-  `buildWireModeUpdate` (reactor_api_batch.go:405) inserted a NEXT_HOP unconditionally while
+  `buildWireModeUpdate` (reactor_api_batch.go) inserted a NEXT_HOP unconditionally while
   `writeMandatoryAttrs` had already copied the full stored attribute block -- NEXT_HOP included.
   The route server's replay-on-peer-up re-encodes stored routes through this path (`update hex
-  attr set <attrs> nhop set <nh> ...`, adj_rib_in/rib.go:775), so every replayed IPv4 route
+  attr set <attrs> nhop set <nh> ...`, adj_rib_in/rib.go), so every replayed IPv4 route
   carried NEXT_HOP twice; same defect for MP families (a second MP_REACH_NLRI). Fix:
   `stripAttribute` removes any pre-existing NEXT_HOP / MP_REACH before the builder writes the
   authoritative one; an unset next-hop errors out before the builder (`peer.resolveNextHop` ->
-  `ErrNextHopUnset`, nexthop.go:11), so replacing never loses a next-hop. Three unit tests plus
+  `ErrNextHopUnset`, nexthop.go), so replacing never loses a next-hop. Three unit tests plus
   the interop scenario, which fails when the fix is reverted.
 - **Splitting could MANUFACTURE an End-of-RIB (FIXED).** Independent review: an UPDATE mixing
   IPv4 withdrawn routes with an empty MP_UNREACH (AFI/SAFI only) split into a standalone
@@ -376,7 +376,7 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
 - `docs/features/rfc-status.md`: RFC 7606 row from three gaps to two.
 - `rfc/short/rfc7606.md`: the RFC7606-5.1-2 `{gap}` annotation removed.
 - `rfc/audit/rfc7606.json`: verdict re-judged to `implemented` with the nine tests bound.
-- `ai/rules/no-parking.md` (new) + `ai/INSTRUCTIONS.md`: owner directive after this session --
+- `ai/rules/completion.md` (new) + `ai/INSTRUCTIONS.md`: owner directive after this session --
   never park a blocker, never reduce coverage to reach green.
 - `ai/rules/interop-and-goal-validation.md`: a new "Prove the test discriminates" section, from
   the vacuity mistake below.
@@ -392,7 +392,7 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
   An earlier draft of this spec parked the scenario in `tmp/` because a pre-existing duplicate
   -NEXT_HOP defect blocked it, and offered to drop the deliverable. The owner rejected that
   ("a BGP daemon that cannot interoperate is NOTHING") and the rules were changed
-  (`ai/rules/no-parking.md`). The blocking defect was then fixed at its source (above), and the
+  (`ai/rules/completion.md`). The blocking defect was then fixed at its source (above), and the
   scenario is now `test/interop/scenarios/47-rfc7606-relay-shape-frr`, passing and discriminating.
 - **Scope grew by one fix and one harness feature, both endorsed by the no-park directive:**
   the NEXT_HOP de-duplication (reactor_api_batch.go) and an injector-sidecar addition to
@@ -408,8 +408,8 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| A relayed UPDATE carries at most one NLRI-bearing field | done | `reactor/forward_body.go:60,:101` | both fits branches |
-| Reuse the existing splitters, no third one | done | `wireu/split.go:40`, `message/update_split.go` | `SplitCompliant` shares `splitByShape` with `Split` |
+| A relayed UPDATE carries at most one NLRI-bearing field | done | `reactor/forward_body.go,:101` | both fits branches |
+| Reuse the existing splitters, no third one | done | `wireu/split.go`, `message/update_split.go` | `SplitCompliant` shares `splitByShape` with `Split` |
 | Receive-side tolerance unchanged | done | nothing on the receive path was touched | the reactor suite passes |
 | Zero-copy preserved for compliant UPDATEs | done | `TestForwardCompliantShapeKeepsZeroCopy` | asserts backing-array identity |
 
@@ -484,7 +484,7 @@ One subagent over the whole diff. Findings and outcomes:
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 | 1 | ISSUE | splitting a mixed UPDATE whose MP_UNREACH is AFI/SAFI-only manufactured an RFC 4724 End-of-RIB | `wireu/split.go` | fixed: `mpUnreachHasNLRI` guard; two tests in `split_eor_test.go`, the manufacture test RED without the guard |
-| 2 | MINOR | stale comment (`split.go:219-221`) whose premise the fast-path change falsified | same | fixed as part of the guard comment |
+| 2 | MINOR | stale comment (`split.go`) whose premise the fast-path change falsified | same | fixed as part of the guard comment |
 | 3 | NOTE | duplicate MP attributes counted but the parsed splitter cannot honour a second one | `message/rfc7606_shape.go` | accepted: unreachable from the receive path (session-reset on `mpReachCount > 1`); the wire path handles it |
 | 4 | NOTE | AC-4 "no parse" is destination 2..N only; the benchmark measures the warm side | `wire_update.go` | accepted; corrected the claim to "one bool read for destinations 2..N" understanding |
 
@@ -492,7 +492,7 @@ One subagent over the whole diff. Findings and outcomes:
 One subagent over the NEXT_HOP-dedup and EoR fixes. No BLOCKER, no ISSUE.
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | MINOR | the strip-safety comment cited only `ErrNextHopUnset`; the real invariant also depends on callers, because `resolveNextHop` (peer.go:665) deliberately passes an invalid explicit next-hop through without erroring (a fail-open guard, pinned by `TestResolveNextHop_ExplicitInvalid`) | `reactor_api_batch.go:414` | fixed: added a local `nextHop.IsValid()` fail-closed guard at the strip (leaves the block untouched for an invalid next-hop rather than dropping the stored NEXT_HOP), a discriminating test (`...InvalidNextHopKeepsBlock`, mutant-killed with a MED-after-NEXT_HOP fixture), and an accurate comment. `resolveNextHop`'s deliberate behavior left unchanged |
+| 1 | MINOR | the strip-safety comment cited only `ErrNextHopUnset`; the real invariant also depends on callers, because `resolveNextHop` (peer.go) deliberately passes an invalid explicit next-hop through without erroring (a fail-open guard, pinned by `TestResolveNextHop_ExplicitInvalid`) | `reactor_api_batch.go` | fixed: added a local `nextHop.IsValid()` fail-closed guard at the strip (leaves the block untouched for an invalid next-hop rather than dropping the stored NEXT_HOP), a discriminating test (`...InvalidNextHopKeepsBlock`, mutant-killed with a MED-after-NEXT_HOP fixture), and an accurate comment. `resolveNextHop`'s deliberate behavior left unchanged |
 | 2 | NOTE | MP_REACH re-origination cannot preserve an RFC 2545 link-local next-hop | same | pre-existing, not introduced here; out of scope |
 | 3 | NOTE | 4K build buffer vs 64K ExtendedMessage ceiling | same | pre-existing; the strip only lowers occupancy |
 
@@ -533,8 +533,8 @@ One subagent over the NEXT_HOP-dedup and EoR fixes. No BLOCKER, no ISSUE.
 | A-1 | **dissolved, not confirmed** | the assumption only mattered if the check were charged per relay. Caching removes that: 3.3ns per destination against 51.7ns recomputed, allocation-free either way. No feed measurement was taken, and none would change a decision here |
 | A-2 | confirmed | the forward loop passes the same `*wireu.WireUpdate` to `buildFwdBody` per destination, and the verdict is cached behind `shapeOnce` on that value; `TestWireUpdateMixesNLRIFieldsCachedPerMessage` fails when the cache is removed |
 | R-1 | mitigated as planned | the single-field common case keeps the zero-copy append, asserted by pointer identity in two packages |
-| R-2 | accepted, no change needed | `fwdSupersedeKey` (`forward_pool.go:926-938`) is a content hash over all bodies; splitting changes the key but not its meaning, and the oversize path already produced multiple bodies |
-| R-3 | resolved, no change needed | `fwdIsWithdrawal` (`forward_pool.go:966-1000`) scans every body and returns false if ANY carries an announcement. A mixed UPDATE classified as an announcement before, and its split halves still do |
+| R-2 | accepted, no change needed | `fwdSupersedeKey` (`forward_pool.go`) is a content hash over all bodies; splitting changes the key but not its meaning, and the oversize path already produced multiple bodies |
+| R-3 | resolved, no change needed | `fwdIsWithdrawal` (`forward_pool.go`) scans every body and returns false if ANY carries an announcement. A mixed UPDATE classified as an announcement before, and its split halves still do |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |

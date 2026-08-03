@@ -195,7 +195,7 @@ const rpcRoot = "internal/component"
 
 // featureGatesManifest is the single source of truth for compile-out-able
 // features (repo-relative). Every consumer (this generator, dep_audit.py, the
-// Makefile, the test runner) derives from it; see ai/rules/feature-gate-registration.md.
+// Makefile, the test runner) derives from it; see ai/rules/plugins.md.
 const featureGatesManifest = "feature-gates.txt"
 
 // featureTags maps a discovered import (by repo-relative suffix) to the
