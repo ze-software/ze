@@ -1,6 +1,6 @@
 # 1173 — Relocate scratch + durable cache out of the repo (symlinks)
 
-**Spec:** plan/spec-relocate-scratch-and-cache.md (supersedes spec-fixit-qemu-artifact-cache)
+**Spec:** spec-relocate-scratch-and-cache (closed 2026-08-03) (supersedes spec-fixit-qemu-artifact-cache)
 
 ## Context
 
@@ -56,4 +56,15 @@ Unifying `vendor/` + `gokrazy/modcache/` onto one committed GOMODCACHE is its ow
 
 ## Files
 
-None recorded.
+Recorded at closure, 2026-08-03. The spec that named these is removed, so this is
+the only place they are listed together.
+
+- `Makefile` -- `GOCACHE := $(CURDIR)/cache/go-cache`, and the `ze-migrate-scratch`
+  target that converts a real `tmp/` or `cache/` into the symlink
+- `scripts/dev/ensure-links.py` -- creates the links, and SKIPs rather than
+  clobbers an existing real directory
+- `scripts/evidence/alpine_iso.py` -- the substituted-image guard (AC-5, R-5)
+- `internal/appliance/cache.go` -- `evictKeepN`, the retention policy
+- `internal/appliance/cmd_kernel.go` -- `--print-cache-dir`
+- `plan/learned/1176-cache-tree-atomic-stage-rename.md` -- completes the deferred
+  R-1 / AC-8 of this work

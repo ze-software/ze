@@ -8,7 +8,7 @@ to leave the other downloading the superseded ISO):
 The ISO lives in the durable cache (~/.cache/ze/alpine-iso), OUTSIDE tmp/, so it survives
 `rm -rf tmp` and is shared across worktrees (AC-2). It is verified against Alpine's published
 .sha256 on download and re-verified against a stored sidecar on cache hit, so a truncated or
-substituted image is never served (AC-5/R-5). Spec: plan/spec-relocate-scratch-and-cache.md.
+substituted image is never served (AC-5/R-5). Spec: plan/learned/1173-relocate-scratch-and-cache.md.
 """
 
 from __future__ import annotations

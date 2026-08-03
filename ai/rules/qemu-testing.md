@@ -209,7 +209,7 @@ The pattern (do all four in the same change):
    `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains
    the repo `cache` symlink (and, after the opt-in `make ze-migrate-scratch`, the `tmp`
    symlink) so the expensive artifacts live outside the disposable scratch tree. See
-   `plan/spec-relocate-scratch-and-cache.md`.
+   `plan/learned/1173-relocate-scratch-and-cache.md`.
 4. **`ze-qemu-<feature>-test` target** in `mk/test-integration.mk` calling
    `qemu-run.py --kernel ... --packages ... --run 'python3 scripts/evidence/effective-<feature>.py'`,
    added to `.PHONY` and the `Makefile` help block.

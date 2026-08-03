@@ -1,6 +1,6 @@
 # 1176 — Durable-cache directory-tree writes must be atomic (stage + rename)
 
-**Spec:** plan/spec-relocate-scratch-and-cache.md (completes deferred R-1/AC-8)
+**Spec:** plan/learned/1173-relocate-scratch-and-cache.md (completes deferred R-1/AC-8)
 
 ## Context
 
