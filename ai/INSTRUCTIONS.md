@@ -268,7 +268,7 @@ means "no rule applies".
 | Start a session | `.claude/rules/session-start.md` |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/architecture.md` -- grep ze before proposing, never default to trained instincts |
-| Start a planning, implementation, or review phase | `ai/rules/planning.md` -- planning and review run on Opus 5, implementation runs on Opus 4.8; announce the boundary and stop rather than crossing it on the wrong model |
+| Start a planning, implementation, or review phase | `ai/rules/planning.md` -- review runs on Opus 5 and is INDEPENDENT of the author; implementation carries no model requirement |
 | Work on ANY spec (research, design, implement, review, close) | `ai/rules/planning.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
 | Make a behavioral claim about code, or recommend work based on one | `ai/rules/evidence.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |
 | Write a report, a rule, a doc, a commit body, or a learned summary | `ai/rules/writing.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |

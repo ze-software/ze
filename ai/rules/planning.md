@@ -62,39 +62,44 @@ Rationale: `ai/rationale/planning.md`
 - **`.claude/hooks/subagent-context.sh` hands every agent the parent's claimed spec, its Status, and the subagent contract**, so the per-spawn briefing this rule requires is not manual work. A rule that costs more to follow than to break loses; that is what this hook removes.
 - **`.claude/hooks/block-premature-stop.sh` IS registered on `Stop`, and it fires.** Thomas re-registered it on 2026-07-31, after it sat on no event from 2026-06-29 (`41e5fa44f`). It warns with exit 1 when this session CLAIMED a spec and never spawned an agent. It reads the marker `mark-agent-spawned.sh` writes, and it heartbeats that marker first. A session older than 24h that DID delegate is therefore never nudged falsely. The nudge never blocks. It is scoped: it sits behind the claim marker `tmp/session/.session-<SID>`. A session that claimed no spec gets no nudge, whatever it ran inline (fixture `delegation-no-spec-no-nudge`).
 - **The nudge survives past turn one.** Position in the `Stop` array is necessary and not sufficient: the claim marker must outlive the turn it was made. `session-end-summary.sh` released it on every `Stop`, so the nudge fired once per claim and then went silent. The release moved to `SessionEnd`. Six fixtures pin registration, order, and both ends of the lifetime: `python3 scripts/dev/hook-fixture-check.py --only delegation` (35 in the section).
-- **Nothing checks the MODEL.** The phase-to-model boundary below has no gate at all, so it remains yours to announce and stop at.
+## Work Phases
 
-## Model Selection by Work Phase
+Ze work has three phases: planning and design, implementation, and review and
+audit. They are distinguished by what the work IS, never by convenience.
 
-Each phase of Ze work runs on a specific model. The model is chosen by phase,
-never by convenience, and never by "the session I happen to be in".
+| Phase | Covers |
+|-------|--------|
+| Planning and design | research, `/ze-spec`, `/ze-design`, spec writing and revision, architecture decisions, RFC reading, handoff authoring |
+| Implementation | `/ze-implement`, writing code and tests, fixing failures, refactors, doc edits that follow from the code |
+| Review and audit | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, `/ze-close` (Review Gate, spec closure, implementation audit) |
 
-| Phase | Model | Covers |
-|-------|-------|--------|
-| Planning and design | Opus 5 | research, `/ze-spec`, `/ze-design`, spec writing and revision, architecture decisions, RFC reading, handoff authoring |
-| Implementation | Opus 4.8 | `/ze-implement`, writing code and tests, fixing failures, refactors, doc edits that follow from the code |
-| Review and audit | Opus 5 | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, `/ze-close` (Review Gate, spec closure, implementation audit) |
+**Implementation requires no particular model (owner directive, 2026-08-03).**
+The rule used to put implementation on Opus 4.8 and `c_model_phase` in
+`.claude/hooks/pretool-writeedit.py` enforced it. Both are removed: the gate
+cost a session handoff to edit one mechanical script, and it gated nothing the
+review-independence rule below does not gate better.
 
-Planning and review are the judgment-heavy phases and both run Opus 5.
-Implementation is the execution phase and runs Opus 4.8.
+**Review still runs on Opus 5, and that half is unchanged.** `review_gate.py record`
+refuses to record a review performed off it, and `.claude/hooks/pretool-agent-skill.py`
+refuses to spawn one. Those remain, because a review's worth depends on the
+judgment behind it in a way that writing a test does not.
 
-### Phase Boundaries Are Model Boundaries
+### The boundary that matters most is INDEPENDENCE, not model
 
-A session cannot change its own model. The operator selects it (`/model`, or
-when launching the session), so the session's only job is to make the boundary
-visible and refuse to blur it.
+**Review is independent of the author.** That was always the real guarantee, and
+the model split never delivered it: a different model is not a different
+context. A fresh session or reviewer subagents are required, and the session
+that wrote the code does not sit in judgment on it.
 
 | Situation | Do |
 |-----------|-----|
-| The spec is approved and coding is about to start | State that the implementation phase wants Opus 4.8, then stop and let the operator switch or start an implementation session |
-| Implementation is complete and the Review Gate is next | State that review wants Opus 5, then stop. Never review your own implementation on the implementation model |
-| A review or audit produces fixes | The fixes are implementation. They belong on Opus 4.8, and the re-review that follows belongs back on Opus 5 |
-| You are already mid-phase on the wrong model | Say so plainly, name the model the phase wants, and let the operator decide. Do not silently continue |
-| The work is a one-line mechanical edit with no design or review content | Proceed on whatever model is loaded. This rule governs phases, not keystrokes |
+| The spec is approved and coding is about to start | Start. No model switch is needed, and no announcement is owed |
+| Implementation is complete and the Review Gate is next | Spawn reviewer subagents, or hand off to a fresh session. Never review your own implementation inline |
+| A review or audit produces fixes | The fixes are implementation, so make them. The re-review that follows is a fresh pass, not the same context re-reading itself |
+| You are mid-phase and the work has changed shape | Say so plainly and let the operator decide. Do not silently continue as if nothing moved |
+| The work is a one-line mechanical edit with no design or review content | Proceed. This rule governs phases, not keystrokes |
 
-This never overrides "Critical Review Is the Central Deliverable" below: review
-is INDEPENDENT of the author. A different model is not a different context. A
-fresh session or reviewer subagents are still required.
+This never overrides "Critical Review Is the Central Deliverable" below.
 
 ### Subagents
 

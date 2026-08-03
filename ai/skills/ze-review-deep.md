@@ -36,8 +36,8 @@ When the argument contains agent names (e.g., "security", "logic", "concurrency"
 ## Model Selection
 
 Review is a review-phase workload, so it runs on the review model throughout
-(`ai/rules/planning.md`: planning and review on Opus 5, implementation on
-Opus 4.8). The orchestrator (this skill) runs at the session's model.
+(`ai/rules/planning.md`: review on Opus 5). The orchestrator (this skill) runs
+at the session's model.
 
 | Model | Agents | Why |
 |-------|--------|-----|

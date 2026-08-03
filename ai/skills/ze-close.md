@@ -40,10 +40,10 @@ in-progress specs, while sections authors added when they needed them were
 untouched in 0%. `plan/TEMPLATE-CLOSURE.md` was split out of `plan/TEMPLATE.md`
 for exactly this reason; this skill is the same fix applied to the instructions.
 
-**Model.** `ai/rules/planning.md` puts implementation on Opus 4.8 and
-"the Review Gate, spec closure, implementation audit" on Opus 5. A single skill
-spanning both forced a phase boundary to be crossed silently mid-file. Announce
-the boundary and let the operator switch before starting this skill.
+**Model.** `ai/rules/planning.md` puts "the Review Gate, spec closure,
+implementation audit" on Opus 5; implementation itself carries no model
+requirement since 2026-08-03. What still holds is independence: this skill
+judges work, so it must not be the context that produced it.
 
 ## Precondition
 

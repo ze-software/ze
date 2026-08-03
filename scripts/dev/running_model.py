@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """Which model is driving this session.
 
-`ai/rules/planning.md` puts planning and review on Opus 5 and
-implementation on Opus 4.8. Nothing could check that, because no tool is told
-which model it is running under. One thing does know: the session transcript,
-which records `message.model` on every assistant turn.
+`ai/rules/planning.md` puts review on Opus 5. Nothing could check that, because
+no tool is told which model it is running under. One thing does know: the
+session transcript, which records `message.model` on every assistant turn.
 
-This is the ONE reader of that fact. Two gates use it, and a second copy would
-drift from the first:
+Implementation carried a model requirement until 2026-08-03 and no longer does,
+so the edit-time gate that used this reader is gone. Two callers remain, and a
+second copy of the fact would drift from the first:
 
-  * `c_model_phase` in `.claude/hooks/pretool-writeedit.py` -- refuses an
-    implementation edit on a planning/review model.
   * `scripts/dev/review_gate.py record` -- refuses to record a review that was
     not performed on the review model.
+  * `review_model_refusal` in `.claude/hooks/pretool-agent-skill.py` -- refuses
+    to spawn one.
 
 It answers "" when it cannot tell, and every caller must then stand down and say
 so. A gate that guesses a model would be worse than one that admits it cannot

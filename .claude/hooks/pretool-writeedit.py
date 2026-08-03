@@ -139,89 +139,6 @@ def session_id():
     return _ze_session_id.session_id()
 
 
-# --------------------------------------------------------------------------- #
-# Phase-to-model boundary (ai/rules/planning.md).
-#
-# Planning and review run on Opus 5. Implementation runs on Opus 4.8. Until this
-# check existed the rule said so and nothing enforced it: "No hook or gate checks
-# the running model. Nothing will catch this for you." A session therefore wrote
-# a rule, edited 34 files and rewrote three tests on the review model without
-# ever announcing the boundary (2026-07-31).
-#
-# The PreToolUse payload carries no model, but it carries transcript_path, and
-# the transcript records message.model per assistant turn. That is the only
-# available source, so this reads the tail of it.
-#
-# BLOCKS the first implementation edit of a session that is on a planning/review
-# model. The escape is a deliberate act, the same contract the spec-closure gate
-# uses: write tmp/session/.model-ack-<sid> with the reason. Write it ONLY when
-# the operator has decided to proceed on this model.
-_IMPL_SUFFIXES = (".go", ".ci", ".et", ".yang", ".mk", ".tmpl", ".rego", ".py", ".sh")
-
-
-def _transcript_model(path):
-    """Delegate to the ONE shared reader (scripts/dev/running_model.py).
-
-    A second copy of "which model is running" drifts from the first, and the two
-    gates that ask must agree. The payload's transcript_path is passed straight
-    through, because it is more reliable than the reader's own fallback.
-    """
-    try:
-        sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts", "dev"))
-        import running_model as rm
-
-        model = rm.running_model(path)
-    except Exception:
-        return ""
-    if not model:
-        sys.stderr.write(
-            "note: model-phase gate could not read a model from the transcript; "
-            "the phase boundary is UNCHECKED (ai/rules/planning.md)\n"
-        )
-    return model
-
-
-def _is_review_tier(model):
-    """Tier test from the shared reader, so the literal lives in ONE place."""
-    try:
-        sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts", "dev"))
-        import running_model as rm
-
-        return rm.is_review_tier(model)
-    except Exception:
-        return False  # cannot tell the tier: do not block
-
-
-def c_model_phase(ctx):
-    fp = ctx.get("fp") or ""
-    if not fp.endswith(_IMPL_SUFFIXES):
-        return None
-    # The harness passes ABSOLUTE paths, so a startswith("tmp/") test never
-    # matched and every scratch write blocked. /ze-close is a review-phase
-    # skill that MUST write tmp/commit-<session>.sh, so this exclusion is
-    # load-bearing, not a convenience.
-    scratch = os.sep + "tmp" + os.sep
-    if "scratchpad" in fp or scratch in fp or fp.startswith("tmp" + os.sep):
-        return None
-    sid = session_id()
-    if os.path.isfile(os.path.join(PROJECT_DIR, "tmp/session", f".model-ack-{sid}")):
-        return None
-    model = _transcript_model(ctx.get("transcript"))
-    if not model or not _is_review_tier(model):
-        return None
-    return (
-        2,
-        "\u274c Blocked: phase-to-model boundary (ai/rules/planning.md).\n"
-        f"  This session is on {model}, the PLANNING and REVIEW model.\n"
-        f"  Editing {fp} is implementation, and implementation runs on Opus 4.8.\n"
-        "  Announce the boundary and stop, so the operator can switch or start an\n"
-        "  implementation session. Reviewing your own implementation on the model\n"
-        "  that wrote it is the failure this prevents.\n"
-        "  This is the operator's call, not yours. Ask, and record their answer\n"
-        f"  in tmp/session/.model-ack-{sid} only after they give it.",
-    )
-
-
 def state_file(sid):
     marker = os.path.join(PROJECT_DIR, "tmp/session", f".session-{sid}")
     spec = ""
@@ -2190,7 +2107,6 @@ def c_line_number_ref(ctx):
 
 
 CHECKS = (
-    c_model_phase,
     c_line_number_ref,
     c_generated_files,
     c_design_without_lsp,

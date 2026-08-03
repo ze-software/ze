@@ -185,7 +185,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Error handling | `ai/rules/go-standards.md` forbidden section | Any `_` on error return |
 | Error / failure message content | `ai/rules/cli.md` | Any error, log line, or failure output: name the subject + offending value + corrective action; greppable phrase; fail closed |
 | Discoverability | `ai/rules/repo-maintenance.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
-| Which model runs this phase | `ai/rules/planning.md` | Crossing between planning/design, implementation, and review: planning and review run on Opus 5, implementation on Opus 4.8 |
+| Which model runs this phase | `ai/rules/planning.md` | Review runs on Opus 5. Implementation carries no model requirement |
 | Two rules point in different directions | `ai/rules/rule-precedence.md` | The ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy |
 | How much work is already in flight | `scripts/dev/spec-session.sh wip` | In-progress specs, stalest first, against `ZE_SPEC_WIP_CAP` (default 12); `claim` refuses a new `ready` spec over the cap |
 | Who executes this phase (main thread vs subagent) | `ai/rules/planning.md` | Any spec work: the main thread supervises, each phase runs in a subagent through its `ze-*` skill |

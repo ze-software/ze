@@ -2538,7 +2538,7 @@ def run_phase_gates(results: Results) -> None:
             env.pop("CLAUDE_CODE_SESSION_ID", None)
             return env
 
-        env = as_model("claude-opus-4-8")
+        env = as_model("claude-sonnet-5")
         payload = json.dumps(
             {
                 "tool_name": "Agent",
@@ -2575,7 +2575,7 @@ def run_phase_gates(results: Results) -> None:
 
         # Recording the artifact is the moment a review is CLAIMED.
         gate = os.path.join(ROOT, "scripts", "dev", "review_gate.py")
-        env = as_model("claude-opus-4-8")
+        env = as_model("claude-sonnet-5")
         cmd = [
             sys.executable,
             gate,
@@ -2653,7 +2653,7 @@ def run_phase_gates(results: Results) -> None:
 
         # BLOCKER: mentioning a skill is not asking for a review. Fixing review
         # findings is implementation and belongs on the implementation model.
-        env48 = as_model("claude-opus-4-8")
+        env_non_review = as_model("claude-sonnet-5")
         for name, prompt, want in (
             (
                 "review-model-allows-fixing-findings",
@@ -2678,7 +2678,7 @@ def run_phase_gates(results: Results) -> None:
                 ),
                 capture_output=True,
                 text=True,
-                env=env48,
+                env=env_non_review,
             )
             results.check(
                 name, rr.returncode == want, f"rc={rr.returncode} {rr.stderr[:120]}"
@@ -2687,7 +2687,7 @@ def run_phase_gates(results: Results) -> None:
         # Round 2: the routing regex was wrong in BOTH directions. These are the
         # exact prompts it got wrong. A review prompt does not announce itself in
         # a fixed shape, and mentioning a review is not performing one.
-        env48 = as_model("claude-opus-4-8")
+        env_non_review = as_model("claude-sonnet-5")
         for prompt, want, why in (
             ("Please follow /ze-review over the diff", 2, "polite lead-in"),
             ("/ze-review the uncommitted diff", 2, "skill first"),
@@ -2704,7 +2704,7 @@ def run_phase_gates(results: Results) -> None:
                 ),
                 capture_output=True,
                 text=True,
-                env=env48,
+                env=env_non_review,
             )
             results.check(
                 "review-model-verb-%s" % why.replace(" ", "-").replace("'", ""),
@@ -2713,7 +2713,7 @@ def run_phase_gates(results: Results) -> None:
             )
 
         # An EMPTY ack is not a recorded decision.
-        sid_env = dict(env48)
+        sid_env = dict(env_non_review)
         sid_env["CLAUDE_CODE_SESSION_ID"] = "fixture-ack-probe"
         ackp = os.path.join(ROOT, "tmp", "session", ".model-ack-fixture-ack-probe")
         os.makedirs(os.path.dirname(ackp), exist_ok=True)
@@ -2794,102 +2794,6 @@ def run_phase_gates(results: Results) -> None:
             repr(r.stderr),
         )
 
-    # --- phase-to-model boundary (c_model_phase) ---
-    mod = _load_pretool_writeedit()
-    results.check(
-        "model-phase-check-registered",
-        any(getattr(c, "__name__", "") == "c_model_phase" for c in mod.CHECKS),
-        repr([getattr(c, "__name__", "") for c in mod.CHECKS]),
-    )
-
-    with tempfile.TemporaryDirectory() as tmp:
-        transcript = os.path.join(tmp, "t.jsonl")
-        with open(transcript, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps({"message": {"model": "claude-opus-5"}}) + "\n")
-
-        def probe(fp, path=transcript):
-            return mod.c_model_phase({"fp": fp, "transcript": path})
-
-        # THE ACK MUST BE ISOLATED. A live session that recorded its own
-        # operator decision would otherwise mask every blocking assertion below,
-        # and the whole section would pass while the gate did nothing. That is
-        # exactly how this section first ran.
-        sid = mod.session_id()
-        ack = os.path.join(ROOT, "tmp", "session", f".model-ack-{sid}")
-        stashed = os.path.join(tmp, "stashed-ack")
-        if os.path.isfile(ack):
-            shutil.move(ack, stashed)
-
-        # A review-tier model editing implementation is the boundary crossing.
-        verdict = probe("internal/component/bgp/reactor/peer.go")
-        results.check(
-            "model-phase-blocks-go-on-review-model",
-            verdict is not None and verdict[0] == 2,
-            repr(verdict),
-        )
-        results.check(
-            "model-phase-names-the-rule",
-            verdict is not None and "planning.md" in verdict[1],
-            repr(verdict),
-        )
-        # Markdown is planning and review work. Blocking it would break /ze-spec.
-        results.check(
-            "model-phase-ignores-markdown",
-            probe("plan/spec-x.md") is None,
-            "a spec edit must never be read as implementation",
-        )
-        # An implementation-tier model must pass.
-        impl = os.path.join(tmp, "impl.jsonl")
-        with open(impl, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps({"message": {"model": "claude-opus-4-8"}}) + "\n")
-        results.check(
-            "model-phase-allows-implementation-model",
-            probe("internal/x.go", impl) is None,
-            "opus 4.8 is the implementation model",
-        )
-        # A subagent's model must never stand the gate down for the session.
-        side = os.path.join(tmp, "side.jsonl")
-        with open(side, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps({"message": {"model": "claude-opus-5"}}) + "\n")
-            fh.write(
-                json.dumps(
-                    {"isSidechain": True, "message": {"model": "claude-sonnet-4-5"}}
-                )
-                + "\n"
-            )
-        results.check(
-            "model-phase-ignores-sidechain-model",
-            (probe("internal/x.go", side) or (0,))[0] == 2,
-            "a subagent line must not disarm the gate",
-        )
-        # /ze-close is a review-phase skill that MUST write tmp/commit-*.sh.
-        results.check(
-            "model-phase-ignores-absolute-tmp-path",
-            probe(os.path.join(ROOT, "tmp", "commit-abc.sh")) is None,
-            "the harness passes absolute paths, so the tmp exclusion must match one",
-        )
-
-        # Unknown model: stand down. A gate that cannot tell must not block.
-        results.check(
-            "model-phase-unknown-model-passes",
-            probe("internal/x.go", os.path.join(tmp, "missing.jsonl")) is None,
-            "an unreadable transcript must never block work",
-        )
-        # The escape is a deliberate act, and it must actually work.
-        try:
-            os.makedirs(os.path.dirname(ack), exist_ok=True)
-            with open(ack, "w", encoding="utf-8") as fh:
-                fh.write("fixture\n")
-            results.check(
-                "model-phase-ack-releases-the-gate",
-                probe("internal/x.go") is None,
-                "the recorded operator decision must release the gate",
-            )
-        finally:
-            if os.path.isfile(ack):
-                os.remove(ack)
-            if os.path.isfile(stashed):
-                shutil.move(stashed, ack)
 
 
 SECTIONS = {
