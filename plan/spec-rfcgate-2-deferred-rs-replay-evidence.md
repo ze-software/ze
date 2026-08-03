@@ -45,7 +45,7 @@ symptom:
 
 | Claim | Producing code | What it shows |
 |-------|----------------|---------------|
-| One prepend gate serves BOTH rails | `internal/component/bgp/reactor/reactor_api_forward.go:711` -- `if facts.isEBGP && !facts.rsClient` | The replay rail is not a second, RS-unaware path |
+| One prepend gate serves BOTH rails | `internal/component/bgp/reactor/reactor_api_forward.go:604` -- `if !facts.rsClient`, nested inside `if facts.isEBGP` (it was one condition when this spec was written; the nesting is the same gate) | The replay rail is not a second, RS-unaware path |
 | Both rails reach that gate | `RelayStoredRoute` -> `forwardUpdateCore` (`reactor/reactor_api_relay.go:253`); `ForwardUpdate` -> `forwardUpdateCore` (`reactor/reactor_api_forward.go:358`) | The replay rail IS the forward rail below the entry point |
 | `rsClient` has exactly one source | `reactor/peer_forward_facts.go:111` (`rsClient: s.RSClient`) <- `reactor/config.go:266` (the `session/rs-client` leaf) | Nothing else can set it |
 | Its default is `false` | `internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang:40-46` | An unconfigured peer is not an RS-client |
@@ -74,8 +74,8 @@ unit tests**, and no test pins it through the REPLAY entry point at all:
 
 | Fact | Evidence |
 |------|----------|
-| `RFC7947-x-1` has unit-only evidence | `ai/RFC-REQUIREMENTS.md:4040` -- positive `forward_rs_test.go:431` (unit/verify), negative `forward_rs_test.go:323` (unit/verify). No functional, editor or interop carrier |
-| The one relay test asserts nothing about the AS_PATH | `internal/component/bgp/reactor/reactor_api_relay_test.go:92` (`TestRelayStoredRouteForwardsThroughForwardRail`) asserts the destination peer and `assert.NotEmpty(t, item.rawBodies)`, i.e. that the relay reached the forward pool and that buffers are released. It says nothing about the transform |
+| `RFC7947-x-1` has unit-only evidence | `ai/RFC-REQUIREMENTS.md:4480` -- positive `forward_rs_test.go:431` (unit/verify), negative `forward_rs_test.go:323` (unit/verify). No functional, editor or interop carrier |
+| The one relay test asserts nothing about the AS_PATH | `internal/component/bgp/reactor/reactor_api_relay_test.go:107` (`TestRelayStoredRouteForwardsThroughForwardRail`) asserts the destination peer and `assert.NotEmpty(t, item.rawBodies)`, i.e. that the relay reached the forward pool and that buffers are released. It says nothing about the transform |
 | No rs-client relay test exists | `grep -n 'RSClient\|rsClient' internal/component/bgp/reactor/reactor_api_relay_test.go` returns nothing: the relay fixture's destination is never an RS-client |
 | The requirement is a SHOULD NOT, not a MUST | `rfc/short/rfc7947.md:49` -- `[RFC7947-x-1] [SHOULD NOT]`. The earlier framing as a "violation" of a MUST overstated it |
 
@@ -505,3 +505,50 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Audit
+
+Filled at closure, 2026-08-03, from an INDEPENDENT audit subagent that verified each
+AC against the producing function and re-ran the mutation AC-4 asserts, rather than
+reading this spec's own claims back (`ai/rules/critical-review.md`).
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | Done | `TestRelayStoredRouteRSClientPreservesASPath` asserts VALUES, not calls: the decoded AS_PATH is equal before and after, and does not contain local AS 65000. It sets `forwardFacts().rsClient` as a precondition, so the polarity is real |
+| AC-2 | Done | `TestRelayStoredRoutePlainEBGPPrependsLocalAS` asserts the decoded path equals 65000 prepended to the original |
+| AC-3 | Done | `test/plugin/bgp-rs-relay-aspath-transparency.ci` drives three conns: conn=2 (`rs-client true`) expects the source frame byte-identical, conn=3 (default) expects `AS_SEQUENCE[65000,65001]`. Full-frame hex, both peers |
+| AC-4 | Done, mutation-verified at closure | The gate has MOVED since this spec was written, to `reactor_api_forward.go:604` (`if !facts.rsClient`, nested inside `if facts.isEBGP`). Through `go test -overlay` on copies under `tmp/`, package scope, no `-run` filter: baseline green; forcing the gate true reddens ONLY the rs-client test (0xfde8 prepended); forcing it false reddens ONLY the plain-eBGP test (0xfde8 lost). Each mutation kills exactly its own polarity |
+| AC-5 | Done | `ai/RFC-REQUIREMENTS.md` shows `RFC7947-x-1` carrying `bgp-rs-relay-aspath-transparency.ci` as `functional/verify` in BOTH polarities, so it is not nightly-only |
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A route server replaying a stored route does not stamp its own AS into the path | unit + functional | AC-1 and AC-3 above, asserting decoded AS_PATH values on both rails |
+| An ordinary eBGP peer still gets normal transit semantics from the same code | unit + functional | AC-2, and conn=3 of the `.ci` |
+| `RFC7947-x-1` stops being proven only by unit tests | data | Both polarities carry `functional/verify` evidence in the generated ledger |
+| The evidence would FAIL if the behaviour regressed | mutation | AC-4: two mutations, each killing exactly one polarity |
+
+## Pre-Commit Verification
+
+| Table | Fresh Evidence |
+|-------|----------------|
+| Files Exist | `internal/component/bgp/reactor/reactor_api_relay_test.go` and `test/plugin/bgp-rs-relay-aspath-transparency.ci` both on disk |
+| AC Verified | Re-checked independently, not copied from the audit: the two named tests exist, the `.ci` exists, and the ledger row carries `functional/verify` in both polarities |
+| Assumptions Resolved | A-1, A-3, A-4 `confirmed`; A-2 **broken**, carried to the Mistake Log below. None left `unvalidated` |
+| Deferrals | This spec has NO shard (`plan/deferrals/rfcgate-2-deferred-rs-replay-evidence.md` does not exist), so closure removes the spec alone |
+| Citations | The three `file:line` citations that had drifted are corrected: the gate to `:604`, the ledger row to `:4480`, the relay test to `:107` |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|-----------------------|----------------|--------|
+| Wrong Assumptions | A-2 assumed the shared prepend gate was the SAME gate the existing `RFC7947-x-1` tests already proved | `forward_rs.go` carries a SECOND copy of the gate. Both tagged x-1 tests AND the pre-existing relay test stayed GREEN under mutations of either copy, so the tagged evidence covered neither rail | Mutation, not reading: flipping the `forwardUpdateCore` gate left the suite green | This spec exists because of it. The new tests bind the relay rail specifically, and AC-4 re-runs the mutation so the binding cannot rot |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfcgate-2-deferred-rs-replay-evidence-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md` |
+| Reviewer lenses used | One independent audit subagent under `/ze-audit`: verify each AC against the producer, re-run the AC-4 mutation at package scope, check the deferral rows, and name what closure deletes |
+| Findings | None open. Its Known Limitations are honest scoping; limitation 3 (`RFC7947-x-4` unit-only) has a real home on disk in `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` |
