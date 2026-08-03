@@ -58,6 +58,15 @@ was sufficient.
 - **The RFC gate cannot see this class of defect.** It reads the declaration and believes
   it. That is deliberate, and it means the declaration carries more weight than its
   one-line appearance suggests.
+- **A gate can have a SECOND copy on another rail, and a tagged test can prove NEITHER.**
+  Recorded here 2026-08-03 from `spec-rfcgate-2-deferred-rs-replay-evidence`, whose whole
+  reason to exist was its broken assumption A-2: the AS_PATH prepend gate that
+  `RFC7947-x-1` was tagged over lives in `reactor_api_forward.go`, and `forward_rs.go`
+  carries a second copy for the route-server fast path. Both tagged tests AND the
+  pre-existing relay test stayed GREEN under a mutation of EITHER copy, so the
+  requirement read as proven while neither rail was bound. Mutation found it; reading the
+  tag did not. When a requirement covers a behaviour reachable by more than one rail,
+  mutate each rail separately -- a tag names a requirement, never a code path.
 
 ## Files
 
