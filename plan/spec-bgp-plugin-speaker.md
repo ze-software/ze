@@ -106,8 +106,8 @@ Go code is the point, so it must NOT import or mirror ze's validators.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | ze establishes an iBGP session with a minimal OPEN (MP IPv4-unicast + 4-octet-ASN) | `ze-test peer` does the same (message.go) | no session, no test | the interop scenario establishing | unvalidated |
-| A-2 | ze's replay reaches the speaker as a peer | route server forwards to all clients | no UPDATE to check | the scenario receiving a route | unvalidated |
+| A-1 | ze establishes an iBGP session with a minimal OPEN (MP IPv4-unicast + 4-octet-ASN) | `ze-test peer` does the same (message.go) | no session, no test | the interop scenario establishing | **confirmed** -- scenarios `48-rfc7606-speaker-dup-attr` and `49-speaker-two-instance` exist and establish |
+| A-2 | ze's replay reaches the speaker as a peer | route server forwards to all clients | no UPDATE to check | the scenario receiving a route | **confirmed** -- by the same two scenarios; `test_plugin_flags_duplicate_next_hop` is what reads the received UPDATE |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -320,3 +320,51 @@ After the fixes: 10 unit tests pass; discrimination re-verified with the hardene
 The plumbing is identical for every test; only the per-test plugin changes. That is what keeps
 an independent, hand-rolled speaker from accreting its own broad (and buggy) validator: a check
 exists only because a test wrote it, and it is unit-tested red/green in isolation.
+
+## Implementation Audit
+
+Filled at closure, 2026-08-03, from an INDEPENDENT audit subagent that checked each
+claim against the producing file rather than against this spec's own text
+(`ai/rules/critical-review.md`, `ai/rules/no-fabrication.md`). The main thread
+re-verified the file and test names below before recording them.
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| The speaker engine and its plugin surface | Done | `test/interop/speaker/engine.py`, `test/interop/speaker/plugins/no_duplicate_attribute.py` |
+| AC-1, AC-6 optional plugin loaded on demand | Done | `test_dynamic_load_optional_on_end` (`test/interop/speaker/test_engine.py`) |
+| AC-2 duplicate attribute flagged | Done | `test_plugin_flags_duplicate_next_hop` |
+| AC-3 a clean UPDATE passes | Done | `test_plugin_passes_clean_update` |
+| AC-5 per-instance router id in the OPEN | Done | `test_open_message_carries_per_instance_router_id` |
+| Unit coverage | Done | 11 `def test_` in `test/interop/speaker/test_engine.py` |
+| Interop scenarios | Done | `test/interop/scenarios/48-rfc7606-speaker-dup-attr`, `49-speaker-two-instance` |
+| Sidecar wiring | Done | `speaker-args` / `speaker2-args` and `SPEAKER_IP` / `SPEAKER2_IP` in `test/interop/interop.py` |
+| Documentation | Done | `docs/functional-tests/interop.md` speaker section, and the `ai/INDEX.md` keyword row |
+| Scenario 47's Path-1/Path-2 attribution correction | Done | `test/interop/scenarios/47-*/check.py` and its `inject.msg` now record Path 1 as verbatim and vacuous, Path 2 as the discriminator |
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A scriptable BGP speaker exists for interop scenarios ze cannot drive with `ze-test peer` | data + interop | `test/interop/speaker/engine.py` plus two scenarios using it, 48 and 49 |
+| Its plugin surface can assert on a received UPDATE | unit | `test_plugin_flags_duplicate_next_hop` reads the UPDATE and flags the duplicate NEXT_HOP |
+| Two instances can run side by side | interop | `49-speaker-two-instance`, with per-instance router id proven by `test_open_message_carries_per_instance_router_id` |
+
+## Pre-Commit Verification
+
+Re-verified independently at closure rather than copied from the audit above.
+
+| Table | Fresh Evidence |
+|-------|----------------|
+| Files Exist | `ls` returns all three of `test/interop/speaker/engine.py`, `test_engine.py`, `plugins/no_duplicate_attribute.py`; `ls -d test/interop/scenarios/4[89]-*` returns both scenario directories |
+| AC Verified | `grep -c 'def test_'` returns 11; each of the four named tests returns present |
+| Assumptions Resolved | A-1 and A-2 both `confirmed` above; neither remains `unvalidated` |
+| Deferrals | This spec has NO deferral shard: `plan/deferrals/bgp-plugin-speaker.md` does not exist, so closure deletes only the spec |
+| Documentation | The interop guide's speaker section and the `ai/INDEX.md` keyword row both exist |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-plugin-speaker-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md` |
+| Reviewer lenses used | One independent audit subagent under `/ze-audit`, remit: verify each AC against the producing file, check the spec's own text for open work, check every deferral row's destination, and name what closure would delete |
+| Findings | None open. The spec's own "Independent Review (round 1)" findings about AC-4 and a replay race are superseded in-file by its Resolution section, byte table included |
