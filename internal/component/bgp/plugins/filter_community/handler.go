@@ -112,9 +112,37 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 		filterapi.RecordRemoveBufferRefused(byte(code))
 	}
 
+	// The source value is a LIST of fixed-width values, so a length that is not a
+	// whole number of them is malformed. Refuse the modification rather than let
+	// the retained-run loop below step past the trailing partial value: that loop
+	// would emit an attribute one whole value shorter than the peer sent, which is
+	// a wire-visible attribute this router invented (ai/rules/evidence.md).
+	//
+	// Refusing suppresses the route to this destination, and the reactor already
+	// says so and counts it: forward_build.go turns a refused plan into
+	// modifyFailureHandlerFault, which recordModifyFailure rate-limits and reports.
+	//
+	// Nothing can reach here today, and the check is here so that a new producer
+	// which could is heard on the first route rather than after the leak. A
+	// peer-sourced COMMUNITY whose length is not a multiple of 4 is treat-as-withdraw
+	// at receive (message.validateCommunityAttr, in the attrValidators table that
+	// Session.enforceRFC7606 drives through message.ValidateUpdateRFC7606AddPath),
+	// and the synthesized withdrawal carries no COMMUNITY into the forward path at
+	// all; codes 16 and 32 have the same rule in validateExtCommunityAttr and
+	// validateLargeCommunityAttr. Locally originated routes take their value from
+	// reactor.writeCommunitiesAttr, which writes 4 bytes per community.
+	val := p.Value()
+	if !wholeValues(val, valueSize) {
+		logger().Warn("attribute value is not a whole number of wire values; modification refused",
+			"attribute-code", int(code),
+			"value-size", valueSize,
+			"value-length", len(val))
+		p.Fail()
+		return
+	}
+
 	// Keep every source value no Remove operation names. Nothing is copied here:
 	// each retained run is a fragment over the bytes already on the wire.
-	val := p.Value()
 	if valueSize > 0 {
 		for i := 0; i+valueSize <= len(val); i += valueSize {
 			if !removedByAny(ops, valueSize, val[i:i+valueSize]) {
@@ -150,6 +178,11 @@ func emitCommunity(p *filterapi.AttrPlan, code attribute.AttributeCode) {
 }
 
 // wholeValues reports whether buf is a whole number of valueSize-byte wire values.
+//
+// Zero is a whole number: an empty buffer names no value, so it is admitted and
+// removes nothing. No producer sends one today (each gates on a non-empty set),
+// and the alternative would report a contract violation to an operator whose
+// producer broke no contract (TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp).
 //
 // toRemove is a SET: a whole number of valueSize-byte wire values, concatenated.
 // One value is the common case and is a whole number, so every producer that

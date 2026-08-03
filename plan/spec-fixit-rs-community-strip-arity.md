@@ -613,11 +613,14 @@ headers. The `.ci` ones are re-pointed here (`community.go` to `:158`,
 `reactor_api_forward.go` to `:642` in four places). `community.go`
 and the learned summary were already correct.
 
-The three inside the `handler.go` doc comment are NOT fixed: they lived in the
-same hunk as the reverted RF-1 change. They are `internal/component/bgp/plugins/filter_community/handler.go`
-(`community.go`, now `:158`) and `:161` (`reactor_api_forward.go` and
-`forward_rs.go`, now `:643` and `:347`). Whoever rewrites this function
-should correct them rather than carry them forward.
+The three inside the `handler.go` doc comment are gone: the rewrite of
+`genericCommunityHandler` cites `wireu.StripControlCommunities` and the two
+route-server rails by symbol, with no line number, so there is nothing left to
+drift. The five that survived in `handler_test.go` are converted to symbol
+citations in the same pass that closes the findings below. Two of them
+(`reactor_api_forward.go`, `forward_rs.go`) had already drifted onto
+unrelated code: the real call sites are at `:501` and `:248` today, which is the
+argument for not writing the number at all.
 
 No gate catches this class: `scripts/dev/spec-citation-check.py` scans only
 `plan/` and `plan/learned/`, and `scripts/dev/check_doc_links.py --design-only`
@@ -631,18 +634,19 @@ under `docs/`, despite row 14 of this spec's own Documentation Update Checklist
 naming `docs/plugin-development/metrics.md`. Added to the Full Inventory with a
 source anchor pointing at `internal/component/bgp/filterapi/metrics.go`.
 
-### Other findings the reviewers recorded, carried forward unfixed
+### Other findings the reviewers recorded, now closed
 
-These were found against the shipped code or the reverted candidate. None is
-fixed here; they belong to whoever rewrites this function.
+All five were carried forward when the main fix landed. They are closed here,
+against the rewritten `genericCommunityHandler`. Every test named below was
+mutation-verified: the mutation is stated with the result.
 
-| Finding | Where | Note |
-|---------|-------|------|
-| The refusal-message test is vacuous | `handler_test.go` | `assert.Contains(t, out, "3")` matches the `slog` RFC 3339 timestamp regardless of the message. Deleting `"buffer-length", len(op.Buf)` from the handler leaves it green. `assert.Contains(t, out, "buffer-length=3")` is the real check. |
-| The map path had no coverage at widths 8 and 12 | `handler_test.go` | `TestRemoveValuesAllWidths` only ever passes two-value sets, below any threshold. A mutation truncating the lookup key to 4 bytes survived the suite, which at widths 8 and 12 would silently remove nothing: the same failure shape this spec exists to fix. |
-| `removeValues` drops a trailing partial value | `handler.go` | Loop bound `i+valueSize <= len(data)`. A COMMUNITY attribute of length 4k+3 reaches the handler (the RFC 7606 validator has no length check for code 8) and is silently normalised. Pre-existing. |
-| `data = data[:65535]` truncates mid-value | `handler.go` | 65535 is divisible by none of 4, 8, 12, so the cap can emit a malformed attribute. Reachable only when Add ops push past the ceiling. Pre-existing. |
-| Empty `toRemove` is untested | `handler.go` | `len(nil) % 4 == 0` passes the guard. Unreachable from today's three producers, all of which gate on non-empty. |
+| Finding | Outcome | Evidence |
+|---------|---------|----------|
+| The refusal-message test is vacuous | Fixed | `TestGenericCommunityHandlerWarnsOnNonMultiple` now asserts `buffer-length=3`, `attribute-code=8` and `value-size=4`, never a bare digit. Mutation: delete `"buffer-length", len(ops[i].Buf)` from the handler. Before: green. After: red on the `buffer-length=3` assertion. |
+| No discriminating coverage at widths 8 and 12 | Fixed | `TestRemoveValuesAllWidths` now builds two value families per width: one differing in the LAST byte only, one in the FIRST byte only, six values, a three-value non-contiguous Remove, and a near-miss value. Mutation: narrow `containsValue` to the leading 4 bytes -- red at widths 8 and 12. Same for the trailing 4 bytes -- red at both. |
+| The keep loop drops a trailing partial value | Fixed | The handler refuses a source value that is not a whole number of values: warn plus `p.Fail()`, which `forward_build.go` turns into `modifyFailureHandlerFault` (already logged and counted by `recordModifyFailure`), so the route is suppressed rather than an attribute the peer never sent being emitted. `TestGenericCommunityHandlerRefusesMalformedSourceValue` at all three widths. Mutation: remove the guard -- red (at width 4 the plan does not merely normalize, it DROPS the attribute). The reviewer's premise was wrong: `message.validateCommunityAttr` (registered in `attrValidators`, reached from `Session.enforceRFC7606` through `message.ValidateUpdateRFC7606AddPath`) classifies a code-8 length of 0 or 4k+r as treat-as-withdraw per RFC 7606 Section 7.8, and `SynthesizeWithdrawFamilies` carries no COMMUNITY into the forward path. Codes 16 and 32 have the same rule. Local origination writes 4 bytes per community (`reactor.writeCommunitiesAttr`). The guard is therefore unreachable today and exists so a NEW producer is heard on its first route. |
+| `data = data[:65535]` truncates mid-value | Already resolved by the rewrite | No truncation exists. The cap is `attrValueMax` in `internal/component/bgp/filterapi/editset.go`, and every site that meets it REFUSES: `AttrPlan.appendFragment`, `AttrPlan.New` and `AttrPlan.NewByte` each call `p.Fail()`. The plugin's own ingress path (`filter.go`) likewise returns nil rather than truncating. |
+| Empty `toRemove` is untested | Fixed | `TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp` pins nil and `[]byte{}`: the attribute is forwarded unchanged, nothing is logged, the refusal counter is not touched. Mutation: `wholeValues` rejects the empty buffer -- red on both the log and the counter assertions. |
 
 ## Mistake Log
 

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -385,7 +386,8 @@ func TestApplyEgressFilterOps(t *testing.T) {
 // whole wire values removes every one of them.
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity AC-1/AC-2 -- the route-server
-// strip path (reactor_api_forward.go:635, forward_rs.go:342) hands this function
+// strip path (both `wireu.StripControlCommunities` call sites, in
+// reactor/reactor_api_forward.go and reactor/forward_rs.go) hands this function
 // the concatenated output of wireu.StripControlCommunities, which accumulates
 // EVERY matching control community into one slice.
 // PREVENTS: the leak this spec exists for. Before the fix the size guard saw
@@ -411,8 +413,8 @@ func TestRemoveValuesMultiValueBuffer(t *testing.T) {
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity A-2 -- widening the contract
 // must not disturb the producers that already split, namely the text-delta path
-// (reactor/filter_delta.go:221-224) and the plugin's own egress filter
-// (egress.go:28-30).
+// (the per-value split in reactor/filter_delta.go `textDeltaToModOps`) and the
+// plugin's own egress filter (`applyEgressFilter` in egress.go).
 // PREVENTS: a regression in configured `community { egress strip NAME }`, which
 // is the only community stripping with existing functional coverage.
 func TestRemoveValuesSingleUnchanged(t *testing.T) {
@@ -467,9 +469,14 @@ func TestGenericCommunityHandlerWarnsOnNonMultiple(t *testing.T) {
 
 	attr, emitted := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
 
+	// Assert the KEY=VALUE pairs, never the bare value. `slog` writes an RFC 3339
+	// timestamp on every line, so `Contains(out, "3")` matched whatever the
+	// handler said -- deleting the buffer-length attribute left the test green.
 	out := logged.String()
 	assert.Contains(t, out, "level=WARN", "the refusal must be reported, not swallowed")
-	assert.Contains(t, out, "3", "the message names the offending buffer length")
+	assert.Contains(t, out, "buffer-length=3", "the message names the offending buffer length")
+	assert.Contains(t, out, "attribute-code=8", "the message names the attribute it refused")
+	assert.Contains(t, out, "value-size=4", "the message names the width the buffer failed to fill")
 
 	require.True(t, emitted, "the plan must emit the attribute")
 	require.Len(t, attr, 8, "the well-formed sibling op still applied")
@@ -480,8 +487,8 @@ func TestGenericCommunityHandlerWarnsOnNonMultiple(t *testing.T) {
 // TestRemoveValuesAllWidths proves the fix is width-independent.
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity AC-7 and A-4 -- widths 4, 8 and
-// 12 share genericCommunityHandler with only valueSize differing
-// (handler.go:19-31), so the arity rule must hold for all three.
+// 12 share genericCommunityHandler with only valueSize differing (the three
+// registered handlers in handler.go), so the arity rule must hold for all three.
 // PREVENTS: a fix that repairs COMMUNITY while leaving EXTENDED_COMMUNITY and
 // LARGE_COMMUNITY silently dropping multi-value Remove buffers.
 func TestRemoveValuesAllWidths(t *testing.T) {
@@ -494,24 +501,52 @@ func TestRemoveValuesAllWidths(t *testing.T) {
 		{"large-community", 12},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			val := func(fill byte) []byte {
-				b := make([]byte, tc.width)
-				for i := range b {
-					b[i] = fill
-				}
+			// Two families of values, each one built so that comparing a PART of
+			// a value cannot tell its members apart:
+			//   tail(id) differs from its siblings in the LAST byte only,
+			//   head(id) differs from its siblings in the FIRST byte only.
+			// A comparison narrowed to the leading bytes matches every tail
+			// value, and one narrowed to the trailing bytes matches every head
+			// value, so either shape removes values it was never given and the
+			// assertions below fail. Values whose bytes are all one fill byte
+			// cannot discriminate that: at widths 8 and 12 a key truncated to 4
+			// bytes still told them apart, and the truncation survived.
+			tail := func(id byte) []byte {
+				b := bytes.Repeat([]byte{0xA5}, tc.width)
+				b[tc.width-1] = id
 				return b
 			}
-			data := append(append(append([]byte{}, val(1)...), val(2)...), val(3)...)
-			toRemove := append(append([]byte{}, val(1)...), val(3)...)
+			head := func(id byte) []byte {
+				b := bytes.Repeat([]byte{0x5A}, tc.width)
+				b[0] = id
+				return b
+			}
+			join := func(vals ...[]byte) []byte { return bytes.Join(vals, nil) }
+
+			// Six values, interleaved, and a three-value Remove that names a
+			// non-contiguous subset of them. More than the two the old case
+			// carried, so a removal that stops after the first match, or one
+			// that coalesces the wrong retained runs, is visible here.
+			data := join(tail(1), head(1), tail(2), head(2), tail(3), head(3))
+			toRemove := join(tail(1), tail(3), head(2))
 
 			got, ok := removeViaHandler(t, data, tc.width, toRemove)
 
 			require.True(t, ok)
-			assert.Equal(t, val(2), got, "both listed values removed at width %d", tc.width)
+			assert.Equal(t, join(head(1), tail(2), head(3)), got,
+				"exactly the three named values removed, the rest kept in order at width %d", tc.width)
 
-			short, ok := removeViaHandler(t, data, tc.width, val(1)[:tc.width-1])
+			// A value one byte short of the width is not a whole value.
+			short, ok := removeViaHandler(t, data, tc.width, tail(1)[:tc.width-1])
 			assert.False(t, ok, "a non-multiple length is refused at width %d", tc.width)
 			assert.Equal(t, data, short)
+
+			// A near miss: same width, differs from tail(1) in its last byte
+			// alone. Nothing may be removed.
+			miss, ok := removeViaHandler(t, data, tc.width, tail(9))
+			require.True(t, ok)
+			assert.Equal(t, data, miss,
+				"a value the list does not carry removes nothing at width %d", tc.width)
 		})
 	}
 }
@@ -520,7 +555,8 @@ func TestRemoveValuesAllWidths(t *testing.T) {
 // multi-value Remove which empties the list still omits the attribute.
 //
 // VALIDATES: spec-fixit-rs-community-strip-arity AC-4 -- the existing
-// "omit entirely when nothing remains" behavior at handler.go:93-95 must
+// "omit entirely when nothing remains" behavior (the `p.ValueLen() == 0` drop
+// at the end of genericCommunityHandler) must
 // survive the arity change.
 // PREVENTS: a zero-length COMMUNITY attribute on the wire, which is malformed.
 func TestRemoveValuesMultiRemovingEverythingOmitsAttribute(t *testing.T) {
@@ -633,4 +669,119 @@ func TestGenericCommunityHandlerCountsRefusals(t *testing.T) {
 
 	require.NotNil(t, reg.vec, "the refusal must have created the counter vector")
 	assert.Equal(t, 1, reg.vec.seen["community"].n)
+}
+
+// TestGenericCommunityHandlerRefusesMalformedSourceValue drives the handler with
+// a SOURCE attribute whose value is not a whole number of wire values, and
+// requires the plan to be refused rather than normalized.
+//
+// VALIDATES: ai/rules/evidence.md, "test the shape that should be
+// rejected". The retained-run loop steps by valueSize, so a trailing partial
+// value fell off the end and the handler re-emitted a well-formed attribute the
+// peer never sent. That is fabrication on the wire, and it was silent.
+// PREVENTS: a future producer reaching this handler with a malformed value and
+// having the attribute quietly rounded down instead of the route being
+// suppressed. No producer can do it today: a peer-sourced COMMUNITY of length
+// 4k+3 is classified treat-as-withdraw by validateCommunityAttr
+// (internal/component/bgp/message/rfc7606.go, registered in the attrValidators
+// table and reached from Session.enforceRFC7606), and the withdrawal that
+// replaces the UPDATE carries no COMMUNITY at all; locally originated routes get
+// their value from writeCommunitiesAttr (reactor/reactor_wire.go), which writes
+// 4 bytes per community. The guard exists so that a NEW producer says so rather
+// than being absorbed.
+func TestGenericCommunityHandlerRefusesMalformedSourceValue(t *testing.T) {
+	silenced := logger
+	var logged bytes.Buffer
+	logger = func() *slog.Logger {
+		return slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	}
+	t.Cleanup(func() { logger = silenced })
+
+	for _, tc := range []struct {
+		name  string
+		width int
+	}{
+		{"community", 4},
+		{"extended-community", 8},
+		{"large-community", 12},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logged.Reset()
+			h, code, known := handlerForWidth(tc.width)
+			require.True(t, known)
+
+			// Two whole values plus a trailing partial one.
+			value := bytes.Repeat([]byte{0x11}, 2*tc.width+tc.width-1)
+			ops := []filterapi.AttrOp{{
+				Code:   code,
+				Action: filterapi.AttrModRemove,
+				Buf:    bytes.Repeat([]byte{0x11}, tc.width),
+			}}
+
+			edit, id := planAttr(h, code, buildFullAttr(code, value), ops)
+
+			assert.True(t, edit.SlotFailed(id),
+				"a source value of %d bytes is not whole values of %d: refuse, do not round down",
+				len(value), tc.width)
+			assert.False(t, edit.SlotDropped(id), "the plan must refuse, not silently drop the attribute")
+			assert.Contains(t, logged.String(), "level=WARN", "the refusal must be reported")
+			assert.Contains(t, logged.String(), "value-length="+strconv.Itoa(len(value)),
+				"the message names the malformed source length")
+		})
+	}
+}
+
+// TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp pins what an EMPTY Remove
+// buffer does: it names no value, so it removes none, and it is not a
+// contract violation.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity, the carried-forward finding
+// "empty toRemove is untested". Zero is a whole number of values
+// (`len(nil) % 4 == 0`), so wholeValues admits it and the attribute is
+// forwarded unchanged. No producer emits one today -- reactor/filter_delta.go,
+// egress.go and wireu.StripControlCommunities all gate on a non-empty set --
+// which is exactly why the behavior needs pinning rather than assuming.
+// PREVENTS: a future arity guard that reclassifies an empty buffer as
+// malformed, which would fire the warning and the refusal counter at any
+// producer that ever sends one, and make the operator hunt a defect that is
+// not there.
+func TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp(t *testing.T) {
+	reg := &countingRegistry{}
+	filterapi.SetMetricsRegistry(reg)
+	t.Cleanup(func() { filterapi.SetMetricsRegistry(nil) })
+
+	var logged bytes.Buffer
+	saved := logger
+	logger = func() *slog.Logger {
+		return slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	}
+	t.Cleanup(func() { logger = saved })
+
+	data := buildCommunityValues(0x0001_0001, 0x0002_0002)
+	src := buildFullCommunityAttr(data)
+
+	for _, tc := range []struct {
+		name string
+		buf  []byte
+	}{
+		{"nil", nil},
+		{"empty", []byte{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ops := []filterapi.AttrOp{{
+				Code:   byte(attribute.AttrCommunity),
+				Action: filterapi.AttrModRemove,
+				Buf:    tc.buf,
+			}}
+
+			out, emitted := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
+
+			require.True(t, emitted, "an empty Remove leaves the attribute in the UPDATE")
+			require.Len(t, out, 12, "header(4) + both values(8)")
+			assert.Equal(t, data, out[4:], "an empty Remove names no value, so it removes none")
+		})
+	}
+
+	assert.Empty(t, logged.String(), "an empty Remove is not a contract violation: nothing is logged")
+	assert.NotContains(t, reg.vec.seen, "community", "an empty Remove must not count as a refusal")
 }
