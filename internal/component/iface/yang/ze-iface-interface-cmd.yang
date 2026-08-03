@@ -4,6 +4,7 @@ module ze-iface-interface-cmd {
     import ze-extensions { prefix ze; }
     description "show interface family (interface, brief, scan, type, errors, rate, name detail/counters), monitor interface rate, and clear interface counters. Owned by the iface component because every handler reads or resets interface state through the iface backend (iface.ListInterfaces / GetInterface / DiscoverInterfaces / GetRate / ClearCounters). Container-merges onto the show, monitor, and clear verb roots. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-03 { description "Relocated the show interface family, monitor interface rate, and clear interface counters out of the central show, monitor, and clear schemas into the iface component (plugin self-containment)."; }
+    revision 2026-08-03 { description "Gave brief, type, errors, and rate their own wire methods. They shared ze-show:interface with the parent container, so each became an ALIAS path of one wire method; the dispatcher registers the longest path and consumes the keyword, and the handler that switched on it never saw it. show interface errors returned every interface, show interface brief returned full detail, and show interface type <t> answered with usage text. Wire methods now match the sibling scan/detail/counters pattern, one path each."; }
 
     container show {
         config false;
@@ -19,7 +20,7 @@ name <name> counters.";
 
             container brief {
                 config false;
-                ze:command "ze-show:interface";
+                ze:command "ze-show:interface-brief";
                 description "One-line summary per interface: name, state, IP, and MTU.
 Quick way to see what is up and what addresses are assigned.";
             }
@@ -35,7 +36,7 @@ views. Useful during initial setup to see what the box has.";
 
             container type {
                 config false;
-                ze:command "ze-show:interface";
+                ze:command "ze-show:interface-type";
                 description "Show only interfaces of a given type.
 Usage: show interface type <type>. Types include ethernet, bridge,
 vxlan, wireguard, tunnel, bond, and more. If you pick an invalid
@@ -44,7 +45,7 @@ type, the error lists all valid ones.";
 
             container errors {
                 config false;
-                ze:command "ze-show:interface";
+                ze:command "ze-show:interface-errors";
                 description "Show interfaces that have errors or drops.
 Filters to only interfaces with non-zero Rx/Tx error or drop
 counters. Quick way to find troubled links.";
@@ -52,7 +53,7 @@ counters. Quick way to find troubled links.";
 
             container rate {
                 config false;
-                ze:command "ze-show:interface";
+                ze:command "ze-show:interface-rate";
                 description "Show per-second traffic rates on your interfaces.
 Returns rx/tx bytes and packets per second. Pass an interface name
 to narrow the output. Requires the rate tracker. For continuous

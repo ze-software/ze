@@ -52,6 +52,10 @@ func TestIfaceMonitorCmdSchemaOwnsNetlink(t *testing.T) {
 func TestIfaceInterfaceCmdSchemaOwnsInterface(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:interface"`,
+		`ze:command "ze-show:interface-brief"`,
+		`ze:command "ze-show:interface-type"`,
+		`ze:command "ze-show:interface-errors"`,
+		`ze:command "ze-show:interface-rate"`,
 		`ze:command "ze-show:interface-scan"`,
 		`ze:command "ze-show:interface-detail"`,
 		`ze:command "ze-show:interface-counters"`,

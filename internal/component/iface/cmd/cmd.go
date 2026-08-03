@@ -6,7 +6,7 @@
 // plugin/all -> iface -> plugin/server -> plugin/all.
 //
 // The `show interface` family handlers live alongside in show_interface.go and
-// interface_rate.go (ze-show:interface and friends, ze-monitor:interface-rate);
+// interface_rate.go (ze-show:interface-*, ze-monitor:interface-rate);
 // "show" is a top-level verb ("ze show interface", not "ze interface show"), but
 // the handlers are owned here because they read interface state through the
 // iface backend. See ai/rules/plugins.md.

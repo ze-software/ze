@@ -265,6 +265,9 @@ type ipv6Settings struct {
 	AcceptRA   *int
 	Forwarding *bool
 	RPFCheck   *rpfMode
+	// RouterAdvertisement is the send side: what this unit advertises to hosts
+	// on the link. AcceptRA above is the receive side. See config_ra.go.
+	RouterAdvertisement *raUnitConfig
 }
 
 // parseIfaceSections finds the "interface" section and parses it. Returns a
@@ -1214,6 +1217,14 @@ func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 	}
 	s.DHCPv6 = parseDHCPv6Config(v6)
 	if s.DHCPv6 != nil {
+		set = true
+	}
+	ra, err := parseRAConfig(v6)
+	if err != nil {
+		return nil, err
+	}
+	s.RouterAdvertisement = ra
+	if ra != nil {
 		set = true
 	}
 	if !set {

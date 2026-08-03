@@ -420,6 +420,173 @@ module ze-iface-conf {
                                      Set this when the DHCP server binds leases to a specific DUID.";
                     }
                 }
+
+                container router-advertisement {
+                    ze:os "linux";
+                    ze:backend "netlink";
+                    description "Router Advertisement sender (RFC 4861). Ze advertises prefixes,
+                                 flags, and resolvers on this link so hosts autoconfigure, which
+                                 is the role radvd fills on other systems. Sending is separate
+                                 from accepting: set forwarding true on an advertising interface,
+                                 and leave accept-ra at 0 unless this interface also learns from
+                                 another router.";
+
+                    leaf enabled {
+                        type boolean;
+                        default false;
+                        description "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1
+                                     requires AdvSendAdvertisements to default to false so a node
+                                     never becomes a router by accident.";
+                    }
+
+                    leaf maximum-interval {
+                        type uint16 {
+                            range "4..1800";
+                        }
+                        units seconds;
+                        default 600;
+                        description "Longest time between unsolicited Router Advertisements
+                                     (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used
+                                     is picked at random between minimum-interval and this value.";
+                    }
+
+                    leaf minimum-interval {
+                        type uint16 {
+                            range "3..1350";
+                        }
+                        units seconds;
+                        default 200;
+                        description "Shortest time between unsolicited Router Advertisements
+                                     (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed
+                                     0.75 x maximum-interval; config verify rejects a larger value.";
+                    }
+
+                    leaf router-lifetime {
+                        type uint16 {
+                            range "0..9000";
+                        }
+                        units seconds;
+                        default 1800;
+                        description "How long hosts keep Ze in their default router list
+                                     (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not
+                                     a default router, and the prefixes and resolvers in the
+                                     advertisement still apply. Any other value must be at least
+                                     maximum-interval; config verify rejects a smaller one.";
+                    }
+
+                    leaf hop-limit {
+                        type uint8;
+                        default 64;
+                        description "Value hosts place in the Hop Limit field of their outgoing
+                                     packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this
+                                     router states no value.";
+                    }
+
+                    leaf managed {
+                        type boolean;
+                        default false;
+                        description "Set the M flag: hosts get their addresses from DHCPv6
+                                     (RFC 4861 Section 4.2).";
+                    }
+
+                    leaf other-config {
+                        type boolean;
+                        default false;
+                        description "Set the O flag: hosts get other configuration, such as DNS,
+                                     from DHCPv6 (RFC 4861 Section 4.2).";
+                    }
+
+                    leaf reachable-time {
+                        type uint32 {
+                            range "0..3600000";
+                        }
+                        units milliseconds;
+                        default 0;
+                        description "How long a host treats a neighbor as reachable after a
+                                     reachability confirmation (AdvReachableTime, RFC 4861
+                                     Section 6.2.1). 0 means this router states no value.";
+                    }
+
+                    leaf retransmit-timer {
+                        type uint32;
+                        units milliseconds;
+                        default 0;
+                        description "Time between retransmitted Neighbor Solicitations on this link
+                                     (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router
+                                     states no value.";
+                    }
+
+                    list prefix {
+                        key "prefix";
+                        description "Prefixes advertised in Prefix Information options
+                                     (RFC 4861 Section 4.6.2). Host bits below the prefix length
+                                     are sent as zero.";
+
+                        leaf prefix {
+                            type zt:prefix-ipv6;
+                            description "Advertised IPv6 prefix in CIDR notation, for example
+                                         2001:db8:1::/64. Stateless autoconfiguration needs a
+                                         64-bit prefix (RFC 4862 Section 5.5.3).";
+                        }
+
+                        leaf on-link {
+                            type boolean;
+                            default true;
+                            description "Set the L flag: hosts treat addresses in this prefix as
+                                         on-link (RFC 4861 Section 4.6.2).";
+                        }
+
+                        leaf autonomous {
+                            type boolean;
+                            default true;
+                            description "Set the A flag: hosts build addresses from this prefix by
+                                         stateless autoconfiguration (RFC 4862).";
+                        }
+
+                        leaf valid-lifetime {
+                            type uint32;
+                            units seconds;
+                            default 2592000;
+                            description "How long the prefix stays valid (RFC 4861 Section 4.6.2).
+                                         4294967295 means it never expires. The default is 30 days.";
+                        }
+
+                        leaf preferred-lifetime {
+                            type uint32;
+                            units seconds;
+                            default 604800;
+                            description "How long addresses built from the prefix stay preferred
+                                         (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;
+                                         config verify rejects a larger value. The default is 7 days.";
+                        }
+                    }
+
+                    container rdnss {
+                        description "Recursive DNS servers advertised to hosts (RFC 8106
+                                     Section 5.1), which points a link at a resolver without
+                                     running DHCPv6.";
+
+                        leaf-list server {
+                            type zt:ipv6-address;
+                            ze:syntax "bracket";
+                            max-elements 8;
+                            description "Resolver addresses. All of them share lifetime.";
+                        }
+
+                        leaf lifetime {
+                            type uint32;
+                            units seconds;
+                            description "How long hosts may use these resolvers (RFC 8106
+                                         Section 5.1). 0 tells hosts to stop using them, and is a
+                                         value an operator can set. 4294967295 means they never
+                                         expire. This leaf has no default: leave it out and Ze
+                                         sends 3 x maximum-interval, the value RFC 8106
+                                         Section 5.1 recommends. That is why 0 is not the
+                                         default, because Ze could not then tell an operator
+                                         retiring a resolver from one who set nothing.";
+                        }
+                    }
+                }
             }
 
             container mirror {

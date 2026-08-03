@@ -1,20 +1,14 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- Router Advertisement for PPP IPv6
 // Related: ncp.go -- onNCPOpened triggers RA after IPv6CP completes
 // Related: session_run.go -- afterLCPOpen starts RA goroutine
+// Related: ra_parity_test.go -- pins the wire bytes this file produces
 
 package ppp
 
 import (
-	"encoding/binary"
 	"net/netip"
-)
 
-// RFC 4861 Section 4.2: Router Advertisement message format.
-const (
-	icmpv6TypeRA  = 134
-	ndOptRDNSS    = 25 // RFC 8106 Section 5.1
-	raFlagManaged = 0x80
-	raFlagOther   = 0x40
+	"github.com/ze-software/ze/internal/core/ndp"
 )
 
 // RAConfig holds the parameters for building a Router Advertisement.
@@ -29,61 +23,24 @@ type RAConfig struct {
 	RDNSSLifetime  uint32 // seconds
 }
 
-// BuildRA writes a Router Advertisement into buf and returns the
-// number of bytes written. The caller must ensure buf is large
-// enough (16 + 24*len(RDNSS) bytes minimum). No prefix information
-// is included because BNG uses DHCPv6-PD (M+O flags direct the
-// subscriber to use DHCPv6). RFC 4861 Section 4.2.
+// BuildRA writes a Router Advertisement into buf and returns the number of
+// bytes written. The caller must ensure buf is large enough (16 + 8 +
+// 16*len(RDNSS) bytes); a buffer that is too small writes nothing and returns
+// 0. No prefix information is included because BNG uses DHCPv6-PD (M+O flags
+// direct the subscriber to use DHCPv6), and no Source Link-layer Address option
+// is included because pppN is a point-to-point link with no link-layer address.
+//
+// The encoding lives in internal/core/ndp so the LAN Router Advertisement
+// sender emits the same wire format. RFC 4861 Section 4.2.
 func BuildRA(buf []byte, cfg RAConfig) int {
-	off := 0
-
-	// ICMPv6 header
-	buf[off] = icmpv6TypeRA // Type
-	buf[off+1] = 0          // Code
-	buf[off+2] = 0          // Checksum (computed by kernel for raw sockets)
-	buf[off+3] = 0
-	off += 4
-
-	// Cur Hop Limit
-	buf[off] = cfg.CurHopLimit
-	off++
-
-	// Flags
-	var flags uint8
-	if cfg.Managed {
-		flags |= raFlagManaged
-	}
-	if cfg.OtherConfig {
-		flags |= raFlagOther
-	}
-	buf[off] = flags
-	off++
-
-	// Router Lifetime
-	binary.BigEndian.PutUint16(buf[off:], cfg.RouterLifetime)
-	off += 2
-
-	// Reachable Time
-	binary.BigEndian.PutUint32(buf[off:], cfg.ReachableTime)
-	off += 4
-
-	// Retrans Timer
-	binary.BigEndian.PutUint32(buf[off:], cfg.RetransTimer)
-	off += 4
-
-	// RDNSS option (RFC 8106 Section 5.1)
-	if len(cfg.RDNSS) > 0 {
-		buf[off] = ndOptRDNSS
-		buf[off+1] = uint8(1 + 2*len(cfg.RDNSS))   // length in 8-byte units
-		binary.BigEndian.PutUint16(buf[off+2:], 0) // reserved
-		binary.BigEndian.PutUint32(buf[off+4:], cfg.RDNSSLifetime)
-		off += 8
-		for _, addr := range cfg.RDNSS {
-			a := addr.As16()
-			copy(buf[off:off+16], a[:])
-			off += 16
-		}
-	}
-
-	return off
+	return ndp.BuildRA(buf, 0, ndp.RAConfig{
+		CurHopLimit:    cfg.CurHopLimit,
+		Managed:        cfg.Managed,
+		OtherConfig:    cfg.OtherConfig,
+		RouterLifetime: cfg.RouterLifetime,
+		ReachableTime:  cfg.ReachableTime,
+		RetransTimer:   cfg.RetransTimer,
+		RDNSS:          cfg.RDNSS,
+		RDNSSLifetime:  cfg.RDNSSLifetime,
+	})
 }

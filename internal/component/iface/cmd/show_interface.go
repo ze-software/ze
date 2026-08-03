@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md -- `show interface` family handlers
-// Related: show_neighbors.go -- sibling iface-owned show command
+// Related: show_neighbor.go -- sibling iface-owned show command
 //
 // Owned by the iface component: every handler here reads interface state
 // through the iface backend (iface.ListInterfaces / GetInterface /
@@ -23,39 +23,61 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-show:interface", Handler: handleShowInterface},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-brief", Handler: handleShowInterfaceBrief},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-type", Handler: handleShowInterfaceType},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-errors", Handler: handleShowInterfaceErrors},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-rate", Handler: handleShowInterfaceRateCmd},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-detail", Handler: handleShowInterfaceDetail},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-counters", Handler: handleShowInterfaceCounters},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-scan", Handler: handleShowInterfaceScan},
 	)
 }
 
-// handleShowInterface dispatches interface subcommands. Keywords: brief,
-// type, errors, rate. Named views moved to typed-selector commands:
-// `show interface name <name> detail` and
-// `show interface name <name> counters`.
+// usageShowInterface names every form of the command, for a caller who typed a
+// token no handler here owns.
+const usageShowInterface = "usage: show interface [brief | type <type> | errors | rate [<name>]] " +
+	"or show interface name <name> detail|counters"
+
+// handleShowInterface serves the bare `show interface`: every interface, full
+// detail. Each subcommand has its OWN wire method and handler below.
+//
+// They must. The dispatcher registers one command key per YANG path, matches the
+// LONGEST key first (Dispatcher.updateSortedKeys,
+// internal/component/plugin/server/command.go), and hands the handler only the
+// tokens AFTER that key. While `brief`, `type`, `errors` and `rate` shared this
+// wire method they were alias paths of it, so the key ate the keyword and a
+// switch on args[0] could never see it: `show interface errors` answered with
+// every interface as if each one had errors.
 func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return showInterfaceAll()
 	}
+	return &plugin.Response{Status: plugin.StatusError, Error: usageShowInterface}, nil
+}
 
-	switch args[0] {
-	case "brief":
-		return showInterfaceBrief()
-	case "type":
-		if len(args) < 2 {
-			return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface type <type>"}, nil
-		}
-		return showInterfaceByType(args[1])
-	case "errors":
-		return showInterfaceErrors()
-	case "rate":
-		return handleShowInterfaceRate(args[1:])
-	default:
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "usage: show interface [brief | type <type> | errors | rate [<name>]] or show interface name <name> detail|counters",
-		}, nil
+// handleShowInterfaceBrief serves `show interface brief`.
+func handleShowInterfaceBrief(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	return showInterfaceBrief()
+}
+
+// handleShowInterfaceType serves `show interface type <type>`. The type is the
+// one remaining token; without it there is nothing to filter on.
+func handleShowInterfaceType(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) == 0 {
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface type <type>"}, nil
 	}
+	return showInterfaceByType(args[0])
+}
+
+// handleShowInterfaceErrors serves `show interface errors`.
+func handleShowInterfaceErrors(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	return showInterfaceErrors()
+}
+
+// handleShowInterfaceRateCmd serves `show interface rate [<name>]`. The optional
+// name is the one remaining token.
+func handleShowInterfaceRateCmd(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return handleShowInterfaceRate(args)
 }
 
 func handleShowInterfaceDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

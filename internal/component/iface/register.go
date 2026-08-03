@@ -305,6 +305,12 @@ func runEngine(conn net.Conn) int {
 	activeDHCP := make(map[dhcpUnitKey]dhcpEntry)
 	var dhcpMu sync.Mutex
 
+	// activeRA tracks running Router Advertisement senders keyed by
+	// interface+unit. Protected by raMu, which config apply and shutdown both
+	// take. See reconcile_ra.go.
+	activeRA := make(map[raUnitKey]raEntry)
+	var raMu sync.Mutex
+
 	// activePPPoE tracks running PPPoE client sessions keyed by config name.
 	activePPPoE := make(map[string]*PPPoEClient)
 	var pppoeMu sync.Mutex
@@ -459,6 +465,11 @@ func runEngine(conn net.Conn) int {
 		dhcpMu.Lock()
 		reconcileDHCP(cfg, eb, activeDHCP, log)
 		dhcpMu.Unlock()
+
+		// Start Router Advertisement senders for units that advertise.
+		raMu.Lock()
+		reconcileRA(cfg, activeRA, log)
+		raMu.Unlock()
 
 		// Subscribe to DHCP lease events to track gateways for link failover.
 		// Handlers only update the map (no I/O), so mutex is sufficient.
@@ -636,6 +647,13 @@ func runEngine(conn net.Conn) int {
 			dhcpMu.Unlock()
 		}
 
+		// Reconcile Router Advertisement senders after a successful reload.
+		// This is the send side, independent of the accept_ra suppression
+		// above, which is the receive side.
+		raMu.Lock()
+		reconcileRA(cfg, activeRA, log)
+		raMu.Unlock()
+
 		return nil
 	})
 
@@ -760,6 +778,13 @@ func runEngine(conn net.Conn) int {
 		client.Stop()
 	}
 	pppoeMu.Unlock()
+
+	// Stop all Router Advertisement senders on shutdown. Each one sends a
+	// final advertisement with Router Lifetime 0 as it stops, so hosts drop
+	// Ze from their default router list at once (RFC 4861 Section 6.2.5).
+	raMu.Lock()
+	stopAllRASenders(activeRA, log)
+	raMu.Unlock()
 
 	// Stop all DHCP clients on shutdown.
 	dhcpMu.Lock()
