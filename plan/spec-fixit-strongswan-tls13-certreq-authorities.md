@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard exists only if work is deferred out of it. Create `plan/deferrals/fixit-strongswan-tls13-certreq-authorities.md` on the first deferral) |
 | Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

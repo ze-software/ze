@@ -191,10 +191,10 @@ Design elaboration (both consumers):
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | PKI store is available before web server starts | Component startup order | Would need lazy cert loading | Check component dependency graph | confirmed -- `zepki.Load` at `cmd/ze/hub/main.go` precedes coordinator creation (:385) and service construction; web/lg/mcp services are built after the engine exists |
 | A-2 | Certificate rotation needs graceful reload | Standard practice | Would need server restart | Check if web server supports TLS cert reload | confirmed-as-gap -- `web/server.go,131` fixes the `tls.Config` at construction and `listener_migrate.go` only migrates addresses; this spec ADDS rotation via GetCertificate indirection (AC-9) |
-| A-3 | `tls.X509KeyPair` on a multi-block PEM yields a served chain (leaf + intermediates) with no selfcert change | Go stdlib documented behavior; `selfcert.go` | Would need a dedicated chain builder in selfcert | Unit test `TestNewTLSConfigServesChain` asserting `len(tls.Certificate.Certificate) == 2` | unvalidated |
-| A-4 | as112 and geodns doctor checks receive the FULL config tree, so a pki-reference check can parse the pki block offline | `internal/plugins/as112/doctor.go` (`ctx.Tree.(*config.Tree)` then reads `service`); `diagnostic/doctor_registry.go` | Doctor check would need the live store and could not run offline | Unit test feeding a tree containing both `pki` and `service` roots | unvalidated |
-| A-5 | Plugin OnConfigure during reload runs before `zepki.Load` today (ordering hazard is real) | `main_reload.go` (`s.ReloadConfig`, plugin verify/apply) and `:163` (`eng.Reload`) precede `:192` (`zepki.Load`) | Ordering fix unnecessary; drop AC-10 | Read of `doReload`; regression test `test/reload/pki-reference-reload.ci` proving one-commit add-cert+reference works after the fix | unvalidated |
-| A-6 | as112/geodns run in the hub process so `pki.ServerTLSMaterial` reads the live store | as112 refuses external (`register.go`); geodns MAY be external, handled by R-4 | Resolution returns not-found in external process | as112: existing guard; geodns: loud-failure path unit test | unvalidated |
+| A-3 | `tls.X509KeyPair` on a multi-block PEM yields a served chain (leaf + intermediates) with no selfcert change | Go stdlib documented behavior; `selfcert.go` | Would need a dedicated chain builder in selfcert | Unit test `TestNewTLSConfigServesChain` asserting `len(tls.Certificate.Certificate) == 2` | confirmed -- the test also asserts leaf-first ordering; selfcert is unchanged |
+| A-4 | as112 and geodns doctor checks receive the FULL config tree, so a pki-reference check can parse the pki block offline | `internal/plugins/as112/doctor.go` (`ctx.Tree.(*config.Tree)` then reads `service`); `diagnostic/doctor_registry.go` | Doctor check would need the live store and could not run offline | Unit test feeding a tree containing both `pki` and `service` roots | confirmed -- `pki.ParseConfig(tree)` runs inside all three checks; `TestWebTLSDoctorCheck` drives a tree carrying both roots |
+| A-5 | Plugin OnConfigure during reload runs before `zepki.Load` today (ordering hazard is real) | `main_reload.go` (`s.ReloadConfig`, plugin verify/apply) and `:163` (`eng.Reload`) precede `:192` (`zepki.Load`) | Ordering fix unnecessary; drop AC-10 | Read of `doReload`; regression test `test/reload/pki-reference-reload.ci` proving one-commit add-cert+reference works after the fix | confirmed -- and MEASURED: restoring the old ordering makes the .ci fail with `pki: certificate lan-next not found (available: lan)` |
+| A-6 | as112/geodns run in the hub process so `pki.ServerTLSMaterial` reads the live store | as112 refuses external (`register.go`); geodns MAY be external, handled by R-4 | Resolution returns not-found in external process | as112: existing guard; geodns: loud-failure path unit test | confirmed -- `TestBuildSecureTLSResolverFailureIsLoud` proves an external process (empty store) leaves the secure listeners down and never reaches the self-signed fallback |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -204,7 +204,7 @@ Design elaboration (both consumers):
 | R-3 | Reload rollback leaves store/config drift once `zepki.Load` moves before plugin apply | Rollback path in `doReload` restores provider but serves new certs | Re-install the prior PKI config in `rollbackReload` (re-prepare from the prior provider snapshot's `pki` root) |
 | R-4 | geodns configured `external` with `tls.certificate` set silently serves nothing | DoT/DoH listeners absent, only a log line | Loud failure: resolution error logged at error level + secure listeners not started (existing `secure.go` semantics); doctor check flags the reference; document in geodns YANG description |
 | R-5 | Web configured with a broken reference silently downgrades to self-signed (operator believes real cert is served) | Browser shows self-signed warning in production | Fail CLOSED for web: startup returns error (like pki config errors `main.go`); reload rejects the commit; never silent fallback when a name WAS configured |
-| R-6 | `intermediate` supports a single certificate (`pki/config.go`), deeper chains (leaf+2 intermediates) cannot be expressed | Operator with a 4-tier CA cannot serve a complete chain | Out of scope: single-intermediate chains cover the common case; doctor's chain check reports AKI/SKI mismatch so the gap is visible; extending `intermediate` to a list is follow-up work |
+| R-6 | ~~`intermediate` supports a single certificate~~ VOID at implementation | -- | `CertificateEntry.Intermediates` is a SLICE (RFC 7296 Section 3.6 work landed since this spec was written), so deeper chains already express and `ServerTLSMaterial` emits every intermediate. No follow-up owed |
 
 Notes on skeleton rows (append-only): R-1 is refined by R-5 -- the self-signed fallback applies only when NO reference is configured; a configured-but-expired cert is caught by `pki.Validate` at commit (`store.go`) and by expiry warnings 30 days ahead (`health.go`). R-2 did not materialize: pki is a passive in-process store loaded from the config tree (`main.go`) with no dependency on web; no lazy loading needed.
 
@@ -285,6 +285,13 @@ observer sandbox cannot drive TLS handshakes, see `test/plugin/as112-dot.ci`);
 | `certificate` leaf length (all three YANG modules) | 1..255 chars (mirrors `pki/config.go` maxNameLen + `validateName`) | 255-char name | empty string | 256-char name |
 
 No new numeric leaves; ports/paths of the tls/doh containers are unchanged.
+
+Implementation note: enforcing this row required implementing YANG `length` in the
+config schema. It had never been enforced (`schema.go` carried `Patterns` and `Ranges`
+only), so the ten pre-existing `length "1..255"` declarations were decorative. See
+Implementation Summary, Bugs Found/Fixed. Covered by `TestValidateLeafValueLength` and
+`test/parse/web-pki-certificate-name-too-long.ci` (255 accepted, 256 rejected, empty
+rejected, path separator rejected by the pattern).
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -466,6 +473,10 @@ None deferred.
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | Spec skeleton cited `internal/component/web/service_web.go` and `web/selfcert.go` | Producers are `cmd/ze/hub/service_web.go` and `internal/core/selfcert/selfcert.go` | 2026-07-10 design research read the tree | Citations corrected; design unchanged |
+| The `certificate` leaf's `length "1..255"` would be enforced by the YANG schema | `length` was parsed and discarded; nothing in the config validator enforced string length | Ran `ze config validate` on a 256-character name: it passed | Implemented `LeafNode.Lengths` + `validateLengths`; ten pre-existing leaves gained real enforcement |
+| A pki store certificate needs no CA to load | `pki.Validate` verifies every device certificate against the stored CA pool, so a self-signed test fixture is refused | Reload test failed with `certificate chain validation failed: x509: certificate signed by unknown authority` | Test fixtures build a CA and sign the leaf with it |
+| One `.ci` could drive three reloads with fixed sleeps | Several SIGHUPs race the daemon's reload queue; a HUP arriving mid-reload is queued and replayed | The test passed and failed alternately on the same code | Split into one reload per file; 5/5 parallel rounds clean |
+| `daemon.ready` is the right fence for a signal script | The runner waits for `daemon.ready` and only THEN writes `daemon.pid`, so pid is the later file | Script broke out on ready, read pid, and got "daemon.pid not found" under parallel load | Fence on `daemon.pid` |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -503,7 +514,7 @@ shape for core-hosted listeners like dnsserver.
 - Gap is architectural: no path exists to use operator certs even if desired
 - ~~Certificate rotation / reload not covered in this skeleton~~ (now in scope: AC-9/AC-10 cover rotation and reload ordering)
 - Looking glass TLS (`cmd/ze/hub/service_lg.go`) keeps the self-signed-only path; it is the same `LoadOrGenerateCert` + PEM-in pattern, so extending it is a small follow-up consuming `pki.ServerTLSMaterial` (out of scope to keep this spec bounded; same for MCP/REST if they grow TLS)
-- Single intermediate only: `pki` stores at most one intermediate per entry (`config.go`); deeper chains need a schema extension (R-6)
+- ~~Single intermediate only~~ no longer true: `pki` stores a slice of intermediates and the served chain carries all of them (R-6 void)
 - Client-certificate authentication (mTLS) on these listeners is not in scope; this spec covers the server-side chain only
 - Live CLI completion of store certificate names (CompleteFn) is a UX follow-up, not required for correctness
 - geodns run as an external plugin cannot resolve the in-process store; behavior is loud failure + doctor diagnostic (R-4), not support
@@ -511,50 +522,161 @@ shape for core-hosted listeners like dnsserver.
 ## Implementation Summary
 
 ### What Was Implemented
-- [fill at implementation]
+- `pki.ServerTLSMaterial(name)` (`internal/component/pki/tls.go`): leaf + every stored
+  intermediate as one PEM document, leaf first, plus the PKCS#8 key. Errors on unknown
+  name, keyless entry, and empty name; returns no material alongside an error.
+- `pki.CheckCertReference(cfg, name, now)` (same file): offline doctor helper over a
+  PARSED config, so a broken reference is reported before the config is committed.
+  Emits `doctor-tls-reference` and `doctor-tls-expired`.
+- `certificate` leaf on three YANG surfaces: `environment.web`, `service.as112.tls`,
+  `service.geodns.tls`. Type `string { length "1..255"; pattern '[A-Za-z0-9._-]+'; }`.
+- `WebListenConfig.Certificate` plus the `ExtractWebSettings` / `ExtractWebConfig`
+  split (`loader_extract.go`), and `ze.web.certificate`.
+- `WebServer.UpdateTLSCertificate` + `tls.Config.GetCertificate` indirection over an
+  atomic `tls.Certificate` (`internal/component/web/server.go`): rotation with no rebind.
+- Hub: `webTLSMaterial` (fail-closed selection, `service_web.go`), a startup gate in
+  `main.go`, and the `TLSUpdatable` / `SetWebTLS` / `UpdateWebCertificate` seam in
+  `listener_migrate.go` so always-on code never imports the gated web package.
+- Reload: `zepki.Load` moved BEFORE plugin apply, a web-reference gate before that apply,
+  and `restorePKI` / `restorePKIAfter` so every failure path reinstalls the prior store.
+- dnsserver: `SecureConfig.Certificate`, mutual-exclusion error in `ParseSecureLeaves`,
+  a resolver branch in `buildSecureTLS`, and `Options.TLSMaterialResolver`. as112 and
+  geodns inject `pki.ServerTLSMaterial`; core never imports component pki.
+- Doctor: `doctor-tls-reference` registered in `diagnostic/codes.go`; checks on all
+  three surfaces (`web/register.go` + `web/doctor.go`, as112/geodns `doctor.go`).
 
 ### Bugs Found/Fixed
-- [fill at implementation]
+- **YANG `length` was never enforced.** `internal/component/config/schema.go` carried
+  `Patterns` and `Ranges` but no length, and `yang_schema.go` discarded the parsed
+  restriction, so every `length "1..255"` in the tree was decorative: a 256-character
+  value validated clean. Ten leaves predating this spec were affected (mrt, geodns,
+  ddos/flowtriq, exabgp bridge). Fixed at the source: `LeafNode.Lengths`,
+  `lengthRangesFromType`, and `validateLengths` (characters, not bytes, per RFC 7950
+  Section 9.4.4). This spec's boundary row depends on it, so it was in scope.
+- **The `enabled` gate would have discarded the web certificate.** `cmd/ze/hub/main.go`
+  starts the web server from `--web`, `ze.web.listen`, and `ze.web.enabled`, none of
+  which consult the config block. Parsing `certificate` behind the block's `enabled`
+  leaf would have served a self-signed certificate to an operator who named their own.
+  This is the third instance of
+  `plan/learned/1327-enabled-gate-discards-service-settings.md`; the extractor is split
+  the same way MCP and looking-glass are.
 
 ### Documentation Updates
-- [fill at implementation]
+- `docs/guide/configuration.md`: new "TLS Certificates From the PKI Store" section.
+- `docs/features/web-interface.md`, `docs/features.md`: PKI-backed TLS rows.
 
 ### Deviations from Plan
-- [fill at implementation]
+- **R-6 is void.** `CertificateEntry.Intermediates` is a SLICE now (RFC 7296 Section 3.6
+  work), so deeper chains already express. `ServerTLSMaterial` emits every intermediate,
+  not one.
+- **AC-3 landed as a startup/reload gate, not `ze config validate`.** Cross-root
+  reference resolution has no per-leaf validator hook, exactly as the spec's Integration
+  Checklist predicted. Verified: `ze start` exits 1 with
+  `error: environment.web.certificate: pki: certificate no-such-cert not found (available: lan)`.
+- **The reload `.ci` is two files, not one.** Several SIGHUPs in one script race the
+  daemon's reload queue (a HUP arriving mid-reload is queued and replayed), which made a
+  three-reload script pass or fail on load rather than on behavior. One reload per file
+  is deterministic: 5/5 parallel rounds clean.
+- **`TestReloadInstallsPKIBeforePluginApply` observes the gate, not a plugin OnConfigure.**
+  `pluginserver.Server.ReloadConfig` needs a full `ReactorLifecycle`. The gate runs
+  immediately before plugin apply, so where the reload stops is the ordering evidence;
+  the `.ci` covers the same AC through the real daemon.
+- **`internal/component/web/register.go` is new.** The doctor registration needs
+  `os.Exit` on a failed registration, which the hook allowlist permits only in
+  `register.go`.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Web server can use a PKI-stored certificate | done | `cmd/ze/hub/service_web.go` `webTLSMaterial` | selects store or self-signed |
+| The full chain (leaf + intermediates) is served | done | `internal/component/pki/tls.go` `chainPEM` | every stored intermediate, leaf first |
+| Same capability on the DoT/DoH listeners | done | `internal/core/dnsserver/secure.go` `buildSecureTLS` | resolver injected by as112/geodns |
+| Self-signed fallback semantics unchanged | done | `webTLSMaterial`, `LoadTLSMaterial` | only when NO name is configured |
+| Doctor checks for a broken reference | done | `pki.CheckCertReference` + three owner checks | `doctor-tls-reference` |
+| Reload / rotation behavior | done | `runReload`, `UpdateWebCertificate` | store first, then rotate |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestServerTLSMaterialAssemblesChain`, `TestWebServerServesPKIChain`, `TestStartWebServerUsesPKIMaterial` | handshake shows 2 PeerCertificates |
+| AC-2 | done | `TestWebServerSelfSignedFallbackUnchanged` | persisted pair reused, not regenerated |
+| AC-3 | done | `TestStartWebServerFailsClosedOnBrokenReference`, `test/reload/pki-reference-reload-broken.ci`, live `ze start` exit 1 | startup + reload rejection (not `config validate`, see Deviations) |
+| AC-4 | done | `TestWebServerServesPKIChain` | real `crypto/tls` client, 2 peer certs, leaf first |
+| AC-5 | done | `TestBuildSecureTLSFromResolver`, `test/plugin/as112-dot-pki.ci`, `test/plugin/geodns-dot-pki.ci` | DoT bound with the store certificate |
+| AC-6 | done | `TestParseSecureLeavesCertificateConflict`, `test/parse/as112-tls-certificate-conflict.ci` | commit rejected |
+| AC-7 | done | `TestServerTLSMaterialNoPrivateKey`, `TestStartWebServerFailsClosedOnBrokenReference` (keyless), `TestBuildSecureTLSResolverFailureIsLoud` | web errors; DoT/DoH leave cleartext up |
+| AC-8 | done | `TestCheckCertReferenceDiagnostics`, `TestWebTLSDoctorCheck`, `TestAS112TLSDiagnosticPKIReference`, `TestGeoDNSTLSDiagnosticPKIReference` | missing / keyless / expired / chain mismatch |
+| AC-9 | done | `TestWebServerUpdateTLSCertificate`, `TestListenerMigratorUpdateWebCertificate`, `test/reload/pki-reference-reload.ci` | listeners unchanged across rotation |
+| AC-10 | done | `TestReloadInstallsPKIBeforePluginApply`, `test/reload/pki-reference-reload.ci` | one commit adds cert + reference |
+| AC-11 | done | `TestServerTLSMaterialLeafOnly`, `TestCheckCertReferenceDiagnostics` leaf-only subtest | single block, no diagnostic |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestServerTLSMaterialAssemblesChain` | done | `internal/component/pki/tls_test.go` | |
+| `TestServerTLSMaterialLeafOnly` | done | same | |
+| `TestServerTLSMaterialNotFound` | done | same | error lists available names |
+| `TestServerTLSMaterialNoPrivateKey` | done | same | |
+| `TestCheckCertReferenceDiagnostics` | done | same | 9 subtests |
+| `TestNewTLSConfigServesChain` | done | `internal/core/selfcert/selfcert_test.go` | A-3 gate |
+| `TestWebServerServesPKIChain` | done | `internal/component/web/server_tls_test.go` | |
+| `TestWebServerUpdateTLSCertificate` | done | same | |
+| `TestExtractWebConfigCertificate` | done | `internal/component/config/web_extract_test.go` | |
+| `TestStartWebServerUsesPKIMaterial` | done | `cmd/ze/hub/service_web_tls_test.go` | |
+| `TestWebServerSelfSignedFallbackUnchanged` | done | same | |
+| `TestParseSecureLeavesCertificate` | done | `internal/core/dnsserver/secure_pki_test.go` | |
+| `TestParseSecureLeavesCertificateConflict` | done | same | |
+| `TestBuildSecureTLSFromResolver` | done | same | |
+| `TestBuildSecureTLSResolverMissing` | done | same | |
+| `TestAS112TLSDiagnosticPKIReference` | done | `internal/plugins/as112/doctor_test.go` | |
+| `TestGeoDNSTLSDiagnosticPKIReference` | done | `internal/plugins/geodns/doctor_test.go` | |
+| `TestGeoDNSAppliesPKICertificate` | changed | covered by `TestBuildSecureTLSFromResolver` + `geodns-dot-pki.ci` | the injection is one struct field on `dnsserver.New`; the resolver BRANCH is where behavior lives and is tested at the seam |
+| `TestWebTLSDoctorCheck` | done | `internal/component/web/doctor_test.go` | |
+| `TestReloadInstallsPKIBeforePluginApply` | done | `cmd/ze/hub/main_reload_pki_test.go` | see Deviations for the observation point |
+| ADDED `TestValidateLeafValueLength` | done | `internal/component/config/leaf_length_test.go` | boundary row; found the length gap |
+| ADDED `TestCertificateLeafLengthFromYANG` | done | same | constraint reaches the built schema |
+| ADDED `TestExtractWebSettingsSurviveDisabledBlock` | done | `internal/component/config/web_extract_test.go` | learned 1327 |
+| ADDED `TestRollbackReloadRestoresPriorPKIStore` | done | `cmd/ze/hub/main_reload_pki_test.go` | R-3 |
+| ADDED `TestReloadRejectsBrokenWebCertificateReference` | done | same | R-5 on reload |
+| ADDED `TestUpdateTLSCertificateRejectsBadMaterial` | done | `internal/component/web/server_tls_test.go` | fail-closed rotation |
+| ADDED `TestBuildSecureTLSResolverFailureIsLoud` | done | `internal/core/dnsserver/secure_pki_test.go` | no self-signed fallback |
+| ADDED `TestBuildSecureTLSFileAndSelfSignedUnchanged` | done | same | regression guard |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/pki/tls.go` + `tls_test.go` | created | |
+| `internal/component/web/doctor.go` + `doctor_test.go` | created | |
+| `internal/component/web/register.go` | created | registration split out (hook allowlist) |
+| `cmd/ze/hub/service_web_tls_test.go`, `main_reload_pki_test.go` | created | |
+| `internal/component/config/web_extract_test.go`, `leaf_length_test.go` | created | |
+| `internal/core/dnsserver/secure_pki_test.go`, `internal/component/web/server_tls_test.go` | created | |
+| three `*-conf.yang` modules | modified | `certificate` leaf |
+| `loader_extract.go`, `environment.go`, `schema.go`, `yang_schema.go` | modified | extraction split, env var, length enforcement |
+| `web/server.go`, `hub/service_web.go`, `main.go`, `main_reload.go`, `listener_migrate.go`, `service_registry.go`, `register_web.go` | modified | |
+| `dnsserver/secure.go`, `manager.go`, `as112/{server,doctor,register}.go`, `geodns/{server,doctor,register}.go`, `diagnostic/codes.go` | modified | |
+| `test/parse/web-pki-certificate.ci`, `web-pki-certificate-name-too-long.ci`, `as112-tls-certificate-conflict.ci` | created | `-missing` renamed: the reference check is a startup gate, not a parse one |
+| `test/plugin/as112-dot-pki.ci`, `geodns-dot-pki.ci` | created | |
+| `test/reload/pki-reference-reload.ci`, `pki-reference-reload-broken.ci` | created | split, see Deviations |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 11 ACs, 20 planned tests, 8 added tests, 13 planned files
+- **Done:** all 11 ACs; 19 of 20 planned tests as written
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** `TestGeoDNSAppliesPKICertificate` folded into the seam test; AC-3 enforced at startup/reload; reload `.ci` split in two (all in Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Web HTTPS serves operator PKI cert + full chain | functional + unit handshake test | `TestWebServerServesPKIChain`, `test/parse/web-pki-certificate.ci` |
-| DoT/DoH serve PKI cert + full chain on as112 and geodns | functional + unit | `TestBuildSecureTLSFromResolver`, `test/plugin/as112-dot-pki.ci`, `test/plugin/geodns-dot-pki.ci` |
-| Self-signed fallback unchanged | regression | `TestWebServerSelfSignedFallbackUnchanged`, existing web/as112 suites green |
-| Rotation without restart | unit + reload functional | `TestWebServerUpdateTLSCertificate`, `test/reload/pki-reference-reload.ci` |
-| Broken references caught before/at deploy | doctor + startup tests | `TestCheckCertReferenceDiagnostics`, `test/parse/web-pki-certificate-missing.ci` |
+| Web HTTPS serves operator PKI cert + full chain | unit handshake + functional | `TestWebServerServesPKIChain`: real `crypto/tls` client sees 2 `PeerCertificates`, leaf first. `test/parse/web-pki-certificate.ci` PASS. Mutation: dropping the intermediate from `chainPEM` reddens `TestServerTLSMaterialAssemblesChain` |
+| DoT/DoH serve PKI cert + full chain on as112 and geodns | unit + functional | `TestBuildSecureTLSFromResolver` asserts `len(Certificates[0].Certificate) == 2` and the resolved leaf CN. `test/plugin/as112-dot-pki.ci` and `geodns-dot-pki.ci` PASS in the 585-test plugin suite |
+| Self-signed fallback unchanged | regression | `TestWebServerSelfSignedFallbackUnchanged` (generates, persists, then REUSES). `TestBuildSecureTLSFileAndSelfSignedUnchanged` (resolver never consulted; cached config identical across applies). Full `web`, `as112`, `geodns`, `dnsserver` suites green |
+| Rotation without restart | unit + reload functional | `TestWebServerUpdateTLSCertificate`: `Addresses()` identical across the swap, new handshakes serve the new leaf. Mutation: removing the `GetCertificate` indirection reddens it. `test/reload/pki-reference-reload.ci` PASS |
+| Broken references caught before/at deploy | doctor + startup + reload | `TestCheckCertReferenceDiagnostics` (9 cases), `TestWebTLSDoctorCheck`. Live daemon: `ze start` exits 1 with `error: environment.web.certificate: pki: certificate no-such-cert not found (available: lan)`. `test/reload/pki-reference-reload-broken.ci` PASS |
+| The reference is never silently downgraded to self-signed | negative test at every entry point | `TestStartWebServerFailsClosedOnBrokenReference` asserts the self-signed store was NOT written. `TestBuildSecureTLSResolverFailureIsLoud` asserts `m.selfSigned` stays nil. `TestServerTLSMaterialNotFound` asserts no material accompanies the error |
 
 ## Review Gate
 

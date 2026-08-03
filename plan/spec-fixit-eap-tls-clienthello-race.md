@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-eap-tls-clienthello-race.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; the spec has no Known Limitations and no out-of-scope decision. Create `plan/deferrals/fixit-eap-tls-clienthello-race.md` on the first deferral) |
 | Updated | 2026-07-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

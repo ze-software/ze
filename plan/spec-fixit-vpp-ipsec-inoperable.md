@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-vpp-ipsec-inoperable.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; AC-7 is in scope, and the three value bugs are fixed in the same work rather than deferred. Create `plan/deferrals/fixit-vpp-ipsec-inoperable.md` on the first deferral) |
 | Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

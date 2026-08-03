@@ -273,5 +273,20 @@ after the initial exchanges and are cryptographically protected with the negotia
 ## Known Limitations
 
 This fixes the probe Ze SENDS. The probe Ze RECEIVES is already handled correctly, so it
-needs no change. One question stays open and is not scoped here: what Ze does with a
-bare-header probe from a peer in the wild.
+needs no change. ~~One question stays open and is not scoped here: what Ze does with a
+bare-header probe from a peer in the wild.~~
+
+**Answered 2026-08-03 (bookkeeping audit), so nothing is left open here.** `decryptAndParse`
+(`internal/component/ike/engine/inbound.go`) returns "no SK payload" when a message carries
+no Encrypted payload. That error is not `errInnerParse`, and `errInnerParse` is the marker
+RFC 7296 Section 3.10.1's error-notification precondition rides on, so Ze answers a
+bare-header probe with silence. That is the conformant outcome: Section 1.4 requires the
+Encrypted payload, so a bare header is not an INFORMATIONAL request and there is nothing to
+respond to. No code change and no deferral row follow from it.
+
+**Deferral shard, created 2026-08-03.** The metadata row at the top named
+`plan/deferrals/fixit-ike-dpd-cleartext.md` and that file did not exist, so this spec's one
+real deferral was unrecorded and `/ze-close` had nothing to resolve. The shard now holds it:
+the DPD hold-open `.ci` this spec's TDD Test Plan defers ("Add one when the harness can drive
+a peer for longer than one DPD interval"), homed as item 5 and AC-8 of
+`plan/spec-fixit-ike-test-discrimination.md`.

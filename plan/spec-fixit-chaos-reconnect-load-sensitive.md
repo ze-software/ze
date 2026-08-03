@@ -120,6 +120,21 @@ It is recorded here rather than in its own spec, because the class and the fix s
 identical. Both are functional tests that assert on elapsed time instead of on state.
 Whoever fixes the chaos test reads this one next, because the same reasoning applies.
 
+**Homed 2026-08-03 (bookkeeping audit).** Being recorded here was not the same as being
+owned: this spec's Files to Modify covers `internal/chaos/` alone and no AC of it reaches
+the web suite, so the sibling would have died at closure. It now carries a live row in
+`plan/deferrals/fixit-chaos-reconnect-load-sensitive.md`, homed at
+`plan/spec-fixit-migrate-sleeps-infra.md`, whose subject is exactly this: replace a blind
+wait with a wait on a real condition. Its predecessor already converted `rbac-web`, so the
+web suite is inside that family's remit.
+
+Re-checked at source on 2026-08-03, not carried from the paragraph above.
+`test/web/commit-flow.wb` still carries `option=timeout:value=45s` and two blind
+`action=wait:ms=1000` steps. This is also a DIFFERENT failure from the commit-flow entry
+`plan/known-failures/RESOLVED.md` closes on 2026-07-29: that one was positive expectations
+sampled once against an asynchronous page, in `checkElement` and `checkHTML`. This one was
+measured the day after and its mechanism is the elapsed time the test allows itself.
+
 Attribution, established the same day. The web suite has no dependency on anything the IKE
 work changed. Adding `ipsec` to `all_suites` did not cause it either. `run_suite` is
 invoked sequentially in `mk/test-functional.mk`, with no backgrounded call. The change

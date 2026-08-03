@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-ipsec-interop-cli-credentials.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the Known Limitation is a lab constraint, not postponed work. Create `plan/deferrals/fixit-ipsec-interop-cli-credentials.md` on the first deferral) |
 | Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

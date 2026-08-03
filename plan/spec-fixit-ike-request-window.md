@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-ike-request-window.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; window-size negotiation was never in scope and is conditional on a peer that does not exist. Create `plan/deferrals/fixit-ike-request-window.md` on the first deferral) |
 | Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

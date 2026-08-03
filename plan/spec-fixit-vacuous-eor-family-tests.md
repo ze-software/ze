@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-vacuous-eor-family-tests.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the shard is listed under Files to Create. Create `plan/deferrals/fixit-vacuous-eor-family-tests.md` on the first deferral) |
 | Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

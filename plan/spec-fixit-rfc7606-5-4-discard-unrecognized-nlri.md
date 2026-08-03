@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | 3/3 |
-| Deferral shard | `plan/deferrals/spec-fixit-rfc7606-5-4-discard-unrecognized-nlri.md` |
+| Deferral shard | `-` |
 | Updated | 2026-08-01 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -217,7 +217,7 @@ parses a route type today.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFC7606Section54DiscardsUnrecognizedEVPNType` | `reactor/session_validation_nlritype_test.go` | AC-1, tagged `RFC requirement: RFC7606-5.4-1 positive` | written; blocked on the reactor package compiling |
+| `TestRFC7606Section54DiscardsUnrecognizedEVPNType` | `reactor/session_validation_nlritype_test.go` | AC-1, tagged `RFC requirement: RFC7606-5.4-1 positive` | written; ~~blocked on the reactor package compiling~~ **unblocked 2026-08-03, the package compiles (Correction block)** |
 | `TestRFC7606Section54PropagatesUnknownBGPLSType` | `reactor/session_validation_nlritype_test.go` | AC-2, tagged `RFC requirement: RFC7606-5.4-1 negative` | written; same block |
 | `TestRFC7606Section54DropsMPReachWhenNothingSurvives` | `reactor/session_validation_nlritype_test.go` | no empty MP_REACH is relayed | written; same block |
 | `TestRFC7606Section54LeavesConformingUpdateZeroCopy` | `reactor/session_validation_nlritype_test.go` | AC-3, the zero-copy relay survives | written; same block |
@@ -402,28 +402,52 @@ would be gratuitous. Symmetry is the point: one rule for both directions.
 | Tagged reactor tests | PASS (6). Mutation-verified: an early return in `applyTypedNLRIDiscard` flipped 3 of the 6 RED |
 | `test/plugin/rfc7606-54-*.ci` | PASS (2). Mutation-verified: the positive file flipped RED with `6304DEADBEEF` on the receiver's wire |
 | `golangci-lint` over the changed packages | 0 issues |
-| `make ze-rfc-check` | The two RFC7606-5.4-1 violations are CLEARED. Two violations remain, both `go vet` failures in packages another session is mid-refactor on |
-| `./internal/component/bgp/...` with feature tags | 80 packages ok, 0 failing tests, 1 package blocked (see below) |
+| `make ze-rfc-check` | The two RFC7606-5.4-1 violations are CLEARED. ~~Two violations remain, both `go vet` failures in packages another session is mid-refactor on~~ **corrected 2026-08-03: those two packages now `go vet` clean, so re-run the gate rather than quoting this row** |
+| `./internal/component/bgp/...` with feature tags | 80 packages ok, 0 failing tests, ~~1 package blocked (see below)~~ **corrected 2026-08-03: nothing is blocked, see the Correction block** |
 
-**Blocked on a concurrent session, not on this work.** `internal/component/bgp/reactor`
-and `internal/component/bgp/plugins/role` do not type-check in the working tree:
+> **CORRECTION 2026-08-03 (bookkeeping audit): the tree-contention block is GONE. The
+> paragraphs below describe 2026-08-01 and are kept as history. Do not reach for the
+> overlay, and do not wait on another session.**
+>
+> `spec-wire-edit-2-edit-apply` landed and its spec is closed and removed from `plan/`.
+> `rfc8277_test.go` and `otc_test.go` both call the `func(*AttrPlan)` form now, and their
+> comments say so. Both packages type-check with the full feature tags:
+>
+> ```
+> $ TAGS="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
+> $ go vet -tags "$TAGS" ./internal/component/bgp/reactor/ ./internal/component/bgp/plugins/role/
+> exit=0
+> ```
+>
+> So the reactor evidence can be re-taken directly, with no overlay. The two failures the
+> paragraph below attributes to the other session are its subject and are no longer this
+> spec's excuse: re-run `make ze-test-pkg PKG=./internal/component/bgp/reactor` and read
+> what it says now.
+
+**~~Blocked on a concurrent session, not on this work.~~** `internal/component/bgp/reactor`
+and `internal/component/bgp/plugins/role` ~~do not type-check in the working tree:
 `spec-wire-edit-2-edit-apply` is changing the filter-delta handler signature to
 `*filterapi.AttrPlan` and its test files still call the old four-argument form
 (`rfc8277_test.go`, `otc_test.go`). Nothing in this spec touches `filterapi`,
-`forward_build.go` or any attr-mod handler.
+`forward_build.go` or any attr-mod handler.~~
 
-The reactor evidence above was therefore taken through a `go test -overlay`
+~~The reactor evidence above was therefore taken through a `go test -overlay`
 that maps only those in-flight test files to empty stubs. The overlay changes
 no file in the repository. With it, the reactor package type-checks, the six
 tagged tests pass, and the only two failures in the whole package are
 `TestMergeInsertAscendingOrder` and `TestModifyPathZeroAlloc` in
-`forward_build_merge_test.go`, which is the other session's own subject.
+`forward_build_merge_test.go`, which is the other session's own subject.~~
 
-`make ze-rfc-check` and the full `ze-test-bgp` will go green on their own once
-that refactor compiles. Neither needs a change here.
+~~`make ze-rfc-check` and the full `ze-test-bgp` will go green on their own once
+that refactor compiles. Neither needs a change here.~~
 
 ## Known Limitations
 
+- **Deferral shard row corrected to `-` on 2026-08-03 (bookkeeping audit).** It named
+  `plan/deferrals/spec-fixit-rfc7606-5-4-discard-unrecognized-nlri.md`, which never existed
+  and carries the `spec-` prefix a shard name does not take. This spec defers nothing: the
+  row below is a sequencing note about two files that must not be edited early, not
+  postponed work.
 - Until this lands, `rfc/short/rfc7606.md` still carries the `{gap}` annotation
   and `docs/features/rfc-status.md` still discloses the divergence. Both are
   accurate descriptions of current behaviour and must not be edited early.

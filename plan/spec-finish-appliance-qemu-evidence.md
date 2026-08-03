@@ -32,6 +32,20 @@ to be executed on a root host".
 - **Full QEMU gokrazy L2TP appliance proof (from spec-gokrazy-init-bump AC-6, 2026-07-10)** -
   build + boot + xl2tpd/pppd session. The bump itself is verified via the image build; this
   is the boot-and-run proof.
+  -> Constraint (added 2026-08-03 at the source spec's closure, knowledge
+  `plan/learned/1329-gokrazy-init-bump.md`): the boot proof is
+  `make ze-vpp-hugepages-qemu-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
+  It is NOT `test/appliance/serial-login.ci`, which boots nothing and which the
+  source spec wrongly named (`ai/rules/platform-linux.md` strikes it out of the
+  proof table).
+  -> Constraint: **read the known fail-open before diagnosing a boot failure.**
+  `make ze-gokrazy` injects the seed database with `debugfs -w -R`, whose stderr
+  it discards and which exits 0 even when the write fails. An image whose
+  `/perm` database was never written therefore builds green and dies at boot
+  with no cause in the build log. That is a live deferral homed at
+  `plan/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md`. If this
+  run fails at boot, check `/perm/ze/database.zefs` before suspecting the init
+  bump.
 - **Full gokrazy L2TP appliance run proving graceful-skip end to end (from
   spec-iface-absent-link-graceful AC-3, 2026-07-10)** - the graceful-skip fix is already
   proven on a real appliance boot ("interface config applied", no crash loop); this is the

@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/spec-bgp-local-as-options.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; RFC 7705 Section 4.2 was never in scope, it is a sibling spec. Create `plan/deferrals/bgp-local-as-options.md` on the first deferral) |
 | Updated | 2026-07-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

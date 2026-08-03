@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | `plan/spec-bgp-local-as-options.md` |
 | Phase | - |
-| Deferral shard | `plan/deferrals/spec-bgp-as-migration.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; RFC7705-4.2-5 is a candidate for a RULED deferral only after A-5 resolves, and no such ruling exists yet. Create `plan/deferrals/bgp-as-migration.md` on the first deferral) |
 | Updated | 2026-07-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

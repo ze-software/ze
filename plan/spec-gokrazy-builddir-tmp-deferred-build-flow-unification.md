@@ -39,6 +39,29 @@ duplicated mkfs/debugfs work) or whether the two are deliberately different
 products. If they converge, `ZEFS=` and the `CERTNAME` cert cache must survive in
 some form: they are developer conveniences with no Go equivalent today.
 
+### Added 2026-08-03: the make path injects credentials fail-open
+
+Found while closing `plan/spec-gokrazy-init-bump.md` (knowledge:
+`plan/learned/1329-gokrazy-init-bump.md`).
+
+The credential injection at `mk/gokrazy.mk` runs `debugfs -w -R "mkdir ze"` and
+`debugfs -w -R "write ... ze/database.zefs"`, each with `2>/dev/null`. Measured
+on e2fsprogs 1.47.0: `debugfs` exits **0 even when the command fails**, and it
+reports the failure only on stderr, which those two redirections discard. An
+image whose `/perm` database was never written therefore builds green and fails
+at boot, with no line in the build output naming the cause.
+
+Removing the redirection alone does not fix it: `debugfs` prints a version
+banner to stderr on every successful run, so the recipe would get noisier and
+still not fail. The fix is an assertion after the write (read the file back with
+`debugfs -R "stat ze/database.zefs"`, or drop the shell seeding entirely by
+converging on the Go path, which is this spec's own question).
+
+Out of scope for the closing spec: its goal was the init version bump, which
+does not depend on this path. The e2fsprogs guard was hardened in the same
+closure to require `debugfs` as well as `mkfs.ext4`, so the tool can no longer be
+missing outright; the silent failure of a tool that IS present is what remains.
+
 Two further items deferred out of the same source spec (recorded in its
 `plan/deferrals/gokrazy-builddir-tmp.md` shard, which the closure commit
 removes; this spec is their home):

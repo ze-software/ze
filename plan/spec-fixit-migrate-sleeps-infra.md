@@ -7,6 +7,46 @@
 | Phase | 2/9 |
 | Updated | 2026-07-22 |
 
+## Correction 2026-08-03 (bookkeeping audit): the counts and the fib premise
+
+**Two things in this spec are stale. Read this before you quote any number in it, and
+before you build P4.**
+
+**1. The sleep count. The tree holds 79, not 246 or 223.**
+
+```
+$ grep -rn "time\.sleep(" test --include=*.ci | wc -l
+79
+```
+
+`test/.ci-sleep-baseline` sums to 79 as well (origin 125, then `-11 -12 -1 -1 -12 -8 -1`),
+so the ratchet and the tree agree. Every "246" and "223" below is a 2026-07-14 reading and
+is kept only as history. 167 of those sleeps have gone since, most of them in the
+`test/policy` and `test/firewall` suites the baseline file documents. Re-derive the number
+before you quote it. Do not carry 246 forward.
+
+**2. AC-4's premise is false: a queryable fib signal EXISTS.**
+
+The Current Behavior entry below says of `fib/kernel`: "no end-to-end 'FIB in sync' signal
+exists (P4)". Producers read on 2026-08-03, not inferred:
+
+| Producer | Where | What it does |
+|----------|-------|--------------|
+| `fibKernel.showInstalled` | `internal/plugins/fib/kernel/backend.go` | returns the `installed` map as `{prefix, next-hop}` JSON |
+| the `OnExecuteCommand` handler | `internal/plugins/fib/kernel/register.go` | serves `show fib kernel` from `showInstalled`, and the plugin declares that command in its `sdk.Registration` |
+| `fibKernel.applyBatch` install and replace branches | `internal/plugins/fib/kernel/fibkernel.go` | writes `f.installed[pfx]` only AFTER `addChange` / `replaceChange` returns nil, so a prefix appears in the map only once the netlink program succeeded |
+
+So a bounded poll on `show fib kernel` until the prefix appears is a real signal that the
+kernel route was programmed, and it is the P4 surface AC-4 asks for. The spec's own Revised
+Approach already said so ("fib-kernel (uses existing `show fib kernel`)"); the Current
+Behavior entry contradicts it and is the wrong half.
+
+**Two bounds that stay true, and they are why the poll must be bounded rather than
+one-shot.** Delivery from sysrib to fib-kernel is still fire-and-forget, so the prefix
+arrives at a time the test cannot predict. And the map is fib-kernel's own record, so it
+does not detect a route deleted out from under Ze by something else; `monitor.go` owns that
+direction. Neither bound blocks the conversion.
+
 Phase note (was in the Phase cell; moved 2026-07-22): the P0 establishment
 investigation is RESOLVED -- it was carved out to
 `spec-fixit-redistribute-establishment-stall`, which root-caused it (no engine
@@ -46,8 +86,9 @@ the infra-gated cases. Revised Approach signed off 2026-07-16.
 > during P0 before spending the investigation twice; do not record it as a finding until cited.
 
 The primitive-migration spec (`migrate-plugin-sleeps`, committed) converted 214 of the 305
-`test/plugin` sleeps with the existing Layer 1/2 wait primitives. **246 real `time.sleep()`
-calls remain across `test/**/*.ci`** (91 in `test/plugin`, 155 in non-plugin dirs).
+`test/plugin` sleeps with the existing Layer 1/2 wait primitives. ~~**246 real `time.sleep()`
+calls remain across `test/**/*.ci`** (91 in `test/plugin`, 155 in non-plugin dirs).~~
+**Corrected 2026-08-03: 79 remain, 33 of them in `test/plugin`. See the Correction block.**
 
 The original framing assumed each was left for lack of **new test-synchronization infrastructure**.
 The audit disproved that: the signals mostly already exist. Each remaining sleep was left for a
@@ -59,6 +100,16 @@ dev host does not run).
 Scope confirmed by user (2026-07-14): "write a spec for the ones you deferred/kept so we can
 also convert them." Genuinely-intentional sleeps (deliberate timers that ARE the test) stay,
 documented.
+
+**Added 2026-08-03 (bookkeeping audit): `test/web/commit-flow.wb`.** Homed here from
+`plan/spec-fixit-chaos-reconnect-load-sensitive.md`, which recorded it and could not own it
+(row in `plan/deferrals/fixit-chaos-reconnect-load-sensitive.md`). The test carries
+`option=timeout:value=45s` and two blind `action=wait:ms=1000` steps, verified at HEAD. It
+took 36.8 seconds under a full run against 14.1 seconds standalone on 2026-07-30, a slowdown
+of 2.6 times it does not survive. It is the same defect this spec exists to remove: a wait on
+elapsed time where a wait on state belongs. The ratchet in `test/.ci-sleep-baseline` counts
+`test/**/*.ci` only, so a `.wb` conversion moves no number, and the predecessor spec already
+converted `rbac-web`, so the web suite is not new ground here.
 
 ## Revised Approach (plan of record, 2026-07-14)
 
@@ -93,7 +144,7 @@ documented.
 - [ ] N/A — test infrastructure; no wire-protocol behavior changes.
 
 **Key insights:**
-- Three sleep shapes remain: (a) standalone driver scripts (no `ze_api` import) polling `daemon.ready` or shelling `nft`/`tc`/`ip route`; (b) waits for effects with no queryable state (fib-kernel async delivery, external-plugin WARNs on the daemon's own stderr, rejected routes that never land); (c) genuine deliberate timers.
+- Three sleep shapes remain: (a) standalone driver scripts (no `ze_api` import) polling `daemon.ready` or shelling `nft`/`tc`/`ip route`; (b) waits for effects with no queryable state (~~fib-kernel async delivery,~~ **fib-kernel struck 2026-08-03: `show fib kernel` is queryable state; only the ARRIVAL TIME is unpredictable, which a bounded poll handles. See the Correction block.** external-plugin WARNs on the daemon's own stderr, rejected routes that never land); (c) genuine deliberate timers.
 - The fix is per-shape infrastructure, not per-test cleverness. Each infra piece (P1..P8) unblocks a named bucket; P9 re-examines KEEP.
 
 ## Current Behavior (MANDATORY)
@@ -104,7 +155,7 @@ documented.
 - [ ] `internal/component/bgp/reactor/peer.go` — `DefaultReconnectMin = 5s` (:81): the reconnect backoff that makes establishment slow/variable in bgp-redistribute-* (P6).
 - [ ] `internal/component/plugin/server/startup.go` — `WaitForStartupComplete` (:291), called before the `ze.ready.file` write (`cmd/ze/hub/main.go`): the daemon-readiness barrier a `wait_for_daemon_ready()` helper (P1) and the dataplane-programmed question (P3) build on.
   -> Decision (2026-07-28): A-1 is RESOLVED, and the answer is "yes for the plugin's own apply, no for what the plugin programs afterwards". `daemon.ready` is written only after every plugin startup phase settled (`startup.go` -> `signalStartupComplete`), and the policy plugin's `OnConfigure` (`internal/plugins/policyroute/register.go`) calls `applyPolicies` SYNCHRONOUSLY. But `applyPolicies` programs nftables FIRST (`firewall.ApplyAll`, `:200`) and the ip rules/auto routes SECOND (`rm.applyAll`, `:204`), so a wait must gate on whichever object the test actually reads -- gating on the nft table proves nothing about an `ip rule show` assertion. P3 therefore did NOT delete the lead-ins; it replaced each with a bounded poll on that test's own readback (`ze_api.wait_for_output`).
-- [ ] `internal/plugins/fib/kernel/fibkernel.go` — `installed` map (the authoritative programmed set), fire-and-forget sysrib->fib-kernel delivery: no end-to-end "FIB in sync" signal exists (P4).
+- [ ] `internal/plugins/fib/kernel/fibkernel.go` — `installed` map (the authoritative programmed set), fire-and-forget sysrib->fib-kernel delivery: ~~no end-to-end "FIB in sync" signal exists (P4)~~ **corrected 2026-08-03, see the Correction block: `show fib kernel` serves that map through `showInstalled` (`fib/kernel/backend.go`, `fib/kernel/register.go`), and the map is written only after the netlink program succeeds, so it IS the P4 signal.**
 - [ ] `internal/plugins/traffic/netlink/ops_linux.go` / `backend_linux.go` — tc `Apply` is synchronous, run in-band in `OnConfigure`/`OnConfigApply`; `ListQdiscs` is a live readback (P3).
 - [ ] `test/scripts/ze_api.py` — existing primitives; the home for `wait_for_daemon_ready` (P1) and a reject-fence helper (P5).
 - [ ] `internal/test/runner/engine_steps.go` / `runner_exec.go` — the runner + engine-step executor; the home for a daemon-stderr-wait primitive (P2).
@@ -176,7 +227,7 @@ documented.
 | AC-1 | **P1 wait_for_daemon_ready** | importable helper (works in standalone drivers with no `API()` and in observers); converts the `for..: if exists('daemon.ready'): break; sleep(0.05)` polls + lead-ins in static/firewall/policy/traffic drivers, show-policy-routes:18, ddos-detect-*:46/:43; each converted test green (host or QEMU) |
 | AC-2 | **P2 daemon-stderr wait** | a runner-level primitive to wait until the spawned daemon's stderr matches a pattern (bounded); converts the external-warn hold-open sleeps (as112, cos, ddos-detect-external-warns, trafficusage, flowexport-external-refuses); QEMU-verified |
 | AC-3 | **P3 dataplane-programmed** | resolve A-1: if `daemon.ready` implies nft/tc programmed, delete the lead-ins; else add a reflecting readiness. Converts firewall (48), policy (13), traffic (16 netlink); QEMU-verified |
-| AC-4 | **P4 fib reflecting-show / quiescer** | a queryable signal that a kernel-FIB route is installed; converts fib-mpls-kernel, fib-blackhole, fib-srv6-kernel(3), fib-table + non-plugin static/vpp kernel waits; QEMU-verified |
+| AC-4 | **P4 fib reflecting-show / quiescer** | a queryable signal that a kernel-FIB route is installed; converts fib-mpls-kernel, fib-blackhole, fib-srv6-kernel(3), fib-table + non-plugin static/vpp kernel waits; QEMU-verified. **Corrected 2026-08-03: the signal already exists (`show fib kernel`), so this AC is a conversion of the named tests to a bounded poll on it, NOT the construction of a new surface. See the Correction block** |
 | AC-5 | **P5 reject-fence** | a documented sentinel-route pattern (+ helper) proving a reject decision completed without a positive edge; converts prefix-filter-reject, prefix-filter-chain-order, community-match-reject, aspath-filter-reject, aspath-length-reject, role-otc-ingress-reject, rpki-validate-reject, rpki-maxlength, rpki-as-set, rfc7606-withdraw; each 3x |
 | AC-6 | **P6 redistribute/control-message signal** | a fast outbound-sent signal that redistribute UPDATEs and KEEPALIVE/ROUTE-REFRESH increment (or a forward-pool barrier that returns promptly); converts bgp-redistribute-* (5), api-raw, api-route-refresh; each 3x |
 | AC-7 | **P7 RS inbound-anchor** | anchor on the RS's inbound view before quiescing outbound; converts bgp-rs-* (6), remove-private-as-export, remove-private-as-replace-peer; each 3x |

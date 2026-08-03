@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**Four places in the IKE and IPsec test surface report green without testing the
+**~~Four~~ Five places in the IKE and IPsec test surface report green without testing the
 thing they name.**
 
 Found on 2026-08-02 while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Two were
@@ -78,6 +78,29 @@ that is known to move the counter.
 `ai/rules/platform-linux.md` is arguably the better long-term home for this
 constraint. Moving it there is a rule change and belongs to the owner, so this spec
 records it and does not edit the rule.
+
+### Item 5: no `.ci` holds a DPD interval open, so the liveness probe is unproven at daemon level
+
+Added 2026-08-03, homed here from `plan/spec-fixit-ike-dpd-cleartext.md` (row in
+`plan/deferrals/fixit-ike-dpd-cleartext.md`).
+
+That spec fixed a probe Ze sent in cleartext, and proved the fix with four unit tests in
+`internal/component/ike/engine/rfc7296_dpd_test.go` plus the existing ipsec suite. It did
+not add the daemon-level proof it names as the strongest. That proof is a `.ci` that
+configures a DPD `interval` and asserts the tunnel is STILL up after more than one interval
+has passed. Its own words: "Add one when the harness can drive a peer for longer than one
+DPD interval."
+
+So `test/ipsec/*.ci` proves the SA establishes and re-establishes with the changed probe
+path, and nothing proves a configured DPD does not tear a healthy tunnel down. That is the
+exact failure the cleartext defect produced in the field, and it is the shape item 3 above
+warns about: a necessary assertion standing in for a sufficient one.
+
+The blocker is harness duration, not signal. `newDPDState`
+(`internal/component/ike/engine/dpd.go`) returns nil at `Interval == 0`, so the test must
+configure a non-zero interval and then outlive it. Decide at design time whether the ipsec
+`.ci` harness can hold a peer that long, or whether this belongs in the interop tier beside
+scenario `07`.
 
 ## Required Reading
 
@@ -203,6 +226,7 @@ records it and does not edit the rule.
 | AC-5 | Scenario `04-eap-tls` runs against strongSwan | ESP traffic is proven accepted, not only that an XFRM SA exists |
 | AC-6 | Scenario `06-eap-tls13` runs against strongSwan | Same as AC-5 |
 | AC-7 | A reader plans a QEMU xfrm probe | The loopback constraint and the positive-control requirement are recorded where that reader looks |
+| AC-8 | A peer is configured with a non-zero DPD `interval` and stays healthy | The tunnel is still established after more than one interval, proven by a test that outlives the interval rather than by a unit test on the probe builder (item 5) |
 
 ## End-to-End User Stories
 
@@ -227,7 +251,8 @@ records it and does not edit the rule.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| existing IPsec suite | `test/ipsec/*.ci` | No new `.ci` is expected. Confirm at design time whether the EAP guard is reachable from a `.ci`, and add one if it is | |
+| existing IPsec suite | `test/ipsec/*.ci` | ~~No new `.ci` is expected.~~ Confirm at design time whether the EAP guard is reachable from a `.ci`, and add one if it is | |
+| DPD hold-open (item 5) | `test/ipsec/` | An operator configures a DPD `interval` and the tunnel stays up past more than one interval. Corrected 2026-08-03: a new `.ci` IS expected here unless design shows the harness cannot outlive an interval, in which case it moves to the interop tier | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -354,7 +379,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-7 all demonstrated
+- [ ] AC-1..AC-8 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)

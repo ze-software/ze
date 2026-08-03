@@ -7,10 +7,39 @@
 | Phase | - |
 | Updated | 2026-07-02 |
 
+## Correction 2026-08-03 (bookkeeping audit): the announce seam EXISTS
+
+**Every statement in this spec that the plugin→reactor announce seam "does not exist"
+or "is missing" is superseded. Read this block before you act on AC-6, on the child-8
+roadmap row, or on the Key-insight bullet about `cp-survival-4`.**
+
+Producers read on 2026-08-03, not inferred:
+
+| Producer | Where | What it does |
+|----------|-------|--------------|
+| `sdkDispatcher.Dispatch` | `internal/plugins/ddos/flowspec/register.go` | calls `sdk.Plugin.UpdateRoute` with the rendered update text and the FlowSpec peer selector |
+| `Plugin.UpdateRoute` -> `UpdateRouteWithMeta` | `pkg/plugin/sdk/sdk_engine.go` | sends `rpc.MethodUpdateRoute` to the engine and returns the announced and withdrawn counts |
+| `Server.opUpdateRoute` -> `handleUpdateRouteSelDirect` | `internal/component/plugin/server/dispatch_registry.go`, `internal/component/plugin/server/dispatch.go` | the engine side that turns that call into a route operation |
+
+So a system plugin CAN reach the reactor announce path today, and one does in production.
+`UpdateRouteWithMeta`'s own doc comment records that plugin-originated routes go through
+`AnnounceNLRIBatch`.
+
+FlowSpec origination is NOT a stub either. `responder` (`internal/plugins/ddos/flowspec/responder.go`)
+calls `dispatcher.Dispatch` on both the announce and the withdraw path, and `setAnnouncement`
+publishes the resulting state for `show ddos flowspec`.
+
+**What is still true, and it is a smaller thing:** `internal/plugins/anomaly/shape/register.go`
+registers with `ConfigureEventBus` and holds only `ze.EventBus`, so `shape` as registered
+carries no dispatcher. Child 8's prerequisite is therefore to give `shape` the seam that
+already exists, following `ddos/flowspec`. It is not to build a seam. That is wiring work
+inside one plugin, not a new cross-component mechanism, and `cp-survival-4` is not a blocker
+on it.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
-1. This spec file (you're reading it now)
+1. This spec file (you're reading it now), starting at the Correction block above
 2. `.claude/rules/planning.md` - workflow rules
 3. The three closed foundations: `plan/learned/1046-traffic-analysis-restructure.md`,
    `plan/learned/1048-anomaly-1-detect.md`, `plan/learned/1049-anomaly-2-shape.md`
@@ -58,7 +87,7 @@ a verdict or an action is a plugin.
 - [ ] `internal/plugins/ddos/observe/{store.go,register.go,store_test.go}` - the incident-store SKELETON Phase-A child `observe` reuses (registration, ring, subscribe, open/finalize). NOT its surface: `list()` is test-wired only (`store.go`), there is no show handler or web card.
 - [ ] `internal/test/plugins/fakeredist/` - the test-only-plugin template Phase-A child `interop-harness` copies for `fakeflow` (publishes into a core surface in-process; loaded only in the `zetest` DUT build via `cmd/ze/plugins_zetest.go`).
 - [ ] `internal/plugins/flowexport/enrich/enricher.go` - `Lookup(addr) (ASEntry, bool)` — the AS-origin source. It stays INSIDE flowexport; child 6 stamps AS onto the facts surface (a direct import from `detect` fails `ze-tier-check`, `dep_audit.py`).
-- [ ] `internal/component/bgp/reactor/reactor_api_batch.go` - `AnnounceNLRIBatch(sel, batch)` — the family-agnostic announce API. Reachable only via `ctx.Reactor()` in a BGP command handler, NOT from a system plugin's `ze.EventBus`; child 8 needs a plugin→reactor seam first.
+- [ ] `internal/component/bgp/reactor/reactor_api_batch.go` - `AnnounceNLRIBatch(sel, batch)` — the family-agnostic announce API. Reachable via `ctx.Reactor()` in a BGP command handler, and ~~NOT from a system plugin's `ze.EventBus`; child 8 needs a plugin→reactor seam first.~~ **(corrected 2026-08-03)** from a system plugin through `sdk.Plugin.UpdateRoute`, which `ddos/flowspec` uses in production. See the Correction block.
 
 **Key insights:**
 - The spine is complete but **narrow**: one entity type (source-IP prefix), one detector, one
@@ -70,9 +99,11 @@ a verdict or an action is a plugin.
   be faked at the detector.
 - The FlowSpec **wire codec** works (SAFI 133/134 + traffic-action communities are wire-tested,
   `test/encode/flow.ci`) and `AnnounceNLRIBatch` is family-agnostic — so upstream response needs
-  **no new BGP-family work**. But the plugin→reactor **seam** is missing: `shape` holds only
+  **no new BGP-family work**. ~~But the plugin→reactor **seam** is missing: `shape` holds only
   `ze.EventBus` (Emit/Subscribe), FlowSpec origination is stubbed (`ddos/flowspec/responder.go`,
-  "cp-survival-4 not yet wired"). Child 8 is blocked on that seam; classic RTBH is the shortcut.
+  "cp-survival-4 not yet wired"). Child 8 is blocked on that seam;~~ **Superseded 2026-08-03
+  (Correction block): the seam exists and `ddos/flowspec` originates through it. Only `shape`
+  is unwired.** Classic RTBH is the shortcut.
 - Cross-plugin data in ze flows **producer → core feed → component global → consumer**, never
   plugin→plugin (a direct import fails `ze-tier-check`). So origin-AS for cohorts must ride the
   `observation`/`trafficfeature` surface, stamped by flowexport — not fetched by the detector.
@@ -116,7 +147,7 @@ a verdict or an action is a plugin.
    - **widen (Phase B):** detector re-keys onto the new dest/port/ASN `FeatureEntry` lists; AS-origin cohorts read `fe.SrcAS` (child 7).
 3. **Persist (Phase A `observe`):** events land in an incident **lifecycle** store (open→finalize) with a NEW `show anomaly observe` query surface — the lifecycle the detect ring (Detected-only) lacks.
 4. **Response (1049, shipped):** the `shape` responder subscribes to events, installs shadow-first local firewall terms.
-   - **widen (Phase C, blocked):** an upstream FlowSpec/RTBH action gated by the same state machine — requires a plugin→reactor announce seam that does not exist yet (`shape` holds only `ze.EventBus`).
+   - **widen (Phase C, ~~blocked~~ ready):** an upstream FlowSpec/RTBH action gated by the same state machine — ~~requires a plugin→reactor announce seam that does not exist yet~~ requires wiring `shape` to the existing `sdk.Plugin.UpdateRoute` seam (`shape` holds only `ze.EventBus`). Corrected 2026-08-03, see the Correction block.
 5. **Explain (Phase D horizon):** correlate related events into an incident narrative via `aihelp`/`mcp`.
 6. **Prove (Phase A `interop-harness`):** a test-only `fakeflow` plugin `Publish`es synthetic observations to drive the whole chain end to end in one functional test.
 
@@ -160,7 +191,7 @@ be faked at the anomaly layer.
 | entity-matrix | `spec-anomaly-5-entity-matrix.md` | B | drafted | 1048 | generalize the entity axis to **dest** and **port**. Mostly a FACTS-layer (`trafficfeature`) change — dest carries only `inBytes` today, port is a per-source histogram; the detector re-key is the smaller half. Prefix cohort transfers to dest; port has no natural cohort. Excludes ASN (see below). **Also (not in the original framing, verified): an additive `EntityKind` discriminator on the anomaly event (`Entity` is `netip.Prefix`, `event.go`) + a source-only guard in the `shape` responder (`responder.go`, `match.go`) so dest/port incidents stay report-only and never filter the victim. Child 5 owns this contract change; child 7 reuses it.** |
 | as-enrichment | `spec-anomaly-6-as-enrichment.md` | B | ready | 1046 | **prerequisite for all AS work.** Stamp origin-AS onto the core `observation.Observation` / `trafficfeature.FeatureEntry` surface at the flowexport producer (which already owns `enrich.Enricher`). Tier-safe; a direct `detect → flowexport/enrich` import is forbidden (fails `ze-tier-check`). |
 | as-entities-cohorts | `spec-anomaly-7-as-entities-cohorts.md` | B | drafted | 5, 6 | per-ASN entities + AS-origin cohort rarity, reading `fe.SrcAS` (zero new imports). AS-origin cohort is a cohort-key swap only (reuses `score.go`, keeps a source-prefix `Entity`, stays actionable). Per-ASN **entities** reuse child 5's `EntityKind` discriminator and stay report-only. Degrades to prefix cohorts when flowexport/AS is absent (`SrcAS==0`). |
-| upstream-response | `spec-anomaly-8-upstream-response.md` | C | **blocked** | plugin→reactor announce seam (cp-survival-4) | no new BGP-family work (FlowSpec codec + traffic-action communities are wire-tested), BUT `shape` holds only `ze.EventBus` (Emit/Subscribe) and can't reach `AnnounceNLRIBatch`; FlowSpec origination is a stub (`ddos/flowspec/responder.go`). Classic RTBH is the shortcut once the seam lands. |
+| upstream-response | `spec-anomaly-8-upstream-response.md` | C | ~~**blocked**~~ **ready (2026-08-03)** | ~~plugin→reactor announce seam (cp-survival-4)~~ wire `shape` to the existing `sdk.Plugin.UpdateRoute` seam | no new BGP-family work (FlowSpec codec + traffic-action communities are wire-tested). ~~BUT `shape` holds only `ze.EventBus` (Emit/Subscribe) and can't reach `AnnounceNLRIBatch`; FlowSpec origination is a stub (`ddos/flowspec/responder.go`).~~ **Superseded 2026-08-03, see the Correction block: FlowSpec origination is live and `ddos/flowspec/register.go` shows the pattern to copy.** Classic RTBH is the shortcut. |
 | subsecond-beaconing | `spec-anomaly-9-subsecond-beaconing.md` | C | **blocked** | new sub-second collector spec | facts pipeline is 1s end to end; needs a sub-second timing collector first. |
 | ai-analyst | `spec-anomaly-10-ai-analyst.md` | D | horizon | 3 (observe), aihelp/mcp | correlate events into an incident narrative; exploratory, scope TBD. |
 
@@ -172,7 +203,7 @@ be faked at the anomaly layer.
 | A-1 | The children are independent and commit separately | subsystem split | umbrella sequencing wrong | each child compiles + tests green alone | **partially** — 5,6,7 are chained (7 needs 6 needs the facts surface 5 touches); A/C children are independent |
 | A-2 | `ddos/observe` is a faithful template for `anomaly/observe` | `ddos/observe/store.go` | observe child grows unplanned scope | read store.go + show.go (child-3 research) | **corrected (was partially)**: skeleton transfers AND the template NOW has a live query surface (`show.go` registers `ze-show:ddos-status`/`ze-show:ddos-incidents`; `handleShowDdosIncidents` calls `s.list()` at `show.go`), so the earlier "no query surface" note is stale (see Mistake Log). Remaining divergences: dest-tuple incident (`store.go`) vs source-prefix (`event.go`), `ddosevent` vs `anomalyevent`, single-node show, still-dead `sweepStale` ticker (`store_test.go`) |
 | A-3 | The flowexport enricher is reachable from the anomaly domain without a layering violation | `enrich/enricher.go` in a sibling plugin | as-cohorts needs a new shared seam | `architecture.md` + `dep_audit.py` (agent 4) | **broken** — a direct `detect → flowexport/enrich` import fails `make ze-tier-check` (`dep_audit.py`: flowexport is an engine, the import flips `engine_depended`). Sanctioned path: stamp AS onto the core `observation`/`trafficfeature` surface at the flowexport producer → child 6 |
-| A-4 | Upstream FlowSpec response needs only an origination seam + `shape` action, not new BGP family work | `AnnounceNLRIBatch` (reactor_api_batch.go) | child 7 grows scope | agent 5 (announce path + reachability) | **partially** — "no new BGP family" CONFIRMED (`test/encode/flow.ci` proves the codec + traffic-action communities); but the plugin→reactor seam does NOT exist (`ze.EventBus` is Emit/Subscribe only, `eventbus.go`) and FlowSpec origination is stubbed (`ddos/flowspec/responder.go`). RTBH is the shortcut once the seam lands |
+| A-4 | Upstream FlowSpec response needs only an origination seam + `shape` action, not new BGP family work | `AnnounceNLRIBatch` (reactor_api_batch.go) | child 7 grows scope | agent 5 (announce path + reachability) | **partially** — "no new BGP family" CONFIRMED (`test/encode/flow.ci` proves the codec + traffic-action communities); ~~but the plugin→reactor seam does NOT exist (`ze.EventBus` is Emit/Subscribe only, `eventbus.go`) and FlowSpec origination is stubbed (`ddos/flowspec/responder.go`). RTBH is the shortcut once the seam lands~~ **re-checked 2026-08-03: A-4 is now CONFIRMED in full. The seam exists (`sdk.Plugin.UpdateRoute`) and FlowSpec origination is live (`ddos/flowspec/responder.go` dispatches announce and withdraw). See the Correction block** |
 | A-5 | Sub-second beaconing genuinely requires a new collector (cannot derive from 1s facts) | three 1s tickers | child 9 could be unblocked cheaply | `observation.Observation` has no sub-second aggregate seam; pipeline is 1s (agent 2/3) | **confirmed** |
 | A-6 | The e2e harness is feasible with existing seams | — | Phase-A gate slips | agent 2 (injection seam) | **confirmed with caveat** — no seam lets a black-box `.ci` inject features; needs a small test-only `fakeflow` plugin (fakeredist template) to `Publish` into `observation.Feed` |
 | A-7 | Children 5 (dest/port) and 7 (per-ASN entities) can emit incidents on the existing event contract + responder unchanged | umbrella framed both as facts/detector work | dest incident filters the victim; port/ASN cannot be a `netip.Prefix` | read `event.go`, `responder.go`, `match.go` (child-5/7 research) | **broken**: `Entity` is `netip.Prefix` (`event.go`) so a port/ASN needs an additive `EntityKind` tag; the responder acts on `e.Entity` as a source with no guard (`responder.go,90,102`) so a dest incident throttles the victim and an invalid prefix poisons `r.armed`. Fix owned by child 5 (additive discriminator + source-only guard), reused by child 7; non-source incidents stay report-only |
@@ -207,7 +238,7 @@ test passes and the roadmap stays truthful.
 | AC-3 | Phase-B child `entity-matrix` complete | `spec-anomaly-5-entity-matrix.md` closed: `trafficfeature` emits per-dest and per-port `FeatureEntry` lists and the detector scores them, preserving freeze-learn + warmup (prefix cohort for dest; port cohort-free) |
 | AC-4 | Phase-B child `as-enrichment` complete | `spec-anomaly-6-as-enrichment.md` closed: origin-AS is stamped onto the `observation`/`trafficfeature` surface at the flowexport producer, passing `make ze-tier-check` (no `detect → flowexport/enrich` import) |
 | AC-5 | Phase-B child `as-entities-cohorts` complete | `spec-anomaly-7-as-entities-cohorts.md` closed: per-ASN entities + AS-origin cohort rarity read `fe.SrcAS`, degrading to prefix cohorts when AS is absent |
-| AC-6 | Phase-C child `upstream-response` | `spec-anomaly-8-upstream-response.md` remains blocked and documents its prerequisite (the plugin→reactor announce seam / cp-survival-4); if the seam lands, a classic-RTBH action fires under the responder state machine with auto-revert |
+| AC-6 | Phase-C child `upstream-response` | ~~`spec-anomaly-8-upstream-response.md` remains blocked and documents its prerequisite (the plugin→reactor announce seam / cp-survival-4); if the seam lands,~~ **superseded 2026-08-03, see the Correction block: the seam exists (`sdk.Plugin.UpdateRoute`) and `ddos/flowspec` uses it, so the prerequisite is to wire `shape` to it.** A classic-RTBH action fires under the responder state machine with auto-revert |
 | AC-7 | Phase-C child `subsecond-beaconing` | `spec-anomaly-9-subsecond-beaconing.md` remains blocked and documents its prerequisite (a sub-second collector spec); NOT implemented against the 1s pipeline |
 | AC-8 | Operator reads docs | `docs/features.md` carries a source-anchored "behavioral security anomaly detection" row; an operator guide covers detect → observe → shadow → arm once Phase A lands |
 
@@ -255,7 +286,7 @@ Recommended order (harden, then widen, then extend):
 4. **child 6 `as-enrichment`** — stamp origin-AS onto the facts surface at the flowexport producer (tier-safe). Prerequisite for AS work.
 5. **child 7 `as-entities-cohorts`** — per-ASN entities + AS-origin cohorts reading `fe.SrcAS`; degrade to prefix cohorts when absent.
 6. **Operator guide** (AC-8) — after Phase A lands so examples are real.
-7. **child 8 `upstream-response`** — only after the plugin→reactor announce seam (cp-survival-4) exists; start with classic RTBH.
+7. **child 8 `upstream-response`** — ~~only after the plugin→reactor announce seam (cp-survival-4) exists;~~ **corrected 2026-08-03: the seam exists, so the first step is to give `shape` a dispatcher, copying `ddos/flowspec/register.go`.** Start with classic RTBH.
 8. **child 9 `subsecond-beaconing`** — only after a sub-second collector spec exists (out of this umbrella's scope).
 9. **child 10 `ai-analyst`** — horizon; scope its own umbrella/spec when Phase A/B are stable.
 
@@ -270,10 +301,15 @@ Recommended order (harden, then widen, then extend):
 - **Sub-second beaconing is out of reach until a sub-second collector exists** (verified: the
   facts pipeline is 1s end to end at `trafficstat/service.go`, `trafficfeature/service.go`,
   `anomaly/detect/register.go`). Child 9 documents the prerequisite; not implemented against 1s.
-- **Upstream response is blocked on a plugin→reactor announce seam, not on BGP capability.** The
+- ~~**Upstream response is blocked on a plugin→reactor announce seam, not on BGP capability.** The
   FlowSpec codec is wire-tested, but `shape` holds only `ze.EventBus` (`eventbus.go`) and
   FlowSpec origination is a stub (`ddos/flowspec/responder.go`). Child 8 needs the seam
-  (cp-survival-4) first; classic RTBH is the shortcut once it exists.
+  (cp-survival-4) first; classic RTBH is the shortcut once it exists.~~
+  **Superseded 2026-08-03 (Correction block). The insight that survives: upstream response
+  is blocked on neither BGP capability nor a missing seam. The FlowSpec codec is wire-tested
+  and the announce seam is `sdk.Plugin.UpdateRoute`, which `ddos/flowspec` already originates
+  through. Child 8's one prerequisite is that `shape` still registers with `ze.EventBus` alone
+  and must be given a dispatcher.**
 - **No plugin→plugin import.** The security domain cannot call `flowexport/enrich` directly — it
   fails `ze-tier-check`. Origin-AS must ride the core `observation`/`trafficfeature` surface,
   stamped by the flowexport producer (child 6). AS work degrades to prefix cohorts when absent (R-3).
@@ -315,7 +351,7 @@ Recommended order (harden, then widen, then extend):
 ### Final status
 - [ ] Phase-A children (3 observe, 4 interop-harness) closed
 - [ ] Phase-B children (5 entity-matrix, 6 as-enrichment, 7 as-entities-cohorts) closed
-- [ ] Child 8 (upstream-response) closed OR its plugin→reactor announce-seam dependency documented as the blocker
+- [ ] Child 8 (upstream-response) closed ~~OR its plugin→reactor announce-seam dependency documented as the blocker~~ (corrected 2026-08-03: there is no seam blocker to document; see the Correction block)
 - [ ] Child 9 (subsecond-beaconing) remains blocked with a documented prerequisite (not implemented against 1s)
 - [ ] `docs/features.md` row + operator guide pass `make ze-doc-test`
 

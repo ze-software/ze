@@ -102,8 +102,16 @@ the comment at `reactor.go` says the body is parsed before `tunnelsMu` is taken
 so a malformed body allocates nothing. Emitting StopCCN needs a peer identity and a
 control-channel sequence, so it either allocates the state the drop avoids or sends
 a synthetic reply outside the tunnel machinery. It also needs a tagged test on the
-SCCRQ path in both polarities, and the reproducer already exists in
-`test/draft/l2tp/`.
+SCCRQ path in both polarities, written from scratch.
+
+→ Constraint (corrected 2026-08-03): this paragraph used to say "the reproducer
+already exists in `test/draft/l2tp/`". It does not. `test/draft/` is gitignored,
+so the two RFC 2661 control-shape drafts written on 2026-08-02 were
+session-local and are gone; the directory holds only `plugin/`, `web/` and
+`README.md` today. Write the reproducer, do not go looking for it. The shape to
+copy is `test/l2tp/rfc2661-emitted-control-shape.ci`, which is committed: a
+Python peer that sends a hand-packed SCCRQ over UDP and parses ze's reply with
+its own decoder.
 
 **Do not write a `{gap}`, a `partial`, or a `{not-applicable}` for this.** Writing
 one IS the decision, and `check_coverage_ratchet` plus `check_retired_requirements`

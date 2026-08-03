@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 5/8 (phases 1-5 done; 6 delegated, 7-8 open) |
 | Deferral shard | `plan/deferrals/ipsec-dataplane-inspection.md` |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -159,12 +159,13 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `netlink.XfrmState.Statistics` is populated by a plain `XfrmStateList` dump, without a per-SA `XFRM_MSG_GETSA` round trip | vendored `xfrm_state_linux.go` declares `Statistics XfrmStateStats` on the dump-parsed struct | the byte counters need a second netlink call per SA, which changes the handler and the interop assertions | `TestXFRMReadbackCountersAdvance` sends traffic through a known SA and asserts the counter rises | unvalidated |
-| A-2 | `policy_owner.go` lands on main before this spec is implemented | the file is untracked in the working tree at the time of writing | the policy view drops its Owner column and `ownerOf` stays unwired | grep for `ownerOf` on main before starting Phase 3 | unvalidated |
-| A-3 | An appliance kernel with `CONFIG_XFRM_USER=y` lists nothing for `xfrm_user` in `/proc/modules`, so `checkKernelModules` reports a false error today | `loadedKernelModules` reads `/proc/modules`, which lists loaded modules only; built-in code never appears there | the module check is correct and only the ESP floor is missing | run `ze doctor` in QEMU against an IPsec config on the appliance kernel and observe the diagnostic | unvalidated |
-| A-4 | A `.ci` under `option=needs-linux:caps=net-admin` can run the real xfrm backend once `fsuite ipsec` is added to the QEMU runner | `ikeDataplaneName()` defaults to `xfrm` when no override is set; other suites already run with that option | the kernel-level `.ci` has no home and the evidence must come from the Go integration tier alone | add the `fsuite` line and run `make ze-qemu-integration-test` | unvalidated |
-| A-5 | `XfrmPolicyList` returns the policies IKE installs at `if_id 0`, so the SPD dump is not limited to xfrm-interface peers | `GetXFRMInfo` (`internal/plugins/iface/netlink/xfrm_linux.go`) filters the same call by `Ifid`, which implies the unfiltered call returns all of them | the SPD dump misses site-to-site policies, which is most of them | `TestXFRMReadbackPolicyNoIfID` installs a policy with `IfID` zero and asserts the dump returns it | unvalidated |
-| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `make ze-verify` after Phase 1 | unvalidated |
+| A-1 | `netlink.XfrmState.Statistics` is populated by a plain `XfrmStateList` dump, without a per-SA `XFRM_MSG_GETSA` round trip | vendored `xfrm_state_linux.go` declares `Statistics XfrmStateStats` on the dump-parsed struct | the byte counters need a second netlink call per SA, which changes the handler and the interop assertions | `TestXFRMReadbackCountersAdvance` sends traffic through a known SA and asserts the counter rises | **confirmed** 2026-08-03: `XfrmStateList` parses every dump message through `parseXfrmState` and then `xfrmStateFromXfrmUsersaInfo` (vendored `xfrm_state_linux.go`), which calls `curToStats` into `state.Statistics`. The same function fills `Mode`, `Reqid`, `ReplayWindow`, `Limits` and `Selector`. No second round trip |
+| A-2 | `policy_owner.go` lands on main before this spec is implemented | the file is untracked in the working tree at the time of writing | the policy view drops its Owner column and `ownerOf` stays unwired | grep for `ownerOf` on main before starting Phase 3 | **confirmed** 2026-08-03: the file is tracked, and `policyOwners.ownerOf` exists in `internal/component/ike/dataplane/policy_owner.go`. Phase 3's stop condition does not fire |
+| A-3 | An appliance kernel with `CONFIG_XFRM_USER=y` lists nothing for `xfrm_user` in `/proc/modules`, so `checkKernelModules` reports a false error today | `loadedKernelModules` reads `/proc/modules`, which lists loaded modules only; built-in code never appears there | the module check is correct and only the ESP floor is missing | run `ze doctor` in QEMU against an IPsec config on the appliance kernel and observe the diagnostic | **confirmed at source** 2026-08-03: `readLoadedModules` (`internal/component/doctor/checks_linux.go`) parses `/proc/modules` alone, and `checkKernelModules` in the same file appends `xfrm_user` and `xfrm_algo`. Observing the diagnostic on a built-in kernel still needs QEMU |
+| A-4 | A `.ci` under `option=needs-linux:caps=net-admin` can run the real xfrm backend once `fsuite ipsec` is added to the QEMU runner | `ikeDataplaneName()` defaults to `xfrm` when no override is set; other suites already run with that option | the kernel-level `.ci` has no home and the evidence must come from the Go integration tier alone | add the `fsuite` line and run `make ze-qemu-integration-test` | unvalidated. `scripts/evidence/qemu-all-tests.sh` carries 23 `fsuite` lines and none is `ipsec`; `caps=net-admin` is already used by several `test/reload/*.ci`. Settled only by a QEMU run |
+| A-5 | `XfrmPolicyList` returns the policies IKE installs at `if_id 0`, so the SPD dump is not limited to xfrm-interface peers | `GetXFRMInfo` (`internal/plugins/iface/netlink/xfrm_linux.go`) filters the same call by `Ifid`, which implies the unfiltered call returns all of them | the SPD dump misses site-to-site policies, which is most of them | `TestXFRMReadbackPolicyNoIfID` installs a policy with `IfID` zero and asserts the dump returns it | unvalidated. Settled only by a real kernel, and not upgraded on inference |
+| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `make ze-verify` after Phase 1 | **confirmed** 2026-08-03: `make ze-ipsec-test` is 13/13 with the change in place, including the new `ipsec-show-dataplane.ci`. Earlier runs of the same suite showed 1 to 3 reds that did not reproduce (privileged UDP 500 bind, NAT-T 4500 contention under parallelism); those are load-sensitive and independent of this change |
+| A-7 | A kernel policy row from `XfrmPolicyList` inverts back to the `policySelectorKey` that `ownerOf` compares, losslessly, for every policy Ze itself installs | `xfrmSelectorPort` (`internal/component/ike/dataplane/xfrm_linux.go`) REFUSES any port mask other than 0 or `0xffff`, so Ze installs two port shapes and both invert; every other key field (src, dst, dir, upper proto, ifindex, if_id) appears verbatim on `netlink.XfrmPolicy` | the owner join is unsound and the Owner column must be dropped rather than guessed | `TestPolicyOwnerJoinRoundTrips` covers both port shapes and the wildcard prefix | **confirmed** 2026-08-03, by reading `xfrmSelectorPort` and the vendored `parseXfrmPolicy` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -277,7 +278,22 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `internal/component/ike/dataplane/xfrm_other.go` - `ListPolicies` stub returning `ErrNotSupported`
 - `internal/component/ike/dataplane/vpp.go` - both list methods return `ErrNotSupported`
 - `internal/component/ike/dataplane/noop.go` - both list methods return `ErrNotSupported`
-- `internal/component/ike/dataplane/policy_owner.go` - expose the owner lookup for the policy view
+- `internal/component/ike/dataplane/policy_owner.go` - expose the owner lookup for the policy view.
+  → Decision (2026-08-03): the join RECONSTRUCTS `SPParams` from the kernel dump row and calls the
+  existing `ownerOf`, rather than adding a second lookup keyed on `policySelectorKey`. Both routes
+  face the same normalization, because the key and the reconstruction read the same fields, so the
+  second lookup buys nothing and adds an API. A-7 records why the inversion is lossless: Ze cannot
+  install a port mask other than 0 or `0xffff`, so the kernel's mask-free `SrcPort`/`DstPort` invert
+  to exactly `AnyPortMatch()` or `ExactPortMatch(n)`.
+  → Constraint: the two places the inversion is NOT a plain copy are the direction, where Ze's
+  `SADir` is one greater than the kernel's `netlink.Dir`, and the wildcard prefix, where Ze installs
+  a nil `*net.IPNet` and the kernel dumps a materialized `0.0.0.0/0` or `::/0`. Both are normalized
+  in the reconstruction and both carry a test, because a silent error in either mis-attributes an
+  owner rather than failing.
+  → Constraint (`ai/rules/evidence.md`, fail closed): a kernel policy Ze did not install has no
+  owner, which is a legitimate and common answer (strongSwan's own policies, the OSPF proto-89
+  policies, an operator's). That row renders the owner as `unknown`. It is never blank, and it is
+  never guessed from a partial match.
 - `internal/component/ike/cmd/show_ipsec.go` - register the three new wire methods, add the counter fields to `saToMap`
 - `internal/component/ike/yang/ze-ipsec-cmd.yang` - the `dataplane` container and its three command nodes
 - `internal/component/ike/yang/cmd_schema_test.go` - extend the pinned `ze:command` list
@@ -426,6 +442,39 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
+## Implementation State (2026-08-03)
+
+Phases 1 to 5 are implemented, green, and mutation-verified. Phase 6 is running in
+a delegated agent. Phases 7 and 8 are OPEN.
+
+| AC | State | Producing symbol |
+|----|-------|------------------|
+| AC-1 | done | `saInfoFromState` (`internal/component/ike/dataplane/xfrm_linux.go`), rendered by `saInfoToMap` (`internal/component/ike/cmd/show_dataplane.go`) |
+| AC-2 | done | `xfrmBackend.ListPolicies` and `policyInfoFromKernel` (`xfrm_linux.go`), rendered by `policyInfoToMap` (`show_dataplane.go`) |
+| AC-3 | done | `handleShowVPNIPsecDataplaneDrift` and `driftMessage` (`show_dataplane.go`) |
+| AC-4 | done | same handler, `StatusDone` with an empty `drift` list |
+| AC-5 | done | `driftingPeers` and `driftDetail` (`internal/component/ike/engine/health_drift.go`), folded into `checkIPsecHealth` (`health.go`) |
+| AC-6 | done | `noopDataplane.ListSAs`/`ListPolicies` (`noop.go`), `vppBackend.ListSAs`/`ListPolicies` (`vpp.go`), reported by `dataplaneReadError` (`show_dataplane.go`) |
+| AC-7 | done | `activeDataplane` and `dataplaneReadError` (`show_dataplane.go`) |
+| AC-8 | done | `readSADCounters`, `sadCounters.lookup`, `addChildCounters` (`internal/component/ike/cmd/show_ipsec.go`) |
+| AC-9, AC-10, AC-11 | delegated (Phase 6) | not verified by this session |
+| AC-12, AC-13 | OPEN | the strongSwan interop scenario `19-dataplane-readback` is not written |
+
+Still to do, none of it started:
+- `test/ipsec/ipsec-show-dataplane-kernel.ci` and `test/ipsec/ipsec-show-sa-counters.ci`
+- the `fsuite ipsec` line in `scripts/evidence/qemu-all-tests.sh`, and a QEMU run
+- the `ze_cli` helper in `test/ipsec-interop/lab.py` and scenario `19-dataplane-readback`
+- the two Prometheus gauges named in the Integration Checklist
+- Phase 8 documentation, except `docs/architecture/testing/ci-format.md` which is done
+
+One piece of test INFRASTRUCTURE was added because the deliverable needed it:
+`expect=command-error:contains=` (`parseEngineExpectCommandError` and
+`RunEngineSteps`, `internal/test/runner/engine_steps.go`). The plugin SDK turns a
+`StatusError` response into a Go error, so before this no `.ci` could assert an
+operational error at all: the command step aborted the run before any `expect=`
+ran. That made every refusal path untestable end to end, which is exactly the
+class AC-6 and AC-7 live in.
+
 ## Design Insights
 
 - Belief and truth are two different databases, and Ze only ever had one of them. Every symptom in this spec is a consequence of that single fact: the false green metric, the vacuous test, the operator with no answer, the interop suite that had to reach for iproute2.
@@ -441,6 +490,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Unsupported backends return `ErrNotSupported` | Keep returning an empty list | An empty list is indistinguishable from "no SAs installed". `ai/rules/evidence.md` bans a zero value that looks like a valid answer |
 | The doctor check probes netlink instead of adding another module row | Add `esp4`/`esp6` to `checkKernelModules` | On an appliance kernel XFRM is built in, so `/proc/modules` lists nothing and the module check produces a false error. A netlink probe tests the capability rather than the packaging |
 | Byte counters come from the kernel SAD | Count in the engine as packets are processed | The engine never sees ESP payload; the kernel does. Counting in userspace would report a number that is always zero |
+| Drift found returns `StatusError`, and the message names every drifting peer, SPI and direction (2026-08-03) | Return `StatusDone` with drift rows and a count, so the view stays pipeable | AC-3 requires a non-zero exit, and `StatusError` is how this codebase spells one (`internal/component/bfd/cmd/bfd.go` is the precedent). It is not free: the dispatcher's external-plugin path rebuilds an error response as `Error: string(rpcOut.Data)` and DISCARDS `Data`, so a drift table cannot ride along with the non-zero status. The message therefore carries the facts AC-3 names. The clean case (AC-4) returns `StatusDone` with an empty `drift` list and pipes normally, and the two data-bearing commands (`sa`, `policy`) are unaffected |
 | Render algorithm names and key lengths, never key bytes | Render the full `XfrmState` | The dump would otherwise print session keys to a terminal, a log, and a `| json` pipe |
 
 ## Known Limitations

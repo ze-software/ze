@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-dns-rfc1035-conformance.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the spec already says the shard is created only if something is deferred. Create `plan/deferrals/fixit-dns-rfc1035-conformance.md` on the first deferral) |
 | Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

@@ -2,10 +2,31 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
-| Depends | - |
+| Status | blocked |
+| Depends | spec-fixit-stored-route-relay-hardening.md |
 | Phase | 7/7 |
-| Updated | 2026-07-25 |
+| Updated | 2026-08-03 |
+
+## Blocked
+
+Blocked on a decision by Thomas, with a named dependency. The relay path is
+implemented and wired: `reactorAPIAdapter.RelayStoredRoute`
+(`internal/component/bgp/reactor/reactor_api_relay.go`) with the byte builders
+in `relay_payload.go`, called from the adj-rib-in replay in
+`internal/component/bgp/plugins/adj_rib_in/rib.go`. AC-5 is the one criterion
+that is not met: `sendPostStartupToAll`
+(`internal/component/plugin/server/startup.go`) fans the post-startup callback
+out to every plugin in its own goroutine and imposes no order against
+`StartPeers`, so the replay claim is not guaranteed to be taken first.
+`TestReplayOwnerDedupe` gates the flag, not "exactly one replay".
+
+Follow-up R6-1 (`filterapi.EgressFilterFunc` returns a bare bool, so an OTC
+lookup failure cannot be told apart from a policy decision) is homed in
+`plan/spec-fixit-stored-route-relay-hardening.md`, which is in-progress at 1/3.
+
+Thomas chooses one: close this spec with AC-5 recorded as partial and the
+ordering fix homed in the hardening spec, or hold this spec open until the
+hardening spec lands and fixes the ordering.
 
 > **Concurrency note (2026-07-24).** Two sessions worked this spec at once. Phase 1
 > (RPC/SDK/coordinator plumbing) and Phase 2 (`relay_payload.go` byte builders) were

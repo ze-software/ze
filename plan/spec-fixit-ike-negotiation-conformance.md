@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-ike-negotiation-conformance.md` |
+| Deferral shard | `-` |
 | Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -411,8 +411,24 @@ is not authorized to make that change on its own.
 
 ## Known Limitations
 
-`RFC7296-1.4.1-3` and `RFC7296-1.4.1-2` stay unimplemented and are NOT in scope here.
+~~`RFC7296-1.4.1-3` and `RFC7296-1.4.1-2` stay unimplemented and are NOT in scope here.
 Both need per-direction Child SA teardown, which Ze does not have. `removeChildSA`
 (`internal/component/ike/engine/child.go`) always drops both halves together.
 `handleDeletePayload` (`internal/component/ike/engine/inbound.go`) never reads the
-Delete payload's SPIs. That is separate machinery and it belongs to its own spec.
+Delete payload's SPIs. That is separate machinery and it belongs to its own spec.~~
+
+**RESOLVED 2026-08-03 (bookkeeping audit). The machinery this limitation said was absent
+now exists, so the limitation carries no outstanding work and the Deferral shard row is `-`.**
+Producers read, not inferred:
+
+| Producer | Where | What it does |
+|----------|-------|--------------|
+| `removeChildSAOutgoing`, `removeChildSAIncoming` | `internal/component/ike/engine/child.go` | drop one half of a Child SA pair each. `removeChildSA` now calls both in turn instead of being the only shape available |
+| `handleDeletePayload` -> `closeDesignatedChildSAs` | `internal/component/ike/engine/delete.go` | reads the peer's SPI list through `deleteSPIs` and closes the pair each SPI names |
+| `crossOwnDelete` | `internal/component/ike/engine/delete.go` | carries the section's ordering MUST for a Delete that crosses one Ze already sent |
+
+The two ids the paragraph names do not exist in `rfc/short/rfc7296.md` and never did: a grep
+of `plan/`, `rfc/` and `docs/` on 2026-08-03 returns this spec and nothing else. Section
+1.4.1 is enrolled as `RFC7296-1.4.1-1` and `-4` through `-7`. So there is no requirement row
+to home either, and `docs/features/rfc-status.md` already discloses the Section 1.4.1 Delete
+behaviour as implemented.

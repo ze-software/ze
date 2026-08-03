@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-ike-responder-natt-port-float.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; the spec records no out-of-scope decision. Create `plan/deferrals/fixit-ike-responder-natt-port-float.md` on the first deferral) |
 | Updated | 2026-07-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

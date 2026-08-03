@@ -17,13 +17,37 @@
    `internal/component/bgp/plugins/role/role.go`, `config.go`, `metrics.go` for the
    role-resolution and observability halves that landed later
 
-## OPEN BLOCKER -- OTC is stamped onto WITHDRAWALS (round-4 review, 2026-07-27)
+## ~~OPEN BLOCKER~~ CLOSED BLOCKER -- OTC is stamped onto WITHDRAWALS (round-4 review, 2026-07-27)
 
-**This spec must NOT be closed until this is fixed.** Found by the fourth independent
+> **CORRECTION 2026-08-03 (bookkeeping audit): this blocker is FIXED. Everything below
+> describes the tree as it was on 2026-07-27 and is kept for the record only. Do not
+> re-open it, and do not re-implement the fix.**
+>
+> Commit `9c398078f` ("fix(bgp): stop stamping OTC on messages that advertise no route")
+> landed the advertisement gate this section asks for. Producers read on 2026-08-03, not
+> inferred:
+>
+> | Producer | Where | What it now does |
+> |----------|-------|------------------|
+> | `payloadAdvertisesNLRI` | `role/otc.go` | returns true only on positive evidence that the payload carries reachable NLRI: a non-empty native NLRI field, or an MP_REACH_NLRI attribute. An unreadable payload returns false, so it is never stamped |
+> | `checkOTCIngress` stamping branch | `role/otc.go` | gated on `stampASN > 0 && payloadAdvertisesNLRI(payload)` |
+> | `OTCEgressFilter` stamping branch | `role/otc.go` | gated on `mods != nil && payloadAdvertisesNLRI(payload) && destRemoteRole ∈ {customer, peer, rs-client}` |
+> | `isPayloadUnicast` | `role/otc.go` | now reads MP_UNREACH_NLRI as well as MP_REACH_NLRI, so the family gate sees a withdraw-only payload. The "no MP_REACH found, therefore IPv4 unicast" reading is gone |
+>
+> The two round-4 tail items are closed too. `TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`
+> (`otc_test.go`) now carries an `RFC requirement: RFC9234-5-4 positive` tag, and
+> `RFC9234-5-10 positive` now has tagged tests over the withdrawal shapes rather than the
+> MP_REACH branch alone. `otc_test.go` also carries tagged negatives for the pure
+> withdrawal and the MP_UNREACH-only UPDATE on both the ingress and the egress rule.
+>
+> AC-11 and the R-3 risk row below are therefore satisfied. What remains for this spec is
+> its own closure bookkeeping, not this defect.
+
+**~~This spec must NOT be closed until this is fixed.~~** Found by the fourth independent
 review. Rounds 1, 2 and 3 each found a defect too; this is the most severe.
 
-**Re-verified against the working tree 2026-07-27 (second pass, after `f5dd2f040`
-landed): STILL PRESENT, and the reason it was not fixed no longer exists.** Producers
+**~~Re-verified against the working tree 2026-07-27 (second pass, after `f5dd2f040`
+landed): STILL PRESENT, and the reason it was not fixed no longer exists.~~** Producers
 read, not inferred:
 
 | Producer | `file:line` | What it does |

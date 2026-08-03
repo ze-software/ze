@@ -65,6 +65,32 @@ Found by an independent review of the wire-edit children on 2026-08-02. No RFC
 claim rests on the dead lines: at each site the surrounding `expect=bgp:` framing
 assertion still proves the behavior in the observed framing.
 
+### Second directive of the same class: `tmpfs=<path>:mode=<octal>` is dropped
+
+Added 2026-08-03 from `spec-finish-ci-coverage`, which met it while writing
+`test/parse/cli-generate-wireguard-keypair.ci`. The syntax is documented in
+`ai/patterns/functional-test.md` and `docs/architecture/testing/ci-format.md`,
+`tmpfs.Parse` (`internal/test/tmpfs/tmpfs.go`) validates the octal and stores it
+on `File.Mode`, and `Tmpfs.WriteTo` honours it. Nothing else does.
+
+| Where the mode dies | Effect |
+|---------------------|--------|
+| `parsingRunner.setupWorkDir` (`internal/test/runner/parsing.go`) | writes EVERY tmpfs file `0o644`. No fixture in the parse suite can be executable, whatever the author declared |
+| `runner_exec.go` -> `Tmpfs.AddFile` (`internal/test/tmpfs/tmpfs.go`) | re-derives the mode from the file EXTENSION via `defaultModeForPath`. A declared `mode=` is discarded; `.sh`/`.py`/`.run` happen to get `0o755`, and anything else, a fixture that must be named `wg` for a PATH lookup included, gets `0o644` |
+
+The cause is upstream of both writers: the runner flattens the parsed files into
+`map[string][]byte` (`Record.TmpfsFiles`, `parsingTest.TmpfsFiles`), so the mode
+is gone before either writer runs. Same shape as the `reject=` defect above: the
+author writes a directive, the parser accepts it, and it changes nothing.
+
+A related second limit, found the same way and belonging with it: a helper script
+run by the parse suite cannot invoke `ze` at all. `runOneCommand`
+(`internal/test/runner/parsing.go`) rewrites a leading `ze ` in the `exec=` string
+to the absolute binary path, but builds the child environment with `childEnv`,
+which does NOT add `Runner.childPathEnv` the way `runner_exec.go` does. A `.sh`
+helper therefore gets `ze: not found`, while the same helper works in every suite
+on the orchestrated path.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->

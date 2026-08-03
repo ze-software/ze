@@ -2,10 +2,26 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
-| Depends | - |
+| Status | blocked |
+| Depends | spec-perf-next-2-filter-delta-alloc.md |
 | Phase | 5/5 |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-03 |
+
+## Blocked
+
+Blocked on the same decision by Thomas that blocks child 2. This umbrella
+cannot close before its children do, and `spec-perf-next-2-filter-delta-alloc`
+is now `blocked` awaiting his answer on Phase B. Children 1 and 3 are complete
+(`ebgpWireSlot` in `internal/component/bgp/reactor/received_update.go`,
+`Community.AppendText` in `internal/core/bgp/attribute/text_append.go`).
+
+Two of this umbrella's own criteria need the same answer. AC-1 asks for a fresh
+`ze-perf-bench PPROF=1` profile and AC-3 for a recorded re-run, but
+`plan/learned/900-perf-next-round-3.md` records that `Dockerfile.ze` is stale
+and that `ze-perf-bench` exercises none of the three paths this round touched.
+R-1 in this spec already pre-authorizes per-child Go benchmarks as the proof, so
+Thomas can either waive AC-1 and AC-3 under R-1 or ask for `Dockerfile.ze` to be
+repaired and the harness run.
 
 Awaiting closure (recorded 2026-07-22 during plan review): all three children
 shipped and the roll-up learned summary ALREADY EXISTS as

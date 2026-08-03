@@ -2,10 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-06 |
+| Phase | op-1 Tier-1 commands |
+| Updated | 2026-08-03 |
+
+**Phase in hand: the op-1 Tier-1 command `.ci` item only.** Its acceptance
+criteria are filled below. The other four work items in `## Task` stay captured
+intent and are not designed yet; each moves into this table when someone picks
+it up, one phase at a time.
 
 ## Post-Compaction Recovery
 
@@ -41,16 +46,37 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (re-read at design time; line numbers are pre-triage references)
+**Source files read** (re-verified 2026-08-03 for the op-1 phase):
 
-- [ ] `internal/test/runner/`
-- [ ] `internal/component/cmd/show/show.go`
+- [ ] `internal/component/cmd/show/system.go` -- `handleShowSystemCPU` and
+  `handleShowSystemDate`, registered as `ze-show:system-cpu` and
+  `ze-show:system-date` in `internal/component/cmd/show/show.go`.
+- [ ] `internal/component/iface/cmd/show_interface.go` -- `showInterfaceByType`,
+  `showInterfaceErrors`, `showInterfaceBrief`, and the RPC registrations.
+- [ ] `internal/component/iface/yang/ze-iface-interface-cmd.yang` -- the
+  `ze:command` declarations the dispatcher registers command keys from.
+- [ ] `internal/plugins/diag/diag.go` -- `RunWgKeypair`, registered as the local
+  command `generate wireguard keypair` in `internal/plugins/diag/register.go`.
+- [ ] `internal/component/plugin/server/command.go` -- `LoadBuiltinsWithAliases`,
+  `Dispatcher.updateSortedKeys`, `matchBuiltinTokens`, `matchCommandTokens`.
+- [ ] `internal/test/runner/runner_exec.go` -- how a `.ci` command is executed
+  (working directory, `option=env`, per-command `exit=`).
 
 **Behavior to preserve:**
-- All existing behaviour of the listed files; this backlog work only adds the missing pieces named in the Task work items.
+- Every other `show` and `generate` handler, and the whole `.ci` runner contract.
+- `show interface` with no argument still lists every interface in full detail.
 
-**Behavior to change:**
-- Only the specific gaps enumerated in the Task work items.
+**Behavior to change (found by this phase, fixed in it):**
+- `brief`, `type`, `errors`, and `rate` each declared `ze:command
+  "ze-show:interface"`, the same wire method as their parent container.
+  `LoadBuiltinsWithAliases` registers one dispatcher key per YANG path, and
+  `matchBuiltinTokens` tries the LONGEST key first, so the key consumed the
+  keyword and `handleShowInterface` was handed the tokens after it. Its
+  `switch args[0]` therefore never saw the keyword: `show interface errors`
+  answered with EVERY interface, `show interface brief` with full detail,
+  `show interface rate` with the interface list, and `show interface type <t>`
+  with its usage text. Each now has its own wire method and handler, matching
+  the sibling `scan` / `detail` / `counters` pattern in the same file.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -95,26 +121,61 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `.ci` drives `show system cpu` | → | op-1 handler returns cpu data | (fill during design) |
-| `.ci` sets an env knob | → | feature reads it via `env.Get*` | (fill during design) |
+| `.ci` dispatches `show system cpu` | → | `handleShowSystemCPU` | `test/plugin/show-system-cpu.ci` |
+| `.ci` dispatches `show system date` | → | `handleShowSystemDate` | `test/plugin/show-system-date.ci` |
+| `.ci` dispatches `show interface type <t>` | → | `handleShowInterfaceType` -> `showInterfaceByType` | `test/plugin/show-interface-type.ci` |
+| `.ci` dispatches `show interface errors` | → | `handleShowInterfaceErrors` -> `showInterfaceErrors` | `test/plugin/show-interface-errors.ci` |
+| `.ci` runs `ze generate wireguard keypair` | → | `RunWgKeypair` | `test/parse/cli-generate-wireguard-keypair.ci` |
+| unit test shims `wg` on PATH | → | `RunWgKeypair` genkey -> pubkey pipe | `TestRunWgKeypair_PipesGenkeyIntoPubkey` |
+
+**Still not wired, and named so it is not mistaken for done:** the env-knob,
+cli-dispatch, chaos, and gRPC-over-wire work items in `## Task` have no test and
+no phase yet.
 
 ## Acceptance Criteria
 
+Phase op-1 Tier-1 commands. One AC per missing command, plus the defect the
+phase uncovered.
+
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | (define per work item when this skeleton moves to `design`) | (define at design time) |
+| AC-1 | `show system cpu` on a running daemon | Answers `done` with `num-cpu`, `num-goroutines`, `max-procs` (each an integer >= 1) and a `go-version` starting `go`. On a platform where host inventory is supported, exactly one of `hardware` / `hardware-error` is present, and `hardware.logical-cpus` is >= `num-cpu` |
+| AC-2 | `show system date` on a running daemon | Answers `done` with `time`, `unix`, `unix-nano`, `timezone`, `utc-offset-secs`. The three renderings agree: `unix-nano / 1e9 == unix`, the RFC3339 `time` parses to the same epoch and carries `utc-offset-secs`, and `unix` is the caller's own wall clock |
+| AC-3 | `show interface type <t>`, with `<t>` read off the running host | Answers `done` with an `interfaces` wrapper holding exactly the interfaces of that type in `show interface`, and nothing else |
+| AC-4 | `show interface type <unmatched>` | REFUSED with `unknown interface type`, and the refusal lists the types the running set actually has |
+| AC-5 | `show interface errors` | Answers `done` with an `interfaces` wrapper whose rows and four counter values equal exactly the links `show interface` reports with a non-zero `rx-errors` / `rx-dropped` / `tx-errors` / `tx-dropped`. Links with all-zero counters are excluded |
+| AC-6 | `ze generate wireguard keypair extra-arg` | Exits 1, says `no arguments accepted`, prints the usage, and prints no key |
+| AC-7 | `ze generate wireguard keypair` with a `wg` on PATH | Runs `wg genkey`, feeds THAT private key to `wg pubkey` on stdin, and prints `private: <k>` / `public:  <k>` |
+| AC-8 | `show interface brief`, `type`, `errors`, `rate` dispatched by their full command text | Each reaches its own handler. They shared one wire method with their parent container, so the dispatcher consumed the keyword and `handleShowInterface` never saw it. Proven end to end for `type`, `errors` and `rate`; `brief` goes through the identical registration and is proven at the handler by `TestHandleShowInterfaceBrief`, with no `.ci` of its own (it was not in the op-1 missing list, and a fourth end-to-end proof of one mechanism buys little) |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (define at design time) | (define at design time) | per Task work item | |
+| `TestRunWgKeypair_PipesGenkeyIntoPubkey` | `internal/plugins/diag/diag_test.go` | AC-7. Replaces a `LookPath("wg")` skip that never ran | done |
+| `TestRunWgKeypair_ReportsMissingWg` | `internal/plugins/diag/diag_test.go` | exit 1 and no partial output when `wg` is absent | done |
+| `TestHandleShowInterfaceRejectsStrayToken` | `internal/component/iface/cmd/show_interface_test.go` | AC-8. The bare handler owns the no-argument form only | done |
+| `TestHandleShowInterfaceBrief` | `internal/component/iface/cmd/show_interface_test.go` | AC-8. Brief returns the compact shape, not full detail | done |
+| `TestHandleShowInterfaceType*` | `internal/component/iface/cmd/show_interface_test.go` | AC-3, AC-4 at the handler | done |
+| `TestHandleShowInterfaceErrorsShape` | `internal/component/iface/cmd/show_interface_test.go` | AC-5 wrapper shape | done |
+| `TestIfaceInterfaceCmdSchemaOwnsInterface` | `internal/component/iface/yang/show_cmd_schema_test.go` | the four new wire methods are declared by the owning module | done |
+| `TestShowYANGDoesNotOwnRelocatedCommands` | `internal/component/cmd/show/yang/self_containment_test.go` | and are NOT declared centrally | done |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| env-*, op1-*, cli-dispatch-* (new) (`.ci`) | test/plugin, test/parse | each shipped knob/command through the daemon | |
+| `show-system-cpu.ci` | `test/plugin/` | AC-1: an operator reads CPU state off a running daemon | done |
+| `show-system-date.ci` | `test/plugin/` | AC-2: an operator reads the daemon clock | done |
+| `show-interface-type.ci` | `test/plugin/` | AC-3, AC-4: filter interfaces by type, and be told what is valid | done |
+| `show-interface-errors.ci` | `test/plugin/` | AC-5: find the links with errors or drops | done |
+| `cli-generate-wireguard-keypair.ci` | `test/parse/` | AC-6: the offline CLI command resolves and rejects arguments | done |
+| `show-interface-rate.ci` (corrected) | `test/plugin/` | AC-8: its assertion had pinned the aliasing defect | done |
+
+Every one is proven by mutation: each was re-run with the behaviour under test
+broken at the producer and observed to FAIL. The interface pair needs no
+synthetic mutation to prove it either way, because both were RED against the
+unfixed dispatcher and turned green only with the wire methods split.
 
 ## Files to Modify
 

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 7/7, blocked on one approval |
 | Deferral shard | `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` |
-| Updated | 2026-07-30 |
+| Updated | 2026-08-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -222,9 +222,10 @@ overwrite. Correct the misleading comment at `config.go`, which claims
 | A-3 | No `.ci` or `.conf` fixture sets these leaves on one family and relies on peer-wide effect | Grep of `test/` for `teardown` and `idle-timeout` | A green fixture is silently asserting the bug, and the fix turns it red | Grep, already run | **confirmed**. The only BGP prefix fixture is `test/interop/scenarios/45-max-prefix-cease-frr/ze.conf:19`, single-family `ipv4/unicast` with `idle-timeout 1` |
 | A-4 | No existing unit test asserts cross-family prefix enforcement | Grep of `config_test.go` and `session_prefix_test.go` | Duplicate or conflicting coverage | Grep, already run | **confirmed**. All three parser tests declare only `ipv4/unicast` (`config_test.go`, `:1853`, `:1867`) |
 | A-5 | YANG defaults reach every family entry, so a family that omits the leaf still carries `teardown true` | `schema_defaults.go` list recursion, non-presence container fill at `:62-79` | The overwrite only happens on explicit disagreement, which narrows the bug but does not remove it | Read `ApplyDefaults`, then a parser test with one family omitting the leaf | **confirmed** by reading. Still needs the test to pin it |
-| A-6 | An absent map key is a safe default for `teardown` | Assumption to challenge, not a belief | A `map[string]bool` miss returns `false`, which means warn-only, which is the **less** safe direction | Unit test driving the accessor with an unconfigured family | unvalidated. Treat as a fail-closed hazard, see R-1 |
-| A-7 | `idle-timeout 0` means no reconnect, as the YANG description states | `ze-bgp-conf.yang` says "0 = no reconnect" | The documented contract and the code disagree, and one of them is a separate defect | Read `peer_run.go` in full, then test the zero case | unvalidated. A read of `peer_run.go` suggests zero selects the **normal** reconnect path, not "no reconnect". Settle this before you write the AC-4 test |
+| A-6 | An absent map key is a safe default for `teardown` | Assumption to challenge, not a belief | A `map[string]bool` miss returns `false`, which means warn-only, which is the **less** safe direction | Unit test driving the accessor with an unconfigured family | **broken**, exactly as R-1 predicted. An absent key is NOT safe. `PeerSettings.PrefixTeardownFor` (`peersettings.go`) is the single reader and returns `true` for a miss; the enforcement path never indexes the map. Proven by `TestPrefixTeardownAbsentFamilyFailsClosed` and `TestPrefixTeardownNilMapFailsClosed`, and by mutation `accessor-fails-open`, which makes both red plus `TestPrefixLimitConfigTeardownDefault` |
+| A-7 | `idle-timeout 0` means no reconnect, as the YANG description states | `ze-bgp-conf.yang` says "0 = no reconnect" | The documented contract and the code disagree, and one of them is a separate defect | Read `peer_run.go` in full, then test the zero case | **broken, then FIXED**. `prefixReconnectDelay` returned `ok=false` for zero and `Peer.run` took its NORMAL backoff, so the peer reconnected, re-exceeded the maximum and flapped. Thomas ruled on 2026-08-03: **0 stays down, plus an explicit opt-in**. Landed as `PrefixReconnectFor` (`peersettings.go`), `prefixReconnectDecision` and `holdDownAfterPrefixTeardown` (`peer_run.go`), and the `prefix { reconnect ...; }` leaf. `TestPrefixIdleTimeoutZeroSemantics` is corrected, not deleted. CLOSED |
 | A-9 | The tests this fix must edit are free to edit | Assumption to challenge. `session_prefix_test.go` looked like ordinary test code | Three functions carry `RFC requirement:` tags, and the `rfc-tagged-test` hook blocks any behavior change to them | Grep `session_prefix_test.go` for `RFC requirement:`, then map each tag to its enclosing function | **broken**. Tagged functions are `TestPrefixWarningThreshold` (tag at `:89`), `TestPrefixExceedTeardown` (tags at `:107`, `:110`, `:114`), and `TestPrefixExceedDrop` (tag at `:144`). `TestPrefixExceedDrop` writes `ps.PrefixTeardown = false` at `:149`, which this fix must change. See R-7 |
+| A-10 | The `errors.As` recovery works through the production double wrap, not only through a test-built error | `session_read.go` wraps with `fmt.Errorf("%w: %w", ErrConnectionClosed, cause)` | AC-4 would be proven only against a hand-built error, and the daemon would silently take the normal backoff | Interop scenario 45, which sets `idle-timeout 1` and asserts recovery | **confirmed** end to end. Scenario 45 passes, and its recovery step only completes if `errors.As` recovered the family and `PrefixIdleTimeoutFor("ipv4/unicast")` returned 1 |
 | A-8 | The family that triggers teardown is knowable where the reconnect delay is chosen | `buildPrefixNotification` receives the family key (`session_prefix.go`) | Per-family `idle-timeout` is not implementable without new plumbing | Trace the error path from `session_prefix.go` to `peer_run.go` | **broken as written**. The family is known at the decision point but is dropped. `ErrPrefixLimitExceeded` (`session.go`) carries no family, and `session_read.go` adds none |
 
 ### Risks
@@ -249,27 +250,30 @@ overwrite. Correct the misleading comment at `config.go`, which claims
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-| Entry Point | → | Feature Code | Test |
-|-------------|---|--------------|------|
-| Peer config with two families disagreeing on `teardown` | → | `parsePrefixLimitFromFamily` (`config.go`) | `TestPrefixTeardownPerFamilyDisagreement` |
-| Overflow on the warn-only family, session established | → | `applyPrefixCheck` (`session_prefix.go`) | `test/plugin/prefix-per-family-teardown.ci` |
-| Overflow on the teardown family, `Cease` sent | → | `buildPrefixNotification` (`session_prefix.go`) | `test/plugin/prefix-per-family-teardown.ci` |
-| Prefix teardown reconnect delay | → | `peer_run.go` backoff selection | `TestPrefixIdleTimeoutPerFamily` |
-| Dynamic peer built from a template | → | `reactor_dynamic.go` settings copy | `TestDynamicPeerOwnsPrefixMaps` |
+| Entry Point | → | Feature Code | Test | Status |
+|-------------|---|--------------|------|--------|
+| Peer config with two families disagreeing on `teardown` | → | `parsePrefixLimitFromFamily` (`config_prefix.go`) | `TestPrefixTeardownPerFamilyDisagreement`, `test/parse/prefix-per-family-parse.ci` | green |
+| Overflow on the warn-only family, session established | → | `applyPrefixCheck` (`session_prefix.go`) | `test/plugin/prefix-per-family-teardown.ci`, `TestPrefixTeardownPerFamilyEnforcement` | green, and RED against a daemon built with the parser reverted |
+| Overflow on the teardown family, `Cease` sent | → | `buildPrefixNotification` (`session_prefix.go`) | `TestPrefixTeardownPerFamilyEnforcement`, interop `46-max-prefix-per-family-frr` | green |
+| Prefix teardown reconnect delay | → | `prefixReconnectDelay` (`peer_run.go`) | `TestPrefixIdleTimeoutPerFamily` | green |
+| Dynamic peer built from a template | → | `reactor_dynamic.go` settings copy | `TestDynamicPeerOwnsPrefixMaps` | green |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Peer with `ipv4/unicast teardown true` and `ipv6/unicast teardown false`, IPv4 count exceeds its maximum | Ze stops the session. It sends a `Cease` NOTIFICATION with subcode Maximum Number of Prefixes Reached, carrying the IPv4 AFI and SAFI. |
-| AC-2 | The same peer, IPv6 count exceeds its maximum | Session stays established. No NOTIFICATION is sent. Excess IPv6 NLRI is dropped and not installed. |
-| AC-3 | Peer with `ipv4/unicast teardown false` and `ipv6/unicast` omitting `teardown` | IPv4 stays warn-only. IPv6 uses the YANG default of enabled. The omitting family does not change the IPv4 outcome. |
-| AC-4 | Two families with different `idle-timeout` values, teardown triggered by one of them | The reconnect delay is derived from the offending family's own `idle-timeout`, not from another family's value. |
-| AC-5 | The same two-family config, with the families declared in reverse order in the config text | Every per-family outcome from AC-1 through AC-4 is unchanged. Declaration order and key sort order have no effect. |
-| AC-6 | A family key that was never configured reaches the teardown check | Enforcement is treated as enabled. The absent key never reads as warn-only. |
-| AC-7 | Two families set different `updated` dates | Both dates are retained per family. The `prefix-updated` JSON key reports the oldest of them. The staleness alarm uses the oldest date. |
-| AC-8 | Two dynamic peers instantiated from one template | Each peer owns its own prefix maps. Changing one peer's settings does not affect the other. |
-| AC-9 | Source review of `config.go` around line 680 | The comment describes what the code does. No comment claims per-family behavior for a per-peer field. |
+| AC ID | Input / Condition | Expected Behavior | Proven by |
+|-------|-------------------|-------------------|-----------|
+| AC-1 | Peer with `ipv4/unicast teardown true` and `ipv6/unicast teardown false`, IPv4 count exceeds its maximum | Ze stops the session. It sends a `Cease` NOTIFICATION with subcode Maximum Number of Prefixes Reached, carrying the IPv4 AFI and SAFI. | `TestPrefixTeardownPerFamilyEnforcement/teardown_family_stops_the_session` asserts the subcode and the AFI/SAFI bytes. `TestPrefixTeardownPerFamilyDisagreement` asserts the parse. Mutation `enforcement-ignores-family` turns both red |
+| AC-2 | The same peer, IPv6 count exceeds its maximum | Session stays established. No NOTIFICATION is sent. Excess IPv6 NLRI is dropped and not installed. | `TestPrefixTeardownPerFamilyEnforcement/warn-only_family_keeps_the_session` drives a real MP_REACH UPDATE and asserts `drop`. `test/plugin/prefix-per-family-teardown.ci` proves it in the running daemon |
+| AC-3 | Peer with `ipv4/unicast teardown false` and `ipv6/unicast` omitting `teardown` | IPv4 stays warn-only. IPv6 uses the YANG default of enabled. The omitting family does not change the IPv4 outcome. | `TestPrefixTeardownOmittedFamilyDoesNotOverwrite`. Mutation `parser-last-family-wins` turns it red |
+| AC-4 | Two families with different `idle-timeout` values, teardown triggered by one of them | The reconnect delay is derived from the offending family's own `idle-timeout`, not from another family's value. | `TestPrefixIdleTimeoutPerFamily` drives `prefixReconnectDelay` (`peer_run.go`), the function `run()` calls. Mutation `reconnect-ignores-family` turns it red |
+| AC-5 | The same two-family config, with the families declared in reverse order in the config text | Every per-family outcome from AC-1 through AC-4 is unchanged. Declaration order and key sort order have no effect. | `TestPrefixTeardownSortOrderIndependent` covers both assignments of the pair. `TestPrefixTeardownPerFamilyEnforcement/the_choice_follows_the_family,_not_the_key_order` does the same at the session. `test/parse/prefix-per-family-parse.ci` declares `ipv6/unicast` first |
+| AC-6 | A family key that was never configured reaches the teardown check | Enforcement is treated as enabled. The absent key never reads as warn-only. | `TestPrefixTeardownAbsentFamilyFailsClosed` and `TestPrefixTeardownNilMapFailsClosed`, both driven from `checkPrefixLimits`, the session entry point. Mutation `accessor-fails-open` turns both red |
+| AC-7 | Two families set different `updated` dates | Both dates are retained per family. The `prefix-updated` JSON key reports the oldest of them. The staleness alarm uses the oldest date. | `TestPrefixUpdatedPerFamily` (storage), `TestPrefixUpdatedAggregatesOldest` (7 cases including unparseable and empty), `TestPrefixStaleUsesOldestFamily` (alarm). Mutation `aggregate-picks-newest` turns them red |
+| AC-8 | Two dynamic peers instantiated from one template | Each peer owns its own prefix maps. Changing one peer's settings does not affect the other. | `TestDynamicPeerOwnsPrefixMaps`. Mutation `dynamic-peer-aliases-maps` turns it red |
+| AC-9 | Source review of `config.go` around line 680 | The comment describes what the code does. No comment claims per-family behavior for a per-peer field. | The parser moved to `config_prefix.go`, whose doc comment states the per-family storage rule and why a peer-wide field would be overwritten. `config.go` no longer holds the claim |
+| AC-10 | A family exceeds its maximum with `idle-timeout` unset (the YANG default) | The peer stops and STAYS down. It makes no further connection attempt, its state reads `idle-hold`, and it refuses inbound connections. | `TestPeerHeldDownAfterPrefixTeardown` runs a real peer against a real remote with a 20ms backoff, and asserts one accepted connection over 25 backoff windows plus the `idle-hold` state and the report-bus warning. It was RED against the old code, where the same log shows the overflow repeating every 20 to 40ms. `test/plugin/prefix-teardown-holds-peer-down.ci` proves it in the running daemon, mutation-verified |
+| AC-11 | The same family sets `reconnect backoff` | The peer comes back on its usual connect backoff, which is the pre-2026-08-03 behavior, now explicit. | `TestPrefixReconnectExplicitModes` and `TestPrefixReconnectPerFamilyParse`, plus `test/plugin/prefix-teardown-reconnect-backoff.ci` in the running daemon. The `.ci` asserts a SECOND accepted connection and OPEN handshake, not the absence of the hold. Mutation-verified: with `PrefixReconnectFor` forced to `never`, the run ends `TIME` on an accept that never comes |
+| AC-12 | A `reconnect` value contradicts `idle-timeout` in the same block | The config is refused with an error naming the family and both values. | `TestPrefixReconnectRejectsContradiction`, four cases |
 
 ## End-to-End User Stories
 
@@ -282,17 +286,27 @@ overwrite. Correct the misleading comment at `config.go`, which claims
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
+The tests landed in NEW files rather than in `config_test.go` and
+`session_prefix_test.go`. Appending to either of those risks the
+`rfc-tagged-test` hook widening an edit hunk to a tagged scope (R-7), and the
+new files are the natural siblings of `config_prefix.go`.
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPrefixTeardownPerFamilyDisagreement` | `internal/component/bgp/reactor/config_test.go` | AC-1, AC-2. Two families with opposite `teardown` keep their own values after parse | |
-| `TestPrefixTeardownOmittedFamilyDoesNotOverwrite` | `internal/component/bgp/reactor/config_test.go` | AC-3. A family carrying only the materialized default leaves the explicit family alone | |
-| `TestPrefixTeardownSortOrderIndependent` | `internal/component/bgp/reactor/config_test.go` | AC-5. Reversing declaration order changes nothing | |
-| `TestPrefixTeardownAbsentFamilyFailsClosed` | `internal/component/bgp/reactor/session_prefix_test.go` | AC-6, R-1. An unconfigured family reads as enabled, driven from the session entry point | |
-| `TestPrefixIdleTimeoutPerFamily` | `internal/component/bgp/reactor/peer_run_test.go` | AC-4. The offending family's own timeout sizes the delay | |
-| `TestPrefixIdleTimeoutZeroSemantics` | `internal/component/bgp/reactor/peer_run_test.go` | A-7. Pins whichever contract is correct after the YANG and code mismatch is resolved | |
-| `TestPrefixUpdatedPerFamily` | `internal/component/bgp/reactor/config_test.go` | AC-7. Both dates survive the parse | |
-| `TestPrefixUpdatedAggregatesOldest` | `internal/component/bgp/reactor/reactor_api_test.go` | AC-7. The single JSON field reports the oldest date | |
-| `TestDynamicPeerOwnsPrefixMaps` | `internal/component/bgp/reactor/reactor_dynamic_test.go` | AC-8, R-2. Template maps are copied, not aliased | |
+| `TestPrefixTeardownPerFamilyDisagreement` | `internal/component/bgp/reactor/config_prefix_test.go` | AC-1, AC-2. Two families with opposite `teardown` keep their own values after parse | green, mutation-verified |
+| `TestPrefixTeardownOmittedFamilyDoesNotOverwrite` | `internal/component/bgp/reactor/config_prefix_test.go` | AC-3. A family carrying only the materialized default leaves the explicit family alone | green, mutation-verified |
+| `TestPrefixTeardownSortOrderIndependent` | `internal/component/bgp/reactor/config_prefix_test.go` | AC-5. Both assignments of the pair, so no key position wins | green, mutation-verified |
+| `TestPrefixIdleTimeoutPerFamilyParse`, `TestPrefixIdleTimeoutBoundaryPerFamily` | `internal/component/bgp/reactor/config_prefix_test.go` | AC-4 parse half, plus the uint16 edges 0 and 65535 per family | green, mutation-verified |
+| `TestPrefixUpdatedPerFamily` | `internal/component/bgp/reactor/config_prefix_test.go` | AC-7. Both dates survive the parse | green, mutation-verified |
+| `TestPrefixMaximumStillPerFamily` | `internal/component/bgp/reactor/config_prefix_test.go` | Regression guard for the two leaves that were already maps | green |
+| `TestPrefixTeardownPerFamilyEnforcement` | `internal/component/bgp/reactor/session_prefix_family_test.go` | AC-1, AC-2, AC-5 at the session. Real IPv4 body NLRI and a real MP_REACH IPv6 UPDATE | green, mutation-verified |
+| `TestPrefixTeardownAbsentFamilyFailsClosed`, `TestPrefixTeardownNilMapFailsClosed` | `internal/component/bgp/reactor/session_prefix_family_test.go` | AC-6, R-1. An unconfigured family reads as enabled, driven from `checkPrefixLimits` | green, mutation-verified |
+| `TestPrefixTeardownCauseNamesFamily` | `internal/component/bgp/reactor/session_prefix_family_test.go` | R-3. The cause names the family AND still matches `errors.Is(err, ErrPrefixLimitExceeded)` | green |
+| `TestPrefixIdleTimeoutPerFamily` | `internal/component/bgp/reactor/session_prefix_family_test.go` | AC-4. The offending family's own timeout sizes the delay | green, mutation-verified |
+| `TestPrefixIdleTimeoutZeroSemantics` | `internal/component/bgp/reactor/session_prefix_family_test.go` | A-7. Pins the behavior the code has, so the YANG mismatch is visible | green. A-7 stays OPEN for Thomas |
+| `TestPrefixReconnectDelayNonPrefixError`, `TestPrefixReconnectDelayBackoff`, `TestPrefixIdleTimeoutMaximumPerFamily` | `internal/component/bgp/reactor/session_prefix_family_test.go` | The preserved backoff shape: doubling, the one-hour cap, the counter ceiling, no overflow | green |
+| `TestPrefixUpdatedAggregatesOldest`, `TestPrefixStaleUsesOldestFamily` | `internal/component/bgp/reactor/session_prefix_family_test.go` | AC-7. The single peer-level field reports the oldest date, and the alarm follows it | green, mutation-verified |
+| `TestDynamicPeerOwnsPrefixMaps` | `internal/component/bgp/reactor/reactor_dynamic_test.go` | AC-8, R-2. Template maps are copied, not aliased | green, mutation-verified |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -305,30 +319,42 @@ overwrite. Correct the misleading comment at `config.go`, which claims
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `prefix-per-family-teardown` | `test/plugin/prefix-per-family-teardown.ci` | Peer with IPv4 teardown and IPv6 warn-only. Overflow each family in turn. Assert `Cease` on IPv4 and a surviving session on IPv6 | |
-| `prefix-per-family-parse` | `test/parse/prefix-per-family-parse.ci` | A two-family config with disagreeing `teardown` and `idle-timeout` parses without error | |
+| `prefix-per-family-teardown` | `test/plugin/prefix-per-family-teardown.ci` | Peer with IPv4 warn-only and IPv6 teardown. The peer overflows IPv4. The session must survive, and the decision must read `teardown=false` beside `family=ipv4/unicast`. A `reject=stderr:pattern=teardown=true` proves no family was judged with another family's value | PASS. Mutation-verified against a daemon built with the parser reverted: that run logs `teardown=true` for `family=ipv4/unicast` and sends `Cease` / "Maximum Number of Prefixes Reached" |
+| `prefix-per-family-parse` | `test/parse/prefix-per-family-parse.ci` | A two-family config with disagreeing `teardown` and `idle-timeout`, declared with `ipv6/unicast` FIRST so config order is the reverse of key sort order, parses AND reads back. `ze config dump --json` must show both maximums, both idle-timeouts and both teardown values, so a tree that carried one family's values into both cannot pass | PASS. `TestCIAcceptOnlyLint` caught the first version, which asserted only `exit code 0`. The readback is the fix, not a baseline entry |
+| `prefix-teardown-holds-peer-down` | `test/plugin/prefix-teardown-holds-peer-down.ci` | AC-10. The YANG default keeps the peer down. Asserts the `peer held down` line with its family and mode | PASS. Mutation-verified: with `PrefixReconnectFor` returning `backoff`, the missing line fails the run |
+| `prefix-teardown-reconnect-backoff` | `test/plugin/prefix-teardown-reconnect-backoff.ci` | AC-11. `prefix { reconnect backoff; }` brings the peer back. `option=tcp_connections:value=2` plus an `action=send:conn=2` clause, so the assertion is a SECOND accepted connection and OPEN handshake, never the absence of the hold | PASS in 7s. Mutation-verified twice: `PrefixReconnectFor` forced to `never` ends the run `TIME` on the connection-2 clause, and a one-connection copy carrying only `reject=stderr:pattern=peer held down` fails in 1.9s, so the reject discriminates too and is kept beside the positive clause |
 
-Both tests are drafted under `test/draft/` first, per `ai/rules/testing.md`.
+Both tests were drafted under `test/draft/` and promoted on green, per `ai/rules/testing.md`.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `45-max-prefix-cease-frr` | `test/interop/scenarios/` | FRR | Existing single-family scenario must stay green. It is the regression guard for the unchanged path | |
-| `46-max-prefix-per-family-frr` | `test/interop/scenarios/` | FRR | A real peer sees a `Cease` for the enforcing family, and no teardown for the warn-only family | |
+| `45-max-prefix-cease-frr` | `test/interop/scenarios/` | FRR | Existing single-family scenario must stay green. It is the regression guard for the unchanged path | PASS, unchanged |
+| `46-max-prefix-per-family-frr` | `test/interop/scenarios/` | FRR | FRR overflows a warn-only ipv4/unicast on a peer whose ipv6/unicast asks for teardown. The session must survive, and the decision must read this family's own value | PASS. Mutation-verified: with the parser reverted, the same scenario FAILS with `teardown=true` on `family=ipv4/unicast` |
 
 ## Files to Modify
-- `internal/component/bgp/reactor/peersettings.go` - change three scalar fields to per-family maps, add the fail-closed teardown accessor, update `NewPeerSettings`
-- `internal/component/bgp/reactor/config.go` - write per-family values in `parsePrefixLimitFromFamily`, correct the comment at line 680
-- `internal/component/bgp/reactor/session_prefix.go` - read teardown per family in `applyPrefixCheck`, carry the offending family on teardown
-- `internal/component/bgp/reactor/session.go` - let the prefix-limit teardown cause carry a family, keeping the sentinel matchable by `errors.Is`
-- `internal/component/bgp/reactor/session_read.go` - preserve the family as it wraps the teardown cause
-- `internal/component/bgp/reactor/peer_run.go` - select the reconnect delay from the offending family's timeout
-- `internal/component/bgp/reactor/reactor_dynamic.go` - copy the prefix maps into dynamic peers instead of aliasing them
-- `internal/component/bgp/reactor/reactor_api.go` - aggregate `updated` to the oldest date for the peer-level field
-- `internal/component/bgp/reactor/reactor_peers.go` - use the aggregated date for the staleness raise and clear
-- `internal/component/bgp/reactor/session_prefix_test.go` - the shared helper `newTestPeerSettingsWithPrefix` at line 661 only. Three test functions in this file are RFC-tagged, so read R-7 before you edit it
+
+Every row below was changed. The last row is the one that is NOT done, and it
+is the only thing standing between this work and a compiling test tree.
+
+- `internal/component/bgp/reactor/peersettings.go` - three scalar fields became per-family maps. Added `PrefixTeardownFor` (fail-closed), `PrefixIdleTimeoutFor`, `OldestPrefixUpdated`. `NewPeerSettings` no longer seeds a teardown default, because the accessor states it once
+- `internal/component/bgp/reactor/config.go` - `parsePrefixLimitFromFamily` moved OUT to `config_prefix.go`. The move was forced: the corrected comment pushed `config.go` to 1014 lines, past the 1000-line gate. `config.go` is now 946
+- `internal/component/bgp/reactor/session_prefix.go` - `applyPrefixCheck` reads teardown per family and records the offending family key. Added `prefixLimitError` and `prefixTeardownCause`. `setPrefixConfigMetrics` uses the aggregated date
+- `internal/component/bgp/reactor/session.go` - added `Session.prefixExceededFamily`, confined to the session read goroutine like `prefixCounts`
+- `internal/component/bgp/reactor/session_read.go` - the teardown error now carries the family, still wrapped so `errors.Is` matches
+- `internal/component/bgp/reactor/peer_run.go` - added `prefixReconnectDelay`, which picks the offending family's own timeout. The run loop calls it instead of computing the delay inline, so AC-4 has a producer a test can drive
+- `internal/component/bgp/reactor/reactor_dynamic.go` - all five prefix maps are `maps.Clone`d. `PrefixIdleTimeout` and `PrefixUpdated` were never carried to dynamic peers at all before this
+- `internal/component/bgp/reactor/reactor_api.go` - `PeerInfo.PrefixUpdated` is the aggregated oldest date. The `settingsEqual` exclusion now clears a map
+- `internal/component/bgp/reactor/reactor_peers.go` - the staleness raise and the log use the aggregated date
+- `internal/component/bgp/reactor/config_test.go` - three existing assertions read through the accessors
+- `docs/features/configuration.md` - the scope column said "Per peer" for both leaves. Corrected, and a stale source anchor pointing at `peer.go` now points at `peer_run.go`
+- `docs/guide/configuration.md` - the enforcement example showed a PEER-level `prefix { teardown ... }` block. No such container exists: `ze-bgp-conf.yang` has exactly one `container prefix`, inside the family list. The example would be rejected by the parser. Replaced with a two-family example
+- `internal/component/bgp/reactor/session_prefix_test.go` - **NOT DONE, BLOCKED.** One line, `ps.PrefixTeardown = false` at `:149`, sits inside `TestPrefixExceedDrop`, which carries `RFC requirement: RFC4271-6.7-4 negative`. The `rfc-tagged-test` hook refuses the edit (verified by driving the hook directly). Only Thomas can authorize it. See Known Limitations
 
 ## Files to Create
+- `internal/component/bgp/reactor/config_prefix.go` - the per-family prefix parser, moved out of `config.go`
+- `internal/component/bgp/reactor/config_prefix_test.go` - the parser tests
+- `internal/component/bgp/reactor/session_prefix_family_test.go` - the enforcement, accessor, reconnect and aggregation tests
 - `test/draft/plugin/prefix-per-family-teardown.ci` - promoted to `test/plugin/` when green
 - `test/draft/parse/prefix-per-family-parse.ci` - promoted to `test/parse/` when green
 - `test/interop/scenarios/46-max-prefix-per-family-frr/` - `ze.conf`, `frr.conf`, and `check.py`
@@ -346,7 +372,7 @@ Both tests are drafted under `test/draft/` first, per `ai/rules/testing.md`.
 | Pipe completeness | N-A | No new output surface |
 | Env var registration | N-A | No leaf under `environment/` |
 | Doctor check for runtime dependencies | N-A | No new file, socket, port, module, or certificate |
-| Prometheus counters/metrics | Yes | Confirm the existing per-family labels stay correct. `setPrefixCountMetric` and `incrPrefixTeardownMetric` (`session_prefix.go`) are already family-labeled or peer-scoped. Record which is which |
+| Prometheus counters/metrics | Yes | Verified, not changed. Read at the declaration (`reactor_metrics.go`), not at the call site. Family-labeled: `ze_bgp_prefix_count`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded`, `ze_bgp_prefix_maximum_exceeded_total`, `ze_bgp_prefix_maximum`, `ze_bgp_prefix_warning`. Peer-scoped only: `ze_bgp_prefix_teardown_total` (labels `{"peer"}`) and `ze_bgp_prefix_stale`. **Gap recorded, not closed:** the teardown counter cannot say WHICH family stopped the session, now that the decision is per family. Adding a `family` label changes an existing metric's label set and breaks dashboards, so it is a separate decision. The family IS available to the operator on the enforcement log line and in the RFC 4486 NOTIFICATION data |
 | BGP family surface (new SAFI / capability / attribute) | No | No new family, capability, or attribute |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -357,7 +383,7 @@ Both tests are drafted under `test/draft/` first, per `ai/rules/testing.md`.
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | `prefix-updated` keeps its shape |
 | 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | Yes | Grep `docs/guide/` for prefix-limit prose and state that `teardown` and `idle-timeout` are per family |
+| 6 | Has a user guide page? | Yes, DONE | `docs/guide/configuration.md`. The page carried a worse defect than stale prose: its enforcement example put `prefix { teardown false; idle-timeout 30; }` at PEER level. `ze-bgp-conf.yang` has exactly ONE `container prefix`, inside the family list, so that example is rejected by the parser. Replaced with a two-family example that parses, plus a Scope column |
 | 7 | Wire format changed? | No | The 7-byte NOTIFICATION data is unchanged |
 | 8 | Plugin SDK/protocol changed? | No | `plugin.PeerInfo` keeps its field |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4486.md` and the `docs/features/rfc-status.md` row. Coordinate with `plan/spec-rfcgate-4-ledger.md` |
@@ -367,8 +393,8 @@ Both tests are drafted under `test/draft/` first, per `ai/rules/testing.md`.
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | Label correctness is verified, not changed |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `config.go`, `peersettings.go`, `session_prefix.go`, and `peer_run.go` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Verify every prefix-limit example against the YANG and the parser |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, DONE with ONE owed command | `docs/features/configuration.md` anchored the idle-timeout and reconnect logic to `peer.go`. The logic is in `peer_run.go`, now in `prefixReconnectDelay`. Anchor corrected. **`make ze-doc-index` is owed**: it regenerates `ai/CODE-TO-DOCS.md`, which `make ze-doc-test` reports stale for exactly this anchor. This session was told not to touch anything under `ai/`, so the command was not run. It is the ONLY `ze-doc-test` failure |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes, DONE | Every prefix-limit example was checked against the YANG. One did not parse; see row 6 |
 
 ## Implementation Steps
 
@@ -471,9 +497,118 @@ Both tests are drafted under `test/draft/` first, per `ai/rules/testing.md`.
 | Keep the family key sort | Iterate the map directly, now that order no longer decides the winner | The sort still serves OPEN capability ordering, which `config.go` documents. Removing it would trade one determinism bug for another |
 
 ## Known Limitations
+
+### A-7 follow-up: both items stopped at the model-phase gate are now CLOSED (2026-08-03)
+
+The A-7 fix landed and is green. Two items were stopped mid-session by the
+`.claude/hooks/pretool-writeedit.py` model-phase gate
+(`ai/rules/model-selection.md`). Both are done.
+
+| Item | State | Outcome |
+|------|-------|---------|
+| `make ze-lint-changed` was RED on one issue | `internal/component/bgp/reactor/peersettings.go`, `PrefixReconnectMode.String`: `goconst` said the literal `"unknown"` had 3 occurrences in the package | CLOSED by the operator. `String` now returns `textbuf.StrUintStr("unknown(", uint64(m), ")")`, the shape `plugin.PeerState.String` uses. `make ze-lint-changed` reports 0 issues |
+| No daemon-level test for `reconnect backoff` | AC-11 was proven by unit tests only | CLOSED. `test/plugin/prefix-teardown-reconnect-backoff.ci`. The shape in the earlier version of this row (a lone `reject=stderr:pattern=peer held down`) was MEASURED and does discriminate, but it states an absence, so it is not the assertion: the test declares `option=tcp_connections:value=2` and an `action=send:conn=2` clause, and passes only when the daemon dials a second time and completes a second OPEN handshake. The reject is kept beside it as the faster signal |
+
+### Gate evidence for the A-7 fix (2026-08-03)
+
+| Gate | Result |
+|------|--------|
+| `make ze-test-pkg PKG=./internal/component/bgp/reactor` | `ok ... 131.468s` under `-race` |
+| `make ze-plugin-test` | 553/561, `prefix-teardown-holds-peer-down` PASS as test 381. The 8 reds are TIMEOUTS, all at ~90s in one burst while the `-race` reactor run held the machine. Re-run in isolation: 8/8 PASS in 2.9s. None touches prefix limits (`mcp-tools-call-stateless`, `redistribution-export-reject`, six `show-*`) |
+| `make ze-doc-test` | RED on one line only: `ai/CODE-TO-DOCS.md is stale -- run: make ze-doc-index`, the debt row 16 already records. "No documentation drift detected" |
+| `make ze-lint-changed` | CLEAN, 0 issues |
+| TDD red | `TestPeerHeldDownAfterPrefixTeardown` failed against the pre-fix daemon, and its log shows the flap: `prefix count exceeded maximum` repeating every 20 to 40ms for five seconds |
+| Mutation | With `PrefixReconnectFor` returning `backoff`, `test/plugin/prefix-teardown-holds-peer-down.ci` FAILS on the missing `peer held down` line. With it returning `never`, `test/plugin/prefix-teardown-reconnect-backoff.ci` FAILS on the second connection that never arrives |
+
+#### One unreproduced timeout, recorded with its reproduction attempt
+
+`prefix-teardown-reconnect-backoff` timed out once, on the FIRST full
+`make ze-plugin-test` after it was promoted (test 382, 60s, the 20s authored
+budget widened by `ParallelTimeoutHeadroom`). The daemon stderr in that report
+ends at the teardown: no `timing: safeRunOnce returned`, no second attempt, and
+no truncation marker, so the daemon wrote nothing for the remaining 57 seconds.
+The output was NOT truncated by the reporter, which caps at 30 lines
+(`truncateOutput`, `internal/test/runner/report.go`) and printed 19.
+
+It did not reproduce: `make ze-plugin-test` green twice more with the test at
+6.9s, and `scripts/dev/stress-repro.py` clean over 64 invocations at 4x core
+oversubscription (24 at 64 burners / 16 parallel, then 40 at 128 burners / 24
+parallel, that pass driving this test and its `holds-peer-down` sibling
+together). This is the one case `ai/rules/completion.md` lets be recorded rather
+than fixed, so the record carries the next step.
+
+**Next step for whoever meets it again:** the stall, if it is one, sits between
+`Session.Run` returning and the `timing: safeRunOnce returned` line in
+`Peer.run` (`peer_run.go`), which brackets `close(p.deliverChan)`, the
+`<-deliveryDone` wait, and the `p.mu.Lock()` in the `runOnce` defer. Get a
+goroutine dump from the live daemon rather than another suite run: the
+reporter's client output cannot show one.
+
 - RFC 4486 NOTIFICATION still names one family, the one that overflowed first. Simultaneous overflow in two families is reported as one family. That matches the wire format at `session_prefix.go` and is not changed here.
 - The `updated` external surface stays one date per peer. An operator who wants per-family staleness dates needs a new output field. That is out of scope, and the deferral shard carries the row.
-- A-7 can reveal a second, separate defect in the `idle-timeout 0` contract. If the YANG description and `peer_run.go` genuinely disagree, this spec fixes it only when the fix is small. Otherwise the implementer raises it with Thomas and homes it. It is never silently left.
+
+### Two questions only Thomas can answer
+
+**1. The RFC-tagged test edit (R-7). This one BLOCKS the tree.**
+
+`TestPrefixExceedDrop` (`internal/component/bgp/reactor/session_prefix_test.go`)
+sets `ps.PrefixTeardown = false`. The field is now `map[string]bool`, so the line
+no longer compiles, and the package's TESTS cannot build until it changes. The
+production code compiles and every gate that does not build the test binary is
+unaffected.
+
+The needed edit is one line. The right side of the assignment `ps.PrefixTeardown
+= false` becomes a one-entry `map[string]bool` naming `ipv4/unicast` with the
+value false, which is the same statement the untagged sibling test
+`TestPrefixExceedDropWithdrawStillCounted` already carries.
+
+Nothing else in the function changes. No assertion, no polarity, no tag. It
+still proves `RFC4271-6.7-4 negative`: teardown disabled means no Cease.
+
+The `rfc-tagged-test` hook refuses it, correctly, because it cannot tell a type
+migration from a rewrite. It was driven directly to confirm this, not assumed.
+`ai/rules/rfc-compliance.md` and R-7 both say only Thomas authorizes it, and
+writing the `// rfc-test-change-approved:` marker on his behalf would be
+fabricating consent, so it was not written.
+
+All test evidence in this spec was produced through a `go -overlay` that
+supplies that one corrected line from `tmp/prefix-family/`, leaving the
+repository file untouched. The evidence is therefore real, and the tree is one
+approved line away from building.
+
+**2. A-7: `idle-timeout 0`. ANSWERED 2026-08-03, and landed.**
+
+Thomas ruled: **`0` means STAY DOWN, and a distinct explicit way to say
+"reconnect on normal backoff" is added so both intents are expressible.**
+
+| Decision | Where it lives |
+|----------|----------------|
+| `idle-timeout 0` (the YANG default) keeps the peer down | `PeerSettings.PrefixReconnectFor` (`peersettings.go`) resolves it to `PrefixReconnectNever` |
+| The decision is separated from the waiting | `prefixReconnectDecision` (`peer_run.go`) is pure over settings and error; `Peer.run` executes it |
+| "Stays down" is enforced in the run loop | `holdDownAfterPrefixTeardown` (`peer_run.go`) blocks on a select over the peer context and `inboundNotify`, so it cannot spin, and `Peer.run` returns when it does |
+| The explicit opt-in | `prefix { reconnect never \| backoff \| timer; }` (`ze-bgp-conf.yang`) |
+| Operator visibility | `PeerStateIdleHold` (shown as `idle-hold`), a `prefix-hold` report-bus warning naming the family, and the `peer held down` log line carrying `family=` and `reconnect=never` |
+
+### Migration (BEHAVIOR CHANGE)
+
+Every peer whose config never mentions `idle-timeout` changes behavior. Before,
+a prefix-limit teardown reconnected after the normal 5 to 60 second backoff,
+re-exceeded the maximum, and flapped. Now the peer stays down until an operator
+recreates it: change that peer's config and commit (`peerSettingsEqual` in
+`reactor_api.go` removes and re-adds a peer whose settings changed), or delete
+and add the peer. Cisco and Juniper both hold the peer down for the same event.
+
+Operators who relied on the old behavior write `prefix { reconnect backoff; }`
+on the family. A peer that already sets `idle-timeout N` with N above zero is
+unaffected: the absent `reconnect` leaf derives `timer` from it, which is proven
+by `TestPrefixReconnectDefaults`.
+
+Nothing in `test/` depended on the old behavior. The only fixture with a prefix
+teardown is `test/interop/scenarios/45-max-prefix-cease-frr`, which sets
+`idle-timeout 1` and therefore takes the timer path unchanged. One TEST did
+encode the defect: `TestPrefixIdleTimeoutZeroSemantics` asserted "zero declines
+the prefix backoff" because it was written to PIN the disagreement while A-7 was
+open. It is corrected in place, with the history in its doc comment, not deleted.
 
 ## RFC Documentation (Scope: protocol)
 

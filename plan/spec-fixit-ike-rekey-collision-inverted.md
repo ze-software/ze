@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-ike-rekey-collision-inverted.md` |
+| Deferral shard | `-` |
 | Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -282,6 +282,12 @@ pass  8/8  100.0%  14.8s
 | `RFC7296-2.8-1` now has three tagged bindings per polarity, up from one | The one binding was a helper-level comparison test, and the comparison was never wrong. The direction lives at the two call sites, so the tags now cover them |
 
 ## Known Limitations
+
+**Deferral shard row corrected to `-` on 2026-08-03 (bookkeeping audit): it named
+`plan/deferrals/fixit-ike-rekey-collision-inverted.md`, which never existed. This spec
+deferred nothing. Its Deviations section records work done BEYOND the plan (three more tests
+and two more prose sites corrected than the spec named), and the limitation below is a
+rationale for fixing a SHOULD, not postponed work.**
 
 The RFC states the deletion as a SHOULD, so the inversion is not a MUST violation on its
 own. `RFC7296-2.8.2-1`'s MUST is the inheritance, and that holds either way. The reason to

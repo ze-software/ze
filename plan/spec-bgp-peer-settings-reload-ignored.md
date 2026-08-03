@@ -2,10 +2,27 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Depends | - |
 | Phase | 2/9 |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-03 |
+
+## Blocked
+
+Blocked on a decision by Thomas. Step B1, "categorise every `PeerSettings`
+field", carries the spec's own marker "BLOCKING - present to user before
+coding", and the 7-step consolidation recorded on 2026-07-16 is still marked
+not user-approved. The category of each field decides whether a change swaps in
+place or restarts the session, so A3, A4 and all of Phase B cannot start until
+Thomas answers.
+
+One live consequence belongs with that question. A2 shipped alone, against this
+spec's own "A2 MUST NOT SHIP ALONE": `peerSettingsEqual`
+(`internal/component/bgp/reactor/reactor_api.go`) now compares every field
+except `Capabilities`, and `reconcilePeersJournaled` applies any difference by
+removing and re-adding the peer. So an edit to a static route, a prefix limit
+or a BFD setting bounces the session on reload today. The in-place apply branch
+that removes that bounce is exactly what B1 gates.
 
 Phase note (was in the Phase cell; moved 2026-07-22): A1+A2 DONE (bug reproduced,
 guard fixed via `reflect.DeepEqual` in `reactor_api.go`, landed 38170a13b;

@@ -18,7 +18,7 @@ run that was cancelled. The other can never fire, because a shorter timeout alwa
 wins first.**
 
 Found on 2026-08-02 by the independent review of
-`plan/spec-rfcgate-2-deferred-rs-replay-evidence.md`, while closing
+`spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record is `plan/learned/1307-rfc-evidence-tier-vacuity.md`), while closing
 `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
 
 A guard that fails open in the test harness is worse than no guard. It converts a
@@ -273,5 +273,5 @@ retired or re-levelled, so `make ze-rfc-check` is unaffected.
 
 ## Provenance
 
-The independent review of `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md`,
+The independent review of `spec-rfcgate-2-deferred-rs-replay-evidence`,
 2026-08-02, items 3 and 4 of its "left for someone else" list.

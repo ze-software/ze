@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/fixit-learned-dead-paths.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the shard is listed under Files to Create and is not owed until a deferral is made. Create `plan/deferrals/fixit-learned-dead-paths.md` on the first deferral) |
 | Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

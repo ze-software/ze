@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/ipsec-ipcomp.md` |
+| Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the VPP refusal is a design decision in scope, not postponed work. Create `plan/deferrals/ipsec-ipcomp.md` on the first deferral) |
 | Updated | 2026-07-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

@@ -2,10 +2,27 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Depends | spec-perf-next-0-umbrella.md |
 | Phase | 5/5 |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-03 |
+
+## Blocked
+
+Blocked on a decision by Thomas. AC-3 asks for 12 allocs/op or fewer, or a 40%
+reduction. Phase A alone gives 24 to 22 allocs/op (about 8%, recorded in commit
+`b5ad2cabe`), so AC-3 needs Phase B. Phase B is not written: the 14 encoder
+`make(` sites in `internal/component/bgp/reactor/filter_delta.go` are all still
+there and the package has no scratch type. Dropping Phase B is a scope
+reduction, which only Thomas can approve (`ai/rules/no-partial-completion.md`).
+The spec's own Phase B gate cannot decide it either: that gate demands a fresh
+`ze-perf-bench PPROF=1` profile showing the `encode*Value` frames, and
+`plan/learned/900-perf-next-round-3.md` records that `Dockerfile.ze` is stale
+and that `ze-perf-bench` never exercises the filter path.
+
+Thomas chooses one: implement Phase B and meet AC-3, or approve the deferral,
+which then needs a `plan/deferrals/` shard with a destination spec plus a
+corrected AC-3 before closure.
 
 Awaiting closure (recorded 2026-07-22 during plan review): Phase A landed --
 `filterAttrID`/`filterAttrs` (fixed struct + bitset replacing

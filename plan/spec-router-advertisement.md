@@ -541,16 +541,46 @@ the solicited-RA delay and rate limit (4861 Section 6.2.6), preferred <= valid (
 
 ## Implementation Summary
 ### What Was Implemented
-- Nothing yet (~~skeleton~~ design ready 2026-07-10; fill during /ze-implement).
+(2026-08-03 implementation session; spec Status stays `ready` because
+`scripts/dev/spec-session.sh claim` refused the claim on the WIP cap, and
+hand-editing Status to route around that check is banned.)
+
+- `internal/core/ndp` (`ra.go`): the RFC 4861 / RFC 8106 encoder. `BuildRA`
+  writes the header, the Source Link-layer Address option, any number of Prefix
+  Information options, and the RDNSS option; `RALen` sizes the buffer. Nothing
+  allocates, and a short buffer writes nothing and returns 0.
+- `internal/component/l2tp/ppp/ra.go`: `BuildRA` now delegates to `ndp` and
+  keeps its `RAConfig` API. Byte parity proven by `TestBuildRAParity`.
+- `internal/component/iface/yang/ze-iface-conf.yang`: the
+  `router-advertisement` container inside the per-unit `ipv6` container.
+- `internal/component/iface/config_ra.go`: `raUnitConfig`, `parseRAConfig`,
+  `raValidate`, and `EffectiveRDNSSLifetime`.
+- `internal/component/iface/reconcile_ra.go`: `RAStopper`, `RASenderSpec`,
+  `SetRASenderFactory`, `reconcileRA`, `stopAllRASenders`, and the shared
+  `forEachConfiguredUnit` iterator. Called from `register.go` at both
+  `reconcileDHCP` sites and on shutdown.
+- `internal/plugins/iface/ra`: the `iface-ra` plugin. `ifacera.go` holds the
+  RFC 4861 Section 10 timers and the two counters; `sender_linux.go` holds the
+  socket, the Router Solicitation reader, the send loop, the link-flap
+  handling, and the final zero-lifetime advertisements; `doctor.go` holds the
+  D-6 forwarding warning.
+- `internal/core/diagnostic/codes.go`: `doctor-iface-ra-forwarding`.
 
 ### Bugs Found/Fixed
-- (fill during implementation)
+- None in existing code. The ppp sender's missing multicast hop limit (A-4) is
+  unchanged and still unverified; see Assumptions.
 
 ### Documentation Updates
-- (fill during implementation)
+- (delegated in the same session; see the session report)
 
 ### Deviations from Plan
-- (fill during implementation)
+| Planned | Done | Why |
+|---------|------|-----|
+| YANG leaves named `maximum-interval-seconds`, `router-lifetime-seconds`, ... (D-10) | `maximum-interval`, `router-lifetime`, ... with a YANG `units seconds;` statement | `ai/rules/config.md` now lists a unit suffix in the name as the anti-pattern and requires the `units` statement. The rule postdates the D-10 table. |
+| `rdnss/lifetime-seconds` uint32 with `default 0`, where 0 derives 3 x maximum-interval (D-10) | `rdnss/lifetime` with NO default; unset derives 3 x maximum-interval, an explicit 0 reaches the wire | AC-14 (added 2026-08-01) requires an explicit 0 to be advertised. A default of 0 makes "unset" and "retire these resolvers" the same value, which is the VyOS T9084 defect the AC exists to prevent. |
+| Add `./internal/plugins/iface/ra/...` to `ZE_QEMU_INTEGRATION_PKGS` in `mk/test-integration.mk` | No Makefile edit | The variable is derived by `grep -rl '^//go:build integration && linux'`, so the build tag alone enrolls the package. |
+| Parse and reconcile tests in `internal/component/iface/config_test.go` | `config_ra_test.go` and `reconcile_ra_test.go` | `config_test.go` is already past the 1000-line modularity limit, and `config.go` and `register.go` are too. The new code went into new files for the same reason. |
+| Factory signature mirroring `SetDHCPClientFactory`'s twelve positional parameters | `SetRASenderFactory(func(RASenderSpec) (RAStopper, error))` | One value struct carries the advertisement, so a new leaf does not change the seam. `RASenderSpec.Equal` drives restart-on-change, because the struct holds slices and `==` is unavailable. |
 
 ## Implementation Audit
 
@@ -559,8 +589,25 @@ the solicited-RA delay and rate limit (4861 Section 6.2.6), preferred <= valid (
 |-------------|--------|----------|-------|
 
 ### Acceptance Criteria
+(2026-08-03. All 14 met. "proven" means a green test asserts the AC's stated behavior and a
+mutation of the producing code turned that test red.)
+
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | proven | `ndp.BuildRA` prefix options (`TestBuildRAPrefixOption`), `ifacera.Sender.run`; QEMU `TestRASenderPeerAutoconfigures`, `TestRASenderWireFormat` | |
+| AC-2 | proven | QEMU `TestRASenderPeerAutoconfigures`: a peer kernel forms a SLAAC address from the advertised /64 | |
+| AC-3 | proven | `solicitedSendTime`, `solicitedDelay` (`TestRARateLimit`, `TestRASolicitedDelayBounds`); QEMU `TestRASolicitedResponse` | |
+| AC-4 | proven | `ndp.writeRDNSS` (`TestBuildRARDNSS`), `raParseRDNSS` (`TestRAConfigParse`) | |
+| AC-5 | proven | `Sender.sendFinal` (`TestRAFinalZeroLifetime`), `reconcileRA` (`TestReconcileRA`); QEMU `TestRAFinalZeroLifetimeOnWire` | |
+| AC-6 | proven | `raValidate`, `raParsePrefixEntry` (`TestRAConfigCrossFieldReject`, `test/parse/iface-router-advertisement-invalid.ci`) | |
+| AC-7 | proven | `ze:backend "netlink"` on the container (`test/parse/iface-vpp-rejects-router-advertisement.ci`) | |
+| AC-8 | proven | `openRASocket` sets `SetMulticastHopLimit(255)` and `SetHopLimit(255)`; QEMU `TestRASenderWireFormat` captures hop limit 255, type 134 code 0, and the SLLA option | settles assumption A-4 |
+| AC-9 | proven | `Sender.onLinkEvent`; QEMU `TestRALinkDownUp` | |
+| AC-10 | proven | `ppp.BuildRA` delegating to `ndp.BuildRA` (`TestBuildRAParity`, hand-derived goldens, green before and after the extraction) | |
+| AC-11 | proven | `make ze-iface-resolution-check` OK, zero new allowlist entries; `NewSender` uses `iface.Resolve` only | |
+| AC-12 | proven | `incSent`, `incSolicited` (`TestRASenderMetrics`) | |
+| AC-13 | proven | `raValidate` router-lifetime branch (`TestRAConfigZeroLifetimesAccepted`, `test/parse/iface-router-advertisement.ci`) | |
+| AC-14 | proven | `raParseRDNSS` keeps an explicit 0 (`TestRAConfigZeroLifetimesAccepted`, `TestRASenderConfigFromUnit`) | the leaf carries no YANG default, which is what keeps 0 distinguishable from unset |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
