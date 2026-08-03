@@ -12,7 +12,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Found on 2026-07-30. The work that found it gathered evidence for owner ruling OR-F of
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`. The question asked was narrow: can the VPP backend
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. The question asked was narrow: can the VPP backend
 copy the ECN bits that `RFC7296-2.24-1` and `2.24-2` require. The answer turned out to be
 that the backend cannot program a security association at all.
 
@@ -101,7 +101,7 @@ the rest of the message rewrite, and add the new criterion AC-8 below.
 
 ### Added 2026-08-02: `InstallPolicy` also ignores the `Action` and `Priority` contract
 
-Found while closing `plan/spec-rfcgate-1b-rfc7296-pilot.md`. This extends the paragraph
+Found while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. This extends the paragraph
 above rather than restating it: the hardcoded `Policy: 3` is named there as the SA-id gap,
 and two further fields were added to `SPParams` after this spec was written.
 
@@ -209,7 +209,7 @@ layout VPP expects.
 
 ### Integration Points
 
-`plan/spec-rfcgate-1b-rfc7296-pilot.md` owns rows `RFC7296-2.24-1` and `2.24-2`. They stay
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` owns rows `RFC7296-2.24-1` and `2.24-2`. They stay
 `uncertain` until this spec's AC-7 holds.
 
 ## Key Design Decisions

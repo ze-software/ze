@@ -19,7 +19,7 @@ misquotes its source.**
 
 Found on 2026-08-02 by the RFC 7296 extraction sign-off walk and by the independent
 review of `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md`, both while closing
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`. Neither was looking for this. Both found it
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Neither was looking for this. Both found it
 by reading the RFC beside the row.
 
 **No gate can see any of these.** `make ze-rfc-check` verifies that a row parses,
@@ -295,7 +295,7 @@ summaries stay enrolled and no requirement id is retired.
 
 ## Provenance
 
-- `plan/spec-rfcgate-1b-rfc7296-pilot.md`, the RFC 7296 extraction sign-off walk
+- `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, the RFC 7296 extraction sign-off walk
   (2026-08-02): rows one, three and four.
 - The independent review of `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md`
   (2026-08-02): rows two and five.

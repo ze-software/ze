@@ -3,12 +3,12 @@
 # WP-9 design -- Configuration payload, remote access
 
 Rows (17): `RFC7296-2.19-1..-6`, `2.20-1`, `3.15.1-1..-7`, `4-2`, `4-3`, `1.7-1`.
-Source spec: `plan/spec-rfcgate-1b-rfc7296-pilot.md`, phase list item 15 (`:723-729`).
+Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 15 (`:723-729`).
 
 **Naming collision, read this first.** The 2026-07-30 re-triage renumbered the work
 packages. "WP-9" now names "Crypto suite policy and management facility" (6 rows), and
 these 17 rows sit in the new **WP-11, "Configuration payload and remote access"**
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:1573-1575`). The brief and the phase list use the
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1573-1575`). The brief and the phase list use the
 OLD numbering. The rows are what matter. Say which numbering a commit message uses.
 
 **Read-only design.** No tracked file was modified. Every `file:line` below was read in
@@ -49,7 +49,7 @@ test-writing exercise** -- see section 11 for the phase breakdown and the honest
 ## 1. The finding that reframes this package
 
 The spec says `wire.PayloadCP` is "a dead codec" with "no consumer and no producer"
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:190`). **That is true, and it is only half the
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:190`). **That is true, and it is only half the
 story. The other half is worse and better at the same time.**
 
 An exhaustive grep (28 hits over `internal/`, `cmd/`, `pkg/`, `test/`, `scripts/`)
@@ -130,7 +130,7 @@ subject does not exist. This is RFC-sanctioned, not a scope reduction.
 the instant anyone adds a client-side virtual-IP request. The tagged pair therefore
 asserts the property the code HAS (no builder emits CP) rather than the absence of a
 guard, which is the shape that expired for `RFC7296-3.4-1`
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:1843-1863`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1843-1863`).
 
 **Owner item OI-1.** Implementing the IRAC role is on the table, and
 `ai/rules/rfc-compliance.md` forbids me from choosing the narrower answer. See section 14.
@@ -196,7 +196,7 @@ payload appears only in the FINAL IKE_AUTH response, built by `buildAuthResponse
 **Verdict: absent.** Design: all three sites gain CP handling, and site 3 is the one whose
 omission would make the feature silently not work against real clients. This is the
 second-producer shape the spec has now recorded three times
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:1778-1783`), and here it is a THIRD-producer
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1778-1783`), and here it is a THIRD-producer
 shape.
 
 **The placement rule that falls out.** In an EAP session the CFG_REPLY goes in the FINAL
@@ -221,7 +221,7 @@ assertion.
 **Do not confuse this with `4-2`.** `2.19-4` binds the SENDER of a CFG_REQUEST. `4-2`
 binds the RECEIVER to recognize the same attribute. Ze owes `4-2` and not `2.19-4`. The
 two tags must say which side they are on, or a reviewer cannot tell them apart -- the
-`1.4.1-4` trap (`plan/spec-rfcgate-1b-rfc7296-pilot.md:1816-1841`).
+`1.4.1-4` trap (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1816-1841`).
 
 ### 2.5 `RFC7296-2.19-5` -- no CFG_REPLY without a CFG_REQUEST (AUTHORIZATION)
 
@@ -518,7 +518,7 @@ answer with an IPv4 address. §3.15.4 gives the correct behaviour:
 Erratum 5056 (Held for Document Update, Technical) reports that "proposals" is wrong: a
 configuration attribute belongs to a Configuration payload, not to an SA proposal. The
 verifier's words, as recorded by phase 2a: `only the attribute type should be ignored, not
-the entire proposal` (`plan/spec-rfcgate-1b-rfc7296-pilot.md:1280-1282`).
+the entire proposal` (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1280-1282`).
 
 The spec's constraint is explicit: **the row keeps the verbatim text, and WP-9 implements
 the CORRECTED semantics** (`:1284`). Implementing the literal text would discard an entire
@@ -527,7 +527,7 @@ a self-evidently wrong behaviour that would break interoperability.
 
 ### The duplication question, settled
 
-`plan/spec-rfcgate-1b-rfc7296-pilot.md:1289-1291` asks WP-9 to settle whether `1.7-1`
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1289-1291` asks WP-9 to settle whether `1.7-1`
 duplicates `3.15.1-4` ("Unrecognized or unsupported attributes MUST be ignored"), and says
 that if they are one obligation the sign-off excludes one site as `duplicate-of` the other.
 
@@ -581,7 +581,7 @@ a peer's odd-but-harmless payload into a parse failure for the whole message, wh
 
 ### 7.2 The consumer: `internal/component/ike/engine/cp.go` (new)
 
-The file the spec's phase list already names (`plan/spec-rfcgate-1b-rfc7296-pilot.md:543`).
+The file the spec's phase list already names (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:543`).
 
 | Function | Responsibility | Rows |
 |----------|----------------|------|
@@ -844,7 +844,7 @@ runs those suites automatically and a tag nothing executes is an absence of evid
 rather than weak evidence".
 
 **Consequence for WP-9.** The strongSwan scenario `14-remote-access-cp`
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:502`) is **goal-validation evidence, not tagged
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:502`) is **goal-validation evidence, not tagged
 evidence**. It proves the feature works against a real peer, and it earns no row a
 polarity. Every one of the 34 tags below lives in a `_test.go` or in
 `test/ipsec/ipsec-remote-access-cp.ci`. An implementer who tags the interop `check.py`
@@ -936,7 +936,7 @@ and `RFC7296-3.15.1` are distinct scopes and do not share a mark. Appendix A hol
 `1.7-1` lands as **`RFC7296-1.7-3`**. WP-9 is the sole claimant of §1.7's remaining row
 (`1.7-2` is already at HEAD), so nothing can move the mark first. Correct Appendix A in
 the same commit, on the precedent set for `1.4-2` → `1.4-5`
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:1399-1414`).
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1399-1414`).
 
 ### §2.19, §2.20, §3.15.1: safe, WP-9 owns every row
 
@@ -1003,7 +1003,7 @@ code, and the code they need is a user-facing feature with a config surface, an
 authorization model, a resource allocator and an interop obligation.** It is the largest
 remaining package for a reason.
 
-The spec anticipated this. Risk R-8 (`plan/spec-rfcgate-1b-rfc7296-pilot.md:296`) says WP-9
+The spec anticipated this. Risk R-8 (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:296`) says WP-9
 "adds a whole operator-facing feature surface ... If it turns out to be a spec-sized
 feature in its own right, that is a scope question for Thomas -- raised as a question,
 never resolved by dropping the rows."
@@ -1048,7 +1048,7 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 | **No Child SA or key material is installed on a refusal** | `createFirstChildSA` runs at `responder.go:623`, before the payload list | `2.19-6`'s positive asserts no Child SA was installed. The mutation that moves the short-circuit after `:623` must redden it |
 | **EAP sessions still establish** | Phase D changes `startResponderEAP`'s signature (`responder_eap.go:116`) and `handleResponderEAP`'s walk (`:201-209`) | `TestResponderEAPSessionWired` (`internal/component/ike/engine/responder_test.go:492`) stays green |
 | **Site-to-site peers are unaffected** | `cpPolicyFor` must return a determined `required=false` for a site-to-site profile, not a miss | `2.19-6`'s negative drives a site-to-site peer and asserts normal establishment |
-| **Every `test/ipsec/` `.ci` and `test/ipsec-interop/` scenario stays green** | `plan/spec-rfcgate-1b-rfc7296-pilot.md:204-206` | WP-9 changes no wire byte for a peer that sends no CP: the reply is emitted only when `cpRequestFrom` returns `ok` |
+| **Every `test/ipsec/` `.ci` and `test/ipsec-interop/` scenario stays green** | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:204-206` | WP-9 changes no wire byte for a peer that sends no CP: the reply is emitted only when `cpRequestFrom` returns `ok` |
 | **`RFC7296-2.5-6` / `-7` (RESERVED)** | D1 and D2 are literally `2.5-7` and `2.5-6` fixes for this payload | Both existing pairs stay green; the CP codec joins the set of producers they range over |
 
 ---
@@ -1112,7 +1112,7 @@ conformance. WP-9 implements it either way. Ask: "should §3.15.4 gain checklist
 this package, or is that the extraction sign-off's business?"
 
 **OI-5 -- is this a spec of its own?**
-Section 11 and R-8 (`plan/spec-rfcgate-1b-rfc7296-pilot.md:296`). Six days, a new operator
+Section 11 and R-8 (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:296`). Six days, a new operator
 config surface, an authorization model and a resource allocator inside what is otherwise a
 compliance-gate pilot. `plan/spec-ipsec-remote-access.md` may already own it. Ask: "does
 WP-9 stay a phase of the pilot, or become its own spec with these 17 rows as acceptance

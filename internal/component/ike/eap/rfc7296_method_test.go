@@ -3,7 +3,7 @@
 // PREVENTS: a wider accepted-method set that lets a keyless EAP method start. Ze has no SK_pi
 // or SK_pr AUTH path to serve such a method.
 //
-// Owner ruling OR-E of 2026-07-30, recorded in plan/spec-rfcgate-1b-rfc7296-pilot.md: the row
+// Owner ruling OR-E of 2026-07-30, recorded in plan/learned/1313-rfcgate-1b-rfc7296-pilot.md: the row
 // RFC7296-2.16-5 is discharged by proof, never by annotation. The row stays gated, so a wider
 // accepted set cannot pass unnoticed.
 package eap

@@ -64,4 +64,4 @@ was sufficient.
 - `mk/test-functional.mk` -- the missing `run_suite ipsec` line, and a `ze-ipsec-test` target
 - `scripts/dev/rfc_requirements.py` -- `functional_suites`, the deriver that reads `all_suites`
 - `ai/rules/testing.md` -- the KIND and TIER table this record is about
-- `plan/spec-rfcgate-1b-rfc7296-pilot.md` -- the spec whose evidence claim was corrected
+- `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` -- the spec whose evidence claim was corrected

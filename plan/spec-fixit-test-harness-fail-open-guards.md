@@ -19,7 +19,7 @@ wins first.**
 
 Found on 2026-08-02 by the independent review of
 `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md`, while closing
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`.
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
 
 A guard that fails open in the test harness is worse than no guard. It converts a
 run that proved nothing into a green bar, and a green bar is what everyone reads.

@@ -1,6 +1,6 @@
 # Functional test: the responder challenges an inbound IKE_SA_INIT with a COOKIE and
 # the initiator answers it, RFC 7296 Section 2.6.
-# Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, rows RFC7296-2.6-3/-4/-5.
+# Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, rows RFC7296-2.6-3/-4/-5.
 #
 # Two unprivileged ze instances negotiate IKEv2 over loopback, exactly as
 # ipsec-sa-installed.ci does. The responder runs at the default cookie-threshold of

@@ -258,7 +258,7 @@ func TestRtxResponderReplaysCachedResponseOnlyForDuplicate(t *testing.T) {
 		t.Error("an out-of-window request ran the Delete")
 	}
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	// An authenticated out-of-window request now draws an INVALID_MESSAGE_ID.
 	// RFC 7296 Section 2.3 raises that as a new REQUEST.
 	// The old rtxExpectSilence asserted more than the RFC does.
@@ -321,7 +321,7 @@ func TestRtxResponderIgnoresRequestWithForgottenResponse(t *testing.T) {
 		t.Error("the forgotten request ran its Delete payload")
 	}
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	// The forgotten request is out of window, so it now draws an INVALID_MESSAGE_ID.
 	// RFC7296-2.1-6 claims it "draws no answer".
 	// The replacement asserts exactly that: no datagram marked as a response.

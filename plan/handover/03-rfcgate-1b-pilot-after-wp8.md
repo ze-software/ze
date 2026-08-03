@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Spec | `plan/spec-rfcgate-1b-rfc7296-pilot.md` |
+| Spec | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` |
 | Landed here | WP-1 defects, WP-5, WP-3, WP-8, plus the IPComp and remote-access splits |
 | Gate | 2867 gated MUST-level requirements, 2971 tags resolved |
 | Written | 2026-07-31 |

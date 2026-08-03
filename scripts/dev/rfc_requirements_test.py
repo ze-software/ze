@@ -10929,7 +10929,7 @@ class TestTagPackagesCompileWiring(unittest.TestCase):
 class TestRealTree(unittest.TestCase):
     """The RFC 7296 pilot's Wiring Test, asserted over the REAL rfc/ tree.
 
-    Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, "Wiring Test" and D-3. Deliberately not
+    Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, "Wiring Test" and D-3. Deliberately not
     patched. What these prove is a fact about THIS repository -- the pilot grew
     rfc/short/rfc7296.md from 23 rows to 227 and proved every gated one of them in both
     polarities -- and a synthetic fixture would pass with all 204 landed rows absent, which

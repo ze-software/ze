@@ -34,7 +34,7 @@ func cpPayloadsIn(entries []wire.PayloadEntry) []*wire.PayloadCP {
 // Configuration payloads it found, and the counts that prove the walk was not vacuous.
 //
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The first draft counted inner
+// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The first draft counted inner
 // chains that EXISTED rather than inner payloads the sweep INSPECTED. Removal of m.inner
 // from the walk therefore left the guard green. A Configuration payload always travels
 // inside the encrypted SK payload. An outer-only sweep finds none, and every positive here
@@ -92,7 +92,7 @@ func builtCPSweep(t *testing.T) (found []*wire.PayloadCP, outerPayloads, innerPa
 // by a limit of the codec.
 func TestZeSendsNoConfigurationRequest(t *testing.T) {
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Tracks the renamed
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Tracks the renamed
 	// anti-vacuity counters, which now witness the inner walk instead of its existence.
 	found, outerPayloads, innerPayloads := builtCPSweep(t)
 	for _, cp := range found {
@@ -299,7 +299,7 @@ func TestCFGSetIsIgnoredAndDrawsNoCFGACK(t *testing.T) {
 	}}}
 
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The first draft compared
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The first draft compared
 	// response PAYLOAD TYPES. Its own anti-vacuity guard proved that comparison dead.
 	// handleInformationalOwned builds every response with a nil payload chain (inbound.go).
 	//
@@ -342,7 +342,7 @@ func TestCFGSetIsIgnoredAndDrawsNoCFGACK(t *testing.T) {
 
 	// No message ze builds carries a CFG_ACK, not only the response above.
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Binds the sweep to this
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Binds the sweep to this
 	// test so the CFG_ACK assertion ranges over every message ze builds.
 	built, _, _ := builtCPSweep(t)
 	for _, cp := range built {

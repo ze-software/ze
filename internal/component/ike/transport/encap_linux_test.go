@@ -19,7 +19,7 @@ import (
 // The measured reason is TestEncapKernelBindsOneESPFormPerState in
 // internal/component/ike/dataplane. On Linux XFRM one inbound state accepts bare ESP
 // or UDP-encapsulated ESP, never both. The open question OR-WP8-4 is recorded in
-// plan/spec-rfcgate-1b-rfc7296-pilot.md.
+// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md.
 //
 // This test DOES prove one real defect closed. Before it, Ze held port 4500 with a
 // plain socket. The kernel never decapsulated, and every encapsulated ESP datagram

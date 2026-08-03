@@ -35,7 +35,7 @@ func midTemporaryFailure() []wire.PayloadEntry {
 // unused"). A later work package that needs the same fixture builds the one it needs.
 //
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. Removing dead
+// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. Removing dead
 // scaffolding from a tagged file removes no proof. Every RFC7296-2.2-2 tag in this file
 // keeps its test and its assertions.
 
@@ -450,7 +450,7 @@ func TestMidTemporaryFailureDefersTheIKERekey(t *testing.T) {
 // counter to 0 for a peer whose final IKE_AUTH carries math.MaxUint32.
 //
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
+// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
 // adds proof for a producer that had none, and it removes none.
 //
 // The initiator advances its counter through advanceMsgID (fsm.go). That is where the

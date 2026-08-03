@@ -287,7 +287,7 @@ func TestCritUnknownCriticalPayloadNamesItsType(t *testing.T) {
 // payload. Over-rejecting here would refuse messages every conforming peer sends.
 func TestCritChainReportsTruncationButNotBadContents(t *testing.T) {
 	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	//
 	// The fixture was critChain, whose body is four octets. Read as a Nonce that is not a
 	// well-formed chain at all. RFC 7296 Section 3.9 puts a nonce at 16 octets or more, and
@@ -319,7 +319,7 @@ func TestCritChainReportsTruncationButNotBadContents(t *testing.T) {
 
 	t.Run("a well-formed chain parses", func(t *testing.T) {
 		// rfc-test-change-approved: 2026-08-01 owner standing approval for
-		// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+		// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 		//
 		// This is the CONTROL for the two truncation arms above, and it used to assert
 		// nothing. Both of its conditions were guarded -- one on err == nil and one on
@@ -338,7 +338,7 @@ func TestCritChainReportsTruncationButNotBadContents(t *testing.T) {
 
 	t.Run("bad payload contents are not a malformed message", func(t *testing.T) {
 		// rfc-test-change-approved: 2026-07-31 owner standing approval for
-		// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+		// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 		// The first fixture used an unknown transform TYPE, which decodePayload
 		// accepts. The subtest never reached the rejection path, and no mutation
 		// can kill it. This fixture trips a real rejection.
@@ -393,7 +393,7 @@ func TestCritChainReportsTruncationButNotBadContents(t *testing.T) {
 // unknown value off as understood.
 func TestCritNotifyTypeClassification(t *testing.T) {
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	// The boundary is now asserted against the LITERAL RFC 7296 Section 3.10.1 value.
 	// Phrased in terms of NotifyStatusFloor it moved with the constant.
 	// A split moved to 8192 then left the test green.

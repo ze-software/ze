@@ -3503,7 +3503,13 @@ The lifecycle is: `in-progress` -> Review Gate clean -> write learned summary ->
 **TWO commits, ONE script.** The spec is edited during implementation (design notes,
 1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
-**Design references survive closure.** Before commit B, grep
+**EVERY reference survives closure, not only `// Design:`.** Before commit B, grep
+| Gate | Reads | Missed by a `// Design:`-only grep |
+|------|-------|-------------------------------------|
+| `check_doc_links.py --design-only` | `// Design:` lines in `.go` | no |
+| `spec-citation-check.py` | ANY `plan/spec-*.md` string inside a `plan/spec-*.md` | YES -- spec-to-spec citations |
+| `learned_staleness.py` | cited paths inside `plan/learned/*.md` | YES -- a summary naming the spec |
+**Then re-read what the substitution produced.** A bulk repoint turns a sentence
 **Closure resolves the spec's deferral rows.** Before commit B, grep
 **Never `git rm -f` a spec without committing it first.** The `-f` flag silently
 | Banned | Why |

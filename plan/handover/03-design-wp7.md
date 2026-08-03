@@ -5,9 +5,9 @@
 Rows: `RFC7296-2.9-2`, `2.9.2-1`, `2.9.2-2`, `2.23.1-1`, `2.23.1-2`, `2.23.1-3`,
 `1.3.1-1`, `1.3.1-2`, `3.13.1-1`, `3.13.1-2`, `3.13.1-3` (11).
 Plus the pre-existing `{gap}` on `RFC7296-2.9-1`, which the spec's Critical Review
-Checklist makes this package clear (`plan/spec-rfcgate-1b-rfc7296-pilot.md:744`, `:710`).
+Checklist makes this package clear (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:744`, `:710`).
 
-Source spec: `plan/spec-rfcgate-1b-rfc7296-pilot.md`, phase list item 12 (`:705-710`).
+Source spec: `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, phase list item 12 (`:705-710`).
 
 **Read-only design. No tracked file was modified.** Every `file:line` below was read in
 the working tree on 2026-07-31, and every claim about behaviour cites the function that
@@ -451,7 +451,7 @@ down working tunnels. The config must therefore distinguish "transport preferred
 `rfc/full/rfc7296.txt:6074-6079`. `3.13.1-3`'s MUST is on `:6078`.
 
 **Appendix A's `3.13.1-3` text drops "working with [IPSECARCH]" and the quotation marks
-around OPAQUE and ANY.** `plan/spec-rfcgate-1b-rfc7296-pilot.md:1226`. Dropping the
+around OPAQUE and ANY.** `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1226`. Dropping the
 qualifier WIDENS the row: as written it binds every system, where the RFC binds systems
 working with RFC 4301. Restore the qualifier when the row lands. Note also that the
 sentence immediately before it (`:6074-6076`) is a fourth MUST in the same paragraph, the

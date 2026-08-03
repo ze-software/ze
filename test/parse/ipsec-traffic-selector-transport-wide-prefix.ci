@@ -2,7 +2,7 @@
 # is refused at config validate.
 # Validates: RFC 7296 Section 2.23.1 MUST -- "For transport mode, it MUST use
 # exactly one IP address in the TSi and TSr payloads."
-# Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, WP-7.
+# Spec: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, WP-7.
 #
 # ai/rules/exact-or-reject.md: a selector Ze cannot deliver exactly fails at
 # verify, rather than being narrowed silently once a peer is already talking.

@@ -81,7 +81,7 @@ ruling.
 
 | Spec | Finding |
 |------|---------|
-| `plan/spec-rfcgate-1b-rfc7296-pilot.md` | 214 unextracted IKEv2 MUSTs, 108 unimplemented. No guard on Message ID exhaustion. DPD probes sent unencrypted |
+| `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` | 214 unextracted IKEv2 MUSTs, 108 unimplemented. No guard on Message ID exhaustion. DPD probes sent unencrypted |
 | `plan/spec-fixit-dns-rfc1035-conformance.md` | 27 MUSTs, six with no code path. No 512-octet bound, no TC bit, and the TTL is never raised against the SOA MINIMUM. Full compliance ruled, including AXFR and IXFR |
 | `plan/spec-fixit-isis-hostname-ascii.md` | Ze emits non-ASCII on the IS-IS wire |
 | `plan/spec-fixit-bgp-shutdown-cease-notification.md` | Ze sends no NOTIFICATION with error code 6 on SIGTERM. `Session.Close` has no reachable production caller |

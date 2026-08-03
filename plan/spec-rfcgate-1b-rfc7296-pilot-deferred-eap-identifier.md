@@ -19,7 +19,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 **Provenance.** Found by an independent reviewer during round 7 of
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`, while that spec was making the EAP-TLS
+the rfcgate-1b RFC 7296 pilot (closed; `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`), while it was making the EAP-TLS
 termination follow RFC 5216 Section 2.1.3. The pilot is closed and its shard is
 deleted, so this file is the tracker.
 

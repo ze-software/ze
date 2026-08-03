@@ -139,7 +139,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 |----------|--------|
 | What breaks if this is wrong? | EAP-TLS authentication, on both roles. Scenarios 04 and 06 are the canaries. |
 | How is it reverted? | Per phase. Section 2.5 is separable from resumption and from OCSP. |
-| Who else touches this path? | `plan/spec-rfcgate-1b-rfc7296-pilot.md` landed the transport and MSK fixes this builds on. |
+| Who else touches this path? | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` landed the transport and MSK fixes this builds on. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

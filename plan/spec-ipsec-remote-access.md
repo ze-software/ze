@@ -70,9 +70,9 @@ So the missing pieces are admission, per-user credentials, and address assignmen
 
 ## RFC 7296 Rows Homed Here (owner split, 2026-07-31)
 
-**Provenance.** These rows arrived from `plan/spec-rfcgate-1b-rfc7296-pilot.md`. Item 15
+**Provenance.** These rows arrived from `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Item 15
 of that spec's phase list held 17 RFC 7296 rows as work package WP-9, "Configuration
-payload and remote access" (`plan/spec-rfcgate-1b-rfc7296-pilot.md:723`). On 2026-07-31
+payload and remote access" (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:723`). On 2026-07-31
 the owner split WP-9. The rows that need the address-assignment FEATURE move here. The
 rows that are already conformant stay in the pilot, together with two live defects.
 
@@ -206,7 +206,7 @@ proposal. The literal reading would discard an SA proposal because a Configurati
 elsewhere in the same message carried attribute 5.
 
 **`1.7-1` does not duplicate `3.15.1-4`.** The pilot asked this spec to settle the
-question (`plan/spec-rfcgate-1b-rfc7296-pilot.md:1289`). They are separate obligations.
+question (`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1289`). They are separate obligations.
 
 `3.15.1-4` scopes attributes Ze does not recognize. `1.7-1` names type 5 and binds even an
 implementation that DOES recognize it, because RFC 4306 defined type 5. An implementation
@@ -272,7 +272,7 @@ the working tree, which agree for every section below.
 **Correction to the briefing that opened this work.** The briefing stated that `4-1` had
 already landed and set the mark to 1. It has not. No `RFC7296-4-*` id exists at HEAD or in
 the working tree, and all four rows are still `NOT IMPL` in the pilot's Appendix A
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:1244-1247`). The hazard is real, and its mechanism
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1244-1247`). The hazard is real, and its mechanism
 is "first to land sets the mark", not "the mark is already 1".
 
 **The rule: Section 4 must land in ascending ordinal order across specs.** `4-1` first,

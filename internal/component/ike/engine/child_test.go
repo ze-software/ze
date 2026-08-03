@@ -371,7 +371,7 @@ func TestChildSAReplayRequiresIntegrity(t *testing.T) {
 // which drives the narrowing engine the responder calls and then asserts the installed
 // inbound policy carries its result. Coverage moves onto a live path rather than dropping.
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 
 // TestChildSAInboundPolicyUsesNegotiatedTS asserts the inbound SPD/SAD entry is populated
 // with the Child SA's negotiated traffic selectors, not the raw tunnel endpoints.

@@ -11,7 +11,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Found on 2026-07-30 by the phase-2b sweep for `plan/spec-rfcgate-1b-rfc7296-pilot.md`.
+Found on 2026-07-30 by the phase-2b sweep for `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
 Design: `tmp/uncovered-producers-design.md`, sections 1.1 and 2. Owner ruling the same
 day: "Remove the fallthrough, and fix the leak with it."
 

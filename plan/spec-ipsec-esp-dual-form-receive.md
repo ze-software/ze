@@ -58,8 +58,8 @@ decides whether this spec is urgent or theoretical.
 ### Provenance (do not delete)
 
 Thomas ruled on 2026-08-01, in two steps, on the two held rows of
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`. The open owner question was OR-WP8-4
-(`plan/spec-rfcgate-1b-rfc7296-pilot.md:1548`).
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. The open owner question was OR-WP8-4
+(`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1548`).
 
 **Step one.** Land both rows in the pilot with tags that record a measured platform limit,
 rather than annotate either as a gap. That step is complete.
@@ -293,7 +293,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 |----------|--------|
 | What breaks if this is wrong? | Every IPsec tunnel's receive path. A wrong route silently drops ESP, which is the quietest failure this subsystem has: the tunnel establishes and carries no traffic |
 | How is it reverted? | A single commit revert, as long as the change stays inside the receive presentation and no wire format changes. Route A is revertible. A change to the encapsulation DECISION is visible to the peer and is not |
-| Who else touches this path? | `plan/spec-rfcgate-1b-rfc7296-pilot.md` owns the two tagged rows. `plan/spec-fixit-vpp-ipsec-inoperable.md` owns the VPP backend. Both must be read before any edit |
+| Who else touches this path? | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` owns the two tagged rows. `plan/spec-fixit-vpp-ipsec-inoperable.md` owns the VPP backend. Both must be read before any edit |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -789,7 +789,7 @@ on its header rules.
 ## Audit 2026-08-02: phases 1 to 4 landed, phase 5 open. NOT ready to close
 
 Read against the code on 2026-08-02, during the closure of
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`. This section is a bookkeeping record. It changes no
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. This section is a bookkeeping record. It changes no
 code and closes nothing.
 
 **AC-1, AC-2, AC-3, AC-6 and AC-7 are landed. AC-5 is not-applicable by measurement and is

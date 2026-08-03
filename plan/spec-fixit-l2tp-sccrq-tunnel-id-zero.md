@@ -18,7 +18,7 @@ is a gated MUST that requires a StopCCN reply, its published coverage claims the
 Reactor sends one, and both of its tagged tests prove the OTHER half of the
 requirement.**
 
-Found on 2026-08-02 while closing `plan/spec-rfcgate-1b-rfc7296-pilot.md`.
+Found on 2026-08-02 while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
 
 **The way to fix this is the owner's decision, not this spec's.** The question is
 stated in full below and must be answered before any code changes.

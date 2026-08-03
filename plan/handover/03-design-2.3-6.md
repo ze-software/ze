@@ -137,7 +137,7 @@ Row text, one physical line:
 
     - [ ] [RFC7296-2.3-9] [MUST] Sending this notification is OPTIONAL, and notifications of this type MUST be rate limited (§2.3)
 
-Correct the Appendix A row at `plan/spec-rfcgate-1b-rfc7296-pilot.md:1071` to `2.3-9` in
+Correct the Appendix A row at `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md:1071` to `2.3-9` in
 the same change, and drop its "held for an owner ruling" note.
 
 ## 7. What must not break

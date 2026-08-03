@@ -284,11 +284,33 @@ This preserves the final spec state in git history. `git log -p -- plan/<spec>` 
 the full design record. The deletion in commit B is a clean removal of a file whose
 final state is already committed.
 
-**Design references survive closure.** Before commit B, grep
-`// Design: plan/<spec>` across the tree and rewrite every hit to the learned
-summary (`plan/learned/NNN-<name>.md`) inside commit A. Deleting a spec that
-source files still reference breaks design traceability;
-`scripts/dev/check_doc_links.py --design-only` reports the breakage.
+**EVERY reference survives closure, not only `// Design:`.** Before commit B, grep
+the WHOLE PATH `plan/spec-<stem>.md` across the tree -- not the `// Design:` prefix
+-- and rewrite every hit to the learned summary (`plan/learned/NNN-<name>.md`)
+inside commit A.
+
+Three gates read three different reference kinds, and greping for one leaves the
+other two red:
+
+| Gate | Reads | Missed by a `// Design:`-only grep |
+|------|-------|-------------------------------------|
+| `check_doc_links.py --design-only` | `// Design:` lines in `.go` | no |
+| `spec-citation-check.py` | ANY `plan/spec-*.md` string inside a `plan/spec-*.md` | YES -- spec-to-spec citations |
+| `learned_staleness.py` | cited paths inside `plan/learned/*.md` | YES -- a summary naming the spec |
+
+MEASURED twice in one day. The wire-edit and knowledge sets closed on 2026-08-02
+leaving 31 spec-to-spec citations and 28 dead learned-summary paths, which reddened
+two structural gates for every session in the checkout. The session that repaired
+those then closed its OWN spec hours later and left 158 more, because it greped
+`// Design:` exactly as this clause used to say.
+
+**Then re-read what the substitution produced.** A bulk repoint turns a sentence
+ABOUT the spec into a sentence about a summary, and some of those become false: a
+learned summary does not "own rows", is not "active", has no "phase 2b", and is not
+somewhere work can be "implemented inside". Grep the new path next to `that spec`,
+`this spec`, `the pilot`, `owns`, `active` and `Depends`, and rewrite what reads
+wrong. Naming the spec WITHOUT its `plan/` path is the way to keep a true sentence
+about a file that is gone -- the citation gate matches the path, not the name.
 
 **Closure resolves the spec's deferral rows.** Before commit B, grep
 `plan/deferrals/` for this spec's filename (a row naming it as Destination may live in

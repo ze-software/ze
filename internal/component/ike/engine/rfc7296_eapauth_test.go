@@ -172,7 +172,7 @@ func TestEapAuthResponderRefusesWithoutCertificate(t *testing.T) {
 				t.Fatal("computeServerAuth accepted an EAP peer with no certificate")
 			}
 			// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the
-			// whole of plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test
+			// whole of plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test
 			// whose arm no input reaches. The AUTH-data comparison used to sit after an
 			// unconditional failure on the same `auth != nil` condition, so `auth` was
 			// provably nil by the time the comparison ran and it was dead in both directions

@@ -12,7 +12,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Found on 2026-07-30 by a `make ze-verify-changed` run for
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`. Owner decision the same day: land the pilot work
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Owner decision the same day: land the pilot work
 under an override, and give this defect its own spec rather than a load excuse.
 
 Status is `skeleton` on purpose. The failure is reproduced and attributed, and the

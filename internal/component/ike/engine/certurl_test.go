@@ -155,7 +155,7 @@ func TestHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 	})
 
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation testing found
+	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation testing found
 	// the first version of this row did not gate the control it names. Deleting
 	// io.LimitReader left the row GREEN, because the post-hoc length check still
 	// returned errCertURLTooLarge after the reader buffered the whole body.
@@ -327,7 +327,7 @@ func TestHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 // PREVENTS: a narrowing of one clause silently opening a class. The metadata address is
 // asserted separately from link-local for exactly that reason.
 // rfc-test-change-approved: 2026-08-01 owner standing approval for
-// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Rows are ADDED to the deny
+// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Rows are ADDED to the deny
 // set and to the reachable set. Nothing is removed or relaxed.
 func TestCertURLDeniedCoversEveryPrivateClass(t *testing.T) {
 	for _, s := range []string{

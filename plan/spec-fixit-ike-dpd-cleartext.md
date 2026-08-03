@@ -12,7 +12,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Found on 2026-07-30 during design work on an unrelated fix for
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`. Owner ruling the same day: "Fix it now, and
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Owner ruling the same day: "Fix it now, and
 extract the missing row."
 
 ## Task
@@ -102,7 +102,7 @@ and credits liveness only when `matchesProbe` agrees on the message id.
 
 ### Integration Points
 
-`plan/spec-rfcgate-1b-rfc7296-pilot.md` owns the checklist for RFC 7296. This spec ADDS a
+`rfc/short/rfc7296.md` is the checklist for RFC 7296. This spec ADDS a
 row to `rfc/short/rfc7296.md`, so the pilot's row count changes and its Appendix A gains an
 entry.
 
@@ -177,7 +177,7 @@ than one DPD interval.
 |------|--------|
 | `internal/component/ike/engine/dpd.go` | Build the probe through `buildEncryptedMessageEx` |
 | `rfc/short/rfc7296.md` | The new section 1.4 row |
-| `plan/spec-rfcgate-1b-rfc7296-pilot.md` | Appendix A gains the row, and the count changes |
+| `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` | Appendix A gains the row, and the count changes |
 
 ## Files to Create
 
@@ -254,7 +254,7 @@ summary, so its high-water mark at HEAD is 4. `check_id_allocation`
 returning id is indistinguishable from a text correction. The next free ordinal above the
 mark is 5.
 
-`plan/spec-rfcgate-1b-rfc7296-pilot.md` planned this obligation as `RFC7296-1.4-2`, classed
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` planned this obligation as `RFC7296-1.4-2`, classed
 **NOT IMPL**. That id sits below the mark, so the gate refuses it. Appendix A now carries
 `RFC7296-1.4-5` and the class `impl-testable`, so the plan and the summary agree.
 

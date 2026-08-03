@@ -40,7 +40,7 @@ it does not repeat the full handshake.
 ### Provenance (do not delete)
 
 Thomas ruled on 2026-08-01 that this work lands in a follow-up spec, and not in
-`plan/spec-rfcgate-1b-rfc7296-pilot.md`, which is near closure. The pilot made Ze SEND
+`plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`, which is near closure. The pilot made Ze SEND
 the error notification where it once sent silence. That half is complete and proven.
 
 The pilot left a comment at the exact refusal site that names this follow-up
@@ -72,7 +72,7 @@ The `RFC7296-2.21.2-2` row carries the second half of this text. The first half,
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/spec-rfcgate-1b-rfc7296-pilot.md` - the pilot that sent the notification
+- [ ] `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` - the pilot that sent the notification
   → Decision: the pilot sends the error notification and then sets `StateDead`. This
     spec changes only the second half.
   → Constraint: the pilot is near closure. Never edit it from this spec.
@@ -274,7 +274,7 @@ the design phase closes.
 |----------|--------|
 | What breaks if this is wrong? | An IKE SA survives when Ze must delete it, or an authenticated peer accumulates SAs that carry no traffic. A wrong initiator guard removes the Child SA install from every tunnel, which is total data-path loss |
 | How is it reverted? | A single commit revert, while the behavior stays off by default. Once a peer depends on the surviving SA, a revert deletes that SA on the next Child SA refusal |
-| Who else touches this path? | `plan/spec-rfcgate-1b-rfc7296-pilot.md` (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the dataplane the attachment path installs into) |
+| Who else touches this path? | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the dataplane the attachment path installs into) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -568,7 +568,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Land the capability in this spec, and not in the pilot | Implement it inside `plan/spec-rfcgate-1b-rfc7296-pilot.md` | Owner ruling, 2026-08-01. The pilot is near closure, and this work touches three files it does not own |
+| Land the capability in this spec, and not in the pilot | Implement it inside the rfcgate-1b pilot | Owner ruling, 2026-08-01. The pilot is near closure, and this work touches three files it does not own |
 | Treat the work as a capability, and not as a compliance fix | Reopen `RFC7296-2.21.2-2` | The responder clause is a MAY (`rfc/full/rfc7296.txt:3301-3313`), and the row is proven in both polarities (`ai/RFC-REQUIREMENTS.md:3697`) |
 | Bound the life of a Child-SA-free SA | Let it live for the full IKE SA lifetime | R-1. The state is reachable by any authenticated peer, and it carries no traffic |
 

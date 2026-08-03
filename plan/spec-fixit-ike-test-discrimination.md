@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Four places in the IKE and IPsec test surface report green without testing the
 thing they name.**
 
-Found on 2026-08-02 while closing `plan/spec-rfcgate-1b-rfc7296-pilot.md`. Two were
+Found on 2026-08-02 while closing `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`. Two were
 measured by reverting the production guard and re-running. Two were read.
 
 `ai/rules/interop-and-goal-validation.md` states the standard this spec applies: a
