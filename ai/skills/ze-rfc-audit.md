@@ -89,15 +89,22 @@ This verdict says what the CODE can do. It never says that the classification is
 | Field | When | What it is |
 |-------|------|-----------|
 | `requirement_sha` | always | `requirement_sha(text)` of the checklist line |
-| `tests` | one entry per tagged test, and empty or omitted on `not-applicable`, which cites none | `{file:line -> whole-file sha}` for each tagged test |
-| `units` | one entry per `tests` entry, so empty or omitted whenever `tests` is | `{file:line -> enclosing-unit sha}`. The unit is one top-level Go function (doc comment through closing brace) or the whole file for a `.ci`, a `.et` or an interop `check.py` |
-| `code` | `unimplemented` | `{file:line -> enclosing-unit sha}` of the PRODUCING code the note names. Without it the verdict can never go stale |
+| `tests` | one entry per tagged test, and empty or omitted on `not-applicable`, which cites none | `{key -> whole-file sha}` for each tagged test |
+| `units` | one entry per `tests` entry, so empty or omitted whenever `tests` is | `{key -> enclosing-unit sha}`. The unit is one top-level Go function (doc comment through closing brace) or the whole file for a `.ci`, a `.et` or an interop `check.py` |
+| `code` | `unimplemented` | `{key -> enclosing-unit sha}` of the PRODUCING code the note names. Without it the verdict can never go stale |
 | `no_code_path` | `not-applicable` | prose stating why no reachable path exists |
 | `upgrade_reason` | changing a `weak`/`wrong` verdict to `enforced` with no unit change | what you re-read and why the earlier judgement was wrong |
 
-**Compute the shas with the tool, never by hand:**
-`requirement_sha(text)`, `test_sha(source)`, `tagged_unit_shas(tags)` (the `tests` map) and
-`unit_shas(keys)` (the `units` and `code` maps) in `scripts/dev/rfc_requirements.py`.
+**The key names a SYMBOL, never a location.** `<path>::<FuncName>` for a Go function, and the
+bare `<path>` when the whole file is the unit (a `.ci`, an `.et`, an interop `check.py`, or a Go
+tag that sits outside every function span). A second and later tag inside ONE function takes an
+ordinal: `<path>::<FuncName>#2`, `#3`, in tag order. The retired `<path>:<line>` form is refused,
+because no generator kept that line current and it rotted at the next edit above it.
+
+**Compute the keys and the shas with the tool, never by hand:**
+`requirement_sha(text)`, `test_sha(source)`, `tag_keys(tags)` (the keys), `tagged_unit_shas(tags)`
+(the `tests` map) and `unit_shas(keys)` (the `units` and `code` maps) in
+`scripts/dev/rfc_requirements.py`.
 
 ## Recording a finding never fails the build
 

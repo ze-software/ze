@@ -140,6 +140,66 @@ def go_func_scopes(content):
     return spans
 
 
+_GO_FUNC_DECL = re.compile(
+    r"^func\s+(?:\([^)]*\)\s*)?(?P<name>[A-Za-z_][A-Za-z0-9_]*)", re.MULTILINE
+)
+
+
+def func_name_in(text):
+    """The name a span DECLARES, or "" when no declaration is visible.
+
+    Reads the SPAN, not the file: `go_func_scopes` starts each span at the doc comment, so the
+    declaration line is already inside the text a caller holds. Both Go shapes are read, `func
+    Name(` and `func (r Recv) Name(`, and a generic `func Name[T any](` too, because the name
+    is taken before the parameter list rather than after it.
+    """
+    m = _GO_FUNC_DECL.search(text)
+    return m.group("name") if m else ""
+
+
+def go_func_units(content):
+    """[(name, text)] for every top-level func span, in file order.
+
+    The by-name view of `go_func_scopes`. A caller that must recover WHICH function a recorded
+    fingerprint hashed compares its recorded sha against the sha of each text here, which is an
+    exact match and immune to line drift.
+    """
+    return [
+        (func_name_in(content[a:b]), content[a:b]) for a, b in go_func_scopes(content)
+    ]
+
+
+def func_name_at(path, content, line):
+    """The name of the top-level func enclosing a 1-based line, or None for file scope.
+
+    The naming half of `unit_at`, and it answers for the SAME span by construction: a key that
+    named a function `unit_at` does not resolve to would fingerprint one text and be checked
+    against another. None comes back exactly where `unit_at` returns SCOPE_FILE, so a caller
+    minting a key writes the bare path there and states "the file is the unit" instead of
+    guessing a narrower answer.
+    """
+    if scope_reader(path) != "go":
+        return None
+    spans = go_func_scopes(content)
+    off = line_offset(content, line)
+    hit = [s for s in spans if s[0] <= off < s[1]]
+    if len(hit) != 1:
+        return None
+    return func_name_in(content[hit[0][0] : hit[0][1]]) or None
+
+
+def func_text(content, name):
+    """The text of the ONE top-level func declared `name`, or None.
+
+    None covers two states on purpose: a name no span declares, and a name two spans declare
+    (two methods with different receivers can share one name in one file). Both must be refused
+    by the caller. Picking either of two same-named functions would fingerprint text nobody
+    chose, and the honest answers are "re-read it" and "say which one".
+    """
+    found = [text for n, text in go_func_units(content) if n == name]
+    return found[0] if len(found) == 1 else None
+
+
 def unit_at(path, content, line):
     """The unit text governing a tag at a 1-based line, and how it was resolved.
 

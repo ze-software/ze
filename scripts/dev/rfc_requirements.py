@@ -59,7 +59,7 @@ import sys
 import tempfile
 import time
 import tokenize
-from typing import Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -3175,26 +3175,74 @@ _VERDICT_KEYS = frozenset(
 # Only these two carry a fingerprint MAP whose keys become filesystem reads.
 _FINGERPRINT_MAPS = ("tests", "units", "code")
 
-# A fingerprint key is `<repo-relative path>:<line>`. Validated because a verdict is
-# agent-authored input that a build gate turns into an open(): it is not a trusted path
-# source (Security Review, Path handling).
-_FINGERPRINT_KEY_RE = re.compile(r"^(?P<file>[^:\0]+):(?P<line>\d+)$")
+# A fingerprint key names a SYMBOL, never a location: `<repo-relative path>::<FuncName>` for a
+# Go function, or `<repo-relative path>` alone when the whole file is the unit (a `.ci`, an
+# `.et`, an interop `check.py`, or a Go tag that resolves to file scope). A stored line is kept
+# current by no generator, so it rots at the next edit of the file above it: four BIRD
+# permalinks in `docs/architecture/congestion-industry.md` pointed at unrelated code at the tag
+# they pinned. A symbol is recovered by NAME at read time, so a line shift is invisible here and
+# a rename is a real change to what was judged.
+#
+# A second and later tag inside ONE unit take a `#2`, `#3` ordinal. The ordinal counts tags
+# WITHIN the symbol, so it survives every line shift the same way the symbol does, and it is
+# what keeps `_unit_identity` a multiset: without it two tags in one function mint one dict key,
+# deleting one of them leaves the map identical, and the verdict reads FRESH over a test that is
+# gone. `#1` is not a legal spelling, so each tag has exactly one key.
+#
+# The path may hold no colon and no `#`, which is what makes the retired `<path>:<line>` form
+# fail to parse rather than read as a path with an odd name. Validated because a verdict is
+# agent-authored input that a build gate turns into an open(): it is not a trusted path source
+# (Security Review, Path handling).
+_FINGERPRINT_KEY_RE = re.compile(
+    r"^(?P<file>[^:#\0]+)(?:::(?P<symbol>[A-Za-z_][A-Za-z0-9_]*))?"
+    r"(?:#(?P<ordinal>[2-9]|[1-9][0-9]+))?$"
+)
+_RETIRED_KEY_RE = re.compile(r"^(?P<file>[^:\0]+):(?P<line>\d+)$")
 
 
-def _fingerprint_key(key: str, where: str) -> Tuple[str, int]:
-    """Split `file:line`, refusing anything that could read outside the tree."""
+def _fingerprint_key(key: str, where: str) -> Tuple[str, Optional[str]]:
+    """Split `path::Symbol`, `path::Symbol#2` or a bare `path`, refusing anything outside the tree.
+
+    Returns `(path, symbol)` with symbol None for a file-scoped key. The ordinal is validated and
+    then dropped: it distinguishes two tags inside ONE unit, and both resolve to that same unit.
+    Path safety is judged FIRST, over whichever shape matched, so a key naming `/etc/passwd` is
+    refused for the reason that matters even when its other half is also malformed.
+    """
     m = _FINGERPRINT_KEY_RE.match(key)
+    retired = None if m else _RETIRED_KEY_RE.match(key)
+    matched = m or retired
+    if matched:
+        rel = matched.group("file")
+        if rel.startswith("/") or rel.startswith("~") or ".." in rel.split("/"):
+            raise ParseError(
+                f"{where}: fingerprint key {key!r} names a path outside the repository. A "
+                f"verdict is authored input, not a trusted path source"
+            )
+    if retired:
+        raise ParseError(
+            f"{where}: fingerprint key {key!r} is the retired '<path>:<line>' form. A key names "
+            f"the SYMBOL it fingerprints, not where that symbol sat: write "
+            f"'{retired.group('file')}::<FuncName>', or '{retired.group('file')}' alone when the "
+            f"whole file is the unit. A stored line is current only until the next edit above it"
+        )
     if not m:
         raise ParseError(
-            f"{where}: fingerprint key {key!r} is not '<repo-relative-path>:<line>'"
+            f"{where}: fingerprint key {key!r} is not '<repo-relative-path>::<FuncName>' or a "
+            f"bare '<repo-relative-path>', either of which may carry a '#2' or higher ordinal "
+            f"when one unit holds more than one tag"
         )
-    rel = m.group("file")
-    if rel.startswith("/") or rel.startswith("~") or ".." in rel.split("/"):
-        raise ParseError(
-            f"{where}: fingerprint key {key!r} names a path outside the repository. A "
-            f"verdict is authored input, not a trusted path source"
-        )
-    return rel, int(m.group("line"))
+    return m.group("file"), m.group("symbol")
+
+
+def _key_file(key: str) -> str:
+    """The file half of a fingerprint key, for a caller that wants no validation.
+
+    Splitting on the LAST colon was right while a key ended in a line and is wrong now: it
+    returns `path:` for `path::Name`. Every shape is read here, symbol and ordinal alike, and an
+    unparseable key comes back whole rather than raising, because the two callers (the identity
+    multiset and the re-seal proof) are comparing and reporting, not opening.
+    """
+    return key.split("::", 1)[0].split("#", 1)[0]
 
 
 def _sha_value(sha: object, where: str) -> str:
@@ -3514,23 +3562,33 @@ def _verdict_claims(
 
 
 def tagged_unit_shas(tags: Sequence[Tag], root: str = PROJECT_DIR) -> Dict[str, str]:
-    """Fingerprint each tagged test, keyed file:line.
+    """Fingerprint each tagged test, keyed by the symbol the tag sits in.
 
-    Coarse on purpose: the whole enclosing file, not the function. Over-triggering costs a
-    re-read; under-triggering ships a verdict for a test that has since changed.
+    Coarse on purpose: the VALUE is the whole enclosing file, not the function. Over-triggering
+    costs a re-read; under-triggering ships a verdict for a test that has since changed.
+
+    An unreadable file stores "", which is safe only here: it compares unequal to whatever was
+    recorded, so it degrades to more checking. `unit_shas` refuses the same value, because there
+    it would be a legitimate-looking answer.
     """
-    out: Dict[str, str] = {}
-    cache: Dict[str, str] = {}
-    for t in tags:
-        if t.file not in cache:
+    cache: Dict[str, Optional[str]] = {}
+
+    def content_of(rel: str) -> str:
+        if rel not in cache:
             try:
                 with open(
-                    os.path.join(root, t.file), encoding="utf-8", errors="replace"
+                    os.path.join(root, rel), encoding="utf-8", errors="replace"
                 ) as fh:
-                    cache[t.file] = test_sha(fh.read())
+                    cache[rel] = fh.read()
             except OSError:
-                cache[t.file] = ""
-        out[f"{t.file}:{t.line}"] = cache[t.file]
+                cache[rel] = None
+        return cache[rel] or ""
+
+    keys = mint_tag_keys(tags, content_of)
+    out: Dict[str, str] = {}
+    for key, t in zip(keys, tags):
+        content = cache[t.file]
+        out[key] = "" if content is None else test_sha(content)
     return out
 
 
@@ -3550,7 +3608,7 @@ def _read_source(rel: str, root: str, cache: Dict[str, str]) -> str:
 def unit_shas(
     keys: Sequence[str], root: str = PROJECT_DIR, where: str = "audit"
 ) -> Dict[str, str]:
-    """Fingerprint the enclosing UNIT of each `file:line`, keyed by that same string.
+    """Fingerprint the UNIT each key NAMES, keyed by that same string.
 
     The unit is one top-level Go function (its doc comment through its closing brace) or the
     whole file, decided by `rfc_tagged_scope` -- the SAME definition the edit-time guard
@@ -3568,11 +3626,16 @@ def unit_shas(
     false FRESH, the one catastrophic outcome. `tagged_unit_shas` above stores "" for an
     unreadable file, which is safe only because it compares unequal to what was recorded; here
     the same value would be a legitimate-looking answer (`ai/rules/evidence.md`).
+
+    The unit is found by NAME, so a key survives every edit above the function it names and
+    dies exactly when that function is renamed or removed. A name the file no longer declares
+    is the third refusal, beside the two above it, and for the same reason: the alternative is
+    to fall back to some other text and report a fingerprint nobody asked for.
     """
     out: Dict[str, str] = {}
     cache: Dict[str, str] = {}
     for key in keys:
-        rel, line = _fingerprint_key(key, where)
+        rel, symbol = _fingerprint_key(key, where)
         content = _read_source(rel, root, cache)
         if not content:
             raise ParseError(
@@ -3580,7 +3643,24 @@ def unit_shas(
                 f"fingerprint, and hashing nothing would make every missing file look "
                 f"identical and therefore unchanged"
             )
-        text, _kind = rfc_tagged_scope.unit_at(rel, content, line)
+        if symbol is None:
+            text = content
+        else:
+            text = rfc_tagged_scope.func_text(content, symbol)
+            if text is None:
+                declared = [
+                    n for n, _ in rfc_tagged_scope.go_func_units(content) if n == symbol
+                ]
+                why = (
+                    f"{len(declared)} top-level functions declare it"
+                    if declared
+                    else "no top-level function declares it"
+                )
+                raise ParseError(
+                    f"{where}: {key} names symbol {symbol!r} in {rel}, where {why}. A verdict "
+                    f"judged that function, so a rename or a removal is a change to what was "
+                    f"judged: re-run /ze-rfc-audit rather than re-pointing the key"
+                )
         if not text:
             raise ParseError(
                 f"{where}: {key} resolved to an empty unit in {rel}; refusing to fingerprint "
@@ -3590,25 +3670,55 @@ def unit_shas(
     return out
 
 
-def unit_scopes(keys: Sequence[str], root: str = PROJECT_DIR) -> Dict[str, str]:
-    """How each `file:line` resolved: `func` or `file`. For error messages only."""
+def unit_scopes(keys: Sequence[str]) -> Dict[str, str]:
+    """How each key resolved: `func` or `file`. For error messages only.
+
+    No file is read any more. The key itself carries the answer, which is the point of naming
+    the symbol: a bare path IS the declaration that the whole file is the unit.
+    """
     out: Dict[str, str] = {}
-    cache: Dict[str, str] = {}
     for key in keys:
         try:
-            rel, line = _fingerprint_key(key, "audit")
+            _rel, symbol = _fingerprint_key(key, "audit")
         except ParseError:
             continue
-        content = _read_source(rel, root, cache)
-        if not content:
-            continue
-        out[key] = rfc_tagged_scope.unit_at(rel, content, line)[1]
+        out[key] = (
+            rfc_tagged_scope.SCOPE_FUNC if symbol else rfc_tagged_scope.SCOPE_FILE
+        )
     return out
 
 
-def tag_keys(tags: Sequence[Tag]) -> List[str]:
-    """The `file:line` keys a requirement's tags fingerprint under."""
-    return [f"{t.file}:{t.line}" for t in tags]
+def mint_tag_keys(tags: Sequence[Tag], content_of: Callable[[str], str]) -> List[str]:
+    """One key per tag, in tag order: `path::FuncName`, `path::FuncName#2`, ... or a bare path.
+
+    The ONE place the key form is minted, and the reason it takes a whole SEQUENCE rather than
+    one tag: the ordinal counts tags within a unit, so it cannot be derived from a tag alone.
+    ONE key per tag is the invariant. Two tags inside one function share a symbol, and without
+    the ordinal they would share a dict key too -- which makes the map compare equal after one of
+    them is deleted, and a verdict over a test that no longer exists reads FRESH.
+
+    `content_of` is supplied by the caller rather than read here because every caller already
+    holds the file it just hashed, and a second read is a second chance for the two to disagree
+    about what they measured.
+    """
+    seen: Dict[str, int] = {}
+    out: List[str] = []
+    for t in tags:
+        name = rfc_tagged_scope.func_name_at(t.file, content_of(t.file), t.line)
+        base = f"{t.file}::{name}" if name else t.file
+        seen[base] = seen.get(base, 0) + 1
+        out.append(base if seen[base] == 1 else f"{base}#{seen[base]}")
+    return out
+
+
+def tag_keys(tags: Sequence[Tag], root: str = PROJECT_DIR) -> List[str]:
+    """The keys a requirement's tags fingerprint under.
+
+    Reads each tagged file once: the enclosing function's NAME is a property of the file, not of
+    the tag, so it cannot be derived from the `Tag` alone the way `file:line` could.
+    """
+    cache: Dict[str, str] = {}
+    return mint_tag_keys(tags, lambda rel: _read_source(rel, root, cache))
 
 
 # The four freshness states, mutually exclusive and total. Replacing the boolean is the whole
@@ -3624,20 +3734,23 @@ STALE_REQUIREMENT = "stale-requirement"  # the RFC obligation's own text changed
 
 
 def _unit_identity(fingerprints: Dict[str, str]) -> Dict[Tuple[str, str], int]:
-    """A unit map as a multiset of (file, unit-sha) -- the identity a LINE SHIFT preserves.
+    """A unit map as a multiset of (file, unit-sha) -- the identity a RENAME does not preserve.
 
-    Comparing the maps key-by-key would defeat the whole point: a `file:line` key changes when a
-    nine-line header is prepended, so every verdict in the file would compare unequal and report
-    STALE even though the recorded shas are identical. That IS the false-stale class this spec
-    exists to remove, and the first implementation reproduced it exactly.
+    Comparing the maps key-by-key was wrong while a key held a line: prepending a nine-line
+    header changed every key in the file, so every verdict in it compared unequal and reported
+    STALE while the recorded shas were identical. That IS the false-stale class the four states
+    exist to remove, and the first implementation reproduced it exactly. A key naming a symbol no
+    longer moves under a header, so the two comparisons now agree on that case, and this one is
+    kept because it stays right when a function is renamed AND its text edited: the pair moves,
+    which is a real change to what was judged.
 
-    A COUNT, not a set. Two tags inside one function collapse to one (file, sha) pair, so a set
-    would call deleting one of them "unchanged" -- a false FRESH. The count changes, so it does
-    not.
+    A COUNT, not a set. Two keys resolving to one (file, sha) pair must not collapse, or
+    dropping one of them would read as "unchanged" -- a false FRESH. The count changes, so it
+    does not.
     """
     out: Dict[Tuple[str, str], int] = {}
     for key, sha in fingerprints.items():
-        rel = key.rsplit(":", 1)[0]
+        rel = _key_file(key)
         out[(rel, sha)] = out.get((rel, sha), 0) + 1
     return out
 
@@ -3892,7 +4005,7 @@ def reseal_audits(
             fresh = tagged_unit_shas(by_rid.get(req.rid, []))
             if prove is not None:
                 files = {
-                    key.rsplit(":", 1)[0]
+                    _key_file(key)
                     for key in list(verdict.get("tests") or {}) + list(fresh)
                 }
                 for rel in sorted(files):

@@ -1077,28 +1077,32 @@ class TestTransitionalFileLevelRule(unittest.TestCase):
     """
 
     def test_verdict_fresh_when_nothing_changed(self):
-        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
+        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go::TestOne": "bbb"}}
         self.assertEqual(
-            R.verdict_freshness(verdict, "aaa", {"a_test.go:10": "bbb"}),
+            R.verdict_freshness(verdict, "aaa", {"a_test.go::TestOne": "bbb"}),
             (R.FRESH, []),
         )
 
     def test_verdict_stale_when_requirement_sha_changes(self):
-        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
-        state, _moved = R.verdict_freshness(verdict, "CHANGED", {"a_test.go:10": "bbb"})
+        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go::TestOne": "bbb"}}
+        state, _moved = R.verdict_freshness(
+            verdict, "CHANGED", {"a_test.go::TestOne": "bbb"}
+        )
         self.assertEqual(state, R.STALE_REQUIREMENT)
 
     def test_verdict_stale_when_test_sha_changes(self):
-        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
-        state, _moved = R.verdict_freshness(verdict, "aaa", {"a_test.go:10": "CHANGED"})
+        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go::TestOne": "bbb"}}
+        state, _moved = R.verdict_freshness(
+            verdict, "aaa", {"a_test.go::TestOne": "CHANGED"}
+        )
         self.assertEqual(state, R.STALE_UNIT)
 
     def test_verdict_stale_when_test_disappears_or_appears(self):
         """A tagged test deleted, or a new one added, both invalidate the verdict."""
-        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
+        verdict = {"requirement_sha": "aaa", "tests": {"a_test.go::TestOne": "bbb"}}
         gone, _ = R.verdict_freshness(verdict, "aaa", {})
         added, _ = R.verdict_freshness(
-            verdict, "aaa", {"a_test.go:10": "bbb", "b_test.go:1": "ccc"}
+            verdict, "aaa", {"a_test.go::TestOne": "bbb", "b_test.go::TestTwo": "ccc"}
         )
         self.assertEqual(gone, R.STALE_UNIT)
         self.assertEqual(added, R.STALE_UNIT)
@@ -1107,17 +1111,21 @@ class TestTransitionalFileLevelRule(unittest.TestCase):
         """The discriminating twin, and the reason the branch is reachable at all: the same input
         with `units` recorded takes the unit-level path instead, where an unchanged unit and a
         moved file are SHIFTED rather than STALE_UNIT. If this ever equals the case above, the
-        transitional branch has stopped being transitional."""
+        transitional branch has stopped being transitional.
+
+        The moved file is now spelled as a moved FILE sha under an unchanged key. It used to be
+        spelled as a moved key (`a_test.go:10` to `a_test.go:99`), which is the state a location
+        key had and a symbol key does not: an edit above the function leaves the key alone."""
         verdict = {
             "requirement_sha": "aaa",
-            "tests": {"a_test.go:10": "bbb"},
-            "units": {"a_test.go:10": "u" * 16},
+            "tests": {"a_test.go::TestOne": "bbb"},
+            "units": {"a_test.go::TestOne": "u" * 16},
         }
         state, _moved = R.verdict_freshness(
             verdict,
             "aaa",
-            {"a_test.go:99": "bbb"},
-            {"a_test.go:99": "u" * 16},
+            {"a_test.go::TestOne": "MOVED"},
+            {"a_test.go::TestOne": "u" * 16},
         )
         self.assertEqual(state, R.SHIFTED)
 
@@ -6670,17 +6678,46 @@ def _go_fixture(
     return os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
 
 
+def _fixture_tags(rid, rel, line):
+    """The two tags `_AuditFixture` puts on one requirement: one per polarity, one site.
+
+    One definition, shared with `_verdict`, so the recorded verdict and the computed reading are
+    never taken over different tag lists.
+    """
+    return [
+        _tag(rid, "positive", file=rel, line=line),
+        _tag(rid, "negative", file=rel, line=line),
+    ]
+
+
 def _verdict(
-    req, rel, line, value="enforced", note="require.Equal pins one()", **extra
+    req,
+    rel,
+    line,
+    value="enforced",
+    note="require.Equal pins one()",
+    tags=None,
+    **extra,
 ):
-    """A well-formed verdict over one tagged test, with both fingerprint maps recorded."""
-    key = f"{rel}:{line}"
+    """A well-formed verdict over the fixture's tagged test, with both fingerprint maps recorded.
+
+    The keys are MINTED by the gate rather than spelled here. A fixture that spelled its own key
+    would be the second definition of the key form, and the migration off `<path>:<line>` is
+    exactly what a second definition would have hidden.
+
+    It records BOTH of `_fixture_tags` by default, because that is what the gate computes for
+    this requirement and a verdict citing fewer tags than exist is STALE_UNIT by design. The old
+    `<path>:<line>` key hid the difference: two tags on one line collapsed into one key, so a
+    one-tag verdict compared equal to a two-tag reading. A caller whose requirement carries ONE
+    tag (a `{single-polarity}` annotation) passes that tag instead.
+    """
+    tags = _fixture_tags(req.rid, rel, line) if tags is None else tags
     out = {
         "verdict": value,
         "note": note,
         "requirement_sha": R.requirement_sha(req.text),
-        "tests": R.tagged_unit_shas([_tag(req.rid, "positive", file=rel, line=line)]),
-        "units": R.unit_shas([key]),
+        "tests": R.tagged_unit_shas(tags),
+        "units": R.unit_shas(R.tag_keys(tags)),
     }
     out.update(extra)
     return out
@@ -6711,10 +6748,15 @@ class _AuditFixture(unittest.TestCase):
         # outside every span, so a fixture pointing there silently resolves to FILE scope and
         # every unit-versus-file assertion below reads as passing while proving nothing.
         self.line = 7
-        self.tags = [
-            _tag(self.req.rid, "positive", file=self.rel, line=self.line),
-            _tag(self.req.rid, "negative", file=self.rel, line=self.line),
-        ]
+        self.tags = _fixture_tags(self.req.rid, self.rel, self.line)
+        # The keys the gate mints for those tags. Spelled nowhere in this module: the key form is
+        # the thing under test in several classes below, and a fixture that spelled it would
+        # assert the two spellings agree with each other rather than with the gate.
+        self.keys = R.tag_keys(self.tags)
+        self.key = self.keys[0]
+        # `helperUntagged`, the fixture's OTHER top-level func: a producer to cite in a `code`
+        # map, chosen because it is not the tagged unit.
+        self.code_key = f"{self.rel}::helperUntagged"
 
     def verdict(self, value="enforced", **extra):
         return _verdict(self.req, self.rel, self.line, value=value, **extra)
@@ -6784,12 +6826,55 @@ class TestAuditSchema(_AuditFixture):
 
     def test_fingerprint_key_may_not_escape_the_tree(self):
         """Security Review, Path handling: `tests` keys become open() calls, and a verdict is
-        agent-authored input, not a trusted path source."""
-        for bad in ("/etc/passwd:1", "../../etc/passwd:1", "a_test.go", "~/x:1"):
+        agent-authored input, not a trusted path source.
+
+        Every shape the key form allows is covered, because the refusal must not depend on which
+        half of the key is present: symbol-scoped, bare path, and the retired `:<line>` form that
+        a stale record could still carry."""
+        for bad in (
+            "/etc/passwd::Read",
+            "../../etc/passwd::Read",
+            "~/x.go::Read",
+            "../escape.go",
+            "/etc/passwd",
+            "~/x.go",
+            "/etc/passwd:1",
+            "../../etc/passwd:1",
+        ):
             v = self.verdict()
             v["tests"] = {bad: "a" * 16}
-            with self.assertRaises(R.ParseError, msg=bad):
+            with self.assertRaises(R.ParseError, msg=bad) as cm:
                 self._load({self.req.rid: v})
+            self.assertIn(
+                "outside the repository",
+                str(cm.exception),
+                f"{bad} must be refused for its PATH, whatever else is wrong with it",
+            )
+
+    def test_a_retired_location_key_is_refused_by_name(self):
+        """The migration off `<path>:<line>` must not read as a mystery. A record still carrying
+        a location key names the fault and the two legal shapes."""
+        v = self.verdict()
+        v["tests"] = {f"{self.rel}:7": "a" * 16}
+        with self.assertRaises(R.ParseError) as cm:
+            self._load({self.req.rid: v})
+        msg = str(cm.exception)
+        self.assertIn("retired", msg)
+        self.assertIn(f"{self.rel}::<FuncName>", msg)
+
+    def test_a_bare_path_key_is_legal(self):
+        """A `.ci`, an `.et` and an interop `check.py` have no function boundary, and a Go tag
+        outside every span resolves to file scope. The bare path IS that declaration, so it must
+        parse rather than look like a truncated key."""
+        self.assertEqual(R._fingerprint_key("test/x.ci", "w"), ("test/x.ci", None))
+        self.assertEqual(
+            R._fingerprint_key("a/b_test.go::TestFoo", "w"), ("a/b_test.go", "TestFoo")
+        )
+        self.assertEqual(
+            R._fingerprint_key("a/b_test.go::TestFoo#2", "w"),
+            ("a/b_test.go", "TestFoo"),
+            "the ordinal resolves to the same unit",
+        )
 
     def test_top_level_typo_is_not_discarded(self):
         """Everything except `requirements` used to be dropped without inspection, so a
@@ -6892,7 +6977,7 @@ class TestAuditSchema(_AuditFixture):
         summary will meet it, not only in an audit file."""
         v = self.verdict(value="unimplemented")
         v["tests"], v["units"] = {}, {}
-        v["code"] = R.unit_shas([f"{self.rel}:3"])
+        v["code"] = R.unit_shas([self.code_key])
         errs = R.check_audit_schema(
             [self.req], [], {"rfc9999"}, {"rfc9999": {self.req.rid: v}}
         )
@@ -6905,7 +6990,7 @@ class TestAuditSchema(_AuditFixture):
         req = _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
         v = self.verdict(value="unimplemented")
         v["tests"], v["units"] = {}, {}
-        v["code"] = R.unit_shas([f"{self.rel}:3"])
+        v["code"] = R.unit_shas([self.code_key])
         self.assertEqual(
             R.check_audit_schema([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}}), []
         )
@@ -7087,7 +7172,7 @@ class TestFingerprintShapeBoundary(_AuditFixture):
         for field in R._FINGERPRINT_MAPS:
             for name, bad in self.BAD.items():
                 v = self.verdict()
-                v[field] = {f"{self.rel}:{self.line}": bad}
+                v[field] = {self.key: bad}
                 with self.assertRaises(R.ParseError, msg=f"{field}/{name}") as cm:
                     self._load(v)
                 self.assertIn(field, str(cm.exception), f"{field}/{name}")
@@ -7109,7 +7194,7 @@ class TestFingerprintShapeBoundary(_AuditFixture):
         """A non-string is a TYPE fault, not a shape one, and the two must not collapse: the
         author of `tests: {k: 42}` needs to be told it is a number."""
         v = self.verdict()
-        v["tests"] = {f"{self.rel}:{self.line}": 42}
+        v["tests"] = {self.key: 42}
         with self.assertRaises(R.ParseError) as cm:
             self._load(v)
         self.assertIn("int", str(cm.exception))
@@ -7242,6 +7327,87 @@ class TestNotApplicableTestsMapSpelling(_AuditFixture):
         self.assertIn("no_code_path", " ".join(errs))
 
 
+class TestSymbolKeyResolution(_AuditFixture):
+    """A key names a symbol, so the states a LOCATION key could not have are the ones to pin.
+
+    A stored line had one failure mode, drifting silently onto whatever code moved under it. A
+    stored symbol has two, and both must be refusals rather than answers: the name is gone, or
+    the name is declared twice and picking either would fingerprint text nobody chose.
+    """
+
+    def _rename_tagged_func(self):
+        path = os.path.join(R.PROJECT_DIR, self.rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(src.replace("func TestTagged(", "func TestRenamed("))
+
+    def test_a_key_whose_symbol_is_gone_is_refused_by_name(self):
+        """The third refusal, beside the missing file and the empty extraction. The message must
+        say WHICH symbol and WHICH file, because the reader's next move is to decide whether the
+        rename was innocent, and nothing else in the run tells them what moved."""
+        self._rename_tagged_func()
+        with self.assertRaises(R.ParseError) as cm:
+            R.unit_shas([self.key])
+        msg = str(cm.exception)
+        self.assertIn("TestTagged", msg)
+        self.assertIn(self.rel, msg)
+        self.assertIn("/ze-rfc-audit", msg)
+
+    def test_a_gone_symbol_reaches_the_gate_as_stale_not_as_a_crash(self):
+        """The state, not the exception. Raising through `audit_freshness` would take the LEDGER
+        RENDER down with it; STALE_UNIT sends the verdict for a re-read AND reds the check."""
+        v = self.verdict()
+        self._rename_tagged_func()
+        state, moved = R.audit_freshness(
+            [self.req], self.tags, {"rfc9999"}, self.audits(v)
+        )[self.req.rid]
+        self.assertEqual(state, R.STALE_UNIT)
+        self.assertTrue(moved)
+
+    def test_two_functions_with_one_name_are_refused(self):
+        """Two methods of different receivers may share a name in one Go file. Neither is `the`
+        unit, so `func_text` returns nothing and the key is refused rather than resolved to
+        whichever came first."""
+        path = os.path.join(self.tmp, "twice_test.go")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "package x\n"
+                "\n"
+                "func (a A) Run(t *testing.T) {\n\trequire.Equal(t, 1, one())\n}\n"
+                "\n"
+                "func (b B) Run(t *testing.T) {\n\trequire.Equal(t, 2, two())\n}\n"
+            )
+        rel = os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIsNone(R.rfc_tagged_scope.func_text(src, "Run"))
+        with self.assertRaises(R.ParseError) as cm:
+            R.unit_shas([f"{rel}::Run"])
+        self.assertIn("2 top-level functions declare it", str(cm.exception))
+
+    def test_unit_identity_reads_the_file_from_every_key_shape(self):
+        """`_unit_identity` recovers the FILE from a key, and the key now has three shapes. A
+        `rsplit(':')` returned `path:` for a symbol key, which made every pair unequal and every
+        verdict STALE for a reason that was never in the tree."""
+        ident = R._unit_identity(
+            {
+                "a/b_test.go::TestFoo": "u" * 16,
+                "a/b_test.go::TestFoo#2": "u" * 16,
+                "test/x.ci": "v" * 16,
+                "test/y.ci#2": "v" * 16,
+            }
+        )
+        self.assertEqual(
+            ident,
+            {
+                ("a/b_test.go", "u" * 16): 2,
+                ("test/x.ci", "v" * 16): 1,
+                ("test/y.ci", "v" * 16): 1,
+            },
+        )
+
+
 class TestUnitIdentityIsAMultiset(_AuditFixture):
     """`_unit_identity` counts (file, unit-sha) pairs instead of collecting them into a set, and
     its docstring names exactly what the count guards: two tags inside ONE function collapse to
@@ -7251,6 +7417,11 @@ class TestUnitIdentityIsAMultiset(_AuditFixture):
     Nothing tested it. Turning the count into `out[(rel, sha)] = 1` passed all 488 tests, and
     the shape is not hypothetical: 334 of 1351 requirement ids in the tree have a (file,
     unit-sha) pair counted above one, four of them carrying a verdict today.
+
+    The count survives the move from a location key to a SYMBOL key only because of the `#2`
+    ordinal. Without it both tags below mint the string `<path>::TestTagged`, the map holds one
+    entry instead of two, and deleting one tag leaves it byte-identical. The first migration
+    written for this change did exactly that and lost 8 of 337 recorded keys.
     """
 
     def _two_tags(self):
@@ -7260,6 +7431,11 @@ class TestUnitIdentityIsAMultiset(_AuditFixture):
             _tag(self.req.rid, "positive", file=self.rel, line=self.line + 2),
         ]
 
+    def test_two_tags_in_one_unit_take_an_ordinal(self):
+        """The key form itself: one key per tag, the second one carrying `#2`."""
+        keys = R.tag_keys(self._two_tags())
+        self.assertEqual(keys, [f"{self.rel}::TestTagged", f"{self.rel}::TestTagged#2"])
+
     def test_two_tags_in_one_unit_count_twice(self):
         """The mechanism, directly: a set reports one pair where the record holds two."""
         recorded = R.unit_shas(R.tag_keys(self._two_tags()))
@@ -7268,6 +7444,66 @@ class TestUnitIdentityIsAMultiset(_AuditFixture):
             len(set(recorded.values())), 1, "...resolving to the SAME unit"
         )
         self.assertEqual(list(R._unit_identity(recorded).values()), [2])
+
+    _SECOND_TAG = (
+        "\t// RFC requirement: RFC9999-2-1 positive -- and again after a reset.\n"
+    )
+
+    def _two_tag_file(self):
+        """A file whose ONE function carries two real tag comments, at lines 3 and 6."""
+        path = os.path.join(self.tmp, "twotags_test.go")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "package x\n"
+                "\n"
+                "// RFC requirement: RFC9999-2-1 positive -- one() returns one.\n"
+                "func TestTwice(t *testing.T) {\n"
+                "\trequire.Equal(t, 1, one())\n"
+                + self._SECOND_TAG
+                + "\trequire.Equal(t, 1, one())\n"
+                "}\n"
+            )
+        rel = os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
+        return rel, [
+            _tag(self.req.rid, "positive", file=rel, line=3),
+            _tag(self.req.rid, "positive", file=rel, line=6),
+        ]
+
+    def test_deleting_one_tag_from_the_file_is_not_fresh(self):
+        """The same loss driven through a real FILE rather than through a tag list.
+
+        The tag-list version below proves the comparison; this one proves what a real edit meets.
+        Both tag comments sit in one function, so both keys name `TestTwice` and only the ordinal
+        tells them apart. Delete one comment and the surviving reading holds ONE key. A verdict
+        recorded over two tagged sites must not read FRESH over one."""
+        rel, two = self._two_tag_file()
+        v = {
+            "verdict": "enforced",
+            "note": "two tagged assertions inside one function",
+            "requirement_sha": R.requirement_sha(self.req.text),
+            "tests": R.tagged_unit_shas(two),
+            "units": R.unit_shas(R.tag_keys(two)),
+        }
+        self.assertEqual(
+            sorted(v["units"]),
+            [f"{rel}::TestTwice", f"{rel}::TestTwice#2"],
+            "the recorded map must hold one key per tagged site",
+        )
+        path = os.path.join(R.PROJECT_DIR, rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(src.replace(self._SECOND_TAG, ""))
+        survivor = [two[0]]
+        state, _moved = R.verdict_freshness(
+            v,
+            R.requirement_sha(self.req.text),
+            R.tagged_unit_shas(survivor),
+            R.unit_shas(R.tag_keys(survivor)),
+            {},
+        )
+        self.assertNotEqual(state, R.FRESH)
+        self.assertEqual(state, R.STALE_UNIT)
 
     def test_deleting_one_of_two_tags_in_a_unit_is_stale_not_shifted(self):
         """The consequence, through the real consumer. Deleting one of two same-polarity tags in
@@ -7291,7 +7527,7 @@ class TestUnitIdentityIsAMultiset(_AuditFixture):
             {},
         )
         self.assertEqual(state, R.STALE_UNIT)
-        self.assertIn(f"{self.rel}:{self.line + 2}", moved)
+        self.assertIn(f"{self.rel}::TestTagged#2", moved)
 
     def test_both_tags_intact_is_still_fresh(self):
         """The discriminating twin: the count must not manufacture a new false-stale class."""
@@ -7385,7 +7621,7 @@ class TestAuditUnitFreshness(_AuditFixture):
         """Order is the bias: a real judgement change must never be reported as re-sealable."""
         v = self.verdict()
         v["requirement_sha"] = R.requirement_sha("other")
-        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["tests"] = {self.key: "0" * 16}
         self.assertEqual(self._state(v)[0], R.STALE_REQUIREMENT)
 
     def test_missing_units_falls_back_to_file_rule(self):
@@ -7396,7 +7632,7 @@ class TestAuditUnitFreshness(_AuditFixture):
         self.assertEqual(self._state(v)[0], R.FRESH)
         v2 = self.verdict()
         del v2["units"]
-        v2["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v2["tests"] = {self.key: "0" * 16}
         self.assertEqual(self._state(v2)[0], R.STALE_UNIT)
 
     def test_a_deleted_tagged_test_is_stale(self):
@@ -7430,16 +7666,15 @@ class TestAuditUnitFreshness(_AuditFixture):
         open(path, "w").close()
         rel = os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
         with self.assertRaises(R.ParseError) as cm:
-            R.unit_shas([f"{rel}:1"])
+            R.unit_shas([rel])
         self.assertIn("fingerprint", str(cm.exception))
 
     def test_unit_fingerprint_differs_from_the_file_fingerprint(self):
         """The whole premise: if the unit sha equalled the file sha, nothing would have changed
         and the SHIFTED state could never exist."""
-        key = f"{self.rel}:{self.line}"
         self.assertNotEqual(
-            R.unit_shas([key])[key],
-            R.tagged_unit_shas(self.tags)[key],
+            R.unit_shas([self.key])[self.key],
+            R.tagged_unit_shas(self.tags)[self.key],
             "a unit sha equal to the file sha means the span was not resolved",
         )
 
@@ -7447,7 +7682,7 @@ class TestAuditUnitFreshness(_AuditFixture):
         """AC-14 is explicit about the WORDS: the remedy is `make ze-rfc-reseal`, and it must not
         name `make ze-rfc-index`, which does not clear this state (A-7)."""
         v = self.verdict()
-        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["tests"] = {self.key: "0" * 16}
         errs = R.check_audit_freshness(
             [self.req], self.tags, {"rfc9999"}, self.audits(v)
         )
@@ -7460,7 +7695,7 @@ class TestAuditUnitFreshness(_AuditFixture):
         """The inverse, and the one that matters: a real judgement change must not be handed a
         one-command fix."""
         v = self.verdict()
-        v["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["units"] = {self.key: "0" * 16}
         errs = R.check_audit_freshness(
             [self.req], self.tags, {"rfc9999"}, self.audits(v)
         )
@@ -7481,10 +7716,10 @@ class TestAuditCodeFingerprint(_AuditFixture):
         ann = R.Annotation(kind="gap", polarity=None, reason="deliberate")
         return _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
 
-    def _unimpl(self, code_line=3):
+    def _unimpl(self, code=None):
         v = self.verdict(value="unimplemented")
         v["tests"], v["units"] = {}, {}
-        v["code"] = R.unit_shas([f"{self.rel}:{code_line}"])
+        v["code"] = R.unit_shas([code or self.code_key])
         return v
 
     def test_editing_cited_producer_stales_verdict(self):
@@ -7677,7 +7912,7 @@ class TestAuditFindings(_AuditFixture):
         """AC-12's negative half: fixing the test moves its unit fingerprint, which IS the
         evidence that something changed."""
         was = self.verdict(value="weak")
-        was["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        was["units"] = {self.key: "0" * 16}
         errs = R.check_audit_findings(
             [self.req], {"rfc9999"}, self.audits(), {"rfc9999": {self.req.rid: was}}
         )
@@ -7748,7 +7983,7 @@ class TestAuditVerdictRatchet(_AuditFixture):
         RE-JUDGED, not removed. Staleness is the state in which deletion is most tempting and
         least honest, so exempting it would aim the ratchet away from its own case."""
         was = self.verdict()
-        was["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        was["units"] = {self.key: "0" * 16}
         self.assertTrue(
             R.check_audit_verdict_ratchet(
                 [self.req],
@@ -7818,7 +8053,7 @@ class TestReseal(_AuditFixture):
     def _shift(self):
         """A verdict in the SHIFTED state: unit identical, file fingerprint moved."""
         v = self.verdict()
-        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["tests"] = {self.key: "0" * 16}
         return v
 
     def test_only_shifted_are_restamped(self):
@@ -7831,7 +8066,7 @@ class TestReseal(_AuditFixture):
 
     def test_a_stale_unit_is_refused(self):
         v = self.verdict()
-        v["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["units"] = {self.key: "0" * 16}
         resealed, refused, after = self._drive(v)
         self.assertEqual(resealed, [])
         self.assertTrue(refused)
@@ -7889,7 +8124,7 @@ class TestReseal(_AuditFixture):
         capability rename_module_path.py had before the loop became shared -- kept, not lost."""
         v = self.verdict()
         del v["units"]
-        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["tests"] = {self.key: "0" * 16}
         resealed, refused, _ = self._drive(dict(v))
         self.assertEqual(resealed, [], "without a proof it must be refused")
         self.assertTrue(refused)
@@ -8040,7 +8275,7 @@ class TestAuditSchemaWiring(_AuditDrive):
 class TestAuditUnitFreshnessWiring(_AuditDrive):
     def test_run_check_reports_shifted_through_the_entry_point(self):
         v = self.verdict()
-        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["tests"] = {self.key: "0" * 16}
         code, out = self._drive({self.req.rid: v})
         self.assertEqual(code, 2, out)
         self.assertIn("SHIFTED", out)
@@ -8208,7 +8443,7 @@ class TestAuditLedger(_AuditFixture):
         """A stale verdict describes a test that has since changed, so publishing it as proof is
         the stale assurance the whole machinery exists to stop."""
         v = self.verdict()
-        v["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        v["units"] = {self.key: "0" * 16}
         with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {self.req.rid: v})}):
             body = R.render_ledger([self.req], self.tags, {"rfc9999"})
         self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", body)
@@ -8249,7 +8484,7 @@ class TestAuditCoverageCountsEveryVerdict(_AuditFixture):
         )
         req = _req(rid, rfc="rfc9999", annotation=ann)
         tag = _tag(rid, "positive", file=self.rel, line=self.line)
-        return req, tag, _verdict(req, self.rel, self.line)
+        return req, tag, _verdict(req, self.rel, self.line, tags=[tag])
 
     def _annotation_only(self, rid="RFC9999-4-1"):
         """An `unimplemented` verdict over a `{gap}` line: a verdict with no tagged test at all."""
@@ -8257,7 +8492,7 @@ class TestAuditCoverageCountsEveryVerdict(_AuditFixture):
         req = _req(rid, rfc="rfc9999", annotation=ann)
         v = _verdict(req, self.rel, self.line, value=R.VERDICT_UNIMPLEMENTED)
         v["tests"], v["units"] = {}, {}
-        v["code"] = R.unit_shas([f"{self.rel}:{self.line}"])
+        v["code"] = R.unit_shas([self.key])
         return req, v
 
     def test_an_annotated_requirement_is_auditable_and_proven(self):
@@ -8287,7 +8522,7 @@ class TestAuditCoverageCountsEveryVerdict(_AuditFixture):
         polarity exists. Without it, AC-6 refuses the verdict and the pair is still owed."""
         req = _req("RFC9999-3-1", rfc="rfc9999")
         tag = _tag(req.rid, "positive", file=self.rel, line=self.line)
-        v = _verdict(req, self.rel, self.line)
+        v = _verdict(req, self.rel, self.line, tags=[tag])
         rows, _worklist = R.audit_coverage(
             [req], [tag], {"rfc9999"}, {"rfc9999": {req.rid: v}}
         )
@@ -8345,7 +8580,7 @@ class TestAuditSummaryLineAgreesWithTheLedger(_AuditDrive):
         req = _req(rid, rfc="rfc9999", annotation=ann)
         v = _verdict(req, self.rel, self.line, value=R.VERDICT_UNIMPLEMENTED)
         v["tests"], v["units"] = {}, {}
-        v["code"] = R.unit_shas([f"{self.rel}:{self.line}"])
+        v["code"] = R.unit_shas([self.key])
         return req, v
 
     def test_the_audit_line_counts_the_unproven_verdicts(self):
@@ -8501,6 +8736,33 @@ class TestTaggedScopeCorpus(unittest.TestCase):
         self.assertEqual(multi, [], "a tag inside two spans has no single honest unit")
         self.assertEqual(
             outside, [], "a tag outside every span falls back to file scope"
+        )
+
+    def test_every_go_tag_names_a_symbol_that_resolves_back(self):
+        """The key form, over the real corpus. A key is only as good as its round trip: the name
+        `func_name_at` takes out of a span must find that same span again through `func_text`, or
+        the gate fingerprints one text and checks another.
+
+        Measured, not assumed, because the two readers are different code. `func_name_at` walks
+        spans and reads a declaration; `func_text` searches every declaration for a name. A file
+        holding two methods of the same name breaks the second without touching the first, and
+        the honest answer there is a refusal rather than either one of the two."""
+        cache = {}
+        unresolved = []
+        for t in R.scan_tree():
+            if not t.file.endswith(".go"):
+                continue
+            content = R._read_source(t.file, R.PROJECT_DIR, cache)
+            name = R.rfc_tagged_scope.func_name_at(t.file, content, t.line)
+            if name is None:
+                continue  # file scope: the bare path is the key, nothing to resolve
+            span_text = R.rfc_tagged_scope.unit_at(t.file, content, t.line)[0]
+            if R.rfc_tagged_scope.func_text(content, name) != span_text:
+                unresolved.append(f"{t.file} {name}")
+        self.assertEqual(
+            unresolved,
+            [],
+            "a tagged unit whose key cannot find it again is not fingerprintable",
         )
 
     def test_the_live_audit_records_are_all_fresh(self):
@@ -8686,7 +8948,7 @@ class TestIndexNeverWritesAudit(_AuditFixture):
     def test_check_and_write_modes_never_touch_audit(self):
         stem = "rfc9999"
         shifted = self.verdict()
-        shifted["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        shifted["tests"] = {self.key: "0" * 16}
         ledger = _mkstemp(".md")
         self.addCleanup(os.remove, ledger)
         with _audit_tree(
@@ -8744,7 +9006,7 @@ class TestResealOnlyTouchesShifted(_AuditFixture):
     def test_run_reseal_reports_and_exits_zero(self):
         stem = "rfc9999"
         shifted = self.verdict()
-        shifted["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        shifted["tests"] = {self.key: "0" * 16}
         with _audit_tree(files={stem: _audit_file(stem, {self.req.rid: shifted})}):
             with _patched(
                 load_enrolled=lambda: {stem},

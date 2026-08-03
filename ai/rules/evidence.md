@@ -64,6 +64,8 @@ Verification and citation are two decisions, and this rule owns the first.
 
 **So a location is either derived or absent. There is no third option.** If you want a document to point at a line, write the generator that keeps it current; if you will not write the generator, name the symbol and stop.
 
+**Replacing a location key with a symbol key MUST preserve multiplicity.** Two tags inside one function share a symbol, so a plain `path::Name` key collapses them and deleting one then reads as unchanged, which is a false FRESH: the one outcome a freshness check exists to prevent. `rfc/audit/*.json` keeps a within-symbol ordinal (`path::Name#2`) for exactly this. A location key gave multiplicity away for free, and a symbol key has to be asked for it.
+
 **Name the symbol BEFORE removing a location, never after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
 
 A pasted line number proves nothing about what you read, and it goes stale at the
