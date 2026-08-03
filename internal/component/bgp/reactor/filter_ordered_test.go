@@ -254,6 +254,136 @@ func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	require.True(t, res.failed, "a step that could not run is not a policy decision")
 }
 
+// The raw-override guard, driven from its own entry points.
+//
+// A raw=true filter answers with a full UPDATE-body replacement rather than a
+// text delta, for surgery the delta cannot express. decodeFilterRawOverride
+// (filter_chain.go) returns nil for anything shorter than four bytes, which is
+// the shortest possible body (withdrawn-len(2) + attr-len(2)). Nil had ONE
+// meaning at both call sites: "no raw override", so a filter that asked for a
+// replacement it could not encode was indistinguishable from a filter that never
+// asked, and the route went out UNMODIFIED carrying exactly what the raw filter
+// was rewriting.
+//
+// PolicyFilterChain makes a raw response terminal and returns Text: current, so
+// the text-delta branch below the raw check does not run either: there is no
+// second chance to notice.
+//
+// Spec: plan/spec-fixit-stored-route-relay-hardening.md (AC-9).
+
+// shortRawFilter returns a seam answering with a modify whose raw override is
+// too short to be an UPDATE body. Three bytes: one below the four-byte minimum,
+// which is the boundary the guard turns on.
+func shortRawFilter() PolicyFilterFunc {
+	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+		return PolicyResponse{Action: PolicyModify, Raw: []byte{0x00, 0x00, 0x00}}
+	}
+}
+
+// VALIDATES: AC-9. runEgressPolicyChainASN4 suppresses (accept == false) AND
+// marks failed when a raw filter's override cannot be decoded.
+// PREVENTS: forwarding the ORIGINAL body after a filter asked for it to be
+// replaced -- the RFC 6996 private-ASN leak class this file exists to stop, and
+// silently, because the discarded nil looked exactly like "no override".
+func TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed(t *testing.T) {
+	rec := captureWarnPeers(t)
+
+	r := &Reactor{
+		api:              &pluginserver.Server{},
+		policyFilterSeam: shortRawFilter(),
+		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+	}
+	filters := []filterapi.FilterRef{{Name: "mp-reach-surgery"}}
+
+	body := []byte{0, 0, 0, 0}
+	res := r.runEgressPolicyChainASN4(filters, "10.0.0.11", 65001, 65000, testWireUpdate(body), false)
+
+	require.False(t, res.accept,
+		"a raw override that cannot be decoded must suppress the route, never send the original unmodified")
+	require.True(t, res.failed,
+		"the filter asked for a replacement ze could not apply; that is not a policy decision (egressStepResult.failed)")
+	assert.Nil(t, res.wireOverride, "a suppressed route carries no wire override")
+	require.Contains(t, rec.warnedPeers(), "10.0.0.11",
+		"the guard miss must be logged at Warn naming the peer, not silently discarded")
+}
+
+// VALIDATES: AC-9 (ingress side). runIngressPolicyChain drops the route when a
+// raw filter's override cannot be decoded.
+// PREVENTS: caching and dispatching the unmodified route on the RECEIVE path,
+// which is route content the import policy had rewritten reaching the RIB.
+func TestRunIngressPolicyChainShortRawOverrideFailsClosed(t *testing.T) {
+	rec := captureWarnPeers(t)
+
+	addr := netip.MustParseAddr("10.0.0.12")
+	peer := NewPeer(&PeerSettings{
+		Address:       addr,
+		LocalAS:       65000,
+		PeerAS:        65001,
+		ImportFilters: []filterapi.FilterRef{{Name: "mp-reach-surgery"}},
+	})
+	r := &Reactor{
+		api:              &pluginserver.Server{},
+		policyFilterSeam: shortRawFilter(),
+		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+	}
+
+	body := []byte{0, 0, 0, 0}
+	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+
+	require.False(t, res.accept,
+		"an import raw override that cannot be decoded must DROP the route, never accept it unmodified")
+	assert.Nil(t, res.modifiedPayload, "a dropped route carries no payload")
+	assert.False(t, res.teardown, "an undecodable raw override is not a session-teardown request")
+	require.Contains(t, rec.warnedPeers(), "10.0.0.12",
+		"the ingress guard miss must be logged at Warn naming the peer")
+}
+
+// VALIDATES: AC-9 (the no-over-fire half). An EMPTY raw stays the ordinary "no
+// override" case, and a four-byte raw -- the shortest legal body, the exact
+// boundary -- is still applied.
+// PREVENTS: the new guard turning every text-delta filter into a refusal, and
+// pins the boundary at one-below/at rather than only at an extreme, which is the
+// fixture trap in ai/rules/interop-and-goal-validation.md.
+func TestPolicyChainRawOverrideBoundary(t *testing.T) {
+	body := []byte{0, 0, 0, 0}
+
+	t.Run("empty raw is not an override", func(t *testing.T) {
+		rec := captureWarnPeers(t)
+		r := &Reactor{
+			api: &pluginserver.Server{},
+			policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+				return PolicyResponse{Action: PolicyAccept}
+			},
+			attrModHandlers: map[uint8]filterapi.AttrModHandler{},
+		}
+
+		res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "plain"}},
+			"10.0.0.13", 65001, 65000, testWireUpdate(body), false)
+
+		require.True(t, res.accept, "a filter that asked for no raw override must still accept")
+		assert.False(t, res.failed, "no override requested is not a failure")
+		assert.NotContains(t, rec.warnedPeers(), "10.0.0.13",
+			"an absent override is not a guard miss -- it must not warn")
+	})
+
+	t.Run("four-byte raw is applied", func(t *testing.T) {
+		r := &Reactor{
+			api: &pluginserver.Server{},
+			policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+				return PolicyResponse{Action: PolicyModify, Raw: []byte{0, 0, 0, 0}}
+			},
+			attrModHandlers: map[uint8]filterapi.AttrModHandler{},
+		}
+
+		res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "mp-reach-surgery"}},
+			"10.0.0.14", 65001, 65000, testWireUpdate(body), false)
+
+		require.True(t, res.accept, "a decodable raw override must be accepted, not refused")
+		assert.False(t, res.failed, "an applied override is not a failure")
+		require.NotNil(t, res.wireOverride, "the raw override must reach the caller")
+	})
+}
+
 // VALIDATES: AC-12 (the no-over-fire half). A filter delta that CAN be applied
 // still modifies the route on both chains, so the guard has not been turned into
 // a blanket refusal of every text delta.

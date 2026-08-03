@@ -22,6 +22,10 @@ The fallback exists because not every egress caller has been through the ingress
 
 The destination side has the same shape. The destination role comes from the peer's OPEN Role capability, which a peer may legitimately not send (accepted when `strict` is unset), so `resolvePeerRole` recovers what the peer IS from the complement of our configured role toward it. That recovery feeds the Section 5 gates only: export-set matching keeps using the capability value, because `unknown` there is an operator-selected target for peers that announced no role, not an unanswered question.
 
+Absent and NEVER RECORDED are different states, and only the export set can tell them apart. `applyValidateOpen` records what each OPEN declared, INCLUDING declaring none, so a present-and-empty entry means the peer was validated and sent no role. A MISSING entry means no OPEN was ever recorded, which happens when `broadcastValidateOpen` skips the plugin -- a nil process manager, a nil plugin conn, or a validate-open RPC error -- and lets the session establish anyway. Both resolve to the configured complement for the Section 5 gates, so the RFC procedures cannot tell them apart and do not need to. The export set can, and reports a suppression it could not evaluate under its own reason (`role-unrecorded`) rather than as an export-set decision against role `unknown`.
+
+Learned roles survive a config reload for every peer the new config still names. A learned role is a property of the session, and an established peer sends no second OPEN, so wiping the map on reconfigure left every live peer looking unrecorded until its session bounced.
+
 Export role filtering (separate from OTC) still applies based on the source peer's export policy.
 
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCEgressFilter -->
@@ -89,9 +93,11 @@ Every route the plugin refuses is counted, by reason:
 | Metric | Reasons |
 |--------|---------|
 | `ze_role_route_rejects_total{reason}` | `leak`, `malformed-otc` |
-| `ze_role_route_suppressions_total{reason}` | `otc-present`, `source-role`, `export-set` |
+| `ze_role_route_suppressions_total{reason}` | `otc-present`, `source-role`, `export-set`, `role-unrecorded` |
 
 The first drop of each reason also emits one WARN naming the peer, latched per reason per process so the forward path never pays a per-route log. Per-route detail stays at debug level. Before this, these paths logged at Debug and nothing else, so a peer's advertisements could be withheld with no signal at the default log level -- including because of a role or export-set typo.
+
+`role-unrecorded` and `export-set` are the same suppression with different causes, and they call for opposite operator actions. `export-set` says the destination's role is known and your policy excludes it: check the policy. `role-unrecorded` says no OPEN was ever recorded for that destination, so the policy was never really evaluated: check whether the role plugin answered validate-open for that session. They shared the `export-set` counter until the two states were separated, which sent operators to a policy that had not run.
 
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, buildMetrics -->
 

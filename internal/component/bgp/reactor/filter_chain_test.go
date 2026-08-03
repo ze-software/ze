@@ -226,13 +226,45 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 // TestDecodeFilterRawOverride verifies the raw override bounds rejection
 // (rib-arch-2: the override is now raw []byte, not a hex string).
 //
-// VALIDATES: raw override rejects nil/too-short bodies (fail-safe).
-// PREVENTS: a malformed raw response replacing the payload with garbage.
+// VALIDATES: raw override rejects too-short bodies (fail-safe), AND reports
+// "no override asked for" separately from "the override cannot be a body".
+// PREVENTS: a malformed raw response replacing the payload with garbage, and the
+// earlier fold where both answers were nil so an undecodable override read as
+// "this filter wanted nothing" and the ORIGINAL payload went out.
+//
+// The callers are the guard's real entry points and are tested in
+// filter_ordered_test.go (TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed,
+// TestRunIngressPolicyChainShortRawOverrideFailsClosed,
+// TestPolicyChainRawOverrideBoundary). This is the helper half only
+// (ai/rules/evidence.md, test corollary).
 func TestDecodeFilterRawOverride(t *testing.T) {
-	assert.Nil(t, decodeFilterRawOverride(nil))          // nil
-	assert.Nil(t, decodeFilterRawOverride([]byte{}))     // empty
-	assert.Nil(t, decodeFilterRawOverride([]byte{0, 0})) // 2 bytes < 4-byte minimum
-	assert.Equal(t, []byte{0, 0, 0, 0}, decodeFilterRawOverride([]byte{0, 0, 0, 0}))
+	override, malformed := decodeFilterRawOverride(nil)
+	assert.Nil(t, override, "nil")
+	assert.False(t, malformed, "nil asks for no override; it is not a malformed one")
+
+	override, malformed = decodeFilterRawOverride([]byte{})
+	assert.Nil(t, override, "empty")
+	assert.False(t, malformed, "empty asks for no override; it is not a malformed one")
+
+	override, malformed = decodeFilterRawOverride([]byte{0})
+	assert.Nil(t, override, "1 byte < 4-byte minimum")
+	assert.True(t, malformed, "one byte asked for a replacement that cannot be an UPDATE body")
+
+	override, malformed = decodeFilterRawOverride([]byte{0, 0})
+	assert.Nil(t, override, "2 bytes < 4-byte minimum")
+	assert.True(t, malformed, "two bytes asked for a replacement that cannot be an UPDATE body")
+
+	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0})
+	assert.Nil(t, override, "3 bytes: one below the boundary")
+	assert.True(t, malformed, "one below the minimum is still an undecodable override")
+
+	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0, 0})
+	assert.Equal(t, []byte{0, 0, 0, 0}, override, "4 bytes: the minimum body")
+	assert.False(t, malformed, "the shortest legal body is not malformed")
+
+	override, malformed = decodeFilterRawOverride([]byte{0, 0, 0, 0, 1})
+	assert.Equal(t, []byte{0, 0, 0, 0, 1}, override, "5 bytes: one above the boundary")
+	assert.False(t, malformed, "above the minimum is not malformed")
 }
 
 // TestApplyFilterDelta verifies delta application.

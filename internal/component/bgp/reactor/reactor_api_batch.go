@@ -133,9 +133,19 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
 			// Rare (GR-expiry) path; the common Stale==0 path is untouched.
 			if batch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
-				if a.sendStaleReadvertise(peer, batch, nextHop, isIBGP, nc) {
+				sent, failErr := a.sendStaleReadvertise(peer, batch, nextHop, isIBGP, nc)
+				switch {
+				case sent:
 					acceptedCount++
-				} else {
+				case failErr != nil:
+					// The readvertise could not be carried out: a filter crashed,
+					// or its modifications could not be built. Either way the peer
+					// decided nothing and the family IS negotiated, so
+					// ErrNoPeersAcceptedFamily would state a cause that is untrue
+					// (ai/rules/cli.md) and would be downgraded to a warning on
+					// that basis. failErr names which one it was.
+					lastErr = failErr
+				default:
 					lastErr = route.ErrNoPeersAcceptedFamily
 				}
 				continue
@@ -239,7 +249,15 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// functional tests red. That is a real question about how send errors should be
 	// reported, but it is a separate one from this guard.
 	if acceptedCount == 0 {
-		if errors.Is(lastErr, errAnnounceTooLarge) {
+		// Every cause named here is a failure of THIS speaker, and collapsing
+		// one into "no peer carries the family" replaces a true cause with a
+		// false one that the caller then downgrades to a warning.
+		// errStaleReadvertiseWithheld is the shared wrapper over the LLGR rail's
+		// two, so one test covers both and a third would ride in free.
+		switch {
+		case errors.Is(lastErr, errAnnounceTooLarge),
+			errors.Is(lastErr, errWithdrawTooLarge),
+			errors.Is(lastErr, errStaleReadvertiseWithheld):
 			return lastErr
 		}
 		return route.ErrNoPeersAcceptedFamily
@@ -768,6 +786,32 @@ func writeBatchNLRI(nlriBuf []byte, nlris []nlri.NLRI, addPath bool) int {
 // not encode the batch into its pooled build buffer.
 var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffer; split the batch into smaller announcements")
 
+// errStaleReadvertiseWithheld is the shared cause of an LLGR stale re-advertise
+// (RFC 9494) that this speaker could not carry out for a destination peer. The
+// route is withheld fail-closed: what the readvertise decision turns on is the
+// destination's LLGR capability, and nothing may be advertised on a guess at it.
+//
+// Separate from route.ErrNoPeersAcceptedFamily because that cause is untrue here
+// -- the family IS negotiated -- and callers downgrade it to a warning on the
+// strength of it (ai/rules/cli.md, and ai/rules/evidence.md: a guard that cannot
+// deny must speak).
+//
+// Never returned bare. The two wrapped errors below name what actually happened,
+// because the operator action differs, and one errors.Is on this sentinel still
+// catches the pair.
+var errStaleReadvertiseWithheld = errors.New("stale re-advertise withheld the route")
+
+// errStaleReadvertiseFilterPanic: a readvertise egress filter panicked, so
+// nothing was decided for this peer. A plugin bug.
+var errStaleReadvertiseFilterPanic = fmt.Errorf("%w: an egress filter panicked", errStaleReadvertiseWithheld)
+
+// errStaleReadvertiseBuildFailed: a filter decided, and buildModifiedPayload
+// could not encode the modifications it asked for. Not a filter failure -- the
+// depreferenced UPDATE body is what could not be produced. The build's own named
+// reason is counted and logged at its producer (recordModifyFailureAddr); this
+// error is the caller-facing half.
+var errStaleReadvertiseBuildFailed = fmt.Errorf("%w: the modified UPDATE body could not be built", errStaleReadvertiseWithheld)
+
 // errWithdrawTooLarge is the withdraw-rail sibling: buildBatchWithdrawUpdate could
 // not encode the batch's NLRIs (or the MP_UNREACH_NLRI carrying them) into its
 // pooled build buffer. Separate from errAnnounceTooLarge so the operator-facing
@@ -1037,11 +1081,17 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // (RFC 9494 LLGR) with meta["stale"] and the peer as destination, then realizes
 // the per-peer decision: withdrawal for a non-LLGR eBGP peer (mods.IsWithdraw),
 // a depreferenced announce for a non-LLGR iBGP peer (attribute mods), or the
-// unchanged announce for an LLGR-capable peer. Returns true when a message was
-// accepted for sending. The filter chain here is ONLY the Readvertise-opted
-// filters, never the full egress chain, so a readvertise does not re-apply
-// OTC/community/policy that already ran at the original announce.
-func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) bool {
+// unchanged announce for an LLGR-capable peer. The filter chain here is ONLY the
+// Readvertise-opted filters, never the full egress chain, so a readvertise does
+// not re-apply OTC/community/policy that already ran at the original announce.
+//
+// Returns (sent, failErr). sent reports that a message was accepted for sending.
+// failErr is non-nil when the re-advertise could not be carried out at all -- a
+// filter that could not run, or modifications that could not be built -- and it
+// wraps errStaleReadvertiseWithheld. The route is withheld either way; failErr
+// exists so the caller does not report a defect in Ze as a peer that declined
+// the family. A policy suppression yields (false, nil): that IS a decision.
+func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) (sent bool, failErr error) {
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 	addPath := peer.addPathFor(batch.Family)
 	asn4 := peer.asn4()
@@ -1054,10 +1104,11 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	defer putBuildBuf(nlriHandle)
 	update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS)
 	if update == nil {
-		// Build rejected (already logged). Report not-accepted so the caller
-		// surfaces route.ErrNoPeersAcceptedFamily rather than counting a send
-		// that never happened.
-		return false
+		// The announce itself could not be encoded (already logged). Report the
+		// same cause the non-stale rail reports for this exact failure rather
+		// than a family mismatch: the family IS negotiated, and this rail sits
+		// beside one that has always said errAnnounceTooLarge here.
+		return false, errAnnounceTooLarge
 	}
 
 	// Run the readvertise egress filters. LLGREgressFilter keys off meta["stale"]
@@ -1083,8 +1134,18 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	outcome, modified := a.decideStaleReadvertise(dest, body, batch.Stale)
 
 	switch outcome {
+	case staleFilterFailed:
+		// A filter crashed, so no decision exists for this peer. Withheld
+		// fail-closed like a suppression, reported apart from one.
+		return false, errStaleReadvertiseFilterPanic
+	case staleBuildFailed:
+		// The filter DID decide; realizing its decision failed. Withheld for the
+		// same reason and reported under its own cause, because the operator
+		// action differs: a crashed filter is a plugin bug, an unbuildable body
+		// is a payload this speaker could not encode.
+		return false, errStaleReadvertiseBuildFailed
 	case staleSuppress:
-		return false // filter suppressed the route for this peer
+		return false, nil // filter suppressed the route for this peer
 	case staleWithdraw:
 		// Non-LLGR eBGP peer: send a withdrawal for the same NLRIs.
 		wdAttr := getBuildBuf()
@@ -1093,29 +1154,37 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 		defer putBuildBuf(wdNlri)
 		wd := a.buildBatchWithdrawUpdate(wdAttr.Buf, wdNlri.Buf, batch, addPath)
 		if wd == nil {
-			return false // build rejected (already logged); nothing was sent
+			// Same reasoning as the announce build above, under the withdraw
+			// rail's own cause (already logged); nothing was sent.
+			return false, errWithdrawTooLarge
 		}
-		return peer.sendUpdateWithSplit(wd, maxMsgSize, addPath) == nil
+		return peer.sendUpdateWithSplit(wd, maxMsgSize, addPath) == nil, nil
 	case staleModify:
 		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
 		if modified == nil {
-			return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil
+			return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil, nil
 		}
-		return peer.sendBodyWithSplit(modified, maxMsgSize, addPath) == nil
+		return peer.sendBodyWithSplit(modified, maxMsgSize, addPath) == nil, nil
 	default: // staleKeep
 		// LLGR-capable peer: send the stale route unchanged.
-		return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil
+		return peer.sendUpdateWithSplit(update, maxMsgSize, addPath) == nil, nil
 	}
 }
 
 // staleOutcome is the per-peer decision of the readvertise egress filters.
 type staleOutcome int
 
+// Exactly one of these is a policy decision. staleSuppress is the filter saying
+// no; the two failure outcomes are this speaker saying "I could not". All three
+// withhold the route, and telling them apart is what stops a defect in Ze being
+// reported to the operator as a peer's policy.
 const (
-	staleKeep     staleOutcome = iota // send the stale route unchanged (LLGR-capable peer)
-	staleModify                       // send with attribute mods (non-LLGR iBGP depreference)
-	staleWithdraw                     // send a withdrawal (non-LLGR eBGP)
-	staleSuppress                     // a filter rejected the route for this peer
+	staleKeep         staleOutcome = iota // send the stale route unchanged (LLGR-capable peer)
+	staleModify                           // send with attribute mods (non-LLGR iBGP depreference)
+	staleWithdraw                         // send a withdrawal (non-LLGR eBGP)
+	staleSuppress                         // a filter rejected the route for this peer
+	staleFilterFailed                     // a filter could not run: nothing was decided for this peer
+	staleBuildFailed                      // a filter decided, but its modifications could not be built
 )
 
 // decideStaleReadvertise runs the registered readvertise egress filters for one
@@ -1129,9 +1198,21 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 	var src filterapi.PeerFilterInfo
 	var mods filterapi.ModAccumulator
 	for _, f := range a.r.readvertiseEgressFilters {
-		if accept, _ := safeEgressFilter(f, src, dest, body, meta, &mods); !accept {
-			return staleSuppress, nil
+		accept, panicked := safeEgressFilter(f, src, dest, body, meta, &mods)
+		if accept {
+			continue
 		}
+		// Both outcomes withhold the route, and they must: the fact the crashed
+		// filter was reading is the destination's LLGR capability, so RFC 9494
+		// Section 4.3 ("SHOULD NOT be advertised to peers that have not
+		// advertised the LLGR capability") and Section 4.6's NO_EXPORT +
+		// LOCAL_PREF=0 obligations cannot be applied on a guess. What differs is
+		// what the caller may SAY about it: staleSuppress is the filter's
+		// decision for this peer, staleFilterFailed is no decision at all.
+		if panicked {
+			return staleFilterFailed, nil
+		}
+		return staleSuppress, nil
 	}
 	switch {
 	case mods.IsWithdraw():
@@ -1150,10 +1231,17 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 			// The nil-with-no-failure half reaches recordModifyFailure as
 			// modifyFailureNone, which does not log, so it keeps its own line.
 			if !modFail.failed() {
-				fwdLogger().Warn("stale re-advertise produced no payload, suppressing route",
+				fwdLogger().Warn("stale re-advertise produced no payload, withholding route",
 					"peer", dest.Address)
 			}
-			return staleSuppress, nil
+			// NOT staleSuppress. The filter above DECIDED -- it asked for the
+			// RFC 9494 Section 4.6 depreference -- and what failed is realizing
+			// that decision. Reporting it as the filter choosing to drop the
+			// route is the same conflation staleFilterFailed exists to end, and
+			// it reached the operator as "no peers have family negotiated".
+			// recordModifyFailureAddr above still counts and names the build's
+			// own reason; this is the caller-facing half, not a second copy.
+			return staleBuildFailed, nil
 		}
 		return staleModify, modified
 	default:

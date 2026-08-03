@@ -160,10 +160,12 @@ func TestClearedRoleIsKeyedLikeTheSetter(t *testing.T) {
 	_, learned := getFilterConfig("10.0.0.1")
 	require.Equal(t, roleCustomer, learned, "setter resolves name -> IP")
 
-	// Clear by NAME; the IP-keyed entry the filters read must be the one removed.
-	clearFilterRemoteRole("named-peer")
+	// Clear by NAME; the IP-keyed entry the filters read must be the one cleared.
+	recordNoRemoteRole("named-peer")
 	_, learned = getFilterConfig("10.0.0.1")
-	assert.Empty(t, learned, "clear must remove the same key the setter wrote")
+	assert.Empty(t, learned, "clear must reach the same key the setter wrote")
+	assert.True(t, remoteRoleRecorded("10.0.0.1"),
+		"the OPEN was observed and declared no role: that is an ANSWER, and it must stay distinguishable from a peer whose OPEN was never recorded at all")
 }
 
 // TestStaleRoleClearedEvenWhenOpenIsRejected covers a peer whose reconnect is

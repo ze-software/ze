@@ -44,6 +44,25 @@ func safeIngressFilter(filter filterapi.IngressFilterFunc, src filterapi.PeerFil
 // filter returning false. Both drop the route; only the second is a policy
 // decision, and a caller that counts outcomes must tell them apart (see
 // egressStepResult.failed).
+//
+// The recover is the ONLY non-decision this function can report, and that is a
+// bound on the seam rather than on this code: filterapi.EgressFilterFunc returns
+// a bare bool, so a filter that could not decide has no way to say so and its
+// suppression arrives here indistinguishable from policy. See that type's KNOWN
+// GAP note; no registered filter is in that state today.
+//
+// Read BOTH returns. All three call sites do, and each does something DIFFERENT
+// with panicked, because the rails owe their callers different things:
+//
+//   - forwardUpdateCore (reactor_api_forward.go) keeps the suppression out of
+//     suppressedCount, so the relay's completeness check reads a drop.
+//   - reactorForwardRS (forward_rs.go) puts the destination on the skipped list,
+//     so the plugin rail decides what this rail could not.
+//   - decideStaleReadvertise (reactor_api_batch.go) returns staleFilterFailed,
+//     so the LLGR batch reports a crashed filter under its own cause instead of
+//     a family mismatch.
+//
+// All three still withhold the route. Only the report differs.
 func safeEgressFilter(filter filterapi.EgressFilterFunc, src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) (accept, panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {

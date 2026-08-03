@@ -91,7 +91,36 @@ type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[stri
 // meta is route metadata set at ingress (read-only); may be nil.
 // mods accumulates per-peer modifications applied after all filters pass.
 // MUST NOT retain the mods pointer beyond the call -- it is reused per peer.
+//
 // Returns false to suppress the route for this destination peer.
+//
+// KNOWN GAP in the seam, not a design choice: a bare bool cannot say "I could
+// not decide". A filter that cannot evaluate its input can only answer accept or
+// reject, and a reject is read by every consumer as a POLICY decision. That
+// matters at the far end of the forward: forwardUpdateCore reports every
+// destination being suppressed as errAllDestinationsSuppressed, and the
+// stored-route relay counts that as a route it handled, so a filter that could
+// not decide could suppress a whole peer-up replay and have it reported
+// complete. safeEgressFilter (reactor/reactor_notify.go) can therefore report
+// only the one non-decision it causes itself, a recovered panic.
+//
+// NO REGISTERED FILTER IS IN THAT STATE TODAY, re-derived from all three on
+// 2026-08-03. OTCEgressFilter (plugins/role/otc.go) was the live instance; it
+// stopped being one when Thomas ruled that an unrecorded destination role is
+// covered by the operator's `unknown` token, which makes its export-set
+// suppression a decision (R6-1 / Q-1,
+// plan/spec-fixit-stored-route-relay-hardening.md). LLGREgressFilter
+// (plugins/gr/gr_egress.go) does have a state it cannot evaluate, its plugin
+// state not yet loaded, but it answers ACCEPT there, and a second return would
+// not be read for an accepted route. filter_community's egress filter never
+// suppresses at all.
+//
+// So widening this signature is NOT currently owed. What the seam did owe was
+// smaller: two of the three call sites of safeEgressFilter DISCARDED the
+// panicked return this seam already produces, so on those rails a filter panic
+// was reported as policy. Reading the existing return fixed that (2026-08-03,
+// AC-7 of plan/spec-fixit-stored-route-relay-hardening.md); a new one would not
+// have. All three call sites now read both returns.
 type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool
 
 const modAccumulatorInlineBytes = 64

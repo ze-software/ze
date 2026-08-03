@@ -54,11 +54,30 @@ var (
 // setFilterState stores peer role configs and name-to-IP mapping for filter closures.
 // The local AS used for OTC egress stamping is NOT captured here: the reactor hands
 // it per destination peer via filterapi.PeerFilterInfo.LocalAS on the forward path.
+//
+// Learned remote roles are RETAINED for every peer the new config still names,
+// and dropped only for peers it no longer names. A learned role is a property of
+// the SESSION, not of our config: it is what the peer put in its OPEN, and a peer
+// whose session survives a reconfigure has not withdrawn it. The map is keyed by
+// IP, so a peer still present keeps the same key.
+//
+// It used to be wiped wholesale, and that was not a clean slate but a lie: an
+// established peer sends no second OPEN, so nothing rewrote the entry, and
+// getFilterConfig then read the absent key as "this peer announced no role". Every
+// such peer became roleUnknown for the OTCEgressFilter export-set check, so a
+// source configured `role { export customer }` stopped advertising to its
+// customers on the next config reload, silently and until each session bounced.
 func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) {
 	filterMu.Lock()
 	filterPeerConfigs = configs
 	filterNameToIP = n2ip
-	filterRemoteRoles = nil // Clear stale remote roles from previous config.
+	// Drop learned roles for peers the new config no longer names; a role we
+	// cannot map back to a configured peer can never be read again anyway.
+	for key := range filterRemoteRoles {
+		if _, stillConfigured := configs[key]; !stillConfigured {
+			delete(filterRemoteRoles, key)
+		}
+	}
 	filterMu.Unlock()
 }
 
@@ -89,17 +108,29 @@ func setFilterRemoteRole(peerID, remoteRole string) {
 	filterMu.Unlock()
 }
 
-// clearFilterRemoteRole drops a peer's learned remote role, so the RFC 9234
-// Section 5 gates fall back to the configured complement (resolvePeerRole)
-// instead of a value the peer is no longer advertising. Returns the role that
-// was dropped, or "" if there was none, so the caller can report a real
-// transition without a second lookup.
-func clearFilterRemoteRole(peerID string) string {
+// recordNoRemoteRole records that a peer's OPEN declared no usable role, so the
+// RFC 9234 Section 5 gates fall back to the configured complement
+// (resolvePeerRole) instead of a value the peer is no longer advertising.
+// Returns the role that was replaced, or "" if there was none, so the caller can
+// report a real transition without a second lookup.
+//
+// It WRITES the empty string rather than deleting the key, and that is the whole
+// point. Deleting made "this peer's OPEN declared no role" share a
+// representation with "no OPEN was ever recorded for this peer". The two states
+// behave alike at the export set -- Thomas ruled on 2026-08-03 that the
+// operator's `unknown` token covers both (otc.go) -- but they have different
+// causes, so an operator needs them told apart in the drop reason
+// (remoteRoleRecorded). Both resolve to the configured complement for the RFC
+// gates, so the Section 5 procedures are unchanged either way.
+func recordNoRemoteRole(peerID string) string {
 	filterMu.Lock()
 	defer filterMu.Unlock()
+	if filterRemoteRoles == nil {
+		filterRemoteRoles = make(map[string]string)
+	}
 	key := filterKeyLocked(peerID)
 	previous := filterRemoteRoles[key]
-	delete(filterRemoteRoles, key)
+	filterRemoteRoles[key] = ""
 	return previous
 }
 
@@ -108,6 +139,35 @@ func getFilterConfig(peerIP string) (cfg *peerRoleConfig, remoteRole string) {
 	filterMu.RLock()
 	defer filterMu.RUnlock()
 	return filterPeerConfigs[peerIP], filterRemoteRoles[peerIP]
+}
+
+// remoteRoleRecorded reports whether this peer's OPEN was ever recorded, which
+// is a different question from what it recorded.
+//
+// getFilterConfig above reads the map bare, so it answers "" for two states that
+// are not the same fact (ai/rules/evidence.md):
+//
+//   - the key is present and empty: this peer's OPEN was validated and declared
+//     no usable role.
+//   - the key is absent: no OPEN was ever recorded, and it is
+//     reachable without any peer misbehaving. broadcastValidateOpen
+//     (internal/component/bgp/server/validate.go) skips a plugin when the process
+//     manager is nil, when the plugin conn is nil, and when the validate-open RPC
+//     returns an error -- and lets the session establish in all three.
+//
+// Only the export-set branch of OTCEgressFilter needs them apart, and only on
+// the suppression path, so this stays a separate question rather than widening
+// the reader every caller uses. Since Thomas's 2026-08-03 ruling the two states
+// take the SAME export-set decision (`unknown` covers both); what this reader
+// changes is the drop REASON the operator sees, never the verdict. Every RFC
+// 9234 Section 5 gate resolves through
+// resolvePeerRole, which takes the configured complement for either state and
+// so cannot tell them apart by design.
+func remoteRoleRecorded(peerIP string) bool {
+	filterMu.RLock()
+	defer filterMu.RUnlock()
+	_, recorded := filterRemoteRoles[peerIP]
+	return recorded
 }
 
 // Role name constants (RFC 9234 Section 4.1, Table 1).
@@ -252,7 +312,7 @@ func applyValidateOpen(
 
 	// Report only a real transition: a peer that has never advertised a role
 	// must not log on every reconnect.
-	if previous := clearFilterRemoteRole(input.Peer); previous != "" {
+	if previous := recordNoRemoteRole(input.Peer); previous != "" {
 		logger().Info("role capability withdrawn: peer reconnected without the role it previously advertised",
 			"peer", input.Peer, "previous-role", previous,
 			"effect", "RFC 9234 Section 5 gates now use the configured role complement for this peer")

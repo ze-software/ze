@@ -5,6 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 1/3 |
+| Deferral shard | `plan/deferrals/fixit-stored-route-relay-hardening.md` |
 | Updated | 2026-08-03 |
 
 ## Post-Compaction Recovery
@@ -66,6 +67,58 @@ Investigate and decide, with evidence:
 
 Whichever lands must handle multi-path (several path-ids for one prefix), which
 `compactRouteKey` already distinguishes but the old rail flattened.
+
+#### I-1 FINDING (2026-08-03) — investigated, decided: normalise storage (option 1)
+
+Every citation above was re-verified against today's tree. Two hold, one is
+sharper than written, and the sharper one settles the choice.
+
+**The two framings are real.** `nlri.NLRIIterator.Next`
+(`internal/core/bgp/nlri/iterator.go`) consumes the 4-byte path-id and then sets
+the prefix window to start AFTER it, so `installStructuredNLRIs`
+(`internal/component/bgp/plugins/adj_rib_in/rib.go`) hex-encodes a BARE prefix,
+always. `prefixToWireHex` (same file) prepends the path-id, but only under
+`pathID != 0` — and RFC 7911 permits path-id 0, so a legal zero is stored bare
+and is indistinguishable from a non-add-path prefix. Confirmed as written.
+
+**The path-id is NOT lost at ingest. It is lost at the RPC boundary.** This is
+the fact the spec's option list was missing. `installStructuredNLRIs` already
+HOLDS the path-id and already uses it: `routeKeyFromWire(fam, pfx, pathID)`
+(`adj_rib_in/compact_key.go`) puts it in `compactRouteKey.PathID`, so two paths
+for one prefix are two distinct stored entries and both survive. What drops the
+value is the payload: `RawRoute` has no path-id field, and neither does
+`rpc.StoredRoute` (`pkg/plugin/rpc/types.go` — SourcePeer, Family, AttrHex,
+NextHopHex, NLRIHex, and nothing else).
+
+**So assumption A-2 is PARTLY BROKEN, and in the direction that matters.**
+Multi-path is representable in STORAGE and not across the RELAY. Option 2
+(tagging the reconstruction with a non-add-path context) therefore does not merely
+"collapse" multi-path the way the old rail did: the relay carries N stored routes
+for the same prefix, each reconstructed with no path-id, so the destination
+receives the same prefix announced N times and keeps the last. That is silent
+route loss on the deployment this replay exists for, not a documented limitation.
+
+**Option 1, and the path-id must be a TYPED field rather than framing in the
+hex.** The value is already in hand at the only producer that would have to carry
+it, and the legacy producer takes it as an argument too, so `RawRoute` and
+`rpc.StoredRoute` each need one field and no new plumbing. Holding the value
+rather than inferring it from the bytes is also what lets `buildRelayUpdate` frame
+the NLRI to match whichever context it tags the reconstruction with, which is how
+`errRelayAddPath` lifts without a second rail (learned 1271's constraint). Putting
+it back into the hex would re-create the ambiguity being removed.
+
+**Trap for the implementer: 0 is a legal path-id, so an added field must not use
+0 as "absent".** `rpc.StoredRoute` is a wire contract shared with FORKED
+adj-rib-in plugins over JSON. A forked plugin built against the old struct omits
+the field, and an omitted JSON number decodes as 0 — which reads as a valid RFC
+7911 path-id, not as "this producer does not know". That is the zero-value trap in
+`ai/rules/evidence.md`, on a cross-process boundary where the old producer keeps
+running. Carry the framing explicitly (an enum, or a separate has-path-id bool),
+not a bare `PathID uint32`. Fixing `prefixToWireHex`'s `pathID != 0` asymmetry is
+part of the same change and is an independent RFC 7911 defect today.
+
+Implementation of this finding is NOT in this session's diff: it changes a plugin
+RPC contract and the stored-route shape, which is its own phase.
 
 ### I-1b — the ownership claim's ordering is not deterministic, and the naive fix deadlocks
 
@@ -237,7 +290,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The legacy (non-structured) ingest path is still reachable in a supported deployment | `handleReceived` exists for external text/JSON plugins | If dead, storage normalisation is far simpler — one framing only | grep for a config that delivers events as JSON to adj-rib-in | unvalidated |
-| A-2 | Multi-path (several path-ids for one prefix) is representable end to end today | `compactRouteKey` carries a path-id | The old rail's collapse was masking a storage gap, widening I-1 | store two paths for one prefix and inspect the seqmap | unvalidated |
+| A-2 | Multi-path (several path-ids for one prefix) is representable end to end today | `compactRouteKey` carries a path-id | The old rail's collapse was masking a storage gap, widening I-1 | store two paths for one prefix and inspect the seqmap | **broken (2026-08-03)** — representable in STORAGE (`routeKeyFromWire` keys on `PathID`), NOT across the relay: neither `RawRoute` nor `rpc.StoredRoute` carries the value. See the I-1 FINDING |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -254,11 +307,170 @@ seam is what a filter uses for surgery the text delta cannot express.
 | AC-4 | Peer gives `state` to adj-rib-in but not bgp-rs | Either that peer is still replayed, or the config is rejected — never silently unreplayed |
 | AC-5 | adj-rib-in respawns mid-life with bgp-rs loaded | Ownership is re-established; no duplicate announce on the next peer-up |
 | AC-6 | `adj-rib-in-replay-on-peerup.ci` with the relay stubbed to error | Test goes RED (mutation-verified) |
+| AC-7 | An egress rail cannot carry out its decision: an in-process filter PANICS on the RS fast path (`forward_rs.go`) or on the LLGR stale re-advertise rail, or that rail's modifications cannot be built | No rail reports a failure of THIS speaker as a peer's policy. `reactorForwardRS` puts the destination on the skipped list so the plugin rail decides what it could not. `decideStaleReadvertise` returns `staleFilterFailed` or `staleBuildFailed`, and `AnnounceNLRIBatch` reports the matching cause wrapping `errStaleReadvertiseWithheld` instead of `ErrNoPeersAcceptedFamily`. The route is withheld fail-closed in every case; only the report changes. **REPLACED 2026-08-03 by Thomas's ruling — see "AC-7 replaced" below. DONE** |
+| AC-8 | Destination peer whose remote role was never recorded, source with a non-empty `role { export }` set (R6-1) | The suppression is counted under its own reason (`role-unrecorded`) and carries recordDrop's first-occurrence WARN, so it is never reported as an export-set decision. **DONE** |
+| AC-8b | Config reload while peers stay established (R6-1) | Learned remote roles survive for every peer the new config still names, so no peer is reclassified `unknown` and black-holed by a reload. **DONE** |
+| AC-9 | An export or import policy filter returns a raw override of 1..3 bytes (R6-2) | The route is suppressed (export) / dropped (import) and says so; it is never forwarded unmodified. **DONE** |
+
+### Q-1 — RULED BY THOMAS, 2026-08-03: an UNRECORDED role KEEPS matching `export { unknown }`
+
+**The question put to him.** Should a destination whose role was NEVER RECORDED
+(validate-open RPC timeout, plugin conn not up, plugin respawn) still match an
+explicit `export { unknown }`?
+
+**His answer, verbatim:** "KEEP MATCHING. Pin it as intended." He accepted the
+stated cost: during an RPC or plugin failure Ze advertises to a peer whose role
+is genuinely unknown.
+
+So the behavior in the tree stands, and it stands as a DECISION rather than as
+an accident nobody had looked at. `export { unknown }` matches a peer whose role
+we could not learn exactly as it matches one that announced no role. Operator
+intent is honored literally, and no working config changes.
+
+**What the ruling settles, beyond the token.** `roleUnknown` becomes a TOTAL
+answer over the destination-role state: "recorded and empty" and "never recorded"
+are one input class, and `unknown` is the operator's name for that class. The
+export-set membership test in `OTCEgressFilter` therefore evaluates a defined
+input in every case, so its suppression is a policy decision — which is what
+`forwardUpdateCore` already counts it as, and what `RelayStoredRoute` already
+reports as a handled route. The R6-1 chain from an unrecorded role to a silently
+"complete" replay is closed at its head.
+
+`dropRoleUnrecorded` (AC-8) survives the ruling and keeps its meaning: it tells
+an operator WHICH flavor of unknown suppressed the route, so a validate-open
+failure is not read as a deliberate export-set exclusion. It no longer claims the
+guard could not decide.
+
+**Where the ruling is recorded, so it is not re-opened.**
+
+| Surface | What it now says |
+|---------|------------------|
+| `TestExportSetUnrecordedStillMatchesExplicitUnknown` (`role/role_recorded_test.go`) | tests the DECISION and names the owner and the date. Its assertions are unchanged |
+| `OTCEgressFilter`'s export-set block (`role/otc.go`) | the "open question" note is replaced by the ruling |
+| `filterapi.EgressFilterFunc` (`filterapi/filterapi.go`) | the KNOWN GAP note no longer waits on this question |
+
+**No RFC-tagged assertion moved.** `otc_test.go` and `config_test.go` are
+untouched, so `.claude/hooks/pretool-writeedit.py`'s `rfc-test-change-approved:`
+marker is not needed and was not used. The RFC 9234 rows in
+`docs/features/rfc-status.md` keep the proof they had.
+
+### AC-7 replaced — RULED BY THOMAS, 2026-08-03
+
+**His ruling, verbatim:** "REPLACE AC-7 with the work the evidence supports."
+He directed that AC-7 be rewritten "to fix the discards instead": same spec,
+honest scope, closing a live defect rather than adding an unused channel.
+
+**What it replaced.** AC-7 asked for a second return on
+`filterapi.EgressFilterFunc` so an in-process egress filter could report "I could
+not decide". That is not landing. The reassessment below re-derived it from all
+three registered filters and found no filter has a state the new return would
+express, and Q-1's ruling made `roleUnknown` a total answer, so OTC's suppression
+is a policy decision rather than a failure. A widened signature would have had no
+producer.
+
+**What AC-7 now asks for, and why the evidence supports it.**
+`safeEgressFilter` (`reactor/reactor_notify.go`) already returns
+`(accept, panicked)`. The failure channel EXISTS. Of its three call sites,
+`forwardUpdateCore` (`reactor_api_forward.go`) bound both and is the precedent;
+`forward_rs.go` and `decideStaleReadvertise` (`reactor_api_batch.go`) each bound
+`accept, _` and dropped the rest, so two of the three rails could not tell a
+policy suppression from a filter that crashed, and both withheld the route
+silently either way. Reading a return that is already produced fixes that. The
+signature change would not have.
+
+**What each rail now does with it, decided per site rather than copied.**
+
+| Rail | What a panic means there | What it now does |
+|------|--------------------------|------------------|
+| `reactorForwardRS` (`forward_rs.go`) | The rail decided nothing for that destination, but the caller sets `ReactorForwarded` as soon as ANY other destination is dispatched, and bgp-rs then takes `default: releaseCache` (`rs/server_withdrawal.go`) and forwards to nobody. So the crash was indistinguishable from a policy suppression and cost that peer the route with no second rail and no accounting | The destination joins the `skipped` list, the existing channel for "this rail did not decide". bgp-rs forwards it via `batchForwardUpdateSkipped` -> `forwardUpdateCore`, which reads both returns and classifies the failure. A WARN names the destination, as every other declining path on this rail already does |
+| `decideStaleReadvertise` (`reactor_api_batch.go`) | RFC 9494 Section 4.3 ("SHOULD NOT be advertised to peers that have not advertised the LLGR capability") and Section 4.6's NO_EXPORT + LOCAL_PREF=0 both depend on the destination's LLGR capability, which is exactly what the crashed filter was reading. So the route MUST stay withheld: re-advertising or depreferencing on a guess are both wrong | A new `staleFilterFailed` outcome. `sendStaleReadvertise` returns `(sent, failErr)` and `AnnounceNLRIBatch` reports it. It used to report `ErrNoPeersAcceptedFamily`, whose stated cause is untrue here (the family IS negotiated) and which `DispatchNLRIGroups` downgrades to a warning on the strength of that cause |
+
+**The follow-up, same day: the OTHER failure branch of the same function.**
+`decideStaleReadvertise` still returned `staleSuppress` when
+`buildModifiedPayload` refused the Section 4.6 depreference. There the filter DID
+decide and only realizing the decision failed, so it was the identical
+conflation, four lines below the branch just fixed, and it also reached the
+operator as `no peers have family negotiated`. Fixed here rather than deferred:
+it makes Ze more correct, which needs no ruling, and half a function that still
+confuses "could not" with "decided not to" leaves this AC's goal half met at that
+site. Two adjacent branches came with it, `buildBatchAnnounceUpdate` and
+`buildBatchWithdrawUpdate` returning nil, which now report the causes the
+non-stale rail beside them has always used (`errAnnounceTooLarge`,
+`errWithdrawTooLarge`) instead of a family mismatch. The producer-side counter is
+untouched: `recordModifyFailureAddr` still names the build's own reason, and this
+is the caller-facing half rather than a second copy.
+
+**The rename.** `errStaleReadvertiseFilterFailed` became false once a build
+failure shared it, so it is now `errStaleReadvertiseWithheld`, a base naming what
+is true of both, wrapped by `errStaleReadvertiseFilterPanic` and
+`errStaleReadvertiseBuildFailed`, which each name what actually happened. One
+`errors.Is` on the base still catches the pair at the caller. `staleFailed`
+became `staleFilterFailed` for the same reason, beside `staleBuildFailed`.
+
+**Proof.** `internal/component/bgp/reactor/egress_filter_failure_test.go`. Every
+test is a PAIR or a TRIPLE: each failure beside a filter that cleanly returns
+false for the same destination. Mutation-verified by restoring each conflation in
+turn. The panic half goes red at both rails, the build half goes red at the
+decision helper AND at the entry point (reporting the failure as `no peers have
+family negotiated`), and the reject control stays green in every case.
+`TestDecideStaleReadvertiseWithholdsOnModifyFailure` (renamed from
+`...SuppressesOnModifyFailure`) keeps its withheld-not-advertised assertion and
+gains a stricter classification; nothing was weakened.
+
+### AC-7 reassessment (2026-08-03) — the evidence behind the replacement
+
+AC-7 asked for a second return on `filterapi.EgressFilterFunc` so an in-process
+egress filter can report "I could not decide", and for `forwardUpdateCore` to
+classify that as a drop rather than a policy suppression. Q-1's ruling removes
+its motivating example, so the AC was re-derived from the producers rather than
+inherited. Evidence, every claim read at its producer:
+
+| Producer | What it does today | Does it need the second return? |
+|----------|--------------------|---------------------------------|
+| `OTCEgressFilter` (`role/otc.go`) | export-set branch tests membership of `roleUnknown`, which the ruling makes a defined input for both unrecorded and recorded-empty | No. The suppression is a decision, and `suppressedCount` is the correct classification |
+| `LLGREgressFilter` (`gr/gr_egress.go`) | `egressState.Load() == nil` returns **true** — accept — before the plugin starts | No. It fails OPEN, and `forwardUpdateCore` reads `failed` only when `accept` is false, so a second return would change nothing until the filter first switched to denying. That switch is expressible in the CURRENT signature (`return false`) |
+| `egressFilter` (`filter_community/filter_community.go`) | returns true unconditionally; `!hasCfg` means "no filter configured for this peer" | No. It never suppresses, so it has no suppression to qualify |
+
+So no registered filter has a state that the second return would newly express.
+What the seam did have is two rails that DISCARDED the failure channel it already
+carries: `forward_rs.go` (the RS fanout) and `decideStaleReadvertise`
+(`reactor_api_batch.go`) both called `safeEgressFilter` and dropped `panicked` on
+the floor, so a filter panic there was reported as policy. Widening the signature
+would not have fixed that; reading the existing return does.
+
+**That finding is what Thomas acted on.** He replaced AC-7 with the read rather
+than retiring it, so the AC is DONE in this spec rather than dropped
+(`ai/rules/no-partial-completion.md` — owed, done, or retired by the owner, and
+no fourth state). The `EgressFilterFunc` signature change is not owed by anyone:
+`plan/spec-fixit-egress-filter-non-decision-channel.md` keeps only its LLGR
+nil-state item, and the RFC-tagged edits to `otc_test.go` and `config_test.go`
+that the signature change would have dragged in are not needed.
+
+## Key Design Decisions
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| **An UNRECORDED destination role keeps matching an explicit `export { unknown }`. Thomas ruled this on 2026-08-03: "KEEP MATCHING. Pin it as intended."** | Make the unrecorded state a non-decision so it stops matching `unknown` and the route is suppressed fail-closed | Owner decision, recorded here rather than made here (`ai/rules/rfc-compliance.md`: the implementer records an owner ruling, never substitutes one). `unknown` is the operator's own token for "this peer's role is not known to us", and a peer whose OPEN we never recorded is in exactly that state, so honoring the token literally changes no working config. Thomas accepted the stated cost: during a validate-open RPC failure or a plugin respawn, Ze advertises to a peer whose role is genuinely unknown. The consequence for R6-1 is that `roleUnknown` is a TOTAL answer, so the export-set suppression is a policy decision and the relay's completeness count over it is correct |
+| The unrecorded case is still counted and warned APART from an export-set decision (`dropRoleUnrecorded`, AC-8) | Fold it back into `dropExportSet` now that both are decisions | The two call for opposite operator actions. "Your export set excludes this peer" points at the config; "we never learned what this peer is" points at validate-open. The ruling makes them one INPUT class, not one diagnosis |
+| A learned remote role survives a config reload for every peer the new config still names (AC-8b) | Keep wiping `filterRemoteRoles` on every `OnConfigure` | A learned role is a property of the SESSION: it is what the peer put in its OPEN, and an established peer sends no second OPEN. The wipe was not a clean slate but a lie, and it manufactured most of the unrecorded peers the ruling is about |
+| `recordNoRemoteRole` WRITES an empty string instead of deleting the key | Keep deleting, and infer "declared none" from absence | Deleting made a decision and a miss share one representation. They stay distinguishable for the operator signal even though the ruling makes them behave alike at the export set |
+
+## Known Limitations
+
+Rows live in `plan/deferrals/fixit-stored-route-relay-hardening.md`; each names an
+existing destination spec.
+
+- `LLGREgressFilter` accepts when its plugin state is not yet loaded (`s == nil`),
+  the RFC 9494 fail-open twin of R6-1 and outside R6-1/R6-2's scope.
+- RFC 2545 has no summary and no full text in the repository, so I-6's 32-byte
+  next hop cannot be implemented against the RFC text.
 
 ## Mistake Log
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Multi-path survives storage, so I-1's only question was the reconstruction context | The path-id reaches storage and stops at the RPC: `installStructuredNLRIs` puts it in `compactRouteKey` but neither `RawRoute` nor `rpc.StoredRoute` carries it | Reading the producers for the I-1 finding, 2026-08-03 | Option 2 (context-tagging) would announce one prefix N times with no path-id and lose all but one, so the choice is settled rather than open |
+| R6-2's second half: a `buildModifiedPayload` failure falls through to `accept: true` | It does not. `runEgressPolicyChainASN4` reaches that branch only under `exportMods.Len() > 0 \|\| nlriOverride != nil`, which is exactly the negation of `buildModifiedPayload`'s one legitimate nil, so `modFail.failed()` catches every nil and returns `failed: true` | Re-verifying the finding's citations against today's tree | Half of R6-2 was already fixed; only the raw-override half was live |
 | Refusing add-path was purely a safety improvement | The old rail replayed add-path routes correctly (collapsed to path-id 0) for single-path prefixes, so refusing removed working behaviour | Independent review traced `parseWireNLRISection` defaulting `addPath=false` and the iterator storing bare prefixes | The refusal must be recorded as an accepted interim regression, and lifting it is this spec's headline |
 | "No peers accepted" means the relay failed | `forwardUpdateCore` returns `errNoEstablishedPeersToForwardTo` for a correctly egress-SUPPRESSED route too | Independent review, Run 2 | A "partial relay must fail" guard made one suppressed route fail a whole replay; fixed before shipping |
 
@@ -317,6 +529,10 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 | `TestRelayChunkByteBudget` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | chunks stay under `rpc.MaxMessageSize` for large attribute blocks | |
 | `TestReplayOwnershipRespawn` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | ownership re-established after respawn; no duplicate | |
 | `TestCoordinatorRelayStoredRouteNoReactor` | `internal/component/plugin/coordinator_test.go` | `ErrNoReactor` branch and the delegation | |
+| `TestReactorForwardRSFilterPanicIsNotPolicy` | `internal/component/bgp/reactor/egress_filter_failure_test.go` | AC-7: a panicked filter puts the destination on the skipped list; a clean reject does not | DONE (mutation-verified) |
+| `TestDecideStaleReadvertiseFailureIsNotPolicy` | same file | AC-7: `staleFilterFailed` for a panic, `staleBuildFailed` for an unbuildable modification, `staleSuppress` only for a reject | DONE (mutation-verified) |
+| `TestAnnounceNLRIBatchStaleFailureIsNotFamilyMismatch` | same file | AC-7 at the entry point: each failure carries its own cause wrapping `errStaleReadvertiseWithheld` and is NOT `ErrNoPeersAcceptedFamily`; a reject still is | DONE (mutation-verified) |
+| `TestDecideStaleReadvertiseWithholdsOnModifyFailure` | `internal/component/bgp/reactor/reactor_stale_readvertise_test.go` | the pre-existing withheld-not-advertised property, now pinned to `staleBuildFailed` | DONE (mutation-verified) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |

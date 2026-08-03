@@ -466,14 +466,33 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 }
 
 // decodeFilterRawOverride validates a full UPDATE-body replacement from a raw
-// policy filter. Returns nil on empty input or a body too short to be a valid
-// UPDATE (the caller then keeps the unmodified payload). A valid UPDATE body is
-// at least 4 bytes: withdrawn-routes-length(2) + path-attr-length(2).
-func decodeFilterRawOverride(raw []byte) []byte {
-	if len(raw) < 4 {
-		return nil
+// policy filter. A valid UPDATE body is at least 4 bytes: withdrawn-routes
+// length(2) + path-attribute length(2).
+//
+// It answers TWO questions, and a single nil could only answer one of them
+// (ai/rules/evidence.md). An EMPTY raw means the filter asked for no
+// replacement, which is the ordinary case for every text-delta filter. A raw of
+// 1..3 bytes means the filter DID ask for a replacement and handed over
+// something that cannot be an UPDATE body.
+//
+// Folding those together made the second silently indistinguishable from the
+// first: both call sites read nil as "no override", skipped the branch, and --
+// because PolicyFilterChain makes a raw response terminal and returns the text
+// UNCHANGED (Text: current), so the text-delta branch below does not run either
+// -- forwarded or cached the ORIGINAL body. The filter had asked for the body to
+// be replaced, and got the body it was replacing. On export that leaks whatever
+// the raw surgery was removing; on import it installs it.
+//
+// malformed is therefore a guard MISS, not a policy decision: the caller
+// suppresses (export) or drops (import) the route and says so.
+func decodeFilterRawOverride(raw []byte) (override []byte, malformed bool) {
+	if len(raw) == 0 {
+		return nil, false
 	}
-	return raw
+	if len(raw) < 4 {
+		return nil, true
+	}
+	return raw, false
 }
 
 // validateModifyDelta checks that a modify delta only contains attributes

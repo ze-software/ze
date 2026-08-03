@@ -82,10 +82,14 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
 // from notifyMessageReceiver, bypassing the plugin dispatch chain.
 //
-// Returns the list of destination peers that were skipped (have ExportFilters)
-// and the number of peers this call actually dispatched to. The caller stores
-// the skipped list on RawMessage.FastPathSkipped so bgp-rs can forward to them
-// via ForwardCached.
+// Returns the list of destination peers this rail did not decide for, and the
+// number of peers it actually dispatched to. The caller stores the skipped list
+// on RawMessage.FastPathSkipped so bgp-rs can forward to them via ForwardCached.
+//
+// A peer is skipped for one of two reasons: it carries ExportFilters, which this
+// policy-agnostic rail cannot apply, or an in-process egress filter PANICKED for
+// it, which decides nothing. A policy suppression is not a skip -- that IS a
+// decision, and it is final here.
 //
 // dispatched exists so the caller can tell "the fast path delivered this UPDATE"
 // from "the fast path matched nobody". Both used to look identical to bgp-rs,
@@ -273,13 +277,36 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			destFilter := facts.filterInfo
 			payload := update.WireUpdate.Payload()
 			suppressed := false
+			filterFailed := false
 			for _, filter := range r.egressFilters {
-				if accept, _ := safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods); !accept {
+				accept, panicked := safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods)
+				if !accept {
 					suppressed = true
+					filterFailed = panicked
 					break
 				}
 			}
 			if suppressed {
+				// Only a genuine policy decision is this rail's to keep. A step
+				// that could not run -- a recovered filter panic is the one such
+				// state safeEgressFilter can report -- decided nothing about this
+				// destination, so consuming it here would make the crash
+				// indistinguishable from a policy suppression: the caller sets
+				// ReactorForwarded as soon as any other destination is dispatched,
+				// and bgp-rs then takes `default: releaseCache` and forwards to
+				// nobody (rs/server_withdrawal.go).
+				//
+				// Hand it to the plugin rail instead, through the same skipped
+				// list an export-filtered peer uses. There it reaches
+				// forwardUpdateCore, which reads BOTH returns and classifies a
+				// failure as a drop rather than as suppression -- the same
+				// fallback the cache-eviction decline above takes, and the same
+				// fail-closed outcome if the filter panics again.
+				if filterFailed {
+					fwdLogger().Warn("rs fast path: egress filter panicked, deferring the destination to the plugin rail",
+						"id", updateID, "peer", facts.addr, "src", sourcePeerAddr)
+					skipped = append(skipped, facts.peerKey)
+				}
 				continue
 			}
 		}

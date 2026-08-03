@@ -668,8 +668,11 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	// catch, which is the entire purpose of the attribute.
 	if srcCfg != nil && len(srcCfg.resolvedExport) > 0 {
 		// Capability-only on purpose: "unknown" is an operator-selected export
-		// target for peers that announced no role (config.go:36), not an
-		// unanswered question. See resolvePeerRole's scope note.
+		// target for peers whose role we do not know (config.go), not an
+		// unanswered question. That covers a peer that announced no role AND a
+		// peer whose OPEN was never recorded -- Thomas ruled the second one in on
+		// 2026-08-03, see the suppression block below. See resolvePeerRole's
+		// scope note.
 		destRole := destCapRole
 		if destRole == "" {
 			destRole = roleUnknown
@@ -679,9 +682,51 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 			// fires, and a mistyped export set is exactly how a peer's routes
 			// disappear. Counted under its own reason so it is distinguishable
 			// from the RFC suppressions above.
-			recordDrop(dropExportSet, dest.Address, destRole)
+			//
+			// OWNER RULING, 2026-08-03 (R6-1 / Q-1 in
+			// plan/spec-fixit-stored-route-relay-hardening.md). Thomas decided
+			// that a destination whose role was NEVER RECORDED still matches an
+			// explicit `export { unknown }`: "KEEP MATCHING. Pin it as intended."
+			// `unknown` is the operator's own word for "this peer's role is not
+			// known to us", and an unrecorded peer is in exactly that state, so
+			// honoring the token literally changes no working config. The
+			// accepted cost is stated in the spec: during a validate-open RPC
+			// failure or a plugin respawn, ze advertises to a peer whose role is
+			// genuinely unknown.
+			//
+			// So roleUnknown above is a TOTAL answer over the destination-role
+			// state, the membership test always evaluates a defined input, and
+			// reaching this branch is a policy DECISION -- which is what
+			// forwardUpdateCore counts it as, and what the stored-route relay
+			// reports as a handled route.
+			// TestExportSetUnrecordedStillMatchesExplicitUnknown
+			// (role_recorded_test.go) is the test of that decision; do not
+			// re-open it without a fresh owner ruling.
+			//
+			// The recorded/unrecorded split below is therefore a DIAGNOSIS for
+			// the operator, not a second decision. A recorded empty role means
+			// this peer's OPEN declared none. An UNRECORDED role means no OPEN
+			// was ever seen for this peer, which broadcastValidateOpen
+			// (internal/component/bgp/server/validate.go) reaches whenever it
+			// skips the plugin and lets the session establish anyway. Both
+			// suppress here, identically, and always have. What the second one
+			// now does is SAY SO (ai/rules/evidence.md): its own counter, and
+			// recordDrop's first-occurrence WARN. It used to be reported as an
+			// export-set decision against role "unknown", which sent an operator
+			// to check a policy when the thing to check was validate-open.
+			//
+			// The recorded lookup is taken HERE, on the cold suppression path,
+			// rather than beside the config read above: the accepting path never
+			// needs it and must not pay a second lock (ai/rules/performance.md).
+			recorded := remoteRoleRecorded(dest.Address.String())
+			reason := dropExportSet
+			if !recorded {
+				reason = dropRoleUnrecorded
+			}
+			recordDrop(reason, dest.Address, destRole)
 			logger().Debug("OTC egress suppress (export set)",
 				"src", src.Address, "dest", dest.Address, "dest-role", destRole,
+				"role-recorded", recorded,
 				"export", srcCfg.resolvedExport)
 			return false // Destination role not in export set.
 		}

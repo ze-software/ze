@@ -185,7 +185,17 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	}
 	// A raw=true filter may return a full UPDATE-body replacement (e.g.
 	// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is terminal.
-	if raw := decodeFilterRawOverride(res.Raw); raw != nil {
+	raw, rawMalformed := decodeFilterRawOverride(res.Raw)
+	if rawMalformed {
+		// A guard MISS, not an accept. The filter asked for the body to be
+		// replaced and handed over bytes that cannot be an UPDATE body, so
+		// accepting caches and dispatches exactly the content the import policy
+		// was rewriting (ai/rules/evidence.md).
+		slog.Warn("import filter: raw override is too short to be an UPDATE body -- fail-closed",
+			"peer", peerAddr.String(), "raw-len", len(res.Raw), "min", 4)
+		return ingressStepResult{} // accept == false: drop the route
+	}
+	if raw != nil {
 		return ingressStepResult{accept: true, modifiedPayload: raw}
 	}
 	if res.Text != updateText {
@@ -302,7 +312,19 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 	}
 	// A raw=true filter may return a full UPDATE-body replacement (e.g.
 	// MP_REACH/MP_UNREACH surgery the text delta cannot express). It is terminal.
-	if raw := decodeFilterRawOverride(res.Raw); raw != nil {
+	raw, rawMalformed := decodeFilterRawOverride(res.Raw)
+	if rawMalformed {
+		// A guard MISS, not a policy decision. The filter asked for the body to
+		// be replaced and handed over bytes that cannot be an UPDATE body, so
+		// sending the route leaks exactly what the raw surgery was removing --
+		// the same fail-closed shape as the modify-failure branch below
+		// (ai/rules/evidence.md). failed:true keeps the stored-route
+		// relay's completeness check from reading this as "policy said no".
+		slog.Warn("export filter: raw override is too short to be an UPDATE body -- fail-closed",
+			"peer", destAddrStr, "raw-len", len(res.Raw), "min", 4)
+		return egressStepResult{failed: true} // accept == false: suppress for this peer
+	}
+	if raw != nil {
 		return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(raw, wireUpdate.SourceCtxID())}
 	}
 	if res.Text != updateText {

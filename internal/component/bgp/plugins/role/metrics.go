@@ -32,29 +32,41 @@ const (
 	dropLeak         dropReason = iota // OTC from a Customer/RS-Client, or from a Peer with a mismatched ASN
 	dropMalformedOTC                   // OTC length != 4: treat-as-withdraw
 	// Egress: the route is not advertised to this destination peer.
-	dropOTCPresent  // route carries OTC and the destination is a Provider/Peer/RS
-	dropSourceRole  // Gao-Rexford: Provider/Peer/RS-learned route toward a Provider/Peer/RS
-	dropExportSet   // operator export policy: destination role not in the export set
+	dropOTCPresent // route carries OTC and the destination is a Provider/Peer/RS
+	dropSourceRole // Gao-Rexford: Provider/Peer/RS-learned route toward a Provider/Peer/RS
+	dropExportSet  // operator export policy: destination role not in the export set
+	// dropRoleUnrecorded: the export set excluded this destination, and this
+	// destination's role was never recorded. Both halves matter. The suppression
+	// is a policy decision either way -- Thomas ruled on 2026-08-03 that an
+	// unrecorded role is covered by the operator's `unknown` token (otc.go's
+	// export-set block) -- so this reason is a DIAGNOSIS, not a separate verdict.
+	// It is counted apart from dropExportSet because the two call for opposite
+	// operator actions: "your export set excludes this peer" points at the
+	// config, "we never learned what this peer is" points at validate-open. They
+	// used to share the export-set counter with the role label "unknown".
+	dropRoleUnrecorded
 	dropReasonCount // sentinel: array length, never a real reason
 )
 
-// Label values. Bounded and compile-time constant, so cardinality is flat: five
+// Label values. Bounded and compile-time constant, so cardinality is flat: six
 // series per metric, never per-peer. Peer identity belongs in the log line, not
 // in a label (the as112 metrics note gives the same reasoning for client IPs).
 const (
-	reasonLabelLeak         = "leak"
-	reasonLabelMalformedOTC = "malformed-otc"
-	reasonLabelOTCPresent   = "otc-present"
-	reasonLabelSourceRole   = "source-role"
-	reasonLabelExportSet    = "export-set"
+	reasonLabelLeak           = "leak"
+	reasonLabelMalformedOTC   = "malformed-otc"
+	reasonLabelOTCPresent     = "otc-present"
+	reasonLabelSourceRole     = "source-role"
+	reasonLabelExportSet      = "export-set"
+	reasonLabelRoleUnrecorded = "role-unrecorded"
 )
 
 var dropReasonLabels = [dropReasonCount]string{
-	dropLeak:         reasonLabelLeak,
-	dropMalformedOTC: reasonLabelMalformedOTC,
-	dropOTCPresent:   reasonLabelOTCPresent,
-	dropSourceRole:   reasonLabelSourceRole,
-	dropExportSet:    reasonLabelExportSet,
+	dropLeak:           reasonLabelLeak,
+	dropMalformedOTC:   reasonLabelMalformedOTC,
+	dropOTCPresent:     reasonLabelOTCPresent,
+	dropSourceRole:     reasonLabelSourceRole,
+	dropExportSet:      reasonLabelExportSet,
+	dropRoleUnrecorded: reasonLabelRoleUnrecorded,
 }
 
 // dropIsIngress selects the owning metric and the logged direction. Ingress

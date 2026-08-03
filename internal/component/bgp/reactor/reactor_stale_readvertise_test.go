@@ -104,14 +104,21 @@ func TestDecideStaleReadvertise(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-1 — a readvertise modification that cannot be applied suppresses
+// VALIDATES: AC-1 — a readvertise modification that cannot be applied withholds
 // the route instead of re-advertising it unmodified.
 // PREVENTS: The RFC 9494 stale re-advertise rail silently undoing its own egress
 // filter. Before T1-1 this call site read the build's nil as "no change needed"
 // and returned staleModify with a nil body, so the caller re-advertised the
 // stale route with none of the depreference the filter asked for. This is one of
 // the two call sites the spec's A-2 never named.
-func TestDecideStaleReadvertiseSuppressesOnModifyFailure(t *testing.T) {
+//
+// The withheld-not-advertised property is unchanged. The expected TOKEN moved
+// from staleSuppress to staleBuildFailed on 2026-08-03 (AC-7 follow-up,
+// plan/spec-fixit-stored-route-relay-hardening.md): the filter DID decide here,
+// and only realizing its decision failed, so calling it a suppression reported a
+// defect in Ze to the operator as the filter's own policy. No assertion was
+// weakened -- the classification became more exact and one was added.
+func TestDecideStaleReadvertiseWithholdsOnModifyFailure(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{
 		Address: mustParseAddr("10.0.0.2"),
 		PeerAS:  65001,
@@ -135,9 +142,11 @@ func TestDecideStaleReadvertiseSuppressesOnModifyFailure(t *testing.T) {
 	body := append([]byte(nil), minimalAnnounceBody...)
 	outcome, modified := a.decideStaleReadvertise(dest, body, 1)
 
-	assert.Equal(t, staleSuppress, outcome,
-		"an unapplicable modification must suppress, never re-advertise unmodified")
-	assert.Nil(t, modified, "suppression carries no body")
+	assert.Equal(t, staleBuildFailed, outcome,
+		"an unapplicable modification must withhold the route, never re-advertise it unmodified")
+	assert.NotEqual(t, staleSuppress, outcome,
+		"the filter accepted: a build that could not run is not the filter's policy decision")
+	assert.Nil(t, modified, "a withheld route carries no body")
 }
 
 // TestDecideStaleReadvertise_NoFilters verifies that with no readvertise filters
