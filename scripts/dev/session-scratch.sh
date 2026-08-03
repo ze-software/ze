@@ -90,8 +90,22 @@ reap_binaries() {
         "" | */* | . | ..) return 0 ;;
     esac
     [ -d bin ] || return 0
+
+    # The SHARED binary names, derived from mk/session.mk rather than repeated
+    # here, so the two cannot drift. make already refuses a session id whose
+    # `ze-<sid>` collides with one of them (mk/session.mk, the ZE_BIN_NAMES
+    # filter); this reaper had no such guard, so `--clean` with sid `test`
+    # matched bin/ze-test on the glob below and deleted the shared test runner
+    # that humans and CI build. rm -f is irreversible, which is why the guard
+    # belongs on this side too and not only on the side that creates names.
+    local shared
+    shared=" $(sed -n 's/^ZE_BIN_NAMES *:*= *//p' mk/session.mk | head -1) "
+
     for f in bin/*-"$sid"; do
         [ -f "$f" ] || continue
+        case "$shared" in
+            *" $(basename "$f") "*) continue ;;
+        esac
         if [ "$require_idle" = "1" ] && [ -n "$(find "$f" -mmin -1440 -print -quit 2>/dev/null)" ]; then
             continue
         fi
