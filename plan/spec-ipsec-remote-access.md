@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-fixit-ipsec-verify-siblings |
+| Depends | - (was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03; `plan/learned/1256-fixit-ipsec-verify-siblings.md`) |
 | Phase | - |
 | Updated | 2026-07-31 |
 
@@ -21,7 +21,7 @@
 
 `vpn ipsec remote-access` is a complete, documented, YANG-validated config surface that the
 daemon **silently ignores**. Traced 2026-07-23 (recorded in
-`plan/spec-fixit-ipsec-verify-siblings.md` and in the correction appended to
+`plan/learned/1256-fixit-ipsec-verify-siblings.md` and in the correction appended to
 `plan/learned/1255-fixit-codeql-security-triage.md`):
 
 | Field | Consumer today | Effect |
