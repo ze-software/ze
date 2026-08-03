@@ -60,3 +60,14 @@
 # the daemon dies with "unknown field in ddos: fake". With a zetest-tagged DUT
 # the same test passes in 653ms.
 -8
+
+# test/plugin/bgp-redistribute-{filtered-out,metrics}.ci: the blind 2s "drain"
+# each held before shutdown is REPLACED by a real barrier plus a real assertion
+# -- assert_peer_received_only_eor for filtered-out (the absence it claims) and
+# assert_peer_received_beyond_eor for metrics (the four accepted operations).
+# Both wait for the End-of-RIB and then `request quiesce`, so the counter they
+# read is a settled total. Neither test could observe a leak before: a
+# check-mode ze-peer closes as soon as its expectations are met, so the emits
+# ran against a peer that was already gone (measured: state='connecting',
+# connections-dropped=1). option=linger keeps the session up.
+-1

@@ -6,7 +6,17 @@
 # ze-peer expectations: ONE EOR allowed (session start), nothing else.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
-option=timeout:value=15s
+option=timeout:value=25s
+# linger is what makes the absence below mean anything. Without it a check-mode
+# ze-peer returns the instant its expectations are met (Peer.Run, the
+# checker.Completed() branch of the accept loop) and closes the session, so the
+# emit the observer makes AFTERWARDS has no peer to leak to. Measured on
+# 2026-08-03: the peer closed on the EOR and ze reported the peer
+# state='connecting', connections-dropped=1 while the run still passed. The
+# "no UPDATE" verdict was produced by the peer being gone, not by the import
+# rule. With linger the session stays up and the observer's assertion below is
+# a statement about a forwarding DECISION.
+option=linger:value=true
 # Session-end EOR is fine; no UPDATE is the assertion this test enforces.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
@@ -14,7 +24,9 @@ EOF_PEER
 # Python observer: emit fakeredist event for ipv6/unicast (rule covers ipv4/unicast only).
 tmpfs=filtered-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
+# // test-relax: `import time` removed because its only user, the blind
+# time.sleep(2.0) drain, is REPLACED by assert_peer_received_only_eor (a real
+# barrier plus a real absence assertion). No expectation is dropped.
 from ze_api import API, runtime_fail
 
 
@@ -43,15 +55,17 @@ def main():
         runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
-    # needs-signal: this test asserts an ABSENCE (the emitted route must NOT
-    # reach the wire), so there is no positive marker to wait on -- and adding
-    # one would perturb the very wire being asserted. `request quiesce` IS the
-    # correct drain barrier, but it blocks ~10s on the forward-pool quiescer
-    # against this test's 15s budget. The establishment half above is now
-    # deterministic; this hold is what remains, and closing it needs a fast
-    # forward-pool-drained signal in the daemon (spec-fixit-redistribute-
-    # establishment-stall owns that gap).
-    time.sleep(2.0)
+    # The absence assertion, and the barrier that gives it meaning. The former
+    # blind 2s hold was justified by "quiesce blocks ~10s on the forward-pool
+    # quiescer"; that is no longer true, and the hold asserted nothing anyway --
+    # a check-mode ze-peer whose expectations are already satisfied reads and
+    # DISCARDS whatever arrives, so the peer block's single EOR rule cannot see
+    # a leaked UPDATE that follows it. assert_peer_received_only_eor waits for
+    # the EOR, drains the forward pool and each peer's initial-sync opQueue with
+    # `request quiesce`, and only then reads updates-sent - eor-sent. After the
+    # drain, "still zero" is a statement about a forwarding DECISION rather than
+    # about timing.
+    api.assert_peer_received_only_eor('127.0.0.1')
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

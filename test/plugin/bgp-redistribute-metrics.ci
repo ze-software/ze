@@ -2,16 +2,27 @@
 #       all metric-incrementing branches without runtime errors.
 # VALIDATES: AC-14 (functional half) -- the consumer dispatches accepted adds,
 #            accepted removes, rule-rejected adds, and BGP-skipped batches in
-#            the same daemon process without crashing or hanging. Counter
-#            cadence itself is asserted in the Go unit test
+#            the same daemon process without crashing or hanging, AND each
+#            accepted branch produces a route on the wire while the
+#            rule-rejected one does not (exactly 4 UPDATEs past the End-of-RIB).
+#            Counter cadence itself is asserted in the Go unit test
 #            `TestMetricsCadence`; no daemon-side `metrics show` query is
-#            available, so this .ci verifies the runtime path only.
+#            available, so the counters themselves are not read here.
 # PREVENTS: A regression in any of the four counter-increment branches that
 #           does not surface in unit-mocked dispatch.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
-option=timeout:value=20s
+option=timeout:value=30s
+# linger keeps the session up past the EOR. Without it a check-mode ze-peer
+# returns as soon as its expectations are met and closes the connection, so the
+# five emits below ran against a peer that was already gone: measured on
+# 2026-08-03 the peer reported state='connecting', flap-count=1 and
+# updates-sent=1 (the EOR alone), i.e. none of the three accepted adds or the
+# accepted remove ever reached the wire. The dispatch branches still ran, which
+# is what this file's VALIDATES line claims, but nothing downstream of the
+# consumer was exercised at all.
+option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -55,15 +66,20 @@ def main():
         # deliberate pacing: space each emit so the consumer handles them as separate events, not batched
         time.sleep(0.2)
 
-    # needs-signal: this test asserts an ABSENCE (the emitted route must NOT
-    # reach the wire), so there is no positive marker to wait on -- and adding
-    # one would perturb the very wire being asserted. `request quiesce` IS the
-    # correct drain barrier, but it blocks ~10s on the forward-pool quiescer
-    # against this test's 15s budget. The establishment half above is now
-    # deterministic; this hold is what remains, and closing it needs a fast
-    # forward-pool-drained signal in the daemon (spec-fixit-redistribute-
-    # establishment-stall owns that gap).
-    time.sleep(2.0)
+    # Assert the four ACCEPTED operations reached the wire and the rejected one
+    # did not, instead of holding a blind 2s and asserting nothing. Exactly 4 is
+    # the sequence above minus the ipv6 emit: three adds plus one remove, each a
+    # separate UPDATE because group-updates is disabled. Above 4 means the
+    # rule-rejected ipv6/unicast entry was forwarded; below 4 means an accepted
+    # branch incremented a counter without producing a route.
+    # assert_peer_received_beyond_eor waits for the EOR and drains the forward
+    # pool and each peer's initial-sync opQueue with `request quiesce` first, so
+    # the number is a settled total rather than a sample of a race.
+    delivered = api.assert_peer_received_beyond_eor('127.0.0.1', minimum=4)
+    if delivered != 4:
+        runtime_fail(f'{delivered} UPDATEs beyond the End-of-RIB, want exactly 4: '
+                     f'the rule-rejected ipv6/unicast entry reached the wire')
+        return
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
