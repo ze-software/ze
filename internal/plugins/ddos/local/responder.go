@@ -38,9 +38,26 @@ func logger() *slog.Logger {
 }
 
 type responder struct {
-	mu     sync.Mutex
-	cfg    *Config
-	bus    eventBus
+	mu  sync.Mutex
+	cfg *Config
+	bus eventBus
+	// active and target are guarded by mu. setStatus is their ONLY writer, in
+	// production and in tests: it is what keeps `published` in step with them.
+	active bool
+	target ddosevent.VectorTuple
+	// published mirrors {active, target} for readers that must not wait on mu.
+	// mu is held across the whole firewall reconcile so concurrent mitigations
+	// stay ordered, and that reconcile is a netlink round trip: a reader taking
+	// mu waited it out. show ddos local is such a reader (show.go
+	// handleShowDdosLocal -> status()), so a wedged kernel took the management
+	// plane down with it. Written under mu by setStatus, read lock-free by
+	// status(). Design: plan/spec-fixit-firewall-concurrency-deadlock.md D-3.
+	published atomic.Pointer[mitigationStatus]
+}
+
+// mitigationStatus is one immutable snapshot of the responder's mitigation
+// state. Never mutated after Store; a new value is published on every change.
+type mitigationStatus struct {
 	active bool
 	target ddosevent.VectorTuple
 }
@@ -54,7 +71,19 @@ var registerTables = firewall.RegisterTables
 var applyAll = firewall.ApplyAll
 
 func newResponder(cfg *Config, bus eventBus) *responder {
-	return &responder{cfg: cfg, bus: bus}
+	r := &responder{cfg: cfg, bus: bus}
+	// Publish the idle snapshot before the responder is reachable, so status()
+	// never has to interpret a nil pointer as "no mitigation".
+	r.published.Store(&mitigationStatus{})
+	return r
+}
+
+// setStatus records the mitigation state and republishes the lock-free snapshot
+// status() reads. Caller holds r.mu.
+func (r *responder) setStatus(active bool, target ddosevent.VectorTuple) {
+	r.active = active
+	r.target = target
+	r.published.Store(&mitigationStatus{active: active, target: target})
 }
 
 // onDetected installs the fast coarse drop for the victim (all traffic to the
@@ -166,13 +195,12 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		} else if rbErr := applyAll(); rbErr != nil {
 			logger().Error("ddos-local: rollback after failed apply also failed", "error", rbErr, "phase", phase)
 		}
-		r.active = false
+		r.setStatus(false, r.target)
 		logger().Error("ddos-local: failed to apply drop rule", "error", err, "phase", phase)
 		return
 	}
 
-	r.active = true
-	r.target = target
+	r.setStatus(true, target)
 	logger().Info("ddos-local: drop rule installed",
 		"target", target.DstPrefix, "hook", hookChainName(hook), "phase", phase)
 }
@@ -213,16 +241,24 @@ func (r *responder) removeMitigation() {
 	if err := applyAll(); err != nil {
 		logger().Error("ddos-local: failed to remove drop rule", "error", err)
 	}
-	r.active = false
 	logger().Info("ddos-local: drop rule removed", "target", r.target.DstPrefix)
+	r.setStatus(false, r.target)
 }
 
-// status returns a mutex-safe snapshot for the show handler: whether an on-host
-// drop is currently installed and, if so, the target vector it covers.
+// status returns the published snapshot for the show handler: whether an on-host
+// drop is currently installed and, if so, the target vector it covers. It takes
+// NO lock on purpose -- r.mu is held across the firewall reconcile, so reading
+// through it would make show ddos local wait out a netlink round trip.
 func (r *responder) status() (active bool, target ddosevent.VectorTuple) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.active, r.target
+	s := r.published.Load()
+	if s == nil {
+		// Unreachable: newResponder publishes the idle snapshot before the
+		// responder is shared. Answering "no mitigation" for an unpublished
+		// responder is the fail-closed reading -- it never claims a drop that
+		// the kernel does not hold.
+		return false, ddosevent.VectorTuple{}
+	}
+	return s.active, s.target
 }
 
 // familyFromPrefix maps the victim prefix to the nft table's address family.
