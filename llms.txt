@@ -15,15 +15,15 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 40 direct Go dependencies, 33 weekly change entries.
-- Test evidence counts: 20,100+ unit tests, 72 fuzz targets, 1,400+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
-- Generated date: 2026-07-27.
+- Test evidence counts: 21,000+ unit tests, 76 fuzz targets, 1,500+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
+- Generated date: 2026-08-03.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 20,100+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 72 fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 21,000+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 76 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
@@ -803,6 +803,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 ## Complete documentation index
 
 - [Ze Architecture](https://ze-software.net/docs/architecture/index.md): A one-page guide to how Ze is structured. For the full design document with rationale, wire format details, and performance analysis, see DESIGN.md. For the canonical architecture reference, see... (web: https://ze-software.net/docs/architecture/)
+- [Configuration Syntax Changes](https://ze-software.net/docs/architecture/config/deprecated-options/index.md): Ze has not shipped a stable configuration release yet. There is no public deprecation lifecycle for old config versions, and Ze does not promise a numbered generation ladder for config syntax. (web: https://ze-software.net/docs/architecture/config/deprecated-options/)
 - [Interoperability Testing](https://ze-software.net/docs/architecture/testing/interop/index.md): Ze validates protocol correctness against production BGP daemons in two complementary ways: live session interop tests (Docker containers running real daemons) and byte-level wire format validation against ExaBGP (Ze's... (web: https://ze-software.net/docs/architecture/testing/interop/)
 - [Ze Features](https://ze-software.net/docs/features/index.md): Ze is a network operating system written in Go. It runs on any Linux or as a gokrazy appliance. (web: https://ze-software.net/docs/features/)
 - [AI-First Design](https://ze-software.net/docs/features/ai-first/index.md): Ze is built around a single command and discovery surface. Commands, configuration nodes, RPCs, events, and plugin metadata are registered once, then exposed through MCP and the operator interfaces that need them. AI... (web: https://ze-software.net/docs/features/ai-first/)
@@ -866,7 +867,6 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Performance Comparison](https://ze-software.net/docs/performance/index.md): Ze-perf establishes two BGP sessions with a device under test (DUT): a sender and a receiver. The sender injects routes and records when each was sent. The receiver parses incoming UPDATEs and records when each prefix... (web: https://ze-software.net/docs/performance/)
 - [VPP Deployment Reference](https://ze-software.net/docs/research/vpp-deployment-reference/index.md): Source: 83 blog articles from ipng.ch (Pim van Pelt / IPng Networks, AS8298 / AS50869), VyOS VPP integration, and GoVPP documentation. (web: https://ze-software.net/docs/research/vpp-deployment-reference/)
 - [Command Ownership and Plugin Structure](https://ze-software.net/docs/architecture/command-ownership/index.md): Every feature in Ze passes two folder tests: (web: https://ze-software.net/docs/architecture/command-ownership/)
-- [Deprecated Configuration Options](https://ze-software.net/docs/architecture/config/deprecated-options/index.md): This document lists configuration syntax that has been deprecated and the migration path for each. (web: https://ze-software.net/docs/architecture/config/deprecated-options/)
 - [Route Selection](https://ze-software.net/docs/architecture/route-selection/index.md): Every route received by ze goes through two phases before it can become the best path for a prefix. Phase 1 determines whether the route is valid and eligible. Phase 2 determines which eligible route wins. A route that... (web: https://ze-software.net/docs/architecture/route-selection/)
 - [Ze System Architecture](https://ze-software.net/docs/architecture/system-architecture/index.md): Status: Superseded / legacy design note (kept for background only) Last Updated: 2026-01-30 Purpose: Describes Ze's hub/orchestrator mode with separate plugin processes (web: https://ze-software.net/docs/architecture/system-architecture/)
 - [.ci Test File Format](https://ze-software.net/docs/architecture/testing/ci-format/index.md): The `.ci` format is used by Ze's test runner to define functional tests. It supports embedded files (Tmpfs), test options, expectations, and commands. (web: https://ze-software.net/docs/architecture/testing/ci-format/)
@@ -896,7 +896,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Logging](https://ze-software.net/docs/guide/logging/index.md): Ze uses hierarchical, structured logging with runtime-configurable levels per subsystem. (web: https://ze-software.net/docs/guide/logging/)
 - [Looking Glass](https://ze-software.net/docs/guide/looking-glass/index.md): Ze includes a built-in looking glass that provides public, read-only access to BGP session state and route information. It runs as a separate HTTP server from the authenticated web UI. (web: https://ze-software.net/docs/guide/looking-glass/)
 - [Chaos MCP Server](https://ze-software.net/docs/guide/mcp/chaos/index.md): ze-chaos includes an MCP (Model Context Protocol) server that lets AI assistants query chaos test state, detect problems, and control the chaos scheduler. (web: https://ze-software.net/docs/guide/mcp/chaos/)
-- [MCP Elicitation](https://ze-software.net/docs/guide/mcp/elicitation/index.md): Ze implements the MCP 2025-06-18 elicitation capability. A tool handler that needs information it does not have yet -- typically because the client omitted an argument -- can ask the client for it mid-dispatch instead... (web: https://ze-software.net/docs/guide/mcp/elicitation/)
+- [MCP Elicitation](https://ze-software.net/docs/guide/mcp/elicitation/index.md): Ze can ask an MCP client for a value it needs but was not given. Under protocol revision `2026-07-28` it does so through Multi Round-Trip Requests (MRTR): the server does not send the client a request, it returns one. (web: https://ze-software.net/docs/guide/mcp/elicitation/)
 - [MCP Integration](https://ze-software.net/docs/guide/mcp/overview/index.md): Ze includes an MCP (Model Context Protocol) server that lets AI assistants control BGP operations. The server runs inside the daemon and wraps the same command dispatcher used by the CLI and web interface. (web: https://ze-software.net/docs/guide/mcp/overview/)
 - [MCP Remote Access](https://ze-software.net/docs/guide/mcp/remote-access/index.md): Ze's MCP server defaults to loopback binding (`127.0.0.1`). Two patterns make it reachable from other machines: (web: https://ze-software.net/docs/guide/mcp/remote-access/)
 - [MPLS](https://ze-software.net/docs/guide/mpls/index.md): Ze can act as a Linux MPLS label-switching router (LSR). BGP labeled-unicast routes (RFC 8277) received from peers are programmed into the kernel MPLS FIB as label-push entries, so Ze forwards labeled traffic without... (web: https://ze-software.net/docs/guide/mpls/)
