@@ -1342,9 +1342,24 @@ deleted on failure.</p>
 <p>The mechanism is driven by the <code>ze:ensure-exists</code> YANG extension on the
 type containers (<code>dummy</code>, <code>bridge</code>). The dispatch system builds an ensure
 chain at registration time and wraps the leaf handler automatically.</p>
-<!-- source: internal/component/iface/yang/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge -->
-<!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain -->
-<!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateDummy, handleCreateBridge -->
+<p>Telling those two rollback cases apart requires the creation handler to
+report whether it created the resource or found it already present. That
+report is mandatory: if a handler on an ensure-exists path returns no
+<code>created</code> flag, the command is refused with <code>ensure-exists contract
+violation</code> naming the handler, and the sub-resource step never runs.
+Ze fails closed here rather than guessing, because each guess corrupts a
+different case: assuming "created" would delete an interface the operator
+already owned, and assuming "not created" would leave a half-built
+interface behind.</p>
+<p><code>veth</code> has no compound form. Creating a veth creates a <em>pair</em>, so it needs
+a peer name, and the ensure chain invokes parent handlers with no arguments
+(it only knows the parent's name selector). There is nowhere in
+<code>create interface veth name &lt;name&gt; unit &lt;vid&gt;</code> to put the peer, so veth is
+deliberately absent from the table above; create the pair first, then use
+the direct form on either end.</p>
+<!-- source: internal/component/iface/yang/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge; veth has none -->
+<!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain, wasCreated, ErrEnsureContract -->
+<!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateTyped; handleCreateVeth requires a peer arg -->
 
 <h2 id="backend-implementations">Backend Implementations</h2>
 <p>The <code>Backend</code> interface declares 34 methods. Three implementations ship in

@@ -14,7 +14,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 40 direct Go dependencies, 33 weekly change entries.
+- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 40 direct Go dependencies, 34 weekly change entries.
 - Test evidence counts: 21,000+ unit tests, 76 fuzz targets, 1,500+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
 - Generated date: 2026-08-03.
 
@@ -223,7 +223,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: none. YANG files: 6. Source: `internal/component/iface`.
-- `ipsec-interface`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: config-loaded, interface. Optional: none. YANG files: 0. Source: `internal/component/ike/engine`.
+- `ipsec-cookie-threshold`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: config-loaded. Optional: none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `isis`: Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Config roots: isis. Dependencies: fib-kernel, sysctl. Optional: none. YANG files: 2. Source: `internal/plugins/isis`.
 - `kernel`: Kernel routes: redistribute externally-installed kernel routes into BGP Config roots: kernel. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/kernel`.
 - `l2tp-auth-local`: Static local user list for L2TP PPP authentication Config roots: l2tp. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/l2tp/plugins/authlocal`.
@@ -1029,7 +1029,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress
 - [Roadmap](https://ze-software.net/roadmap/index.md): The path to a first release you can trust (web: https://ze-software.net/roadmap/)
 - [Milestones](https://ze-software.net/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/milestones/)
-- [Changes](https://ze-software.net/changes/index.md): 33 weekly updates, newest first (web: https://ze-software.net/changes/)
+- [Changes](https://ze-software.net/changes/index.md): 34 weekly updates, newest first (web: https://ze-software.net/changes/)
 - [Activity](https://ze-software.net/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/activity/)
 ### Community
 - [Blog](https://ze-software.net/blog/index.md): Longer project notes and release stories (web: https://ze-software.net/blog/)

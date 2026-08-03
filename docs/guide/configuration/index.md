@@ -1133,18 +1133,38 @@ vpn {
 }
 ```
 
-Encryption algorithms: `aes128`, `aes256`, `aes128gcm`, `aes256gcm`, `chacha20poly1305`, `3des`.
-Hash algorithms: `sha1`, `sha256`, `sha384`, `sha512`.
+Encryption algorithms: `aes128`, `aes256`, `aes128gcm`, `aes256gcm`. The schema also names
+`chacha20poly1305` and `3des`, and no build carries a transform for either. A proposal
+that names one is refused at commit, and the refusal lists the implemented set.
+Hash algorithms: `sha256`, `sha384`, `sha512`. The schema also names `sha1`, and no build
+carries a transform for it, so the same refusal applies.
+
+An IKE proposal requires `hash` beside every cipher, because it names the PRF that
+RFC 7296 Section 3.3.3 makes mandatory. An ESP proposal requires `hash` beside a non-AEAD
+cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its own
+integrity.
 DH groups: 1-31 (14 = MODP-2048 recommended minimum).
-Authentication modes: `pre-shared-secret` (with `$9$`-encoded key) or `x509` (PKI store references).
+Authentication modes: `pre-shared-secret` (with a `$9$`-encoded key), `x509` (PKI store
+references), `eap-tls`, or `eap-mschapv2`.
 
 Cross-reference validation runs at config load: peer IKE/ESP group references must name
-defined groups, X.509 `ca-certificate` and `certificate` names must exist in the PKI store,
+defined groups, `ca-certificate` and `certificate` names must exist in the PKI store,
 and `local-id` must match the certificate's subject CN.
+
+A `ca-certificate` is mandatory for `x509` and for every EAP mode. It is the trust anchor
+the remote certificate must chain to, and without one any self-signed certificate would
+authenticate. Every EAP mode also needs a `certificate`, which the responder signs its
+AUTH with (RFC 7296 Section 2.16). Set `remote-id` as well whenever the authority issues
+to more than one client: it is what binds the certificate to this peer. See
+[IPsec VPN](../ipsec/index.md) for the identity rules.
+
+This validation runs at commit and at reload. It does not run under
+`ze config validate`, which reads the schema and does not run a plugin's config verifier.
 
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- IPsec YANG schema -->
 <!-- source: internal/component/ike/ipsec/config.go -- IPsec config parser -->
 <!-- source: internal/component/ike/ipsec/validate.go -- cross-reference validation -->
+<!-- source: internal/component/ike/engine/config.go -- validateIPsecSections is the ike plugin's OnConfigVerify body -->
 
 ## Interface Configuration
 

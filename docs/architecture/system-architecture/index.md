@@ -10,11 +10,12 @@
 > accurate, but several concrete details have changed and its examples no longer
 > match the shipping system:
 >
-> - The daemon is started with `ze start`, not `ze config.conf` or
->   `ze /etc/ze/config.conf`.
+> - The daemon is started with `ze start <config-file>`. The bare `ze <config-file>`
+>   launch form was removed from the CLI; the examples below have been corrected to
+>   the surviving form.
 > - The `local-as` / `peer-as` / `peer-group` config grammar shown here has been
 >   removed; local AS is now `session { asn { local ... } }` and peer groups are
->   `group` blocks (see [deprecated config options](../config/deprecated-options/index.md)
+>   `group` blocks (see [configuration syntax changes](../config/deprecated-options/index.md)
 >   and [config syntax](https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md)).
 > - Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
 >   as separate `external ... { run "ze bgp" }` processes; the `external` block
@@ -60,7 +61,7 @@ strings do not carry or override identity metadata.
 
 ```
                            ┌─────────────────────┐
-                           │    ze config.conf   │
+                           │ ze start config.conf│
                            │      (hub)          │
                            └──────────┬──────────┘
                                       │
@@ -97,7 +98,7 @@ When running, you'll see these processes:
 
 ```
 $ ps aux | grep ze
-user  1234  ze config.conf          # Hub process
+user  1234  ze start config.conf    # Hub process
 user  1235  ze bgp                  # BGP protocol handler
 user  1236  ze rib                  # Adj-RIB tracking
 user  1237  ze gr                   # Graceful Restart
@@ -351,7 +352,7 @@ ze config reload
 ```
 
 **Same binary, two modes:**
-- `ze config.conf` → starts as daemon, listens on SSH port
+- `ze start config.conf` → starts as daemon, listens on SSH port
 - `ze bgp peer list` → connects to running daemon as SSH client
 
 SSH target configurable via env vars `ze_ssh_host` and `ze_ssh_port`
@@ -758,7 +759,7 @@ $ ze config reload
 [hub] Reload complete
 
 # Graceful shutdown
-$ kill -TERM $(pgrep -f "ze config.conf")
+$ kill -TERM $(pgrep -f "ze start config.conf")
 [hub] Received SIGTERM, shutting down
 [hub] Notifying plugins...
 [bgp] Sending NOTIFICATION to peers
@@ -773,7 +774,7 @@ $ kill -TERM $(pgrep -f "ze config.conf")
 - [Hub Architecture](https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md) - Hub mode internal design details
 - [Process Protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md) - 5-stage protocol specification
 - [YANG Config Design](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md) - Schema design
-- [Config Dispatch](https://github.com/ze-software/ze/blob/main/docs/../plan/learned/189-config-dispatch.md) - Mode selection by config content (completed)
+- Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into [Design History](https://github.com/ze-software/ze/blob/main/docs/../plan/learned/DESIGN-HISTORY.md), whose header gives the git-recovery route
 
 ---
 

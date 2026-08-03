@@ -76,6 +76,21 @@ The OTC (Only To Customer) attribute (type 35) prevents route leaks:
 | Customer, RS-Client, Peer | Add OTC with local ASN if not present |
 | Provider, Peer, RS | Do not send routes that have OTC |
 
+### Scope
+
+Both tables act on a *route*, so OTC processing is bounded twice:
+
+| Bound | Effect |
+|-------|--------|
+| Address family | Only AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast). The family comes from MP_REACH_NLRI, or from MP_UNREACH_NLRI when the UPDATE only withdraws, so a VPN, EVPN, flowspec or multicast **withdrawal** is excluded exactly as its announcement is, per RFC 9234 Section 5's "MUST NOT be applied to other address families by default" |
+| Reachable NLRI | OTC is added only to an UPDATE that advertises a route. A withdraw-only UPDATE, an MP_UNREACH-only UPDATE and an End-of-RIB marker are forwarded untouched. Adding an attribute to them would produce a message RFC 4271 Section 4.3 says must not carry path attributes, which RFC 7606 Section 5.2 lets a conforming peer escalate to a session reset |
+
+<!-- source: internal/component/bgp/plugins/role/otc.go -- isPayloadUnicast, payloadAdvertisesNLRI -->
+
+Suppression is not bounded by the second rule: a route that already carries OTC
+is withheld from a Provider, Peer, or RS whether or not this particular UPDATE
+advertises it.
+
 ## Strict Mode
 
 When `strict true` is set, ze requires the peer to advertise the Role capability in its OPEN message. If the peer does not, ze sends a Role Mismatch NOTIFICATION and rejects the session.

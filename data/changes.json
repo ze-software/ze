@@ -1,5 +1,127 @@
 [
   {
+    "slug": "2026-07-27",
+    "intro": "IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "Interop",
+        "category": "meta",
+        "key": "Interop"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Route Server",
+        "category": "routing",
+        "key": "Route Server"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
+        "label": "BMP",
+        "category": "routing",
+        "key": "BMP"
+      },
+      {
+        "label": "MRT",
+        "category": "observe",
+        "key": "MRT"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
+      },
+      {
+        "label": "MCP",
+        "category": "automate",
+        "key": "MCP"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Web UI",
+        "category": "operate",
+        "key": "Web UI"
+      },
+      {
+        "label": "Plugins",
+        "category": "automate",
+        "key": "Plugins"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "VPP",
+        "category": "platform",
+        "key": "VPP"
+      },
+      {
+        "label": "Storage",
+        "category": "platform",
+        "key": "Storage"
+      },
+      {
+        "label": "Diagnostics",
+        "category": "observe",
+        "key": "Diagnostics"
+      },
+      {
+        "label": "Performance",
+        "category": "platform",
+        "key": "Performance"
+      },
+      {
+        "label": "DNS",
+        "category": "services",
+        "key": "DNS"
+      },
+      {
+        "label": "IS-IS",
+        "category": "routing",
+        "key": "IS-IS"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Under the Hood",
+        "category": "platform",
+        "key": "Under the Hood"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-07-20",
     "intro": "Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.",
     "is_draft": false,

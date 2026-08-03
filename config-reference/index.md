@@ -1327,7 +1327,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
 - **session** `container`
   Global BGP session defaults
   - **allow-shared-router-id** `boolean`
-    Accept a peer whose BGP Identifier (router-id) duplicates another established peer in the same AS. Default false enforces AS-wide uniqueness by rejecting the second OPEN with Bad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide uniqueness only a SHOULD, so accepting a shared identifier is conformant; set true when the duplication is intentional, e.g. one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same router-id. When true, ze performs no router-id uniqueness check at all (it does not implement RFC 6286 Section 2.3 collision detection).
+    Accept a peer whose BGP Identifier (router-id) duplicates another established peer in the same AS. Default false enforces AS-wide uniqueness by rejecting the second OPEN with Bad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide uniqueness only a SHOULD, so accepting a shared identifier is conformant; set true when the duplication is intentional, e.g. one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same router-id. When true, only the AS-wide uniqueness claim is skipped. RFC 6286 Section 2.2 validation (a zero identifier, or this speaker's own identifier from an internal peer) still applies, and Section 2.3 connection collision resolution is implemented and likewise not gated by this leaf.
   - **asn** `container`
     AS number configuration
     - **local** `asn`
@@ -4350,7 +4350,7 @@ OSPFv2 routing instance configuration.
 
 ## pki
 
-*Provided by `ipsec-interface`*
+*Provided by `ipsec-cookie-threshold`*
 
 PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems.
 
@@ -5270,7 +5270,7 @@ Traffic subsystem: QoS control and byte-usage accounting.
 
 ## vpn
 
-*Provided by `ipsec-interface`*
+*Provided by `ipsec-cookie-threshold`*
 
 VPN subsystems.
 

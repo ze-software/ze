@@ -78,6 +78,8 @@
 <li><a href="#per-peer">Per-Peer</a></li>
 <li><a href="#startup-and-connection-timing">Startup and Connection Timing</a></li>
 <li><a href="#forward-pool-congestion">Forward Pool / Congestion</a></li>
+<li><a href="#attribute-index">Attribute Index</a></li>
+<li><a href="#egress-modification-failures">Egress Modification Failures</a></li>
 <li><a href="#prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</a></li>
 </ol></li>
 </ol></li>
@@ -765,6 +767,67 @@ diff nd.txt ze.txt
 </tr>
 </tbody>
 </table>
+<h4 id="attribute-index">Attribute Index</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_update_span_spill_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Received UPDATEs whose attribute count exceeded the inline span capacity</td>
+</tr>
+</tbody>
+</table>
+<p>Ze indexes the path attributes of every received UPDATE once, on the receive
+goroutine, and holds the first 8 spans inline. A 9th attribute puts the remainder
+on the heap and increments this counter. A public-internet corpus of 112M routes
+has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
+means either an unusual peer or an attribute set worth raising the inline size
+for.</p>
+<!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
+
+<h4 id="egress-modification-failures">Egress Modification Failures</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_update_modify_failed_total</code></td>
+<td>counter</td>
+<td><code>reason</code></td>
+<td>An egress modification could not be applied to a route</td>
+</tr>
+</tbody>
+</table>
+<p>A non-zero value means a configured modification (a next-hop rewrite, a community
+strip, a private-ASN removal) did not fit the route it applied to. The <code>reason</code>
+label set is closed: <code>malformed</code>, <code>overflow</code>, <code>attr-length-range</code>,
+<code>withdrawn-size</code>. Two further values exist and both indicate a defect rather than
+peer input: <code>no-failure</code> must never be emitted, and <code>unclassified</code> means a reason
+reached the counter that no constant produced.</p>
+<!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+
+<p>Treat any increment as a policy that did not take effect. Ze counts the failure
+at the point the modification is built, on all five paths that build one: the
+forward rail, the route-server rail, the ingress and egress policy chains, and
+the RFC 9494 stale re-advertise rail.</p>
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
+
 <h4 id="prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</h4>
 <table>
 <thead>

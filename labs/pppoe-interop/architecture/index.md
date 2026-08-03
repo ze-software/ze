@@ -55,10 +55,18 @@ privileged container. If either is missing, the runner exits non-zero with a
 clear message; it never skips or downgrades. Setting `ZE_PPPOE_SKIP_KERNEL_PROBE`
 or `ze.pppoe.skip-kernel-probe` causes an immediate refusal.
 
-Docker Desktop on macOS typically cannot pass this check (its Linux VM lacks the
-`pppoe` module); use the QEMU path below there. The accel-ppp image installs the
-Alpine `accel-ppp` package (the same build the QEMU runner uses), so the image
-build is fast.
+Let the probe decide, rather than the host operating system. Docker Desktop on
+macOS was measured on 2026-08-01 and its Linux VM DID supply both `pppoe` and
+`/dev/ppp`, so an earlier claim here that it "typically cannot pass this check"
+was wrong. Run the Docker path first. If the probe refuses, use the QEMU path
+below. The accel-ppp image installs the Alpine `accel-ppp` package (the same
+build the QEMU runner uses), so the image build is fast.
+
+<!-- source: test/pppoe-interop/lab.py -- preflight_strict -->
+
+Note that `l2tp_ppp` is a SEPARATE module and was absent on that same host, so
+the sibling L2TP lab (`docs/labs/l2tp-interop.md`) can still refuse where this
+one runs.
 
 ## Running
 

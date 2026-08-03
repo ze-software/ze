@@ -66,6 +66,7 @@
 <ol>
 <li><a href="#on-receipt">On Receipt</a></li>
 <li><a href="#on-send">On Send</a></li>
+<li><a href="#scope">Scope</a></li>
 </ol></li>
 <li><a href="#strict-mode">Strict Mode</a></li>
 <li><a href="#without-role">Without Role</a></li>
@@ -234,6 +235,31 @@
 </tr>
 </tbody>
 </table>
+<h3 id="scope">Scope</h3>
+<p>Both tables act on a <em>route</em>, so OTC processing is bounded twice:</p>
+<table>
+<thead>
+<tr>
+<th>Bound</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Address family</td>
+<td>Only AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast). The family comes from MP_REACH_NLRI, or from MP_UNREACH_NLRI when the UPDATE only withdraws, so a VPN, EVPN, flowspec or multicast <strong>withdrawal</strong> is excluded exactly as its announcement is, per RFC 9234 Section 5's "MUST NOT be applied to other address families by default"</td>
+</tr>
+<tr>
+<td>Reachable NLRI</td>
+<td>OTC is added only to an UPDATE that advertises a route. A withdraw-only UPDATE, an MP_UNREACH-only UPDATE and an End-of-RIB marker are forwarded untouched. Adding an attribute to them would produce a message RFC 4271 Section 4.3 says must not carry path attributes, which RFC 7606 Section 5.2 lets a conforming peer escalate to a session reset</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/role/otc.go -- isPayloadUnicast, payloadAdvertisesNLRI -->
+
+<p>Suppression is not bounded by the second rule: a route that already carries OTC
+is withheld from a Provider, Peer, or RS whether or not this particular UPDATE
+advertises it.</p>
 <h2 id="strict-mode">Strict Mode</h2>
 <p>When <code>strict true</code> is set, ze requires the peer to advertise the Role capability in its OPEN message. If the peer does not, ze sends a Role Mismatch NOTIFICATION and rejects the session.</p>
 <p>When strict mode is off (default), ze proceeds even if the peer does not advertise Role. OTC filtering is applied based on the locally configured role.</p>

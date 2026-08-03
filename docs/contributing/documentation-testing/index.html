@@ -116,6 +116,11 @@ checks needed for the current diff and is included in <code>make ze-verify</code
 <td>Every number is claimed by exactly one summary, and each H1 number matches its filename. Duplicates are invisible to <code>commit_helper.py learned-next</code>, which allocates max(existing prefixes)+1 against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with <code>make ze-learned-numbers-fix</code>, then <code>make ze-discovery-index</code>. <span class="ev-src"><span class="ev-ref"><code>plan/learned/NNN-*.md</code></span></span></td>
 </tr>
 <tr>
+<td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/learned_staleness.py</code></span></span></td>
+<td><code>ze-learned-staleness</code> and <code>ze-doc-test</code></td>
+<td>Every path a lists in its <code>## Files</code> section still resolves, and every <code>plan/learned/NNN</code> citation still names a summary. A summary is read through <code>## Files</code> and every <code>## Files &lt;qualifier&gt;</code> heading, so a second <code>## Files Modified</code> section is checked rather than skipped. A summary with no <code>## Files</code> section, or one that cannot be read, is reported. An empty finding list must mean every summary was read, never that the parser gave up. A <code>. </code> token, or a path whose real target leaves the tree, is reported and never resolved. Findings are counted against the shrink-only ceiling. More than the ceiling fails the gate, and fewer rewrites it down. The corpus held 1,860 dead references when the gate landed, which is why the ceiling exists. <span class="ev-src"><span class="ev-ref"><code>plan/learned/NNN-*.md</code></span><span class="ev-ref"><code>plan/.learned-staleness-baseline</code></span></span></td>
+</tr>
+<tr>
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/lint/consistency.go</code></span></span></td>
 <td><code>ze-consistency</code></td>
 <td>Mixed code/doc consistency: <code>// Design:</code> references on <code>.go</code> files, cross-reference bidirectionality (<code>// Detail:</code> &lt;-&gt; <code>// Overview:</code>), stale package references in docs and scripts.</td>
@@ -124,6 +129,11 @@ checks needed for the current diff and is included in <code>make ze-verify</code
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/verify_wiring_docs.py</code></span></span></td>
 <td><code>ze-verify-wiring-docs</code></td>
 <td>Changed-file-aware router used by <code>make ze-verify</code>. It runs wiring checks for new exported Go symbols, <code>ze-validate-commands</code> for command sources, <code>ze-doc-test</code> and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources.</td>
+</tr>
+<tr>
+<td><code>scripts/dev/ste_check.py --check</code></td>
+<td><code>ze-ste-check</code>, and <code>commit_helper.py create</code></td>
+<td>The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with <code>make ze-ste-review</code>. Rule. <span class="ev-src"><span class="ev-ref"><code>ai/rules/simplified-technical-english.md</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -139,6 +149,7 @@ of code review, not doc review.</p>
 <!-- source: scripts/dev/learned_numbers.py -- check, fix -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
+<!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
 
 <h2 id="when-to-run">When to run</h2>
 <table>
@@ -149,6 +160,10 @@ of code review, not doc review.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>After you write any prose, in any file</td>
+<td><code>make ze-ste-review-changed</code></td>
+</tr>
 <tr>
 <td>After editing any file under <code>docs/</code></td>
 <td><code>make ze-doc-test</code></td>

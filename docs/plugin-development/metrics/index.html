@@ -65,6 +65,7 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 <li><a href="#scope-to-prefix-mapping">Scope-to-Prefix Mapping</a></li>
 <li><a href="#full-inventory">Full Inventory</a></li>
 </ol></li>
+<li><a href="#when-configuremetrics-runs">When ConfigureMetrics Runs</a></li>
 <li><a href="#nopregistry-fallback">NopRegistry Fallback</a></li>
 <li><a href="#which-plugins-need-metrics">Which Plugins Need Metrics</a></li>
 <li><a href="#reference-implementation">Reference Implementation</a></li>
@@ -76,7 +77,8 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 <ol>
 <li>
 <p><strong>Registration:</strong> Set <code>ConfigureMetrics</code> in the <code>Registration</code> struct inside
-   <code>init()</code>. The callback type-asserts the <code>any</code> parameter to <code>metrics.Registry</code>.</p>
+   <code>init()</code>. The callback receives a typed <code>metrics.Registry</code>; no assertion is
+   needed.</p>
 </li>
 <li>
 <p><strong>Storage:</strong> Declare a package-level <code>atomic.Pointer</code> holding a metrics struct.
@@ -128,6 +130,7 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- ze_rib_* metric names -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
 
 <h3 id="type-specific-rules">Type-Specific Rules</h3>
 <table>
@@ -290,6 +293,11 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td><code>persist</code></td>
 <td><code>bgp</code> prefix redundant</td>
 </tr>
+<tr>
+<td><code>bgp-role</code></td>
+<td><code>role</code></td>
+<td><code>bgp</code> prefix redundant</td>
+</tr>
 </tbody>
 </table>
 <h3 id="full-inventory">Full Inventory</h3>
@@ -356,6 +364,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>GaugeVec</td>
 <td>pool</td>
 <td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_bgp_attr_mod_remove_buffer_refused_total</code></td>
+<td>CounterVec</td>
+<td>attribute</td>
+<td>bgp reactor (filterapi)</td>
 </tr>
 <tr>
 <td><code>ze_gr_active_peers</code></td>
@@ -458,6 +472,18 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>CounterVec</td>
 <td>result</td>
 <td>bgp-rpki</td>
+</tr>
+<tr>
+<td><code>ze_role_route_rejects_total</code></td>
+<td>CounterVec</td>
+<td>reason</td>
+<td>bgp-role</td>
+</tr>
+<tr>
+<td><code>ze_role_route_suppressions_total</code></td>
+<td>CounterVec</td>
+<td>reason</td>
+<td>bgp-role</td>
 </tr>
 <tr>
 <td><code>ze_persist_routes_stored</code></td>
@@ -1001,6 +1027,25 @@ and NSM events.</p>
 labelled series above and on the SPF route-install gauge
 <code>ze_isis_routes_installed{level,afi}</code>. IPv4 uses <code>afi=ipv4</code>; the IPv6 install pass
 runs over the same shared SPF tree.</p>
+<h2 id="when-configuremetrics-runs">When ConfigureMetrics Runs</h2>
+<p>The hook does <strong>not</strong> fire while the plugin is being spawned. <code>runPluginPhase</code>
+starts every process of a startup phase before it runs the tier-ordered
+handshake, and the Prometheus registry is not created until the bgp plugin's
+stage-2 <code>OnConfigure</code> builds the reactor — so at spawn time there is usually no
+registry yet. <code>registry.InjectPluginMetrics</code> therefore defers the hook and
+<code>registry.SetMetricsRegistry</code> drains the deferred set the moment a registry
+exists; whichever of the two happens second performs the injection, exactly once
+per plugin.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- InjectPluginMetrics, SetMetricsRegistry -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase spawns before the tier handshake -->
+
+<p>Two consequences for a plugin author:</p>
+<ul>
+<li>Do not read your metrics struct during <code>init()</code> or at the top of <code>RunEngine</code>;
+  load the atomic pointer at each metric update point, as step 3 above says.</li>
+<li>Declaring a <code>Dependency</code> on <code>bgp</code> does not order the injection. Dependencies
+  order the 5-stage handshake, not the spawn the hook used to be bound to.</li>
+</ul>
 <h2 id="nopregistry-fallback">NopRegistry Fallback</h2>
 <p>When telemetry is disabled in config, plugins receive a <code>NopRegistry</code> that returns
 no-op metric implementations. The nil-check on the atomic pointer handles the case
@@ -1026,14 +1071,25 @@ with state machines, caches, or I/O operations benefit from metrics.</p>
 </tr>
 <tr>
 <td>Plugins with external I/O (fib-kernel, rpki)</td>
-<td>Capability-only plugins (bgp-role)</td>
+<td>Pure capability-only plugins</td>
 </tr>
 <tr>
 <td>Plugins with timers/state machines (gr, watchdog)</td>
 <td>Format/encoding plugins</td>
 </tr>
+<tr>
+<td>Plugins that drop or withhold routes (bgp-role)</td>
+<td></td>
+</tr>
 </tbody>
 </table>
+<p>A plugin that can refuse a route needs metrics even if it holds no state: a
+suppression is invisible to the operator otherwise. <code>bgp-role</code> was once listed
+as capability-only, but it filters every UPDATE on ingress and egress, so each
+of its refusal paths carries a reason-labeled counter.</p>
+<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+
 <h2 id="reference-implementation">Reference Implementation</h2>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,

@@ -131,6 +131,7 @@
 <li><a href="#101-architecture-docs">10.1 Architecture Docs</a></li>
 <li><a href="#102-rfc-summary">10.2 RFC Summary</a></li>
 <li><a href="#103-config-examples">10.3 Config Examples</a></li>
+<li><a href="#104-extraction-sign-off">10.4 Extraction Sign-Off</a></li>
 </ol></li>
 <li><a href="#final-checklist">Final Checklist</a></li>
 <li><a href="#quick-reference-common-patterns">Quick Reference: Common Patterns</a>
@@ -575,15 +576,67 @@ inside a <code>terminator=</code> block):</p>
   <code>{single-polarity: positive|negative; why}</code> instead. <code>{gap: why; ref}</code> and
   <code>{not-applicable: why}</code> cover deliberate divergence and inapplicability, each
   with a reason (a bare annotation is rejected).</li>
-<li><strong><code>make ze-rfc-check</code> gates coverage; <code>make ze-rfc-index</code> renders the ledger.</strong>
-  For an enrolled RFC (<code>rfc/enrolled.txt</code>) the gate fails unless every MUST has its
-  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC;
-  enrollment is a separate, deliberate step taken once the tests exist.</li>
+<li><strong>Five RFC make targets, and each clears a different red.</strong></li>
+<li><code>make ze-rfc-check</code> gates coverage and validates the audit records.</li>
+<li><code>make ze-rfc-index</code> renders the ledger (<code>ai/RFC-REQUIREMENTS.md</code>).</li>
+<li><code>make ze-rfc-extract STEM=&lt;stem&gt;</code> writes an extraction skeleton.</li>
+<li><code>make ze-rfc-extraction-status</code> prints the sign-off counts.</li>
+<li><code>make ze-rfc-reseal</code> re-stamps an audit verdict a mechanical edit staled.</li>
+</ul>
+<p>For an enrolled RFC (<code>rfc/enrolled.txt</code>) the gate fails unless every MUST has its
+  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC.
+  Enrollment is a separate, deliberate step taken once the tests exist.
+  <!-- source: Makefile — ze-rfc-check, ze-rfc-index, ze-rfc-extract, ze-rfc-extraction-status, ze-rfc-reseal --></p>
+<ul>
+<li><strong>Enrol it, or declare why not.</strong> Every summary under <code>rfc/short/</code> is in
+  <code>rfc/enrolled.txt</code> or in <code>rfc/not-enrolled.txt</code>. One in neither reds the gate.
+  Un-enrolment used to be the one state that carried no information. So "the RFC
+  imposes nothing", "nobody extracted it" and "we do not even have the text" all
+  looked identical. A disposition row is <code>&lt;stem&gt;</code> TAB <code>&lt;kind&gt;</code> TAB <code>&lt;reason&gt;</code>, with
+  kind one of <code>non-normative</code>, <code>backlog</code> or <code>blocked</code>.</li>
+</ul>
+<p>Only <code>non-normative</code> is a claim about conformance. Its reason must state a property
+  of the DOCUMENT: its category, a missing RFC 2119 section, a keyword scan. It must
+  never say the obligation does not apply to Ze. <code>backlog</code> and <code>blocked</code> are debt,
+  and the ledger renders them as debt. A row leaves the file only by arriving in
+  <code>rfc/enrolled.txt</code>.</p>
+<p>Two related reds come from the same place. First, a <code>docs/features/rfc-status.md</code>
+  row that claims support over a summary with zero gated requirements. The escape is
+  evidence that zero is real: a <code>non-normative</code> disposition, or a <code>manual-walk</code>
+  extraction sign-off whose <code>register-reason</code> says why. Second, a Remaining cell that
+  spells a gap count immediately before MUST or SHALL must agree with the summary's
+  <code>{gap}</code> count.
+  <!-- source: scripts/dev/rfc_requirements.py — check_summary_disposition, check_unproven_support, check_gap_count_agreement --></p>
+<ul>
 <li><strong>Audit letter and spirit with <code>/ze-rfc-audit &lt;rfc&gt;</code>.</strong> The gate proves a link
-  exists but cannot read the test. The audit reads the RFC itself and each tagged
-  test and judges whether the test would fail if the code stopped complying,
-  recording a per-requirement verdict that <code>make ze-rfc-check</code> re-stales when the
-  requirement text or a tagged test changes.</li>
+  exists, but it cannot read the test. The audit reads the RFC itself and each
+  tagged test. It then judges whether the test would fail if the code stopped
+  complying, and records a per-requirement verdict in <code>rfc/audit/&lt;rfc&gt;.json</code>.
+  The verdict is one of five closed values, and the gate reads it:</li>
+<li><code>enforced</code> is the only one that means proven.</li>
+<li><code>weak</code>, <code>wrong</code>, <code>unimplemented</code> and <code>not-applicable</code> each subtract the
+    requirement from the published proven count. That count is in the ledger's
+    <strong>Audit coverage</strong> section, and the gate still exits 0.</li>
+</ul>
+<p>Recording a finding is free, and deleting one is not. <code>make ze-rfc-check</code>
+  re-stales a verdict when the requirement text, the tagged test's own function,
+  or a cited producer changes.
+  <!-- source: scripts/dev/rfc_requirements.py — AUDIT_VERDICTS, check_audit_schema, audit_coverage --></p>
+<ul>
+<li>
+<p><strong>A <code>SHIFTED</code> verdict is not your problem to re-read.</strong> When the gate says a
+  verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
+  moved — a line shift, a sibling test, a rewritten import. Run
+  <code>make ze-rfc-reseal</code> then <code>make ze-rfc-index</code>. It is the only command that writes
+  <code>rfc/audit/</code>, and that is deliberate. A check that also wrote cannot be trusted
+  to report. And a regen target that wrote evidence would re-stamp hand-authored
+  judgements during unrelated work.
+  <!-- source: scripts/dev/rfc_requirements.py — verdict_freshness, run_reseal --></p>
+</li>
+<li>
+<p><strong>A <code>STALE</code> verdict is.</strong> The tagged unit itself changed, so re-run
+  <code>/ze-rfc-audit &lt;rfc&gt;</code>. The re-seal refuses that case by design.</p>
+</li>
 <li><strong>Never change a tagged test to make it pass.</strong> Once a test carries an
   <code>RFC requirement:</code> tag it is the requirement: fix your code, not the test.
   Changing its behavior needs explicit user approval recorded as
@@ -597,6 +650,7 @@ inside a <code>terminator=</code> block):</p>
 <pre><code>[ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
 [ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
 [ ] make ze-rfc-check passes; rfc/enrolled.txt lists the RFC once its tests exist
+[ ] If not enrolled: rfc/not-enrolled.txt carries a kind and a reason for it
 </code></pre>
 <hr />
 <h2 id="phase-10-documentation">Phase 10: Documentation</h2>
@@ -612,11 +666,41 @@ inside a <code>terminator=</code> block):</p>
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
+[ ] Extraction sign-off recorded: make ze-rfc-extract STEM=rfcNNNN, then classify
+    every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 </code></pre>
 <h3 id="103-config-examples">10.3 Config Examples</h3>
 <pre><code>[ ] Add example configs showing feature usage
 [ ] Document in relevant architecture docs
 </code></pre>
+<h3 id="104-extraction-sign-off">10.4 Extraction Sign-Off</h3>
+<p>The checklist above proves the requirements you WROTE DOWN are enforced. Nothing
+in it bounds what the summary MISSED, and a green <code>make ze-rfc-check</code> is bounded
+by what was extracted. Record the walk in an artifact the gate re-checks:</p>
+<pre><code>make ze-rfc-extract STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
+                                      # classify every site and section by hand
+make ze-rfc-check                     # re-derives the inventory and judges it
+</code></pre>
+<p>Each derived site (<code>&lt;section&gt;:&lt;n&gt;</code>, with the sentence it came from) is <code>mapped</code>
+to a requirement id or <code>excluded</code> with a kind from a closed set and a reason;
+each section is <code>walked</code> or <code>skipped</code>. An unclassified site fails the gate, so
+generating the skeleton cannot produce a sign-off, only the walk can. Enrolling
+a stem that was not enrolled at HEAD REQUIRES this artifact. Contract and field
+reference: <code>rfc/extraction/README.md</code>.</p>
+<p>One exclusion kind does not dismiss its sentence. <code>relocated-to-spec</code> says the
+obligation is owed by a named spec, under an id reserved there, because an owner
+ruling moved it out of the summary. It authors <code>relocated-to</code>
+(<code>plan/spec-&lt;name&gt;.md</code>) and <code>reserved-id</code>, and the gate refuses the sign-off
+unless that spec exists and still names that id.</p>
+<!-- source: scripts/dev/rfc_requirements.py -- run_extract_skeleton/check_extraction_signoff/_relocation_errors -->
+
+<p>The counts machine-readably (signed, enrolled, the per-register split, the
+relocated count, and the unsigned backlog): <code>make ze-rfc-extraction-status</code>. Do NOT spell it
+<code>make ze-rfc-extraction-status --json</code> -- GNU make reads <code>--json</code> as one of its own
+options and exits 2 before the recipe runs. The target always emits JSON.</p>
+<!-- source: Makefile -- ze-rfc-extraction-status -->
+<!-- source: scripts/dev/rfc_requirements.py -- run_extraction_status -->
+
 <hr />
 <h2 id="final-checklist">Final Checklist</h2>
 <p>Before marking implementation complete:</p>

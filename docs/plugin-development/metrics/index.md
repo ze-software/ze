@@ -10,7 +10,8 @@ via the existing `ConfigureMetrics` callback in the `Registration` struct.
 Each plugin follows the same three-step pattern used by bgp-rib and bgp-gr:
 
 1. **Registration:** Set `ConfigureMetrics` in the `Registration` struct inside
-   `init()`. The callback type-asserts the `any` parameter to `metrics.Registry`.
+   `init()`. The callback receives a typed `metrics.Registry`; no assertion is
+   needed.
 
 2. **Storage:** Declare a package-level `atomic.Pointer` holding a metrics struct.
    The struct contains the counters and gauges created from the registry.
@@ -39,6 +40,7 @@ ze_{scope}_{subject}_{detail}
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- ze_rib_* metric names -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
 
 ### Type-Specific Rules
 
@@ -93,6 +95,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-watchdog` | `watchdog` | `bgp` prefix redundant |
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
 | `bgp-persist` | `persist` | `bgp` prefix redundant |
+| `bgp-role` | `role` | `bgp` prefix redundant |
 
 ### Full Inventory
 
@@ -107,6 +110,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_intern_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
+| `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
 | `ze_gr_active_peers` | Gauge | | bgp-gr |
 | `ze_gr_stale_routes` | GaugeVec | peer | bgp-gr |
 | `ze_gr_timer_expired_total` | CounterVec | peer | bgp-gr |
@@ -124,6 +128,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rpki_vrps_cached` | Gauge | | bgp-rpki |
 | `ze_rpki_sessions_active` | Gauge | | bgp-rpki |
 | `ze_rpki_validation_outcomes_total` | CounterVec | result | bgp-rpki |
+| `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
+| `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_persist_routes_stored` | Gauge | | bgp-persist |
 | `ze_persist_peers_tracked` | Gauge | | bgp-persist |
 | `ze_persist_route_replays_total` | Counter | | bgp-persist |
@@ -308,6 +314,27 @@ labelled series above and on the SPF route-install gauge
 `ze_isis_routes_installed{level,afi}`. IPv4 uses `afi=ipv4`; the IPv6 install pass
 runs over the same shared SPF tree.
 
+## When ConfigureMetrics Runs
+
+The hook does **not** fire while the plugin is being spawned. `runPluginPhase`
+starts every process of a startup phase before it runs the tier-ordered
+handshake, and the Prometheus registry is not created until the bgp plugin's
+stage-2 `OnConfigure` builds the reactor — so at spawn time there is usually no
+registry yet. `registry.InjectPluginMetrics` therefore defers the hook and
+`registry.SetMetricsRegistry` drains the deferred set the moment a registry
+exists; whichever of the two happens second performs the injection, exactly once
+per plugin.
+
+<!-- source: internal/component/plugin/registry/registry.go -- InjectPluginMetrics, SetMetricsRegistry -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase spawns before the tier handshake -->
+
+Two consequences for a plugin author:
+
+- Do not read your metrics struct during `init()` or at the top of `RunEngine`;
+  load the atomic pointer at each metric update point, as step 3 above says.
+- Declaring a `Dependency` on `bgp` does not order the injection. Dependencies
+  order the 5-stage handshake, not the spawn the hook used to be bound to.
+
 ## NopRegistry Fallback
 
 When telemetry is disabled in config, plugins receive a `NopRegistry` that returns
@@ -326,8 +353,17 @@ with state machines, caches, or I/O operations benefit from metrics.
 | Has metrics | No metrics needed |
 |-------------|-------------------|
 | Plugins with route state (rib, sysrib, persist) | NLRI codecs (bgp-nlri-*) |
-| Plugins with external I/O (fib-kernel, rpki) | Capability-only plugins (bgp-role) |
+| Plugins with external I/O (fib-kernel, rpki) | Pure capability-only plugins |
 | Plugins with timers/state machines (gr, watchdog) | Format/encoding plugins |
+| Plugins that drop or withhold routes (bgp-role) | |
+
+A plugin that can refuse a route needs metrics even if it holds no state: a
+suppression is invisible to the operator otherwise. `bgp-role` was once listed
+as capability-only, but it filters every UPDATE on ingress and egress, so each
+of its refusal paths carries a reason-labeled counter.
+
+<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
 
 ## Reference Implementation
 

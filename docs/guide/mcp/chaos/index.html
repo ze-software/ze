@@ -165,17 +165,32 @@ server is enabled.</p>
 <p>All problems are rate-limited: the same (anomaly-type, peer-index) pair prints
 at most once per 10 seconds.</p>
 <h2 id="protocol">Protocol</h2>
-<p>The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2025-06-18 Streamable
-HTTP transport at the <code>/mcp</code> endpoint, sharing the same implementation as the
-ze daemon's MCP server (<code>NewStreamable</code> with the chaos <code>ToolProvider</code>).
-Because the tool surface comes from a provider, session-less POSTs are
-accepted: each request below works standalone, no <code>Mcp-Session-Id</code> threading
-required.</p>
+<p>The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2026-07-28 Streamable
+HTTP transport at the <code>/mcp</code> endpoint. This server uses the same implementation
+as the ze daemon's MCP server: <code>NewStreamable</code> with the chaos <code>ToolProvider</code>.</p>
 <!-- source: internal/chaos/orchestrator/run.go -- NewStreamable(Provider) mount -->
+
+<p>The transport is stateless, so every request stands alone: no handshake, no
+session id to thread. Provider mode changes only which tools the server offers.
+Provider mode does not change how the server validates a request. A chaos
+request therefore carries the same standard headers and the same
+<code>params._meta</code> block as any other MCP request.</p>
+<!-- source: internal/component/mcp/streamable.go -- StreamableConfig.Provider, handlePOST -->
+
+<p><code>ze-chaos</code> configures no token and no auth mode, which infers <code>auth-mode none</code>:
+an authenticator that accepts every caller as an anonymous identity. There is
+no unauthenticated code path, only an accept-all authenticator.</p>
+<!-- source: internal/component/mcp/bearer.go -- noneAuthenticator.Authenticate -->
 
 <pre><code class="language-bash">curl -s http://127.0.0.1:8001/mcp \
   -H 'Content-Type: application/json' \
-  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/call&quot;,&quot;params&quot;:{&quot;name&quot;:&quot;chaos_status&quot;,&quot;arguments&quot;:{}}}'
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/call' \
+  -H 'Mcp-Name: chaos_status' \
+  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/call&quot;,&quot;params&quot;:{
+        &quot;name&quot;:&quot;chaos_status&quot;,&quot;arguments&quot;:{},
+        &quot;_meta&quot;:{&quot;io.modelcontextprotocol/protocolVersion&quot;:&quot;2026-07-28&quot;,
+                 &quot;io.modelcontextprotocol/clientCapabilities&quot;:{}}}}'
 </code></pre>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">

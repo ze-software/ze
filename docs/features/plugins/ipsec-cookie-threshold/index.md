@@ -1,4 +1,4 @@
-# `ipsec-interface` plugin
+# `ipsec-cookie-threshold` plugin
 
 IKEv2 engine for native IPsec VPN
 
@@ -17,7 +17,7 @@ IKEv2 engine for native IPsec VPN
 
 ## Dependencies
 
-- Required: `config-loaded`, [`interface`](../interface/index.md)
+- Required: `config-loaded`
 - Optional: None
 
 ## Used by

@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-07-27](2026-07-27/index.md)
+
+IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.
+
+Areas: IPsec, Security, Interop, BGP, Route Server, Flowspec, BMP, MRT, OSPF, MCP, CLI, Web UI, Plugins, L2TP, VPP, Storage, Diagnostics, Performance, DNS, IS-IS, RFC Compliance, Under the Hood, Quality Improvement
+
 ## [Week of 2026-07-20](2026-07-20/index.md)
 
 Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.

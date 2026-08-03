@@ -5,8 +5,14 @@
         <link>https://ze-software.net/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 20 Jul 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 27 Jul 2026 00:00:00 +0000</lastBuildDate>
         <item>
+            <title>Week of 2026-07-27</title>
+            <link>https://ze-software.net/changes/2026-07-27/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-27/</guid>
+            <pubDate>Mon, 27 Jul 2026 00:00:00 +0000</pubDate>
+            <description>IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.</description>
+        </item>        <item>
             <title>Week of 2026-07-20</title>
             <link>https://ze-software.net/changes/2026-07-20/</link>
             <guid isPermaLink="true">https://ze-software.net/changes/2026-07-20/</guid>

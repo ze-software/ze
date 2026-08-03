@@ -632,15 +632,14 @@
     "doc": {}
   },
   {
-    "name": "ipsec-interface",
+    "name": "ipsec-cookie-threshold",
     "description": "IKEv2 engine for native IPsec VPN",
     "config_roots": [
       "vpn",
       "pki"
     ],
     "dependencies": [
-      "config-loaded",
-      "interface"
+      "config-loaded"
     ],
     "optional_dependencies": [],
     "source_dir": "internal/component/ike/engine",

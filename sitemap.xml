@@ -112,6 +112,9 @@
     <loc>https://ze-software.net/changes/2026-07-20/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/changes/2026-07-27/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/cli/</loc>
   </url>
   <url>
@@ -1594,7 +1597,7 @@
     <loc>https://ze-software.net/docs/features/plugins/interface/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/docs/features/plugins/ipsec-interface/</loc>
+    <loc>https://ze-software.net/docs/features/plugins/ipsec-cookie-threshold/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/features/plugins/isis/</loc>

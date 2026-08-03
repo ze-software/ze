@@ -1458,16 +1458,33 @@ handles runtime negotiation.</p>
     }
 }
 </code></pre>
-<p>Encryption algorithms: <code>aes128</code>, <code>aes256</code>, <code>aes128gcm</code>, <code>aes256gcm</code>, <code>chacha20poly1305</code>, <code>3des</code>.
-Hash algorithms: <code>sha1</code>, <code>sha256</code>, <code>sha384</code>, <code>sha512</code>.
+<p>Encryption algorithms: <code>aes128</code>, <code>aes256</code>, <code>aes128gcm</code>, <code>aes256gcm</code>. The schema also names
+<code>chacha20poly1305</code> and <code>3des</code>, and no build carries a transform for either. A proposal
+that names one is refused at commit, and the refusal lists the implemented set.
+Hash algorithms: <code>sha256</code>, <code>sha384</code>, <code>sha512</code>. The schema also names <code>sha1</code>, and no build
+carries a transform for it, so the same refusal applies.</p>
+<p>An IKE proposal requires <code>hash</code> beside every cipher, because it names the PRF that
+RFC 7296 Section 3.3.3 makes mandatory. An ESP proposal requires <code>hash</code> beside a non-AEAD
+cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its own
+integrity.
 DH groups: 1-31 (14 = MODP-2048 recommended minimum).
-Authentication modes: <code>pre-shared-secret</code> (with <code>$9$</code>-encoded key) or <code>x509</code> (PKI store references).</p>
+Authentication modes: <code>pre-shared-secret</code> (with a <code>$9$</code>-encoded key), <code>x509</code> (PKI store
+references), <code>eap-tls</code>, or <code>eap-mschapv2</code>.</p>
 <p>Cross-reference validation runs at config load: peer IKE/ESP group references must name
-defined groups, X.509 <code>ca-certificate</code> and <code>certificate</code> names must exist in the PKI store,
+defined groups, <code>ca-certificate</code> and <code>certificate</code> names must exist in the PKI store,
 and <code>local-id</code> must match the certificate's subject CN.</p>
+<p>A <code>ca-certificate</code> is mandatory for <code>x509</code> and for every EAP mode. It is the trust anchor
+the remote certificate must chain to, and without one any self-signed certificate would
+authenticate. Every EAP mode also needs a <code>certificate</code>, which the responder signs its
+AUTH with (RFC 7296 Section 2.16). Set <code>remote-id</code> as well whenever the authority issues
+to more than one client: it is what binds the certificate to this peer. See
+<a href="../ipsec/">IPsec VPN</a> for the identity rules.</p>
+<p>This validation runs at commit and at reload. It does not run under
+<code>ze config validate</code>, which reads the schema and does not run a plugin's config verifier.</p>
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- IPsec YANG schema -->
 <!-- source: internal/component/ike/ipsec/config.go -- IPsec config parser -->
 <!-- source: internal/component/ike/ipsec/validate.go -- cross-reference validation -->
+<!-- source: internal/component/ike/engine/config.go -- validateIPsecSections is the ike plugin's OnConfigVerify body -->
 
 <h2 id="interface-configuration">Interface Configuration</h2>
 <p>Ze manages network interfaces with a descriptive-name model. Each interface type is a

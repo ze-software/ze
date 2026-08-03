@@ -28,6 +28,61 @@ action=type:key=value:key=value:...
 
 ## Key Concepts
 
+### An unparseable test file fails; it never hides or vanishes
+
+A file that does not parse is recorded as a **permanent failure** and discovery
+continues. It is never dropped, and it never aborts the rest of the directory.
+All three discoverers behave identically.
+
+| Discoverer | Format | Marker |
+|------------|--------|--------|
+| `EncodingTests.Discover` | `.ci`, suites rooted by `registerCIRoot` (encode, plugin, ui, ...) | `Record.ParseFailed` + `State=StateFail` + `FailureType=parse_error` |
+| `ParsingTests.Discover` | `.ci` (parse suite) | `parsingTest.ParseError` |
+| `ParsingTests.Discover` | legacy `valid/*.conf` + `invalid/*.conf` with a companion `.expect` | `parsingTest.ParseError` |
+| `DecodingTests.Discover` | `.ci` and `.test` (decode suite) | `decodingTest.ParseError` |
+
+The legacy `.conf` layout has no instances in the tree today, and it is held to
+the same contract anyway: a missing, empty, or bad-regex `.expect` file records
+that one fixture as a failure rather than abandoning the directory. An
+unreachable abort becomes reachable the moment someone adds the directory, and
+the shape is the bug.
+
+Both alternatives are silent-coverage-loss bugs this project has already paid
+for, which is why neither is permitted:
+
+| Anti-pattern | What it costs |
+|--------------|---------------|
+| Return the parse error out of `Discover` | The whole directory is abandoned. One bad `.ci` made the `test/ui` suite discover and run ZERO tests, and a suite that runs nothing reads as green. |
+| `continue` past the bad file | The file leaves the suite with no warning and no failure record. Its coverage disappears and nothing says so. |
+
+A guard that neither denies nor speaks does not exist
+(`ai/rules/fail-closed-guards.md`). The runner short-circuits a parse-failed
+test before executing anything, so the reported error is the parse error rather
+than a confusing downstream symptom.
+
+**Unparseable outranks skipped.** A file that both fails to parse and carries
+`option=needs-linux` / `option=skip-os` is reported FAIL, not SKIP. Its skip
+marker was parsed from the same broken file, so it is not trustworthy evidence
+that the file need not run: a contradicting directive may sit past the break, or
+the marker itself may be what was mis-parsed. Honoring it would mean trusting a
+broken file's own claim that it can be ignored.
+
+The consequences are asymmetric, which is what settles the ordering. 158 `.ci`
+files carry one of those markers (12 in `test/ui`), and on a non-Linux host they
+never run — so a wrongly-SKIPPED malformed file is invisible indefinitely, which
+is exactly how `test/ui` rotted. A wrongly-FAILED one is loud and costs a single
+commit. The check therefore lives in `parallel.go`'s per-test goroutine, ahead of
+the skip short-circuit: that is the real entry point, and both
+`Runner.runTest` and `parsingRunner.runTest` are reached through it.
+<!-- source: internal/test/runner/parallel.go -- per-test goroutine, ParseFailed ahead of SkipReason -->
+<!-- source: internal/test/runner/parsing.go -- parsingRunner.Run, ParseError suppresses the SkipReason copy -->
+<!-- test: internal/test/runner/discover_malformed_test.go TestSkipMarkedMalformedCIStillFailsThroughParallelRunner, TestSkipMarkedMalformedParseTestFailsThroughParallelRunner -->
+<!-- source: internal/test/runner/record_parse.go -- EncodingTests.Discover, the reference shape -->
+<!-- source: internal/test/runner/parsing.go -- ParsingTests.Discover, parsingRunner.runTest -->
+<!-- source: internal/test/runner/decoding.go -- DecodingTests.Discover, decodingRunner.runTest -->
+<!-- test: internal/test/runner/discover_malformed_test.go -- parse and decode discoverers -->
+<!-- test: internal/test/runner/record_parse_test.go TestDiscoverSkipsUnparseableFile -->
+
 ### Suite label, test id, and failure identity
 
 The verify debugging protocol identifies a functional failure with:
@@ -247,10 +302,13 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=net-admin]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. Add `caps=net-admin` when the test also needs privileged network configuration (creating interfaces, bringing links up, netlink): without the capability the test is SKIPped instead of hanging. See `ai/rules/qemu-testing.md`. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-all-test`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration — creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets — `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See `ai/rules/qemu-testing.md`. |
+| `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an OPTIONAL heavyweight artifact the test cannot run without, and SKIPs (visibly, naming the path and the `hint` command) when it is absent. For prerequisites a checkout does not carry: the appliance module cache, where `gokrazy/modcache/.gitignore` ignores everything except the vendored gokrazy init source, so the pinned `rtr7/kernel` module and its 15 MB `vmlinuz` exist only after `make ze-gokrazy-deps`. The path is resolved against the repo root (each test runs in its own temp dir) and must be repo-relative with no `..`; a malformed value is a parse error on every platform. Deliberately a SKIP and not an `exit 0`: `test/install/ze-kernel-overlay.ci` read the pinned `vmlinuz` with no guard and failed `shasum: ... No such file or directory` on every CI run, and hiding that behind a silent pass would swap a red for a green bar over a test that ran nothing. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself — a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-netns-qemu-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
+<!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
+<!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
 ### OPEN Behaviors
@@ -323,6 +381,43 @@ option=open:value=drop-capability:code=65
 option=open:value=drop-capability:code=2
 option=open:value=add-capability:code=73:hex=067A652D626770
 ```
+
+### UPDATE Behaviors
+
+Routes ze-peer sends after the OPEN handshake, before it starts matching
+expectations.
+
+| Value | Keys | Description |
+|-------|------|-------------|
+| `send-default-route` | none | Send one UPDATE for `0.0.0.0/0` |
+| `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
+| `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->
+
+**Generating one oversize UPDATE (`max-msg`):**
+
+```
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:origin-as=65001:max-msg=65535
+```
+
+`max-msg` caps one generated message, header included. It defaults to the RFC
+4271 limit of 4096, and accepts 23 to 65535. Raise it to 65535 when the session
+negotiates the Extended Message capability (RFC 8654), which ze advertises when
+the peer carries `capability { extended-message enable }`. Prefixes that do not
+fit one message spill into the next, so the example above is exactly one 65535
+byte message: a 65516 byte body, the largest BGP permits.
+
+Use it whenever a test needs an UPDATE too large to write as a hex literal. A
+max-size message is 131070 hex characters, which is past the 64 KiB line limit
+of both `.ci` scanners and past what a reviewer can check. It is also the only
+way to hand the daemon a single oversize body: splitting the same prefixes
+across several standard messages is a different input, because the daemon
+decides per message.
+
+A malformed key fails the test load rather than sending nothing. That is
+deliberate: a spec that silently degraded to `count=0` would let a test asserting
+a route was NOT forwarded pass because no route was ever offered.
+<!-- source: internal/test/peer/inject.go -- InjectSpec.MaxMsgLen, buildV4Unicast -->
 
 ## Commands
 
@@ -713,16 +808,28 @@ Two gotchas, both load-bearing:
   validates, keep the original `validate` step on the subsystem-only stdin block and
   run the `dump` readback against a second stdin block that prepends a minimal `bgp
   { router-id ... }`.
-- **A needle containing a `:` must use `pattern=`, not `contains=`.** Only
-  `json=`/`text=`/`hex=`/`pattern=` preserve colons; `contains=` truncates at the
-  first colon. JSON values are rendered as strings, so the needle is `"interval":
-  "300"` (a colon), which requires `pattern=`. A colon-free needle such as
-  `"0.0.0.0/0"` may use `contains=`.
+- **A needle containing `:` followed by something shaped like `key=` must use
+  `pattern=`.** ~~Only `json=`/`text=`/`hex=`/`pattern=` preserve colons, and
+  `contains=` truncates at the first colon.~~
+  - **Corrected 2026-07-30.** That claim was true until `ParseKVPairs` became
+    boundary-aware. `contains=` now keeps an ordinary colon, so
+    `contains=error: no such peer` asserts the whole sentence.
+  - What still splits is a colon that introduces a real key token: a letter,
+    then letters, digits, `-` or `_`, then `=`. That split is deliberate,
+    because it is how the engine-step form `contains=aes-cbc:timeout=25` keeps
+    working. So `contains=note:level=high` still splits at `:level=`, and it is
+    the one shape that needs `pattern=`.
+  - The old behavior was not harmless while it lasted. A sweep on 2026-07-29
+    found **203 assertions across 15 suites** silently reduced to the text
+    before their first colon. The re-armed assertions then exposed a security
+    test (`test/appliance/appliance-push-image-escape.ci`). That test had never
+    once executed the path-traversal guard it was named for.
 - **Keep a `pattern=` needle free of the substrings `json=`, `text=`, and `hex=`.**
   `ParseKVPairs` extracts a complex-key value by `strings.Index` of the first such
   marker, so a needle that itself contains one of them is mis-split. None of the
-  readback needles above contain these; this is forward guidance for new ones.
-<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, complexKeys (json/text/hex/pattern preserve colons; first-marker strings.Index split) -->
+  readback needles above contain these markers. This note is forward guidance for
+  new needles.
+<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, complexKeys (json/text/hex/pattern consumed whole), splitOnKeyBoundary (an ordinary colon stays in the value; only a colon introducing a key= token splits) -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- cmdDump reads stdin and prints the parsed tree -->
 
 ### Annotate when a unit test already covers the value
@@ -811,8 +918,8 @@ Executed in `seq` order with automatic retry on connection errors (server starti
 ### Assertion Checks (get/post)
 
 ```
-http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
-http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PATH][:content-type=TYPE][:insecure-tls=true]
+http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:header=NAME: VALUE]
+http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PATH][:content-type=TYPE][:header=NAME: VALUE][:insecure-tls=true]
 ```
 
 | Key | Required | Description |
@@ -824,8 +931,31 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PA
 | `bodyfile` | No | Path to file with expected body (exact match, resolved relative to `.ci` file) |
 | `sendfile` | No | Path to file sent as POST request body, resolved from tmpfs first |
 | `content-type` | No | Request body content type for `sendfile`, defaults to `application/json` |
+| `header` | No | Request header in `Name: Value` wire form. **Repeatable** -- the only key that can appear more than once on one line |
 | `insecure-tls` | No | Set `true` for self-signed local HTTPS endpoints |
 <!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPCheck -->
+
+#### Request Headers (`header=`)
+
+`header=` takes the header exactly as it appears on the wire, `Name: Value`.
+Repeat `header=` to set several headers on one check. It works on `get`, `post`,
+and `wait`.
+
+```
+http=post:seq=1:url=http://127.0.0.1:$PORT/mcp:status=200:sendfile=call.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: ze
+```
+
+| Behavior | Detail |
+|----------|--------|
+| Splitting | On the **first** colon only, so a value can contain colons (`header=Referer: http://127.0.0.1:8080/page`) |
+| Whitespace | Trimmed around both name and value, so `header=Foo: bar` and `header=Foo:bar` are equivalent |
+| Precedence | Applied **after** the `sendfile` default `Content-Type`, so an explicit `header=Content-Type: ...` wins |
+| Repeats of one name | The first occurrence replaces the value. Each later occurrence adds one more value to that field |
+| `Host` | Routed to the request's Host field, because `net/http` ignores a `Host` entry in the header map |
+| Malformed | A `header=` value with no colon is a **parse error** naming the offending value, never a silent drop |
+| Value stops at | The next known key marker (`:status=`, `:contains=`, the next `:header=`, ...), like every other key |
+<!-- source: internal/test/runner/record_parse.go -- parseHTTP header scan loop -->
+<!-- source: internal/test/runner/runner_validate.go -- applyCheckHeaders -->
 
 Retries up to 20 times at 200ms intervals on transient connection errors (ECONNREFUSED, ECONNRESET, EOF).
 Non-connection errors (wrong status, missing content) fail immediately.
@@ -833,7 +963,7 @@ Non-connection errors (wrong status, missing content) fail immediately.
 ### Readiness Polls (wait)
 
 ```
-http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
+http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:header=NAME: VALUE][:timeout=DUR]
 ```
 
 | Key | Required | Default | Description |
@@ -842,6 +972,7 @@ http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
 | `url` | Yes | - | Request URL |
 | `status` | Yes | - | Expected HTTP status code |
 | `contains` | No | - | Expected body substring |
+| `header` | No | - | Request header in `Name: Value` form, repeatable (see above) |
 | `timeout` | No | `15s` | Poll timeout duration |
 <!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPWait -->
 

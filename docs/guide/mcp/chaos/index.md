@@ -91,16 +91,31 @@ at most once per 10 seconds.
 
 ## Protocol
 
-The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2025-06-18 Streamable
-HTTP transport at the `/mcp` endpoint, sharing the same implementation as the
-ze daemon's MCP server (`NewStreamable` with the chaos `ToolProvider`).
-Because the tool surface comes from a provider, session-less POSTs are
-accepted: each request below works standalone, no `Mcp-Session-Id` threading
-required.
+The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2026-07-28 Streamable
+HTTP transport at the `/mcp` endpoint. This server uses the same implementation
+as the ze daemon's MCP server: `NewStreamable` with the chaos `ToolProvider`.
 <!-- source: internal/chaos/orchestrator/run.go -- NewStreamable(Provider) mount -->
+
+The transport is stateless, so every request stands alone: no handshake, no
+session id to thread. Provider mode changes only which tools the server offers.
+Provider mode does not change how the server validates a request. A chaos
+request therefore carries the same standard headers and the same
+`params._meta` block as any other MCP request.
+<!-- source: internal/component/mcp/streamable.go -- StreamableConfig.Provider, handlePOST -->
+
+`ze-chaos` configures no token and no auth mode, which infers `auth-mode none`:
+an authenticator that accepts every caller as an anonymous identity. There is
+no unauthenticated code path, only an accept-all authenticator.
+<!-- source: internal/component/mcp/bearer.go -- noneAuthenticator.Authenticate -->
 
 ```bash
 curl -s http://127.0.0.1:8001/mcp \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chaos_status","arguments":{}}}'
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/call' \
+  -H 'Mcp-Name: chaos_status' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+        "name":"chaos_status","arguments":{},
+        "_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+                 "io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```

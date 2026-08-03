@@ -134,11 +134,12 @@
 accurate, but several concrete details have changed and its examples no longer
 match the shipping system:</p>
 <ul>
-<li>The daemon is started with <code>ze start</code>, not <code>ze config.conf</code> or
-  <code>ze /etc/ze/config.conf</code>.</li>
+<li>The daemon is started with <code>ze start &lt;config-file&gt;</code>. The bare <code>ze &lt;config-file&gt;</code>
+  launch form was removed from the CLI; the examples below have been corrected to
+  the surviving form.</li>
 <li>The <code>local-as</code> / <code>peer-as</code> / <code>peer-group</code> config grammar shown here has been
   removed; local AS is now <code>session { asn { local ... } }</code> and peer groups are
-  <code>group</code> blocks (see <a href="../config/deprecated-options/">deprecated config options</a>
+  <code>group</code> blocks (see <a href="../config/deprecated-options/">configuration syntax changes</a>
   and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md" target="_blank" rel="noopener">config syntax</a>).</li>
 <li>Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
   as separate <code>external ... { run "ze bgp" }</code> processes; the <code>external</code> block
@@ -193,7 +194,7 @@ at the edge, then pass it through the shared API engine or dispatcher.</p>
 RPC routing derive child contexts from it. Plugin JSON payloads and command
 strings do not carry or override identity metadata.</p>
 <pre><code>                           ┌─────────────────────┐
-                           │    ze config.conf   │
+                           │ ze start config.conf│
                            │      (hub)          │
                            └──────────┬──────────┘
                                       │
@@ -221,7 +222,7 @@ ze start config.conf
 <h3 id="process-hierarchy">Process Hierarchy</h3>
 <p>When running, you'll see these processes:</p>
 <pre><code>$ ps aux | grep ze
-user  1234  ze config.conf          # Hub process
+user  1234  ze start config.conf    # Hub process
 user  1235  ze bgp                  # BGP protocol handler
 user  1236  ze rib                  # Adj-RIB tracking
 user  1237  ze gr                   # Graceful Restart
@@ -444,7 +445,7 @@ ze config reload
 └─────────────────────────────────────────────────────────────────────┘
 </code></pre>
 <p><strong>Same binary, two modes:</strong>
-- <code>ze config.conf</code> → starts as daemon, listens on SSH port
+- <code>ze start config.conf</code> → starts as daemon, listens on SSH port
 - <code>ze bgp peer list</code> → connects to running daemon as SSH client</p>
 <p>SSH target configurable via env vars <code>ze_ssh_host</code> and <code>ze_ssh_port</code></p>
 <h3 id="system-commands">System Commands</h3>
@@ -904,7 +905,7 @@ $ ze config reload
 [hub] Reload complete
 
 # Graceful shutdown
-$ kill -TERM $(pgrep -f &quot;ze config.conf&quot;)
+$ kill -TERM $(pgrep -f &quot;ze start config.conf&quot;)
 [hub] Received SIGTERM, shutting down
 [hub] Notifying plugins...
 [bgp] Sending NOTIFICATION to peers
@@ -917,7 +918,7 @@ $ kill -TERM $(pgrep -f &quot;ze config.conf&quot;)
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">Hub Architecture</a> - Hub mode internal design details</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">Process Protocol</a> - 5-stage protocol specification</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md" target="_blank" rel="noopener">YANG Config Design</a> - Schema design</li>
-<li><a href="https://github.com/ze-software/ze/blob/main/docs/../plan/learned/189-config-dispatch.md" target="_blank" rel="noopener">Config Dispatch</a> - Mode selection by config content (completed)</li>
+<li>Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into <a href="https://github.com/ze-software/ze/blob/main/docs/../plan/learned/DESIGN-HISTORY.md" target="_blank" rel="noopener">Design History</a>, whose header gives the git-recovery route</li>
 </ul>
 <hr />
 <p><strong>Last Updated:</strong> 2026-01-30</p>

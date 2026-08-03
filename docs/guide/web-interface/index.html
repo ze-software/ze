@@ -173,6 +173,7 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 <h3 id="url-scheme">URL Scheme</h3>
 <p>URLs follow a verb-first three-tier pattern:</p>
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 
 <table>
 <thead>
@@ -230,7 +231,7 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 <td>Config</td>
 <td><code>/config/delete/&lt;path&gt;</code></td>
 <td>POST</td>
-<td>Delete a leaf value</td>
+<td>Delete the node named by the <code>leaf</code> form field: a leaf, a leaf-list member, a container, a whole list, or one list entry (the delete button on a list row)</td>
 </tr>
 <tr>
 <td>Config</td>

@@ -57,6 +57,7 @@
 <li><a href="#syntax-overview">Syntax Overview</a></li>
 <li><a href="#key-concepts">Key Concepts</a>
 <ol>
+<li><a href="#an-unparseable-test-file-fails-it-never-hides-or-vanishes">An unparseable test file fails; it never hides or vanishes</a></li>
 <li><a href="#suite-label-test-id-and-failure-identity">Suite label, test id, and failure identity</a></li>
 <li><a href="#per-step-trace-output">Per-step trace output</a></li>
 <li><a href="#conn-and-seq">conn and seq</a></li>
@@ -83,6 +84,7 @@
 <li><a href="#open-behaviors">OPEN Behaviors</a></li>
 <li><a href="#bgp-identifier-control-router-id">BGP Identifier Control (router-id)</a></li>
 <li><a href="#capability-control-drop-capability-add-capability">Capability Control (drop-capability / add-capability)</a></li>
+<li><a href="#update-behaviors">UPDATE Behaviors</a></li>
 </ol></li>
 <li><a href="#commands">Commands</a>
 <ol>
@@ -124,7 +126,10 @@
 </ol></li>
 <li><a href="#http-checks">HTTP Checks</a>
 <ol>
-<li><a href="#assertion-checks-getpost">Assertion Checks (get/post)</a></li>
+<li><a href="#assertion-checks-getpost">Assertion Checks (get/post)</a>
+<ol>
+<li><a href="#request-headers-header">Request Headers (header=)</a></li>
+</ol></li>
 <li><a href="#readiness-polls-wait">Readiness Polls (wait)</a></li>
 <li><a href="#example_2">Example</a></li>
 </ol></li>
@@ -207,6 +212,92 @@
 <!-- source: internal/test/tmpfs/tmpfs.go -- Tmpfs, File, Parse -->
 
 <h2 id="key-concepts">Key Concepts</h2>
+<h3 id="an-unparseable-test-file-fails-it-never-hides-or-vanishes">An unparseable test file fails; it never hides or vanishes</h3>
+<p>A file that does not parse is recorded as a <strong>permanent failure</strong> and discovery
+continues. It is never dropped, and it never aborts the rest of the directory.
+All three discoverers behave identically.</p>
+<table>
+<thead>
+<tr>
+<th>Discoverer</th>
+<th>Format</th>
+<th>Marker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EncodingTests.Discover</code></td>
+<td><code>.ci</code>, suites rooted by <code>registerCIRoot</code> (encode, plugin, ui, ...)</td>
+<td><code>Record.ParseFailed</code> + <code>State=StateFail</code> + <code>FailureType=parse_error</code></td>
+</tr>
+<tr>
+<td><code>ParsingTests.Discover</code></td>
+<td><code>.ci</code> (parse suite)</td>
+<td><code>parsingTest.ParseError</code></td>
+</tr>
+<tr>
+<td><code>ParsingTests.Discover</code></td>
+<td>legacy + with a companion <code>.expect</code>. <span class="ev-src"><span class="ev-ref"><code>valid/*.conf</code></span><span class="ev-ref"><code>invalid/*.conf</code></span></span></td>
+<td><code>parsingTest.ParseError</code></td>
+</tr>
+<tr>
+<td><code>DecodingTests.Discover</code></td>
+<td><code>.ci</code> and <code>.test</code> (decode suite)</td>
+<td><code>decodingTest.ParseError</code></td>
+</tr>
+</tbody>
+</table>
+<p>The legacy <code>.conf</code> layout has no instances in the tree today, and it is held to
+the same contract anyway: a missing, empty, or bad-regex <code>.expect</code> file records
+that one fixture as a failure rather than abandoning the directory. An
+unreachable abort becomes reachable the moment someone adds the directory, and
+the shape is the bug.</p>
+<p>Both alternatives are silent-coverage-loss bugs this project has already paid
+for, which is why neither is permitted:</p>
+<table>
+<thead>
+<tr>
+<th>Anti-pattern</th>
+<th>What it costs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Return the parse error out of <code>Discover</code></td>
+<td>The whole directory is abandoned. One bad <code>.ci</code> made the <code>test/ui</code> suite discover and run ZERO tests, and a suite that runs nothing reads as green.</td>
+</tr>
+<tr>
+<td><code>continue</code> past the bad file</td>
+<td>The file leaves the suite with no warning and no failure record. Its coverage disappears and nothing says so.</td>
+</tr>
+</tbody>
+</table>
+<p>A guard that neither denies nor speaks does not exist
+(<code>ai/rules/fail-closed-guards.md</code>). The runner short-circuits a parse-failed
+test before executing anything, so the reported error is the parse error rather
+than a confusing downstream symptom.</p>
+<p><strong>Unparseable outranks skipped.</strong> A file that both fails to parse and carries
+<code>option=needs-linux</code> / <code>option=skip-os</code> is reported FAIL, not SKIP. Its skip
+marker was parsed from the same broken file, so it is not trustworthy evidence
+that the file need not run: a contradicting directive may sit past the break, or
+the marker itself may be what was mis-parsed. Honoring it would mean trusting a
+broken file's own claim that it can be ignored.</p>
+<p>The consequences are asymmetric, which is what settles the ordering. 158 <code>.ci</code>
+files carry one of those markers (12 in <code>test/ui</code>), and on a non-Linux host they
+never run — so a wrongly-SKIPPED malformed file is invisible indefinitely, which
+is exactly how <code>test/ui</code> rotted. A wrongly-FAILED one is loud and costs a single
+commit. The check therefore lives in <code>parallel.go</code>'s per-test goroutine, ahead of
+the skip short-circuit: that is the real entry point, and both
+<code>Runner.runTest</code> and <code>parsingRunner.runTest</code> are reached through it.</p>
+<!-- source: internal/test/runner/parallel.go -- per-test goroutine, ParseFailed ahead of SkipReason -->
+<!-- source: internal/test/runner/parsing.go -- parsingRunner.Run, ParseError suppresses the SkipReason copy -->
+<!-- test: internal/test/runner/discover_malformed_test.go TestSkipMarkedMalformedCIStillFailsThroughParallelRunner, TestSkipMarkedMalformedParseTestFailsThroughParallelRunner -->
+<!-- source: internal/test/runner/record_parse.go -- EncodingTests.Discover, the reference shape -->
+<!-- source: internal/test/runner/parsing.go -- ParsingTests.Discover, parsingRunner.runTest -->
+<!-- source: internal/test/runner/decoding.go -- DecodingTests.Discover, decodingRunner.runTest -->
+<!-- test: internal/test/runner/discover_malformed_test.go -- parse and decode discoverers -->
+<!-- test: internal/test/runner/record_parse_test.go TestDiscoverSkipsUnparseableFile -->
+
 <h3 id="suite-label-test-id-and-failure-identity">Suite label, test id, and failure identity</h3>
 <p>The verify debugging protocol identifies a functional failure with:</p>
 <table>
@@ -572,8 +663,13 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 </tr>
 <tr>
 <td><code>needs-linux</code></td>
-<td><code>[caps=net-admin]</code></td>
-<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-all-test</code>. Add <code>caps=net-admin</code> when the test also needs privileged network configuration (creating interfaces, bringing links up, netlink): without the capability the test is SKIPped instead of hanging. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/qemu-testing.md</code></span></span></td>
+<td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
+<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-all-test</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration — creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets — <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/qemu-testing.md</code></span></span></td>
+</tr>
+<tr>
+<td><code>needs-path</code></td>
+<td><code>value=&lt;repo-rel-path&gt;[:hint=&lt;cmd&gt;]</code></td>
+<td>Declares an OPTIONAL heavyweight artifact the test cannot run without, and SKIPs (visibly, naming the path and the <code>hint</code> command) when it is absent. For prerequisites a checkout does not carry: the appliance module cache, where ignores everything except the vendored gokrazy init source, so the pinned <code>rtr7/kernel</code> module and its 15 MB <code>vmlinuz</code> exist only after <code>make ze-gokrazy-deps</code>. The path is resolved against the repo root (each test runs in its own temp dir) and must be repo-relative with no <code>. </code>; a malformed value is a parse error on every platform. Deliberately a SKIP and not an <code>exit 0</code>: read the pinned <code>vmlinuz</code> with no guard and failed <code>shasum. No such file or directory</code> on every CI run, and hiding that behind a silent pass would swap a red for a green bar over a test that ran nothing. <span class="ev-src"><span class="ev-ref"><code>gokrazy/modcache/.gitignore</code></span><span class="ev-ref"><code>test/install/ze-kernel-overlay.ci</code></span></span></td>
 </tr>
 <tr>
 <td><code>netns-link</code></td>
@@ -588,6 +684,8 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 </tbody>
 </table>
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
+<!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
+<!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
 <h3 id="open-behaviors">OPEN Behaviors</h3>
@@ -675,6 +773,57 @@ option=open:value=add-capability:code=73:hex=067A652D626770
 option=open:value=drop-capability:code=2
 option=open:value=add-capability:code=73:hex=067A652D626770
 </code></pre>
+<h3 id="update-behaviors">UPDATE Behaviors</h3>
+<p>Routes ze-peer sends after the OPEN handshake, before it starts matching
+expectations.</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Keys</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>send-default-route</code></td>
+<td>none</td>
+<td>Send one UPDATE for. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
+</tr>
+<tr>
+<td><code>send-route</code></td>
+<td><code>prefix</code>, <code>origin-as</code>, <code>next-hop</code>, and optionally <code>as-path</code>, <code>as-set</code>, <code>originator-id</code>, <code>cluster-list</code>, <code>label</code></td>
+<td>Send one UPDATE for one prefix. Repeat the line for more</td>
+</tr>
+<tr>
+<td><code>send-bulk</code></td>
+<td><code>prefix</code>, <code>count</code>, <code>next-hop</code>, <code>origin-as</code>, and optionally <code>max-msg</code>, <code>eor</code></td>
+<td>Generate <code>count</code> sequential prefixes from <code>prefix</code> and send them as whole BGP messages</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->
+
+<p><strong>Generating one oversize UPDATE (<code>max-msg</code>):</strong></p>
+<pre><code>option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:origin-as=65001:max-msg=65535
+</code></pre>
+<p><code>max-msg</code> caps one generated message, header included. It defaults to the RFC
+4271 limit of 4096, and accepts 23 to 65535. Raise it to 65535 when the session
+negotiates the Extended Message capability (RFC 8654), which ze advertises when
+the peer carries <code>capability { extended-message enable }</code>. Prefixes that do not
+fit one message spill into the next, so the example above is exactly one 65535
+byte message: a 65516 byte body, the largest BGP permits.</p>
+<p>Use it whenever a test needs an UPDATE too large to write as a hex literal. A
+max-size message is 131070 hex characters, which is past the 64 KiB line limit
+of both <code>.ci</code> scanners and past what a reviewer can check. It is also the only
+way to hand the daemon a single oversize body: splitting the same prefixes
+across several standard messages is a different input, because the daemon
+decides per message.</p>
+<p>A malformed key fails the test load rather than sending nothing. That is
+deliberate: a spec that silently degraded to <code>count=0</code> would let a test asserting
+a route was NOT forwarded pass because no route was ever offered.</p>
+<!-- source: internal/test/peer/inject.go -- InjectSpec.MaxMsgLen, buildV4Unicast -->
+
 <h2 id="commands">Commands</h2>
 <pre><code>cmd=&lt;type&gt;:key=value[:key=value...]
 </code></pre>
@@ -1043,17 +1192,29 @@ expect=stdout:pattern=&quot;interval&quot;: &quot;300&quot;
   validates, keep the original <code>validate</code> step on the subsystem-only stdin block and
   run the <code>dump</code> readback against a second stdin block that prepends a minimal <code>bgp
   { router-id ... }</code>.</li>
-<li><strong>A needle containing a <code>:</code> must use <code>pattern=</code>, not <code>contains=</code>.</strong> Only
-  <code>json=</code>/<code>text=</code>/<code>hex=</code>/<code>pattern=</code> preserve colons; <code>contains=</code> truncates at the
-  first colon. JSON values are rendered as strings, so the needle is <code>"interval":
-  "300"</code> (a colon), which requires <code>pattern=</code>. A colon-free needle such as
-  <code>"0.0.0.0/0"</code> may use <code>contains=</code>.</li>
+<li><strong>A needle containing <code>:</code> followed by something shaped like <code>key=</code> must use
+  <code>pattern=</code>.</strong> ~~Only <code>json=</code>/<code>text=</code>/<code>hex=</code>/<code>pattern=</code> preserve colons, and
+  <code>contains=</code> truncates at the first colon.~~</li>
+<li><strong>Corrected 2026-07-30.</strong> That claim was true until <code>ParseKVPairs</code> became
+    boundary-aware. <code>contains=</code> now keeps an ordinary colon, so
+    <code>contains=error: no such peer</code> asserts the whole sentence.</li>
+<li>What still splits is a colon that introduces a real key token: a letter,
+    then letters, digits, <code>-</code> or <code>_</code>, then <code>=</code>. That split is deliberate,
+    because it is how the engine-step form <code>contains=aes-cbc:timeout=25</code> keeps
+    working. So <code>contains=note:level=high</code> still splits at <code>:level=</code>, and it is
+    the one shape that needs <code>pattern=</code>.</li>
+<li>The old behavior was not harmless while it lasted. A sweep on 2026-07-29
+    found <strong>203 assertions across 15 suites</strong> silently reduced to the text
+    before their first colon. The re-armed assertions then exposed a security
+    test (<code>test/appliance/appliance-push-image-escape.ci</code>). That test had never
+    once executed the path-traversal guard it was named for.</li>
 <li><strong>Keep a <code>pattern=</code> needle free of the substrings <code>json=</code>, <code>text=</code>, and <code>hex=</code>.</strong>
   <code>ParseKVPairs</code> extracts a complex-key value by <code>strings.Index</code> of the first such
   marker, so a needle that itself contains one of them is mis-split. None of the
-  readback needles above contain these; this is forward guidance for new ones.</li>
+  readback needles above contain these markers. This note is forward guidance for
+  new needles.</li>
 </ul>
-<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, complexKeys (json/text/hex/pattern preserve colons; first-marker strings.Index split) -->
+<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, complexKeys (json/text/hex/pattern consumed whole), splitOnKeyBoundary (an ordinary colon stays in the value; only a colon introducing a key= token splits) -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- cmdDump reads stdin and prints the parsed tree -->
 
 <h3 id="annotate-when-a-unit-test-already-covers-the-value">Annotate when a unit test already covers the value</h3>
@@ -1156,8 +1317,8 @@ entry. Keep the reason greppable and truthful (name the covering test).</p>
 <p>HTTP checks validate web endpoint responses after all <code>cmd=</code> processes have started.
 Executed in <code>seq</code> order with automatic retry on connection errors (server starting up).</p>
 <h3 id="assertion-checks-getpost">Assertion Checks (get/post)</h3>
-<pre><code>http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
-http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PATH][:content-type=TYPE][:insecure-tls=true]
+<pre><code>http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:header=NAME: VALUE]
+http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PATH][:content-type=TYPE][:header=NAME: VALUE][:insecure-tls=true]
 </code></pre>
 <table>
 <thead>
@@ -1204,6 +1365,11 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PA
 <td>Request body content type for <code>sendfile</code>, defaults to <code>application/json</code></td>
 </tr>
 <tr>
+<td><code>header</code></td>
+<td class="cell-no">✕</td>
+<td>Request header in <code>Name: Value</code> wire form. <strong>Repeatable</strong> -- the only key that can appear more than once on one line</td>
+</tr>
+<tr>
 <td><code>insecure-tls</code></td>
 <td class="cell-no">✕</td>
 <td>Set <code>true</code> for self-signed local HTTPS endpoints</td>
@@ -1212,10 +1378,57 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PA
 </table>
 <!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPCheck -->
 
+<h4 id="request-headers-header">Request Headers (<code>header=</code>)</h4>
+<p><code>header=</code> takes the header exactly as it appears on the wire, <code>Name: Value</code>.
+Repeat <code>header=</code> to set several headers on one check. It works on <code>get</code>, <code>post</code>,
+and <code>wait</code>.</p>
+<pre><code>http=post:seq=1:url=http://127.0.0.1:$PORT/mcp:status=200:sendfile=call.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: ze
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Behavior</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Splitting</td>
+<td>On the <strong>first</strong> colon only, so a value can contain colons (<code>header=Referer: http://127.0.0.1:8080/page</code>)</td>
+</tr>
+<tr>
+<td>Whitespace</td>
+<td>Trimmed around both name and value, so <code>header=Foo: bar</code> and <code>header=Foo:bar</code> are equivalent</td>
+</tr>
+<tr>
+<td>Precedence</td>
+<td>Applied <strong>after</strong> the <code>sendfile</code> default <code>Content-Type</code>, so an explicit <code>header=Content-Type: ...</code> wins</td>
+</tr>
+<tr>
+<td>Repeats of one name</td>
+<td>The first occurrence replaces the value. Each later occurrence adds one more value to that field</td>
+</tr>
+<tr>
+<td><code>Host</code></td>
+<td>Routed to the request's Host field, because <code>net/http</code> ignores a <code>Host</code> entry in the header map</td>
+</tr>
+<tr>
+<td>Malformed</td>
+<td>A <code>header=</code> value with no colon is a <strong>parse error</strong> naming the offending value, never a silent drop</td>
+</tr>
+<tr>
+<td>Value stops at</td>
+<td>The next known key marker (<code>:status=</code>, <code>:contains=</code>, the next <code>:header=</code>, ...), like every other key</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/test/runner/record_parse.go -- parseHTTP header scan loop -->
+<!-- source: internal/test/runner/runner_validate.go -- applyCheckHeaders -->
+
 <p>Retries up to 20 times at 200ms intervals on transient connection errors (ECONNREFUSED, ECONNRESET, EOF).
 Non-connection errors (wrong status, missing content) fail immediately.</p>
 <h3 id="readiness-polls-wait">Readiness Polls (wait)</h3>
-<pre><code>http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
+<pre><code>http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:header=NAME: VALUE][:timeout=DUR]
 </code></pre>
 <table>
 <thead>
@@ -1250,6 +1463,12 @@ Non-connection errors (wrong status, missing content) fail immediately.</p>
 <td class="cell-no">✕</td>
 <td>-</td>
 <td>Expected body substring</td>
+</tr>
+<tr>
+<td><code>header</code></td>
+<td class="cell-no">✕</td>
+<td>-</td>
+<td>Request header in <code>Name: Value</code> form, repeatable (see above)</td>
 </tr>
 <tr>
 <td><code>timeout</code></td>

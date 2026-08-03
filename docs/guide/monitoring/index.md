@@ -318,6 +318,41 @@ Host metrics are refreshed on a configurable interval (default 60 seconds). Linu
 | `ze_bgp_overflow_items` | gauge | `peer` | Items in per-destination overflow buffer |
 | `ze_bgp_overflow_ratio` | gauge | `source` | Per-source overflow ratio: overflowed / (forwarded + overflowed) |
 
+#### Attribute Index
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_update_span_spill_total` | counter | `peer` | Received UPDATEs whose attribute count exceeded the inline span capacity |
+
+Ze indexes the path attributes of every received UPDATE once, on the receive
+goroutine, and holds the first 8 spans inline. A 9th attribute puts the remainder
+on the heap and increments this counter. A public-internet corpus of 112M routes
+has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
+means either an unusual peer or an attribute set worth raising the inline size
+for.
+<!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
+
+#### Egress Modification Failures
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_update_modify_failed_total` | counter | `reason` | An egress modification could not be applied to a route |
+
+A non-zero value means a configured modification (a next-hop rewrite, a community
+strip, a private-ASN removal) did not fit the route it applied to. The `reason`
+label set is closed: `malformed`, `overflow`, `attr-length-range`,
+`withdrawn-size`. Two further values exist and both indicate a defect rather than
+peer input: `no-failure` must never be emitted, and `unclassified` means a reason
+reached the counter that no constant produced.
+<!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+
+Treat any increment as a policy that did not take effect. Ze counts the failure
+at the point the modification is built, on all five paths that build one: the
+forward rail, the route-server rail, the ingress and egress policy chains, and
+the RFC 9494 stale re-advertise rail.
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
+
 #### Prefix Limits (RFC 4486)
 
 | Metric | Type | Labels | Description |
