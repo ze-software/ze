@@ -18,7 +18,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | # | Stage | Satisfied when |
 |---|-------|----------------|
 | 1 | Implementation | Every AC names the producing function, every TDD test exists, every "Files to Modify/Create" entry was touched, and the Wiring Test table rows all have a real `.ci` test |
-| 2 | Deferrals | No `open` row across the `plan/deferrals/` shards references the spec, OR every open row is explicitly user-approved to remain open |
+| 2 | Deferrals | Every LIVE row (Status not `done`/`cancelled`/`resolved`) that this spec still owes is homed at a spec that exists. A live row homed ELSEWHERE is not owed and does not hold the gate: see step 5 for the exact two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
 | 4 | Commit A | `make ze-verify` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
 | 5 | Commit B (closure) | `plan/learned/NNN-<spec-stem>.md` is committed AND `plan/spec-<name>.md` has been removed via `git rm` in the same commit |
@@ -36,8 +36,11 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - For every "Files to Modify" entry: run `git log --oneline -- <file>` to confirm the file was touched during this spec's work window. Missing entry = `Missing`.
    - For every Wiring Test row: check that the named `.ci` or Go test exists and exercises the path.
    - If anything is `Partial` or `Missing`: STAGE = 1. Go to step 9.
-5. **Stage 2 -- Deferrals:** Read the shards under `plan/deferrals/` (one file per source). Filter rows where `Source` references the spec filename (or a task from this spec) AND `Status` is `open`. The spec's own rows live in `plan/deferrals/<spec-stem>.md`, but a row from another source may name this spec as its Destination, so scan every shard.
-   - If any open row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`ai/rules/deferral-tracking.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
+5. **Stage 2 -- Deferrals:** Read every shard under `plan/deferrals/` (one file per source). A row is LIVE when its `Status` is not `done`, `cancelled`, or `resolved`. Two classes of live row hold this stage, and BOTH must be checked -- scan every shard, not only `plan/deferrals/<spec-stem>.md`:
+   - **Owed TO this spec:** any live row whose `Destination` names this spec. Someone routed that work here. It is this spec's to finish, wherever it came from.
+   - **Owed BY this spec:** a live row whose `Source` names this spec, whose `Destination` does NOT name some OTHER `plan/spec-*.md` that exists on disk. Unhomed, or pointing at prose, or pointing back at this spec.
+   - **Why the destination test, and why "some OTHER".** Status alone never terminates: homing a row is the correct resolution and leaves the row LIVE, so a spec with a homed row would re-enter stage 2 forever and could never be reported closeable. Without "OTHER", a row homed at this very spec reads as satisfied, and closure then deletes its destination. Status alone also under-fires: measured 2026-08-03, 127 live rows carry `deferred` and only 12 carry `open`, so a filter on `open` misses most of the corpus.
+   - If any such row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`ai/rules/deferral-tracking.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
 6. **Stage 3 -- Review:** Determine whether a review has been run since the most recent code change:
    - Most recent code change: `git diff --name-only HEAD~1 HEAD` plus any uncommitted changes from `git status`.
    - Most recent review: look for a review artifact in this session (conversation history) or in recent commits/messages mentioning `/ze-review`, `/ze-review-spec`, `/ze-review-deep`.
@@ -79,7 +82,7 @@ Counts: N done / M partial / K missing
 |---|------|--------|-------------|-------------------------|
 | 1 | ... | ... | spec-bar.md | already implemented -- close as done |
 
-Or: "No open deferrals reference this spec."
+Or: "No deferral is owed by this spec: every live row is homed elsewhere."
 
 ### Review
 - Most recent code edit: [commit sha OR "uncommitted"]
@@ -108,7 +111,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 |-------|-------------|-----------|
 | 1 | `/ze-implement` | Finish the missing ACs, tests, or wiring. A unit test in isolation is not wiring -- name the user entry point. |
 | 2 (resolvable) | Close the deferral: implement it or mark `done` in its `plan/deferrals/<source>.md` shard | A deferral that already exists in code is a bookkeeping bug, not scope |
-| 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | Open deferrals cannot silently survive spec closure |
+| 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | A deferral cannot silently VANISH at closure. It may survive it: a row homed at another spec stays live, and its shard outlives this spec (`ai/rules/deferral-tracking.md`). Homing it clears stage 2 -- do not treat a live homed row as unfinished closure work |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
 | 5 | Write `plan/learned/NNN-<stem>.md`, stage `git rm plan/spec-<name>.md` + the new learned file, then `/ze-commit` | Two-commit rule (`ai/rules/spec-preservation.md`): never delete a spec without committing it first |
@@ -119,7 +122,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 - **Read-only.** Do NOT run `/ze-implement`, `/ze-review`, or `/ze-commit`. Report the stage and recommend the command.
 - **One stage at a time.** Stop at the first unsatisfied stage. Do not preview later stages or recommend batched actions.
 - **No optimism.** A missing test is Missing, even if "the code obviously works." A missing .ci wiring test means stage 1 is incomplete, even if unit tests pass.
-- **Verify before deferring.** Before reporting an open deferral as stage 2, grep for the thing being deferred. If it already exists in code, flag it as `resolvable-now` and recommend closing it.
+- **Verify before deferring.** Before reporting a live deferral as stage 2, grep for the thing being deferred. If it already exists in code, flag it as `resolvable-now` and recommend closing it.
 - **Honest evidence.** Every `Done` row MUST name the producing function or a test name. "Probably done" is `Partial`.
 - **Never tick `[ ]` to `[x]`** in the spec file. Checkbox state is not a truth source; grep the code.
 - **Do not edit the spec.** If the Status field is wrong, note it in the report but do not change it -- the user decides when to update spec metadata.

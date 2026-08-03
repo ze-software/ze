@@ -1396,6 +1396,145 @@ def deferral_shard_paths(repo: Path) -> list[Path]:
     return sorted(deferrals_dir.rglob("*.md"))
 
 
+# `git show HEAD:<path>` stderr phrases that each mean "nothing committed is at
+# that path", so removing it destroys no committed row. Matched under LC_ALL=C.
+# Everything ELSE is a read the gate could not make, and unknown is reported
+# rather than waved through (ai/rules/fail-closed-guards.md). Verified against
+# git 2.43.0; a wording this list misses costs a false BLOCKER naming the exit
+# code and stderr, which is visible and recoverable -- a silent pass is not.
+_GIT_SHOW_NOTHING_COMMITTED = (
+    "does not exist in",       # tracked at HEAD? no -- absent from the tree
+    "invalid object name",     # HEAD is unborn: nothing is committed at all
+    "exists on disk, but not in",  # added to the index this commit, not in HEAD
+)
+
+
+def _live_rows_added_elsewhere(repo: Path, add_paths: tuple[str, ...]) -> set[str]:
+    """Live-row renderings from every deferral shard this commit ADDS.
+
+    Compared against the rows a removal would destroy, so a shard being RENAMED
+    (removed here, added there, same rows) is not read as a deletion. The
+    comparison is on the row's rendered identity, not on the file, because a
+    rename may also re-shard: two rows can move to two different files.
+    """
+    kept: set[str] = set()
+    for rel in add_paths:
+        if not rel.startswith("plan/deferrals/") or not rel.endswith(".md"):
+            continue
+        path = repo / rel
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            cells = _deferral_row_cells(line)
+            if cells is None or cells == ["MALFORMED"]:
+                continue
+            if cells[5].lower() in DEFERRAL_TERMINAL_STATUSES:
+                continue
+            kept.add(f"      [{cells[5]}] {cells[2][:70]} -> {cells[4][:50]}")
+    return kept
+
+
+def deferral_shard_removal_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """A commit that `git rm`s a deferral shard still holding a live row (BLOCK).
+
+    Spec closure removes the closing spec's own shard, and that is correct only
+    when every row in it is terminal. A shard whose rows are homed at OTHER specs
+    outlives its source spec: the row's home is its Destination cell, and the
+    shard is only where the row is written down (ai/rules/deferral-tracking.md,
+    "A shard that still holds a live row SURVIVES its source spec"). Measured on
+    2026-08-03: 39 shards were in that state, holding 68 live rows (counted by
+    scripts/dev/deferral_orphans.py, which is the citation this number carries so
+    the next reader re-runs it instead of re-deriving it by hand).
+
+    This gate BLOCKS rather than warns, and it is the one deferral check that
+    must. Every other signal over these rows is a fold across the plan/deferrals/
+    DIRECTORY -- deferral_unassigned_problems above, the session-end banner --
+    so deleting a live-bearing shard does not raise their count, it lowers it.
+    The action the rule forbids is the action that silences every observer of the
+    rows it destroys, which is the fail-open shape ai/rules/fail-closed-guards.md
+    exists to refuse. Prose telling a human to read the Status column first
+    cannot be the only control over a delete that hides its own evidence.
+
+    Read from HEAD, not the working tree: the commit deletes HEAD's version, and
+    the working-tree copy may already be gone by other means. A shard this cannot
+    read at HEAD is new in this commit and cannot be destroying committed rows.
+
+    The `plan/deferrals/` prefix test assumes normalized repo-relative paths, and
+    that holds because every path reaching a gate has been through normalize_path
+    above: `os.path.normpath` strips a `./` prefix, and an absolute path is
+    resolved and made relative. Nested shards (`plan/deferrals/sub/x.md`) are in
+    scope, matching deferral_shard_paths, whose glob is recursive for the same
+    reason.
+    """
+    offenders: list[str] = []
+    for rel in remove_paths:
+        if not rel.startswith("plan/deferrals/") or not rel.endswith(".md"):
+            continue
+        shown = subprocess.run(  # noqa: S603
+            ["git", "show", f"HEAD:{rel}"],  # noqa: S607
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+            # LC_ALL=C so the benign stderr phrases below stay in English.
+            # git translates its diagnostics when NLS is on, and a translated
+            # "does not exist in" would be classified as unknown and reported --
+            # a false BLOCKER on a legitimate closure, fired by the operator's
+            # locale rather than by anything in the commit.
+            env={**os.environ, "LC_ALL": "C"},
+        )
+        if shown.returncode != 0:
+            # _GIT_SHOW_NOTHING_COMMITTED means there is provably nothing
+            # committed to destroy. Everything else (a corrupt object, git
+            # missing, a permission failure) means the gate cannot SEE the rows,
+            # and unknown is not innocent (ai/rules/fail-closed-guards.md).
+            err = shown.stderr
+            if any(phrase in err for phrase in _GIT_SHOW_NOTHING_COMMITTED):
+                continue
+            offenders.append(
+                f"  {rel}: cannot be read at HEAD, so its rows cannot be"
+                f" checked\n      git show exited {shown.returncode}:"
+                f" {shown.stderr.strip()[:160]}"
+            )
+            continue
+        live: list[str] = []
+        for line in shown.stdout.splitlines():
+            cells = _deferral_row_cells(line)
+            if cells is None or cells == ["MALFORMED"]:
+                continue
+            if cells[5].lower() in DEFERRAL_TERMINAL_STATUSES:
+                continue
+            live.append(f"      [{cells[5]}] {cells[2][:70]} -> {cells[4][:50]}")
+        if live:
+            kept = _live_rows_added_elsewhere(repo, add_paths)
+            lost = [row for row in live if row not in kept]
+            if not lost:
+                # Every live row reappears in a shard this same commit adds, so
+                # this is a MOVE, not a deletion. Renaming a misnamed shard has
+                # to stay possible: plan/deferrals/spec-fixit-rs-community-strip-arity.md
+                # carried a doubled `spec-` prefix, which hid it from every
+                # gate that pairs a shard with plan/spec-<stem>.md. A gate that
+                # forbade the rename would protect the rows by freezing the
+                # defect that made them unfindable.
+                continue
+            offenders.append(f"  {rel} ({len(lost)} live):\n" + "\n".join(lost))
+    if not offenders:
+        return []
+    return [
+        "removing a deferral shard that still holds live rows:\n"
+        + "\n".join(offenders)
+        + "\n  A shard is deleted at closure ONLY when every row in it is terminal"
+        "\n  (ai/rules/deferral-tracking.md). Each row above is live work homed at"
+        "\n  another spec; deleting the shard deletes the record, and no other gate"
+        "\n  would notice because every one of them folds over this directory."
+        "\n  Resolve each row (done / cancelled / resolved), or drop the"
+        " --remove for this shard: a shard outliving its source spec is the"
+        " correct end state, not mess."
+    ]
+
+
 def deferral_unassigned_problems(repo: Path) -> list[str]:
     """Live rows in plan/deferrals/*.md with no usable destination (WARN, advisory).
 
@@ -1883,6 +2022,7 @@ def commit_gate_problems(
     """All BLOCK-severity commit-time gates, in one call for create()."""
     problems: list[str] = []
     problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
+    problems += deferral_shard_removal_problems(repo, add_paths, remove_paths)
     problems += spec_audit_problems(repo, add_paths, claimed_spec(repo))
     problems += ste_problems(repo, add_paths)
     return problems

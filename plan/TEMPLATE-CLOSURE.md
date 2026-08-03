@@ -83,9 +83,14 @@
 ## Deferrals Resolved
 
 <!-- Closure must leave no dangling row: deferral_unassigned_problems in
-     scripts/dev/commit_helper.py blocks a commit on a live row with no
-     destination, and the spec's own shard is deleted at closure
-     (ai/rules/deferral-tracking.md). Account for every row here. -->
+     scripts/dev/commit_helper.py WARNS (it does not block) on a live row with no
+     destination -- act on the warning here, because nothing else will.
+     The spec's own shard is git rm'd at closure ONLY when every row in it is
+     terminal; a shard still holding a live row outlives its source spec and
+     deferral_shard_removal_problems blocks its removal
+     (ai/rules/deferral-tracking.md). Account for every row here.
+     If resolving a row empties a FOREIGN shard (its last live row becomes
+     terminal), that shard is now residue and this closure removes it too. -->
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
 | [what was deferred] | done / cancelled / deferred | [spec that now owns it, or why it is closed] |

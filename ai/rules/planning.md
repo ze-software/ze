@@ -275,10 +275,17 @@ The helper-generated commit script MUST produce two commits:
    with `--file` for all code, tests, docs, learned summary, LEARNED-INDEX,
    AND the spec file itself (with all edits from implementation).
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
-   If the spec has a deferral shard, `--remove plan/deferrals/<spec-stem>.md` in the
-   SAME commit B: deferrals are sharded per source (`ai/rules/deferral-tracking.md`),
-   and the shard is deleted at closure exactly as the spec is, so a closed spec leaves
-   no orphan shard behind.
+   If the spec has a deferral shard AND every row in it is terminal,
+   `--remove plan/deferrals/<spec-stem>.md` in the SAME commit B: deferrals are
+   sharded per source (`ai/rules/deferral-tracking.md`). **A shard still holding a
+   live row is NOT removed.** That row is homed at a different spec, and the shard is
+   only where it is written down, so removing it deletes a record of live work. Read
+   the Status column before you add the `--remove`; an all-terminal shard is residue
+   and goes, a live-bearing shard survives its source spec and keeps its name.
+   **This extends to FOREIGN shards this closure emptied.** Resolving a row homed
+   here can set the last live row of another spec's shard to `done`; that shard is
+   now residue and the same commit B removes it. Nobody else will: every other
+   closure scopes its `--remove` to its own stem.
 
 This preserves the final spec state in git history. `git log -p -- plan/<spec>` shows
 the full design record. The deletion in commit B is a clean removal of a file whose
@@ -317,15 +324,19 @@ about a file that is gone -- the citation gate matches the path, not the name.
 any source's shard, not only this spec's own). Every row naming it as **Destination**
 must be resolved inside commit A: set Status `done` and Destination to the learned
 summary (`plan/learned/NNN-<name>.md`), which is where the knowledge now lives. This
-is separate from removing this spec's OWN shard (`plan/deferrals/<spec-stem>.md`) in
-commit B, above: one resolves rows that POINT AT the spec, the other retires the rows
-the spec SOURCED.
+is separate from the shard removal in commit B, above: this resolves rows that POINT
+AT the spec, which closure must do because it is deleting their destination. It does
+NOT retire the rows the spec SOURCED. Those are governed by commit B's condition --
+a sourced row homed at another spec stays live, and its shard outlives this closure
+(`ai/rules/deferral-tracking.md`). Only an all-terminal shard is removed.
 
 Why: closure DELETES the spec, and `deferral_unassigned_problems`
 (`scripts/dev/commit_helper.py`) checks that every live row's destination exists on
 disk. A row left pointing at a closed spec can therefore never be satisfied -- it
-dangles forever and blocks every future commit, and the next reader cannot tell
-whether the work was done or silently lost. The two rules collided precisely because
+dangles forever, is reported on every future commit (as a WARNING: that gate is
+advisory and does not block), and the next reader cannot tell whether the work was
+done or silently lost. Advisory is exactly why it persists: the six rows homed on
+2026-08-03 had been reported on every commit for 17 days at no cost to anyone. The two rules collided precisely because
 neither side was written down: "destination must exist" and "closure deletes the
 spec" are both right, and closure is the side that must give.
 
@@ -345,7 +356,8 @@ almost always is), those modifications must be committed before deletion.
 | Banned | Why |
 |--------|-----|
 | "I'll close it later" | Later never comes. Other sessions see it as in-progress. |
-| `git rm` a spec while a deferral row still names it as Destination | The row dangles forever and blocks every future commit. Resolve it in commit A. |
+| `git rm` a spec while a deferral row still names it as Destination | The row dangles forever. Nothing blocks: the gate is advisory, so it is reported and ignored. Resolve it in commit A. |
+| `git rm` a deferral shard that still holds a live row | Deletes the record AND silences every observer of it, because they all fold over the directory. `deferral_shard_removal_problems` blocks this one (`ai/rules/deferral-tracking.md`). |
 | Resolving a row to a learned summary that never mentions the item | Fail-open bookkeeping: the row goes quiet and the knowledge is lost. Verify the summary records it. |
 | "The user will handle it" | The user asked us to implement. Closure is part of implementation. |
 | `git rm` in the same commit as implementation | Spec edits are lost from history. Two commits required. |

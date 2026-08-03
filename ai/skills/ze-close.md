@@ -122,9 +122,19 @@ still missing, go back: this skill does not implement.
      `pre_commit_verification_gaps` checks them one at a time and names the empty
      ones, so a row in `Files Exist` is not evidence for `AC Verified`.
    - **Deferrals Resolved:** account for every row in the shard named in the spec
-     metadata. `deferral_unassigned_problems` blocks on a live row with no
-     destination, and closure deletes the spec's own shard
-     (`ai/rules/deferral-tracking.md`).
+     metadata. `deferral_unassigned_problems` WARNS (it does not block) on a live
+     row with no destination, so a missing home costs nothing and is the reason
+     rows persist for weeks -- act on it here.
+     **Add `--remove plan/deferrals/<spec-stem>.md` ONLY when every row in that
+     shard is terminal.** A shard still holding a live row outlives its source
+     spec: the row is homed at another spec and the shard is only where it is
+     written down (`ai/rules/deferral-tracking.md`).
+     `deferral_shard_removal_problems` BLOCKS the removal if you get this wrong.
+     **Then check the shards your resolutions just emptied.** Setting the last
+     live row of a FOREIGN shard to `done` makes that shard residue, and you are
+     the actor who removes it: add `--remove plan/deferrals/<that-stem>.md` in the
+     same commit. Left for whoever comes next, it is never collected -- 14 such
+     shards existed on 2026-08-03 (`ai/rules/deferral-tracking.md`).
    Running the commit script finishes the work. There is no step 7. The script is the
    final action. Everything below MUST be in that single script.
 

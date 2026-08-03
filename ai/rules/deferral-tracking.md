@@ -38,9 +38,21 @@ exist); never touch another source's shard except to correct a row it owns. Beca
 each path has a single writer, `git add <shard>` stages only your row and git merges
 disjoint shard creations without conflict.
 
-**A spec's shard is deleted at the spec's closure.** Spec closure commit B
-(`ai/rules/planning.md` "Spec Closure") `git rm`s `plan/deferrals/<stem>.md` alongside
-the spec itself, so a closed spec leaves no orphan shard behind.
+**A spec's shard is deleted at the spec's closure ONLY when every row in it is terminal.** Spec closure commit B (`ai/rules/planning.md` "Spec Closure") `git rm`s `plan/deferrals/<stem>.md` alongside the spec.
+
+**Reading the Status column of the closing spec's OWN shard is a NEW step, and no earlier check covers it.** The grep closure already requires (`ai/rules/planning.md`, "Closure resolves the spec's deferral rows") searches every shard for this spec as a **Destination**. It never reads the closing spec's own shard as a **Source**. Do not assume the existing grep answered this question: it answers a different one.
+
+**A shard that still holds a live row SURVIVES its source spec, and keeps its source-keyed name.** The row's home is the destination spec named in its Destination cell. The shard is only where the row is written down, so deleting the shard deletes a record of live work whose home is somewhere else entirely.
+
+**Two readings, and the one that governs.** "The shard is deleted at closure" and "a homed row stays live" (Status Vocabulary, below) contradict each other for a shard whose rows are homed at OTHER specs. Measured on 2026-08-03 by `scripts/dev/deferral_orphans.py`: 39 shards were in exactly that state, holding 68 live rows between them. Re-run the script rather than re-deriving the number; two hand-counts of it were wrong before the script existed. Deletion-at-closure governs the all-terminal case ONLY. Where a live row remains, the row wins and the shard stays.
+
+**An orphaned shard is not a defect to sweep.** A shard whose `plan/spec-<stem>.md` is gone while live rows remain is the correct end state of the paragraph above, not leftover mess. Do not bulk-delete orphaned shards to tidy the directory: read the rows first, and delete only a shard in which every row is terminal.
+
+**`deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`) refuses the removal, so this is not honor-system.** It reads the shard at HEAD and BLOCKS when any row is non-terminal. It has to block rather than warn: every other signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a live-bearing shard LOWERS their counts instead of raising them, and the forbidden action is the one that silences every observer of the rows it destroys (`ai/rules/fail-closed-guards.md`).
+
+**An all-terminal orphaned shard is residue, and the actor who deletes it is the closer of the LAST spec that homed one of its rows.** Setting the final row to `done` is what makes the shard residue, so the same commit removes the file. Without a named actor the state never drains: 14 such shards existed on 2026-08-03 because each was left for whoever came next. Nobody is obliged to hunt for others.
+
+**A live row whose SOURCE spec closed still needs a real Destination, and that is the thing closure must check.** The source spec's disappearance is what makes a prose destination unrecoverable: nothing on disk was ever going to become "a future usability spec", and now nothing will create it either. Six such rows were found and homed on 2026-08-03; they had been live since 2026-07-17 and 2026-07-21, which is why the same-day measurement above reports every row homed.
 
 ## When to Record
 

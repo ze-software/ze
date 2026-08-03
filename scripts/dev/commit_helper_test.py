@@ -8,6 +8,7 @@ import contextlib
 import io
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -317,6 +318,234 @@ class TestDeferralDestination(unittest.TestCase):
                 + "| 2026-07-16 | spec-rib.md | old item | time | later maybe | done |\n"
             )
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
+
+
+def _seed_shard_repo(root: Path, rows: list[tuple[str, str]]) -> None:
+    """A committed repo holding one shard whose rows carry the given statuses."""
+    _git(root, "init", "-q")
+    _git(root, "config", "user.email", "t@example.com")
+    _git(root, "config", "user.name", "t")
+    _git(root, "config", "commit.gpgsign", "false")
+    (root / "plan" / "deferrals").mkdir(parents=True)
+    body = "".join(
+        f"| 2026-08-03 | spec-gone | what-{i} | reason |"
+        f" plan/spec-home.md | {status} |\n"
+        for i, (_dest, status) in enumerate(rows)
+    )
+    (root / "plan" / "spec-home.md").write_text("# Spec\n")
+    (root / "plan" / "deferrals" / "spec-gone.md").write_text(DEFERRALS_HEADER + body)
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "init")
+
+
+class TestDeferralShardRemoval(unittest.TestCase):
+    """`git rm` of a shard is correct ONLY when every row in it is terminal.
+
+    Driven through commit_gate_problems, the BLOCK-severity entry point create()
+    actually calls -- not through deferral_shard_removal_problems alone. A gate
+    that works when called directly and is never wired into the assembly is the
+    failure this drives out (ai/rules/fail-closed-guards.md, ai/rules/wiring-completeness.md).
+    """
+
+    def test_removing_a_shard_with_a_live_row_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
+            problems = ch.commit_gate_problems(
+                root, (), ("plan/deferrals/spec-gone.md",)
+            )
+            self.assertTrue(problems, "a live row must block its shard's removal")
+            self.assertIn("still holds live rows", problems[0])
+            self.assertIn("what-0", problems[0])
+
+    def test_removing_an_all_terminal_shard_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(
+                root,
+                [("plan/spec-home.md", "done"), ("plan/spec-home.md", "cancelled")],
+            )
+            self.assertEqual(
+                ch.commit_gate_problems(root, (), ("plan/deferrals/spec-gone.md",)),
+                [],
+                "closure must still be able to remove residue",
+            )
+
+    def test_a_live_row_blocks_even_beside_terminal_ones(self) -> None:
+        # The all-terminal test above passes if the gate looks only at row 0.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(
+                root, [("plan/spec-home.md", "done"), ("plan/spec-home.md", "open")]
+            )
+            problems = ch.commit_gate_problems(
+                root, (), ("plan/deferrals/spec-gone.md",)
+            )
+            self.assertTrue(problems, "a live row anywhere in the shard must block")
+            self.assertIn("what-1", problems[0])
+            self.assertNotIn("what-0", problems[0])
+
+    def test_removing_a_spec_does_not_trip_the_shard_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
+            self.assertEqual(
+                ch.commit_gate_problems(root, (), ("plan/spec-gone.md",)),
+                [],
+                "the gate is scoped to plan/deferrals/, not every removal",
+            )
+
+    def test_deleting_the_working_copy_first_does_not_clear_the_gate(self) -> None:
+        # The gate MUST read HEAD, not the working tree. A working-tree read
+        # passes every other case here (both trees are identical in them), so
+        # without this case `rm`ing the shard before running create --remove is
+        # a clean bypass of the whole gate.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
+            (root / "plan" / "deferrals" / "spec-gone.md").unlink()
+            problems = ch.commit_gate_problems(
+                root, (), ("plan/deferrals/spec-gone.md",)
+            )
+            self.assertTrue(problems, "the live row is still in HEAD, so it blocks")
+            self.assertIn("what-0", problems[0])
+
+    def test_a_nested_shard_is_in_scope(self) -> None:
+        # deferral_shard_paths globs recursively and deferral_in_diff_problems
+        # accepts any depth, so a nested shard that escaped THIS gate could be
+        # deleted while the folds that watch it still counted it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "done")])
+            nested = root / "plan" / "deferrals" / "sub" / "spec-deep.md"
+            nested.parent.mkdir()
+            nested.write_text(
+                DEFERRALS_HEADER + "| 2026-08-03 | spec-deep | deep-work | reason |"
+                " plan/spec-home.md | deferred |\n"
+            )
+            _git(root, "add", "-A")
+            _git(root, "commit", "-qm", "nested")
+            problems = ch.commit_gate_problems(
+                root, (), ("plan/deferrals/sub/spec-deep.md",)
+            )
+            self.assertTrue(problems, "a nested shard must be checked too")
+            self.assertIn("deep-work", problems[0])
+
+    def test_renaming_a_live_shard_is_a_move_not_a_deletion(self) -> None:
+        # The rows survive at the new path, so nothing is lost. A gate that
+        # refused this would freeze a misnamed shard in place -- and a misnamed
+        # shard is exactly the one no stem-pairing gate can see.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
+            src = (root / "plan" / "deferrals" / "spec-gone.md").read_text()
+            (root / "plan" / "deferrals" / "renamed.md").write_text(src)
+            self.assertEqual(
+                ch.commit_gate_problems(
+                    root,
+                    ("plan/deferrals/renamed.md",),
+                    ("plan/deferrals/spec-gone.md",),
+                ),
+                [],
+            )
+
+    def test_a_partial_move_still_blocks_on_the_rows_left_behind(self) -> None:
+        # Copying only SOME rows to the new shard is a deletion of the rest.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(
+                root,
+                [("plan/spec-home.md", "deferred"), ("plan/spec-home.md", "deferred")],
+            )
+            lines = (root / "plan" / "deferrals" / "spec-gone.md").read_text().splitlines()
+            (root / "plan" / "deferrals" / "renamed.md").write_text(
+                "\n".join(lines[:-1]) + "\n"
+            )
+            problems = ch.commit_gate_problems(
+                root,
+                ("plan/deferrals/renamed.md",),
+                ("plan/deferrals/spec-gone.md",),
+            )
+            self.assertTrue(problems, "the row left behind must still block")
+            self.assertIn("what-1", problems[0])
+            self.assertNotIn("what-0", problems[0])
+
+    def test_an_unexpected_git_failure_is_reported(self) -> None:
+        # Pins the REPORTED branch against a stderr that mentions HEAD but is
+        # none of the benign phrases. Without this, narrowing the benign test to
+        # `"HEAD" in stderr` passes every other case and waves corruption through.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
+            broken = subprocess.CompletedProcess(
+                args=[], returncode=128, stdout="",
+                stderr="fatal: unable to read object for 'HEAD'\n",
+            )
+            with mock.patch.object(ch.subprocess, "run", return_value=broken):
+                problems = ch.deferral_shard_removal_problems(
+                    root, (), ("plan/deferrals/spec-gone.md",)
+                )
+            self.assertTrue(problems, "an unexpected git failure must be reported")
+            self.assertIn("cannot be read at HEAD", problems[0])
+
+    def test_index_added_but_uncommitted_shard_is_benign(self) -> None:
+        # `exists on disk, but not in 'HEAD'`: staged this commit, never
+        # committed, so removing it destroys no committed row.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "done")])
+            fresh = root / "plan" / "deferrals" / "spec-fresh.md"
+            fresh.write_text(
+                DEFERRALS_HEADER
+                + "| 2026-08-03 | spec-fresh | new-work | reason |"
+                " plan/spec-home.md | deferred |\n"
+            )
+            _git(root, "add", "plan/deferrals/spec-fresh.md")
+            self.assertEqual(
+                ch.commit_gate_problems(
+                    root, (), ("plan/deferrals/spec-fresh.md",)
+                ),
+                [],
+            )
+
+    def test_an_unreadable_shard_is_reported_not_waved_through(self) -> None:
+        # `git show` failing for a reason OTHER than "absent from HEAD" or
+        # "HEAD is unborn" means the gate cannot SEE the rows. A gate that
+        # cannot see must say so, never pass (ai/rules/fail-closed-guards.md).
+        # Without this case, `if returncode: continue` reads every breakage --
+        # a corrupt object store, git missing, a permission failure -- as
+        # "nothing to protect", and the loudest failures become the quietest.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
+            shutil.rmtree(root / ".git" / "objects")
+            problems = ch.commit_gate_problems(
+                root, (), ("plan/deferrals/spec-gone.md",)
+            )
+            self.assertTrue(problems, "an unreadable shard must not pass silently")
+            self.assertIn("cannot be read at HEAD", problems[0])
+
+    def test_an_unborn_head_has_nothing_to_protect(self) -> None:
+        # The counterpart: no commit exists, so no committed row can be lost.
+        # Reporting here would fire on every fresh repository.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git(root, "init", "-q")
+            self.assertEqual(
+                ch.commit_gate_problems(root, (), ("plan/deferrals/spec-gone.md",)),
+                [],
+            )
+
+    def test_a_shard_new_in_this_commit_is_not_read_from_head(self) -> None:
+        # Nothing committed can be destroyed by removing a path HEAD never had,
+        # and `git show` on it fails -- the gate must not treat that as a live row.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_shard_repo(root, [("plan/spec-home.md", "done")])
+            self.assertEqual(
+                ch.commit_gate_problems(root, (), ("plan/deferrals/spec-never.md",)),
+                [],
+            )
 
 
 def _deferral_gate(rows: list[tuple[str, str]]) -> list[str]:

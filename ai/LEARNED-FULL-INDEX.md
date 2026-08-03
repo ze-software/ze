@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 900 summaries
+Total: 901 summaries
 
 ## 400-499
 
@@ -959,3 +959,4 @@ Total: 900 summaries
 | 1323 | Rule-coverage: always-on rules leave the measured population | `plan/learned/1323-rule-coverage-always-on-exclusion.md` |
 | 1324 | Poll Loop Gate | `plan/learned/1324-poll-loop-gate.md` |
 | 1325 | The review loop had no terminating state | `plan/learned/1325-review-loop-bounded-scope.md` |
+| 1326 | A deferral shard outlives the spec that opened it | `plan/learned/1326-deferral-shard-outlives-its-spec.md` |

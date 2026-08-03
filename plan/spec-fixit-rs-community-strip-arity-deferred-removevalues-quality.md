@@ -13,8 +13,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**Provenance.** Three rows of `plan/deferrals/spec-fixit-rs-community-strip-arity.md`,
-dated 2026-07-28, all Status `open`. They named `spec-wire-edit-2-edit-apply` as their
+**Provenance.** Three rows of `plan/deferrals/fixit-rs-community-strip-arity.md`,
+dated 2026-07-28, all Status `open`. (That shard was named
+`plan/deferrals/spec-fixit-rs-community-strip-arity.md` until 2026-08-03. The doubled
+`spec-` prefix hid it from every gate pairing a shard with `plan/spec-<stem>.md`, and
+it was renamed to the conventional spelling.) They named `spec-wire-edit-2-edit-apply` as their
 destination (written here without its `plan/` path, because `spec-citation-check.py` reads
 any such path as a LIVE citation and this sentence is about a file that is gone), on the
 reading that the whole `removeValues` contract was about to be

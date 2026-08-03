@@ -787,7 +787,7 @@ lens (logic/wiring/removed-behavior; security/edge-cases/test-quality; the featu
 - **Eight classes are ALWAYS in scope, whatever round surfaces them and whoever caused them: an unwired symbol, a vacuous test, an acceptance criterion with no test, a user-facing behavior with no functional test, Linux-only code with no QEMU test, a removed guard, a newly added guard that fails open, and any RFC or interop non-conformance.** Each one passes a "no wrong result, no red gate" screen because its failure mode is silence. Nothing is wrong on the surface. The path is never exercised.
 - **Where the round's scope and that list disagree, the list wins and the loop takes another pass.** The scope bound is a rung-3 instrument (`ai/rules/rule-precedence.md`). Conformance owed outside this repo sits on rung 2. Nothing about bounding a review loop CAN retire an RFC or interop obligation (`ai/rules/rfc-compliance.md`, `ai/rules/interop-and-goal-validation.md`).
 - **Each class has its own authority.** Step 2 above covers wiring, removed-guard, logic and vacuous-test findings. `ai/rules/no-partial-completion.md` covers an untested acceptance criterion, `ai/rules/functional-test-gate.md` user-facing behavior, `ai/rules/qemu-testing.md` Linux-only code, and `ai/rules/fail-closed-guards.md` a guard that fails open.
-- **The home is a destination spec that OUTLIVES this closure, never this spec's own deferral shard.** Closure `git rm`s `plan/deferrals/<stem>.md` (`ai/rules/deferral-tracking.md`), so a row written there minutes before closing is deleted with it. Name a `plan/spec-*.md` that exists on disk.
+- **The home is a destination spec that OUTLIVES this closure, never this spec's own deferral shard.** A shard whose rows are all terminal is `git rm`d at closure (`ai/rules/deferral-tracking.md`), and a row written into it minutes before closing is either resolved by that closure or is the thing keeping the shard alive. Neither outcome is a home: the shard records where a row came FROM. Name a `plan/spec-*.md` that exists on disk.
 - **Two readings, and the one that governs.** "Fresh eyes on every pass, the full diff each time" asks a pass to see the whole change. "Loop until a pass finds nothing" asks the loop to converge. Applied to every round at once they contradict, and the agent that tries to satisfy both cannot close its work. Round 1 owns the whole-diff reading. Rounds 2 and later own convergence.
 - **Write the round's scope down BEFORE the round runs, in the spec's Review Gate section.** Unwritten, "what those fixes touched" is chosen after the findings are known, and shrinks to whatever produces a clean round. Written first, it holds when the reviewer is tired, invested, or wrong about severity. It includes the sibling call sites of every changed function (`ai/rules/quality.md`, question 8), not only the edited hunks.
 ## State the review effort before you spend it
@@ -847,7 +847,14 @@ A deferral whose destination is prose ("later", "future work") is a deletion wit
 |-------------------|------------|
 | A spec (row's `Source` names `spec-<stem>`) | `plan/deferrals/<stem>.md` |
 | Ad-hoc (no source spec) | `plan/deferrals/ad-hoc-<YYYY-MM-DD>-<sid>.md` |
-**A spec's shard is deleted at the spec's closure.** Spec closure commit B
+**A spec's shard is deleted at the spec's closure ONLY when every row in it is terminal.** Spec closure commit B (`ai/rules/planning.md` "Spec Closure") `git rm`s `plan/deferrals/<stem>.md` alongside the spec.
+**Reading the Status column of the closing spec's OWN shard is a NEW step, and no earlier check covers it.** The grep closure already requires (`ai/rules/planning.md`, "Closure resolves the spec's deferral rows") searches every shard for this spec as a **Destination**. It never reads the closing spec's own shard as a **Source**. Do not assume the existing grep answered this question: it answers a different one.
+**A shard that still holds a live row SURVIVES its source spec, and keeps its source-keyed name.** The row's home is the destination spec named in its Destination cell. The shard is only where the row is written down, so deleting the shard deletes a record of live work whose home is somewhere else entirely.
+**Two readings, and the one that governs.** "The shard is deleted at closure" and "a homed row stays live" (Status Vocabulary, below) contradict each other for a shard whose rows are homed at OTHER specs. Measured on 2026-08-03 by `scripts/dev/deferral_orphans.py`: 39 shards were in exactly that state, holding 68 live rows between them. Re-run the script rather than re-deriving the number; two hand-counts of it were wrong before the script existed. Deletion-at-closure governs the all-terminal case ONLY. Where a live row remains, the row wins and the shard stays.
+**An orphaned shard is not a defect to sweep.** A shard whose `plan/spec-<stem>.md` is gone while live rows remain is the correct end state of the paragraph above, not leftover mess. Do not bulk-delete orphaned shards to tidy the directory: read the rows first, and delete only a shard in which every row is terminal.
+**`deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`) refuses the removal, so this is not honor-system.** It reads the shard at HEAD and BLOCKS when any row is non-terminal. It has to block rather than warn: every other signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a live-bearing shard LOWERS their counts instead of raising them, and the forbidden action is the one that silences every observer of the rows it destroys (`ai/rules/fail-closed-guards.md`).
+**An all-terminal orphaned shard is residue, and the actor who deletes it is the closer of the LAST spec that homed one of its rows.** Setting the final row to `done` is what makes the shard residue, so the same commit removes the file. Without a named actor the state never drains: 14 such shards existed on 2026-08-03 because each was left for whoever came next. Nobody is obliged to hunt for others.
+**A live row whose SOURCE spec closed still needs a real Destination, and that is the thing closure must check.** The source spec's disappearance is what makes a prose destination unrecoverable: nothing on disk was ever going to become "a future usability spec", and now nothing will create it either. Six such rows were found and homed on 2026-08-03; they had been live since 2026-07-17 and 2026-07-21, which is why the same-day measurement above reports every row homed.
 ## When to Record
 | Trigger | Action |
 |---------|--------|
@@ -3503,6 +3510,7 @@ The lifecycle is: `in-progress` -> Review Gate clean -> write learned summary ->
 **TWO commits, ONE script.** The spec is edited during implementation (design notes,
 1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
+**This extends to FOREIGN shards this closure emptied.** Resolving a row homed
 **EVERY reference survives closure, not only `// Design:`.** Before commit B, grep
 | Gate | Reads | Missed by a `// Design:`-only grep |
 |------|-------|-------------------------------------|
@@ -3515,7 +3523,8 @@ The lifecycle is: `in-progress` -> Review Gate clean -> write learned summary ->
 | Banned | Why |
 |--------|-----|
 | "I'll close it later" | Later never comes. Other sessions see it as in-progress. |
-| `git rm` a spec while a deferral row still names it as Destination | The row dangles forever and blocks every future commit. Resolve it in commit A. |
+| `git rm` a spec while a deferral row still names it as Destination | The row dangles forever. Nothing blocks: the gate is advisory, so it is reported and ignored. Resolve it in commit A. |
+| `git rm` a deferral shard that still holds a live row | Deletes the record AND silences every observer of it, because they all fold over the directory. `deferral_shard_removal_problems` blocks this one (`ai/rules/deferral-tracking.md`). |
 | Resolving a row to a learned summary that never mentions the item | Fail-open bookkeeping: the row goes quiet and the knowledge is lost. Verify the summary records it. |
 | "The user will handle it" | The user asked us to implement. Closure is part of implementation. |
 | `git rm` in the same commit as implementation | Spec edits are lost from history. Two commits required. |
