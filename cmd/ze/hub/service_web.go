@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -65,6 +66,7 @@ func buildWebService(deps ServiceDeps) (Service, error) {
 		deps.ConfigPath,
 		deps.WebAddrs,
 		deps.InsecureWeb,
+		deps.WebCertificate,
 		deps.Dispatch,
 		deps.Resolvers,
 		deps.Authorizer,
@@ -107,10 +109,10 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	}
 	showCmd.RegisterAuditProvider(auditLog.Query)
 	// Web-only mode runs before any config is loaded, so there are no
-	// config-file users; only the zefs power user authenticates here.
-	// Web-only mode runs no plugin engine, so there are no plugin commands to
-	// inject into completion (nil source).
-	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog, nil, nil, nil)
+	// config-file users (only the zefs power user authenticates here), no
+	// plugin engine to source completion commands from (nil source), and no pki
+	// block to reference: the self-signed certificate path is the only one.
+	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, nil, nil)
 	if webSrv == nil {
 		return 1
 	}
@@ -226,13 +228,36 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 	})
 }
 
+// webTLSMaterial returns the PEM material the web listener serves.
+//
+// certName is the operator's environment.web.certificate leaf. When it is set,
+// the material comes from the PKI store and carries the full chain; when it is
+// empty, the established self-signed pair is loaded from (or generated into)
+// the blob store, exactly as before this leaf existed.
+//
+// It FAILS CLOSED: a configured name that does not resolve returns an error and
+// no material. It never falls back to the self-signed path, because a listener
+// that quietly serves a self-signed certificate while the config names a real
+// one is indistinguishable from a working deployment until a client rejects it
+// (R-5 of plan/spec-pki-full-chain.md).
+func webTLSMaterial(certName string, certStore selfcert.CertStore, listenAddr string) (certPEM, keyPEM []byte, err error) {
+	if certName != "" {
+		return zepki.ServerTLSMaterial(certName)
+	}
+	// Persist the self-signed cert in zefs so browsers don't have to re-accept
+	// on every restart. The SAN hint is derived from the first endpoint;
+	// GenerateWebCertWithAddr already fans out to all interface IPs when the
+	// host is 0.0.0.0.
+	return selfcert.LoadOrGenerateCert(certStore, listenAddr)
+}
+
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server and SSE event broker on success, nil on failure (logged, non-fatal).
 // Caller MUST call broker.Close() during shutdown to release SSE clients.
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig, commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig, commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
 	dispatch = withBGPDecode(dispatch)
 
 	if !storage.IsBlobStorage(store) {
@@ -271,11 +296,8 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		}
 	}
 
-	// Persist TLS cert in zefs so browsers don't have to re-accept on every restart.
-	// The SAN hint is derived from the first endpoint; GenerateWebCertWithAddr
-	// already fans out to all interface IPs when the host is 0.0.0.0.
 	certStore := &blobCertStore{store: store}
-	certPEM, keyPEM, err := selfcert.LoadOrGenerateCert(certStore, listenAddrs[0])
+	certPEM, keyPEM, err := webTLSMaterial(certName, certStore, listenAddrs[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: TLS cert: %v\n", err)
 		return nil, nil

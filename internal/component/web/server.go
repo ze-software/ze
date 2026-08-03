@@ -24,6 +24,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/selfcert"
@@ -35,6 +36,7 @@ var (
 	errWebServerListenAddressMustNot = errors.New("web server: listen address must not be empty")
 	errWebServerCertificateAndKeyPem = errors.New("web server: certificate and key PEM data are required")
 	errWebServerShutDown             = errors.New("web server: server has been shut down")
+	errWebServerNoCertificate        = errors.New("web server: no TLS certificate installed")
 )
 
 // serverLogger is the structured logger for the web server subsystem.
@@ -84,6 +86,11 @@ type WebServer struct {
 	stopped   bool          // set by Shutdown; Reconfigure checks this
 	logger    *slog.Logger
 	server    *http.Server
+	// cert is the certificate every handshake serves. tls.Config.GetCertificate
+	// reads it per handshake rather than per listener, so UpdateTLSCertificate
+	// rotates the served material without touching a bound listener. Never nil
+	// after NewWebServer returns.
+	cert atomic.Pointer[tls.Certificate]
 }
 
 // NewWebServer creates a new WebServer from the given configuration.
@@ -116,7 +123,7 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 	mux := http.NewServeMux()
 	configured := append([]string(nil), cfg.ListenAddrs...)
 
-	return &WebServer{
+	srv := &WebServer{
 		mux:        mux,
 		tlsConfig:  tlsCfg,
 		configured: configured,
@@ -135,7 +142,54 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 			// Suppress TLS handshake errors from browsers rejecting self-signed certs.
 			ErrorLog: stdlog.New(io.Discard, "", 0),
 		},
-	}, nil
+	}
+
+	// Move the certificate behind a per-handshake lookup. crypto/tls consults
+	// GetCertificate before Certificates, so an already-bound listener picks up
+	// a rotated certificate on its NEXT handshake with no rebind and no dropped
+	// connection (AC-9). Certificates is cleared so the two can never disagree
+	// about what is being served.
+	srv.cert.Store(&tlsCfg.Certificates[0])
+	tlsCfg.Certificates = nil
+	tlsCfg.GetCertificate = srv.getCertificate
+
+	return srv, nil
+}
+
+// getCertificate is the tls.Config.GetCertificate callback. It returns the
+// certificate currently installed, which UpdateTLSCertificate can replace at any
+// time.
+func (s *WebServer) getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	cert := s.cert.Load()
+	if cert == nil {
+		// Unreachable: NewWebServer installs a certificate before returning and
+		// UpdateTLSCertificate never installs nil. Refuse the handshake rather
+		// than let crypto/tls fall through to an empty Certificates list, which
+		// would serve nothing while looking like a working listener.
+		return nil, errWebServerNoCertificate
+	}
+	return cert, nil
+}
+
+// UpdateTLSCertificate replaces the certificate served on every subsequent
+// handshake. Bound listeners are untouched, so open connections (including SSE
+// streams) survive the rotation.
+//
+// It is fail-closed on bad material: material that does not parse is refused and
+// the previously installed certificate keeps serving. Installing unparseable
+// material, or clearing the certificate, would break every future handshake on a
+// listener that was working a moment earlier.
+func (s *WebServer) UpdateTLSCertificate(certPEM, keyPEM []byte) error {
+	if len(certPEM) == 0 || len(keyPEM) == 0 {
+		return errWebServerCertificateAndKeyPem
+	}
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return fmt.Errorf("web server: rotate TLS certificate: %w", err)
+	}
+	s.cert.Store(&cert)
+	s.logger.Info("web server TLS certificate rotated")
+	return nil
 }
 
 // HandleFunc registers a handler function for the given pattern on the server's mux.

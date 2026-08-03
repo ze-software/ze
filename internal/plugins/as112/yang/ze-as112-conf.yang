@@ -183,6 +183,23 @@ module ze-as112-conf {
                         "Path to the PEM private key matching cert-file. Must be
                          set together with cert-file.";
                 }
+
+                leaf certificate {
+                    type string {
+                        length "1..255";
+                        pattern '[A-Za-z0-9._-]+';
+                    }
+                    description
+                        "Name of the certificate in the PKI store to serve on DoT
+                         and DoH. The listeners send the leaf certificate and
+                         every intermediate certificate the store entry holds.
+                         This leaf and cert-file/key-file are mutually exclusive;
+                         setting both is a configuration error.
+                         The PKI store lives in the hub process, so a geodns or
+                         as112 plugin started as an external process cannot
+                         resolve the name: the secure listeners then do not start
+                         and the error is logged. Cleartext DNS is unaffected.";
+                }
             }
 
             container doh {

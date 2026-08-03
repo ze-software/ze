@@ -49,6 +49,25 @@ module ze-web-conf {
                 description "Disable authentication (forces host to 127.0.0.1)";
             }
 
+            leaf certificate {
+                type string {
+                    length "1..255";
+                    pattern '[A-Za-z0-9._-]+';
+                }
+                description
+                    "Name of the certificate in the PKI store to serve on the
+                     HTTPS listener. The listener sends the leaf certificate and
+                     every intermediate certificate the store entry holds, so a
+                     client can build the full chain.
+                     When this leaf is not set, ze generates a self-signed
+                     certificate and serves that.
+                     When this leaf is set and the store has no entry with that
+                     name, or the entry holds no private key, the web server does
+                     not start and the reload is rejected. ze never falls back to
+                     a self-signed certificate for a configured name.
+                     Environment variable: ze.web.certificate.";
+            }
+
             leaf ui-mode {
                 type enumeration {
                     enum finder { description "Default file-browser style UI"; }

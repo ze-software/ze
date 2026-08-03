@@ -1,0 +1,37 @@
+# spec-pki-full-chain AC-6: `certificate` (a PKI store reference) and
+# cert-file/key-file (operator PEM paths) are two sources of the same TLS
+# material, so setting both is rejected rather than silently resolved by a
+# precedence rule the operator cannot see.
+#
+# The accepted counterpart (certificate alone) is asserted second, so this test
+# fails if the mutual-exclusion check ever widens into "certificate rejected".
+stdin=conflict:terminator=EOF_CONFLICT
+service {
+	as112 {
+		enabled true
+		tls {
+			enabled true
+			certificate lan
+			cert-file /etc/ze/tls.pem
+			key-file /etc/ze/tls.key
+		}
+	}
+}
+EOF_CONFLICT
+
+stdin=refonly:terminator=EOF_REF
+service {
+	as112 {
+		enabled true
+		tls {
+			enabled true
+			certificate lan
+		}
+	}
+}
+EOF_REF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=conflict
+expect=exit:code=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=refonly
+expect=exit:code=0

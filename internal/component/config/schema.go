@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -140,6 +141,7 @@ type LeafNode struct {
 	Description string         // YANG description for tooltips/help
 	Enums       []string       // Valid enum values (nil for non-enum types)
 	Ranges      []NumericRange // Valid numeric ranges from YANG range statements
+	Lengths     []NumericRange // Valid string lengths from YANG length statements (characters, RFC 7950 Section 9.4.4)
 	Patterns    []string       // Valid string patterns from YANG pattern statements
 	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
@@ -813,10 +815,42 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 			return err
 		}
 	}
+	if err := validateLengths(value, node.Lengths); err != nil {
+		return err
+	}
 	if err := validatePatterns(value, node.Patterns); err != nil {
 		return err
 	}
 	return nil
+}
+
+// validateLengths enforces YANG `length` on a string value. The length is
+// counted in CHARACTERS, not bytes (RFC 7950 Section 9.4.4), so a multi-byte
+// value is not rejected for its encoding.
+//
+// Length is checked BEFORE pattern: for an over-long value the length is the
+// operator's actual mistake, and a pattern message about a 4096-character
+// string is unreadable.
+func validateLengths(value string, lengths []NumericRange) error {
+	if len(lengths) == 0 {
+		return nil
+	}
+	n := int64(utf8.RuneCountInString(value))
+	for _, r := range lengths {
+		low, ok := new(big.Int).SetString(r.Min, 10)
+		if !ok {
+			continue
+		}
+		high, ok := new(big.Int).SetString(r.Max, 10)
+		if !ok {
+			continue
+		}
+		got := big.NewInt(n)
+		if got.Cmp(low) >= 0 && got.Cmp(high) <= 0 {
+			return nil
+		}
+	}
+	return fmt.Errorf("value length %d is outside allowed length %s", n, formatNumericRanges(lengths))
 }
 
 // ValidateListKey validates a list key against the full key leaf restrictions

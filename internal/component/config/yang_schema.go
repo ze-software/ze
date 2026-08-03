@@ -598,6 +598,7 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	}
 	node.Ranges = numericRangesFromType(entry.Type, path)
 	node.Patterns = patternsFromType(entry.Type)
+	node.Lengths = lengthRangesFromType(entry.Type)
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
 			recordSchemaBuildError(fmt.Errorf("at %s: ze:required on a leaf is invalid (use mandatory true instead)", path))
@@ -613,6 +614,20 @@ func patternsFromType(typ *gyang.YangType) []string {
 	patterns := make([]string, len(typ.Pattern))
 	copy(patterns, typ.Pattern)
 	return patterns
+}
+
+// lengthRangesFromType lifts YANG `length` restrictions into the schema. Without
+// it the statement parses and is then discarded, which is what made every
+// `length "1..255"` in the tree decorative.
+func lengthRangesFromType(typ *gyang.YangType) []NumericRange {
+	if typ == nil || len(typ.Length) == 0 {
+		return nil
+	}
+	lengths := make([]NumericRange, 0, len(typ.Length))
+	for _, r := range typ.Length {
+		lengths = append(lengths, NumericRange{Min: r.Min.String(), Max: r.Max.String()})
+	}
+	return lengths
 }
 
 func numericRangesFromType(typ *gyang.YangType, _ string) []NumericRange {

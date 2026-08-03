@@ -1,0 +1,26 @@
+# A pki block plus environment.web.certificate referencing one of its entries
+# parses and validates. spec-pki-full-chain AC-1: the web HTTPS listener can be
+# pointed at an operator certificate held in the PKI store.
+stdin=config:terminator=EOF_CONF
+pki {
+	ca web-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate lan {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+		private {
+			key MHcCAQEEIJWSrBva0yYuEY9NyV6LSqFoZ4eRNSoFUCZj9KdmaPuioAoGCCqGSM49AwEHoUQDQgAE9ujhR+AuyNpjClq9wS3fPg4sLDh2JYdiXLRih2EDVDNJAhFQEQ6RbqhwdSMnZUmPBBuoNbt1T6U+jcrRyF0VhA==
+		}
+	}
+}
+
+environment {
+	web {
+		enabled true
+		certificate lan
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

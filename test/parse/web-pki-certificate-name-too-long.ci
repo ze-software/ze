@@ -1,0 +1,29 @@
+# spec-pki-full-chain boundary table: the certificate leaf is 1..255 characters
+# and the pki name charset. A 256-character name is rejected, and so is a name
+# carrying a path separator -- the reference is a store key, never a file path.
+#
+# Until this spec the schema discarded YANG length restrictions entirely
+# (internal/component/config/schema.go carried Patterns and Ranges but no
+# Lengths), so every 'length "1..255"' in the tree validated anything.
+stdin=toolong:terminator=EOF_LONG
+environment {
+	web {
+		enabled true
+		certificate aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	}
+}
+EOF_LONG
+
+stdin=badchar:terminator=EOF_BAD
+environment {
+	web {
+		enabled true
+		certificate "../../etc/ze/secret"
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=toolong
+expect=exit:code=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=badchar
+expect=exit:code=1

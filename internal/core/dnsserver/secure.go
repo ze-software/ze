@@ -31,6 +31,7 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -140,6 +141,11 @@ type SecureConfig struct {
 	DoHPath    string
 	CertFile   string
 	KeyFile    string
+	// Certificate names an entry in the PKI store, resolved through the
+	// Manager's injected TLSMaterialResolver. Mutually exclusive with
+	// CertFile/KeyFile. Empty means "no store reference": the file pair or the
+	// self-signed fallback applies, exactly as before this field existed.
+	Certificate string
 }
 
 // DefaultSecureConfig returns a SecureConfig with the DoT/DoH transports
@@ -175,6 +181,15 @@ func ParseSecureLeaves(node map[string]any, sc *SecureConfig, svc string) error 
 		}
 		if v, ok := tlsM["key-file"].(string); ok {
 			sc.KeyFile = v
+		}
+		if v, ok := tlsM["certificate"].(string); ok {
+			sc.Certificate = v
+		}
+		// Two sources of TLS material in one container is a configuration
+		// error, not a precedence question: whichever one lost would be
+		// silently ignored, and the operator would have no way to see which.
+		if sc.Certificate != "" && (sc.CertFile != "" || sc.KeyFile != "") {
+			return fmt.Errorf("%s: tls certificate %q and cert-file/key-file are mutually exclusive (use one source of TLS material)", svc, sc.Certificate)
 		}
 	}
 	if dohM, ok := node["doh"].(map[string]any); ok {
@@ -230,6 +245,23 @@ func (m *Manager) ApplyWithSecure(enabled bool, plain []Endpoint, sc SecureConfi
 // cert yields the same fingerprint hence no rebind). The self-signed fallback is
 // generated once and cached, so a config reload does not churn a rebind.
 func (m *Manager) buildSecureTLS(sc SecureConfig, sans []string, log *slog.Logger) (*tls.Config, error) {
+	if sc.Certificate != "" {
+		// Resolved per apply, like the operator file pair below it, so rotating
+		// the store entry's material is picked up and the listener signature's
+		// certificate fingerprint forces the rebind.
+		if m.opts.TLSMaterialResolver == nil {
+			return nil, fmt.Errorf("dnsserver: tls certificate %q configured but this consumer injected no TLS material resolver", sc.Certificate)
+		}
+		certPEM, keyPEM, err := m.opts.TLSMaterialResolver(sc.Certificate)
+		if err != nil {
+			return nil, fmt.Errorf("dnsserver: tls certificate %q: %w", sc.Certificate, err)
+		}
+		cfg, err := selfcert.NewTLSConfig(certPEM, keyPEM)
+		if err != nil {
+			return nil, fmt.Errorf("dnsserver: tls certificate %q material: %w", sc.Certificate, err)
+		}
+		return cfg, nil
+	}
 	if sc.CertFile != "" || sc.KeyFile != "" {
 		return LoadTLSMaterial(sc.CertFile, sc.KeyFile, sans, log)
 	}

@@ -16,6 +16,7 @@ import (
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -214,7 +215,50 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}
 
+	// Capture the PKI config the store currently holds, so any failure after the
+	// install below can put it back. Without this, a rejected reload would leave
+	// the daemon serving the NEW certificates under the OLD config (R-3).
+	var priorPKI *zepki.PKIConfig
+	if priorProvider != nil {
+		var priorErr error
+		priorPKI, priorErr = preparePKIConfig(snapshotToLoadedTree(priorProvider))
+		if priorErr != nil {
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("reload: snapshot pki config: %w (candidate cleanup failed: %w)", priorErr, clearErr)
+			}
+			return fmt.Errorf("reload: snapshot pki config: %w", priorErr)
+		}
+	}
+
+	// Install the new store BEFORE any consumer applies the new config. A
+	// reference-style leaf (`certificate <name>` -> store entry) only resolves
+	// within its own commit if the store is already the new one when the plugin
+	// or subsystem asks (AC-10). Installing it last, as this used to, meant a
+	// single commit that added a certificate AND referenced it resolved against
+	// the PREVIOUS store and failed.
+	if err := zepki.Load(pkiConfig); err != nil {
+		if clearErr := clearCandidate(); clearErr != nil {
+			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", err, clearErr)
+		}
+		return fmt.Errorf("reload: pki config: %w", err)
+	}
+
+	// Reject the commit when the web listener's certificate reference does not
+	// resolve against the just-installed store (R-5). Checked here, before any
+	// consumer applies, so the reload fails as a whole rather than leaving the
+	// listener on a certificate the config no longer describes.
+	webCertName := reloadWebCertificate(parsedTree)
+	if webCertName != "" {
+		if _, _, certErr := zepki.ServerTLSMaterial(webCertName); certErr != nil {
+			return restorePKIAfter(priorPKI, clearCandidate,
+				fmt.Errorf("reload: environment.web.certificate: %w", certErr))
+		}
+	}
+
 	if err := s.ReloadConfig(reloadCtx, newTree); err != nil {
+		if restoreErr := restorePKI(priorPKI); restoreErr != nil {
+			err = fmt.Errorf("%w (pki restore failed: %w)", err, restoreErr)
+		}
 		if clearErr := clearCandidate(); clearErr != nil {
 			return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
 		}
@@ -227,7 +271,7 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 
 	if eng != nil {
 		if err := eng.Reload(reloadCtx); err != nil {
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				if clearErr := clearCandidate(); clearErr != nil {
 					return fmt.Errorf("subsystem reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
 				}
@@ -242,7 +286,7 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 
 	if lm != nil && parsedTree != nil {
 		if err := lm.ReloadListeners(reloadCtx, parsedTree); err != nil {
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				if clearErr := clearCandidate(); clearErr != nil {
 					return fmt.Errorf("reload: listener migration: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
 				}
@@ -255,17 +299,22 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}
 
-	if err := zepki.Load(pkiConfig); err != nil {
-		if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("reload: pki config: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+	// The store is already installed (above). Push the possibly-rotated material
+	// onto the running web listener, which serves it from the next handshake
+	// with no rebind, so open SSE streams survive the rotation (AC-9).
+	if lm != nil {
+		if err := lm.UpdateWebCertificate(webCertName); err != nil {
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+				}
+				return fmt.Errorf("reload: %w (rollback failed: %w)", err, rollbackErr)
 			}
-			return fmt.Errorf("reload: pki config: %w (rollback failed: %w)", err, rollbackErr)
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("reload: %w (candidate cleanup failed: %w)", err, clearErr)
+			}
+			return fmt.Errorf("reload: %w", err)
 		}
-		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", err, clearErr)
-		}
-		return fmt.Errorf("reload: pki config: %w", err)
 	}
 
 	applyHostTuningFromMap(newTree)
@@ -349,11 +398,18 @@ func restoreProviderSnapshot(cp *zeconfig.Provider, snapshot map[string]map[stri
 	}
 }
 
-func rollbackReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, prior map[string]map[string]any) error {
+func rollbackReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, prior map[string]map[string]any, priorPKI *zepki.PKIConfig) error {
 	if prior == nil {
 		return nil
 	}
 	var rollbackErrs []error
+	// Reinstall the prior store FIRST: the plugin and subsystem rollbacks below
+	// re-apply the old config, and a consumer resolving a certificate reference
+	// during that apply must see the old material, not the rejected commit's
+	// (R-3). This mirrors the install-before-apply ordering of the forward path.
+	if err := restorePKI(priorPKI); err != nil {
+		rollbackErrs = append(rollbackErrs, err)
+	}
 	if s != nil {
 		if err := s.ReloadConfig(ctx, snapshotToLoadedTree(prior)); err != nil {
 			rollbackErrs = append(rollbackErrs, fmt.Errorf("plugin rollback: %w", err))
@@ -368,6 +424,51 @@ func rollbackReload(ctx context.Context, s *pluginserver.Server, eng *engine.Eng
 		}
 	}
 	return errors.Join(rollbackErrs...)
+}
+
+// restorePKI reinstalls a previously captured PKI config. A nil config means
+// nothing was captured (no provider snapshot), so there is nothing to undo.
+func restorePKI(priorPKI *zepki.PKIConfig) error {
+	if priorPKI == nil {
+		return nil
+	}
+	if err := zepki.Load(priorPKI); err != nil {
+		return fmt.Errorf("pki restore: %w", err)
+	}
+	return nil
+}
+
+// restorePKIAfter undoes the store install for a failure that happened before
+// any consumer applied, so no plugin or subsystem rollback is owed: only the
+// store and the candidate need unwinding.
+func restorePKIAfter(priorPKI *zepki.PKIConfig, clearCandidate func() error, cause error) error {
+	if restoreErr := restorePKI(priorPKI); restoreErr != nil {
+		cause = fmt.Errorf("%w (pki restore failed: %w)", cause, restoreErr)
+	}
+	if clearErr := clearCandidate(); clearErr != nil {
+		return fmt.Errorf("%w (candidate cleanup failed: %w)", cause, clearErr)
+	}
+	return cause
+}
+
+// reloadWebCertificate returns the environment.web.certificate name the reloaded
+// config asks for. The env var wins, exactly as it does at startup, so a
+// deployment that pins the certificate through ze.web.certificate is not
+// silently re-pointed by a config edit.
+func reloadWebCertificate(parsedTree *zeconfig.Tree) string {
+	if name := env.Get("ze.web.certificate"); name != "" {
+		return name
+	}
+	if parsedTree == nil {
+		return ""
+	}
+	// Settings, not addresses: the certificate applies to a listener started by
+	// a flag or env var too (learned 1327).
+	cfg, ok := zeconfig.ExtractWebSettings(parsedTree)
+	if !ok {
+		return ""
+	}
+	return cfg.Certificate
 }
 
 func rootsSet(roots []string) map[string]struct{} {

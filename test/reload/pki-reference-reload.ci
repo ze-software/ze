@@ -1,0 +1,119 @@
+# spec-pki-full-chain AC-10, end to end through the real daemon.
+#
+# ONE commit adds a NEW pki certificate (lan-next) AND points
+# environment.web.certificate at it. The reload must apply cleanly.
+#
+# This is the case the ordering fix exists for. runReload used to install the
+# PKI store LAST, after plugin apply, so a name introduced by the commit being
+# applied did not exist yet when the reference was resolved: the operator had to
+# commit the certificate first and the reference second.
+#
+# `lan-next` is rejected from stderr because it appears there only in a
+# resolution error. Restore the pre-fix ordering in runReload and this test goes
+# red with "pki: certificate lan-next not found (available: lan)".
+#
+# The served chain CONTENT is asserted by the Go handshake tests
+# (web.TestWebServerServesPKIChain, pki.TestServerTLSMaterialAssemblesChain);
+# the observer sandbox cannot drive a TLS handshake.
+
+tmpfs=signal.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+# ONE reload per test. Several HUPs in one run race the daemon's reload queue
+# (a HUP arriving mid-reload is queued and replayed), which made a three-reload
+# script pass or fail depending on machine load rather than on the behavior.
+#
+# Fence on daemon.pid, NOT on daemon.ready. The runner waits for the daemon to
+# write daemon.ready and only THEN publishes daemon.pid
+# (internal/test/runner/runner_exec.go), so daemon.pid is the later of the two:
+# breaking out on daemon.ready and reading daemon.pid immediately loses the race
+# under parallel load, and a HUP sent before the signal handlers are registered
+# is lost anyway. This daemon loads pki, plugins and ike, so allow 20s.
+for i in $(seq 1 200); do
+    if [ -f daemon.pid ]; then
+        break
+    fi
+    sleep 0.1
+done
+if [ ! -f daemon.pid ]; then
+    echo "daemon.pid not found" >&2
+    exit 1
+fi
+PID=$(cat daemon.pid)
+
+cp addref.conf hub.conf
+kill -HUP "$PID" 2>/dev/null
+# One reload, then stop. The runner fences on the stderr assertions below; this
+# sleep only keeps the script alive long enough for the reload to emit them.
+sleep 3
+
+kill -TERM "$PID" 2>/dev/null
+EOF_SH
+
+tmpfs=hub.conf:terminator=EOF_CONF
+plugin {
+}
+
+pki {
+	ca web-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate lan {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+		private {
+			key MHcCAQEEIJWSrBva0yYuEY9NyV6LSqFoZ4eRNSoFUCZj9KdmaPuioAoGCCqGSM49AwEHoUQDQgAE9ujhR+AuyNpjClq9wS3fPg4sLDh2JYdiXLRih2EDVDNJAhFQEQ6RbqhwdSMnZUmPBBuoNbt1T6U+jcrRyF0VhA==
+		}
+	}
+}
+
+environment {
+	web {
+		enabled true
+		server default {
+			ip 127.0.0.1
+			port 18861
+		}
+		certificate lan
+	}
+}
+EOF_CONF
+
+tmpfs=addref.conf:terminator=EOF_ADDREF
+plugin {
+}
+
+pki {
+	ca web-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate lan {
+		certificate MIIBpzCCAUygAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRw0wCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTM4MzhaFw0zNjA3MzEyMTM4MzhaMBwxGjAYBgNVBAMMEWxvY2FsaG9zdC1yb3RhdGVkMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERr7nZZ0Tb4Lri+LXKMbyhkSCMaW1XidikxRNJOJR9tN87Jx6i89FiuIOzaYpmLnVBzlA1aZM326x28DtTX+/9KNzMHEwGgYDVR0RBBMwEYIJbG9jYWxob3N0hwR/AAABMBMGA1UdJQQMMAoGCCsGAQUFBwMBMB0GA1UdDgQWBBTqVaL4bOqFH4fozfh+e8xd9koU8zAfBgNVHSMEGDAWgBQFA+eYx4uMkTBrquxm+IUmmYd2zDAKBggqhkjOPQQDAgNJADBGAiEAqxQJnaFXXWrrTKPgmMM0SHfBBKsN0cqfaj6Wx7w62lsCIQCh45+bRjs/5aJzD9Sx8OhsOtfCKAT7y3yM0ePRl8PC5w==
+		private {
+			key MHcCAQEEIF8P68dMdBI35GQFFrQjWo8/snH8TjJQrH2G2cK1lRQKoAoGCCqGSM49AwEHoUQDQgAERr7nZZ0Tb4Lri+LXKMbyhkSCMaW1XidikxRNJOJR9tN87Jx6i89FiuIOzaYpmLnVBzlA1aZM326x28DtTX+/9A==
+		}
+	}
+	certificate lan-next {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+		private {
+			key MHcCAQEEIJWSrBva0yYuEY9NyV6LSqFoZ4eRNSoFUCZj9KdmaPuioAoGCCqGSM49AwEHoUQDQgAE9ujhR+AuyNpjClq9wS3fPg4sLDh2JYdiXLRih2EDVDNJAhFQEQ6RbqhwdSMnZUmPBBuoNbt1T6U+jcrRyF0VhA==
+		}
+	}
+}
+
+environment {
+	web {
+		enabled true
+		server default {
+			ip 127.0.0.1
+			port 18861
+		}
+		certificate lan-next
+	}
+}
+EOF_ADDREF
+
+cmd=background:seq=1:exec=./signal.sh
+cmd=foreground:seq=2:exec=ze start hub.conf:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=sighup reload complete
+reject=stderr:pattern=lan-next
+reject=stderr:pattern=reload error

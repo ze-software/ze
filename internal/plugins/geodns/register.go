@@ -58,7 +58,7 @@ func init() {
 			Order:        725,
 			Dependencies: []string{"fib-kernel"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid"},
+			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid", "doctor-tls-reference"},
 			Check:        checkGeoDNSTLSCert,
 		},
 	}

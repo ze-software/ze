@@ -13,6 +13,7 @@ import (
 
 	"github.com/miekg/dns"
 
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -174,6 +175,13 @@ func newServerManager(log *slog.Logger, onServing func()) *as112Server {
 	s.mgr = dnsserver.New(log, handler, dnsserver.Options{
 		Freebind:         true,
 		OnListenerChange: s.listenerChanged,
+		// The PKI store lives in the hub process. Injecting the resolver here
+		// (rather than letting core dnsserver reach for it) keeps the
+		// core-must-not-import-component tier rule intact, and makes an
+		// out-of-process instance fail loudly: its store is empty, so a
+		// configured `tls { certificate }` errors and the secure listeners do
+		// not start, instead of quietly serving a self-signed certificate.
+		TLSMaterialResolver: zepki.ServerTLSMaterial,
 	})
 	return s
 }

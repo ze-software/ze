@@ -55,6 +55,16 @@ type Options struct {
 	// now up. The harness never owns metrics; a consumer wires its own gauge
 	// through this callback.
 	OnListenerChange func(proto, addr string, up bool)
+
+	// TLSMaterialResolver resolves a certificate NAME into serving PEM material
+	// (leaf plus any intermediates, and the private key). It exists because
+	// internal/core may not import internal/component: the PKI store lives in
+	// the pki component, so a consumer plugin injects pki.ServerTLSMaterial here
+	// and this package stays free of that dependency.
+	//
+	// nil means this consumer supports no store references. A SecureConfig that
+	// names one anyway is then an error, never a silent fallback.
+	TLSMaterialResolver func(name string) (certPEM, keyPEM []byte, err error)
 }
 
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is

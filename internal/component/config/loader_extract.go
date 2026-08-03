@@ -90,31 +90,76 @@ func extractServerList(svc *Tree, defaultHost, defaultPort string) []ServerEndpo
 type WebListenConfig struct {
 	Servers  []ServerEndpoint // One entry per YANG `server <name> {}` block (defaults synthesized if empty)
 	Insecure bool             // Disable authentication (forces every entry to 127.0.0.1)
+	// Certificate names an entry in the PKI store to serve on the HTTPS
+	// listener. Empty selects the self-signed certificate. A non-empty name
+	// that does not resolve is a startup/reload error, never a fallback.
+	Certificate string
+}
+
+// ExtractWebSettings returns the environment.web settings whenever the block
+// exists, whether or not it asks for a listener.
+//
+// ok=true means "the operator wrote a web block".
+func ExtractWebSettings(tree *Tree) (WebListenConfig, bool) {
+	cfg, _, present := extractWebBlock(tree)
+	if !present {
+		return WebListenConfig{}, false
+	}
+	return cfg, true
 }
 
 // ExtractWebConfig returns the environment.web config if enabled.
 // Every YANG list entry is returned in insertion order; callers that only
 // want the first endpoint take `cfg.Servers[0]`.
+//
+// ok=true means "config asks for a web listener".
 func ExtractWebConfig(tree *Tree) (WebListenConfig, bool) {
+	cfg, enabled, present := extractWebBlock(tree)
+	if !present || !enabled {
+		return WebListenConfig{}, false
+	}
+	return cfg, true
+}
+
+// extractWebBlock parses environment.web in full and reports both whether the
+// block exists (present) and whether it asks for a listener (enabled). It
+// applies no gate of its own; each caller above decides what its own ok value
+// means, and neither inherits the other's meaning.
+//
+// The split exists because cmd/ze/hub/main.go starts the web server from the
+// --web flag, ze.web.listen, or ze.web.enabled as well as from this block. A
+// single `enabled` gate therefore discarded `certificate` for every listener
+// the config file did not start, silently serving a self-signed certificate to
+// an operator who had named their own
+// (plan/learned/1327-enabled-gate-discards-service-settings.md).
+func extractWebBlock(tree *Tree) (WebListenConfig, bool, bool) {
+	if tree == nil {
+		return WebListenConfig{}, false, false
+	}
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
-		return WebListenConfig{}, false
+		return WebListenConfig{}, false, false
 	}
 	web := envBlock.GetContainer("web")
 	if web == nil {
-		return WebListenConfig{}, false
+		return WebListenConfig{}, false, false
 	}
 
-	// Service must be explicitly enabled (default false).
-	enabled, _ := web.Get("enabled")
-	if enabled != configTrue {
-		return WebListenConfig{}, false
-	}
+	// Service must be explicitly enabled (default false) for config to START a
+	// web listener. Reported, not enforced here: the settings below are parsed
+	// either way, so an address supplied by a flag or env var still gets the
+	// operator's certificate.
+	enabledLeaf, _ := web.Get("enabled")
+	enabled := enabledLeaf == configTrue
 
 	cfg := WebListenConfig{Servers: extractServerList(web, "0.0.0.0", "3443")}
 
 	if v, ok := web.Get("insecure"); ok && v == configTrue {
 		cfg.Insecure = true
+	}
+
+	if v, ok := web.Get("certificate"); ok {
+		cfg.Certificate = v
 	}
 
 	if v, ok := web.Get("ui-mode"); ok && v != "" && env.Get("ze.web.ui-mode") == "" {
@@ -131,7 +176,7 @@ func ExtractWebConfig(tree *Tree) (WebListenConfig, bool) {
 		}
 	}
 
-	return cfg, true
+	return cfg, enabled, true
 }
 
 // HasWebConfig returns true if the parsed config tree has an enabled environment.web block.

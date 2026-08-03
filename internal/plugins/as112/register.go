@@ -151,7 +151,7 @@ func init() {
 			Order:        724,
 			Dependencies: []string{"fib-kernel"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid"},
+			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid", "doctor-tls-reference"},
 			Check:        checkAS112TLSCert,
 		},
 	}
