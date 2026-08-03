@@ -452,6 +452,39 @@ def learned_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(path for path in paths if LEARNED_RE.match(path))
 
 
+# Where a durable lesson BELONGS, from the routing taxonomy in
+# `plan/spec-knowledge-routing.md`. A commit that puts its lesson in one of these
+# has not lost it, so the helper asks for a DESTINATION and takes a summary as
+# only one of the answers.
+#
+# Measured 2026-08-03 over 903 summaries: 13 were referenced by a rule or a hook.
+# The other 890 reached nothing that governs behaviour. A gate that demands a
+# document produces an archive; a gate that demands a destination produces
+# guidance, and `plan/learned/` goes back to being the staging queue that spec
+# describes rather than the place lessons come to rest.
+ROUTE_PREFIXES = (
+    "ai/rules/",  # a recurring trap an agent must avoid
+    "ai/digests/",  # how data flows through a subsystem today
+    "docs/architecture/",  # a design decision, why the code is shaped this way
+    "rfc/short/",  # a protocol obligation
+)
+
+ROUTE_FILES = frozenset(
+    {
+        "plan/learned/DESIGN-HISTORY.md",  # an abandoned approach and why it failed
+        "plan/learned/HOOK-FRICTION.md",  # hook or tooling friction
+        "plan/learned/RECURRING-PATTERNS.md",  # a trap seen more than once
+    }
+)
+
+
+def routed_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
+    """The commit's paths that are a canonical home for a durable lesson."""
+    return tuple(
+        path for path in paths if path in ROUTE_FILES or path.startswith(ROUTE_PREFIXES)
+    )
+
+
 SPEC_PATH_RE = re.compile(r"^plan/spec-.+\.md$")
 
 
@@ -524,6 +557,17 @@ def lesson_comment(
             "--file"
         )
     if lesson_worthy(paths, changes):
+        # A route satisfies the demand exactly as a summary does: the lesson
+        # reached a home that governs behaviour instead of an archive nobody
+        # reads. `--lesson-required` is checked above, so an operator who wants
+        # the summary regardless still gets it.
+        # A route counts only when it DOCUMENTS lesson-worthy change elsewhere.
+        # `ai/rules/` is both a destination and in scope, so a commit touching
+        # only a rule would otherwise satisfy itself, and the gate would degrade
+        # into "never ask" for the whole rule corpus (TestLessonIsContentDriven).
+        routed = routed_paths(add_paths)
+        if routed and set(scope) - set(routed) and not reason:
+            return "Lesson: routed to " + ", ".join(routed)
         if not reason:
             evidence = _lesson_new_content(scoped) or "new lines in " + ", ".join(scope)
             raise UsageError(
@@ -531,16 +575,25 @@ def lesson_comment(
                 # this failure kind (ai/rules/cli.md): it is what a
                 # scanner greps for and what commit_helper_test.go pins. Rewording
                 # the message around it is fine; dropping it is not.
-                "lesson-worthy paths changed: no learned summary is staged, and "
-                "this commit\n"
-                "  adds content rather than moving it, so the helper cannot tell "
-                "whether a\n"
-                "  lesson was lost.\n"
+                "lesson-worthy paths changed: this commit adds content rather "
+                "than moving\n"
+                "  it, and names no home for what it taught, so the helper cannot "
+                "tell\n"
+                "  whether a lesson was lost.\n"
                 "  evidence: " + evidence + "\n"
-                "  expected: a plan/learned/NNN-<name>.md among the --file paths, "
-                "or an\n"
+                "  expected: the lesson ROUTED to where it governs behaviour, or "
+                "an\n"
                 "            explicit statement that there is no lesson\n"
-                "  next: write the summary (plan/learned/METHODOLOGY.md), or pass\n"
+                "  next: put it where it belongs and pass that path with --file --\n"
+                "          a recurring trap        -> ai/rules/<rule>.md\n"
+                "          a design decision       -> docs/architecture/<area>.md\n"
+                "          a subsystem's data flow -> ai/digests/<subsystem>.md\n"
+                "          a protocol obligation   -> rfc/short/rfcNNNN.md\n"
+                "          an abandoned approach   -> plan/learned/DESIGN-HISTORY.md\n"
+                "          hook or tooling friction-> plan/learned/HOOK-FRICTION.md\n"
+                "        a plan/learned/NNN-<name>.md still counts when the lesson "
+                "fits\n"
+                "        nowhere else yet (plan/learned/METHODOLOGY.md), or pass\n"
                 '        --lesson-not-needed "<why this change teaches nothing '
                 'reusable>"'
             )
@@ -1402,8 +1455,8 @@ def deferral_shard_paths(repo: Path) -> list[Path]:
 # git 2.43.0; a wording this list misses costs a false BLOCKER naming the exit
 # code and stderr, which is visible and recoverable -- a silent pass is not.
 _GIT_SHOW_NOTHING_COMMITTED = (
-    "does not exist in",       # tracked at HEAD? no -- absent from the tree
-    "invalid object name",     # HEAD is unborn: nothing is committed at all
+    "does not exist in",  # tracked at HEAD? no -- absent from the tree
+    "invalid object name",  # HEAD is unborn: nothing is committed at all
     "exists on disk, but not in",  # added to the index this commit, not in HEAD
 )
 

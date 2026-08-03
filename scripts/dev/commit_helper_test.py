@@ -457,7 +457,9 @@ class TestDeferralShardRemoval(unittest.TestCase):
                 root,
                 [("plan/spec-home.md", "deferred"), ("plan/spec-home.md", "deferred")],
             )
-            lines = (root / "plan" / "deferrals" / "spec-gone.md").read_text().splitlines()
+            lines = (
+                (root / "plan" / "deferrals" / "spec-gone.md").read_text().splitlines()
+            )
             (root / "plan" / "deferrals" / "renamed.md").write_text(
                 "\n".join(lines[:-1]) + "\n"
             )
@@ -478,7 +480,9 @@ class TestDeferralShardRemoval(unittest.TestCase):
             root = Path(tmp)
             _seed_shard_repo(root, [("plan/spec-home.md", "deferred")])
             broken = subprocess.CompletedProcess(
-                args=[], returncode=128, stdout="",
+                args=[],
+                returncode=128,
+                stdout="",
                 stderr="fatal: unable to read object for 'HEAD'\n",
             )
             with mock.patch.object(ch.subprocess, "run", return_value=broken):
@@ -496,15 +500,12 @@ class TestDeferralShardRemoval(unittest.TestCase):
             _seed_shard_repo(root, [("plan/spec-home.md", "done")])
             fresh = root / "plan" / "deferrals" / "spec-fresh.md"
             fresh.write_text(
-                DEFERRALS_HEADER
-                + "| 2026-08-03 | spec-fresh | new-work | reason |"
+                DEFERRALS_HEADER + "| 2026-08-03 | spec-fresh | new-work | reason |"
                 " plan/spec-home.md | deferred |\n"
             )
             _git(root, "add", "plan/deferrals/spec-fresh.md")
             self.assertEqual(
-                ch.commit_gate_problems(
-                    root, (), ("plan/deferrals/spec-fresh.md",)
-                ),
+                ch.commit_gate_problems(root, (), ("plan/deferrals/spec-fresh.md",)),
                 [],
             )
 
@@ -1650,6 +1651,53 @@ class TestLessonIsContentDriven(unittest.TestCase):
             comment = self._comment(root, ("scripts/dev/a.py", "scripts/dev/b.py"))
             self.assertIn("not needed", comment)
             self.assertIn("move or a reformat", comment)
+
+    # VALIDATES: a lesson ROUTED to where it governs behaviour satisfies the
+    # demand exactly as a summary does (plan/spec-knowledge-routing.md).
+    # PREVENTS: the gate producing archive instead of guidance. Measured
+    # 2026-08-03 over 903 summaries, 13 were referenced by a rule or a hook.
+    def test_route_satisfies_the_demand(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "architecture").mkdir(parents=True)
+            (root / "scripts" / "dev" / "a.py").write_text(
+                "def widen(value):\n    return value * 3\n\ndef added():\n    pass\n"
+            )
+            (root / "docs" / "architecture" / "widen.md").write_text(
+                "# Widen\n\nWhy the factor is 3.\n"
+            )
+            comment = self._comment(
+                root, ("scripts/dev/a.py", "docs/architecture/widen.md")
+            )
+            self.assertIn("routed to", comment)
+            self.assertIn("docs/architecture/widen.md", comment)
+
+    # VALIDATES: a destination that is ALSO in the lesson-worthy scope cannot
+    # satisfy the demand on its own.
+    # PREVENTS: `ai/rules/` self-satisfying, which would turn every rule commit
+    # into "never ask" -- the same degradation test_lesson_demanded_with_content
+    # guards from the other side.
+    def test_route_that_is_the_whole_scope_does_not_satisfy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "ai" / "rules" / "x.md").write_text(
+                "# X\n\nThe gate refuses.\n\nIt now also refuses a self-route.\n"
+            )
+            with self.assertRaises(ch.UsageError) as caught:
+                self._comment(root, ("ai/rules/x.md",))
+            self.assertIn("routed", str(caught.exception).lower())
+
+    # VALIDATES: --lesson-required outranks a route, so the operator can still
+    # demand the summary itself.
+    def test_lesson_required_outranks_a_route(self):
+        with self.assertRaises(ch.UsageError):
+            ch.lesson_comment(
+                ("scripts/dev/a.py", "docs/architecture/widen.md"),
+                (),
+                True,
+                None,
+                (("scripts/dev/a.py", "+", "a genuinely new line of content"),),
+            )
 
     # VALIDATES: AC-2 -- a closure whose work produced a lesson is still refused
     # without one, and the refusal names the content that earned the demand.
