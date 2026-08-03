@@ -36,9 +36,27 @@ to redo the umbrella.
   **UI polish only**: enforcement is already complete (route gate 403 + per-mutation authz),
   so a read-only operator cannot mutate anything today; the controls are merely visible.
 
--> Constraint: neither item is a correctness gap. The AC-1 tail is explicitly cosmetic
-(enforcement lands elsewhere and is done); the nushell item leaves three working shells.
-Do not let the spec's existence imply urgency it does not have.
+### Work items (re-homed 2026-08-03 from `plan/deferrals/cli-root-namespace-grammar.md`)
+
+Same species as the two above, and homeless for the same reason: their source spec
+closed and its file is gone, leaving them pointing at prose. Both are CLI UX, neither
+is a grammar defect -- the grammar half of that shard went to
+`plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md`.
+
+- **Two `format` vocabularies (from Known Limitations, 2026-07-17)** - `set cli format`
+  accepts text/table/json/yaml/ndjson (`internal/component/cli/model_keys.go`,
+  `validCLIFormats`) while the editor's `format` pipe accepts only tree/config
+  (`internal/component/cli/model_load.go`). Both are legitimate uses of the word.
+  Reconciling them is a **UX decision, and it is the owner's**: an implementer picking
+  one vocabulary to make the row close is picking the answer. Ask before designing.
+- **`ze pipe` multi-operator (from Known Limitations, 2026-07-17)** - `runPipe`
+  (`cmd/ze/ze_core_pipe.go`) joins argv into one pipe expression, so chaining needs a
+  shell-quoted pipe. Accepting repeated operators natively is a usability change.
+
+-> Constraint: none of the four items is a correctness gap. The AC-1 tail is explicitly
+cosmetic (enforcement lands elsewhere and is done); the nushell item leaves three
+working shells; both 2026-08-03 items are vocabulary and ergonomics on surfaces that
+work today. Do not let the spec's existence imply urgency it does not have.
 
 ## Required Reading
 
