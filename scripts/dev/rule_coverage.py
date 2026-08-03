@@ -151,6 +151,12 @@ KIND_RULES = (
             ".ci",
             "user-facing behavior",
             "user-visible behavior",
+            # `functional-test-gate.md` carried "user-facing behavior" until it
+            # merged into `testing.md`, whose trigger says "test". Without these
+            # two words a `.ci` edit matched NO routed rule, which reads as full
+            # coverage and is the fail-open this detector exists to catch.
+            "test",
+            "tests",
         ),
     ),
     (
@@ -193,7 +199,14 @@ KIND_RULES = (
         lambda p: p.startswith(RULES_DIR) and p.endswith(".md"),
         ("rule", "rules", "ai/rules/*.md"),
     ),
-    ("python", lambda p: p.endswith(".py"), ("script", "scripts", "python")),
+    # No rule trigger contains "script" or "python", so those three words alone
+    # matched nothing. A `scripts/dev/*.py` edit is tooling: it changes a tool, a
+    # gate, or a hook, and it is tested by a sibling `*_test.py`.
+    (
+        "python",
+        lambda p: p.endswith(".py"),
+        ("script", "scripts", "python", "tool", "gate", "hook", "test", "tests"),
+    ),
     (
         "shell",
         lambda p: p.endswith(".sh") or p.startswith(".claude/hooks/"),
