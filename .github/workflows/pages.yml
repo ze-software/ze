@@ -76,19 +76,12 @@ jobs:
               ze-test peer --mode sink --bind "${binding%%:*}" --port 1179 \
                   --asn "${binding##*:}" >/dev/null 2>&1 &
           done
-          ze start ze.conf > "${state}/daemon.log" 2>&1 &
-          zepid=$!
-          for i in $(seq 1 60); do
-              sleep 1
-              if grep -q "SSH server listening" "${state}/daemon.log"; then
-                  echo "READY after ${i}s"; break
-              fi
-              alive=no; kill -0 "${zepid}" 2>/dev/null && alive=yes
-              echo "t=${i}s bytes=$(stat -c %s "${state}/daemon.log") alive=${alive}"
-          done
-          echo "--- daemon.log ---"; cat "${state}/daemon.log"
+          echo "--- ze start in the foreground (30s cap) ---"
+          timeout 30 ze start ze.conf; echo "ze start exit=$?"
+          echo "--- ze version ---"; ze version; echo "version exit=$?"
+          echo "--- limits ---"; ulimit -a; free -m
+          echo "--- cgroup ---"; cat /sys/fs/cgroup/memory.max 2>/dev/null || true
           echo "--- processes ---"; ps -eo pid,stat,wchan:20,etime,comm
-          kill "${zepid}" 2>/dev/null || true
           SCRIPT
           chmod +x main/tmp/demo-debug.sh
           docker run --rm --network none \
