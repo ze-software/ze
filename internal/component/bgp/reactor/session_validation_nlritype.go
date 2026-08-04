@@ -178,7 +178,16 @@ func (s *Session) typedNLRIEdit(
 
 	// RFC 7606 Section 6: name what was dropped, so an operator can trace a route
 	// that stopped arriving back to the type ze does not implement.
-	sessionLogger().Info("RFC 7606 Section 5.4: discarded routes with unrecognized NLRI types",
+	//
+	// Debug, not Info. A peer decides how often this fires: one line per UPDATE it sends
+	// carrying a type ze does not implement, on the receive goroutine, with the slog
+	// argument boxing that costs. Section 6 asks for a debugging facility, and that is what
+	// this is; the record an operator is owed for a route that stopped arriving comes from
+	// rfc7606Diagnostics, which enforceRFC7606 still calls on every non-None action.
+	//
+	// The louder levels in this package are kept for outcomes a peer cannot repeat cheaply:
+	// the Warn above fires once per session-resetting UPDATE, and the session then goes down.
+	sessionLogger().Debug("RFC 7606 Section 5.4: discarded routes with unrecognized NLRI types",
 		"peer", s.settings.Address, "family", fam, "attr", code, "discarded", dropped)
 
 	return append(edits, mpNLRIEdit{code: code, nlri: kept, dropped: dropped}), true
@@ -192,10 +201,14 @@ func (s *Session) typedNLRIEdit(
 // or it advertises reachable routes". A body that does neither is either an EOR or
 // nothing, and ze must not relay either one on a peer's behalf.
 //
-// A malformed body reads as carrying routes. This runs on a body ze has just
-// rebuilt from bytes the Section 4 bounds checks already accepted, so an
-// unparseable section here is not reachable; answering false leaves such an UPDATE
-// on the path it would have taken anyway rather than dropping it on a guess.
+// A malformed body reads as carrying routes, and that branch IS reachable: the
+// validator abandons its walk on an RFC 7606 Section 4 framing error and still
+// reports the MP attributes it read first, so the body rebuilt here can carry an
+// unparseable tail. Answering false there is deliberate. "This UPDATE conveys
+// nothing" is a claim about bytes that parsed; on bytes that did not, the honest
+// answer is to leave the UPDATE on the path it would have taken anyway rather
+// than drop it on a guess. The framing error itself is judged upstream, where
+// Sections 5.2, 5.3 and 3(j) decide between escalation and session reset.
 func updateCarriesNoRoutes(body []byte) bool {
 	if len(body) < 4 {
 		return false
@@ -298,9 +311,15 @@ func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 		out = append(out, edit.nlri...)
 	}
 
-	// Any trailing bytes the walk could not frame are copied through untouched. The
-	// Section 4 bounds checks in the validator reject such a section before this
-	// runs, so this is a belt on top of a brace rather than a live path.
+	// Any trailing bytes the walk could not frame are copied through untouched.
+	//
+	// This IS a live path, not a belt on a brace. ValidateUpdateRFC7606AddPath abandons its
+	// own walk on an RFC 7606 Section 4 framing error and still reports the MP attributes it
+	// read before it, so this function is reached with a section whose tail was never
+	// validated. Copying the tail verbatim is what keeps the rebuild honest: the same bounds
+	// conditions stop attribute.AttrFind, AttrIterator.Next and this walk at the same octet,
+	// so every consumer of the rebuilt body sees the identical prefix and the identical
+	// unparseable remainder the peer sent.
 	if pos < len(pathAttrs) {
 		out = append(out, pathAttrs[pos:]...)
 	}

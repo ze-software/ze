@@ -209,7 +209,9 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			// bodies, which processMessage already treats as "consume the UPDATE, restart the
 			// HoldTimer per RFC 4271 Section 8.2.2 Event 27, dispatch nothing". Nothing is
 			// installed, nothing is forwarded, and no EOR is counted for a peer that sent none.
-			sessionLogger().Info("RFC 7606 Section 5.4: every route discarded, UPDATE not relayed",
+			// Debug for the same reason as the sibling line in typedNLRIEdit: a peer decides
+			// how often it fires, one line per UPDATE, on the receive goroutine.
+			sessionLogger().Debug("RFC 7606 Section 5.4: every route discarded, UPDATE not relayed",
 				"peer", s.settings.Address)
 			// This return jumps the action switch, so the Section 6 log that switch would
 			// have emitted has to happen here. The UPDATE can be malformed AND emptied at

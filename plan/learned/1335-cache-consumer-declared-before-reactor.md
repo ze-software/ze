@@ -141,6 +141,19 @@ valve) and never route loss. They need a spec, not a paragraph.
   available" without acking. Harmless today (no reactor means no cache) and
   still an exception to an absolute sentence.
 
+## Files
+
+- `internal/component/plugin/coordinator.go` -- `RegisterCacheConsumer`, `UnregisterCacheConsumer` and `SetReactor`, which record then replay the declaration
+- `internal/component/plugin/coordinator_test.go` -- declare-then-attach and the registration lifecycle
+- `internal/component/plugin/server/startup.go` -- `engineStartupSink.onRegistration`, the Stage 1 declaration point
+- `internal/component/bgp/plugin/register.go` -- `runBGPEngine`, the Stage 2 point the reactor is built at
+- `internal/component/bgp/reactor/recent_cache.go` -- `RegisterConsumer`, `Ack`, `UnregisterConsumer`, `consumerFloor` and the per-consumer ack bit
+- `internal/component/bgp/reactor/recent_cache_test.go` -- the unordered unregister and FIFO sweep tests
+- `internal/component/bgp/reactor/forward_update_test.go` -- the three refusal paths that must still ack the batch
+- `internal/core/seqmap/seqmap.go` -- `Since`'s bound re-test and `Put`'s sorted insert
+- `internal/core/seqmap/seqmap_test.go` -- the bound, the miss, and the sorted-log invariant
+- `test/interop/scenarios/54-local-pref-strip-gobgp` -- the scenario whose workaround removal surfaced the defect
+
 ## Evidence
 
 - `internal/component/plugin/coordinator_test.go`:

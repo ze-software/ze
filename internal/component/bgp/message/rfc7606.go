@@ -249,7 +249,54 @@ func ValidateUpdateRFC7606AddPath(
 
 	// RFC 7606 Section 5.4: where the MP attributes' NLRI bytes live, observed on this
 	// walk so the typed-NLRI check does not repeat it (see MPReachNLRI).
+	//
+	// EVERY exit below carries these, including the four Section 4 structural returns that
+	// abandon the walk. Dropping them there was a way to bypass the Section 5.4 MUST with
+	// one octet: put MP_REACH first so this walk records it, then append an attribute whose
+	// declared length overruns the section. The walk returns treat-as-withdraw with a zero
+	// location, Session.typedNLRIEdit finds !loc.Present and filters nothing, and
+	// mpUnreachAttrList (rfc7606_withdraw.go) rescans the attributes with its own iterator
+	// and converts the untouched MP_REACH into an MP_UNREACH carrying the same unrecognized
+	// NLRI, which is then dispatched to every peer that negotiated the family. The location
+	// is a fact about bytes already read; a later attribute's framing error does not unmake it.
 	var mpReachNLRI, mpUnreachNLRI MPNLRILocation
+
+	// structuralError builds the verdict for an RFC 7606 Section 4 framing error, the one
+	// class that ABANDONS the walk below instead of collecting and continuing.
+	//
+	// It exists because an abandoned walk still owes everything the completed walk owes, and
+	// four separate `return &RFC7606ValidationResult{...}` literals owed it separately and
+	// paid it nowhere. Two obligations were being skipped, both wire-visible:
+	//
+	//   - Section 5.4. The MP NLRI locations this walk had ALREADY recorded were dropped, so
+	//     the typed-NLRI filter downstream saw no MP attribute and discarded nothing. See the
+	//     comment on mpReachNLRI above for the full route back out to a peer.
+	//   - Section 5.2. "An UPDATE message with only path attributes and no associated NLRI"
+	//     whose error action is stronger than attribute-discard MUST be a session reset. The
+	//     completed walk escalates that below; these returns handed back treat-as-withdraw,
+	//     which synthesizes no withdrawal at all for such a body, so the peer got silence
+	//     where the RFC requires a NOTIFICATION.
+	//
+	// One helper rather than four literals is the point: the next exit added to this loop
+	// inherits both obligations instead of re-owing them.
+	structuralError := func(attrCode uint8, description string) *RFC7606ValidationResult {
+		if !hasNLRI && mpReachCount == 0 && len(pathAttrs) > 0 {
+			var sb textbuf.Buffer
+			return &RFC7606ValidationResult{
+				Action:   RFC7606ActionSessionReset,
+				AttrCode: attrCode,
+				Description: sb.Str("RFC 7606 Section 5.2: ").Str(description).
+					Str(" (escalated -- attrs with no NLRI)").String(),
+			}
+		}
+		return &RFC7606ValidationResult{
+			Action:        RFC7606ActionTreatAsWithdraw,
+			AttrCode:      attrCode,
+			Description:   description,
+			MPReachNLRI:   mpReachNLRI,
+			MPUnreachNLRI: mpUnreachNLRI,
+		}
+	}
 
 	// recordError updates the strongest action and tracks discard entries.
 	recordError := func(r *RFC7606ValidationResult) {
@@ -272,11 +319,7 @@ func ValidateUpdateRFC7606AddPath(
 			// RFC 7606 Section 4: "If the remaining number of octets ... is less than three
 			// (or less than four if the Attribute Flags field has the Extended Length bit set)"
 			// MUST use treat-as-withdraw — structural error, can't continue parsing.
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    strongestCode,
-				Description: "RFC 7606 Section 4: insufficient data for attribute header",
-			}
+			return structuralError(strongestCode, "RFC 7606 Section 4: insufficient data for attribute header")
 		}
 
 		flags := pathAttrs[pos]
@@ -287,19 +330,13 @@ func ValidateUpdateRFC7606AddPath(
 		var attrLen int
 		if flags&0x10 != 0 { // Extended length
 			if pos+2 > len(pathAttrs) {
-				return &RFC7606ValidationResult{
-					Action:      RFC7606ActionTreatAsWithdraw,
-					Description: "RFC 7606 Section 4: insufficient data for extended length",
-				}
+				return structuralError(attrCode, "RFC 7606 Section 4: insufficient data for extended length")
 			}
 			attrLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
 			pos += 2
 		} else {
 			if pos+1 > len(pathAttrs) {
-				return &RFC7606ValidationResult{
-					Action:      RFC7606ActionTreatAsWithdraw,
-					Description: "RFC 7606 Section 4: insufficient data for length",
-				}
+				return structuralError(attrCode, "RFC 7606 Section 4: insufficient data for length")
 			}
 			attrLen = int(pathAttrs[pos])
 			pos++
@@ -310,11 +347,8 @@ func ValidateUpdateRFC7606AddPath(
 			// RFC 7606 Section 4: "attribute length ... exceeds the amount of data"
 			// Structural error — can't continue parsing remaining attributes.
 			var b textbuf.Buffer
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    attrCode,
-				Description: b.Reset().Str("RFC 7606 Section 4: attribute ").Int(int64(attrCode)).Str(" length ").Int(int64(attrLen)).Str(" exceeds remaining data").String(),
-			}
+			return structuralError(attrCode, b.Reset().Str("RFC 7606 Section 4: attribute ").
+				Int(int64(attrCode)).Str(" length ").Int(int64(attrLen)).Str(" exceeds remaining data").String())
 		}
 
 		attrData := pathAttrs[pos : pos+attrLen]
@@ -392,15 +426,28 @@ func ValidateUpdateRFC7606AddPath(
 			mpUnreachCount++
 			mpUnreachNLRI = locateMPNLRI(attrCode, attrData)
 		}
-	}
 
-	// RFC 7606 Section 3.g: "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
-	// attribute appears more than once in the UPDATE message, then a NOTIFICATION
-	// message MUST be sent with the Error Subcode 'Malformed Attribute List'."
-	if mpReachCount > 1 || mpUnreachCount > 1 {
-		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionSessionReset,
-			Description: "RFC 7606 Section 3.g: multiple MP_REACH_NLRI or MP_UNREACH_NLRI attributes",
+		// RFC 7606 Section 3.g: "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
+		// attribute appears more than once in the UPDATE message, then a NOTIFICATION
+		// message MUST be sent with the Error Subcode 'Malformed Attribute List'."
+		//
+		// Judged HERE, the moment the second one is seen, not after the loop. Section 3.h
+		// already makes session reset immediate, and every other session-reset verdict in
+		// this loop returns on the spot. Deciding it after the loop made the MUST skippable
+		// by anything that abandons the walk: append one attribute whose declared length
+		// overruns the section and the duplicate was never reported.
+		//
+		// That was not only a missed NOTIFICATION. mpReachNLRI holds the LAST MP_REACH seen
+		// while attribute.AttrFind returns the FIRST, so a skipped duplicate handed
+		// Session.typedNLRIEdit a location describing one attribute and bytes belonging to
+		// another -- the Section 5.4 recognizer for one family applied to another family's
+		// NLRI. Reporting the duplicate when it is seen removes the whole class: no exit
+		// added to this loop later can outrun it.
+		if mpReachCount > 1 || mpUnreachCount > 1 {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionSessionReset,
+				Description: "RFC 7606 Section 3.g: multiple MP_REACH_NLRI or MP_UNREACH_NLRI attributes",
+			}
 		}
 	}
 

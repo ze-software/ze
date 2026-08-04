@@ -238,12 +238,15 @@ parses a route type today.
 | 6 MUP recognizer tests | `plugins/nlri/mup/rfc7606_test.go` | the BGP-MUP ruling (architecture and route type), its registration; tagged | PASS, mutation-verified |
 | 6 splitter tests | `core/bgp/nlri/nlrisplit/typelen_test.go` | MVPN and MUP framing, both Section 5.3 boundaries, registry presence | PASS, mutation-verified |
 | 5 speaker-engine tests | `test/interop/speaker/test_engine.py` | `--family` negotiation and the EVPN route-type plugin, red and green | PASS |
+| `TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned` | `reactor/session_validation_nlritype_bypass_test.go` | the closure-round BLOCKER: an abandoned Section 4 walk must not drop the MP location; tagged | PASS, mutation-verified |
+| `TestRFC7606Section54ReadsTypedNLRIUnderAddPath` | `reactor/session_validation_nlritype_bypass_test.go` | the discard reads the route type past the RFC 7911 path identifier, and a valid ADD-PATH UPDATE is not session-reset; tagged | PASS, mutation-verified |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `rfc7606-54-discard-unrecognized-nlri` | `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | a peer sends an unrecognized typed NLRI in a family 5.4 binds; the route is NOT relayed to any other peer | PASS, and mutation-verified |
 | `rfc7606-54-bgpls-override-propagates` | `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | a peer sends an unrecognized BGP-LS NLRI type; the route IS still relayed, per RFC 9552 Section 5.2 | PASS |
+| `rfc7606-54-discard-unrecognized-mup-nlri` | `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` | the same relay proof through the BGP-MUP four-octet envelope, so `SplitMUP` and `mup.RecognizeNLRI` are exercised in a real daemon rather than against a stand-in ruling | PASS, mutation-verified |
 
 **Mutation-verified (2026-08-01).** `applyTypedNLRIDiscard` was made an early
 `return wu, pathAttrs`, the daemon rebuilt, and the suite re-run:
@@ -388,7 +391,7 @@ would be gratuitous. Symmetry is the point: one rule for both directions.
 
 | File | Change |
 |------|--------|
-| `internal/component/bgp/message/rfc7606.go` | record MP family and NLRI value range on the existing walk; correct `validateMPNLRISyntax`'s doc, which read as though typed families were checked nowhere |
+| `internal/component/bgp/message/rfc7606.go` | record MP family and NLRI value range on the existing walk; correct `validateMPNLRISyntax`'s doc, which read as though typed families were checked nowhere. **Closure round:** carry those two locations out of the four RFC 7606 Section 4 structural early returns as well, which is the BLOCKER below |
 | `internal/component/bgp/reactor/session_validation.go` | apply the Section 5.4 filter before the action switch, and act on its two whole-UPDATE outcomes |
 | `internal/component/bgp/reactor/session_validation_nlritype.go` | the three fixes the review found: drop an emptied UPDATE, session-reset unparseable framing, keep the header octets on an unframeable tail |
 | `internal/component/bgp/plugins/nlri/evpn/register.go` | register the EVPN recognizer |
@@ -421,6 +424,8 @@ would be gratuitous. Symmetry is the point: one rule for both directions.
 | `internal/component/bgp/reactor/session_validation_nlritype_typed_test.go` | the MVPN and MUP wire filters, driven from `enforceRFC7606` |
 | `test/interop/speaker/plugins/no_unrecognized_evpn_type.py` | the independent peer's judgement on the relayed EVPN route types |
 | `test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/` | the interop scenario: `ze.conf`, `inject.msg`, `inject-args`, `speaker-args`, `check.py` |
+| `internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go` | the two closure-round tests: the abandoned Section 4 walk, and ADD-PATH on a typed family |
+| `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` | relay proof for the BGP-MUP envelope |
 
 ## Implementation Steps
 
@@ -596,3 +601,257 @@ that refactor compiles. Neither needs a change here.~~
 - [ ] Learned summary written to `plan/learned/NNN-fixit-rfc7606-5-4-discard-unrecognized-nlri.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm` this spec
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- A per-family Section 5.4 recognizer registry, `internal/core/bgp/nlri/nlritype`
+  (`Register`, `Get`, `Retain`). `Get` returning nil means the family has not been
+  ruled on, so nothing is discarded. That default is R-1's mitigation.
+- One shared type-and-length framing walk, `splitTypeLength`
+  (`internal/core/bgp/nlri/nlrisplit/typelen.go`), and the three splitters over it:
+  `SplitEVPN`, `SplitMVPN` (RFC 6514 Section 4), `SplitMUP`
+  (draft-ietf-bess-mup-safi Section 3.1, a 4-octet header with the length octet last).
+- Three rulings, each beside the family it binds: `evpn.RecognizeNLRI`,
+  `mvpn.RecognizeNLRI`, `mup.RecognizeNLRI`. BGP-LS registers none, because RFC 9552
+  Section 5.2 requires preserve-and-propagate. Nothing central names a family.
+- The ingress filter, `applyTypedNLRIDiscard`
+  (`internal/component/bgp/reactor/session_validation_nlritype.go`), applied by
+  `Session.enforceRFC7606` (`session_validation.go`) before the action switch and
+  after the Section 3.g duplicate strip. It returns the same `*wireu.WireUpdate` and
+  the same backing array when nothing is discarded, so the zero-copy relay survives.
+- Two whole-UPDATE outcomes acted on by `enforceRFC7606`: `typedNLRIEmptied` drops the
+  UPDATE rather than relay a four-zero-octet body an RFC 4724 receiver reads as
+  End-of-RIB, and `typedNLRIUnparseable` session-resets per Sections 5.3 and 3(j).
+
+### Bugs Found/Fixed
+
+Four review BLOCKERs, all fixed in `a67205a61`:
+
+1. The MUST was proven for EVPN alone while MCAST-VPN, Section 5.4's own first example,
+   still relayed unrecognized types. `nlritype.Register` refuses a family with no
+   splitter, so the gap was structural and invisible from the EVPN side. Covered by
+   `TestRFC7606Section54DiscardsUnrecognizedMVPNType` and `...MUPType`.
+2. An MP_UNREACH-only UPDATE whose withdrawals were all unrecognized was rebuilt into a
+   forged End-of-RIB. `updateCarriesNoRoutes` now reports it and the UPDATE is dropped.
+   Covered by `TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR`.
+3. A peer could bypass the MUST by appending one truncated NLRI: `typedNLRIEdit` relayed
+   everything on a split error, justified by a comment claiming Section 5.3 had already
+   run. `validateMPNLRISyntax` returns nil for every typed family. Now a session reset.
+   Covered by `TestRFC7606Section54SessionResetsUnparseableTypedNLRI`.
+4. No interop scenario. `53-rfc7606-54-typed-nlri-discard` now proves it from a peer ze
+   does not control, mutation-verified in both directions.
+
+Found by the closure round's independent review, and fixed here:
+
+5. **BLOCKER. One octet still bypassed the Section 5.4 MUST.**
+   `ValidateUpdateRFC7606AddPath` (`internal/component/bgp/message/rfc7606.go`) has four
+   RFC 7606 Section 4 structural early returns that abandon the attribute walk. Each built
+   a fresh result and dropped the `MPReachNLRI`/`MPUnreachNLRI` locations the walk had
+   ALREADY recorded. Put MP_REACH first, append one attribute whose declared length
+   overruns the section, and: the walk returns treat-as-withdraw with a zero location,
+   `Session.typedNLRIEdit` finds `!loc.Present` and filters nothing, and
+   `message.mpUnreachAttrList` (`message/rfc7606_withdraw.go`) then rescans the attributes
+   with its OWN iterator, converts the untouched MP_REACH into an MP_UNREACH carrying the
+   same unrecognized NLRI, and `processMessage` dispatches it to every peer that negotiated
+   the family. Structurally the same shape as finding 3, reached by a different door.
+   `TestRFC7606Section54FiltersTreatAsWithdrawSynthesis` could not see it: its malformed
+   ORIGIN goes through `recordError` and `continue`, so that walk runs to completion and
+   the location survives anyway. Fixed by carrying the locations out of all four returns.
+   Covered by `TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned`,
+   mutation-verified.
+6. **ISSUE. Two peer-driven `Info` log lines, one per UPDATE.** `typedNLRIEdit` and the
+   `typedNLRIEmptied` branch of `enforceRFC7606` both logged at Info on bytes a peer
+   chooses, on the receive goroutine. Every sibling RFC 7606 outcome logs at Debug.
+   Demoted, with the reason in a comment.
+7. **ISSUE. No tagged test drove ADD-PATH through a typed family.** The discard made a
+   wrong ADD-PATH verdict newly expensive: the walk reads the path identifier as a type
+   and length, overruns, and now session-resets where it used to relay.
+   `TestRFC7606Section54ReadsTypedNLRIUnderAddPath` holds the composed path down,
+   mutation-verified against `head = 4` in `splitTypeLength`.
+8. **ISSUE. BGP-MUP had no functional test.** The relay path is family-generic and proven
+   for EVPN, but the per-family splitter and recognizer pair was proven only against a
+   stand-in ruling in Go. `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` now
+   drives the four-octet envelope through a real daemon, mutation-verified: with the
+   discard disabled the receiver's wire carries `01000504CAFEBABE`.
+
+Found at closure and fixed here: `a67205a61` falsified every published claim that
+explained a gap by naming the splitter ze did NOT register for SAFI 85. Four `{gap}`
+reasons in `rfc/short/draft-ietf-bess-mup-safi.md` and the BGP-MUP row of
+`docs/features/rfc-status.md` all read "nlrisplit registers no splitter for SAFI 85 ...
+so a received MUP route is neither stored nor deleted on withdrawal".
+`removePoolNLRIs` (`internal/component/bgp/plugins/rib/rib.go`) now splits and removes
+it. `make ze-rfc-check` cannot see this: the ids and their classification never moved,
+only the prose under them stopped being true.
+
+### Documentation Updates
+
+- `docs/features/rfc-status.md`, RFC 7606 row: names all three bound families and their
+  recognizers, and states the RIB consequence of the new splitters.
+- `docs/features/rfc-status.md`, RFC 6514 row: the Section 4 split, the opaque Adj-RIB-In
+  storage it enables, and the Section 5.4 ruling.
+- `docs/features/rfc-status.md`, draft-ietf-bess-mup-safi row: the false
+  "registers no splitter" claim replaced with what the code now does; the four
+  routing-instance obligations stay open, with the true reason.
+- `rfc/short/draft-ietf-bess-mup-safi.md`: the same correction under
+  `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2`, `-3.3.6-2`, `-3.3.9-1`, `-3.3.9-2`. All four keep
+  `{gap}`, so the Remaining count on the public page is unchanged.
+- `ai/RFC-REQUIREMENTS.md` regenerated (`make ze-rfc-index`): 4 lines, the four reasons.
+- `plan/learned/1334-...md`: the new consequence and the reusable rule.
+- `make ze-doc-test` PASSED.
+
+### Deviations from Plan
+
+- The spec's Data Flow proposed the RIB as the recognition point. It is not the
+  propagation gate, so the filter went to `enforceRFC7606` instead. Recorded as A-3.
+- `docs/features/rfc-status.md` was owed from the implementation commit and is paid here.
+- `plan/learned/1335-cache-consumer-declared-before-reactor.md` gained the `## Files`
+  section it was missing. Not this spec's summary, but its absence held
+  `make ze-doc-test` red at 323 dead references against a ceiling of 322, and this
+  closure needs that gate.
+- The closure round was not bookkeeping. Its independent review found a fifth
+  wire-visible way past the Section 5.4 MUST, structurally the same as one round 1
+  had already closed, and three coverage gaps. Code, a new test file and a new `.ci`
+  therefore land in the closure commit, not only prose.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Discard unrecognized typed NLRI per Section 5.4 | Done | `applyTypedNLRIDiscard`, `session_validation_nlritype.go` | Applied by `enforceRFC7606` before the action switch |
+| Per family, honoring the escape clause | Done | `nlritype.Get`, `internal/core/bgp/nlri/nlritype/nlritype.go` | Unruled family is untouched; BGP-LS registers nothing |
+| Prove it with an `RFC requirement:` tagged test | Done | `ai/RFC-REQUIREMENTS.md:4153` | 10 positive tags, 2 negative, no `{gap}` |
+| Remove the `{gap}` from `rfc/short/rfc7606.md` | Done | `rfc/short/rfc7606.md:333` | One gap left in that summary, the §5.1 ordering |
+| Update `docs/features/rfc-status.md` | Done | RFC 7606, RFC 6514 and MUP rows | Paid at closure, see Deviations |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC7606Section54DiscardsUnrecognizedEVPNType`, `...MVPNType`, `...MUPType` | One per bound family, each driven through `enforceRFC7606` |
+| AC-2 | Done | `TestRFC7606Section54PropagatesUnknownBGPLSType`, `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | RFC 9552 §5.2 quoted in the test |
+| AC-3 | Done | `TestRFC7606Section54LeavesConformingUpdateZeroCopy` | Same pointer and same backing array returned |
+| AC-4 | Done | `TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR` | `updateCarriesNoRoutes` reports `typedNLRIEmptied` |
+| AC-5 | Done | `TestRFC7606Section54SessionResetsUnparseableTypedNLRI` | `typedNLRIEdit` returns false, `enforceRFC7606` resets |
+| AC-1 (second door) | Done | `TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned` | the discard is not bypassable by abandoning the Section 4 walk after MP_REACH |
+| AC-1 (ADD-PATH) | Done | `TestRFC7606Section54ReadsTypedNLRIUnderAddPath` | the route type is read past the RFC 7911 path identifier |
+| AC-1 (BGP-MUP, through the daemon) | Done | `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` | the four-octet envelope proven on a receiving peer's wire |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 14 reactor Section 5.4 tests | Done | `session_validation_nlritype{,_typed,_diag}_test.go` | All green, 2026-08-04 |
+| `nlritype` registry and `Retain` | Done | `internal/core/bgp/nlri/nlritype/` | Green |
+| EVPN, MVPN, MUP recognizer tests | Done | `plugins/nlri/{evpn,mvpn,mup}/rfc7606_test.go` | Green, each with an anti-drift binding |
+| 6 splitter tests | Done | `internal/core/bgp/nlri/nlrisplit/typelen_test.go` | Green |
+| 2 `.ci` relay tests | Done | `test/plugin/rfc7606-54-*.ci` | PASS in `make ze-plugin-test` 590/590 (2026-08-04) |
+| Interop `53-rfc7606-54-typed-nlri-discard` | Done | `test/interop/scenarios/` | PASS, mutation-verified both directions |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every row of Files to Create | Done | 21 of 21 present, `ls` output in Pre-Commit Verification |
+| Every row of Files to Modify | Done | All in `a67205a61` except `docs/features/rfc-status.md`, paid here |
+
+### Audit Summary
+- **Total items:** 18
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (recognition point moved from the RIB to `enforceRFC7606`, see A-3)
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| No shard. Spec metadata carries `Deferral shard: -`, corrected 2026-08-03 | done | `ls plan/deferrals/` holds no shard for this stem, and no shard row names `rfc7606-5-4` or `RFC7606-5.4` |
+| Sequencing note: `rfc/short/rfc7606.md` and `docs/features/rfc-status.md` must not be edited before the behavior lands | done | Both edited now the behavior is in: `rfc/short/rfc7606.md:333` carries no `{gap}`, and the three `docs/features/rfc-status.md` rows are updated |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-rfc7606-5-4-discard-unrecognized-nlri-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md`, 21 files pinned, verdict clean |
+| `review_gate.py check` | OK, 8 code files, hashes match |
+| RFC audit | `/ze-rfc-audit rfc7606` run twice by a separate agent. `RFC7606-5.4-1` enforced over 15 units, `RFC7606-3.g-1` over 7, `RFC7606-5.2-1` over 7. `make ze-rfc-check` exit 0 |
+| Reviewer lenses used | Round 1: logic + wiring + RFC compliance; security + allocation + doc/ledger accuracy. Round 2: the fixes round 1 produced, and what they touched |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The four RFC 7606 Section 4 structural early returns drop the MP NLRI location the same walk already recorded, so MP_REACH followed by one over-long attribute bypasses the Section 5.4 MUST and the unrecognized type rides out inside the synthesized withdrawal | `ValidateUpdateRFC7606AddPath`, `internal/component/bgp/message/rfc7606.go`; exploited through `mpUnreachAttrList`, `message/rfc7606_withdraw.go` | all four returns now carry `MPReachNLRI`/`MPUnreachNLRI`; `TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned`, mutation-verified |
+| 2 | ISSUE | Two peer-driven `Info` log lines, one per UPDATE, on the receive goroutine; every sibling RFC 7606 outcome logs at Debug | `typedNLRIEdit` (`session_validation_nlritype.go`), the `typedNLRIEmptied` branch of `enforceRFC7606` (`session_validation.go`) | demoted to Debug with the reason in a comment |
+| 3 | ISSUE | No tagged test drives `addPath=true` through `enforceRFC7606` for a typed family, and the discard made a wrong ADD-PATH verdict newly session-fatal | `typedNLRIEdit`, `splitTypeLength` | `TestRFC7606Section54ReadsTypedNLRIUnderAddPath`, mutation-verified against `head = 4` |
+| 4 | ISSUE | BGP-MUP and MCAST-VPN have no functional test; the per-family splitter and recognizer pair is proven only against a stand-in ruling | `SplitMUP`, `mup.RecognizeNLRI` | `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci`, mutation-verified |
+| 5 | ISSUE | `a67205a61` falsified four `{gap}` reasons and one public row that explained a gap by naming the splitter ze did NOT register for SAFI 85 | `rfc/short/draft-ietf-bess-mup-safi.md`, `docs/features/rfc-status.md` | reasons rewritten to the true mechanism, classifications unchanged; `make ze-rfc-check` and `make ze-doc-test` green |
+| 6 | BLOCKER (round 2) | Fixing finding 1 exposed the next layer: the Section 3.g duplicate-MP check ALSO sat after the loop, so two MP_REACH attributes plus a framing error skipped the mandated NOTIFICATION, and `mpReachNLRI` (the LAST seen) then disagreed with `attribute.AttrFind` (the FIRST), applying one family's Section 5.4 recognizer to another family's NLRI | `ValidateUpdateRFC7606AddPath`, `internal/component/bgp/message/rfc7606.go` | the Section 3.g verdict is now reached the moment the duplicate is SEEN, inside the loop, so no exit added later can outrun it; `TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk` and `...MPUnreachResetsWithRoutesPresent`, both mutation-verified |
+| 7 | BLOCKER (round 2) | The same four returns also skipped the RFC 7606 Section 5.2 escalation, so an UPDATE with attributes, no reachable NLRI and a framing error got treat-as-withdraw. `SynthesizeWithdrawFamilies` produces no bodies for such a body, so ze consumed it and told the peer nothing where the RFC requires a NOTIFICATION | same function | one `structuralError` helper now owns all four returns and pays Sections 5.2 and 5.4 together; `TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned` (positive, mutation-verified) and `...LeavesAnUpdateWithNLRIAlone` (negative) |
+| 8 | ISSUE (round 2) | Two comments describing the malformed-tail copy and `updateCarriesNoRoutes`'s unparseable branch as unreachable became false the moment the abandoned walk started reporting MP locations | `rewriteMPNLRISections`, `updateCarriesNoRoutes` (`session_validation_nlritype.go`) | both rewritten to say the path is live and why copying the tail verbatim keeps the rebuild honest |
+| 9 | NOTE (round 2) | The log-demotion comment claimed every sibling RFC 7606 outcome logs at Debug, contradicted by the Warn 16 lines above it | `typedNLRIEdit` | comment corrected: the louder levels are kept for outcomes a peer cannot repeat cheaply |
+
+NOTEs recorded and not blocking: an unbounded per-peer opaque map now reachable for MVPN and MUP, bounded only by `prefix maximum` whose `countPrefixEntries` walk over-counts a typed family (pre-existing for EVPN, widened here); and `edits := make(..., 0, 2)` running for every non-session-reset UPDATE, MP-bearing or not (unchanged by this work).
+
+### Open, and needing the owner rather than another round
+
+Three items the closing session could not act on. `.claude/hooks/pretool-writeedit.py` refuses
+any edit to an RFC-tagged test without the owner's approval, and the test-deletion hook refuses
+`rm` on a `_test.go` file. Both guards are correct; these are the cost of respecting them.
+
+| Item | What is needed |
+|------|----------------|
+| `TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk` (`session_validation_dupmp_test.go`) is cascade-confounded: its body has no NLRI and no MP_REACH, which is also the Section 5.2 shape, so it stays green with the Section 3.g fix reverted. The independent audit measured this and recorded it in `rfc/audit/rfc7606.json` | Add reachable NLRI to the fixture, then delete `session_validation_dupmp_unreach_test.go`, which exists only because that edit was refused. Until then the requirement is genuinely proven by the companion, so the ledger is sound; the confounded unit is redundant rather than load-bearing |
+| `TestRFC7606Section54ReadsTypedNLRIUnderAddPath` carries `RFC requirement: RFC7911-5-3 positive`. The reviewer reads RFC7911-5-3 as requiring ADD-PATH negotiated for BOTH directions, and the fixture negotiates receive only; `forward_body_test.go` already carries both polarities on `TestForwardBodyAddPath` | Decide whether the tag stays. Removing it is a coverage reduction the hook will not take without approval. The mutation (`head = 4` -> `head = 0`) does turn the test red, so it is not vacuous; the question is scope, not discrimination |
+| `internal/component/bgp/reactor/zz_rv2_probe_test.go` is a reviewer scratch file whose own header says to delete it. Its two probes assert the pre-fix behavior and now FAIL, so the reactor package is red until it goes | `rm internal/component/bgp/reactor/zz_rv2_probe_test.go`. The hook refused both the reviewer and the closing session |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Every file in Files to Create | yes | 21 checked with `ls` before this round, plus the 2 created in it, e.g. `internal/core/bgp/nlri/nlritype/nlritype.go` 186L, `internal/core/bgp/nlri/nlrisplit/typelen.go` 57L, `internal/component/bgp/plugins/nlri/mup/rfc7606.go` 63L |
+| `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | yes | 137L |
+| `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | yes | 124L |
+| `test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/` | yes | `check.py` 104L, `ze.conf` 55L, plus `inject.msg`, `inject-args`, `speaker-args` |
+| `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` | yes | 140L, created this round |
+| `internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go` | yes | created this round, two tagged tests |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | unrecognized type discarded in every bound family | `make ze-test-pkg PKG=./internal/component/bgp/reactor RUN='RFC7606Section54\|RewriteMPNLRISections\|TypedNLRI'` -> `ok ... 1.271s`, 14 tests |
+| AC-2 | BGP-LS untouched | same run; `nlritype.Get` returns nil for bgp-ls because `plugins/nlri/ls` registers no recognizer |
+| AC-3 | conforming UPDATE keeps its zero-copy relay | `applyTypedNLRIDiscard` returns `wu, pathAttrs` on `len(edits) == 0`, read at `session_validation_nlritype.go:104-106` |
+| AC-4 | emptied UPDATE never relayed as an EoR | `updateCarriesNoRoutes` -> `typedNLRIEmptied` -> `enforceRFC7606` returns `RFC7606ActionTreatAsWithdraw` with no bodies |
+| AC-5 | unparseable typed framing session-resets | `typedNLRIEdit` returns false; `enforceRFC7606` calls `s.rfc7606SessionReset` |
+| all | the requirement is proven both ways in the ledger | `ai/RFC-REQUIREMENTS.md`, `RFC7606-5.4-1`: 13 positive tags (unit, functional, interop), 2 negative, no `{gap}` |
+| all | the closure round's three new tests each discriminate | mutation: the "exceeds remaining data" return stripped of `MPReachNLRI` turns `...FiltersWhenTheAttributeWalkIsAbandoned` RED on the exact assertion; `head = 4` -> `head = 0` in `splitTypeLength` turns `...ReadsTypedNLRIUnderAddPath` RED; an early `return wu, pathAttrs, typedNLRIKept` in `applyTypedNLRIDiscard` turns the MUP `.ci` RED with `01000504CAFEBABE` on the receiver's wire |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A peer sends an unrecognized EVPN type in a family 5.4 binds | `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | yes, read: asserts the RECEIVING peer's wire, not the RIB |
+| A peer sends an unrecognized BGP-LS type | `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | yes, read: asserts the route IS still relayed |
+| A peer sends an unrecognized BGP-MUP route type | `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` | yes, written and run here: asserts the receiving peer's wire, with the unrecognized NLRI between two implemented ones so a give-up-on-first fix would fail the adjacency check |
+| An independent peer judges what ze put on the wire | `test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/check.py` | yes, tagged at `check.py:34`, counted as `interop/nightly` evidence by `make ze-rfc-check` |
+| Registration reaches a real build | -- | `evpn`, `mvpn` and `mup` each call `nlritype.Register` in their plugin `init()`; `nlritype.Register` refuses a family with no `nlrisplit` splitter, and `nlrisplit/register.go` binds all three |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | RFC 9552 Section 5.2 names "Section 5.4 (paragraph 2) of [RFC7606]" and requires preserve-and-propagate. Citation corrected from 5.1 in four places |
+| A-2 | confirmed | `typedNLRIEdit` stops at one `nlritype.Get` map read for a family with no ruling, before any NLRI is walked |
+| A-3 | broken | `reactorForwardRS` (`reactor/forward_rs.go`) relays the received wire with no RIB involved. Mistake Log and Deviations both carry it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC status, RFC 7606 row: three bound families and their type ranges | `evpn.Implemented` 1..5, `MVPNRouteType.Implemented` 1..7, `MUPRouteType.Implemented` arch 1 with types 1..4 | yes, read each |
+| RFC status, RFC 7606 and RFC 6514 rows: MCAST-VPN and BGP-MUP now install as opaque RIB entries | `insertPoolNLRIs` gates on `nlrisplit.Supported`, which `nlrisplit/register.go` now makes true for both | yes |
+| RFC status and `rfc/short/draft-ietf-bess-mup-safi.md`: a MUP withdrawal deletes the NLRI it names | `removePoolNLRIs` (`internal/component/bgp/plugins/rib/rib.go`) splits then calls `peerRIB.Remove` | yes |
+| No other repo claim was falsified by the splitter registration | `grep -rn nlrisplit docs/ rfc/short/ ai/` -- every remaining hit is about labeled unicast (RFC 8277) or is an inventory row | yes |
+| Gate | `make ze-doc-test` PASSED, `make ze-rfc-check` exit 0 | yes |
+| The three `ai/` discovery indexes are NOT in this commit | `make ze-discovery-index` regenerates `ai/DOCS-TO-CODE.md` with 18 new references, every one of them to an untracked file of another session's in-flight work (prefix-limit, IPsec dataplane inspection, PKI/TLS). None is this spec's. Committing the index would publish pointers to code absent from git, so the commit carries `--stale-index-ok` instead | yes, enumerated with `git ls-files --error-unmatch` per reference |
