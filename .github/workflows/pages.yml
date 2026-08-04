@@ -59,6 +59,46 @@ jobs:
           sudo find "$state" -maxdepth 2 -type f -name '*.log' \
             -exec sh -c 'echo "=== $1 ==="; tail -50 "$1"' _ {} \; || true
 
+      - name: Trace the cli-dashboard daemon start on failure
+        if: failure()
+        run: |
+          cat > main/tmp/demo-debug.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          state=/src/tmp/terminal-demos/state/dbg
+          config="${state}/config"
+          rm -rf "${state}"; mkdir -p "${config}"
+          export ZE_CONFIG_DIR="${config}" ZE_SSH_PASSWORD=secret123
+          printf 'admin\nsecret123\n127.0.0.1\n2222\nze-demo\n' | ze init; echo "init rc=$?"
+          ze config cat ze.conf > "${state}/active.conf"; echo "cat rc=$?"
+          cat /src/demos/terminal/cli-dashboard/ze.conf >> "${state}/active.conf"
+          ze config import --name ze.conf "${state}/active.conf"; echo "import rc=$?"
+          for binding in 127.0.0.2:65001 127.0.0.3:65002 127.0.0.4:64496; do
+              ze-test peer --mode sink --bind "${binding%%:*}" --port 1179 \
+                  --asn "${binding##*:}" >/dev/null 2>&1 &
+          done
+          ze start ze.conf > "${state}/daemon.log" 2>&1 &
+          zepid=$!
+          for i in $(seq 1 60); do
+              sleep 1
+              if grep -q "SSH server listening" "${state}/daemon.log"; then
+                  echo "READY after ${i}s"; break
+              fi
+              alive=no; kill -0 "${zepid}" 2>/dev/null && alive=yes
+              echo "t=${i}s bytes=$(stat -c %s "${state}/daemon.log") alive=${alive}"
+          done
+          echo "--- daemon.log ---"; cat "${state}/daemon.log"
+          echo "--- processes ---"; ps -eo pid,stat,wchan:20,etime,comm
+          kill "${zepid}" 2>/dev/null || true
+          SCRIPT
+          chmod +x main/tmp/demo-debug.sh
+          docker run --rm --network none \
+            --cap-add NET_ADMIN --cap-add NET_RAW --cap-add SYS_ADMIN \
+            --security-opt seccomp=unconfined \
+            --volume "$GITHUB_WORKSPACE/main:/src" \
+            --workdir /src/demos/terminal \
+            ze-terminal-demos:vhs-0.11.0-playwright-1.55.0 \
+            /src/tmp/demo-debug.sh || true
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
