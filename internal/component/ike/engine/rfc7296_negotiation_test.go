@@ -327,21 +327,29 @@ func TestNegRekeyRejectsMismatchedKEGroup(t *testing.T) {
 }
 
 // rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. The two tags below read RFC7296-1.3-2, which asks the
-// RESPONDER to reject a mismatched group and answer INVALID_KE_PAYLOAD. This test
-// builds no message and emits no Notify, so it can never prove that row. It proves
-// the length rule of Section 3.4, so the tags now name RFC7296-3.4-1. Row
-// RFC7296-1.3-2 keeps both polarities from TestNegRekeyRejectsMismatchedKEGroup above,
-// which asserts the INVALID_KE_PAYLOAD type and the two octets naming the group.
+// correctness-only test edits. This test carries NO RFC requirement tag, and the
+// absence is the decision.
 //
-// RFC requirement: RFC7296-3.4-1 positive -- Section 3.4 binds the SENDER: a MODP public value
-// MUST be the length of the prime modulus. crypto.SharedSecret (crypto/dh.go) enforces
-// it on RECEIPT, which is the same length rule read from the other end. A peer value of
-// another length fails closed there rather than produces a secret the peer never
-// computes.
-// RFC requirement: RFC7296-3.4-1 negative -- a value of the modulus length is accepted and the
-// two sides agree on the secret. The refusal is therefore about the length of the value,
-// and the primitive did not stop working.
+// It was tagged RFC7296-1.3-2, which asks the RESPONDER to reject a mismatched group
+// and answer INVALID_KE_PAYLOAD. The test builds no message and emits no Notify, so it
+// could never prove that row. Row RFC7296-1.3-2 is proven by
+// TestNegRekeyRejectsMismatchedKEGroup above, which asserts the INVALID_KE_PAYLOAD type
+// and the two octets naming the group.
+//
+// It was then retagged RFC7296-3.4-1, and that is wrong in the other direction.
+// Section 3.4 binds the SENDER: a MODP public value MUST be the length of the prime
+// modulus. This test proves the RECEIVE side, that crypto.SharedSecret (crypto/dh.go)
+// refuses a peer value of another length. Section 3.4 obliges nobody to police what
+// arrives, so pointing that row at this test would count a second, larger-looking proof
+// of an obligation it does not test. RFC7296-3.4-1 is already proven on the side the
+// section binds, both polarities, by crypto/rfc7296_dh_test.go: NewDHExchange pads the
+// public value to the modulus, and the pad is load-bearing.
+//
+// The receive-side refusal is real and worth keeping. strongSwan does the same
+// (key_exchange_check_pubkey_len requires value.len == params->prime.len for every MODP
+// group, and fails before any exponentiation), and it cites no RFC section for it,
+// because there is none to cite. Defensive behavior with no obligation behind it earns
+// a test, not a requirement tag.
 func TestNegSharedSecretRefusesWrongLength(t *testing.T) {
 	ours, err := crypto.NewDHExchange(crypto.DH_MODP_2048)
 	if err != nil {

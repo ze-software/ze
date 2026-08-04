@@ -2,7 +2,7 @@
 // policy whose selector covers the same flow, and RESOLVES the contest in the
 // bypass's favour. The unit tests assert the two priority NUMBERS; only the kernel
 // can say which policy it actually applies, and the ordering rule (lowest number
-// wins, ties broken by insertion order) is kernel behaviour that no amount of
+// wins, ties broken by insertion order) is kernel behavior that no amount of
 // reading proves.
 // PREVENTS: shipping the priority pair on reasoning alone. If the kernel ranked the
 // other way, or ignored priority for a template-free policy, every one of the unit

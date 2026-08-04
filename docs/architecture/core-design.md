@@ -742,6 +742,10 @@ The build engine is generic -- attribute knowledge lives in handlers.
 When `mods.Len() == 0` (common case: no role config or no stamping needed), the progressive
 build is skipped entirely -- zero allocation, zero copy.
 
+No attribute is CREATED on a body that advertises nothing: see
+`docs/architecture/wire/mp-nlri-ordering.md`, "A relayed UPDATE that advertises
+nothing gains no attribute".
+
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate egress filter chain -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload progressive build -->
 
@@ -826,11 +830,6 @@ Ze implements the Send Hold Timer to detect when the local side cannot send data
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, resetSendHoldTimer -->
 
 Duration: `max(8 minutes, 2x hold-time)`. Not configurable per RFC 9687.
-
-### Hold Timer Congestion Extension
-
-When the hold timer fires, ze checks whether data was recently read from the peer (`recentRead` flag set by the read loop on every successful message read). If true, the peer IS sending data but ze is CPU-congested processing other peers' UPDATEs. Instead of tearing down the session, ze resets the hold timer and logs a warning. This technique is adapted from BIRD.
-<!-- source: internal/component/bgp/reactor/session.go -- recentRead, hold timer callback -->
 
 ### Write Deadline
 
