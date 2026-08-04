@@ -782,6 +782,12 @@ func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16
 // validateMPReachNextHop, which is permissive for AFI/SAFI whose next-hop length it does
 // not know. `addPath` reflects RFC 7911 negotiation for the family so the walk skips the
 // 4-byte path identifier.
+//
+// Permissive here does NOT mean unchecked everywhere. A typed family that registers an
+// RFC 7606 Section 5.4 recognizer is walked by its own splitter at the Section 5.4 pass
+// (reactor.typedNLRIEdit), which reaches the same Section 3(j) session reset on the same
+// "last NLRI overruns the attribute" condition. Nothing here may assume it ran first: the
+// Section 5.4 pass runs after this one.
 func validateMPNLRISyntax(code uint8, afi attribute.AFI, safi attribute.SAFI, nlri []byte, addPath bool) *RFC7606ValidationResult {
 	if (afi != attribute.AFIIPv4 && afi != attribute.AFIIPv6) ||
 		(safi != attribute.SAFIUnicast && safi != attribute.SAFIMulticast) {

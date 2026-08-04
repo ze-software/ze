@@ -2,10 +2,11 @@
 // RFC: rfc/short/rfc7606.md -- Section 5.4; rfc/short/rfc7432.md -- Section 7.1 EVPN NLRI
 // Related: types.go -- EVPNRouteType constants and ParseEVPN, the set this reports on
 //
-// RFC 7606 Section 5.4 binds EVPN. RFC 7432 defines the typed NLRI framing
-// (Section 7.1) and the "EVPN Route Types" IANA registry (Section 16) but states
-// no deviation from RFC 7606, so the default applies: a route whose type ze does
-// not implement is discarded.
+// RFC 7606 Section 5.4 binds EVPN, and names it as one of its own examples of a
+// typed address family. RFC 7432 defines the typed NLRI framing (Section 7.1) and
+// creates the "EVPN Route Types" IANA registry (Section 20, IANA Considerations)
+// but states no deviation from RFC 7606, so the default applies: a route whose
+// type ze does not implement is discarded.
 //
 // This is where that ruling is recorded, beside the family registration it
 // belongs to. Nothing central names EVPN.

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 908 summaries
+Total: 909 summaries
 
 ## 400-499
 
@@ -967,3 +967,4 @@ Total: 908 summaries
 | 1331 | Five config roots nobody claims, and the third delivery path | `plan/learned/1331-config-roots-nobody-claims.md` |
 | 1332 | Dead Peer Detection sent its probe in cleartext | `plan/learned/1332-fixit-ike-dpd-cleartext.md` |
 | 1333 | A second INFORMATIONAL handler tore tunnels down with no key material | `plan/learned/1333-fixit-ike-informational-second-producer.md` |
+| 1334 | rfc7606-54-typed-nlri-review-fixes | `plan/learned/1334-rfc7606-54-typed-nlri-review-fixes.md` |

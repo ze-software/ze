@@ -3,6 +3,7 @@ package mvpn
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -10,12 +11,24 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
 	// RFC 6514: Register PMSI Tunnel attribute (type 22).
 	attribute.RegisterName(22, "PMSI_TUNNEL")
+
+	// RFC 7606 Section 5.4: MCAST-VPN is one of the section's own examples of a typed
+	// address family, and RFC 6514 states no deviation, so a route whose type ze does
+	// not implement must be discarded. Registered here, beside the families, so
+	// removing this plugin removes both the advertisement and the obligation.
+	for _, fam := range []Family{IPv4MVPN, IPv6MVPN} {
+		if err := nlritype.Register(fam, RecognizeNLRI); err != nil {
+			fmt.Fprintf(os.Stderr, "mvpn: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	reg := registry.Registration{
 		Name:         "bgp-nlri-mvpn",

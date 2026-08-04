@@ -40,9 +40,14 @@ func nlriTypeTestSession() *Session {
 // registerEVPNRecognizer installs the same ruling the EVPN plugin's init() installs:
 // route types 1..5 are implemented, everything else is not. The reactor package does not
 // import the plugin, so the test states the ruling itself.
+//
+// SnapshotForTest, never ResetForTest: this binary links real NLRI plugins through other
+// test files, and a teardown that left the registry empty would make a later test find no
+// recognizer for a family the daemon really rules on, so its Section 5.4 filter would do
+// nothing and the test would pass proving nothing.
 func registerEVPNRecognizer(t *testing.T) {
 	t.Helper()
-	nlritype.ResetForTest()
+	t.Cleanup(nlritype.SnapshotForTest())
 	err := nlritype.Register(evpnFam, func(nlriBytes []byte, addPath bool) bool {
 		off := 0
 		if addPath {
@@ -54,7 +59,6 @@ func registerEVPNRecognizer(t *testing.T) {
 		return nlriBytes[off] >= 1 && nlriBytes[off] <= 5
 	})
 	require.NoError(t, err)
-	t.Cleanup(nlritype.ResetForTest)
 }
 
 // evpnWireNLRI frames one EVPN NLRI: [route-type][length][body] (RFC 7432 Section 7.1).
@@ -85,6 +89,30 @@ func mpReachAttrs(fam family.Family, nlri []byte) []byte {
 	attrs = append(attrs, 0x80, byte(attribute.AttrMPReachNLRI), byte(len(value)))
 	return append(attrs, value...)
 }
+
+// mpReachAttrsExtLen is mpReachAttrs with the MP_REACH attribute carrying the RFC 4271
+// Section 4.3 Extended Length flag and a two-octet length, the form a real speaker uses
+// once the NLRI section passes 255 octets.
+func mpReachAttrsExtLen(fam family.Family, nlri []byte) []byte {
+	value := []byte{
+		byte(uint16(fam.AFI) >> 8), byte(uint16(fam.AFI)), byte(fam.SAFI),
+		0x04, 0xc0, 0x00, 0x02, 0x01, // next-hop length 4, 192.0.2.1
+		0x00, // reserved
+	}
+	value = append(value, nlri...)
+
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+	}
+	attrs = append(attrs,
+		0x90, byte(attribute.AttrMPReachNLRI), byte(len(value)>>8), byte(len(value)))
+	return append(attrs, value...)
+}
+
+// extLenMPReachOffset is where mpReachAttrsExtLen puts the MP_REACH header: after the
+// four-octet ORIGIN and the three-octet empty AS_PATH.
+const extLenMPReachOffset = 7
 
 // mpUnreachAttrs returns an MP_UNREACH_NLRI attribute carrying nlri for the given family.
 func mpUnreachAttrs(fam family.Family, nlri []byte) []byte {
@@ -178,7 +206,7 @@ func TestRFC7606Section54PropagatesUnknownBGPLSType(t *testing.T) {
 }
 
 // VALIDATES: an UPDATE whose every NLRI is unrecognized loses the MP_REACH attribute
-// entirely, so nothing is relayed and no empty attribute goes out.
+// entirely AND is dropped rather than relayed, because what is left conveys nothing.
 // PREVENTS: relaying an UPDATE that announces nothing, and relaying an MP_REACH whose NLRI
 // section is empty, which a conforming receiver has no reason to accept.
 func TestRFC7606Section54DropsMPReachWhenNothingSurvives(t *testing.T) {
@@ -190,11 +218,58 @@ func TestRFC7606Section54DropsMPReachWhenNothingSurvives(t *testing.T) {
 
 	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
 	require.NoError(t, err)
-	assert.Equal(t, message.RFC7606ActionNone, action)
+	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, action,
+		"the UPDATE now conveys nothing, so it rides the drop rail rather than the relay")
 
 	_, found := mpReachNLRIOf(t, wu.Payload())
 	assert.False(t, found,
 		"no route survives, so the MP_REACH attribute must be removed rather than emptied")
+	assert.Empty(t, message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily),
+		"nothing is left to withdraw, which is what makes processMessage drop the UPDATE")
+}
+
+// acceptEveryFamily stands in for Session.mpFamilyDispatchable, so a test can ask the
+// same question processMessage asks: does this body still carry anything to withdraw?
+func acceptEveryFamily(uint16, uint8) bool { return true }
+
+// TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR pins the shape the
+// MP_REACH test cannot reach.
+//
+// VALIDATES: an MP_UNREACH-only UPDATE (RFC 4760 Section 4 makes it conforming input, and
+// RFC 7606 Section 5.1 encourages MP_UNREACH as the first and only attribute) whose every
+// withdrawal names an unrecognized type is DROPPED, not relayed.
+// PREVENTS: a forged End-of-RIB. With the only attribute gone, RebuildUpdateBody emits
+// withdrawn-length 0, attribute-length 0 and no NLRI -- four zero octets, which is exactly
+// RFC 4724 Section 2's legacy End-of-RIB marker. Relaying it would make ze tell every peer
+// that this neighbor finished its initial routing update, ending a restarting peer's RFC
+// 4724 route deferral early on a withdrawal the peer never meant as an EoR.
+//
+// The MP_REACH tests miss this because mpReachAttrs prepends ORIGIN and AS_PATH, so their
+// attribute section never empties.
+//
+// RFC requirement: RFC7606-5.4-1 positive -- an MP_UNREACH-only UPDATE whose withdrawals are all unrecognized types is discarded whole, and never rebuilt into an End-of-RIB marker.
+func TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR(t *testing.T) {
+	registerEVPNRecognizer(t)
+	s := nlriTypeTestSession()
+
+	nlri := append(evpnWireNLRI(6, 0xaa), evpnWireNLRI(99, 0xbb)...)
+	body := makeUpdateBody(nil, mpUnreachAttrs(evpnFam, nlri), nil)
+
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err, "an unrecognized type is discarded, never a session reset")
+	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, action,
+		"every route is gone, so the UPDATE must ride the drop rail")
+
+	// This is the hazard, stated as an assertion rather than a comment: the rebuilt body
+	// READS as an End-of-RIB. That is why it must not be relayed.
+	_, isEOR := wireu.NewWireUpdate(wu.Payload(), 0).IsEOR()
+	assert.True(t, isEOR,
+		"the rebuilt body is byte-identical to an EoR, which is what makes relaying it a forgery")
+
+	// And this is the drop: processMessage synthesizes withdrawals from this body, gets
+	// none, and consumes the UPDATE without dispatching or forwarding it.
+	assert.Empty(t, message.SynthesizeWithdrawFamilies(wu.Payload(), acceptEveryFamily),
+		"no family is left to withdraw, so processMessage drops the UPDATE and counts no EoR")
 }
 
 // VALIDATES: an UPDATE where every route type is implemented is returned byte-identical,
@@ -242,12 +317,93 @@ func TestRFC7606Section54DiscardsUnrecognizedEVPNWithdrawal(t *testing.T) {
 		"the withdrawal of an unrecognized type must be dropped with the route it names")
 }
 
+// TestRFC7606Section54SessionResetsUnparseableTypedNLRI closes a peer-controlled bypass.
+//
+// VALIDATES: RFC 7606 Section 5.3 -- an MP attribute is incorrect when "the length of the
+// last NLRI found exceeds the amount of unconsumed data remaining in the attribute" -- and
+// Section 3(j), which requires session reset when the NLRI field cannot be parsed, because
+// treat-as-withdraw needs it parsed.
+// PREVENTS: a one-octet bypass of the Section 5.4 MUST. message.validateMPNLRISyntax runs
+// the Section 5.3 walk only for IPv4/IPv6 unicast and multicast and returns nil for every
+// typed family, so nothing upstream had checked this framing. A peer that appended one
+// truncated NLRI made the splitter fail, and the filter used to relay the whole section
+// untouched -- unrecognized types included, on demand.
+//
+// RFC requirement: RFC7606-5.4-1 positive -- a typed NLRI section whose last route overruns the attribute is session-reset per Sections 5.3 and 3(j), so no unrecognized type is relayed by making the split fail.
+func TestRFC7606Section54SessionResetsUnparseableTypedNLRI(t *testing.T) {
+	registerEVPNRecognizer(t)
+	s := nlriTypeTestSession()
+
+	// One implemented route, then a header declaring a 4-octet body with 1 octet left.
+	nlri := append(evpnWireNLRI(2, 0xaa), 99, 0x04, 0xde)
+	body := makeUpdateBody(nil, mpReachAttrs(evpnFam, nlri), nil)
+
+	_, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.Error(t, err, "Section 3(j): an NLRI field that cannot be parsed resets the session")
+	assert.Equal(t, message.RFC7606ActionSessionReset, action)
+}
+
+// VALIDATES: the rewrite preserves an Extended Length attribute header, re-encoding the new
+// length in the same two octets rather than switching to the one-octet form.
+// PREVENTS: a peer receiving an attribute whose flags say Extended Length while its length
+// field is one octet, which every conforming parser reads as a malformed attribute list.
+func TestRFC7606Section54RewritesExtendedLengthMPReach(t *testing.T) {
+	registerEVPNRecognizer(t)
+	s := nlriTypeTestSession()
+
+	keep := evpnWireNLRI(2, 0xaa)
+	drop := evpnWireNLRI(99, 0xbb)
+	body := makeUpdateBody(nil, mpReachAttrsExtLen(evpnFam, append(append([]byte{}, keep...), drop...)), nil)
+
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err)
+	assert.Equal(t, message.RFC7606ActionNone, action)
+
+	attrs := rfc8669PathAttrs(t, wu.Payload())
+	off := extLenMPReachOffset
+	require.GreaterOrEqual(t, len(attrs), off+4)
+	assert.Equal(t, byte(0x90), attrs[off], "the Extended Length flag must survive the rewrite")
+	assert.Equal(t, byte(attribute.AttrMPReachNLRI), attrs[off+1])
+	gotLen := int(attrs[off+2])<<8 | int(attrs[off+3])
+	assert.Equal(t, len(attrs)-(off+4), gotLen,
+		"the two-octet length must be re-encoded to the shortened value")
+
+	got, found := mpReachNLRIOf(t, wu.Payload())
+	require.True(t, found)
+	assert.Equal(t, keep, got)
+}
+
+// VALIDATES: rewriteMPNLRISections copies through every octet of an attribute whose header
+// it could not frame, including the flags and type code it had already stepped over.
+// PREVENTS: silently truncating two to four octets out of the rebuilt attribute section on
+// malformed input. This is asserted on the helper rather than through enforceRFC7606
+// because the Section 4 bounds checks reject such a section before the rewrite runs; the
+// copy-through is a belt on top of that brace, and an untested belt is a wire corruption
+// waiting for the day the brace changes.
+func TestRewriteMPNLRISectionsKeepsUnframeableTail(t *testing.T) {
+	// A well-formed MP_UNREACH that IS edited, then a two-octet stump: flags and type code
+	// with no length octet. The edit has to be applied for real, or the walk would never
+	// reach the stump and the test would be identical with no edits at all.
+	unreach := []byte{0x80, byte(attribute.AttrMPUnreachNLRI), 0x05, 0x00, 0x19, 0x46, 0x02, 0x00}
+	stump := []byte{0x80, byte(attribute.AttrMPReachNLRI)}
+	attrs := append(append([]byte{}, unreach...), stump...)
+	edits := []mpNLRIEdit{{code: uint8(attribute.AttrMPUnreachNLRI), nlri: []byte{0x03, 0x00}, dropped: 1}}
+
+	got := rewriteMPNLRISections(attrs, edits)
+
+	// The edited attribute is rebuilt with the replacement NLRI and a corrected length.
+	want := append([]byte{0x80, byte(attribute.AttrMPUnreachNLRI), 0x05, 0x00, 0x19, 0x46, 0x03, 0x00}, stump...)
+	assert.Equal(t, want, got,
+		"the edit is applied AND the unframeable tail is copied through whole, header included")
+}
+
 // VALIDATES: a family nobody has ruled on is left exactly as received.
 // PREVENTS: risk R-1, an over-broad discard reaching a family whose specification was never
 // read. The registry's default is the mitigation, so it is asserted on the real path.
 func TestRFC7606Section54LeavesUnruledFamilyUntouched(t *testing.T) {
-	nlritype.ResetForTest()
-	t.Cleanup(nlritype.ResetForTest)
+	// Snapshot rather than clear: this leaves the registry empty for the duration, which is
+	// exactly the unruled state under test, and puts back what the linked plugins registered.
+	t.Cleanup(nlritype.SnapshotForTest())
 	s := nlriTypeTestSession()
 
 	nlri := append(evpnWireNLRI(2, 0xaa), evpnWireNLRI(99, 0xbb)...)

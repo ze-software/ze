@@ -82,12 +82,9 @@ func TestRecognizeNLRIRefusesTruncated(t *testing.T) {
 // PREVENTS: the whole mechanism being present but unwired, which would leave the ledger
 // claiming a conformance no running daemon has.
 func TestRecognizerIsRegisteredForEVPN(t *testing.T) {
-	if !nlritype.Bound(L2VPNEVPN) {
-		t.Fatal("the evpn plugin must register its Section 5.4 recognizer at init")
-	}
 	fn := nlritype.Get(L2VPNEVPN)
 	if fn == nil {
-		t.Fatal("Bound reported a ruling but Get returned none")
+		t.Fatal("the evpn plugin must register its Section 5.4 recognizer at init")
 	}
 	if fn([]byte{byte(EVPNRouteType2), 0x00}, false) == false {
 		t.Error("the registered recognizer must accept an implemented type")

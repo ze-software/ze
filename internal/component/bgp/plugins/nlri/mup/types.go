@@ -1,7 +1,8 @@
 // Design: docs/architecture/wire/nlri.md — MUP NLRI plugin
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md
+// Related: rfc7606.go -- the RFC 7606 Section 5.4 ruling over the types declared here
 //
-// Package bgp_mup implements Mobile User Plane NLRI (draft-mpmz-bess-mup-safi, SAFI 85).
+// Package bgp_mup implements Mobile User Plane NLRI (draft-ietf-bess-mup-safi, SAFI 85).
 package mup
 
 import (
@@ -48,7 +49,7 @@ var (
 // MUPRouteType identifies the type of MUP route.
 type MUPRouteType uint16
 
-// MUP route types per draft-mpmz-bess-mup-safi.
+// MUP route types per draft-ietf-bess-mup-safi.
 const (
 	MUPISD  MUPRouteType = 1 // Interwork Segment Discovery route
 	MUPDSD  MUPRouteType = 2 // Direct Segment Discovery route
@@ -75,12 +76,12 @@ func (t MUPRouteType) String() string {
 // MUPArchType identifies the MUP architecture type.
 type MUPArchType uint8
 
-// MUP architecture types per draft-mpmz-bess-mup-safi.
+// MUP architecture types per draft-ietf-bess-mup-safi.
 const (
 	MUPArch3GPP5G MUPArchType = 1 // 3GPP 5G architecture
 )
 
-// MUP represents a Mobile User Plane NLRI (draft-mpmz-bess-mup-safi).
+// MUP represents a Mobile User Plane NLRI (draft-ietf-bess-mup-safi).
 type MUP struct {
 	rd        RouteDistinguisher
 	data      []byte
@@ -112,7 +113,7 @@ func NewMUPFull(afi AFI, archType MUPArchType, routeType MUPRouteType, rd RouteD
 
 // ParseMUP parses a MUP NLRI from wire format.
 //
-// draft-mpmz-bess-mup-safi defines the BGP-MUP NLRI format:
+// draft-ietf-bess-mup-safi defines the BGP-MUP NLRI format:
 //
 //	Architecture Type (1 octet) + Route Type (2 octets) + Length (1 octet) + data
 func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {

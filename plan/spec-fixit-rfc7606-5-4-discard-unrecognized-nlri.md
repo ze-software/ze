@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 3/3 |
 | Deferral shard | `-` |
-| Updated | 2026-08-01 |
+| Updated | 2026-08-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -201,9 +201,11 @@ parses a route type today.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | An unrecognized NLRI type in a family RFC 7606 Section 5.4 binds | The route is discarded, not installed and not propagated |
-| AC-2 | An unrecognized NLRI type in a family whose specification overrides 5.4 (BGP-LS, RFC 9552 Section 5.1) | The route is retained and propagated, exactly as today |
+| AC-1 | An unrecognized NLRI type in a family RFC 7606 Section 5.4 binds (EVPN, MCAST-VPN, BGP-MUP) | The route is discarded, not installed and not propagated |
+| AC-2 | An unrecognized NLRI type in a family whose specification overrides 5.4 (BGP-LS, RFC 9552 Section 5.2) | The route is retained and propagated, exactly as today |
 | AC-3 | Every currently recognized NLRI type | Behavior is unchanged; no route that is relayed today stops being relayed |
+| AC-4 | An UPDATE whose every route is discarded, so nothing is left to convey | The UPDATE is dropped whole, never rebuilt into an End-of-RIB marker and relayed |
+| AC-5 | A typed NLRI section whose last route overruns its attribute | Session reset per Sections 5.3 and 3(j); the discard is never bypassed by breaking the framing |
 
 ## End-to-End User Stories
 
@@ -226,6 +228,16 @@ parses a route type today.
 | 11 registry and `Retain` tests | `core/bgp/nlri/nlritype/nlritype_test.go` | the registry default, the carve, ADD-PATH, malformed framing | PASS |
 | `TestImplementedMatchesParseEVPN` | `plugins/nlri/evpn/rfc7606_test.go` | the recognized set cannot drift from `ParseEVPN` | PASS |
 | 4 recognizer tests | `plugins/nlri/evpn/rfc7606_test.go` | the ruling is registered and reads the wire correctly | PASS |
+| `TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR` | `reactor/session_validation_nlritype_test.go` | AC-4, no forged End-of-RIB; tagged `RFC requirement: RFC7606-5.4-1 positive` | PASS, mutation-verified |
+| `TestRFC7606Section54SessionResetsUnparseableTypedNLRI` | `reactor/session_validation_nlritype_test.go` | AC-5, Sections 5.3 and 3(j) on a typed family; tagged | PASS, mutation-verified |
+| `TestRFC7606Section54RewritesExtendedLengthMPReach` | `reactor/session_validation_nlritype_test.go` | the Extended Length re-encode path | PASS, mutation-verified |
+| `TestRewriteMPNLRISectionsKeepsUnframeableTail` | `reactor/session_validation_nlritype_test.go` | no header octets lost when the attribute walk gives up | PASS, mutation-verified |
+| `TestRFC7606Section54DiscardsUnrecognizedMVPNType` | `reactor/session_validation_nlritype_typed_test.go` | AC-1 for MCAST-VPN; tagged | PASS, mutation-verified |
+| `TestRFC7606Section54DiscardsUnrecognizedMUPType` | `reactor/session_validation_nlritype_typed_test.go` | AC-1 for BGP-MUP, through its own four-octet envelope; tagged | PASS, mutation-verified |
+| 6 MVPN recognizer tests | `plugins/nlri/mvpn/rfc7606_test.go` | the MCAST-VPN ruling, its registration, and the anti-drift binding; tagged | PASS, mutation-verified |
+| 6 MUP recognizer tests | `plugins/nlri/mup/rfc7606_test.go` | the BGP-MUP ruling (architecture and route type), its registration; tagged | PASS, mutation-verified |
+| 6 splitter tests | `core/bgp/nlri/nlrisplit/typelen_test.go` | MVPN and MUP framing, both Section 5.3 boundaries, registry presence | PASS, mutation-verified |
+| 5 speaker-engine tests | `test/interop/speaker/test_engine.py` | `--family` negotiation and the EVPN route-type plugin, red and green | PASS |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -243,7 +255,38 @@ mutation was reverted and both went green again.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| (fill during design) | `test/interop/scenarios/` | (fill) | a real peer's view of the changed relay behaviour | |
+| `53-rfc7606-54-typed-nlri-discard` | `test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/` | raw injector (`ze-test peer`) plus the independent Python speaker (`test/interop/speaker/`) | an independent peer receives the assigned EVPN route type and never the unassigned one ze was sent in the same MP_REACH attribute | PASS, mutation-verified |
+
+**Mutation evidence (2026-08-04).** `applyTypedNLRIDiscard` was made an early
+`return wu, pathAttrs, typedNLRIKept`, the interop image was rebuilt, and the scenario
+re-run. It flipped to FAIL with the speaker reporting `evpn-nlri: 2` and
+`received EVPN route type 99, which is not assigned`, the relayed body carrying
+`63080001AC1E00090002`. Restored and rebuilt, it reports `evpn-nlri: 1` and PASS. The
+non-vacuity assertion carries its own weight in both directions: the count is 1 when the
+fix is in, so a relay that delivered nothing would fail rather than pass quietly.
+
+**Why not FRR, BIRD or GoBGP.** A conforming daemon discards the unassigned route type
+itself, so its route table cannot tell "ze discarded it" from "the peer discarded it", and
+GoBGP resets the session on an unknown type, which is the outcome Section 5.4 exists to
+prevent rather than an observation of ze. The speaker reads the raw MP_REACH bytes ze put
+on the wire, which is the only place the answer lives. It needed one harness change:
+`engine.py` hardcoded an IPv4-unicast-only OPEN, and ze gates every announce on the
+negotiated family set, so an EVPN check against the old engine would have passed on an
+empty session. `--family AFI:SAFI` now names the families, defaulting to today's IPv4
+unicast so no existing scenario changes.
+
+## Goal Validation
+
+One row per goal stated in the Task section, with the evidence that proves it beyond the
+individual assertions (`ai/rules/interop-and-goal-validation.md`).
+
+| Goal | Evidence |
+|------|----------|
+| Ze discards routes with unrecognized NLRI types in every family Section 5.4 binds | Three families carry a recognizer in a real build, each proven by its own registration test: `evpn.RecognizeNLRI` (`TestRecognizerIsRegisteredForEVPN`), `mvpn.RecognizeNLRI` (`TestRecognizerIsRegisteredForBothMVPNFamilies`), `mup.RecognizeNLRI` (`TestRecognizerIsRegisteredForBothMUPFamilies`). Each of the three envelopes is driven end to end through `enforceRFC7606` by a tagged reactor test. Section 5.4's own three examples are MCAST-VPN, MCAST-VPLS and EVPN; ze advertises no MCAST-VPLS family, so there is nothing to rule on for it. |
+| The discard is on the propagation path, not only the RIB | `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` asserts the receiving peer's wire, and scenario `53-rfc7606-54-typed-nlri-discard` asserts the same thing from an independent peer ze does not control. Both were mutation-verified: the `.ci` file flips RED with `6304DEADBEEF` on the receiver's wire. |
+| A family whose specification overrides 5.4 is untouched | `TestRFC7606Section54PropagatesUnknownBGPLSType` (tagged negative) and `test/plugin/rfc7606-54-bgpls-override-propagates.ci`. RFC 9552 Section 5.2 is quoted in the test. |
+| No conforming UPDATE pays for the change | `TestRFC7606Section54LeavesConformingUpdateZeroCopy` asserts the SAME `*wireu.WireUpdate` and the same backing array come back when nothing is discarded. |
+| The compliance fix introduces no new wire-visible defect | The two the review found are now themselves proven: AC-4 by `TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR`, AC-5 by `TestRFC7606Section54SessionResetsUnparseableTypedNLRI`. Both mutation-verified: reverting the production line turns each RED. |
 
 ## Design (answered 2026-08-01)
 
@@ -251,7 +294,9 @@ mutation was reverted and both went green again.
 
 | Family | Typed? | Does its own specification override 5.4? | Verdict |
 |--------|--------|------------------------------------------|---------|
-| `l2vpn/evpn` | yes, `[route-type:1][length:1][body]` (RFC 7432 Section 7.1) | **No.** RFC 7432 defines the framing and an "EVPN Route Types" IANA registry (Section 16) and states no deviation from RFC 7606. | **5.4 BINDS.** Discard a route whose type Ze does not implement (types 1..5 are implemented: RFC 7432 types 1-4, RFC 9136 type 5). |
+| `l2vpn/evpn` | yes, `[route-type:1][length:1][body]` (RFC 7432 Section 7.1) | **No.** RFC 7432 defines the framing and creates the "EVPN Route Types" IANA registry (Section 20, IANA Considerations) and states no deviation from RFC 7606. | **5.4 BINDS.** Discard a route whose type Ze does not implement (types 1..5 are implemented: RFC 7432 types 1-4, RFC 9136 type 5). |
+| `ipv4/mvpn`, `ipv6/mvpn` | yes, `[route-type:1][length:1][body]` (RFC 6514 Section 4) | **No.** RFC 6514 Section 4 enumerates route types 1..5 (A-D routes) and 6..7 (C-multicast routes) and states no other handling for a type a speaker does not implement. Section 18 (IANA Considerations) creates no route-type registry and no deviation. | **5.4 BINDS.** RFC 7606 Section 5.4 names MCAST-VPN [RFC6514] as its FIRST example of a typed family. Discard a route type outside 1..7. |
+| `ipv4/mup`, `ipv6/mup` | yes, `[arch:1][route-type:2][length:1][body]` (draft-ietf-bess-mup-safi Section 3.1) | **No.** The draft enumerates Architecture Type 1 (3gpp-5g) and Route Types 1..4 and invokes no escape clause. | **5.4 BINDS.** The Route Type specific encoding "depends on Architecture Type + Route Type", so the PAIR names the type. Discard anything outside arch 1 with route type 1..4. |
 | `bgp-ls/bgp-ls`, `bgp-ls/bgp-ls-vpn` | yes, `[NLRI type:2][total length:2][body]` | **Yes, in terms.** RFC 9552 **Section 5.2**: "this document deviates from the default handling behavior specified by Section 5.4 (paragraph 2) of [RFC7606] for Link-State address family. An implementation MUST handle unknown Link-State NLRI types as opaque objects and MUST preserve and propagate them." | **5.4 DOES NOT BIND.** Propagate unchanged. |
 | every other family | not typed, or Ze registers no recognizer | -- | No recognizer registered, so nothing is discarded and today's behaviour is unchanged. |
 
@@ -343,12 +388,20 @@ would be gratuitous. Symmetry is the point: one rule for both directions.
 
 | File | Change |
 |------|--------|
-| `internal/component/bgp/message/rfc7606.go` | record MP family and NLRI value range on the existing walk |
-| `internal/component/bgp/reactor/session_validation.go` | apply the Section 5.4 filter before the action switch |
+| `internal/component/bgp/message/rfc7606.go` | record MP family and NLRI value range on the existing walk; correct `validateMPNLRISyntax`'s doc, which read as though typed families were checked nowhere |
+| `internal/component/bgp/reactor/session_validation.go` | apply the Section 5.4 filter before the action switch, and act on its two whole-UPDATE outcomes |
+| `internal/component/bgp/reactor/session_validation_nlritype.go` | the three fixes the review found: drop an emptied UPDATE, session-reset unparseable framing, keep the header octets on an unframeable tail |
 | `internal/component/bgp/plugins/nlri/evpn/register.go` | register the EVPN recognizer |
+| `internal/component/bgp/plugins/nlri/evpn/rfc7606.go` | RFC 7432's IANA registry is Section 20, not Section 16 |
+| `internal/component/bgp/plugins/nlri/mvpn/register.go` | register the MCAST-VPN recognizer for both AFIs |
+| `internal/component/bgp/plugins/nlri/mup/register.go` | register the BGP-MUP recognizer for both AFIs |
+| `internal/core/bgp/nlri/nlrisplit/register.go` | bind the MVPN and MUP splitters, without which no recognizer may register |
+| `internal/core/bgp/nlri/nlrisplit/evpn.go` | delegate to the shared type-and-length walk |
 | `internal/component/bgp/plugins/nlri/ls/unknown_type_skip_test.go` | correct the RFC 9552 section citation |
+| `test/interop/speaker/engine.py` | `--family AFI:SAFI` so a speaker can negotiate a typed family; default unchanged |
+| `test/interop/speaker/test_engine.py` | red and green fixtures for the flag and the new plugin |
 | `rfc/short/rfc7606.md` | remove the `{gap}` on `RFC7606-5.4-1` |
-| `docs/features/rfc-status.md` | RFC 7606 row: one gap remains, not two |
+| `docs/features/rfc-status.md` | RFC 7606 row: one gap remains, not two. **Still owed at closure:** the row names EVPN and BGP-LS as the two poles and must now also name MCAST-VPN and BGP-MUP as bound families. Not edited on 2026-08-04 because the working-tree copy carries another session's uncommitted RFC 7296 row, and staging it would have committed their line. |
 
 ## Files to Create
 
@@ -360,6 +413,14 @@ would be gratuitous. Symmetry is the point: one rule for both directions.
 | `internal/component/bgp/reactor/session_validation_nlritype_test.go` | the tagged positive and negative tests |
 | `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | relay proof: unrecognized EVPN type is not relayed |
 | `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | relay proof: unrecognized BGP-LS type still is |
+| `internal/core/bgp/nlri/nlrisplit/typelen.go` | the one type-and-length framing walk EVPN, MVPN and MUP share |
+| `internal/core/bgp/nlri/nlrisplit/mvpn.go`, `mup.go` | the two new splitters, and where their framing is cited |
+| `internal/core/bgp/nlri/nlrisplit/typelen_test.go` | framing and Section 5.3 boundary tests for both |
+| `internal/component/bgp/plugins/nlri/mvpn/rfc7606.go`, `mup/rfc7606.go` | the two new Section 5.4 rulings, beside the families they bind |
+| `internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go`, `mup/rfc7606_test.go` | the rulings, their registration, and the anti-drift binding |
+| `internal/component/bgp/reactor/session_validation_nlritype_typed_test.go` | the MVPN and MUP wire filters, driven from `enforceRFC7606` |
+| `test/interop/speaker/plugins/no_unrecognized_evpn_type.py` | the independent peer's judgement on the relayed EVPN route types |
+| `test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/` | the interop scenario: `ze.conf`, `inject.msg`, `inject-args`, `speaker-args`, `check.py` |
 
 ## Implementation Steps
 
@@ -392,6 +453,63 @@ would be gratuitous. Symmetry is the point: one rule for both directions.
 | Where | Said | Actually |
 |-------|------|----------|
 | This spec's Required Reading, `docs/features/rfc-status.md`, `rfc/short/rfc7606.md`'s `{gap}`, and `plugins/nlri/ls/unknown_type_skip_test.go` | RFC 9552 **Section 5.1** overrides RFC 7606 Section 5.4 for BGP-LS. | Section 5.1 is the TLV-level rule, about unknown TLVs INSIDE an NLRI. The NLRI-TYPE-level override, the one that names "Section 5.4 (paragraph 2) of [RFC7606]", is **Section 5.2**. Corrected in all four places. |
+| `plugins/nlri/evpn/rfc7606.go` | RFC 7432 creates the "EVPN Route Types" IANA registry in **Section 16**. | Section 16 is "Multicast and Broadcast". The registry is created in **Section 20**, IANA Considerations. Corrected 2026-08-04. |
+
+### What the 2026-08-03 review found, and what it cost
+
+| Finding | Root cause | How it was caught |
+|---------|-----------|-------------------|
+| Section 5.4 was skipped entirely when the same UPDATE also earned treat-as-withdraw, so `SynthesizeWithdrawFamilies` relayed the unrecognized types inside the synthesized MP_UNREACH. | The gate in `enforceRFC7606` excluded treat-as-withdraw on the reading that a withdrawn route needs no discard. The withdrawal carries the NLRI bytes, so it does. Section 6 of this design claimed symmetry for withdrawals; it was untrue on that one path. | Round-1 independent review of the fix pass. |
+| Registering the MVPN and MUP splitters changed RIB behaviour with nothing asserting the result. | `nlrisplit.Supported` gates RIB installation as well as the Section 5.4 carve, and the two `.ci` files assert relay only. | Round-1 independent review. |
+| `nlritype.ResetForTest` is fail-open as a teardown: it leaves the registry EMPTY, and the reactor test binary really does link real NLRI plugins. | A later test would find no recognizer for a family the daemon rules on, its filter would do nothing, and it would pass proving nothing. | Round-1 independent review. |
+| `TestRewriteMPNLRISectionsKeepsUnframeableTail` named an attribute code its fixture did not contain, so `findEdit` never matched and the test was identical with no edits at all. | Copy of the wrong constant. | Round-1 independent review. |
+| The speaker-engine tests were gated by nothing, and this spec added seven more to them. | No `pythonTestRoots` entry covered `test/interop/speaker`, the file is named `test_engine.py` while the glob was `*_test.py`, and it handed itself to a pytest that is not installed. | Round-1 independent review. |
+| The MUST was proven for EVPN alone, while RFC 7606 Section 5.4's own first example, MCAST-VPN, still retained and relayed unrecognized types. So did BGP-MUP. | `nlrisplit/register.go` bound splitters for unicast, multicast, EVPN and labeled only, and `nlritype.Register` refuses a family with no splitter, so no recognizer for MVPN or MUP could have been registered. The gap was structural and invisible from the EVPN side. | Independent review reading Section 5.4's example list against the registry. |
+| An MP_UNREACH-only UPDATE whose withdrawals were all unrecognized was rebuilt into a forged End-of-RIB and relayed. | `rewriteMPNLRISections` drops an attribute whose NLRI all went, leaving no attributes; `RebuildUpdateBody` then emits four zero octets, which `Update.IsEndOfRIB` and `WireUpdate.IsEOR` both read as an EoR. Every existing test used `mpReachAttrs`, which prepends ORIGIN and AS_PATH, so the section never emptied and the shape was unreachable. | Independent review, verified against the producing functions. |
+| A peer could bypass the Section 5.4 MUST by appending one truncated NLRI. | `typedNLRIEdit` relayed everything on a split error, justified by a comment claiming Section 5.3 had already run. It had not: `validateMPNLRISyntax` returns nil for every family outside IPv4/IPv6 unicast and multicast, as its own doc comment says. | Independent review reading the comment against the function it cited. |
+| `rewriteMPNLRISections` lost 2 to 4 header octets on every abandoned attribute walk. | `pos` had already stepped past flags and type code when `break` fired, and the trailing copy-through starts at `pos`. | Independent review. |
+
+## Verification State (2026-08-04, review-fix pass)
+
+| Gate | Result |
+|------|--------|
+| `nlrisplit` (MVPN, MUP, shared walk) | PASS |
+| `nlritype` | PASS |
+| `plugins/nlri/mvpn`, `plugins/nlri/mup`, `plugins/nlri/evpn` | PASS |
+| Tagged and untagged reactor Section 5.4 tests | PASS (12) |
+| `test/interop/speaker/test_engine.py` | PASS (17), run without pytest via a plain driver |
+| `plugins/rib`, `plugins/rib/storage`, `plugins/rib/pool` | PASS, including the new typed-family installation test |
+| `make ze-plugin-test` | PASS 590/590, including both `rfc7606-54-*.ci` |
+| `make ze-rfc-check` | exit 0; `interop/nightly` evidence 3 -> 4 |
+| `go test -run TestPythonUnitTests ./scripts/dev` | discovers and runs `test/interop/speaker/test_engine.py`, which no gate reached before |
+| Interop scenario `53-rfc7606-54-typed-nlri-discard` | PASS, mutation-verified |
+| Mutation verification | 12 of 12 mutations turned the owning test RED. See the table below |
+
+**Mutation evidence (2026-08-04).** Each production line was reverted in place, the owning
+tests were re-run, and the file was restored from a byte copy:
+
+| Mutation | Test that turned RED |
+|----------|----------------------|
+| `outcome = typedNLRIEmptied` removed | `TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR`, `TestRFC7606Section54DropsMPReachWhenNothingSurvives` |
+| `typedNLRIEdit` returns true on a split error | `TestRFC7606Section54SessionResetsUnparseableTypedNLRI` |
+| `Register(fam, SplitMVPN)` removed | `TestRFC7606Section54DiscardsUnrecognizedMVPNType`, `TestMVPNAndMUPAreRegistered` |
+| `SplitMUP` reads the length octet at offset 1 | `TestRFC7606Section54DiscardsUnrecognizedMUPType`, `TestSplitMUPCarvesOnLengthAtOffsetThree`, `TestSplitMUPBoundaries` |
+| MVPN recognizer registered as nil | `TestRecognizerIsRegisteredForBothMVPNFamilies` |
+| MUP recognizer registered as nil | `TestRecognizerIsRegisteredForBothMUPFamilies` |
+| `pos = attrStart` rewind removed | `TestRewriteMPNLRISectionsKeepsUnframeableTail` |
+| Extended Length re-encode branch disabled | `TestRFC7606Section54RewritesExtendedLengthMPReach` |
+| Section 5.4 gate skips treat-as-withdraw again | `TestRFC7606Section54FiltersTreatAsWithdrawSynthesis` |
+| `Register(fam, SplitMVPN)` removed, judged at the RIB | `TestHandleReceived_PoolStorage_StoresTypedFamilies` |
+| `rewriteMPNLRISections` copies the attribute through instead of editing it | `TestRewriteMPNLRISectionsKeepsUnframeableTail` |
+| `SnapshotForTest`'s restore clears instead of restoring | `TestSnapshotForTestRestoresRegistrations` |
+
+**Consequence worth stating.** Registering the MVPN and MUP splitters also makes
+`nlrisplit.Supported` true for those families, and that predicate gates RIB installation
+(`RIBManager.handleReceivedStructured`, `insertPoolNLRIs`, `rib.go`). Ze therefore now
+installs MCAST-VPN and BGP-MUP routes as opaque RIB entries, the way it already installs
+EVPN. That is a real behaviour change beyond the discard, and it is unavoidable: judging a
+route type requires carving the section into individual NLRIs, and one registry owns that
+carve (`ai/rules/no-layering.md`).
 
 ## Verification State (2026-08-01)
 

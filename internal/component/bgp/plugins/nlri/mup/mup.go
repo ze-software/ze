@@ -2,7 +2,7 @@
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md
 //
 // Package bgp_mup implements a Mobile User Plane family plugin for ze.
-// It handles MUP NLRI (draft-mpmz-bess-mup-safi, SAFI 85).
+// It handles MUP NLRI (draft-ietf-bess-mup-safi, SAFI 85).
 package mup
 
 import (

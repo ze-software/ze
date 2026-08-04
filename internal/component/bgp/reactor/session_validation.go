@@ -38,6 +38,13 @@ import (
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	body := wu.Payload()
 
+	// RFC 7606 Section 6 asks for "an error listing the NLRI involved and containing the
+	// entire malformed UPDATE message". That is the message the PEER sent, and two branches
+	// below replace wu with a rebuilt body before the diagnostics run: the Section 3.g
+	// keep-first strip and the Section 5.4 typed-NLRI discard. Hold the received one so the
+	// log reports what arrived rather than what ze made of it.
+	receivedWU := wu
+
 	// RFC 7911: NLRI in an ADD-PATH family carries a 4-byte Path Identifier before the
 	// prefix. The Section 5.3 NLRI-syntax checks must skip it or they would misread a valid
 	// ADD-PATH UPDATE as malformed and session-reset it. The receive context knows which
@@ -168,13 +175,52 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	// families whose own specification has not overridden that rule. Runs on the bytes
 	// the Section 3.g strip left, so the two rewrites compose in one direction only.
 	//
-	// Skipped for treat-as-withdraw and session-reset: the first turns every route in
-	// this UPDATE into a withdrawal and the second drops the session, so there is no
-	// route left for Section 5.4 to discard and the walk would only cost time.
-	if result.Action != message.RFC7606ActionSessionReset && result.Action != message.RFC7606ActionTreatAsWithdraw {
-		wu, pathAttrs = s.applyTypedNLRIDiscard(
+	// Skipped only for session-reset, where the UPDATE is not processed at all.
+	//
+	// It is NOT skipped for treat-as-withdraw, though that reads like a case where no route
+	// survives to discard. Treat-as-withdraw keeps the NLRI: SynthesizeWithdrawFamilies
+	// (message/rfc7606_withdraw.go) turns this UPDATE's MP_REACH into an MP_UNREACH carrying
+	// the SAME NLRI bytes, and processMessage dispatches it to every eligible peer. Skipping
+	// the filter here therefore relayed the unrecognized types inside a withdrawal, which is
+	// the wire-visible half of Section 5.4 the filter exists to close, and it made the
+	// symmetry the design claims for withdrawals untrue on this one path.
+	if result.Action != message.RFC7606ActionSessionReset {
+		var outcome typedNLRIOutcome
+		wu, pathAttrs, outcome = s.applyTypedNLRIDiscard(
 			wu, pathAttrs, offset, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor)
 		body = wu.Payload()
+		switch outcome {
+		case typedNLRIUnparseable:
+			// RFC 7606 Section 5.3 makes an MP attribute incorrect when the last NLRI in it
+			// overruns the attribute, and Section 3(j) requires session reset when the NLRI
+			// field cannot be parsed, because treat-as-withdraw needs it parsed. Same verdict
+			// the validator already reaches for an IPv4 or IPv6 unicast MP NLRI; typed
+			// families reach it here because their framing walk is the family's splitter.
+			return s.rfc7606SessionReset(receivedWU,
+				"RFC 7606 Section 5.3: MP NLRI overruns the attribute; Section 3(j) requires session reset")
+		case typedNLRIEmptied:
+			// Section 5.4 discarded every route the UPDATE carried. What is left encodes no
+			// reachability, in either of the two shapes applyTypedNLRIDiscard names: a body
+			// that IS the RFC 4724 Section 2 End-of-RIB marker, or attributes with no NLRI at
+			// all. Neither may be relayed on the peer's behalf.
+			//
+			// Treat-as-withdraw is the rail that drops it: SynthesizeWithdrawFamilies finds no
+			// withdrawn routes, no NLRI and no MP_UNREACH family in this body and returns no
+			// bodies, which processMessage already treats as "consume the UPDATE, restart the
+			// HoldTimer per RFC 4271 Section 8.2.2 Event 27, dispatch nothing". Nothing is
+			// installed, nothing is forwarded, and no EOR is counted for a peer that sent none.
+			sessionLogger().Info("RFC 7606 Section 5.4: every route discarded, UPDATE not relayed",
+				"peer", s.settings.Address)
+			// This return jumps the action switch, so the Section 6 log that switch would
+			// have emitted has to happen here. The UPDATE can be malformed AND emptied at
+			// once, and the operator whose route stopped arriving needs the attribute and
+			// the description, which the line above carries neither of.
+			if result.Action != message.RFC7606ActionNone {
+				s.rfc7606Diagnostics(result.Action.String(), receivedWU, result.AttrCode, result.Description)
+			}
+			return wu, message.RFC7606ActionTreatAsWithdraw, nil
+		case typedNLRIKept:
+		}
 	}
 
 	switch result.Action {
@@ -189,8 +235,10 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			"attr", result.AttrCode,
 			"discard-entries", result.DiscardEntries,
 			"description", result.Description)
-		// RFC 7606 Section 6: the NLRI involved and the entire malformed UPDATE.
-		s.rfc7606Diagnostics("attribute-discard", wu, result.AttrCode, result.Description)
+		// RFC 7606 Section 6: the NLRI involved and the entire malformed UPDATE, as the peer
+		// sent it. Not wu: the Section 3.g and Section 5.4 rewrites above have already
+		// replaced that with bytes ze built.
+		s.rfc7606Diagnostics("attribute-discard", receivedWU, result.AttrCode, result.Description)
 
 		// draft-mangin-idr-attr-tombstone-00 Section 5.1: "Implementations SHOULD log
 		// the upstream pairs separately before merging to preserve diagnostic
@@ -229,12 +277,16 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		// rather than torn down) and may produce more than one UPDATE (D-8: RFC 7606 Section
 		// 3.g allows only one MP_UNREACH per UPDATE, so two MP families ride two bodies),
 		// neither of which fits this single-WireUpdate return.
+		//
+		// The body handed on is the one the Section 5.4 filter above left, so the synthesized
+		// withdrawal names only route types ze implements.
 		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
 			"attr", result.AttrCode,
 			"description", result.Description)
 		// RFC 7606 Section 6: logged on the UPDATE as the peer sent it -- the malformed one,
-		// which is the whole point of the requirement.
-		s.rfc7606Diagnostics("treat-as-withdraw", wu, result.AttrCode, result.Description)
+		// which is the whole point of the requirement. Not wu, which the rewrites above may
+		// have replaced with bytes ze built.
+		s.rfc7606Diagnostics("treat-as-withdraw", receivedWU, result.AttrCode, result.Description)
 		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
@@ -247,9 +299,9 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 // publishBase builds the attribute span index over the bytes this UPDATE will be
 // published with, on the receive goroutine, and returns the same WireUpdate.
 //
-// It is deliberately the LAST thing enforceRFC7606 does. Two branches above change the
-// bytes after the RFC 7606 walk has read them, and an index built before either would
-// describe an object nobody sees:
+// It is deliberately the last thing enforceRFC7606 does on every path that PUBLISHES an
+// UPDATE. Two branches above change the bytes after the RFC 7606 walk has read them, and an
+// index built before either would describe an object nobody sees:
 //
 //   - the Section 3.g keep-first strip rebuilds the body and wraps it in a NEW WireUpdate,
 //     shifting every attribute after the first stripped range;
@@ -259,6 +311,11 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 // wireu.WireUpdate.Attrs freezes the index on its first call, so this ordering is the whole
 // guarantee. TestInPlaceDiscardPrecedesIndexBuild and TestStripRebuildIndexMatchesPublished
 // pin it from the receive entry point.
+//
+// Four branches return without calling it, and each returns an UPDATE nobody publishes: the
+// two session resets, the Section 5.4 branch whose UPDATE conveys nothing and is dropped, and
+// treat-as-withdraw, whose body processMessage re-synthesizes into withdrawals rather than
+// dispatching. An index over bytes no consumer reads would cost a walk and describe nothing.
 //
 // A build failure is NOT routed into an RFC 7606 action. The error is recorded on the base
 // and returned by every accessor, which is exactly what the lazy builder did on first use,

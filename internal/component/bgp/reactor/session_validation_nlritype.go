@@ -26,6 +26,8 @@
 package reactor
 
 import (
+	"encoding/binary"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -40,15 +42,46 @@ type mpNLRIEdit struct {
 	dropped int
 }
 
+// typedNLRIOutcome is what the Section 5.4 pass decided about the UPDATE as a
+// whole, as opposed to about the individual routes inside it.
+type typedNLRIOutcome uint8
+
+const (
+	// typedNLRIKept: the returned UPDATE still conveys reachability and is
+	// installed and relayed as usual. Covers every conforming UPDATE.
+	typedNLRIKept typedNLRIOutcome = iota
+	// typedNLRIEmptied: every route the UPDATE carried was discarded, so what is
+	// left conveys nothing and must not be relayed. See applyTypedNLRIDiscard.
+	typedNLRIEmptied
+	// typedNLRIUnparseable: the MP NLRI framing overruns its attribute, which
+	// RFC 7606 Section 5.3 makes incorrect and Section 3(j) routes to session reset.
+	typedNLRIUnparseable
+)
+
 // applyTypedNLRIDiscard removes every route with an unrecognized NLRI type from
 // the UPDATE's MP attributes. It returns the UPDATE downstream consumers will
-// see, together with that UPDATE's attribute section.
+// see, that UPDATE's attribute section, and what the pass decided about the
+// UPDATE as a whole.
 //
 // Returns wu and pathAttrs unchanged, sharing the received wire bytes, whenever
 // nothing was discarded. That covers every family with no Section 5.4 ruling and
 // every conforming UPDATE, so the zero-copy relay survives for every peer that
 // sends types ze implements. The rewrite allocates only when a route is
 // genuinely discarded.
+//
+// The typedNLRIEmptied outcome exists because an UPDATE that conveys nothing is
+// not a harmless UPDATE. It takes two shapes and both must be dropped:
+//
+//   - MP_UNREACH was the only attribute, so nothing is left at all. RebuildUpdateBody
+//     emits four zero octets, which IS the RFC 4724 Section 2 End-of-RIB marker.
+//     Relaying it forges an EoR the peer never sent, ending a restarting peer's
+//     RFC 4724 route deferral early.
+//   - Other attributes survive (ORIGIN, AS_PATH) but every route is gone. RFC 7606
+//     Section 5.2 calls that shape one where "we cannot be confident that the NLRI
+//     have been successfully parsed", and it advertises and withdraws nothing.
+//
+// Neither has a wire encoding that means "an UPDATE that says nothing", so the only
+// correct answer is not to relay it.
 //
 // pathAttrs must be the attribute section of wu.Payload() as it stands after the
 // Section 3.g keep-first strip, and attrsOffset its start within that payload.
@@ -58,12 +91,18 @@ func (s *Session) applyTypedNLRIDiscard(
 	attrsOffset int,
 	mpReach, mpUnreach message.MPNLRILocation,
 	addPathFor func(afi uint16, safi uint8) bool,
-) (*wireu.WireUpdate, []byte) {
+) (*wireu.WireUpdate, []byte, typedNLRIOutcome) {
 	edits := make([]mpNLRIEdit, 0, 2)
-	edits = s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, addPathFor)
-	edits = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, addPathFor)
+	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, addPathFor)
+	if !ok {
+		return wu, pathAttrs, typedNLRIUnparseable
+	}
+	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, addPathFor)
+	if !ok {
+		return wu, pathAttrs, typedNLRIUnparseable
+	}
 	if len(edits) == 0 {
-		return wu, pathAttrs
+		return wu, pathAttrs, typedNLRIKept
 	}
 
 	newAttrs := rewriteMPNLRISections(pathAttrs, edits)
@@ -72,51 +111,69 @@ func (s *Session) applyTypedNLRIDiscard(
 	newBody := message.RebuildUpdateBody(wu.Payload(), newAttrs)
 	rebuilt := wireu.NewWireUpdate(newBody, oldCtxID)
 	rebuilt.SetSourceID(oldSourceID)
+
+	outcome := typedNLRIKept
+	if updateCarriesNoRoutes(newBody) {
+		outcome = typedNLRIEmptied
+	}
 	// Keep pathAttrs a subslice of the body the caller now holds, so the
 	// attribute-discard branch's in-place rewrite still shows through.
-	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)]
+	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)], outcome
 }
 
 // typedNLRIEdit appends the edit for one MP attribute, or nothing when that
 // attribute is absent, its family has no ruling, or every route survives.
+//
+// Returns false when the attribute's NLRI framing could not be walked. RFC 7606
+// Section 5.3 makes an MP attribute incorrect when "the length of the last NLRI
+// found exceeds the amount of unconsumed data remaining in the attribute", and
+// Section 3(j) says treat-as-withdraw needs the NLRI field parsed, so "if this is
+// not possible ... the 'session reset' approach ... MUST be followed". The caller
+// applies that.
+//
+// Nothing upstream has already made this check for a typed family.
+// message.validateMPNLRISyntax runs the Section 5.3 walk only for IPv4 and IPv6
+// unicast and multicast, whose NLRI is a plain list of length-prefixed prefixes,
+// and returns nil for every typed family. Relaying the section unchanged on a
+// framing error would therefore have handed a peer a one-byte way to bypass the
+// Section 5.4 MUST: append one truncated NLRI and the split fails, so no route in
+// the attribute is judged.
 func (s *Session) typedNLRIEdit(
 	edits []mpNLRIEdit,
 	code uint8,
 	loc message.MPNLRILocation,
 	pathAttrs []byte,
 	addPathFor func(afi uint16, safi uint8) bool,
-) []mpNLRIEdit {
+) ([]mpNLRIEdit, bool) {
 	if !loc.Present {
-		return edits
+		return edits, true
 	}
 	fam := family.Family{AFI: family.AFI(loc.AFI), SAFI: family.SAFI(loc.SAFI)}
-	if !nlritype.Bound(fam) {
-		return edits
+	// One registry read, not two: the answer is carried into Retain rather than looked up
+	// again there. This is the gate every MP-bearing UPDATE passes, IPv6 unicast included.
+	recognize := nlritype.Get(fam)
+	if recognize == nil {
+		return edits, true
 	}
 
 	_, _, value, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(code))
 	if !found {
-		return edits
+		return edits, true
 	}
 	start, ok := message.MPNLRIStart(code, value)
 	if !ok {
-		return edits
+		return edits, true
 	}
 
 	addPath := addPathFor != nil && addPathFor(loc.AFI, loc.SAFI)
-	kept, dropped, err := nlritype.Retain(fam, value[start:], addPath)
+	kept, dropped, err := nlritype.Retain(recognize, fam, value[start:], addPath)
 	if err != nil {
-		// The framing could not be trusted, so no NLRI boundary is knowable and no
-		// discard decision can be made. Leaving the bytes alone keeps the behavior
-		// ze had before Section 5.4 was enforced; inventing boundaries would rewrite
-		// the wire from a guess. Malformed framing is Section 5.3's business, and it
-		// has already run on this attribute.
-		sessionLogger().Debug("RFC 7606 Section 5.4: NLRI framing not parseable, leaving routes alone",
-			"peer", s.settings.Address, "family", fam, "error", err)
-		return edits
+		sessionLogger().Warn("RFC 7606 Section 5.3: MP NLRI framing overruns the attribute",
+			"peer", s.settings.Address, "family", fam, "attr", code, "error", err)
+		return edits, false
 	}
 	if dropped == 0 {
-		return edits
+		return edits, true
 	}
 
 	// RFC 7606 Section 6: name what was dropped, so an operator can trace a route
@@ -124,7 +181,49 @@ func (s *Session) typedNLRIEdit(
 	sessionLogger().Info("RFC 7606 Section 5.4: discarded routes with unrecognized NLRI types",
 		"peer", s.settings.Address, "family", fam, "attr", code, "discarded", dropped)
 
-	return append(edits, mpNLRIEdit{code: code, nlri: kept, dropped: dropped})
+	return append(edits, mpNLRIEdit{code: code, nlri: kept, dropped: dropped}), true
+}
+
+// updateCarriesNoRoutes reports whether an UPDATE body conveys no reachability at
+// all: no withdrawn routes, no IPv4 NLRI, and no MP_REACH or MP_UNREACH attribute.
+//
+// RFC 7606 Section 5.2 states the same shape from the other side: apart from the
+// End-of-RIB marker, "an UPDATE message either carries only withdrawn routes ...
+// or it advertises reachable routes". A body that does neither is either an EOR or
+// nothing, and ze must not relay either one on a peer's behalf.
+//
+// A malformed body reads as carrying routes. This runs on a body ze has just
+// rebuilt from bytes the Section 4 bounds checks already accepted, so an
+// unparseable section here is not reachable; answering false leaves such an UPDATE
+// on the path it would have taken anyway rather than dropping it on a guess.
+func updateCarriesNoRoutes(body []byte) bool {
+	if len(body) < 4 {
+		return false
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	withdrawnEnd := 2 + withdrawnLen
+	if withdrawnEnd+2 > len(body) {
+		return false
+	}
+	if withdrawnLen > 0 {
+		return false
+	}
+	attrLen := int(binary.BigEndian.Uint16(body[withdrawnEnd : withdrawnEnd+2]))
+	attrStart := withdrawnEnd + 2
+	if attrStart+attrLen > len(body) {
+		return false
+	}
+	if attrStart+attrLen < len(body) {
+		return false // IPv4 NLRI follows the attributes
+	}
+	attrs := body[attrStart : attrStart+attrLen]
+	if _, _, _, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI); found {
+		return false
+	}
+	if _, _, _, found := attribute.AttrFind(attrs, attribute.AttrMPUnreachNLRI); found {
+		return false
+	}
+	return true
 }
 
 // rewriteMPNLRISections returns a new attribute section with each edited MP
@@ -144,22 +243,29 @@ func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 		code := pathAttrs[pos+1]
 		pos += 2
 
+		// Every abandonment below rewinds pos to attrStart first. The trailing copy at the
+		// end of this function starts at pos, so leaving it past the flags and type code
+		// would drop those two to four header bytes from the rebuilt attribute section --
+		// silently corrupting the wire on exactly the malformed input the walk gave up on.
 		lenWidth := 1
 		var attrLen int
 		if flags&0x10 != 0 {
 			if pos+2 > len(pathAttrs) {
+				pos = attrStart
 				break
 			}
 			lenWidth = 2
 			attrLen = int(pathAttrs[pos])<<8 | int(pathAttrs[pos+1])
 		} else {
 			if pos+1 > len(pathAttrs) {
+				pos = attrStart
 				break
 			}
 			attrLen = int(pathAttrs[pos])
 		}
 		pos += lenWidth
 		if pos+attrLen > len(pathAttrs) {
+			pos = attrStart
 			break
 		}
 		value := pathAttrs[pos : pos+attrLen]

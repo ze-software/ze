@@ -80,6 +80,75 @@ def test_plugin_passes_clean_update():
     assert not ctx.failed(), ctx.failures
 
 
+def evpn_mp_reach(*nlris):
+    """One MP_REACH_NLRI attribute for l2vpn/evpn (AFI 25 / SAFI 70) carrying nlris.
+
+    RFC 4760 Section 3: AFI(2) SAFI(1) NextHopLen(1) NextHop(n) Reserved(1) then NLRI.
+    """
+    value = bytes([0x00, 0x19, 0x46, 0x04, 0xAC, 0x1E, 0x00, 0x09, 0x00])
+    for one in nlris:
+        value += one
+    return bytes([0x80, 0x0E, len(value)]) + value
+
+
+def evpn_nlri(route_type, body=b"\xaa\xbb"):
+    """One EVPN NLRI: [route-type:1][length:1][body] (RFC 7432 Section 7.1)."""
+    return bytes([route_type, len(body)]) + body
+
+
+def test_carries_routes_counts_mp_families():
+    # VALIDATES: an MP_REACH-only UPDATE is route-bearing even though both legacy fields are
+    # empty, and so is an MP_UNREACH carrying withdrawn NLRI.
+    # PREVENTS: a check asserting "at least one route arrived" failing on a working EVPN
+    # relay, which reads as a relay bug and hides the real verdict.
+    mp_only = engine.decode_update(
+        build_update(attrs=ORIGIN + ASPATH + evpn_mp_reach(evpn_nlri(2)))
+    )
+    assert engine.carries_routes(mp_only)
+
+    unreach = bytes([0x80, 0x0F, 0x05, 0x00, 0x19, 0x46, 0x02, 0x00])
+    assert engine.carries_routes(engine.decode_update(build_update(attrs=unreach)))
+
+
+def test_carries_routes_excludes_end_of_rib():
+    # VALIDATES: neither RFC 4724 Section 2 End-of-RIB encoding counts as route-bearing.
+    # PREVENTS: --stop-after-updates tripping on an EoR before the route arrives.
+    assert not engine.carries_routes(engine.decode_update(build_update()))
+    mp_eor = bytes([0x80, 0x0F, 0x03, 0x00, 0x19, 0x46])
+    assert not engine.carries_routes(engine.decode_update(build_update(attrs=mp_eor)))
+
+
+def test_evpn_plugin_flags_unassigned_route_type():
+    # VALIDATES: RFC 7606 Section 5.4 -- an EVPN route type that is not assigned must never
+    # reach a peer, so receiving one is a failure.
+    attrs = ORIGIN + ASPATH + evpn_mp_reach(evpn_nlri(2), evpn_nlri(99))
+    ctx = _run_plugin("no_unrecognized_evpn_type.py", build_update(attrs=attrs))
+    assert ctx.failed(), "route type 99 must be flagged"
+    assert any("99" in f for f in ctx.failures), ctx.failures
+    assert ctx.store["evpn_nlri"] == 2, ctx.store
+
+
+def test_evpn_plugin_passes_assigned_route_types():
+    # VALIDATES: the five assigned route types are accepted, so the check cannot pass by
+    # failing everything.
+    attrs = ORIGIN + ASPATH + evpn_mp_reach(*(evpn_nlri(rt) for rt in (1, 2, 3, 4, 5)))
+    ctx = _run_plugin("no_unrecognized_evpn_type.py", build_update(attrs=attrs))
+    assert not ctx.failed(), ctx.failures
+    assert ctx.store["evpn_nlri"] == 5, ctx.store
+
+
+def test_evpn_plugin_ignores_other_families():
+    # VALIDATES: an IPv4-unicast MP_REACH is not walked as EVPN.
+    # PREVENTS: reading a prefix length as a route type and failing an unrelated UPDATE.
+    value = bytes(
+        [0x00, 0x01, 0x01, 0x04, 0x0A, 0x00, 0x00, 0x09, 0x00, 0x18, 0x0A, 0x00, 0x00]
+    )
+    attrs = ORIGIN + ASPATH + bytes([0x80, 0x0E, len(value)]) + value
+    ctx = _run_plugin("no_unrecognized_evpn_type.py", build_update(attrs=attrs))
+    assert not ctx.failed(), ctx.failures
+    assert ctx.store["evpn_nlri"] == 0, ctx.store
+
+
 def test_eor_is_empty_update():
     # The engine's EoR is a valid empty IPv4-unicast UPDATE: 19-byte header + 4 zero bytes.
     msg = engine.eor()
@@ -102,6 +171,39 @@ def test_open_message_carries_per_instance_router_id():
     # Router-id sits at message offset 24: 19-byte header + body[version(1), AS(2), hold(2)] = 5.
     assert a[24:28] == engine.socket.inet_aton("1.2.3.4")
     assert b[24:28] == engine.socket.inet_aton("5.6.7.8")
+
+
+def test_parse_families_defaults_and_parses():
+    # VALIDATES: no --family keeps the IPv4-unicast-only OPEN every earlier scenario relies on,
+    # and AFI:SAFI pairs parse in order.
+    assert engine.parse_families(None) == ((1, 1),)
+    assert engine.parse_families([]) == ((1, 1),)
+    assert engine.parse_families(["1:1", "25:70"]) == ((1, 1), (25, 70))
+
+
+def test_parse_families_rejects_malformed():
+    # VALIDATES: a spelling the engine cannot read raises instead of being ignored.
+    # PREVENTS: a speaker silently negotiating IPv4 unicast alone while its check waits for a
+    # family that can never arrive -- which reads as a relay bug, not a typo.
+    for bad in ["25", "", "l2vpn/evpn"]:
+        try:
+            engine.parse_families([bad])
+        except ValueError:
+            continue
+        raise AssertionError("--family %r must be rejected" % bad)
+
+
+def test_open_message_carries_each_requested_family():
+    # VALIDATES: one RFC 4760 Section 8 multiprotocol capability per requested family, encoded
+    # AFI(2) Reserved(1) SAFI(1). l2vpn/evpn is AFI 25 / SAFI 70.
+    # PREVENTS: an EVPN scenario passing vacuously because ze never had a negotiated family to
+    # send the route on (announces gate on the negotiated set).
+    default = engine.open_message(65001, 90, "1.2.3.4")
+    evpn = engine.open_message(65001, 90, "1.2.3.4", ((1, 1), (25, 70)))
+    assert len(evpn) > len(default), "a second family must add a capability"
+    assert bytes([1, 4, 0, 25, 0, 70]) in evpn
+    assert bytes([1, 4, 0, 25, 0, 70]) not in default
+    assert bytes([1, 4, 0, 1, 0, 1]) in default
 
 
 class _FakeSock:
@@ -170,7 +272,38 @@ def test_dynamic_load_optional_on_end():
     engine.finish(plugin, ctx)
 
 
-if __name__ == "__main__":
-    import pytest
+def _main():
+    """Run every test_* function in this module and exit non-zero on any failure.
 
-    raise SystemExit(pytest.main([__file__, "-v"]))
+    Deliberately dependency-free. This file used to hand itself to pytest, which is not
+    installed here, so `python3 test_engine.py` exited with ImportError and no gate could
+    run it: every test below was dead for as long as that was true
+    (scripts/dev/python_tests_test.go, which now globs this root).
+    """
+    import traceback
+
+    failures = 0
+    for name in sorted(globals()):
+        if not name.startswith("test_"):
+            continue
+        try:
+            globals()[name]()
+        except KeyboardInterrupt:
+            # Ctrl-C is the operator, not a failure. Re-raise so the run stops now instead
+            # of marking one test FAIL and grinding through the rest.
+            raise
+        # BaseException rather than Exception: a test that raises SystemExit would otherwise
+        # escape this loop and end the run with that test's own exit code, leaving the rest
+        # unrun and a SystemExit(0) reading as a clean pass.
+        except BaseException:  # noqa: BLE001 -- report every failure, do not stop at the first
+            failures += 1
+            print("FAIL %s" % name)
+            traceback.print_exc()
+        else:
+            print("PASS %s" % name)
+    print("failures: %d" % failures)
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

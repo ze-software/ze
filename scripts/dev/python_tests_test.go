@@ -33,6 +33,7 @@ import (
 	"errors"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -56,7 +57,23 @@ var pythonTestRoots = []string{
 	// passed whatever the tunnel did. test/ipsec-interop/lab_test.py pins the
 	// parser against captured `ip -s xfrm state` output.
 	"test/ipsec-interop",
+	// The interop speaker engine is the independent BGP peer several scenarios judge
+	// ze with, so a bug in ITS decode makes a scenario pass or fail for the wrong
+	// reason. Its tests sat unrun until 2026-08-04 because the file is named
+	// test_engine.py (pytest style) and handed itself to pytest, which is not
+	// installed: `python3 test_engine.py` exited with ImportError, and no root
+	// covered the directory anyway.
+	"test/interop/speaker",
 }
+
+// pythonTestGlobs are the file-name shapes that count as a Python test.
+//
+// Both conventions are live in this repository and neither is worth a mass rename:
+// scripts/dev and test/scripts use <tool>_test.py, mirroring Go, while the interop
+// speaker uses pytest's test_<tool>.py. A discovery rule that knew only one of them
+// would silently cover half the corpus, which is the failure this whole file exists
+// to prevent.
+var pythonTestGlobs = []string{"*_test.py", "test_*.py"}
 
 // test-relax: removes a DUPLICATE repoRoot helper I had added here, which did not
 // compile -- the package already defines repoRoot(t) in verify_wiring_docs_test.go
@@ -83,17 +100,25 @@ func TestPythonUnitTests(t *testing.T) {
 	total := 0
 	for _, rel := range pythonTestRoots {
 		dir := filepath.Join(root, rel)
-		matches, err := filepath.Glob(filepath.Join(dir, "*_test.py"))
-		if err != nil {
-			t.Fatalf("globbing *_test.py in %s: %v", rel, err)
+		var matches []string
+		for _, pattern := range pythonTestGlobs {
+			found, err := filepath.Glob(filepath.Join(dir, pattern))
+			if err != nil {
+				t.Fatalf("globbing %s in %s: %v", pattern, rel, err)
+			}
+			matches = append(matches, found...)
 		}
+		// One file matching both shapes (test_x_test.py) would run twice; sorting and
+		// de-duplicating keeps the count honest and the run order stable.
+		slices.Sort(matches)
+		matches = slices.Compact(matches)
 		// An empty root means the layout moved and this wiring stopped covering
 		// it. Fail loudly instead of passing vacuously, which is the exact
 		// failure mode this test exists to prevent.
 		if len(matches) == 0 {
-			t.Fatalf("no *_test.py found in %s: did the layout change? "+
+			t.Fatalf("no %v found in %s: did the layout change? "+
 				"This test must not pass vacuously -- fix the path in "+
-				"pythonTestRoots or drop the root deliberately.", rel)
+				"pythonTestRoots or drop the root deliberately.", pythonTestGlobs, rel)
 		}
 		total += len(matches)
 

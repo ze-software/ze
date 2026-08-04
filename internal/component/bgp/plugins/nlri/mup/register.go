@@ -3,19 +3,33 @@ package mup
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
+	// RFC 7606 Section 5.4: BGP-MUP is a typed address family and
+	// draft-ietf-bess-mup-safi states no deviation, so a route whose architecture and
+	// route type ze does not implement must be discarded. Registered here, beside the
+	// families, so removing this plugin removes both the advertisement and the
+	// obligation.
+	for _, fam := range []Family{IPv4MUP, IPv6MUP} {
+		if err := nlritype.Register(fam, RecognizeNLRI); err != nil {
+			fmt.Fprintf(os.Stderr, "mup: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	reg := registry.Registration{
 		Name:         "bgp-nlri-mup",
-		Description:  "Mobile User Plane family plugin (draft-mpmz-bess-mup-safi)",
+		Description:  "Mobile User Plane family plugin (draft-ietf-bess-mup-safi)",
 		SupportsNLRI: true,
 		Features:     "nlri",
 		Families:     []string{"ipv4/mup", "ipv6/mup"},

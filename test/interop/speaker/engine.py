@@ -178,13 +178,77 @@ def eor():
     return _message(MSG_UPDATE, b"\x00\x00\x00\x00")
 
 
-def open_message(asn, hold_time, router_id):
-    """Build an OPEN with MP IPv4-unicast + 4-octet-ASN capabilities (RFC 4271 Section 4.2)."""
+DEFAULT_FAMILIES = ((1, 1),)  # IPv4 unicast
+
+
+MP_REACH = 14
+MP_UNREACH = 15
+
+
+def carries_routes(update):
+    """True when an UPDATE conveys reachability, in ANY family.
+
+    The legacy fields answer for IPv4 unicast. Every other family carries its routes inside
+    MP_REACH_NLRI or MP_UNREACH_NLRI, where both legacy fields are empty, so reading them
+    alone reported 0 route-bearing UPDATEs for a perfectly good EVPN or MCAST-VPN relay --
+    and a check asserting "at least one route arrived" then failed on a working daemon.
+
+    An End-of-RIB is deliberately NOT route-bearing, in either encoding: the empty UPDATE
+    has nothing at all, and the multiprotocol marker is an MP_UNREACH whose value holds only
+    AFI(2) and SAFI(1) with no NLRI after it (RFC 4724 Section 2, RFC 7606 Section 5.2). That
+    keeps --stop-after-updates from tripping before the route it exists to inspect arrives.
+    """
+    if update.nlri or update.withdrawn:
+        return True
+    for attr in update.attributes:
+        value = attr.value
+        if attr.code == MP_REACH:
+            # RFC 4760 Section 3: AFI(2) SAFI(1) NextHopLen(1) NextHop(n) Reserved(1) NLRI.
+            if len(value) >= 4 and len(value) > 4 + value[3] + 1:
+                return True
+        elif attr.code == MP_UNREACH:
+            # RFC 4760 Section 4: AFI(2) SAFI(1) then the withdrawn NLRI.
+            if len(value) > 3:
+                return True
+    return False
+
+
+def parse_families(values):
+    """Turn ["25:70", ...] into ((25, 70), ...); None or [] gives DEFAULT_FAMILIES.
+
+    Raises on anything else. A silently ignored family spelling would leave the speaker
+    negotiating IPv4 unicast alone while its check waits for a family that can never
+    arrive, which reads as "the relay dropped it" -- a false failure that costs more to
+    diagnose than the error costs to raise.
+    """
+    if not values:
+        return DEFAULT_FAMILIES
+    out = []
+    for value in values:
+        afi, sep, safi = value.partition(":")
+        if not sep:
+            raise ValueError("--family wants AFI:SAFI, got %r" % value)
+        out.append((int(afi), int(safi)))
+    return tuple(out)
+
+
+def open_message(asn, hold_time, router_id, families=DEFAULT_FAMILIES):
+    """Build an OPEN with one MP capability per family + 4-octet-ASN (RFC 4271 Section 4.2).
+
+    `families` is a sequence of (afi, safi) pairs and defaults to IPv4 unicast alone, so a
+    scenario that says nothing gets the session it always got. A scenario that must receive
+    a typed family (l2vpn/evpn is 25/70) names it, because ze gates every announce on the
+    NEGOTIATED family set: a family this OPEN does not carry is a family the speaker can
+    never be sent, and a check written against it would pass vacuously.
+    """
     my_as = asn if asn <= 0xFFFF else 23456  # AS_TRANS for 4-octet ASNs
     rid = socket.inet_aton(router_id)
 
     # Capabilities (RFC 5492), each: code(1) len(1) value.
-    cap_mp = bytes([1, 4]) + struct.pack(">HBB", 1, 0, 1)  # MP-BGP AFI 1 / SAFI 1
+    # MP-BGP (RFC 4760 Section 8): AFI(2) Reserved(1) SAFI(1), one capability per family.
+    cap_mp = b"".join(
+        bytes([1, 4]) + struct.pack(">HBB", afi, 0, safi) for afi, safi in families
+    )
     cap_as4 = bytes([65, 4]) + struct.pack(">I", asn)  # 4-octet ASN
     caps = cap_mp + cap_as4
     # Optional parameter: type 2 (Capabilities), length, value.
@@ -262,6 +326,7 @@ def run(
     duration=45.0,
     stop_after=0,
     connect_delay=0.0,
+    families=DEFAULT_FAMILIES,
 ):
     """Dial ze, establish an iBGP session, and dispatch every UPDATE to the plugin.
 
@@ -282,7 +347,7 @@ def run(
         time.sleep(connect_delay)
     sock = socket.create_connection((host, port), timeout=10)
     sock.settimeout(1.0)
-    sock.sendall(open_message(asn, hold_time, router_id))
+    sock.sendall(open_message(asn, hold_time, router_id, families))
 
     deadline = time.monotonic() + duration
     next_ka = time.monotonic() + hold_time / 3.0
@@ -319,7 +384,7 @@ def run(
                     sock.sendall(eor())
                 update = decode_update(body)
                 dispatch(update, plugin, ctx)
-                if update.nlri or update.withdrawn:
+                if carries_routes(update):
                     routes_seen += 1
                     # Raw bytes of the route so a consumer (and a human debugging the scenario)
                     # can see exactly what Ze put on the wire, e.g. a NEXT_HOP that appears twice.
@@ -369,6 +434,14 @@ def main(argv=None):
         help="exit after this many route-bearing UPDATEs (0 = run full duration)",
     )
     ap.add_argument(
+        "--family",
+        action="append",
+        default=None,
+        metavar="AFI:SAFI",
+        help="advertise this multiprotocol family in the OPEN, repeatable "
+        "(default: 1:1, IPv4 unicast). l2vpn/evpn is 25:70",
+    )
+    ap.add_argument(
         "--connect-delay",
         type=float,
         default=0.0,
@@ -378,6 +451,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     host, _, port = args.connect.partition(":")
+    families = parse_families(args.family)
     plugin = load_plugin(args.test)
     ctx = Context()
     ctx._name = plugin.NAME
@@ -393,6 +467,7 @@ def main(argv=None):
             duration=args.duration,
             stop_after=args.stop_after_updates,
             connect_delay=args.connect_delay,
+            families=families,
         )
     except Exception as exc:  # noqa: BLE001 -- a crash must still emit a FAIL verdict, never a bare traceback
         # A test that dies with no "result:" line would be read as a relay bug, not a speaker

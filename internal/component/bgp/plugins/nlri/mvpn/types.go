@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — MVPN NLRI plugin
+// Related: rfc7606.go -- the RFC 7606 Section 5.4 ruling over the route types declared here
 //
 // Package bgp_mvpn implements Multicast VPN NLRI (RFC 6514, SAFI 5).
 package mvpn

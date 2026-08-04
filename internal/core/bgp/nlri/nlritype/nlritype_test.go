@@ -48,7 +48,7 @@ func TestRetainLeavesUnruledFamilyUntouched(t *testing.T) {
 	ResetForTest()
 	data := append(evpnNLRI(1, 0xaa), evpnNLRI(99, 0xbb)...)
 
-	kept, dropped, err := Retain(evpnFamily, data, false)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unruled family must not error: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestRetainKeepsRecognizedTypesZeroCopy(t *testing.T) {
 	withEVPNRecognizer(t)
 	data := append(evpnNLRI(2, 0xaa, 0xbb), evpnNLRI(5, 0xcc)...)
 
-	kept, dropped, err := Retain(evpnFamily, data, false)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestRetainDropsOnlyTheUnrecognized(t *testing.T) {
 	data = append(data, drop...)
 	data = append(data, keepB...)
 
-	kept, dropped, err := Retain(evpnFamily, data, false)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestRetainReportsEverythingDropped(t *testing.T) {
 	withEVPNRecognizer(t)
 	data := append(evpnNLRI(99, 0xaa), evpnNLRI(200, 0xbb)...)
 
-	kept, dropped, err := Retain(evpnFamily, data, false)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestRetainSkipsPathIDUnderAddPath(t *testing.T) {
 	keep := append(append([]byte{}, pathID...), evpnNLRI(2, 0xaa)...)
 	drop := append(append([]byte{}, pathID...), evpnNLRI(99, 0xbb)...)
 
-	kept, dropped, err := Retain(evpnFamily, append(append([]byte{}, keep...), drop...), true)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, append(append([]byte{}, keep...), drop...), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestRetainLeavesMalformedFramingAlone(t *testing.T) {
 	// Declares 200 body octets but only two follow.
 	data := []byte{0x02, 0xc8, 0xaa, 0xbb}
 
-	kept, dropped, err := Retain(evpnFamily, data, false)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
 	if err == nil {
 		t.Fatal("malformed framing must be reported")
 	}
@@ -174,7 +174,7 @@ func TestRetainLeavesMalformedFramingAlone(t *testing.T) {
 // PREVENTS: an MP_UNREACH with no withdrawn routes being treated as malformed.
 func TestRetainAcceptsEmptySection(t *testing.T) {
 	withEVPNRecognizer(t)
-	kept, dropped, err := Retain(evpnFamily, nil, false)
+	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, nil, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestRegisterWithoutSplitterIsRefused(t *testing.T) {
 	if !errors.Is(err, ErrNoSplitter) {
 		t.Fatalf("registering with no splitter must return ErrNoSplitter, got %v", err)
 	}
-	if Bound(unsplittable) {
+	if Get(unsplittable) != nil {
 		t.Fatal("a refused registration must leave the family unruled")
 	}
 }
@@ -226,19 +226,19 @@ func TestRegisterNilIsNoRuling(t *testing.T) {
 	if err := Register(evpnFamily, nil); err != nil {
 		t.Fatalf("a nil recognizer must be accepted: %v", err)
 	}
-	if Bound(evpnFamily) {
+	if Get(evpnFamily) != nil {
 		t.Fatal("a nil recognizer must leave the family unruled")
 	}
 }
 
-// VALIDATES: Bound reports the ruling, and reports false for a family nobody ruled on.
+// VALIDATES: Get returns the ruling, and returns nil for a family nobody ruled on.
 // PREVENTS: a caller reading "no recognizer" as "discard everything".
-func TestBoundReportsOnlyRuledFamilies(t *testing.T) {
+func TestGetReturnsOnlyRuledFamilies(t *testing.T) {
 	withEVPNRecognizer(t)
-	if !Bound(evpnFamily) {
+	if Get(evpnFamily) == nil {
 		t.Fatal("evpn has a recognizer, so 5.4 binds it")
 	}
-	if Bound(family.IPv4Unicast) {
+	if Get(family.IPv4Unicast) != nil {
 		t.Fatal("ipv4/unicast has no recognizer, so nothing binds it")
 	}
 }

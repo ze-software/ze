@@ -1,9 +1,8 @@
 // Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
 // Related: register.go -- binds SplitEVPN to AFI L2VPN / SAFI EVPN
+// Related: typelen.go -- the shared type-and-length framing walk
 
 package nlrisplit
-
-import "fmt"
 
 // SplitEVPN is the Splitter for L2VPN/EVPN NLRIs (RFC 7432 Section 7.1
 // and RFC 8365 Section 8). Every EVPN NLRI is framed as
@@ -21,28 +20,5 @@ import "fmt"
 // Slices alias `data`. A malformed entry returns the partially-parsed
 // result plus a non-nil error; the caller decides whether to use it.
 func SplitEVPN(data []byte, addPath bool) ([][]byte, error) {
-	if len(data) == 0 {
-		return nil, nil
-	}
-	var result [][]byte
-	offset := 0
-	for offset < len(data) {
-		start := offset
-		head := 0
-		if addPath {
-			head = 4
-		}
-		// Need at least path-id (if any) + route-type + length byte.
-		if start+head+2 > len(data) {
-			return result, fmt.Errorf("nlrisplit: truncated EVPN header at offset %d", start)
-		}
-		length := int(data[start+head+1])
-		nlriLen := head + 2 + length
-		if start+nlriLen > len(data) {
-			return result, fmt.Errorf("nlrisplit: EVPN NLRI at offset %d extends past data (len=%d)", start, length)
-		}
-		result = append(result, data[start:start+nlriLen])
-		offset = start + nlriLen
-	}
-	return result, nil
+	return splitTypeLength(data, addPath, 2, 1, "EVPN")
 }

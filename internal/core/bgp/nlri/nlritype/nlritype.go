@@ -25,6 +25,7 @@ package nlritype
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -91,17 +92,13 @@ func Get(fam family.Family) Recognizer {
 	return recognizers[fam]
 }
 
-// Bound reports whether RFC 7606 Section 5.4 binds fam in this build.
-//
-// False means one of two things and deliberately does not distinguish them: the
-// family is not typed, or nobody has ruled on it yet. Both lead to the same
-// action, which is to change nothing.
-func Bound(fam family.Family) bool {
-	return Get(fam) != nil
-}
-
 // Retain returns data with every unrecognized-type NLRI removed, and the number
 // removed.
+//
+// fn is the family's recognizer, which the caller has already looked up with Get.
+// Passing it rather than looking it up again is what lets the receive path answer
+// "does Section 5.4 bind this family at all" and "which routes survive" from ONE
+// registry read. A nil fn means no ruling, and the answer is to change nothing.
 //
 // It returns data itself, sharing the caller's backing array, whenever nothing
 // was removed. That covers every family with no ruling, every conforming UPDATE,
@@ -113,12 +110,8 @@ func Bound(fam family.Family) bool {
 // the section, the boundaries between NLRIs are unknowable, so no discard
 // decision can be made and inventing one would rewrite the wire from a guess.
 // Framing errors belong to RFC 7606 Section 5.3, which runs before this.
-func Retain(fam family.Family, data []byte, addPath bool) (kept []byte, dropped int, err error) {
-	if len(data) == 0 {
-		return data, 0, nil
-	}
-	fn := Get(fam)
-	if fn == nil {
+func Retain(fn Recognizer, fam family.Family, data []byte, addPath bool) (kept []byte, dropped int, err error) {
+	if len(data) == 0 || fn == nil {
 		return data, 0, nil
 	}
 
@@ -155,8 +148,39 @@ func Retain(fam family.Family, data []byte, addPath bool) (kept []byte, dropped 
 
 // ResetForTest clears every registered recognizer. Tests call it to start from a
 // clean slate. NOT for production use.
+//
+// Prefer SnapshotForTest in a package whose test binary links real NLRI plugins: this
+// leaves the registry EMPTY, so a later test in the same binary finds no recognizer for a
+// family the daemon really does rule on, its Section 5.4 filter silently does nothing, and
+// the test passes proving nothing.
 func ResetForTest() {
 	mu.Lock()
 	defer mu.Unlock()
 	recognizers = map[family.Family]Recognizer{}
+}
+
+// SnapshotForTest empties the registry and returns a function that puts back exactly what
+// was registered. NOT for production use.
+//
+// Registration happens in plugin init(), so what a test binary starts with depends on which
+// plugins it links, and that changes when an unrelated file adds an import. Restoring is the
+// only teardown that cannot leave the next test in a state no daemon is ever in.
+//
+// Two limits, both deliberate and neither hidden. It does not NEST: a second call inside one
+// test empties the registry again, so the first caller's registrations are gone for the rest
+// of that test (the restores themselves are correct, since t.Cleanup runs last-in-first-out).
+// And it is not safe under t.Parallel: two overlapping snapshots make the second save an
+// already-empty map, and restoring it loses what the plugins registered. Register everything
+// one test needs through ONE call, and do not mark such a test parallel.
+func SnapshotForTest() func() {
+	mu.Lock()
+	defer mu.Unlock()
+	saved := make(map[family.Family]Recognizer, len(recognizers))
+	maps.Copy(saved, recognizers)
+	recognizers = map[family.Family]Recognizer{}
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		recognizers = saved
+	}
 }
