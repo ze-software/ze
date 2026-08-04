@@ -1394,6 +1394,33 @@ Common run options:
 <!-- source: internal/test/cli/cmd_editor.go -- editorMain -->
 <!-- source: internal/test/cli/cmd_web.go -- cmdWebMain -->
 
+### Replaying a captured BGP session
+
+`ze-test replay` is a tool root, not a suite: it takes one capture file instead
+of test ids.
+
+```
+ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file>
+```
+
+The file comes from a peer with `capture { enabled true; }` set
+(`docs/guide/configuration.md`, Protocol Event Capture). Replay opens a
+`Session`, gives it a fake clock, and feeds every captured message through
+`Session.ReadAndProcess`, the same function the daemon's read loop calls. It
+then reports the FSM states, the prefixes each UPDATE announced and withdrew,
+the config operations the capture recorded, and any NOTIFICATION the session
+sent back.
+
+The session identity comes from the capture header. The three flags override it
+and exist for a file written before the header carried one; a wrong local AS
+turns an iBGP session into an eBGP one and the replay stops reproducing the run.
+
+`--json` emits the report as one object, which is what a developer diffs between
+two builds to bisect a fix.
+
+<!-- source: internal/test/cli/cmd_replay.go -- runReplay, replayIdentity -->
+<!-- source: test/plugin/bgp-capture-replay.ci -- capture then replay, end to end -->
+
 ---
 
 ## Test IDs

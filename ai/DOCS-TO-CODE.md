@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 306 design docs, 3193 files
+Total: 304 design docs, 3237 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -40,44 +40,41 @@ Total: 306 design docs, 3193 files
 | `internal/component/authz/register.go` | AAA registry (VFS-like) |
 | `internal/component/tacacs/register.go` | AAA registry (VFS-like) |
 
-## `ai/rules/performance.md`
+## `ai/rules/architecture.md`
 
-- `internal/plugins/vrrp/packet/packet.go` -- WriteTo(buf, off) int contract
-- `internal/plugins/vrrp/packet/validate.go` -- zero-allocation decode over a lazy VIP view
+| File | Topic |
+|------|-------|
+| `cmd/ze/hub/statestore.go` | runtime state persists in the managed |
+| `internal/component/bfd/auth/persist.go` | runtime state lives in the managed zefs |
+| `internal/core/bufpool/bufpool.go` | "Pool strategy by goroutine shape" |
+| `internal/core/bufpool/doc.go` | "Pool strategy by goroutine shape" |
+| `internal/core/statestore/statestore.go` | runtime state persists in the managed |
+| `internal/plugins/ospf/state_store_gate_test.go` | runtime state persists in the managed |
+| `scripts/checks/direct_fs_persistence.go` | runtime state belongs in the zefs store |
 
 ## `ai/rules/cli.md`
 
-- `scripts/checks/ci_dispatch_commands.go` -- dispatch-key migration leaves dead callers
-
-## `ai/rules/cli.md`
-
-- `internal/core/cliio/cliio.go` -- "-" means stdin/stdout across every command
+| File | Topic |
+|------|-------|
+| `internal/component/cli/model_enrich.go` | data-transform pipes in custom render paths |
+| `internal/component/cli/model_enrich_test.go` | enrichAddr applies \| resolve / \| origin in \| log render paths |
+| `internal/component/cli/testing/fake_monitor.go` | functional coverage for \| log data-transform pipes |
+| `internal/core/cliio/cliio.go` | "-" means stdin/stdout across every command |
+| `scripts/checks/ci_dispatch_commands.go` | dispatch-key migration leaves dead callers |
 
 ## `ai/rules/config.md`
 
 - `scripts/checks/config_string_coercion.go` -- config value-coercion guard
 
-## `ai/rules/architecture.md`
-
-- `internal/core/bufpool/bufpool.go` -- "Pool strategy by goroutine shape"
-- `internal/core/bufpool/doc.go` -- "Pool strategy by goroutine shape"
-
-## `ai/rules/repo-maintenance.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/managed/doctor.go` | management hub reachability readiness check |
-| `internal/component/managed/register.go` | managed hub reachability check registration |
-| `internal/component/radius/doctor.go` | RADIUS admin reachability readiness check |
-| `internal/plugins/iface/netlink/doctor.go` | self-contained doctor checks owned by |
-| `internal/plugins/iface/netlink/doctor_linux.go` | kernel macvlan capability probe |
-| `internal/plugins/iface/netlink/doctor_other.go` | macvlan capability probe (non-Linux stub) |
-| `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
-| `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go` | doctor checks owned by the plugin that |
-
 ## `ai/rules/evidence.md`
 
 - `cmd/ze/hub/mgmt_guard.go` -- boot-time management-listener exposure guard
+
+## `ai/rules/performance.md`
+
+- `internal/core/textbuf/textbuf.go` -- zero-allocation text formatting helpers
+- `internal/plugins/vrrp/packet/packet.go` -- WriteTo(buf, off) int contract
+- `internal/plugins/vrrp/packet/validate.go` -- zero-allocation decode over a lazy VIP view
 
 ## `ai/rules/plugins.md`
 
@@ -168,57 +165,45 @@ Total: 306 design docs, 3193 files
 | `cmd/ze/hub/web_infra.go` | ze_web compile-out seam |
 | `internal/component/aaa/all/all_ze_radius.go` | ze_radius AAA composition root gating |
 | `internal/component/aaa/all/all_ze_tacacs.go` | ze_tacacs AAA composition root gating |
+| `internal/component/cli/register_view_dashboard.go` | registration over hardcoding |
+| `internal/component/cli/register_view_ping.go` | registration over hardcoding |
+| `internal/component/cli/register_view_traceroute.go` | registration over hardcoding |
+| `internal/component/cli/view_registry.go` | "Registration over hardcoding (the CLI client too)" |
 | `internal/component/config/infra/bgp.go` | inversion-of-control seams for the gated BGP engine |
 | `internal/component/config/yang/cli/tree_bfd.go` | ze_bfd partition of the analysis-tree blank imports |
 | `internal/component/config/yang/cli/tree_bgp.go` | ze_bgp partition of the analysis-tree blank imports |
 | `internal/component/ike/dataplane/register_vpp.go` | ze_vpp partition of the dataplane registry |
 | `internal/component/web/page_l2tp_off.go` | ze_l2tp-off L2TP page stub |
 | `internal/component/web/page_vpn_ipsec_off.go` | ze_ike-off VPN page stub |
+| `internal/component/web/register_gokrazy.go` | gokrazy portal web route self-registration |
+| `internal/component/web/register_isis.go` | IS-IS web routes self-registration |
+| `internal/component/web/register_l2tp.go` | L2TP web routes self-registration |
+| `internal/component/web/register_ospf.go` | OSPF web routes self-registration |
+| `internal/component/web/webroute.go` | web route registry (registration over hardcoding) |
 | `internal/plugins/cos/handler_off.go` | ze_l2tp-off dynamic-CoS stub |
 | `internal/plugins/diag/cmd/capture_l2tp.go` | ze_l2tp partition of the capture display |
 | `internal/plugins/diag/cmd/capture_l2tp_off.go` | ze_l2tp-off capture stub |
 | `internal/plugins/diag/cmd/capture_raw_l2tp.go` | ze_l2tp partition of the raw-capture display |
 | `internal/plugins/diag/cmd/capture_raw_l2tp_off.go` | ze_l2tp-off raw-capture stub |
 | `internal/plugins/static/backend_vpp_off_linux.go` | ze_vpp-off static backend stub |
+| `scripts/checks/plugin_process_boundary.go` | process-boundary guard |
 | `scripts/codegen/feature_tags.go` | the three static consumers are GENERATED, not hand-maintained |
 
-## `ai/rules/performance.md`
-
-- `internal/core/textbuf/textbuf.go` -- zero-allocation text formatting helpers
-
-## `ai/rules/cli.md`
-
-- `internal/component/cli/model_enrich.go` -- data-transform pipes in custom render paths
-- `internal/component/cli/model_enrich_test.go` -- enrichAddr applies | resolve / | origin in | log render paths
-- `internal/component/cli/testing/fake_monitor.go` -- functional coverage for | log data-transform pipes
-
-## `ai/rules/plugins.md`
-
-- `scripts/checks/plugin_process_boundary.go` -- process-boundary guard
-
-## `ai/rules/plugins.md`
+## `ai/rules/repo-maintenance.md`
 
 | File | Topic |
 |------|-------|
-| `internal/component/cli/register_view_dashboard.go` | registration over hardcoding |
-| `internal/component/cli/register_view_ping.go` | registration over hardcoding |
-| `internal/component/cli/register_view_traceroute.go` | registration over hardcoding |
-| `internal/component/cli/view_registry.go` | "Registration over hardcoding (the CLI client too)" |
-| `internal/component/web/register_gokrazy.go` | gokrazy portal web route self-registration |
-| `internal/component/web/register_isis.go` | IS-IS web routes self-registration |
-| `internal/component/web/register_l2tp.go` | L2TP web routes self-registration |
-| `internal/component/web/register_ospf.go` | OSPF web routes self-registration |
-| `internal/component/web/webroute.go` | web route registry (registration over hardcoding) |
-
-## `ai/rules/architecture.md`
-
-| File | Topic |
-|------|-------|
-| `cmd/ze/hub/statestore.go` | runtime state persists in the managed |
-| `internal/component/bfd/auth/persist.go` | runtime state lives in the managed zefs |
-| `internal/core/statestore/statestore.go` | runtime state persists in the managed |
-| `internal/plugins/ospf/state_store_gate_test.go` | runtime state persists in the managed |
-| `scripts/checks/direct_fs_persistence.go` | runtime state belongs in the zefs store |
+| `internal/component/managed/doctor.go` | management hub reachability readiness check |
+| `internal/component/managed/register.go` | managed hub reachability check registration |
+| `internal/component/radius/doctor.go` | RADIUS admin reachability readiness check |
+| `internal/plugins/iface/netlink/doctor.go` | self-contained doctor checks owned by |
+| `internal/plugins/iface/netlink/doctor_linux.go` | kernel macvlan capability probe |
+| `internal/plugins/iface/netlink/doctor_other.go` | macvlan capability probe (non-Linux stub) |
+| `internal/plugins/iface/ra/doctor.go` | self-contained doctor checks owned by |
+| `internal/plugins/iface/ra/doctor_linux.go` | doctor check platform probe |
+| `internal/plugins/iface/ra/doctor_other.go` | doctor check platform probe |
+| `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
+| `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go` | doctor checks owned by the plugin that |
 
 ## `docs/architecture/api/architecture.md`
 
@@ -493,9 +478,16 @@ Total: 306 design docs, 3193 files
 
 ## `docs/architecture/behavior/fsm.md`
 
-- `internal/component/bgp/fsm/fsm.go` -- BGP finite state machine
-- `internal/component/bgp/fsm/state.go` -- BGP finite state machine
-- `internal/component/bgp/fsm/timer.go` -- BGP finite state machine
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/fsm/connect_retry_counter.go` | BGP finite state machine |
+| `internal/component/bgp/fsm/fsm.go` | BGP finite state machine |
+| `internal/component/bgp/fsm/state.go` | BGP finite state machine |
+| `internal/component/bgp/fsm/timer.go` | BGP finite state machine |
+
+## `docs/architecture/behavior/peer-lifecycle.md`
+
+- `internal/component/bgp/reactor/peer_prefix_hold_test.go` -- prefix teardown and reconnect
 
 ## `docs/architecture/behavior/signals.md`
 
@@ -823,11 +815,14 @@ Total: 306 design docs, 3193 files
 | `internal/component/cli/testing/runner.go` | editor test infrastructure |
 | `internal/component/cli/validator.go` | config editor |
 | `internal/component/config/archive/archive.go` | config archive |
+| `internal/component/config/claims/claims.go` | config claim model |
+| `internal/component/config/claims/schema.go` | resolved config schema walk |
 | `internal/component/config/cli/cmd_completion.go` | config completion command |
 | `internal/component/config/cli/cmd_validate.go` | validation CLI |
 | `internal/component/config/path.go` | config path separator |
 | `internal/component/config/plugin_verify.go` | static plugin config verification |
 | `internal/component/config/related.go` | Ze YANG extensions and metadata storage |
+| `internal/component/config/schema/cli/claims.go` | hub handler claim surface |
 | `internal/component/config/schema/cli/main.go` | schema CLI |
 | `internal/component/config/validators.go` | custom validators |
 | `internal/component/config/validators_register.go` | custom validator registration |
@@ -844,8 +839,11 @@ Total: 306 design docs, 3193 files
 | `internal/component/config/yang/rpc.go` | YANG schema handling |
 | `internal/component/config/yang/validator.go` | YANG schema handling |
 | `internal/component/config/yang/validator_registry.go` | custom validation registry |
+| `internal/component/doctor/checks_config_claims.go` | config claim model |
 | `internal/component/iface/schema_address_test.go` | OS-portable interface address config |
 | `internal/core/naming/validate.go` | Shared node name validation |
+| `scripts/checks/config_claims.go` | claim completeness gate |
+| `scripts/checks/yang_leaf_mentions.go` | config leaf consumption |
 
 ## `docs/architecture/core-design.md`
 
@@ -946,6 +944,8 @@ Total: 306 design docs, 3193 files
 | `internal/component/bgp/reactor/api_sync.go` | API process synchronization |
 | `internal/component/bgp/reactor/config.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/config_capabilities.go` | BGP capability parsing from config tree |
+| `internal/component/bgp/reactor/config_prefix.go` | config tree parsing (PeersFromTree) |
+| `internal/component/bgp/reactor/config_prefix_test.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/default_originate_raw.go` | default-originate raw-filter guard |
 | `internal/component/bgp/reactor/delivery.go` | BGP reactor event loop |
 | `internal/component/bgp/reactor/filter/loop.go` | route loop detection ingress filter |
@@ -958,6 +958,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/bgp/reactor/filter_delta_test.go` | policy filter wire-level dirty tracking tests |
 | `internal/component/bgp/reactor/filter_format.go` | policy filter chain |
 | `internal/component/bgp/reactor/forward_build.go` | exactly-sized one-pass rebuild for egress attribute modification |
+| `internal/component/bgp/reactor/forward_local_pref.go` | egress attribute modification on the forward rails |
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
@@ -970,6 +971,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/bgp/reactor/peer_rib_routes.go` | RIB route building for BGP UPDATEs |
 | `internal/component/bgp/reactor/peer_run.go` | peer run loop and session lifecycle |
 | `internal/component/bgp/reactor/peer_send.go` | BGP UPDATE sending |
+| `internal/component/bgp/reactor/peer_settings_apply.go` | config reload delivers changed peer settings |
 | `internal/component/bgp/reactor/peer_static_routes.go` | static route building for BGP UPDATEs |
 | `internal/component/bgp/reactor/peersettings.go` | peer configuration settings |
 | `internal/component/bgp/reactor/policy_dryrun.go` | policy filter chain |
@@ -993,10 +995,11 @@ Total: 306 design docs, 3193 files
 | `internal/component/bgp/reactor/session_connection.go` | session connect, accept, teardown |
 | `internal/component/bgp/reactor/session_flow.go` | BGP session backpressure flow control |
 | `internal/component/bgp/reactor/session_handlers.go` | BGP message type handlers |
-| `internal/component/bgp/reactor/session_hold_grace_test.go` | BGP session hold-timer lifecycle |
+| `internal/component/bgp/reactor/session_hold_expiry_test.go` | BGP session hold-timer lifecycle |
 | `internal/component/bgp/reactor/session_negotiate.go` | BGP capability negotiation |
 | `internal/component/bgp/reactor/session_open_validation.go` | BGP OPEN message validation |
 | `internal/component/bgp/reactor/session_prefix.go` | prefix limit enforcement (RFC 4486) |
+| `internal/component/bgp/reactor/session_prefix_family_test.go` | prefix limit enforcement (RFC 4486) |
 | `internal/component/bgp/reactor/session_read.go` | BGP message read loop |
 | `internal/component/bgp/reactor/session_validation.go` | RFC 7606 UPDATE validation |
 | `internal/component/bgp/reactor/session_validation_nlritype.go` | RFC 7606 UPDATE validation |
@@ -1125,6 +1128,7 @@ Total: 306 design docs, 3193 files
 | `internal/core/metrics/metrics.go` | metric collection interfaces |
 | `internal/core/metrics/nop.go` | no-op metrics for disabled state |
 | `internal/core/metrics/prometheus.go` | Prometheus metrics backend |
+| `internal/core/ndp/ra.go` | shared IPv6 Neighbor Discovery encoding |
 | `internal/core/network/md5_darwin.go` | TCP MD5 authentication (RFC 2385) |
 | `internal/core/network/md5_freebsd.go` | TCP MD5 authentication (RFC 2385) |
 | `internal/core/network/md5_linux.go` | TCP MD5 authentication (RFC 2385) |
@@ -1552,6 +1556,7 @@ Total: 306 design docs, 3193 files
 | `internal/test/peer/inject.go` | stress injection from ze-test peer |
 | `internal/test/peer/listen_ttl.go` | ze-peer GTSM (RFC 5082) listen TTL |
 | `internal/test/peer/message.go` | BGP message types and wire helpers |
+| `internal/test/peer/message_eor_test.go` | BGP message types and wire helpers |
 | `internal/test/peer/peer.go` | test BGP peer |
 | `internal/test/peer/peer_connmap.go` | connection mapping |
 | `internal/test/runner/accept_only.go` | accept-only (weak) .ci predicate and annotation marker |
@@ -1687,6 +1692,7 @@ Total: 306 design docs, 3193 files
 | File | Topic |
 |------|-------|
 | `internal/component/bgp/filterapi/editset.go` | the fragment model and the header size class |
+| `internal/component/bgp/wireu/advertise_test.go` | the AS-path family as generate slots |
 | `internal/component/bgp/wireu/aspath_aggregator_probe_test.go` | AGGREGATOR survival across an AS_PATH prepend |
 | `internal/component/bgp/wireu/aspath_as4.go` | AS4_PATH construction for OLD-speaker peers |
 | `internal/component/bgp/wireu/aspath_rewrite.go` | AS-PATH rewriting for EBGP forwarding |
@@ -1791,6 +1797,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/bgp/message/update.go` | BGP message types |
 | `internal/component/bgp/message/update_split.go` | BGP message types |
 | `internal/component/bgp/reactor/relay_payload.go` | reconstructing a received-shape UPDATE |
+| `internal/component/bgp/wireu/advertise.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/errors.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/extract.go` | wire UPDATE lazy parsing |
 | `internal/component/bgp/wireu/mpwire.go` | wire UPDATE lazy parsing |
@@ -2000,6 +2007,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/iface/cmd/show_interface.go` | `show interface` family handlers |
 | `internal/component/iface/config.go` | Interface config parsing and application |
 | `internal/component/iface/config_apply.go` | Interface reconciliation and application |
+| `internal/component/iface/config_ra.go` | per-unit Router Advertisement configuration |
 | `internal/component/iface/config_sysctl.go` | Sysctl and mirror application for interfaces |
 | `internal/component/iface/default_linux.go` | Per-OS backend default |
 | `internal/component/iface/default_other.go` | Per-OS backend default |
@@ -2016,6 +2024,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/iface/migrate_linux.go` | Make-before-break interface migration |
 | `internal/component/iface/migrate_other.go` | Make-before-break interface migration |
 | `internal/component/iface/rate.go` | Per-interface rate tracking |
+| `internal/component/iface/reconcile_ra.go` | Router Advertisement sender lifecycle |
 | `internal/component/iface/register.go` | Interface plugin registration |
 | `internal/component/iface/tunnel.go` | Tunnel interface specification |
 | `internal/component/iface/validate.go` | Interface-name validation |
@@ -2051,6 +2060,10 @@ Total: 306 design docs, 3193 files
 | `internal/plugins/iface/netlink/tunnel_linux.go` | Tunnel netdev creation via netlink |
 | `internal/plugins/iface/netlink/wireguard_linux.go` | WireGuard netdev creation via netlink |
 | `internal/plugins/iface/netlink/xfrm_linux.go` | XFRM interface netlink backend |
+| `internal/plugins/iface/ra/ifacera.go` | Router Advertisement sender for a LAN unit |
+| `internal/plugins/iface/ra/ra_integration_linux_test.go` | Router Advertisement sender (Linux) |
+| `internal/plugins/iface/ra/register.go` | iface-ra plugin registration |
+| `internal/plugins/iface/ra/sender_linux.go` | Router Advertisement send loop (Linux) |
 | `internal/plugins/iface/vpp/fib.go` | VPP FIB readback via ip_route_v2_dump |
 | `internal/plugins/iface/vpp/mirror.go` | Traffic mirroring on the VPP dataplane |
 | `internal/plugins/iface/vpp/neighbor.go` | VPP neighbor-table readback via ip_neighbor_dump |
@@ -2177,6 +2190,7 @@ Total: 306 design docs, 3193 files
 | `internal/component/l2tp/plugins/authradius/config.go` | RADIUS plugin config |
 | `internal/component/l2tp/plugins/authradius/handler.go` | RADIUS auth handler |
 | `internal/component/l2tp/plugins/authradius/l2tpauthradius.go` | RADIUS auth plugin |
+| `internal/component/l2tp/plugins/authradius/nasportid.go` | RADIUS attribute encoding |
 | `internal/component/l2tp/plugins/authradius/register.go` | RADIUS auth plugin lifecycle |
 | `internal/component/l2tp/plugins/pool/l2tppool.go` | IP pool plugin |
 | `internal/component/l2tp/plugins/pool/pool.go` | IPv4 address pool for L2TP sessions |
@@ -2838,8 +2852,11 @@ Total: 306 design docs, 3193 files
 | `internal/component/sysrib/sysrib_locrib_ghost_test.go` | unified Loc-RIB best-change consumption. |
 | `internal/core/bgp/nlri/nlrisplit/cidr.go` | Phase 3g (per-family NLRI split) |
 | `internal/core/bgp/nlri/nlrisplit/evpn.go` | Phase 3g (per-family NLRI split) |
+| `internal/core/bgp/nlri/nlrisplit/mup.go` | Phase 3g (per-family NLRI split) |
+| `internal/core/bgp/nlri/nlrisplit/mvpn.go` | Phase 3g (per-family NLRI split) |
 | `internal/core/bgp/nlri/nlrisplit/nlrisplit.go` | Phase 3g (per-family NLRI split) |
 | `internal/core/bgp/nlri/nlrisplit/register.go` | Phase 3g (per-family NLRI split) |
+| `internal/core/bgp/nlri/nlrisplit/typelen.go` | Phase 3g (per-family NLRI split) |
 | `internal/core/rib/locrib/candidate.go` | Phase 3 (unified Loc-RIB) |
 | `internal/core/rib/locrib/candidate_equal_test.go` | Path.Equal label handling (F1) test |
 | `internal/core/rib/locrib/change.go` | Phase 3c (Loc-RIB change notifications) |
@@ -4202,6 +4219,10 @@ Total: 306 design docs, 3193 files
 
 - `cmd/ze/bootstrap_template_test.go` -- template becomes effective config
 
+## `plan/spec-fixit-mgmt-listener-auth-guard.md`
+
+- `internal/component/lg/auth.go` -- optional looking-glass auth gate
+
 ## `plan/spec-followup-l2tp-call.md`
 
 - `internal/component/l2tp/bridge_integration_linux_test.go` -- AC-3 / A-4 LAC bridge integration
@@ -4215,6 +4236,17 @@ Total: 306 design docs, 3193 files
 ## `plan/spec-iface-resolve-2-resolver.md`
 
 - `internal/component/iface/resolve_integration_linux_test.go` -- resolver os-name remapping.
+
+## `plan/spec-improve-3-event-replay.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/reactor/capture_replay.go` | per-session JSONL protocol event capture |
+| `internal/component/doctor/checks_bgp_capture.go` | BGP protocol event capture readiness |
+| `internal/core/capture/capture.go` | protocol event capture format (v1) |
+| `internal/core/capture/reader.go` | capture decoder for the replay harness |
+| `internal/core/capture/writer.go` | bounded JSONL capture writer |
+| `internal/test/cli/cmd_replay.go` | replay a captured BGP session |
 
 ## `plan/spec-ipsec-esp-dual-form-receive.md`
 
@@ -4412,6 +4444,16 @@ Total: 306 design docs, 3193 files
 
 - `internal/core/rib/locrib/candidate_backup_test.go` -- Path backup carry-through (AC-13,
 
+## `plan/spec-pki-full-chain.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/pki/tls.go` | server TLS material from the PKI store |
+| `internal/component/pki/tls_test.go` | server TLS material tests |
+| `internal/component/web/doctor.go` | doctor check for environment.web.certificate |
+| `internal/component/web/doctor_test.go` | web TLS certificate doctor check tests |
+| `internal/component/web/register.go` | doctor check registration for the web component |
+
 ## `plan/spec-rfc7606-5-1-2-relay-shape.md`
 
 - `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
@@ -4491,8 +4533,12 @@ Total: 306 design docs, 3193 files
 
 ## `rfc/short/rfc7606.md`
 
-- `internal/component/bgp/plugins/nlri/evpn/rfc7606.go` -- Section 5.4, typed NLRI
-- `internal/core/bgp/nlri/nlritype/nlritype.go` -- Section 5.4, typed NLRI
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/nlri/evpn/rfc7606.go` | Section 5.4, typed NLRI |
+| `internal/component/bgp/plugins/nlri/mup/rfc7606.go` | Section 5.4, typed NLRI |
+| `internal/component/bgp/plugins/nlri/mvpn/rfc7606.go` | Section 5.4, typed NLRI |
+| `internal/core/bgp/nlri/nlritype/nlritype.go` | Section 5.4, typed NLRI |
 
 ## `rfc/short/rfc9069.md`
 

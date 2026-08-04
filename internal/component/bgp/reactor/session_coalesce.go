@@ -111,6 +111,14 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		}
 	}
 
+	// Protocol event capture tee (capture_replay.go), at the same logical point
+	// as the standard read path's: the complete wire message, before anything
+	// consumes it. Capturing here rather than at flushCoalesce is what makes
+	// the two paths produce IDENTICAL streams for identical input (AC-8) --
+	// flushCoalesce dispatches a synthetic UPDATE with a header the peer never
+	// sent, which would replay as one message where the peer sent several.
+	s.teeCapture(uint8(hdr.Type), buf.Buf[:hdr.Length])
+
 	// Counts actual wire bytes, not coalesced synthetic size.
 	if s.prefixMetrics != nil {
 		s.prefixMetrics.wireBytesRecv.With(s.settings.Address.String()).Add(float64(hdr.Length))

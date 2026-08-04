@@ -68,6 +68,7 @@ func init() {
 	registerRoot("l2tp-scale", cmdL2tpScale, "L2TP scale test: LAC simulator + mock RADIUS")
 	registerRoot("mcp", cmdMcp, "MCP client (send commands to daemon via MCP endpoint)")
 	registerRoot("peer", cmdPeer, "BGP test peer (sink/echo/check modes)")
+	registerRoot("replay", cmdReplay, "Replay a captured BGP session (ze-test replay <capture-file>) through the real read path with a deterministic clock")
 	registerRoot("plugin-external", cmdPluginExternal, "Run a registered engine plugin's RunEngine externally (TLS connect-back) -- proves IsInternal()-guarded refuse/warn behavior; not a production plugin launcher")
 	registerRoot("text-plugin", cmdTextPlugin, "Run minimal text-mode plugin (for .ci tests)")
 }

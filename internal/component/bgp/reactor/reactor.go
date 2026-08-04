@@ -55,6 +55,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
@@ -365,6 +366,13 @@ type Reactor struct {
 
 	capture    *BGPCaptureRing
 	rawCapture atomic.Pointer[BGPRawCaptureRing]
+
+	// sessionCaptures tracks the per-peer JSONL protocol event captures that
+	// are open right now (capture_replay.go). A config operation is recorded
+	// into every one of them: the operation is peer-scoped, but its effect on
+	// the reactor is global, so a replay of any captured session needs it.
+	sessionCapturesMu sync.Mutex
+	sessionCaptures   map[*sessionCapture]struct{}
 
 	running   bool
 	startTime time.Time
@@ -717,6 +725,17 @@ func (r *Reactor) PeerDiffCount(bgpTree map[string]any) (int, error) {
 // The caller is responsible for calling journal.Rollback() on failure
 // or journal.Discard() on success.
 func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.ConfigJournal) error {
+	// Record the reconcile into every open protocol event capture before it is
+	// applied, so a replayed session shows the config the reactor was moving
+	// to at the moment its peer behavior changed (capture_replay.go).
+	//
+	// Guarded on CapturesOpen because the ARGUMENT is the expensive part:
+	// mapToJSON marshals the whole BGP tree and copies the result into a byte
+	// slice. A daemon with no capture open must not pay that on every reload.
+	if r.CapturesOpen() {
+		r.CaptureConfigEvent(capture.OpReconcile, "", []byte(mapToJSON(bgpTree)))
+	}
+
 	a := &reactorAPIAdapter{r: r}
 	newPeers, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {

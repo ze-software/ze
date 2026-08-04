@@ -11,10 +11,13 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	configtx "github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/capture"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -404,4 +407,66 @@ func applyBGPOperation(op *sdk.ConfigOperation, handle registry.BGPReactorHandle
 		return nil, err
 	}
 	return adapter.ApplyConfigOperation(op, journal)
+}
+
+// bgpCaptureReactor is the narrow view of the reactor a config event needs. It
+// is a separate interface from bgpOperationReactor so a reactor implementation
+// without capture support still satisfies the operation callbacks.
+type bgpCaptureReactor interface {
+	CapturesOpen() bool
+	CaptureConfigEvent(op, txID string, payload []byte)
+}
+
+// captureHandleWarnOnce keeps the unreachable-branch warning below to one line
+// per process: it fires per config operation, and a repeating warning would bury
+// the transaction log it sits in.
+var captureHandleWarnOnce sync.Once
+
+// captureBGPConfigEvent records one config-transaction phase into every open
+// protocol event capture, so a replayed session carries the config the reactor
+// was applying at the time (spec improve-3 AC-6).
+//
+// The transaction id lives only here, at the plugin callback boundary: the
+// reactor's own ApplyConfigOperation is handed the operation without it.
+//
+// It is best-effort by design. A capture is a diagnostic aid, so a handle that
+// does not support capture, or a payload that will not marshal, must never fail
+// a config transaction.
+func captureBGPConfigEvent(handle registry.BGPReactorHandle, phase, txID string, detail any) {
+	rec, ok := handle.(bgpCaptureReactor)
+	if !ok {
+		// Say it once. This branch is not supposed to be reachable: the factory
+		// returns *reactor.Reactor and bgpconfig asserts the method set at
+		// compile time (bgp/config/register.go, bgpCaptureHandle). If it ever
+		// IS reached, config event capture is dead and silence would be the
+		// whole defect, so the log line is the only signal an operator gets.
+		captureHandleWarnOnce.Do(func() {
+			slogutil.LazyLogger("bgp.capture")().Warn("the BGP reactor handle records no config events; captures will show no config operations")
+		})
+		return
+	}
+	if !rec.CapturesOpen() {
+		return
+	}
+	payload, err := json.Marshal(detail)
+	if err != nil {
+		payload = nil
+	}
+	rec.CaptureConfigEvent(phase, txID, payload)
+}
+
+// captureOperationPhase maps a BGP config operation type onto the capture
+// format's operation name, so a capture spells the same operations the reactor
+// dispatched.
+func captureOperationPhase(opType sdk.ConfigOperationType) string {
+	switch opType {
+	case sdk.OperationAddPeer:
+		return capture.OpAddPeer
+	case sdk.OperationModifyPeer:
+		return capture.OpModifyPeer
+	case sdk.OperationRemovePeer:
+		return capture.OpRemovePeer
+	default:
+		return string(opType)
+	}
 }

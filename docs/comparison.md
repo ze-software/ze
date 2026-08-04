@@ -196,6 +196,7 @@ roles enforcement. Filters compose in ordered chains:
 | Structured logging (JSON) | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
 | BMP (RFC 7854) | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Partial | Yes | Yes |
 | MRT dump (RFC 6396) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Session capture and replay | Yes | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear |
 | Flow export (sFlow/NetFlow/IPFIX) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Streaming route events | Yes | No | No | No | No | Yes | Yes | Yes | No | Yes | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
@@ -204,6 +205,19 @@ roles enforcement. Filters compose in ordered chains:
 | Built-in PeeringDB/IRR/Cymru | Yes | No | No | No | No | No | No | No | No | No | No |
 | Unified operational reports (`show warnings` / `show errors`) | Yes | Partial | Partial | Partial | Partial | No | No | No | No | No | Partial |
 | SNMP agent (AgentX/MIB) | No | No | No | Yes | No | No | No | No | No | No | Yes |
+
+**Session capture and replay:** Ze records one peer's inbound protocol events as
+raw wire bytes in a JSONL file, and `ze-test replay` feeds that file back through
+the same read path with a fake clock, so a session bug on an operator's box
+reproduces on a developer's machine. This is not MRT: MRT records ROUTES for
+analysis, after decoding, while a capture records the BYTES the peer sent,
+including the malformed UPDATE that MRT would never represent. The other ten
+daemons are marked `Unclear` because this claim was not checked against their
+source; several ship MRT, which the row above already counts, and MRT is a
+different capability.
+
+<!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture, teeCapture -->
+<!-- source: internal/test/cli/cmd_replay.go -- runReplay -->
 
 <!-- source: internal/core/report/report.go -- cross-subsystem report bus -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
@@ -292,6 +306,7 @@ one.
 | Multicast RPF lookup | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
 | BFD integration | Partial | Yes | Yes | Yes | No | No | No | No | No | No | Yes |
 | Firewall (nftables) | Yes | No | No | Yes | Yes | No | No | No | No | No | Yes |
+| IPv6 Router Advertisement sender (radvd role) | Yes | No | No | Yes | No | No | No | No | No | No | Unclear |
 | Modular subsystem loading | Yes | Partial | Partial | No | No | No | No | No | No | No | No |
 | Config commit/rollback (candidate + active) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No | No |
@@ -301,11 +316,25 @@ one.
 | Propagation benchmark tool | Yes | No | No | No | No | No | No | No | No | No | No |
 | Update groups | Auto | No | No | Explicit | No | No | No | No | No | No | No |
 
+**IPv6 Router Advertisement sender:** Ze sends Router Advertisements on an
+interface unit (RFC 4861), so a separate radvd is not needed for SLAAC, a
+default router, or RDNSS resolvers. FRR does the same work in zebra, through its
+`ipv6 nd` interface commands. The other BGP daemons in this table manage no
+interfaces at all, so the row is `No` for them rather than a gap. freeRtr is
+marked `Unclear`: it runs its own IP stack, and this claim was not checked
+against its source.
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- Router Advertisement send loop -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+
 **Update groups:** Ze automatically groups peers by encoding context (ContextID) and builds each UPDATE once per group, fanning out the wire bytes to all members. No configuration needed. FRR requires explicit peer-group assignment for update group optimization. BIRD batches updates in its write loop but does not have a cross-peer build-sharing mechanism.
 <!-- source: internal/component/bgp/reactor/update_group.go -- automatic grouping by sendCtxID -->
 
 **Reactor RS fast path:** For route-server deployments, Ze can forward UPDATEs directly from the session read goroutine, bypassing the plugin dispatch chain entirely. This reduces the number of boundary crossings from 6 to 1 (wire to forward pool), approaching BIRD's 2-hop architecture. Enabled via `rs-fast-path` in the peer group behavior config.
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
+
+**Config completeness:** a YANG-modeled daemon can accept a config subtree that reaches no code. Ze fails the build when that happens: `TestConfigSchemaRootsClaimed` resolves the whole config schema, unions the config roots the plugin registry declares with the handler paths the schema registry binds, and fails on a subtree neither covers. The inverse runs too, so a declared config root that names no schema node fails as well. Five paths are recorded as exceptions, each with the file and symbol that reads them. At run time `ze doctor` reports `doctor-config-root-unclaimed` for a configured subtree the running binary delivers to nobody, which is what an operator sees when a plugin is compiled out or did not start.
+<!-- source: internal/component/plugin/all/config_claims_test.go -- TestConfigSchemaRootsClaimed -->
+<!-- source: internal/component/config/claims/claims.go -- Audit -->
 
 ## Best-Path Selection
 

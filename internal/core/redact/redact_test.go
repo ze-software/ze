@@ -70,6 +70,67 @@ func TestCommandTrailingKey(t *testing.T) {
 	assert.Equal(t, "config set password", Command("config set password"))
 }
 
+// VALIDATES: JSON redacts a secret-bearing value at any depth while leaving
+// every other value intact.
+// PREVENTS: a captured config payload shipping an operator's TCP-MD5 key.
+func TestJSONRedactsNestedSecrets(t *testing.T) {
+	in := []byte(`{"a":{"md5":"s3cret","ip":"192.0.2.1"},"b":[{"auth-key":"k1"},{"name":"plain"}],"passphrase":"pp"}`)
+	out, err := JSON(in)
+	assert.NoError(t, err)
+	got := string(out)
+	for _, secret := range []string{"s3cret", "k1", "pp"} {
+		assert.NotContains(t, got, secret, "secret must not survive")
+	}
+	assert.Contains(t, got, "192.0.2.1", "non-secret values are preserved")
+	assert.Contains(t, got, "plain", "non-secret values are preserved")
+	assert.Equal(t, 3, strings.Count(got, Placeholder))
+	assert.NotContains(t, got, `\u003c`, "the placeholder must not be HTML-escaped")
+	assert.Contains(t, got, Placeholder, "the placeholder appears literally")
+}
+
+// VALIDATES: a secret spelled as an object or a list is replaced whole, so it
+// cannot survive by changing shape.
+// PREVENTS: `"md5": {"value": "s3cret"}` walking straight through.
+func TestJSONRedactsSecretSubtree(t *testing.T) {
+	out, err := JSON([]byte(`{"md5":{"value":"s3cret"},"pre-shared-key":["a","b"]}`))
+	assert.NoError(t, err)
+	assert.NotContains(t, string(out), "s3cret")
+	assert.NotContains(t, string(out), `"a"`)
+	assert.Equal(t, 2, strings.Count(string(out), Placeholder))
+}
+
+// VALIDATES: a bcrypt-shaped value is redacted wherever it appears, even under a
+// key that does not name a secret.
+func TestJSONRedactsBcryptAnywhere(t *testing.T) {
+	hash := "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
+	out, err := JSON([]byte(`{"comment":"` + hash + `"}`))
+	assert.NoError(t, err)
+	assert.NotContains(t, string(out), hash)
+}
+
+// VALIDATES: JSON fails closed -- unparseable input yields the placeholder and
+// an error, never the input.
+// PREVENTS: a malformed payload smuggling a secret past redaction.
+func TestJSONFailsClosed(t *testing.T) {
+	out, err := JSON([]byte(`{"md5":"s3cret"`))
+	assert.Error(t, err)
+	assert.NotContains(t, string(out), "s3cret")
+	assert.Equal(t, `"`+Placeholder+`"`, string(out))
+}
+
+// VALIDATES: the bare word "key" is NOT treated as a secret name, so a key-chain
+// entry id and a YANG list key survive.
+// PREVENTS: over-redaction that destroys the readable half of a capture.
+func TestIsSecretConfigKeyExcludesBareKey(t *testing.T) {
+	assert.False(t, isSecretConfigKey("key"))
+	assert.False(t, isSecretConfigKey("key-chain"))
+	assert.True(t, isSecretConfigKey("md5"))
+	assert.True(t, isSecretConfigKey("auth-key"))
+	assert.True(t, isSecretConfigKey("PASSWORD"))
+	assert.True(t, isSecretConfigKey("bgp-secret"))
+	assert.False(t, isSecretConfigKey("community"))
+}
+
 // VALIDATES: multiple credential tokens in one command are all redacted.
 func TestCommandRedactsMultiple(t *testing.T) {
 	hash := "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"

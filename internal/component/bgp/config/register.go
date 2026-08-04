@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/core/slogutil"
 
@@ -57,6 +58,22 @@ func writeGRMarker(caps []plugin.InjectedCapability, store storage.Storage) {
 	}
 	log.Info("GR marker written", "expires", expiresAt)
 }
+
+// bgpCaptureHandle is the method set the BGP config-transaction callbacks reach
+// through a type assertion on the handle this factory returns
+// (internal/component/bgp/plugin, captureBGPConfigEvent). That assertion FAILS
+// OPEN: a handle that does not satisfy it records nothing and says nothing.
+//
+// The assertion below makes the failure a BUILD error here instead. It is the
+// only place both types are visible: bgp/plugin cannot import bgp/reactor, and
+// the interface there is unexported. Without it, wrapping the returned reactor
+// would silently kill config event capture (spec improve-3, AC-6).
+type bgpCaptureHandle interface {
+	CapturesOpen() bool
+	CaptureConfigEvent(op, txID string, payload []byte)
+}
+
+var _ bgpCaptureHandle = (*reactor.Reactor)(nil)
 
 // createReactorFromCoordinator builds a BGP reactor using config state stored
 // in the coordinator by the hub. This keeps bgp/config imports out of the hub.

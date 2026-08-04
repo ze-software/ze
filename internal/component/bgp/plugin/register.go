@@ -28,6 +28,7 @@ import (
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/report"
@@ -254,10 +255,12 @@ func runBGPEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigOperationVerify(func(input sdk.ConfigOperationVerifyInput) error {
+		captureBGPConfigEvent(bgpReactor, capture.OpVerify, input.TransactionID, &input.Operation)
 		return verifyBGPOperation(&input.Operation, bgpReactor)
 	})
 
 	p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
+		captureBGPConfigEvent(bgpReactor, captureOperationPhase(input.Operation.Type), input.TransactionID, &input.Operation)
 		j := sdk.NewJournal()
 		out, err := applyBGPOperation(&input.Operation, bgpReactor, j)
 		if err != nil {
@@ -273,6 +276,7 @@ func runBGPEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
+		captureBGPConfigEvent(bgpReactor, capture.OpRollback, input.TransactionID, input.Operations)
 		operationMu.Lock()
 		defer operationMu.Unlock()
 		for i := range input.Operations {
@@ -291,6 +295,7 @@ func runBGPEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigOperationCommit(func(input sdk.ConfigOperationCommitInput) error {
+		captureBGPConfigEvent(bgpReactor, capture.OpCommit, input.TransactionID, nil)
 		operationMu.Lock()
 		for key, j := range operationJournals {
 			if strings.HasPrefix(key, input.TransactionID+"\x00") {

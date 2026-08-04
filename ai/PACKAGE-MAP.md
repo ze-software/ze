@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 619 packages, 616 described, 3 TODO
+Total: 623 packages, 620 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -267,6 +267,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/component/config/archive` | saves committed configuration to file and HTTP locations on commit, manual, and scheduled triggers |  |
 | `internal/component/config/archive/cmd` | handles the config archive trigger command that archives the running configuration |  |
 | `internal/component/config/archive/yang` | embeds and registers the config archive API YANG module |  |
+| `internal/component/config/claims` | answers one question about the config surface: is every config subtree an operator can write delivered to something that reads it? The daemon claims config per declared path |  |
 | `internal/component/config/cli` | provides the ze config subcommand |  |
 | `internal/component/config/env` | provides Ze BGP environment variable handling with dot/underscore support |  |
 | `internal/component/config/infra` | holds the always-on daemon-startup contract between the hub and whichever routing engine constructs a reactor |  |
@@ -400,7 +401,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/component/trafficstat/cmd/yang` | embeds the traffic-stat command's YANG schema and registers it with the config module registry |  |
 | `internal/component/vpp` | manages VPP's full process lifecycle as a self-contained system | vpp |
 | `internal/component/vpp/yang` | embeds the vpp component's YANG configuration schema and registers it with the config module registry |  |
-| `internal/component/web` | provides the ze web interface, including session-based authentication middleware and security headers for all HTTP responses |  |
+| `internal/component/web` | provides the ze web interface, including session-based authentication middleware and security headers for all HTTP responses | web-tls-certificate |
 | `internal/component/web/testing` | provides a declarative test framework for the web interface |  |
 | `internal/component/web/yang` | embeds the web component's YANG configuration schema and registers it with the config module registry |  |
 
@@ -423,6 +424,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/core/bgp/wire` | provides zero-allocation buffer writing for BGP message encoding |  |
 | `internal/core/bufpool` | provides a sync.Pool-seeded-for-peak byte-slice pool for protocol subsystems that share a buffer path across multiple goroutines (TACACS+ AAA, plugin-rpc framing, BGP BMP sender, etc.) |  |
 | `internal/core/callsink` | is the neutral registration seam between the PPPoE access concentrator and the L2TP tunnel engine, letting a PADS-completed PPPoE subscriber be relayed into an L2TP incoming call (the LAC role, RFC... |  |
+| `internal/core/capture` | defines the on-disk format of a Ze protocol event capture: a JSONL stream whose first line is a version header and whose every later line is one event |  |
 | `internal/core/cliio` | resolves the conventional "-" CLI token to stdin (when reading) or stdout (when writing), so every filename-accepting command supports pipes through one shared, tier-legal helper instead of ad-hoc... |  |
 | `internal/core/clock` | provides injectable abstractions for time operations |  |
 | `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
@@ -448,6 +450,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/core/metrics` | provides metric collection interfaces and backends |  |
 | `internal/core/mplsfib` | defines the event channel carrying MPLS forwarding entries from label-distribution sources to the kernel FIB |  |
 | `internal/core/naming` | validates configuration node names against the shared node-name pattern |  |
+| `internal/core/ndp` | encodes IPv6 Neighbor Discovery messages (RFC 4861) and the Recursive DNS Server option (RFC 8106) |  |
 | `internal/core/network` | provides injectable abstractions for network operations |  |
 | `internal/core/observation` | provides an in-process, multi-subscriber feed for traffic observations |  |
 | `internal/core/parse` | provides shared value parsers for BGP attributes |  |
@@ -614,6 +617,7 @@ Total: 619 packages, 616 described, 3 TODO
 | `internal/plugins/host-cmd/yang` | embeds and registers the host command YANG schema modules |  |
 | `internal/plugins/iface/dhcp` | implements DHCPv4/DHCPv6 client functionality as a separate plugin | iface-dhcp |
 | `internal/plugins/iface/netlink` | implements the netlink-based interface management backend for Linux |  |
+| `internal/plugins/iface/ra` | sends IPv6 Router Advertisements on a configured interface unit, so hosts on the link autoconfigure addresses, learn a default router, and learn resolvers | iface-ra |
 | `internal/plugins/iface/vpp` | implements the iface backend for VPP via the GoVPP binary API |  |
 | `internal/plugins/iface/vpp/yang` | embeds and registers the VPP interface command YANG schema module |  |
 | `internal/plugins/imageserver` | Image server: HTTP provisioning for disk images and boot files | imageserver |

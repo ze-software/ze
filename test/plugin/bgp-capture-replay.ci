@@ -1,0 +1,128 @@
+# Test: BGP protocol event capture and replay (spec improve-3)
+# VALIDATES: AC-2, AC-3, AC-4 and user story 1 -- an operator enables capture on
+#            a live peer, the session's inbound messages land in a JSONL file
+#            that is closed cleanly on shutdown, and a developer replays that
+#            file through the same read path and sees the same outcome.
+# PREVENTS: a capture feature that writes nothing an operator can hand over, or
+#           a replay that cannot consume what the daemon wrote.
+#
+# Flow:
+# 1. ze-peer accepts the daemon's session and sends one UPDATE.
+# 2. ze runs with capture enabled, writing ./capture/bgp-127.0.0.1.jsonl.
+# 3. A barrier waits for the UPDATE to reach the capture file.
+# 4. cmd=stop terminates the daemon, which closes the capture cleanly.
+# 5. ze-test replay reads the file back and reports the FSM states and the
+#    prefix the peer announced.
+#
+# Mutation-verified 2026-08-03: with the tee in Session.teeCapture disabled the
+# barrier at seq=3 goes red, so this test gates on the feature rather than on
+# the daemon merely running.
+
+option=timeout:value=60s
+
+# Marker(16) + Len=0x002F(47) + Type=02 + WdLen=0000 + AttrLen=0x0014(20)
+#   ORIGIN: 40010100 (IGP)
+#   AS_PATH: 40020602010000FE4C (AS_SEQ [65100])
+#   NEXT_HOP: 40030401010101
+#   NLRI: 180A0000 (10.0.0.0/24)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=55s
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FE4C40030401010101180A0000
+EOF_PEER
+
+# Barrier: block until the peer's UPDATE has reached the capture file.
+tmpfs=wait-update.sh:terminator=EOF_WAIT
+#!/bin/sh
+# Poll, do not spin. Each iteration forks grep, so a busy loop forks hundreds of
+# thousands of processes and starves the daemon it is waiting for
+# (ai/rules/no-fork-loops.md). 0.1s x 150 bounds the wait at 15 seconds and
+# fails loudly rather than hanging.
+i=0
+while [ "$i" -le 150 ]; do
+	if grep -q '"type":"message"' capture/bgp-127.0.0.1.jsonl 2>/dev/null; then
+		echo "capture-has-messages"
+		exit 0
+	fi
+	i=$((i + 1))
+	# Poll interval: the capture writer goroutine drains its queue within
+	# microseconds of the read, so this only bounds how long the barrier
+	# over-waits after the event has already landed.
+	sleep 0.1
+done
+echo "no message event reached the capture file" >&2
+ls -la capture >&2 2>&1
+exit 1
+EOF_WAIT
+
+# Barrier: block until shutdown has terminated the capture file. A capture that
+# never writes capture-stop was not closed cleanly.
+tmpfs=wait-closed.sh:terminator=EOF_CLOSED
+#!/bin/sh
+# Poll rather than spin, for the same reason as wait-update.sh above.
+i=0
+while [ "$i" -le 150 ]; do
+	if grep -q 'capture-stop' capture/bgp-127.0.0.1.jsonl 2>/dev/null; then
+		echo "capture-closed"
+		exit 0
+	fi
+	i=$((i + 1))
+	# Poll interval: shutdown drains the capture queue and closes the file, so
+	# this only bounds how long the barrier over-waits.
+	sleep 0.1
+done
+echo "capture was not closed cleanly on shutdown" >&2
+exit 1
+EOF_CLOSED
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		# connect-retry 1: the runner starts ze-peer and the daemon back to back,
+		# so the daemon's first dial can lose the race to ze-peer's listen. With
+		# the 5-second default that costs the test a whole backoff cycle and makes
+		# it load-dependent; one second keeps the barrier below its bound on a
+		# loaded machine (ai/rules/testing.md, load-dependent failures).
+		timer { connect-retry 1; }
+		session {
+			asn {
+				local 65000
+				remote 65100
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		capture {
+			enabled true
+			directory ./capture
+			maximum-size 1
+			on-limit rotate
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp:name=daemon
+cmd=foreground:seq=3:exec=sh wait-update.sh:timeout=40s
+cmd=stop:seq=4:name=daemon:signal=term
+cmd=foreground:seq=5:exec=sh wait-closed.sh:timeout=40s
+cmd=foreground:seq=6:exec=ze-test replay ./capture/bgp-127.0.0.1.jsonl:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=capture-has-messages
+expect=stdout:contains=capture-closed
+expect=stdout:contains=OPEN
+expect=stdout:contains=UPDATE
+expect=stdout:contains=announce=[10.0.0.0/24]
+expect=stdout:contains=ESTABLISHED

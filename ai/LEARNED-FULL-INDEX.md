@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 909 summaries
+Total: 915 summaries
 
 ## 400-499
 
@@ -968,3 +968,9 @@ Total: 909 summaries
 | 1332 | Dead Peer Detection sent its probe in cleartext | `plan/learned/1332-fixit-ike-dpd-cleartext.md` |
 | 1333 | A second INFORMATIONAL handler tore tunnels down with no key material | `plan/learned/1333-fixit-ike-informational-second-producer.md` |
 | 1334 | rfc7606-54-typed-nlri-review-fixes | `plan/learned/1334-rfc7606-54-typed-nlri-review-fixes.md` |
+| 1335 | cache-consumer-declared-before-reactor | `plan/learned/1335-cache-consumer-declared-before-reactor.md` |
+| 1336 | withdraw-only relay shape | `plan/learned/1336-withdraw-only-relay-shape.md` |
+| 1337 | an interop scenario that never ran, and the window that ate a Delete | `plan/learned/1337-interop-scenario-never-ran.md` |
+| 1338 | one gate where the handler runs, not one guard per producer | `plan/learned/1338-relay-withdraw-attribute-gate.md` |
+| 1339 | a capture tee belongs on the bytes, not on the dispatch hook | `plan/learned/1339-capture-tee-before-enforcement.md` |
+| 1340 | fixit-bgp-per-family-prefix-enforcement | `plan/learned/1340-fixit-bgp-per-family-prefix-enforcement.md` |

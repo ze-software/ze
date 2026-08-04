@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/5 |
-| Updated | 2026-08-03 |
+| Phase | 5/5 |
+| Updated | 2026-08-04 |
 
 ## Post-Compaction Recovery
 
@@ -271,6 +271,9 @@ deterministic simulation.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Doc checklist row 3: the replay command is `ze test replay`, so it belongs in `docs/guide/command-reference.md` | It landed as `ze-test replay`, a root of the ze-test binary. `command-reference.md` documents the `ze` dispatch only (`cmd/ze/main.go`) | Documentation review at implementation | Row 3 is N/A. The command is documented in `docs/functional-tests.md`, "Replaying a captured BGP session", beside the other ze-test tool roots |
+| Doc checklist row 10: a new `test/replay/` suite | The `.ci` went into the existing `test/plugin` suite, so no suite was added | Implementation | Row 10 is satisfied by the CLI Reference addition, not a suite inventory row |
+| A capture file is written once per PEER | `startCapture` runs once per `runOnce`, so it is once per CONNECTION ATTEMPT | Independent review, 2026-08-04 | `O_TRUNC` erased the capture of the session that failed, seconds after it failed. Fixed: a new session moves the previous file to `<file>.1` |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -340,11 +343,52 @@ stop per config; a rotated or stopped capture emits a final "capture-stop" event
 ## Known Limitations
 - Single-session replay only; multi-peer/topology replay and full deterministic
   simulation remain in `plan/deterministic-simulation-analysis.md` scope.
+- A capture file is named for the peer ADDRESS (`captureFileName`), while the
+  reactor keys peers by `AddrPort`. Two peers configured on one address with
+  different ports write the same file, and the second to start moves the first
+  aside. Raised in review as N13. It needs the file name to carry the port, and
+  that changes a name an operator and the `.ci` both spell, so it is separable
+  work rather than part of this spec.
 
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- **Format package** `internal/core/capture` (leaf tier, standard library plus
+  `internal/core/redact`): `capture.go` names the schema, `writer.go` is a
+  bounded JSONL encoder that refuses a line WHOLE rather than crossing the cap,
+  `reader.go` validates the header and the per-file sequence and names the
+  offending line in every error.
+- **Capture writer** `internal/component/bgp/reactor/capture_replay.go`:
+  `sessionCapture` (one long-lived writer goroutine per capture, pooled items,
+  shed-on-full queue), `Session.teeCapture`, `Peer.startCapture` /
+  `stopCapture`, and `Reactor.CaptureConfigEvent` over the live-capture set.
+- **Tee points** `session_read.go` and `session_coalesce.go`, both on the
+  complete wire message before anything consumes it (AC-7, AC-8).
+- **Config events** `internal/component/bgp/plugin/register.go` and
+  `operation.go` emit verify / commit / rollback / add-peer / modify-peer /
+  remove-peer with the transaction id; `reactor.go` emits reconcile (AC-6).
+  Payloads pass `redact.JSON`, which was added for this and now backs command
+  redaction too.
+- **Config surface** `ze-bgp-conf.yang` container `capture`
+  (`enabled`, `directory`, `maximum-size` range 1..1024, `on-limit`), parsed by
+  `parseCaptureSettings` (`config.go`), defaulted in `NewPeerSettings`.
+- **Replay** `internal/test/cli/cmd_replay.go` drives `Session.ReadAndProcess`
+  over a stub `net.Conn` and a `FakeClock`. No parallel decoder: prefixes come
+  off the `WireUpdate` the real path built (AC-3). The session identity comes
+  from the capture header (`replayIdentity.resolve`), so an iBGP capture replays
+  as iBGP; the three flags are overrides.
+- **Bounds** every line the writer emits is one its own reader accepts
+  (`WriteConfig` against `MaxLineLen`), the rotation retry is bounded to one
+  attempt, and a new session moves the previous session's file aside rather than
+  truncating it.
+- **Observability** counter `ze_bgp_capture_dropped_events_total`
+  (`reactor_metrics.go`), `ze doctor` check `doctor-bgp-capture-directory`
+  (`internal/component/doctor/checks_bgp_capture.go`, landed earlier).
+- **Tests** AC-1 and AC-2 and AC-4 through AC-8 in
+  `capture_replay_test.go` and `internal/core/capture/*_test.go`, AC-3 and AC-5
+  in `cmd_replay_test.go`, end to end in `test/plugin/bgp-capture-replay.ci`
+  (mutation-verified 2026-08-03), and two benchmarks pinning zero allocation on
+  the disabled and the enabled tee.
 
 ## Review Gate
 
@@ -355,12 +399,40 @@ stop per config; a rotated or stopped capture emits a final "capture-stop" event
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
 ### Run 1 (initial)
+
+Two independent reviewers over the diff, 2026-08-04. Neither wrote the code.
+Reviewer A: the format package, the writer, `redact.JSON`. Reviewer B: the
+wiring, the ACs, the replay harness, the `.ci`. They agreed on B1 and B3.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| B1 | BLOCKER | Unbounded recursion between `write` and `atLimit`: an event larger than an empty file rotates for ever, destroying both generations each turn and ending the daemon on a stack overflow | `capture_replay.go` `atLimit` | fixed: the retry is bounded to one attempt (`writeItem(it, rotated)`) |
+| B2 | BLOCKER | The writer emits a config line longer than `MaxLineLen`, which its own reader refuses; the reader stops at the FIRST long line, so one oversized reconcile costs every later event | `writer.go` `WriteConfig` | fixed: an oversized payload is replaced by a marker naming the dropped size |
+| B3 | BLOCKER | Every reconnect truncated the previous session's capture, so the file recording the failure was erased seconds later (user story 1) | `capture_replay.go` `openFile` | fixed: `newSessionCapture` moves the previous file to `<file>.1` |
+| B4 | BLOCKER | AC-6 wiring untested: `CaptureConfigEvent`, `registerCapture` fan-out and the txID hand-off had no test caller | `capture_replay_test.go` | fixed: `TestReactorCaptureConfigEventReachesOpenCaptures` |
+| I5 | ISSUE | `markDrops` advanced the counter before the write, so a refused drops line left the stream claiming there was no gap | `capture_replay.go` `markDrops` | fixed: the counter advances only on success |
+| I6 | ISSUE | `mapToJSON(bgpTree)` ran on every config reload even with no capture open | `reactor.go` `ReconcilePeersWithJournal` | fixed: guarded on the new `Reactor.CapturesOpen`, applied at both call sites |
+| I7 | ISSUE | The AC-1 benchmarks only `ReportAllocs`; nothing read the number, so an added allocation failed no gate | `capture_replay_test.go` | fixed: `TestSessionTeeCaptureDisabledDoesNotAllocate` asserts `AllocsPerRun == 0` |
+| I8 | ISSUE | The header carried no session identity, so replay invented the AS numbers and an iBGP capture replayed as eBGP | `capture.go` `Header`, `cmd_replay.go` | fixed: header records local-as, peer-as, router-id; flags became overrides |
+| I9 | ISSUE | The package doc claimed a capture holds no secret; redaction is a name heuristic | `capture.go` package doc | fixed: the doc states the mechanism and its bound |
+| I10 | ISSUE | Doc checklist rows 3, 10, 11 unaddressed | `docs/` | fixed for 10 and 11; row 3 is N/A, see Wrong Assumptions |
+| N11 | NOTE | `openFile` left a zero-byte file when the header write failed | `capture_replay.go` `openFile` | fixed: the file is removed |
+| N12 | NOTE | A verify event is recorded before the verify runs, so a rejected verify looks accepted | `plugin/register.go` | acknowledged: the event records the operation as SUBMITTED, which is what a replay needs; stated in `CaptureConfigEvent`'s doc |
+| N13 | NOTE | `captureFileName` keys on the address while the reactor keys peers by `AddrPort` | `capture_replay.go` | acknowledged, open: see Known Limitations |
+| N14 | NOTE | `CaptureConfigEvent` redacts once per open capture | `capture_replay.go` | acknowledged: cold path, and moving redaction out of `recordConfig` would take it off the path the redaction test drives |
+
+Found while fixing N12, missed by both reviewers: inserting `parseCaptureSettings`
+split `parseTTLSettings`'s RFC 5082 doc comment, leaving the citation on the wrong
+function. Restored (`config.go`).
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- `capture_replay.go`: bounded rotation retry, `rotateAside` on a new session, `markDrops` advances only on success, `CapturesOpen`, empty file removed on header failure.
+- `writer.go`: `WriteConfig` bounds an oversized payload against `MaxLineLen`.
+- `capture.go`: header carries local-as / peer-as / router-id; the secret claim states its mechanism.
+- `reactor.go`, `plugin/operation.go`: the expensive payload is built only when a capture is open.
+- `cmd_replay.go`: `replayIdentity` resolves override, then header, then fallback.
+- `config.go`: corrected the zero-cap comment, restored the RFC 5082 comment.
+- Five tests added, each mutation-verified (see `tmp/capture-land/mutation.log`).
 
 ### Run 2+ (re-runs until clean)
 <!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
