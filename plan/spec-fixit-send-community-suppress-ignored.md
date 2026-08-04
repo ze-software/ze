@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 2/2 |
 | Deferral shard | - |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -21,6 +21,37 @@ LARGE_COMMUNITY value to that peer.
 
 The goal is to make the configured suppression reach the wire, and to close the
 identical blind spot in the OTC handler before a producer rediscovers it.
+
+### Second item, HOMED HERE on 2026-08-04: LOCAL_PREF crosses to external peers
+
+A second egress defect of the SAME class is in scope for this spec, and it was
+homed here rather than opened as its own spec for three reasons: it is the same
+producer (`applyFacts*` on `reactor/peer_forward_facts.go`), it is the same
+defect class (an attribute the egress rail must remove and does not), and
+fixing the two together costs the forward hot path one pass instead of two.
+
+RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE
+messages it sends to external peers, except in the case of BGP Confederations
+[RFC3065]." Two rails obeyed it and one did not:
+
+| Rail | Producer | Before |
+|------|----------|--------|
+| Announce (API / batch) | `buildAnnounceUpdate` (`reactor_api_batch.go`) | strips, correct |
+| Stored-RIB replay | `writeRIBRoutes` (`peer_rib_routes.go`) | strips, correct |
+| Wire builder | `writeAnnounceUpdateWithPlan` (`reactor_wire.go`) | writes only under iBGP, correct |
+| **Forward / relay** | `forwardUpdateCore` (`reactor_api_forward.go`), `reactorForwardRS` (`forward_rs.go`) | **no strip at all** |
+
+So a route LEARNED from an internal peer and RELAYED to an external one carried
+the internal preference across the AS boundary, while the same prefix originated
+locally did not. Every `LOCAL_PREF` reference under `reactor/forward*.go` was in
+a `_test.go` file, and `prependDefaultFilters` (`bgp/config/peers.go`) prepends
+only loop-detection entries and only to `ImportFilters`, so no auto-added export
+filter covered it either.
+
+Confederations are the RFC's own exception. Ze has no confederation member-AS in
+`PeerSettings` or the YANG tree, so the exception is constantly false; the
+predicate that owns it is named below so a future member-AS grows it in ONE
+place.
 
 **Symptom:** the attribute is re-emitted unchanged. Nothing is logged, no
 counter moves, and the route is correctly excluded from zero-copy passthrough,
@@ -179,6 +210,11 @@ so the daemon does extra work to produce the byte-identical wrong answer.
 | AC-10 | Suppress op on CLUSTER_LIST (code 10) | The attribute is dropped (Optional Non-transitive, no preservation clause) |
 | AC-11 | Suppress op on CLUSTER_LIST alongside a Prepend op | Suppress wins, matching `aspathHandler` |
 | AC-12 | Suppress op on ORIGINATOR_ID (code 9) with a source value present | Preserved unchanged (RFC4456-8-4) and the refusal is logged; with no source value, no attribute is created |
+| AC-13 | A route carrying LOCAL_PREF, learned from an internal peer, relayed to an EXTERNAL peer | The forwarded UPDATE carries NO LOCAL_PREF (RFC4271-5.1.5-2), on both forward rails |
+| AC-14 | The same route relayed to an INTERNAL peer | LOCAL_PREF is preserved byte-identical, and no operation is recorded, so the route stays on the zero-copy path |
+| AC-15 | A route with NO LOCAL_PREF, relayed to an external peer | No operation is recorded. Nothing to strip costs nothing |
+| AC-16 | An egress filter records `AttrModSet` on code 5 for an external destination | The strip runs after the filter pass and wins. The prohibition is not a policy a filter may override |
+| AC-17 | Every egress rail's answer to "may this destination receive LOCAL_PREF" | Comes from ONE predicate, `localPrefAllowedTo`, which carries the RFC 3065 confederation exception |
 
 ## End-to-End User Stories
 
@@ -197,6 +233,10 @@ so the daemon does extra work to produce the byte-identical wrong answer.
 | `TestCommunitySetSuppressLastWins` | same file | AC-4, AC-5, AC-9 | pass |
 | `TestClusterListAndOriginatorIDSuppress` | same file | AC-10, AC-11, AC-12 | pass |
 | `TestOTCSuppressRefusedAndPreserved` | `internal/component/bgp/plugins/role/otc_test.go` | AC-6, AC-7 | pass |
+| `TestForwardLocalPrefStrippedToExternalPeer` | `internal/component/bgp/reactor/forward_local_pref_test.go` | AC-13, AC-14, AC-15 on EMITTED BYTES | pass; mutation-verified |
+| `TestForwardLocalPrefStripBeatsAFilterSet` | same file | AC-16 | pass; mutation-verified |
+| `TestLocalPrefAllowedToIsTheOnlyAnswer` | same file | AC-17 | pass |
+| `TestPayloadHasLocalPref` | same file | the presence check reads the attribute SECTION, not the payload bytes | pass |
 | `TestGoldenBytesUnchangedTier1` (existing) | `internal/component/bgp/reactor/forward_modify_failure_test.go` | AC-8 | pass, 12/12 unmoved |
 
 ### Boundary Tests (numeric inputs)
@@ -208,6 +248,7 @@ so the daemon does extra work to produce the byte-identical wrong answer.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `send-community-suppress` | `test/plugin/send-community-suppress.ci` | One source, two destinations: the `send none` peer receives the route with NO community, the `send standard` peer still receives it. Same received UPDATE, two different wires | pass; mutation-verified at the socket |
+| `local-pref-strip-ebgp` | `test/plugin/local-pref-strip-ebgp.ci` | An internal source announces a route carrying LOCAL_PREF 200; the external destination's wire is asserted byte for byte and holds none | pass; mutation-verified at the socket (`+ LOCAL_PREF: 200 (unexpected)`) |
 
 The audit found NO pre-existing `.ci` covering `session { community { send } }`.
 The only file naming it was `test/draft/plugin/wire-edit-fanout-dedup.ci` (owned
@@ -225,7 +266,28 @@ config surfaces converging on one output is a stronger check than either alone.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| audit existing community scenarios | `test/interop/scenarios/` | FRR/BIRD | Peer sees no community on a `send none` session | |
+| `52-send-community-suppress-frr` | `test/interop/scenarios/` | FRR + BIRD | The `send none` peer sees no community of any type; the `send standard` peer sees the standard one and neither other | pass; mutation-verified |
+| `54-local-pref-strip-gobgp` | `test/interop/scenarios/` | GoBGP + FRR | A relayed route reaches an external peer with no LOCAL_PREF, and with its AS_PATH and NEXT_HOP intact | pass; mutation-verified (`[{Origin: i} {LocalPref: 200}]` at GoBGP without the fix) |
+
+**GoBGP is the witness and FRR cannot be, which is a property of the RFC rather
+than of FRR.** Section 5.1.5 also says a receiver MUST ignore a LOCAL_PREF that
+arrives over eBGP (RFC4271-5.1.5-3), and FRR implements that by skipping the
+attribute during parse, so a leak is invisible in its RIB, its JSON and its
+debug log. Measured 2026-08-04 with the strip removed: FRR showed nothing while
+GoBGP showed `{LocalPref: 200}` for the same route from the same UPDATE. FRR
+stays in the lab for the other half of the job, that a conformant peer accepts
+the stripped UPDATE and installs the route.
+
+**Two properties of the lab decide which rail is under test, and both were
+measured rather than assumed.** A scenario that announces BEFORE its
+destinations are established delivers through `bgp-rib`'s replay, which is
+`peer_rib_routes.go` and was already correct: an earlier draft of scenario 54
+did exactly that and stayed GREEN with the forward rail's strip removed. The
+injector therefore waits for the destinations first. Separately, the first
+UPDATE after a long quiet session is dropped with `BUG: ForwardUpdatesDirect:
+msgID missing from cache` (`reactor_api_forward_batch.go`), reproduced at 50 s
+and at 70 s of idle, so the scenario re-announces. That drop is a SEPARATE
+defect, reported and not fixed here.
 
 ## Files to Modify
 - `internal/component/bgp/filterapi/filterapi.go` (or `editset.go`) - export the
@@ -233,9 +295,29 @@ config surfaces converging on one output is a stronger check than either alone.
 - `internal/component/bgp/reactor/filter_delta_handlers.go` - delegate to it.
 - `internal/component/bgp/plugins/filter_community/handler.go` - Suppress branch.
 - `internal/component/bgp/plugins/role/otc.go` - refuse-and-say-so branch.
+- `internal/component/bgp/reactor/reactor_api_forward.go` - call it, over the
+  export wire override when a policy chain produced one.
+- `internal/component/bgp/reactor/forward_rs.go` - call it.
+- `internal/component/bgp/reactor/reactor_api_batch.go`,
+  `internal/component/bgp/reactor/peer_rib_routes.go`,
+  `internal/component/bgp/reactor/reactor_wire.go` - ask `localPrefAllowedTo`
+  instead of re-deriving `isIBGP`, so one site owns the confederation exception.
+- `test/plugin/bgp-rs-fastpath-ebgp-shared.ci`,
+  `test/plugin/remove-private-as-replace-peer.ci` - both described the discard
+  marker as `C0FD0405010000` / "ATTR_DISCARD". The producer writes
+  `attribute.AttrTombstone` = 252 = 0xFC, named "ATTR_TOMBSTONE". Comments only;
+  no assertion or input changed.
 
 ## Files to Create
 - `internal/component/bgp/reactor/forward_send_community_test.go` - emitted-byte test.
+- `internal/component/bgp/reactor/forward_local_pref.go` - `localPrefAllowedTo`,
+  `payloadHasLocalPref`, `modsTouchLocalPref`, `applyFactsLocalPref`. Its own
+  file rather than a block inside `peer_forward_facts.go` beside its `applyFacts*`
+  siblings: that file carried another session's uncommitted work when this landed,
+  and a shared checkout cannot stage half a file.
+- `internal/component/bgp/reactor/forward_local_pref_test.go` - emitted-byte test.
+- `test/plugin/local-pref-strip-ebgp.ci` - the wire at the socket.
+- `test/interop/scenarios/54-local-pref-strip-gobgp/` - the wire at a real peer.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

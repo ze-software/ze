@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — zero-allocation wire UPDATE builders
+// RFC: rfc/short/rfc4271.md — path attribute order and LOCAL_PREF (Sections 5, 5.1.5)
 // Overview: reactor.go — Reactor struct, lifecycle, and connection management
 // Related: reactor_api.go — reactorAPIAdapter for plugin integration
 // Related: reactor_api_forward.go — forwarding uses wire builders
@@ -359,7 +360,8 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 	}
 
 	// 5. LOCAL_PREF - RFC 4271 §5.1.5: Well-known attribute for iBGP only.
-	if isIBGP {
+	// localPrefAllowedTo (forward_local_pref.go) owns that answer for every rail.
+	if localPrefAllowedTo(isIBGP) {
 		lpVal := uint32(100)
 		if localPref != nil {
 			lpVal = *localPref

@@ -649,15 +649,11 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		rewrittenASPath = a.announceASPathRewrite(existingASPath, isIBGP, rsClient, srcKnown, localAS)
 	}
 
-	// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in
-	// UPDATE messages it sends to external peers, except in the case of BGP
-	// Confederations [RFC3065]." The confederation exception has no configuration
-	// surface here -- a session is internal when LocalAS == PeerAS (Peer.IsIBGP) and
-	// external otherwise, and nothing in PeerSettings or the YANG tree names a
-	// confederation -- so the prohibition covers every peer this daemon calls
-	// external. If a confederation member-AS ever becomes configurable, this is one
-	// of the sites that has to grow the exception.
-	localPrefAllowed := isIBGP
+	// RFC 4271 Section 5.1.5, the prohibition half. localPrefAllowedTo
+	// (forward_local_pref.go) owns the answer and the confederation exception, so
+	// this rail and the two forward rails cannot disagree about it -- which they
+	// did until 2026-08-04, when only this one stripped.
+	localPrefAllowed := localPrefAllowedTo(isIBGP)
 
 	// The Builder's attributes, in the ascending order AppendAttributes declares.
 	for _, attr := range builderAttrs {

@@ -1,4 +1,7 @@
 // Design: plan/learned/663-rs-gap-0-structural-forwarding.md -- reactor-native RS forwarding
+// RFC: rfc/short/rfc4271.md -- LOCAL_PREF is internal-only (Section 5.1.5)
+// RFC: rfc/short/rfc4456.md -- route reflection attribute injection (Section 8)
+// RFC: rfc/short/rfc7947.md -- route server transparency (Section 2.2.2)
 // Related: reactor_api_forward.go -- ForwardUpdate egress pipeline (shared helpers)
 // Related: forward_pool.go -- per-peer forward worker pool
 // Related: forward_build.go -- buildModifiedPayload, buildWithdrawalPayload
@@ -237,6 +240,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	var aspathEdit wireu.ASPathEdit
 	var prependBuf [2]uint32
 
+	// RFC 4271 Section 5.1.5 needs one bit per UPDATE, not one scan per client:
+	// whether the source carries LOCAL_PREF at all. See applyFactsLocalPref
+	// (forward_local_pref.go) for why the answer gates the operation.
+	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -319,6 +327,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
+		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
+		// Recorded AFTER the egress filter pass above so the Suppress is the last
+		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail
+		// has no wire override, so the source payload is the base the rebuild
+		// runs over.
+		applyFactsLocalPref(facts, srcHasLocalPref, &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer

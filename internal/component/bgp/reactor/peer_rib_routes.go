@@ -132,8 +132,9 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 
 	// 5. LOCAL_PREF for iBGP - use stored value or default to 100.
 	// RFC 4271 Section 5.1.5 keeps it off an external session, which is why a
-	// stored LOCAL_PREF is dropped rather than replayed when isIBGP is false.
-	if isIBGP {
+	// stored LOCAL_PREF is dropped rather than replayed toward one.
+	// localPrefAllowedTo (forward_local_pref.go) owns that answer for every rail.
+	if localPrefAllowedTo(isIBGP) {
 		var localPref attribute.LocalPref = 100
 		for _, attr := range route.Attributes() {
 			if lp, ok := attr.(attribute.LocalPref); ok {

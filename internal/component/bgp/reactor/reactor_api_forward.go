@@ -1,5 +1,7 @@
 // Design: docs/architecture/core-design.md — UPDATE forwarding, grouped sending, route refresh
 // Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (shares Incoming Peer Pool buffer across peers)
+// RFC: rfc/short/rfc4271.md — LOCAL_PREF is internal-only (Section 5.1.5)
+// RFC: rfc/short/rfc4456.md — route reflection attribute injection (Section 8)
 // Overview: reactor_api.go — API command handling core
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
@@ -486,6 +488,12 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	var aspathEdit wireu.ASPathEdit
 	var prependBuf [2]uint32
 
+	// RFC 4271 Section 5.1.5 needs one bit per UPDATE, not one scan per
+	// destination: whether the source carries LOCAL_PREF at all. A destination
+	// whose policy chain returned a full wire override re-asks over THAT payload
+	// below, because the override is the base its rebuild runs over.
+	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -584,6 +592,17 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
+
+		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
+		// Recorded AFTER the egress step pass so the Suppress is the last
+		// operation on code 5 and wins (filterapi.LastSetOrSuppress), and over
+		// peerBaseWire rather than the source, because a policy chain's wire
+		// override replaces the payload the rebuild reads.
+		baseHasLocalPref := srcHasLocalPref
+		if exportWireOverride != nil {
+			baseHasLocalPref = payloadHasLocalPref(peerBaseWire.Payload())
+		}
+		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
 
 		// The AS-path family is recorded as INTENT, so the exactly-sized one-pass
 		// writer emits it into the destination buffer alongside every other edit.

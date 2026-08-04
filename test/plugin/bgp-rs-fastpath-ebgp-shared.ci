@@ -17,9 +17,10 @@
 # revision of this file put LOCAL_PREF=100 in the source frame, which is invalid
 # input on an EBGP session: ze correctly applies RFC 7606 Section 7.5
 # ("LOCAL_PREF from an external neighbor must be discarded",
-# message/rfc7606.go:441-448) and overwrites it in place with an ATTR_DISCARD
-# marker (message/attr_discard.go:96-115), so the receiver saw
-# C0FD0405010000 (ATTR_DISCARD, orig code 5, reason 1 = EBGP-invalid) where the
+# message/rfc7606.go) and overwrites it in place with an ATTR_TOMBSTONE
+# marker (message/attr_discard.go, applyInPlace), so the receiver saw
+# C0FC0405010000 (ATTR_TOMBSTONE, code 252 = 0xFC per attribute.AttrTombstone,
+# orig code 5, reason 1 = EBGP-invalid) where the
 # expectation demanded 40050400000064. That was correct product behavior on an
 # invalid frame, not a fastpath bug -- so the fix is to make the input valid
 # rather than to bless the marker in the expectation. LOCAL_PREF was incidental
