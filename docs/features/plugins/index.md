@@ -1,6 +1,6 @@
 # Plugin catalog
 
-88 runtime plugins generated from `data/plugin-registry.json`, plus 6 test fixtures. 68 runtime plugins declare configuration roots and 69 ship YANG modules.
+89 runtime plugins generated from `data/plugin-registry.json`, plus 6 test fixtures. 68 runtime plugins declare configuration roots and 69 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -74,7 +74,7 @@ Generated group for registry entries mapped to the BGP NLRI area. Source area: `
 | [`bgp-nlri-flowspec`](bgp-nlri-flowspec/index.md) | FlowSpec NLRI encoding/decoding | None | None | `internal/component/bgp/plugins/nlri/flowspec` |
 | [`bgp-nlri-labeled`](bgp-nlri-labeled/index.md) | Labeled Unicast family plugin (RFC 8277) | None | None | `internal/component/bgp/plugins/nlri/labeled` |
 | [`bgp-nlri-ls`](bgp-nlri-ls/index.md) | BGP-LS family plugin | None | None | `internal/component/bgp/plugins/nlri/ls` |
-| [`bgp-nlri-mup`](bgp-nlri-mup/index.md) | Mobile User Plane family plugin (draft-mpmz-bess-mup-safi) | None | None | `internal/component/bgp/plugins/nlri/mup` |
+| [`bgp-nlri-mup`](bgp-nlri-mup/index.md) | Mobile User Plane family plugin (draft-ietf-bess-mup-safi) | None | None | `internal/component/bgp/plugins/nlri/mup` |
 | [`bgp-nlri-mvpn`](bgp-nlri-mvpn/index.md) | Multicast VPN family plugin (RFC 6514) | None | None | `internal/component/bgp/plugins/nlri/mvpn` |
 | [`bgp-nlri-rtc`](bgp-nlri-rtc/index.md) | Route Target Constraint family plugin (RFC 4684) | None | None | `internal/component/bgp/plugins/nlri/rtc` |
 | [`bgp-nlri-srpolicy`](bgp-nlri-srpolicy/index.md) | SR-Policy family plugin (RFC 9830, SAFI 73) | None | None | `internal/component/bgp/plugins/nlri/srpolicy` |
@@ -192,6 +192,7 @@ Generated group for registry entries mapped to the Interface area. Config roots:
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`iface-dhcp`](iface-dhcp/index.md) | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | None | `interface` | `internal/plugins/iface/dhcp` |
+| [`iface-ra`](iface-ra/index.md) | Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) | None | `interface` | `internal/plugins/iface/ra` |
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
 | [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 

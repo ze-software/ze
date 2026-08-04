@@ -3,7 +3,7 @@
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
-<!-- source: ai/rules/discovery-updates.md -- Current Discovery Surfaces -->
+<!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
 <!-- source: mk/inventory.mk -- ze-inventory and documentation targets -->
 
 Ze is built around a single command and discovery surface. Commands,
@@ -83,11 +83,11 @@ only the skill relevant to the current task.
 
 Feature, tooling, self-check, verification, and test-infrastructure changes must
 update their discovery path in the same work. The standard path is
-`ai/rules/discovery-updates.md` for policy, `ai/INDEX.md` for keyword lookup,
+`ai/rules/repo-maintenance.md` for policy, `ai/INDEX.md` for keyword lookup,
 `ai/NAVIGATION.md` for task routing, and the relevant make target or docs page
 for verification and usage.
 
-<!-- source: ai/rules/discovery-updates.md -- Required Discovery Artifacts -->
+<!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
 
 Agents should use the existing inventory and verification surfaces before
 inventing new ones: `make ze-inventory`, `make ze-command-list`,

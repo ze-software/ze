@@ -10,6 +10,12 @@
     <loc>https://ze-software.net/blog/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/blog/how-ze-manages-memory/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/blog/one-bgp-update-many-peers/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/changes/</loc>
   </url>
   <url>
@@ -1589,6 +1595,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/docs/features/plugins/iface-dhcp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/docs/features/plugins/iface-ra/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/docs/features/plugins/imageserver/</loc>

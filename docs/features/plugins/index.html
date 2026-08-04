@@ -54,7 +54,7 @@
                     <h1 id="plugin-catalog-title">Plugin catalog</h1>
                     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
                 </div>
-                <p class="plugin-summary">Generated from 94 registry entries: 88 runtime plugins and 6 test fixtures. Among runtime plugins, 68 declare configuration roots, 47 declare dependencies, and 69 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 95 registry entries: 89 runtime plugins and 6 test fixtures. Among runtime plugins, 68 declare configuration roots, 48 declare dependencies, and 69 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -67,7 +67,7 @@
                                     <option value="security" data-label="Policy &amp; security">Policy &amp; security (22)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (7)</option>
-                                    <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (10)</option>
+                                    <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (11)</option>
                                     <option value="telemetry" data-label="Telemetry &amp; operations">Telemetry &amp; operations (4)</option>
                                     <option value="test" data-label="Test fixtures">Test fixtures (6)</option>
                                 </select>
@@ -110,7 +110,7 @@
                                     <optgroup label="Interfaces &amp; dataplane">
                                     <option value="bfd" data-category="dataplane" data-label="BFD">BFD (1)</option>
                                     <option value="fib" data-category="dataplane" data-label="FIB">FIB (3)</option>
-                                    <option value="interface" data-category="dataplane" data-label="Interface">Interface (3)</option>
+                                    <option value="interface" data-category="dataplane" data-label="Interface">Interface (4)</option>
                                     <option value="kernel" data-category="dataplane" data-label="Kernel">Kernel (1)</option>
                                     <option value="sysctl" data-category="dataplane" data-label="Sysctl">Sysctl (1)</option>
                                     <option value="vpp" data-category="dataplane" data-label="VPP">VPP (1)</option>
@@ -591,10 +591,10 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-observe" id="plugin-bgp-nlri-mup" data-plugin-card data-family="bgp-nlri" data-category="routing" data-search="bgp-nlri-mup Mobile User Plane family plugin (draft-mpmz-bess-mup-safi) Mobile User Plane family plugin (draft-mpmz-bess-mup-safi) internal/component/bgp/plugins/nlri/mup BGP NLRI      ">
+                    <article class="card plugin-card cat-observe" id="plugin-bgp-nlri-mup" data-plugin-card data-family="bgp-nlri" data-category="routing" data-search="bgp-nlri-mup Mobile User Plane family plugin (draft-ietf-bess-mup-safi) Mobile User Plane family plugin (draft-ietf-bess-mup-safi) internal/component/bgp/plugins/nlri/mup BGP NLRI      ">
                         <span class="cat">BGP NLRI</span>
                         <h3><a href="bgp-nlri-mup/"><code>bgp-nlri-mup</code></a></h3>
-                        <p class="plugin-desc">Mobile User Plane family plugin (draft-mpmz-bess-mup-safi)</p>
+                        <p class="plugin-desc">Mobile User Plane family plugin (draft-ietf-bess-mup-safi)</p>
                         <div class="chips">
                             <span class="chip">no config</span>
                         </div>
@@ -1006,7 +1006,7 @@
                 <section class="plugin-group" data-plugin-group data-family="interface" data-category="dataplane" aria-labelledby="plugin-group-interface">
                     <div class="plugin-group-head cat-operate">
                         <h2 id="plugin-group-interface">Interface</h2>
-                        <span>3 plugins</span>
+                        <span>4 plugins</span>
                     </div>
                     <p>Generated group for registry entries mapped to the Interface area. Config roots: <code>interface</code>. Source area: <code>internal/component/iface</code>, <code>internal/plugins/iface</code>, <code>internal/plugins/vrrp</code>.</p>
                     <div class="cards plugin-grid">
@@ -1015,6 +1015,16 @@
                         <span class="cat">Interface</span>
                         <h3><a href="iface-dhcp/"><code>iface-dhcp</code></a></h3>
                         <p class="plugin-desc">DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal</p>
+                        <div class="chips">
+                            <span class="chip">needs:interface</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>interface</code></dd></div></dl>
+                    </article>
+
+                    <article class="card plugin-card cat-operate" id="plugin-iface-ra" data-plugin-card data-family="interface" data-category="dataplane" data-search="iface-ra Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) internal/plugins/iface/ra Interface    interface  ">
+                        <span class="cat">Interface</span>
+                        <h3><a href="iface-ra/"><code>iface-ra</code></a></h3>
+                        <p class="plugin-desc">Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)</p>
                         <div class="chips">
                             <span class="chip">needs:interface</span>
                         </div>

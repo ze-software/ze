@@ -121,7 +121,7 @@ cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;'EOF'
 set environment looking-glass enabled enable
 set environment looking-glass server public ip 0.0.0.0
 set environment looking-glass server public port 8443
-set environment looking-glass tls disable
+set environment looking-glass tls false
 
 set environment ssh server main ip 127.0.0.1
 set environment ssh server main port 2222
@@ -144,7 +144,7 @@ sudo systemctl reload ze.service
 <p>Expected validation output:</p>
 <pre><code class="language-text">configuration valid: /tmp/tmp.XXXXXXXXXX
 </code></pre>
-<p>The looking glass server defaults are <code>ip 0.0.0.0</code>, <code>port 8443</code>, and <code>tls false</code>; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing <code>server main</code> listener from the Ubuntu install guide.</p>
+<p>The looking glass server defaults are <code>ip 0.0.0.0</code>, <code>port 8443</code>, and <code>tls true</code>. This example sets <code>tls false</code> because it puts a reverse proxy in front; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing <code>server main</code> listener from the Ubuntu install guide.</p>
 <h2 id="3-open-the-ui">3. Open the UI</h2>
 <p>From a browser:</p>
 <pre><code class="language-text">http://198.51.100.10:8443/lg/peers
@@ -250,7 +250,7 @@ counts are present only when the <code>bgp-rib</code> plugin is loaded.</p>
 </tr>
 </tbody>
 </table>
-<p>If Ze terminates TLS itself, set <code>tls true</code>. This requires a zefs blob store to hold the certificate, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>); otherwise startup fails with <code>looking glass TLS requires blob storage (run ze init first)</code>.</p>
+<p>Ze terminates TLS itself unless you set <code>tls false</code>. This needs a zefs blob store to hold the certificate, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a blob store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires blob storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy.</p>
 <pre><code class="language-text">environment {
     looking-glass {
         enabled true

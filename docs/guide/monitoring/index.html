@@ -76,6 +76,7 @@
 <ol>
 <li><a href="#instance">Instance</a></li>
 <li><a href="#per-peer">Per-Peer</a></li>
+<li><a href="#session-lifecycle">Session Lifecycle</a></li>
 <li><a href="#startup-and-connection-timing">Startup and Connection Timing</a></li>
 <li><a href="#forward-pool-congestion">Forward Pool / Congestion</a></li>
 <li><a href="#attribute-index">Attribute Index</a></li>
@@ -679,6 +680,86 @@ diff nd.txt ze.txt
 </tr>
 </tbody>
 </table>
+<h4 id="session-lifecycle">Session Lifecycle</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_peer_sessions_established_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Times the session reached Established</td>
+</tr>
+<tr>
+<td><code>ze_peer_session_flaps_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Sessions dropped from Established</td>
+</tr>
+<tr>
+<td><code>ze_peer_state_transitions_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>from</code>, <code>to</code></td>
+<td>Peer FSM state transitions</td>
+</tr>
+<tr>
+<td><code>ze_peer_notifications_sent_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>code</code>, <code>subcode</code></td>
+<td>NOTIFICATION messages sent</td>
+</tr>
+<tr>
+<td><code>ze_peer_notifications_received_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>code</code>, <code>subcode</code></td>
+<td>NOTIFICATION messages received</td>
+</tr>
+<tr>
+<td><code>ze_peer_session_duration_seconds</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>Seconds since the session established</td>
+</tr>
+<tr>
+<td><code>ze_bgp_open_in_established_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>OPEN messages refused because the connection was already in Established or OpenConfirm</td>
+</tr>
+<tr>
+<td><code>ze_bgp_connect_retry_counter</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop</td>
+</tr>
+</tbody>
+</table>
+<p>A non-zero <code>ze_bgp_open_in_established_total</code> names a peer that tried to
+re-negotiate mid-session. Ze answers it with a Cease and closes the connection.</p>
+<p><code>ze_bgp_connect_retry_counter</code> is RFC 4271 Section 8.1.1 mandatory session
+attribute 2, "the number of times a BGP peer has tried to establish a peer
+session". The BGP FSM raises it by one on each teardown RFC 4271 Section 8.2.2
+gives an increment clause: a hold-timer expiry, a header or OPEN error, a
+NOTIFICATION, an UPDATE error, a mid-session TCP failure, and any event the
+state does not expect. Two events set it back to zero, and only these two: the
+operator starts the peer, and the operator stops it. A reconnect does not,
+which is what makes the value a history rather than a flag.</p>
+<p>It is a GAUGE, not a counter. Those operator resets make the value go down, and
+a Prometheus counter that goes down reads as a counter reset to <code>rate()</code>. Use
+the value directly, not a rate: it already IS a count.</p>
+<p>Read the same number per peer with <code>show bgp peer &lt;address&gt; detail</code>, field
+<code>connect-retry-counter</code>.</p>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- handleOpen -->
+<!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
+
 <h4 id="startup-and-connection-timing">Startup and Connection Timing</h4>
 <table>
 <thead>

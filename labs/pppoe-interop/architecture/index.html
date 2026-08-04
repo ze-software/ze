@@ -141,7 +141,7 @@ make ze-qemu-pppoe-accel-test
 Alpine community, and runs <code>scripts/evidence/effective-pppoe-accel.py</code> -- the
 netns sibling of this lab (Ze client + accel-ppp server in two namespaces joined
 by a veth, no Docker). It is the canonical way to run this proof on a dev
-machine. See <code>ai/rules/qemu-testing.md</code> ("Interop Labs ... Need a QEMU Runner Too").</p>
+machine. See <code>ai/rules/platform-linux.md</code> ("Interop Labs ... Need a QEMU Runner Too").</p>
 <h2 id="scenarios">Scenarios</h2>
 <h3 id="01-pppoe-chap-ipv4">01-pppoe-chap-ipv4</h3>
 <p>Proves: PPPoE discovery completes, LCP opens, Ze authenticates to accel-ppp with
@@ -189,7 +189,7 @@ client stops.</p>
 </table>
 <p>The Docker lab and the QEMU runner prove the same thing with the same peer
 (accel-ppp from Alpine community); the QEMU runner is the one that works on a
-macOS dev machine. Per <code>ai/rules/qemu-testing.md</code>, a Linux-only interop lab must
+macOS dev machine. Per <code>ai/rules/platform-linux.md</code>, a Linux-only interop lab must
 ship both.</p>
 <p>The <code>.ci</code> tests exercise Ze as the access concentrator with a synthetic Python
 client; this lab is the only test where Ze is the <em>client</em> and the peer is a

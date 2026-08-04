@@ -110,7 +110,7 @@ the operator chooses one via the <code>backend</code> leaf.</p>
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 
 <h2 id="tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</h2>
-<p>Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (<code>exact-or-reject.md</code>).</p>
+<p>Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (<code>protocol.md</code>).</p>
 <p><code>noqueue</code> is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied <em>from</em>. It carries no reconstructable parameters, but it is the <em>absence</em> of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to <code>noqueue</code>. Adding a qdisc named <code>noqueue</code> is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.</p>
 <p>Other <code>GenericQdisc</code> types (<code>mq</code>, <code>clsact</code>, ...) stay rejected: those carry state this backend cannot reproduce.</p>
 <!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- newQdiscSnapshot, tcQdiscSnapshot.restoredByDelete -->

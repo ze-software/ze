@@ -4778,7 +4778,7 @@
       {
         "children": [
           {
-            "description": "Accept a peer whose BGP Identifier (router-id) duplicates\nanother established peer in the same AS. Default false\nenforces AS-wide uniqueness by rejecting the second OPEN with\nBad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide\nuniqueness only a SHOULD, so accepting a shared identifier is\nconformant; set true when the duplication is intentional,\ne.g. one anycast speaker (AS112) peering over both IPv4 and\nIPv6 with the same router-id. When true, only the AS-wide\nuniqueness claim is skipped. RFC 6286 Section 2.2 validation\n(a zero identifier, or this speaker's own identifier from an\ninternal peer) still applies, and Section 2.3 connection\ncollision resolution is implemented and likewise not gated\nby this leaf.",
+            "description": "Accept a peer whose BGP Identifier (router-id) duplicates\nanother established peer in the same AS. Default false\nenforces AS-wide uniqueness by rejecting the second OPEN with\nBad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide\nuniqueness only a SHOULD, so accepting a shared identifier is\nconformant; set true when the duplication is intentional,\ne.g. one anycast speaker (AS112) peering over both IPv4 and\nIPv6 with the same router-id. When true, ze performs no\nrouter-id uniqueness check at all (it does not implement\nRFC 6286 Section 2.3 collision detection).",
             "kind": "leaf",
             "name": "allow-shared-router-id",
             "source": "config",

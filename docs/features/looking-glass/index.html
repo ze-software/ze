@@ -51,7 +51,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="looking-glass">Looking Glass</h1>
-    <p>Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443), with no authentication (public, read-only). TLS is optional.</p>
+    <p>Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443). It is read-only and open by default, because a looking glass is a public surface. It serves TLS by default, and an optional bearer <code>token</code> gates every route when you set one.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#as-path-topology-graph">AS Path Topology Graph</a></li>
@@ -94,7 +94,7 @@
 </tr>
 <tr>
 <td>YANG configuration</td>
-<td><code>environment/looking-glass</code> block with enabled, server (ip, port), tls settings</td>
+<td><code>environment/looking-glass</code> block with enabled, server (ip, port), tls (default true), and token settings</td>
 </tr>
 </tbody>
 </table>

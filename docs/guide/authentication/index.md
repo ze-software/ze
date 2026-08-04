@@ -149,7 +149,18 @@ when it cannot prove an address is local.
 An unsafe web, MCP, REST, or gRPC listener migration on reload is rejected
 before any listener changes; the service keeps its previous addresses. The
 public Looking Glass is a separate, intentionally unauthenticated read-only
-service. Its deployment guidance is in [Public looking glass](../looking-glass-howto/index.md).
+service. Its deployment guidance is in [Public looking glass](../looking-glass-howto/index.md);
+it serves TLS by default and takes an optional bearer token.
+
+`ze doctor --json` and `ze config validate` report the same exposure offline,
+so you find it before you deploy. A gNMI listener that is non-loopback with no
+token gives `config-gnmi-invalid`, and an MCP block that asks for a remote bind
+with no authentication gives `config-mcp-invalid`. Neither command can read
+another process's environment, so a listener published only by an environment
+variable is caught at startup rather than by these checks.
+
+<!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics gNMI and MCP entries -->
+<!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Validate -->
 
 <!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->

@@ -256,8 +256,8 @@ straight from each plugin's own YANG module.</p>
 <td>Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry.</td>
 </tr>
 <tr>
-<td>Hold timer congestion extension</td>
-<td>If data was recently read when the hold timer fires, ze is CPU-congested, not the peer. Resets hold timer instead of tearing down.</td>
+<td>Hold timer expiry (RFC 4271 Section 8.2.2, Event 10)</td>
+<td>Every expiry sends NOTIFICATION code 4 (Hold Timer Expired) and stops the session. Ze grants no reprieve for CPU congestion.</td>
 </tr>
 <tr>
 <td>Write deadline</td>
@@ -284,7 +284,7 @@ straight from each plugin's own YANG module.</p>
 <p><strong>Prometheus metrics:</strong> <code>ze_bgp_pool_used_ratio</code>, <code>ze_bgp_overflow_items{peer}</code>, <code>ze_bgp_overflow_ratio{source}</code>, <code>ze_forward_buffer_denied_total</code>, <code>ze_forward_congestion_teardown_total</code>.</p>
 <!-- source: internal/component/bgp/reactor/session_connection.go -- TCP_NODELAY, IP_TOS, closeConn -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- Send Hold Timer -->
-<!-- source: internal/component/bgp/reactor/session.go -- recentRead congestion extension -->
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- write deadline, overflow pool -->
 <!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- two-threshold enforcement -->
 

@@ -14,9 +14,9 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 387 CLI commands, 36 config sections, 94 plugin registrations, 40 direct Go dependencies, 34 weekly change entries.
-- Test evidence counts: 21,000+ unit tests, 76 fuzz targets, 1,500+ end-to-end transcript steps, 104 interop scenarios across 8 target implementations.
-- Generated date: 2026-08-03.
+- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 387 CLI commands, 36 config sections, 95 plugin registrations, 40 direct Go dependencies, 34 weekly change entries.
+- Test evidence counts: 21,000+ unit tests, 76 fuzz targets, 1,500+ end-to-end transcript steps, 108 interop scenarios across 8 target implementations.
+- Generated date: 2026-08-04.
 
 ## Quality and verification model
 
@@ -29,7 +29,7 @@ Ze uses layered proof because bugs appear at different boundaries.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 104 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 108 scenarios against 8 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -179,7 +179,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp-nlri-flowspec`: FlowSpec NLRI encoding/decoding Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/flowspec`.
 - `bgp-nlri-labeled`: Labeled Unicast family plugin (RFC 8277) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/labeled`.
 - `bgp-nlri-ls`: BGP-LS family plugin Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/ls`.
-- `bgp-nlri-mup`: Mobile User Plane family plugin (draft-mpmz-bess-mup-safi) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/mup`.
+- `bgp-nlri-mup`: Mobile User Plane family plugin (draft-ietf-bess-mup-safi) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/mup`.
 - `bgp-nlri-mvpn`: Multicast VPN family plugin (RFC 6514) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/mvpn`.
 - `bgp-nlri-rtc`: Route Target Constraint family plugin (RFC 4684) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/rtc`.
 - `bgp-nlri-srpolicy`: SR-Policy family plugin (RFC 9830, SAFI 73) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/srpolicy`.
@@ -221,6 +221,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall. Optional: none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/plugins/geodns`.
 - `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
+- `iface-ra`: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Config roots: none. Dependencies: interface. Optional: none. YANG files: 0. Source: `internal/plugins/iface/ra`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: none. YANG files: 6. Source: `internal/component/iface`.
 - `ipsec-cookie-threshold`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: config-loaded. Optional: none. YANG files: 0. Source: `internal/component/ike/engine`.

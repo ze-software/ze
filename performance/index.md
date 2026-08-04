@@ -12,9 +12,9 @@ All benchmarks are lies: these numbers measure one scenario, on one machine, und
 
 Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That number comes from code-path analysis, not a measured benchmark -- Ze has not been benchmarked at DFZ scale (1M+ prefixes).
 
-- **Convergence:** 62ms to propagate 100,000 routes (2026-06-05 run)
-- **Throughput:** 1,612,903 routes/sec sustained during propagation
-- **Withdrawal:** 596ms from withdrawal sent to receiver idle
+- **Convergence:** 55ms to propagate 100,000 routes (2026-08-01 run)
+- **Throughput:** 1,818,181 routes/sec sustained during propagation
+- **Withdrawal:** 547ms from withdrawal sent to receiver idle
 - **Full results:** [All DUTs, all runs, full methodology](https://ze-software.net/docs/performance/)
 
 ```

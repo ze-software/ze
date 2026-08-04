@@ -1,14 +1,14 @@
-# `bgp-nlri-mup` plugin
+# `iface-ra` plugin
 
-Mobile User Plane family plugin (draft-ietf-bess-mup-safi)
+Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)
 
 ## At a glance
 
 | Field | Value |
 |-------|-------|
-| Registry area | BGP NLRI |
+| Registry area | Interface |
 | Kind | Runtime plugin |
-| Source path | `internal/component/bgp/plugins/nlri/mup` |
+| Source path | `internal/plugins/iface/ra` |
 | YANG modules | 0 |
 
 ## Configuration
@@ -17,7 +17,7 @@ None
 
 ## Dependencies
 
-- Required: None
+- Required: [`interface`](../interface/index.md)
 - Optional: None
 
 ## Used by
@@ -27,7 +27,7 @@ None
 
 ## Repository artifacts
 
-Package: `internal/component/bgp/plugins/nlri/mup`
+Package: `internal/plugins/iface/ra`
 
 YANG files: None
 Metadata source: `Registration`

@@ -3,18 +3,18 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>interface plugin - Ze</title>
-        <meta name="description" content="interface plugin: OS network interface monitoring and management" />
-        <meta property="og:title" content="interface plugin - Ze" />
-        <meta property="og:description" content="interface plugin: OS network interface monitoring and management" />
+        <title>iface-ra plugin - Ze</title>
+        <meta name="description" content="iface-ra plugin: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)" />
+        <meta property="og:title" content="iface-ra plugin - Ze" />
+        <meta property="og:description" content="iface-ra plugin: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="interface plugin - Ze" />
-        <meta name="twitter:description" content="interface plugin: OS network interface monitoring and management" />
+        <meta name="twitter:title" content="iface-ra plugin - Ze" />
+        <meta name="twitter:description" content="iface-ra plugin: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,8 +23,8 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
-        <link rel="canonical" href="https://ze-software.net/docs/features/plugins/interface/" />
-        <meta property="og:url" content="https://ze-software.net/docs/features/plugins/interface/" />
+        <link rel="canonical" href="https://ze-software.net/docs/features/plugins/iface-ra/" />
+        <meta property="og:url" content="https://ze-software.net/docs/features/plugins/iface-ra/" />
         <link rel="stylesheet" href="../../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -51,8 +51,8 @@
             <section class="md-content reveal cat-operate plugin-detail" aria-labelledby="plugin-detail-title">
                 <div class="journey-hero reveal cat-operate">
                     <span class="journey-eyebrow">Interface</span>
-                    <h1 id="plugin-detail-title"><code>interface</code></h1>
-                    <p>OS network interface monitoring and management</p>
+                    <h1 id="plugin-detail-title"><code>iface-ra</code></h1>
+                    <p>Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)</p>
                 </div>
                 <div class="plugin-detail-grid">
                     <article class="plugin-detail-panel">
@@ -60,37 +60,37 @@
                         <dl class="plugin-detail-facts">
                             <div><dt>Registry area</dt><dd>Interface</dd></div>
                             <div><dt>Kind</dt><dd>Runtime plugin</dd></div>
-                            <div><dt>Source path</dt><dd><code>internal/component/iface</code></dd></div>
-                            <div><dt>YANG modules</dt><dd>6</dd></div>
+                            <div><dt>Source path</dt><dd><code>internal/plugins/iface/ra</code></dd></div>
+                            <div><dt>YANG modules</dt><dd>0</dd></div>
                             <div><dt>Metadata source</dt><dd>Registration</dd></div>
                         </dl>
                     </article>
                     <article class="plugin-detail-panel">
                         <h2>Configuration</h2>
-                        <ul><li><a href="../../../../config-reference/#interface"><code>interface</code></a></li></ul>
+                        <p class="plugin-detail-empty">None declared.</p>
                     </article>
                     <article class="plugin-detail-panel">
                         <h2>Dependencies</h2>
                         <h3>Required</h3>
-                        <ul><li><a href="../sysctl/"><code>sysctl</code></a></li></ul>
+                        <ul><li><a href="../interface/"><code>interface</code></a></li></ul>
                         <h3>Optional</h3>
                         <p class="plugin-detail-empty">None declared.</p>
                     </article>
                     <article class="plugin-detail-panel">
                         <h2>Used by</h2>
                         <h3>Required dependency for</h3>
-                        <ul><li><a href="../iface-dhcp/"><code>iface-dhcp</code></a></li><li><a href="../iface-ra/"><code>iface-ra</code></a></li><li><a href="../ospf/"><code>ospf</code></a></li><li><a href="../traffic-usage/"><code>traffic-usage</code></a></li><li><a href="../vrrp/"><code>vrrp</code></a></li></ul>
+                        <p class="plugin-detail-empty">None declared.</p>
                         <h3>Optional dependency for</h3>
-                        <ul><li><a href="../static/"><code>static</code></a></li></ul>
+                        <p class="plugin-detail-empty">None declared.</p>
                     </article>
                     <article class="plugin-detail-panel plugin-detail-panel-wide">
                         <h2>Repository artifacts</h2>
                         <p>These paths come from the registry extraction and are shown locally so the detail page stays on the site.</p>
                         <dl class="plugin-detail-facts">
-                            <div><dt>Package</dt><dd><code>internal/component/iface</code></dd></div>
+                            <div><dt>Package</dt><dd><code>internal/plugins/iface/ra</code></dd></div>
                         </dl>
                         <h3>YANG files</h3>
-                        <ul><li><code>internal/component/iface/yang/ze-iface-api.yang</code></li><li><code>internal/component/iface/yang/ze-iface-cmd.yang</code></li><li><code>internal/component/iface/yang/ze-iface-conf.yang</code></li><li><code>internal/component/iface/yang/ze-iface-interface-cmd.yang</code></li><li><code>internal/component/iface/yang/ze-iface-monitor-cmd.yang</code></li><li><code>internal/component/iface/yang/ze-iface-show-cmd.yang</code></li></ul>
+                        <p class="plugin-detail-empty">None declared.</p>
                     </article>
                 </div>
             </section>

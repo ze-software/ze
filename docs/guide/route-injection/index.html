@@ -99,10 +99,13 @@ RFC 5549.</p>
 ze cli -c &quot;show bgp rib best prefix 198.51.100.0/24&quot;
 </code></pre>
 <p>Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
-next hop when selecting and forwarding it. <code>show bgp rib best</code> displays the
-recovered next hop. <code>show bgp rib received</code> currently renders only the legacy
-IPv4 NEXT_HOP attribute, so it omits MP next hops.</p>
+next hop when selecting and forwarding it. <code>show bgp rib best</code> and
+<code>show bgp rib received</code> both display the recovered next hop: the attribute
+renderer falls back to the stored MP_REACH_NLRI whenever the legacy IPv4-only
+NEXT_HOP attribute (type 3) is absent, which is the case for every IPv6 next
+hop, native or extended.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute MP_REACH emission -->
+<!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- enrichRouteMapFromEntry MP_REACH next-hop fallback -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
 <!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->
 

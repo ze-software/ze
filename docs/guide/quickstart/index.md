@@ -173,8 +173,11 @@ configuration valid: example.conf
 ## Start
 
 ```bash
-bin/ze example.conf
+bin/ze start example.conf
 ```
+<!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
+
+The config path goes behind the `start` keyword. A bare `bin/ze example.conf` is rejected with `unknown command: example.conf` (exit 1); global flags such as `-d` are consumed before the keyword, so they stay ahead of it.
 
 Ze logs to stderr. You should see something like:
 
@@ -186,7 +189,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 Silence means the default log level (`warn`) has nothing to report -- that's normal. To see all activity:
 
 ```bash
-bin/ze -d example.conf        # debug logging
+bin/ze -d start example.conf  # debug logging
 ```
 <!-- source: cmd/ze/main.go -- "-d" debug flag sets ze.log=debug -->
 
@@ -218,7 +221,7 @@ Use the built-in test peer to accept any BGP session:
 bin/ze-test peer --mode sink --port 1179 --asn 65001
 
 # Terminal 2: start ze with config pointing to localhost:1179
-bin/ze example-local.conf
+bin/ze start example-local.conf
 ```
 <!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
 

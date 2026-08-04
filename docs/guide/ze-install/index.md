@@ -729,7 +729,7 @@ The initrd contains exactly one file: the `cmd/ze-installer` Go binary as
 init shelled out to (mount, DHCP, HTTP download, link/address/route, reboot) is
 an in-process `golang.org/x/sys/unix` syscall or a vendored library call, so
 there is no applet that can be `not found` at install time. See
-`ai/rules/initrd-no-external-tools.md`.
+`ai/rules/platform-linux.md`.
 
 ## Installer Kernel
 

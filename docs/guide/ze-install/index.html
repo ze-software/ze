@@ -941,7 +941,7 @@ make ze-install-iso-qemu-test   # ISO install
 init shelled out to (mount, DHCP, HTTP download, link/address/route, reboot) is
 an in-process <code>golang.org/x/sys/unix</code> syscall or a vendored library call, so
 there is no applet that can be <code>not found</code> at install time. See
-<code>ai/rules/initrd-no-external-tools.md</code>.</p>
+<code>ai/rules/platform-linux.md</code>.</p>
 <h2 id="installer-kernel">Installer Kernel</h2>
 <p>The initrd carries <strong>no kernel modules</strong>, so the kernel it boots alongside must
 have NIC drivers, disk drivers, ext4, devtmpfs, initramfs and <code>ip=dhcp</code>

@@ -331,7 +331,7 @@
   },
   {
     "name": "bgp-nlri-mup",
-    "description": "Mobile User Plane family plugin (draft-mpmz-bess-mup-safi)",
+    "description": "Mobile User Plane family plugin (draft-ietf-bess-mup-safi)",
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
@@ -1057,6 +1057,18 @@
     ],
     "optional_dependencies": [],
     "source_dir": "internal/plugins/iface/dhcp",
+    "yang_files": [],
+    "doc": {}
+  },
+  {
+    "name": "iface-ra",
+    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/iface/ra",
     "yang_files": [],
     "doc": {}
   },

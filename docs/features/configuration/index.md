@@ -92,7 +92,7 @@ Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, defau
 | DSCP CS6 (RFC 4271 S5.1) | Sets IP_TOS/IPV6_TCLASS to 0xC0 so network QoS policies prioritize BGP traffic. |
 | Graceful TCP close | Half-close (CloseWrite) before Close sends FIN instead of RST, ensuring remote peers read pending NOTIFICATIONs. |
 | Send Hold Timer (RFC 9687) | Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry. |
-| Hold timer congestion extension | If data was recently read when the hold timer fires, ze is CPU-congested, not the peer. Resets hold timer instead of tearing down. |
+| Hold timer expiry (RFC 4271 Section 8.2.2, Event 10) | Every expiry sends NOTIFICATION code 4 (Hold Timer Expired) and stops the session. Ze grants no reprieve for CPU congestion. |
 | Write deadline | Forward pool batch writes use a 30s TCP write deadline (configurable via `ze.fwd.write.deadline`) to prevent stuck peers from blocking workers. |
 | Bounded overflow pool | Two-tier pool: per-peer pools (64 slots) absorb steady-state traffic, shared MixedBufMux overflow pool (auto-sized from peer prefix maximums, overridable via `ze.fwd.pool.size` byte budget) bounds overflow memory. |
 | Congestion backpressure | Two-threshold enforcement: pool > 80% denies buffers to the worst destination peer (natural TCP backpressure). Pool > 95% with peer > 2x weight share for 5s triggers forced teardown. |
@@ -102,7 +102,7 @@ Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, defau
 **Prometheus metrics:** `ze_bgp_pool_used_ratio`, `ze_bgp_overflow_items{peer}`, `ze_bgp_overflow_ratio{source}`, `ze_forward_buffer_denied_total`, `ze_forward_congestion_teardown_total`.
 <!-- source: internal/component/bgp/reactor/session_connection.go -- TCP_NODELAY, IP_TOS, closeConn -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- Send Hold Timer -->
-<!-- source: internal/component/bgp/reactor/session.go -- recentRead congestion extension -->
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- write deadline, overflow pool -->
 <!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- two-threshold enforcement -->
 

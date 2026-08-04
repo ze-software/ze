@@ -1139,8 +1139,8 @@ ride the same <code>interface-unit</code> grouping used everywhere else.</p>
 <h3 id="key-material-and-9-encoding">Key material and <code>$9$</code> encoding</h3>
 <p><code>private-key</code> and peer <code>preshared-key</code> are marked <code>ze:sensitive</code> in YANG.
 The config parser auto-decodes <code>$9$</code>-prefixed values on load
-(<code>internal/component/config/parser.go:127</code>); <code>ze config show</code> / <code>ze config
-dump</code> always re-encodes them on output (<code>internal/component/config/cli/cmd_dump.go:132</code>),
+(<code>internal/component/config/parser.go</code>); <code>ze config show</code> / <code>ze config
+dump</code> always re-encodes them on output (<code>internal/component/config/cli/cmd_dump.go</code>),
 so the plaintext base64 form never reaches the config file on disk. Public
 keys are public and stored plaintext.</p>
 <p><strong><code>$9$</code> is JunOS-compatible obfuscation, not encryption.</strong> Anyone with

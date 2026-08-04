@@ -54,7 +54,11 @@
     <p>Ze includes a built-in looking glass that provides public, read-only access to BGP session state and route information. It runs as a separate HTTP server from the authenticated web UI.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#configuration">Configuration</a></li>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#tls-is-on-by-default">TLS is on by default</a></li>
+<li><a href="#optional-bearer-token">Optional bearer token</a></li>
+</ol></li>
 <li><a href="#web-ui">Web UI</a></li>
 <li><a href="#birdwatcher-rest-api">Birdwatcher REST API</a></li>
 <li><a href="#alice-lg-integration">Alice-LG Integration</a></li>
@@ -102,17 +106,39 @@
 </tr>
 <tr>
 <td><code>tls</code></td>
-<td><code>false</code></td>
-<td>Enable TLS. Requires blob storage (<code>ze init</code>).</td>
+<td><code>true</code></td>
+<td>Serve HTTPS. Certificates come from blob storage (<code>ze init</code>). Set <code>false</code> to serve plaintext.</td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td>(empty)</td>
+<td>Bearer token. When set, every <code>Authorization: Bearer &lt;token&gt;</code>. Empty leaves the looking glass open. <span class="ev-src"><span class="ev-ref"><code>/api/</code></span><span class="ev-ref"><code>/lg/</code></span></span></td>
 </tr>
 </tbody>
 </table>
-<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.tls=true</code>.</p>
+<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.tls=false</code>, <code>ze.looking-glass.token=&lt;token&gt;</code>.</p>
+<h3 id="tls-is-on-by-default">TLS is on by default</h3>
+<p>The looking glass binds <code>0.0.0.0</code> and publishes route data and session state, so
+it serves HTTPS unless you turn TLS off. Two rules apply:</p>
+<ul>
+<li>Write <code>tls false</code> (or set <code>ze.looking-glass.tls=false</code>) to serve plaintext,
+  for example behind a proxy that terminates TLS.</li>
+<li>Without blob storage there is no certificate. If you wrote <code>tls true</code>, Ze
+  reports the error and does not start the looking glass. If you wrote nothing
+  and took the default, Ze serves plaintext and prints a warning that names
+  <code>ze init</code> as the remedy.</li>
+</ul>
+<h3 id="optional-bearer-token">Optional bearer token</h3>
+<p>A looking glass is normally public and read-only, so <code>token</code> is off by default.
+Set it to require a bearer token on every route. Ze compares the token
+constant-time over SHA-256 digests. A request with no token, a wrong token, or
+an <code>Authorization</code> header that is not <code>Bearer &lt;token&gt;</code> gets <code>401</code>.</p>
 <p>When the <code>looking-glass</code> block is absent, no HTTP server is started and no resources are consumed.</p>
-<!-- source: cmd/ze/hub/main.go -- startLGServer -->
+<!-- source: cmd/ze/hub/service_lg.go -- buildLGService -->
 
 <h2 id="web-ui">Web UI</h2>
-<p>The HTMX web UI is available at <code>http://&lt;host&gt;:&lt;port&gt;/lg/</code>. No authentication is required.</p>
+<p>The HTMX web UI is available at <code>https://&lt;host&gt;:&lt;port&gt;/lg/</code> (<code>http://</code> when you
+set <code>tls false</code>). No authentication is required unless you set <code>token</code>.</p>
 <table>
 <thead>
 <tr>
@@ -213,10 +239,10 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
   - name: &quot;Ze Router&quot;
     type: birdwatcher
     birdwatcher:
-      api: &quot;http://ze-host:8443/api/looking-glass&quot;
+      api: &quot;https://ze-host:8443/api/looking-glass&quot;
 </code></pre>
 <h2 id="security">Security</h2>
-<p>The looking glass is designed for public IXP deployment. It is read-only and unauthenticated. Security measures include:</p>
+<p>The looking glass is designed for public IXP deployment. It is read-only, and open unless you set <code>token</code>. Security measures include:</p>
 <ul>
 <li>Strict input validation on all query parameters (character allowlists, length limits).</li>
 <li><code>Content-Security-Policy</code>, <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code> headers.</li>

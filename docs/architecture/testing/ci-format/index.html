@@ -273,7 +273,7 @@ for, which is why neither is permitted:</p>
 </tbody>
 </table>
 <p>A guard that neither denies nor speaks does not exist
-(<code>ai/rules/fail-closed-guards.md</code>). The runner short-circuits a parse-failed
+(<code>ai/rules/evidence.md</code>). The runner short-circuits a parse-failed
 test before executing anything, so the reported error is the parse error rather
 than a confusing downstream symptom.</p>
 <p><strong>Unparseable outranks skipped.</strong> A file that both fails to parse and carries
@@ -642,6 +642,11 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <td>Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down — withdrawing that peer's routes and racing any forwarding still in flight toward other peers.</td>
 </tr>
 <tr>
+<td><code>silent</code></td>
+<td><code>value=true</code></td>
+<td>Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so <code>action=close</code> does not substitute. <strong>Explicit writes still happen</strong>: <code>action=send</code>, <code>action=notification</code>, the OPEN handshake itself, and <code>option=linger</code>'s post-completion KEEPALIVE loop are unaffected, so <code>silent</code> with <code>linger</code> is not silent. Sink and echo modes ignore it. See. <span class="ev-src"><span class="ev-ref"><code>test/plugin/deadpeer-holddown.ci</code></span></span></td>
+</tr>
+<tr>
 <td><code>open</code></td>
 <td><code>value=&lt;behavior&gt;</code></td>
 <td>OPEN message behavior</td>
@@ -664,7 +669,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>needs-linux</code></td>
 <td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
-<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-all-test</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration — creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets — <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/qemu-testing.md</code></span></span></td>
+<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-all-test</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration — creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets — <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/platform-linux.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>needs-path</code></td>

@@ -40,7 +40,7 @@ cat >>"$CONFIG_SET" <<'EOF'
 set environment looking-glass enabled enable
 set environment looking-glass server public ip 0.0.0.0
 set environment looking-glass server public port 8443
-set environment looking-glass tls disable
+set environment looking-glass tls false
 
 set environment ssh server main ip 127.0.0.1
 set environment ssh server main port 2222
@@ -67,7 +67,7 @@ Expected validation output:
 configuration valid: /tmp/tmp.XXXXXXXXXX
 ```
 
-The looking glass server defaults are `ip 0.0.0.0`, `port 8443`, and `tls false`; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing `server main` listener from the Ubuntu install guide.
+The looking glass server defaults are `ip 0.0.0.0`, `port 8443`, and `tls true`. This example sets `tls false` because it puts a reverse proxy in front; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing `server main` listener from the Ubuntu install guide.
 
 ## 3. Open the UI
 
@@ -145,7 +145,7 @@ The looking glass is read-only, but it still publishes topology and routing info
 | Reverse proxy on the same host | `ip 127.0.0.1`, proxy handles TLS and policy |
 | Internal only | bind to a management address and filter at the network edge |
 
-If Ze terminates TLS itself, set `tls true`. This requires a zefs blob store to hold the certificate, so create one first with `ze init` (see [Build and install Ze on Ubuntu](../ubuntu-build-install/index.md)); otherwise startup fails with `looking glass TLS requires blob storage (run ze init first)`.
+Ze terminates TLS itself unless you set `tls false`. This needs a zefs blob store to hold the certificate, so create one first with `ze init` (see [Build and install Ze on Ubuntu](../ubuntu-build-install/index.md)). Without a blob store, an explicit `tls true` fails with `looking glass TLS requires blob storage (run ze init first)`, while the default falls back to plaintext and prints a warning naming the same remedy.
 
 ```text
 environment {
