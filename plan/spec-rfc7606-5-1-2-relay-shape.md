@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-20 |
+| Phase | 2/2 (follow-on: withdraw-only relay shape) |
+| Updated | 2026-08-04 |
 
 ## Post-Compaction Recovery
 
@@ -451,6 +451,111 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
 - **Changed:** two files added that the plan did not list, both to avoid a second definition
   of "mixed"; documented above
 
+## Follow-On: withdraw-only relay shape (2026-08-04)
+
+Homed here by `plan/deferrals/fixit-otc-src-role-meta-fallback.md`, which this
+spec's ownership of relayed UPDATE shape made the destination for.
+
+### The defect
+
+`(*ASPathEdit).recordPrepend` (`internal/component/bgp/wireu/aspath_slot.go`)
+built `&attribute.ASPath{}` from nothing when the forwarded payload carried no
+AS_PATH, and emitted it. `forwardUpdateCore`
+(`internal/component/bgp/reactor/reactor_api_forward.go`) drove it on
+`facts.isEBGP` alone. A source withdrawal of `attrLen=0000` therefore reached an
+eBGP peer as `attrLen=0009` -- AS_PATH present, ORIGIN and NEXT_HOP absent.
+
+RFC 4271 Section 4.3 says such a message "will not include path attributes or
+Network Layer Reachability Information". Section 6.3 says "If any of the
+well-known mandatory attributes are not present, then the Error Subcode MUST be
+set to Missing Well-known Attribute." Section 6.3's tolerance clause covers "an
+UPDATE message that contains correct path attributes, but no NLRI", and a lone
+AS_PATH is not a correct set. Measured against FRR 10.3.1 on 2026-08-04:
+
+> [EC 33554482] 172.30.0.2 Missing well-known attribute NEXT_HOP.
+>
+> [EC 33554455] 172.30.0.2(Unknown) rcvd UPDATE with errors in attr(s)!! Withdrawing route.
+
+So every withdrawal Ze relayed to an eBGP peer was refused, and the withdrawn
+route stayed live there.
+
+### The fix, and the layer
+
+`ASPathEdit.Record` now routes to `recordTranscode` when the intent's Prepend is
+empty OR `PayloadAdvertisesNLRI` says the payload carries no reachable NLRI.
+`recordPrepend`, the only frame that can create an AS_PATH, is then unreachable
+for a withdraw-only UPDATE.
+
+**Why `Record` and not `forwardUpdateCore`.** Three reasons, in order of weight.
+
+1. `Record` is the only frame that holds the WHOLE payload. `recordPrepend` sees
+   just the attribute section, so it cannot see the IPv4 NLRI field at all, and
+   the guard would have needed a second argument threaded in for it.
+2. Two callers compose the same intent -- `forwardUpdateCore` and
+   `reactorForwardRS` (`reactor/forward_rs.go`). A predicate at the driver is two
+   copies today and a third the next time somebody records an intent.
+3. RFC 4271 Section 5.1.2's prepend clause is conditioned on "when a given BGP
+   speaker advertises the route to an external peer". That condition is a
+   property of the PAYLOAD, not of the destination, so it belongs beside the
+   payload rather than beside the peer.
+
+Landing on `recordTranscode` rather than returning early is deliberate: an
+AS_PATH or AGGREGATOR that rode along on a withdraw-only UPDATE is still
+re-encoded at the destination's AS number width (RFC 6793 Section 4.2.2), and
+one that was never there is never invented.
+
+`wireu.PayloadAdvertisesNLRI` is the single definition. `role/otc.go`'s
+`payloadAdvertisesNLRI` -- the RFC 9234 Section 5 stamping gate, which asks the
+identical question -- now delegates to it, and its duplicate byte-walk plus the
+`hasAttr` helper it needed are deleted.
+
+### Tests
+
+| Test | File | Proves |
+|------|------|--------|
+| `TestPayloadAdvertisesNLRIShapes` | `wireu/advertise_test.go` | 10 shapes: withdraw-only, MP_UNREACH-only, EoR, NLRI, MP_REACH, mixed, three truncations |
+| `TestASPathSlotPrependOnlyWhenAdvertising` | same | the SAME intent prepends over an advertising payload and records nothing over a withdraw-only one; RFC4271-5.1.2-3 both polarities |
+| `TestASPathSlotWithdrawOnlyStillTranscodes` | same | dropping the prepend does not drop the RFC 6793 width transcode |
+| `TestMessageIsEOR` (12 rows) + `...RejectsNonUpdate` | `internal/test/peer/message_eor_test.go` | RFC 4724 Section 2 by content, not by length |
+| `role-otc-fwd-withdraw.ci` | `test/plugin/` | the relayed withdrawal is byte-identical to the source's: `attrLen=0000` |
+| `52-relay-withdraw-shape-frr` | `test/interop/scenarios/` | FRR 10.3.1 ACCEPTS the relayed withdrawal, and prepends still reach advertisements |
+
+### Mutation evidence (all measured, 2026-08-04)
+
+| Mutant | Result |
+|--------|--------|
+| `Record`: drop the guard (`len(in.Prepend) == 0`) | 3 unit subtests RED; `role-otc-fwd-withdraw.ci` RED with `+ AS_PATH: [65000] (unexpected)`; interop 52 RED at the positive -- the relayed EoR is stamped, stops being a marker, and the injector never releases |
+| `Record`: narrow the guard to `len(payload) == 4` | interop 52 RED at the NEGATIVE with FRR's two error lines quoted above |
+| `Message.IsEOR`: back to the length test | `role-otc-rs-withdraw-eor.ci` fails as `TYPE: unknown` with no diff instead of naming `+ ATTR_35: 0000fde8 (unexpected)` |
+| `role.payloadAdvertisesNLRI`: forced open | interop 51 RED with FRR's two error lines; `role-otc-rs-withdraw-eor.ci` RED on the withdrawal |
+| `role.payloadAdvertisesNLRI`: open for the EoR only | `role-otc-rs-withdraw-eor.ci` RED on the EoR with `+ ATTR_35: 0000fde8 (unexpected)` |
+
+### Fixtures corrected, not assertions
+
+Eight test fixtures asserted a prepend over a payload carrying no NLRI, so they
+were withdraw-only UPDATEs claiming to be advertisements. Each gained an NLRI;
+no assertion changed. Seven are in `wireu/aspath_slot_test.go` (via
+`probeAdvertisedNLRI`); the eighth is `TestReactorForwardRSEBGPPrepend`
+(`reactor/forward_rs_test.go`), which is RFC-tagged and carries an
+`rfc-test-change-approved:` marker.
+
+### Found while doing this, NOT fixed here
+
+All three were confirmed by independent review, and none is reached on the rail
+this spec owns. The first two are the same defect CLASS as the one fixed above:
+a per-destination rule that adds an attribute without asking whether the UPDATE
+advertises anything. They want one "advertises" bit hoisted into
+`forwardUpdateCore` and read by every adding site, not three separate guards, and
+that is a spec of its own with its own interop witnesses.
+
+| Finding | Producer | Why not here |
+|---------|----------|--------------|
+| Next-hop-self stamps a lone NEXT_HOP onto a relayed withdrawal AND onto a relayed legacy End-of-RIB. `applyFactsNextHop` (`reactor/peer_forward_facts.go`) records `Op(3, Set)` whenever `nhMode` is not `nhModeNone`, and `genericAttrSetHandler` (`reactor/filter_delta_handlers.go`) CREATES the attribute when the payload has no source value | `forwardUpdateCore` (`reactor/reactor_api_forward.go`) | reached only when the operator configures a next-hop rewrite, which the eBGP default path does not. `role-otc-fwd-withdraw.ci` asserts the relayed withdrawal is byte-identical, which holds because `nhMode` is `nhModeNone` there. Needs its own interop witness with next-hop-self configured |
+| RFC 4456 reflection injects ORIGINATOR_ID and CLUSTER_LIST onto a relayed withdraw-only UPDATE and onto a relayed End-of-RIB; `originatorIDHandler` and `clusterListHandler` both create when the attribute is absent | same, gated on `srcInfo.isIBGP && !facts.isEBGP` | the iBGP route-reflector rail, which this spec does not touch. Confirmed NOT reachable on the plain eBGP rail |
+| The egress community tag records `AttrModAdd`, and `genericCommunityHandler` (`bgp/plugins/filter_community/handler.go`) emits from an Add with no source value | `applyEgressFilter` (`bgp/plugins/filter_community/egress.go`) | a plugin's own policy surface, a third producer again |
+| `tryShift` (`wireu/aspath_slot.go`) returns before `recordAS4Path`, so the fast prepend path carries a received AS4_PATH onward between two NEW speakers (RFC 6793 Section 4.1 "MUST NOT be carried"). Pre-existing, on the ADVERTISING rail, and untouched by this change; the withdraw-only half of the same hole IS fixed here, by `recordWithdrawOnly` | `ASPathEdit.tryShift` | the fast path cannot express the AS4_PATH merge it would need for the both-OLD case, so closing it is a redesign of that path rather than a guard |
+| An RS-Client DESTINATION (RFC 9234 wire role 2) is proven nowhere. `role-otc-rs-withdraw-eor.ci`'s dest declares wire role 3, which `roleNames` (`role/role.go`) calls customer; egress rule 1's third named destination role rests on the Customer case reading as representative | `role/otc.go` | RFC 9234 scope, not relay shape. Recorded in that `.ci`'s header |
+
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
@@ -495,6 +600,32 @@ One subagent over the NEXT_HOP-dedup and EoR fixes. No BLOCKER, no ISSUE.
 | 1 | MINOR | the strip-safety comment cited only `ErrNextHopUnset`; the real invariant also depends on callers, because `resolveNextHop` (peer.go) deliberately passes an invalid explicit next-hop through without erroring (a fail-open guard, pinned by `TestResolveNextHop_ExplicitInvalid`) | `reactor_api_batch.go` | fixed: added a local `nextHop.IsValid()` fail-closed guard at the strip (leaves the block untouched for an invalid next-hop rather than dropping the stored NEXT_HOP), a discriminating test (`...InvalidNextHopKeepsBlock`, mutant-killed with a MED-after-NEXT_HOP fixture), and an accurate comment. `resolveNextHop`'s deliberate behavior left unchanged |
 | 2 | NOTE | MP_REACH re-origination cannot preserve an RFC 2545 link-local next-hop | same | pre-existing, not introduced here; out of scope |
 | 3 | NOTE | 4K build buffer vs 64K ExtendedMessage ceiling | same | pre-existing; the strip only lowers occupancy |
+
+### Run 4 (independent review of the withdraw-only relay-shape follow-on, 2026-08-04)
+
+Two independent reviewer subagents on Opus 5, neither of which wrote the code:
+A over the production change, B over the tests and test infrastructure. Zero
+BLOCKER. Every ISSUE fixed and mutation-verified. Artifact:
+`tmp/review/withdraw-only-relay-shape-<session>.md`.
+
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| 1 | ISSUE | Routing a withdraw-only UPDATE to `recordTranscode` lost the RFC 6793 Section 4.1 AS4_PATH drop that `recordPrepend` performed through `recordAS4Path`. `recordTranscode` returns at `SrcASN4 == DstASN4` before reaching it, which is right for the RFC 7947 route-server rail and wrong for an EBGP peer, so a received AS4_PATH would travel between two NEW speakers | fixed: `recordWithdrawOnly` wraps `recordTranscode` and adds the equal-width drop, gated on `DstASN4` so an OLD destination still gets the attribute it is meant to have. `TestASPathSlotWithdrawOnlyDropsAS4Path`, two subtests; the `if false &&` mutant reddens the NEW-NEW one |
+| 2 | ISSUE | Three new comments attributed the prepend to "RFC 4271 Section 9.1.2", which is Phase 2 Route Selection. The clause quoted is Section 5.1.2 b. The file header carried the same miscitation before this change | fixed: all five sites in `wireu/aspath_slot.go` and the one in `role/otc.go`; `grep "9\.1\.2"` over both returns nothing |
+| 3 | ISSUE | The same defect CLASS survives on three other operation sites, so "no attribute is synthesized onto a withdraw-only relay" is not universally true | homed, not fixed: each is a different producer on a rail this spec does not own, and none is reached on the eBGP default path. See "Found while doing this, NOT fixed here" above, where each producing handler is now named |
+| 4 | ISSUE (hot path) | `PayloadAdvertisesNLRI` re-reads the two length fields `aspathAttrSection` just read, and walks the TLVs for an MP-only advertisement although `BuildSpanIndex` ran two statements earlier | accepted: allocation-free, and O(1) for native IPv4 NLRI because the trailing-NLRI test answers first. A second spans-based implementation would re-create the duplicate definition this change removed, and `WireUpdate.MixesNLRIFields` answers a different question over a different type |
+| 5 | ISSUE | `TestASPathSlotRSClientSkipsPrepend` kept a payload with no NLRI while the other seven fixtures gained one, so its RFC 7947 Section 2.2.2 assertion passed through the new withdraw-only branch: deleting the `len(in.Prepend) == 0` half of the condition left it green | fixed: same one-line fixture change, reason recorded in the test. The `if false &&` mutant now reddens both subtests |
+| 6 | ISSUE | Scenario 51's rewritten negative changed KIND, not only regex. "The receiver raised no attribute error" is narrower than "no OTC Attribute was added", and it carried no measured mutant | fixed: the docstring records both measured mutants with FRR's verbatim output, states what the assertion does and does NOT observe, and names `role-otc-fwd-withdraw.ci` as what closes the remainder. The tag text now states the observation, not the inference |
+| 7 | MINOR | `checker_match_test.go` still described the deleted length rule | fixed |
+| 8 | NOTE | Dead branch in the new `IsEOR` (`len(m.Body) < 2+withdrawnLen+2` is unreachable) | fixed: removed with the reason stated |
+| 9 | NOTE | `internal/test/peer.Message.IsEOR` duplicates the semantics of production `wireu.WireUpdate.IsEOR` and the two can drift; `isBareMPUnreach` requires exactly one MP_UNREACH while `(*Update).IsEndOfRIBAnyFamily` accepts a run | accepted: the test peer decodes without importing the production wire package, and no producer emits the multi-attribute form |
+
+Reported clean by both reviewers: the predicate's agreement with the role walk it
+replaced on every input including malformed ones; MP_REACH, End-of-RIB, mixed and
+route-server behavior; fail-closed guard quality; the `IsEOR` narrowing (nothing
+real is refused, and Ze's own `message.BuildEOR` output still classifies as an
+End-of-RIB); non-vacuity of all four new tests; both `inject.msg` barriers; and
+all eleven `rfc-test-change-approved:` markers, none of which weakens.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- all ISSUEs fixed and mutation-verified; NOTEs recorded

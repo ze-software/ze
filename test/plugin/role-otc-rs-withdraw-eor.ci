@@ -1,0 +1,262 @@
+# Test: OTC egress -- an End-of-RIB and a withdraw-only UPDATE are NOT stamped
+# VALIDATES: RFC 9234 Section 5 egress rule 1 -- "If a route is to be advertised
+#            to a Customer, a Peer, or an RS-Client [...] then when advertising
+#            the route, an OTC Attribute MUST be added". "Is to be advertised" is
+#            a CONDITION: neither a withdraw-only UPDATE nor an End-of-RIB marker
+#            carries a route, so the obligation never arises for either.
+#
+# rfc-test-change-approved: 2026-08-04 -- Thomas approved. COMMENT ONLY, no
+# assertion, hex or config changed. The header called the destination an
+# RS-Client. It is not: the dest peer declares wire role 3 in its OPEN
+# (option=open:value=add-capability:code=9:hex=03), and roleNames
+# (internal/component/bgp/plugins/role/role.go) maps 3 to customer -- RS-Client is
+# 2. Customer is equally one of the three destination roles egress rule 1 names,
+# so what the test PROVES is unchanged; the label was wrong.
+#
+# WHAT IS NOT PROVEN, and is not proven anywhere: an RS-Client DESTINATION
+# (declared wire role 2). No .ci and no interop scenario exercises it, so egress
+# rule 1's third named destination role rests on the Customer case being read as
+# representative. Homed on plan/spec-rfc7606-5-1-2-relay-shape.md.
+#
+# RFC requirement: RFC9234-5-4 positive -- the running route server adds the OTC
+# Attribute with its local AS number to a route it advertises to a Customer, one
+# of the three destination roles Section 5 egress rule 1 names (dest seq=1).
+# RFC requirement: RFC9234-5-4 negative -- it adds none to a relayed withdrawal
+# (dest seq=2) nor to a relayed RFC 4724 End-of-RIB marker (dest seq=3): neither
+# advertises a route, and an added attribute would stop the marker being one.
+#
+# PREVENTS: OTC stamped onto a relayed End-of-RIB. RFC 7606 Section 5.2 names the
+#           two RFC 4724 EoR encodings, and adding ANY attribute stops a message
+#           being an EoR at all -- the receiving peer's graceful-restart
+#           convergence then never completes. Also OTC stamped onto a relayed
+#           withdrawal (RFC 7606 Section 5.2 session-reset hazard).
+#
+# WHY THE ROUTE-SERVER RAIL. This is the rail on which a RECEIVED End-of-RIB
+# reaches an egress filter at all: the fast path in
+# internal/component/bgp/reactor/reactor_notify.go admits a received UPDATE to
+# the forward rails on the message TYPE alone, and an EoR is an UPDATE. A locally
+# ORIGINATED EoR takes a different route (AnnounceEOR calls peer.SendUpdate
+# directly in reactor_api_forward.go, bypassing egress filters), so
+# payloadAdvertisesNLRI is the only thing protecting a RELAYED one.
+#
+# rfc-test-change-approved: 2026-08-04 -- Thomas approved. COMMENT ONLY. The
+# sentence that stood here said the destination is an RS-Client; it declares wire
+# role 3, which roleNames calls customer. Customer is equally one of the three
+# destination roles egress rule 1 names, so the positive obligation below is
+# still the RFC's own case rather than an analogue of it. `rs-client true` on the
+# peers selects the route-server FORWARDING rail (RFC 7947 transparency), which
+# is what makes the two negatives byte-exact; it is not the peer's RFC 9234 role.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). An assertion that an
+# attribute is ABSENT passes when the mechanism that adds it is deleted. So this
+# file asserts the POSITIVE and both NEGATIVES on the SAME session, to the SAME
+# peer, in one run: dest seq=1 requires the advertising UPDATE to CARRY OTC, and
+# seq=2/seq=3 require the two non-advertising ones to come through untouched.
+# Forcing payloadAdvertisesNLRI open reddens seq=2 and seq=3; forcing it shut
+# reddens seq=1. The observer proves each message was written to the dest before
+# it releases the next one, so no assertion can be satisfied by a peer that had
+# already gone away.
+#
+# RFC 7947 Section 2.2.2 transparency makes the negatives sharp here: the RS does
+# not prepend AS_PATH, so a correctly handled withdrawal and EoR are forwarded
+# BYTE-IDENTICAL to what the source sent. Any OTC would be the only difference.
+
+# Source peer (Customer, ASN 65001) on 127.0.0.1, the RS fast-path source.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The source must outlive the dest's assertions: a source that closes makes ze
+# withdraw its routes, and the dest would then read a session-down withdrawal in
+# place of the message its rule is waiting for. Same reason as
+# role-otc-egress-stamp.ci.
+option=linger:value=true
+# Role capability: drop ze-peer's default (mirrored Provider) then add Customer.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# seq=1 -- advertise 10.0.0.0/24: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+# seq=2 -- BARRIER, not an assertion. The observer injects 192.0.2.0/24 to THIS
+# peer only, and only after ze has already written the dest the stamped route.
+# Without it the withdrawal below races the dest's establishment, and a dest that
+# is not yet a forward target sees nothing at all -- the "it passed because the
+# peer had disconnected" vacuity this file exists to avoid.
+expect=bgp:conn=1:seq=2:contains=18C00002
+# seq=3 -- withdraw 10.0.0.0/24. withdrawnLen=4, attrLen=0.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+# seq=4 -- second barrier: 198.51.100.0/24, injected once the dest has the
+# withdrawal, so the End-of-RIB below cannot overtake it.
+expect=bgp:conn=1:seq=4:contains=18C63364
+# seq=5 -- RFC 4724 legacy End-of-RIB: a completely empty UPDATE, the encoding
+# RFC 7606 Section 5.2 names as "a completely empty UPDATE message in the case of
+# the legacy encoding".
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# Dest peer (Customer, ASN 65002) on 127.0.0.2 -- the wire assertions live here.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# seq=1 POSITIVE -- the advertisement MUST carry OTC: C0 23 04 0000FDE8, value
+# 65000, ze's local AS. attrLen=001B: ORIGIN, AS_PATH [65001] (unprepended, RFC
+# 7947 Section 2.2.2), NEXT_HOP, then OTC. This is the obligation the two
+# negatives below must not be read as denying.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C023040000FDE8180A0000
+# seq=2 NEGATIVE -- the withdrawal, forwarded byte-identical to what the source
+# sent: attrLen=0000, no attribute of any code. A stamped one would read
+# attrLen=0007 with C023040000FDE8, and this exact-hex rule refuses it.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+# seq=3 NEGATIVE -- the End-of-RIB, forwarded byte-identical: still a completely
+# empty UPDATE, so it is still an EoR. A stamped one would carry attrLen=0007 and
+# the receiving peer's graceful restart would never converge.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DEST
+
+# Observer: sequences each source message behind "the dest was actually sent the
+# previous one", so no assertion can pass or fail by absence.
+tmpfs=test-rs-eor.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Sequence the source's withdrawal and End-of-RIB behind the dest's receipts."""
+import sys
+from ze_api import API, runtime_fail
+
+DEST = '127.0.0.2'
+
+
+def dest_updates(api):
+    """Real UPDATEs written to the dest peer, its own initial-sync EoR excluded.
+
+    updates-sent counts EVERY UPDATE written to the peer, End-of-RIB included
+    (IncrUpdatesSent in reactor/reactor_notify.go sees only the message type).
+    eor-sent is the separate marker counter for ze's OWN End-of-RIB, so the
+    difference is the forwarded traffic -- the relayed EoR included, which is
+    what makes the third barrier below distinguishable from the second.
+    """
+    return (api.peer_counter('updates-sent', peer=DEST)
+            - api.peer_counter('eor-sent', peer=DEST))
+
+
+def release(api, prefix):
+    """Inject one route to the SOURCE peer only: the source's barrier rule."""
+    api.send('peer 127.0.0.1 update text origin igp nhop 1.1.1.1 '
+             f'nlri ipv4/unicast add {prefix}')
+
+
+def barrier(api, count, what):
+    if not api.wait_until(lambda: dest_updates(api) >= count, attempts=40):
+        runtime_fail(f'dest peer was never sent {what}')
+    print(f'OK: dest was sent {what}', file=sys.stderr)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce FIRST so each poll behind it is a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC, and 40 engine round trips
+    # on a starved daemon would otherwise outlast the test's own budget.
+    api.quiesce()
+    barrier(api, 1, 'the OTC-stamped advertisement')
+
+    release(api, '192.0.2.0/24')
+    barrier(api, 2, 'the forwarded withdrawal')
+
+    release(api, '198.51.100.0/24')
+    barrier(api, 3, 'the relayed End-of-RIB')
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze: route server (ASN 65000) with two RS-client Customer peers.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external test-rs-eor {
+		run ./test-rs-eor.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			rs-client true
+		}
+		behavior {
+			rs-fast-path enable
+		}
+
+		role {
+			import provider
+			export default
+		}
+		process test-rs-eor {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			rs-client true
+		}
+
+		role {
+			import provider
+			export default
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

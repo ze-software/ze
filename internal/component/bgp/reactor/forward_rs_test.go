@@ -334,10 +334,23 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 
 	// UPDATE with AS_PATH using 4-byte ASN encoding (matching ASN4 context).
 	// flags=0x40 (well-known transitive), type=2, len=6, AS_SEQUENCE, count=1, AS=65001 (4-byte)
+	//
+	// rfc-test-change-approved: 2026-08-04 -- Thomas approved RFC-tagged test edits
+	// in the withdraw-only AS_PATH work, on the standing condition that every one
+	// STRENGTHENS the proof. This is a FIXTURE PRECONDITION correction and changes
+	// no assertion: 192.0.2.0/24 is added so the fixture is the advertisement the
+	// test's own prose claims. RFC 4271 Section 5.1.2 obliges the prepend only
+	// "when a given BGP speaker advertises the route to an external peer", so
+	// ASPathEdit.Record (wireu/aspath_slot.go) resolves a payload with no reachable
+	// NLRI as transcode-only. Without the NLRI this fixture is a withdraw-only
+	// UPDATE, and the RFC7947-x-1 negative below would be asserting about a rail
+	// that is not the prepend rail. The assertion itself is untouched and still
+	// requires the forwarded body to GROW.
 	payload := []byte{
 		0, 0, // WithdrawnLen = 0
 		0, 9, // AttrLen = 9
 		0x40, 2, 6, 2, 1, 0, 0, 0xFD, 0xE9, // AS_PATH: AS_SEQUENCE[65001] (4-byte)
+		24, 192, 0, 2, // NLRI: 192.0.2.0/24 -- see the note above
 	}
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(60)

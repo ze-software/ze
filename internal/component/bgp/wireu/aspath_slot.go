@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — the AS-path family as generate slots
-// RFC: rfc/short/rfc4271.md — AS_PATH prepend to an EBGP peer (Section 9.1.2), ascending attribute order (Section 5)
+// RFC: rfc/short/rfc4271.md — AS_PATH prepend when ADVERTISING to an EBGP peer (Section 5.1.2 b), ascending attribute order (Section 5)
 // RFC: rfc/short/rfc6793.md — AS4_PATH obligation and AGGREGATOR/AS_TRANS (Section 4.2.2), malformed AS4_PATH discard (Section 6)
 // RFC: rfc/short/rfc7947.md — a route server MUST NOT modify AS_PATH for an RS client (Section 2.2.2)
 // Overview: aspath_rewrite.go — RewriteASPath, the whole-payload rewrite this replaces
@@ -56,7 +56,10 @@ var ErrASPathIntentEmpty = errors.New("AS_PATH intent: no ASNs to prepend")
 //
 // An empty Prepend means transcode only, which is the RFC 7947 Section 2.2.2
 // route-server case: an RS client's AS_PATH is never modified, but an ASN4
-// transcode still applies when the widths differ.
+// transcode still applies when the widths differ. A non-empty Prepend is also
+// resolved as transcode-only when the payload advertises no NLRI, because RFC
+// 4271 Section 5.1.2 b conditions the prepend on a route being advertised (see
+// Record).
 type ASPathIntent struct {
 	Prepend []uint32
 	SrcASN4 bool
@@ -103,10 +106,56 @@ func (e *ASPathEdit) Record(mods *filterapi.ModAccumulator, payload []byte, in A
 		return false, fmt.Errorf("AS_PATH intent: index attributes: %w", err)
 	}
 
+	// RFC 4271 Section 5.1.2 b obliges the prepend when a route is ADVERTISED to an
+	// external peer. An UPDATE that advertises none carries no route for the rule
+	// to act on, and RFC 4271 Section 4.3 says so directly: such a message "will
+	// not include path attributes or Network Layer Reachability Information".
+	// Prepending onto nothing there manufactures a lone AS_PATH with no ORIGIN and
+	// no NEXT_HOP, which Section 6.3 makes a Missing Well-known Attribute error for
+	// the receiver -- observed against FRR 10.3.1, which answers every such
+	// withdrawal with "rcvd UPDATE with errors in attr(s)!! Withdrawing route".
+	//
+	// The transcode case is the right landing point rather than an early return:
+	// an AS_PATH or AGGREGATOR that RODE ALONG on a withdraw-only UPDATE is still
+	// re-encoded at the destination's AS number width (RFC 6793 Section 4.2.2),
+	// while one that was never there is never invented. recordTranscode reads only
+	// SrcASN4 and DstASN4, so the unused Prepend costs nothing.
 	if len(in.Prepend) == 0 {
 		return e.recordTranscode(mods, section, &spans, in)
 	}
+	if !PayloadAdvertisesNLRI(payload) {
+		return e.recordWithdrawOnly(mods, section, &spans, in)
+	}
 	return e.recordPrepend(mods, section, &spans, in)
+}
+
+// recordWithdrawOnly records the AS-path family for an EBGP destination whose
+// UPDATE advertises no route: everything the prepend rail does EXCEPT the
+// prepend itself.
+//
+// It is not the same as recordTranscode, and the difference is one rule. On the
+// RFC 7947 route-server rail an AS4_PATH the client sent is deliberately left
+// alone when the widths match, because Section 2.2.2 asks for the AS-path family
+// to be untouched. This destination is an ordinary EBGP peer, so RFC 6793
+// Section 4.1 governs instead: "The new attributes, AS4_PATH and AS4_AGGREGATOR,
+// MUST NOT be carried in an UPDATE message between NEW BGP speakers." The
+// prepend rail drops it through recordAS4Path, and a withdrawal must not become
+// the one shape that carries it onward.
+func (e *ASPathEdit) recordWithdrawOnly(mods *filterapi.ModAccumulator, section []byte, spans *attribute.SpanIndex, in ASPathIntent) (bool, error) {
+	changed, err := e.recordTranscode(mods, section, spans, in)
+	if err != nil {
+		return false, err
+	}
+	// Only the equal-width case is left to handle: recordTranscode already ran
+	// recordAS4Path when the widths differ. "Between NEW BGP speakers" is both
+	// ends four-octet, which the equality above plus DstASN4 states exactly -- a
+	// two-octet destination is an OLD speaker, and an AS4_PATH is what it is
+	// SUPPOSED to receive.
+	if in.SrcASN4 == in.DstASN4 && in.DstASN4 && spans.Has(attribute.AttrAS4Path) {
+		mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSuppress, nil)
+		changed = true
+	}
+	return changed, nil
 }
 
 // aspathAttrSection returns the path-attribute section of an UPDATE body.
@@ -132,8 +181,8 @@ func spanValue(section []byte, s attribute.Span) []byte {
 	return section[s.Offset : int(s.Offset)+int(s.Length)]
 }
 
-// recordPrepend records the EBGP prepend case: RFC 4271 Section 9.1.2 obliges
-// the local AS number on the front of the path, and RFC 6793 Section 4.2.2 can
+// recordPrepend records the EBGP prepend case: RFC 4271 Section 5.1.2 b obliges
+// the local AS number on the front of the path of a route being ADVERTISED, and RFC 6793 Section 4.2.2 can
 // oblige an AS4_PATH, an AGGREGATOR rewritten to AS_TRANS, and an
 // AS4_AGGREGATOR carrying the real value alongside it.
 func (e *ASPathEdit) recordPrepend(mods *filterapi.ModAccumulator, section []byte, spans *attribute.SpanIndex, in ASPathIntent) (bool, error) {
@@ -161,9 +210,13 @@ func (e *ASPathEdit) recordPrepend(mods *filterapi.ModAccumulator, section []byt
 		}
 		path = parsed
 	} else {
-		// RFC 4271 Section 5: AS_PATH is well-known mandatory, so an UPDATE
-		// reaching an EBGP peer without one gets a complete attribute created
-		// rather than a prepend applied to nothing.
+		// RFC 4271 Section 5: AS_PATH is well-known mandatory on an UPDATE that
+		// ADVERTISES a route, so an advertisement reaching an EBGP peer without one
+		// gets a complete attribute created rather than a prepend applied to
+		// nothing. Only an advertisement reaches here: Record sends a payload with
+		// no reachable NLRI to recordTranscode, because a withdraw-only UPDATE
+		// carries no route for the well-known set to describe (RFC 4271
+		// Section 4.3).
 		path = &attribute.ASPath{}
 	}
 
@@ -195,9 +248,19 @@ func (e *ASPathEdit) recordPrepend(mods *filterapi.ModAccumulator, section []byt
 	return true, nil
 }
 
-// recordTranscode records the transcode-only case: RFC 7947 Section 2.2.2
-// forbids a route server from modifying an RS client's AS_PATH, while RFC 6793
-// Section 4.2.2 still obliges the encoding width the client negotiated.
+// recordTranscode records the two cases where the outgoing AS_PATH keeps the
+// source's AS numbers and only its ENCODING can change.
+//
+//  1. RFC 7947 Section 2.2.2 forbids a route server from modifying an RS
+//     client's AS_PATH, while RFC 6793 Section 4.2.2 still obliges the encoding
+//     width the client negotiated.
+//  2. An UPDATE that advertises no NLRI, on any rail. RFC 4271 Section 5.1.2 b
+//     conditions the prepend on a route being advertised, so there is nothing to
+//     prepend to; an AS_PATH that rode along is still re-encoded, and one that is
+//     absent is left absent.
+//
+// Neither case may CREATE an AS_PATH: every branch below is guarded on the
+// attribute already being present in the payload.
 func (e *ASPathEdit) recordTranscode(mods *filterapi.ModAccumulator, section []byte, spans *attribute.SpanIndex, in ASPathIntent) (bool, error) {
 	if in.SrcASN4 == in.DstASN4 {
 		// Same width: the client reads the received bytes as they are. Recording

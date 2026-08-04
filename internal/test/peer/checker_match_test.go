@@ -105,7 +105,12 @@ func TestParseExpectRule_PrefixContains(t *testing.T) {
 }
 
 // mkTestUpdate builds an UPDATE Message whose body is the given hex.
-// Bodies must not be 4 or 11 bytes long (IsEOR would classify them as EOR).
+//
+// Bodies must not be an End-of-RIB marker: an empty body, or one whose only path
+// attribute is a bare MP_UNREACH_NLRI. IsEOR would classify those as EOR and the
+// checker accepts an unmatched EoR in silence. The old rule here read "not 4 or
+// 11 bytes long", which was the LENGTH test IsEOR used before it classified by
+// content (message.go).
 func mkTestUpdate(t *testing.T, bodyHex string) *Message {
 	t.Helper()
 	body, err := hex.DecodeString(bodyHex)

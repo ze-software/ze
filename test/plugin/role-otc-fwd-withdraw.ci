@@ -1,0 +1,221 @@
+# Test: OTC egress -- a withdraw-only UPDATE is NOT stamped, on the forward rail
+# VALIDATES: RFC 9234 Section 5 egress rule 1 -- "If a route is to be advertised
+#            to a Customer, a Peer, or an RS-Client [...] then when advertising
+#            the route, an OTC Attribute MUST be added". "Is to be advertised" is
+#            a CONDITION. A withdraw-only UPDATE carries no route, so rule 1 never
+#            arises and no OTC Attribute may be added.
+#
+# RFC requirement: RFC9234-5-4 positive -- the running daemon adds the OTC
+# Attribute with its local AS number to a route it advertises to a Customer,
+# proven on the wire (dest seq=1) rather than at the filter helper.
+# RFC requirement: RFC9234-5-4 negative -- the same daemon adds no OTC Attribute
+# to a withdraw-only UPDATE toward that same Customer (dest seq=2), because
+# Section 5 conditions the obligation on a route being advertised.
+#
+# PREVENTS: OTC stamped onto a withdraw-only UPDATE relayed to a Customer.
+#           payloadAdvertisesNLRI (internal/component/bgp/plugins/role/otc.go) is
+#           the gate; before it existed, every forwarded withdrawal toward a
+#           Customer, Peer or RS-Client got a 7-byte OTC attribute.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). An assertion that an
+# attribute is ABSENT passes when the mechanism that adds it is deleted. So this
+# file asserts the POSITIVE and the NEGATIVE on the SAME session, to the SAME
+# peer, in one run: dest seq=1 requires the advertising UPDATE to CARRY OTC, dest
+# seq=2 requires the withdrawal not to. Forcing payloadAdvertisesNLRI open
+# reddens seq=2; forcing it shut reddens seq=1. Neither red can be reached by the
+# peer having disconnected: the observer proves each message was written to the
+# dest before it releases the next one.
+#
+# The End-of-RIB half of the same gate is covered by role-otc-rs-withdraw-eor.ci.
+# A received EoR reaches a forwarding rail only through the route-server fast path
+# (internal/component/bgp/reactor/reactor_notify.go), which that test configures.
+
+# Source peer (Customer, ASN 65001) on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The source must outlive the dest's assertions: the two sessions establish
+# independently and a source that closes makes ze withdraw its routes, which
+# would deliver the dest a withdrawal it never asked for. Same reason as
+# role-otc-egress-stamp.ci.
+option=linger:value=true
+# Role capability: drop ze-peer's default (mirrored Provider) then add Customer.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# seq=1 -- advertise 10.0.0.0/24: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+# seq=2 -- BARRIER, not an assertion. The observer injects 192.0.2.0/24 to THIS
+# peer only, and only after ze has already written the dest the stamped route.
+# Without it the withdrawal below races the dest's establishment, and a dest that
+# is not yet a forward target sees neither message -- the "it passed because the
+# peer had disconnected" vacuity this file exists to avoid.
+expect=bgp:conn=1:seq=2:contains=18C00002
+# seq=3 -- withdraw 10.0.0.0/24. withdrawnLen=4, attrLen=0.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_SOURCE
+
+# Dest peer (Customer, ASN 65002) on 127.0.0.2 -- the wire assertions live here.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# seq=1 POSITIVE -- the advertisement MUST carry OTC: C0 23 04 0000FDE8, value
+# 65000, ze's local AS (RFC 9234 Section 5 egress rule 1). Byte-identical to
+# role-otc-egress-stamp.ci's assertion.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C023040000FDE8180A0000
+# seq=2 NEGATIVE -- the forwarded withdrawal, BYTE-IDENTICAL to what the source
+# sent: attrLen=0000, no attribute of any code. A stamped withdrawal would read
+# attrLen=0007 with C023040000FDE8, and this exact-hex rule refuses it.
+#
+# rfc-test-change-approved: 2026-08-04 -- Thomas approved RFC-tagged test edits in
+# the withdraw-only AS_PATH work, on the standing condition that every one
+# STRENGTHENS the proof. This rule was re-baselined from attrLen=0009 (AS_PATH
+# 4002 06 02 01 0000FDE8) to attrLen=0000, which is strictly stronger: it now
+# refuses ANY path attribute rather than one specific extra one. The header this
+# replaces recorded the AS_PATH as a defect and said in as many words that "when
+# that defect is fixed the expected attrLen becomes 0000 and this rule must be
+# updated with it". That is what happened. ASPathEdit.Record
+# (internal/component/bgp/wireu/aspath_slot.go) now resolves a payload with no
+# reachable NLRI as transcode-only, so the EBGP forward rail synthesizes no
+# AS_PATH for a withdrawal. RFC 4271 Section 4.3: such a message "will not
+# include path attributes"; Section 6.3 made the old shape a Missing Well-known
+# Attribute error, which FRR 10.3.1 answered with "rcvd UPDATE with errors in
+# attr(s)!! Withdrawing route" (test/interop/scenarios/52-relay-withdraw-shape-frr
+# proves the accepted shape against the live daemon).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_DEST
+
+# Observer: sequences the source's withdrawal behind "the dest was actually sent
+# the stamped route", so neither assertion can pass or fail by absence.
+tmpfs=test-withdraw.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Sequence the source peer's withdrawal behind the dest's stamped advertisement."""
+import sys
+from ze_api import API, runtime_fail
+
+DEST = '127.0.0.2'
+
+
+def dest_updates(api):
+    """Real UPDATEs written to the dest peer, End-of-RIB markers excluded.
+
+    updates-sent counts EVERY UPDATE written to the peer, the initial-sync EoR
+    included (IncrUpdatesSent in reactor/reactor_notify.go sees only the message
+    type). eor-sent is the separate marker counter, so the difference is the
+    forwarded traffic this test is about.
+    """
+    return (api.peer_counter('updates-sent', peer=DEST)
+            - api.peer_counter('eor-sent', peer=DEST))
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce FIRST so the poll behind it is a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC, and 40 engine round trips
+    # on a starved daemon would otherwise outlast the test's own budget.
+    api.quiesce()
+    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=40):
+        runtime_fail('dest peer was never sent the OTC-stamped advertisement')
+    print('OK: dest was sent the stamped advertisement', file=sys.stderr)
+
+    # Release the source's withdrawal. This route goes to the SOURCE only, and
+    # its NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 barrier
+    # matches on.
+    api.send('peer 127.0.0.1 update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
+
+    # The dest must still be alive when its seq=2 rule runs, so hold the daemon
+    # up until the withdrawal has actually been written to it.
+    if not api.wait_until(lambda: dest_updates(api) >= 2, attempts=40):
+        runtime_fail('dest peer was never sent the forwarded withdrawal')
+    print('OK: dest was sent the forwarded withdrawal', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze: Provider (ASN 65000) with two Customer peers on separate loopbacks.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-withdraw {
+		run ./test-withdraw.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+		process test-withdraw {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

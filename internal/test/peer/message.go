@@ -54,12 +54,77 @@ func (m *Message) IsKeepalive() bool { return m.Kind() == MsgKEEPALIVE }
 // IsUpdate returns true if this is an UPDATE message.
 func (m *Message) IsUpdate() bool { return m.Kind() == MsgUPDATE }
 
-// IsEOR returns true if this is an End-of-RIB marker.
+// IsEOR returns true if this is an End-of-RIB marker (RFC 4724 Section 2).
+//
+// The two encodings the RFC names are checked by CONTENT, never by length. A
+// length test is what this used to be, and it silently swallowed a defect: a
+// LENGTH of 11 was read as the multiprotocol marker, and a legacy marker (body
+// 4) with a 7-byte attribute stamped onto it is also 11 bytes. An EoR that
+// matches no expectation is accepted in silence (checker.go
+// ExpectedOrKeepalive). A test asserting that a relayed marker arrives UNSTAMPED
+// could therefore only fail by timing out. It never saw the stamped message it
+// was there to refuse.
+//
+//	"An UPDATE message with no reachable Network Layer Reachability
+//	 Information (NLRI) and empty withdrawn NLRI is specified as the End-of-RIB
+//	 marker [...] For any other address family, it's an UPDATE message with the
+//	 MP_UNREACH_NLRI attribute and no withdrawn routes for that <AFI, SAFI>."
+//	                                              -- RFC 4724 Section 2
+//
+// So: an empty UPDATE body, or one whose ONLY path attribute is an
+// MP_UNREACH_NLRI carrying nothing but AFI and SAFI, with no withdrawn routes
+// and no NLRI. Anything else is an ordinary UPDATE, however long it is.
 func (m *Message) IsEOR() bool {
 	if !m.IsUpdate() {
 		return false
 	}
-	return len(m.Body) == 4 || len(m.Body) == 11
+	if len(m.Body) < 4 {
+		return false
+	}
+	// RFC 4724 Section 2 asks for "empty withdrawn NLRI", so a non-zero length
+	// settles it and the attribute length is then always readable at Body[2:4].
+	if binary.BigEndian.Uint16(m.Body[0:2]) != 0 {
+		return false
+	}
+	attrLen := int(binary.BigEndian.Uint16(m.Body[2:4]))
+	// The NLRI field is whatever trails the attributes, and an EoR has none.
+	if len(m.Body) != 4+attrLen {
+		return false
+	}
+	if attrLen == 0 {
+		return true // the legacy encoding: a completely empty UPDATE
+	}
+	return isBareMPUnreach(m.Body[4 : 4+attrLen])
+}
+
+// isBareMPUnreach reports whether an attribute section is exactly one
+// MP_UNREACH_NLRI attribute whose value is AFI(2) + SAFI(1) and nothing else,
+// which is the RFC 4724 Section 2 multiprotocol End-of-RIB marker.
+func isBareMPUnreach(attrs []byte) bool {
+	const (
+		mpUnreachCode  = 15
+		flagExtendedLn = 0x10
+		afiSafiLen     = 3
+	)
+	if len(attrs) < 3 {
+		return false
+	}
+	flags := attrs[0]
+	hdrLen := 3
+	valLen := int(attrs[2])
+	if flags&flagExtendedLn != 0 {
+		if len(attrs) < 4 {
+			return false
+		}
+		hdrLen = 4
+		valLen = int(binary.BigEndian.Uint16(attrs[2:4]))
+	}
+	// One attribute, exactly filling the section: a second one means this is not
+	// a bare marker.
+	if len(attrs) != hdrLen+valLen {
+		return false
+	}
+	return attrs[1] == mpUnreachCode && valLen == afiSafiLen
 }
 
 // Stream returns the hex-encoded message.

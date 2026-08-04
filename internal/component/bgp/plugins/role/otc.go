@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -94,23 +95,6 @@ const (
 	mpReachAttrCode   = byte(14)
 	mpUnreachAttrCode = byte(15)
 )
-
-// hasAttr reports whether the raw path attributes contain the given type code.
-// Stops at the first malformed header, matching the other walkers in this file.
-func hasAttr(attrs []byte, want byte) bool {
-	off := 0
-	for off < len(attrs) {
-		code, _, hdrLen, attrLen, ok := attrHeaderAt(attrs, off)
-		if !ok {
-			return false
-		}
-		if code == want {
-			return true
-		}
-		off += hdrLen + attrLen
-	}
-	return false
-}
 
 // attrHeaderAt decodes one attribute header at off. Returns ok=false when the
 // header (or the value it declares) does not fit inside attrs.
@@ -247,26 +231,13 @@ func isPayloadUnicast(payload []byte) bool {
 // guard fires on positive evidence that a route IS carried, so an unreadable
 // or unrecognized payload is never stamped by default
 // (ai/rules/evidence.md).
+//
+// The wire-shape walk itself lives in wireu.PayloadAdvertisesNLRI, because the
+// forward rail asks the same question before it prepends AS_PATH (RFC 4271
+// Section 5.1.2 b, wireu/aspath_slot.go). One definition, so the two rails cannot
+// drift into two notions of "advertises".
 func payloadAdvertisesNLRI(payload []byte) bool {
-	if len(payload) < 4 {
-		return false
-	}
-	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
-	attrOffset := 2 + withdrawnLen
-	if len(payload) < attrOffset+2 {
-		return false
-	}
-	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
-	attrStart := attrOffset + 2
-	if len(payload) < attrStart+attrLen {
-		return false
-	}
-	// RFC 4271 Section 4.3: the NLRI field is whatever trails the attributes.
-	if len(payload) > attrStart+attrLen {
-		return true
-	}
-	// No native NLRI, but an advertisement can still ride in MP_REACH_NLRI.
-	return hasAttr(payload[attrStart:attrStart+attrLen], mpReachAttrCode)
+	return wireu.PayloadAdvertisesNLRI(payload)
 }
 
 // OTC ingress filter result.

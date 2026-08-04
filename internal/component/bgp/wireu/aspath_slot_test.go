@@ -16,6 +16,16 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
+// probeAdvertisedNLRI is 10.1.0.0/24 in RFC 4271 Section 4.3 NLRI encoding.
+//
+// Every prepend fixture below carries it, and that is a PRECONDITION rather than
+// decoration: RFC 4271 Section 5.1.2 obliges the prepend only "when a given BGP
+// speaker advertises the route to an external peer", so ASPathEdit.Record
+// resolves a payload with no reachable NLRI as transcode-only and records no
+// prepend at all (advertise_test.go). A fixture without NLRI would exercise the
+// withdraw-only rail while claiming to test the prepend.
+var probeAdvertisedNLRI = []byte{24, 10, 1, 0}
+
 // recordedOp finds the operation a Record call left for one attribute code.
 func recordedOp(t *testing.T, mods *filterapi.ModAccumulator, code attribute.AttributeCode) (filterapi.AttrOp, bool) {
 	t.Helper()
@@ -78,7 +88,7 @@ func probeASPath4(asns ...uint32) []byte {
 func TestASPathSlotShiftPrependIsExact(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrOrigin, []byte{0})
 	attrs = append(attrs, probeAttr(0x40, attribute.AttrASPath, probeASPath2(64500, 64501))...)
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -105,7 +115,7 @@ func TestASPathSlotShiftPrependIsExact(t *testing.T) {
 // would put the router's real AS where the peer expects the override.
 func TestASPathSlotDualOrder(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath2(64499))
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -128,7 +138,7 @@ func TestASPathSlotDualOrder(t *testing.T) {
 // which RFC 4271 Section 5 makes malformed (well-known mandatory).
 func TestASPathSlotInsertsWhenAbsent(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrOrigin, []byte{0})
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -150,7 +160,7 @@ func TestASPathSlotInsertsWhenAbsent(t *testing.T) {
 func TestASPathSlotDerivesAS4Path(t *testing.T) {
 	// A four-octet source path carrying a non-mappable ASN, going to an OLD peer.
 	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath4(196618, 64501))
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -181,7 +191,7 @@ func TestASPathSlotDerivesAS4Path(t *testing.T) {
 func TestASPathSlotSuppressesAS4PathWhenNotObliged(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath4(64500))
 	attrs = append(attrs, probeAttr(0xC0, attribute.AttrAS4Path, probeASPath4(64500))...)
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -206,7 +216,7 @@ func TestASPathSlotDiscardsMalformedAS4Path(t *testing.T) {
 	bad := []byte{byte(attribute.ASSequence), 4, 0, 1, 0, 1}
 	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath2(64501))
 	attrs = append(attrs, probeAttr(0xC0, attribute.AttrAS4Path, bad)...)
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -233,7 +243,7 @@ func TestASPathSlotDerivesAggregatorASTrans(t *testing.T) {
 
 	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath4(64501))
 	attrs = append(attrs, probeAttr(0xC0, attribute.AttrAggregator, aggVal)...)
-	payload := buildProbePayload(attrs, nil)
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	var mods filterapi.ModAccumulator
 	var edit ASPathEdit
@@ -265,7 +275,13 @@ func TestASPathSlotDerivesAggregatorASTrans(t *testing.T) {
 // "transcode needed" is not "prepend allowed".
 func TestASPathSlotRSClientSkipsPrepend(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrASPath, probeASPath4(196618, 64501))
-	payload := buildProbePayload(attrs, nil)
+	// The NLRI matters here for the OPPOSITE reason it does in the prepend
+	// fixtures. Without it this payload advertises nothing, and Record would
+	// reach recordTranscode through the withdraw-only branch rather than through
+	// the empty-Prepend one -- so the test would stay green with the RS-client
+	// half of the condition deleted, and would be proving nothing about
+	// RFC 7947 Section 2.2.2.
+	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
 
 	t.Run("matching widths touch nothing at all", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
