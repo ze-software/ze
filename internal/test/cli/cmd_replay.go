@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/capture"
+	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/sim"
@@ -80,7 +81,7 @@ func cmdReplay(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file>") //nolint:errcheck // usage
+		fmt.Fprintln(os.Stderr, "usage: ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->") //nolint:errcheck // usage
 		return 2
 	}
 	path := fs.Arg(0)
@@ -154,8 +155,13 @@ func (ri replayIdentity) resolve(hdr capture.Header) (localAS, peerAS, routerID 
 // clock. There is no parallel decoder: the announced and withdrawn prefixes it
 // reports come off the WireUpdate the real path built, after RFC 7606
 // enforcement, so a bug only the real path reaches is a bug this reproduces.
+//
+// The capture is opened through cliio, so "-" reads it from stdin
+// (ai/rules/cli.md). A capture arrives from another machine, so piping it
+// straight in is the normal case, not an edge one. The reader streams: a file
+// at the 1024 MB cap is never buffered whole.
 func runReplay(path string, ident replayIdentity) (*replayReport, error) {
-	f, err := os.Open(path) //nolint:gosec // the operator names the capture file to replay
+	f, err := cliio.OpenReader(path)
 	if err != nil {
 		return nil, err
 	}

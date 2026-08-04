@@ -91,6 +91,7 @@ var fileAllowlist = map[string]string{
 	"internal/plugins/init/main.go":                    "creates + atomically installs the database.zefs store (zefs bootstrap)",
 	"internal/component/pki/store.go":                  "PEM cert/key export for an external IKE daemon",
 	"internal/component/support/support.go":            "support bundle archive artifact",
+	"internal/component/bgp/reactor/capture_replay.go": "per-peer BGP protocol event capture: a JSONL diagnostic stream the operator hands to a developer, replayed by `ze-test replay` (internal/test/cli/cmd_replay.go). The daemon never reads it back, so it is not runtime state; statestore.Put takes a whole value and cannot carry a bounded, rotating, wire-rate stream",
 	"internal/component/vpp/vpp.go":                    "startup.conf consumed by the external VPP process",
 	"internal/component/cli/client/transcript.go":      "operator CLI session transcript log",
 	"internal/component/config/cli/transcript.go":      "operator CLI session transcript log",

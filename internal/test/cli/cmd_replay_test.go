@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/capture"
+	"github.com/ze-software/ze/internal/core/cliio"
 )
 
 // bgpMarker is the 16-byte all-ones marker every BGP message carries
@@ -233,6 +236,42 @@ func TestReplayRejectsUnknownVersion(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "42") {
 		t.Fatalf("error must name the version it found: %v", err)
+	}
+}
+
+// VALIDATES: "-" reads the capture from stdin (ai/rules/cli.md), and the report
+// names it as the capture it read.
+// PREVENTS: a raw os.Open treating "-" as a file name. A capture arrives from
+// the machine that produced it, so piping it in is the normal case, and the
+// failure would be an unhelpful "no such file or directory: -".
+func TestReplayReadsStdin(t *testing.T) {
+	path := writeCapture(t, t.TempDir(), replayOpen(65001), bgpMessage(4, nil), replayUpdate())
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read capture: %v", err)
+	}
+
+	restore := cliio.SwapStreams(bytes.NewReader(raw), io.Discard)
+	defer restore()
+
+	report, err := runReplay("-", replayIdentity{})
+	if err != nil {
+		t.Fatalf("replay from stdin: %v", err)
+	}
+	if report.File != "-" {
+		t.Fatalf("report names %q as its capture, want the stdin token", report.File)
+	}
+	if len(report.Steps) != 3 {
+		t.Fatalf("got %d steps from stdin, want 3: %+v", len(report.Steps), report.Steps)
+	}
+	found := false
+	for _, p := range report.Steps[2].Announced {
+		if p == "198.51.100.0/24" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("stdin replay did not report the announced prefix: %+v", report.Steps[2])
 	}
 }
 

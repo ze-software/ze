@@ -14,9 +14,15 @@
 # 5. ze-test replay reads the file back and reports the FSM states and the
 #    prefix the peer announced.
 #
+# 6. The same file is piped in as "-", which is how a capture arriving from
+#    another machine is replayed without a temporary file.
+#
 # Mutation-verified 2026-08-03: with the tee in Session.teeCapture disabled the
 # barrier at seq=3 goes red, so this test gates on the feature rather than on
 # the daemon merely running.
+# Mutation-verified 2026-08-04: with runReplay opening the path through os.Open
+# instead of cliio.OpenReader, seq=7 goes red -- "-" is then a file name that
+# does not exist.
 
 option=timeout:value=60s
 
@@ -75,6 +81,31 @@ echo "capture was not closed cleanly on shutdown" >&2
 exit 1
 EOF_CLOSED
 
+# Replay the same capture from stdin. "-" must reach cliio, not open a file
+# named "-": the redirect is the only way the bytes arrive, so a raw os.Open
+# fails here and cannot fail silently.
+tmpfs=replay-stdin.sh:terminator=EOF_STDIN
+#!/bin/sh
+if ! ze-test replay - < capture/bgp-127.0.0.1.jsonl > stdin-replay.out 2> stdin-replay.err; then
+	echo "replay from stdin failed" >&2
+	cat stdin-replay.err >&2
+	exit 1
+fi
+if ! grep -q 'announce=\[10.0.0.0/24\]' stdin-replay.out; then
+	echo "replay from stdin lost the announced prefix" >&2
+	cat stdin-replay.out >&2
+	exit 1
+fi
+# The report names the capture it read. "-" there is the proof the bytes came
+# off stdin rather than off a path the harness resolved for it.
+if ! grep -q '^capture   -$' stdin-replay.out; then
+	echo "replay report does not name stdin as its capture" >&2
+	cat stdin-replay.out >&2
+	exit 1
+fi
+echo "stdin-replay-ok"
+EOF_STDIN
+
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -119,6 +150,7 @@ cmd=foreground:seq=3:exec=sh wait-update.sh:timeout=40s
 cmd=stop:seq=4:name=daemon:signal=term
 cmd=foreground:seq=5:exec=sh wait-closed.sh:timeout=40s
 cmd=foreground:seq=6:exec=ze-test replay ./capture/bgp-127.0.0.1.jsonl:timeout=20s
+cmd=foreground:seq=7:exec=sh replay-stdin.sh:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=capture-has-messages
 expect=stdout:contains=capture-closed
@@ -126,3 +158,4 @@ expect=stdout:contains=OPEN
 expect=stdout:contains=UPDATE
 expect=stdout:contains=announce=[10.0.0.0/24]
 expect=stdout:contains=ESTABLISHED
+expect=stdout:contains=stdin-replay-ok

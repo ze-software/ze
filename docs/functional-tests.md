@@ -1400,8 +1400,11 @@ Common run options:
 of test ids.
 
 ```
-ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file>
+ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
 ```
+
+A capture file of `-` is read from stdin, so a capture piped from the machine
+that produced it needs no temporary file.
 
 The file comes from a peer with `capture { enabled true; }` set
 (`docs/guide/configuration.md`, Protocol Event Capture). Replay opens a
