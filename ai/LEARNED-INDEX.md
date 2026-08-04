@@ -325,6 +325,7 @@ Pre-401 history: `plan/learned/DESIGN-HISTORY.md`, "Testing infrastructure" (ret
 - [1172](plan/learned/1172-rfc-requirement-coverage.md) -- How RFC MUST requirements bind to tests, and how a green pilot lied
 - [1313](plan/learned/1313-rfcgate-1b-rfc7296-pilot.md) -- Guards inert on empty, oracles satisfied by any error, and mutations aimed at a discarded module
 - [608](plan/learned/608-concurrent-test-patterns.md) -- Which concurrent-test flake shapes recur, and how each one is fixed
+- [1341](plan/learned/1341-fixit-isis-lsdb-entry-race.md) -- When a stored struct's field needs an atomic (two conditions, not one), and why a `-race` test passed with the bug present
 - [881](plan/learned/881-test-flake-under-load.md) -- Why a wall-clock timeout fails under host load, and how a run is labeled
 - [723](plan/learned/723-chaos-actions-v2.md) -- Parameterized chaos actions: string-map params over typed unions, opt-in scheduling, per-instance weights
 - [787](plan/learned/787-chaos-inprocess-scheduling.md) -- How in-process chaos drives existing schedulers from a virtual clock

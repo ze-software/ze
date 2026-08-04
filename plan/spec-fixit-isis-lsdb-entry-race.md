@@ -5,13 +5,23 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-27 |
+| Deferral shard | `plan/deferrals/fixit-isis-lsdb-entry-race.md`. Created at closure, for one row. It holds a live row, so it is NOT removed with this spec |
+| Updated | 2026-08-04 |
 
 Retroactive spec (`ai/rules/planning.md` "Retroactive Specs"): the fix landed as
 `7f3bfd338` (the atomics + the regression test) and `71f91c170` (the field-discipline
 correction + the removal of a dead accessor) before the spec body was written. The
 sections below were reconstructed from the committed code in the working tree on
 2026-07-27, not from the commit messages.
+
+**Later commits carry work this spec describes. None was named here until closure
+re-measured it (2026-08-04).**
+
+- `bf6d9624e` carries the test strengthening that AC-3's 12/12 mutation evidence depends
+  on. The Deviations section describes the change. It never named the commit.
+- `ad809ea43` renamed rule paths inside `entry.go`. It also stripped line numbers out of
+  this spec's prose. That is why many citations below name a file with no line.
+- The closure commit carries the two documentation fixes the Review Gate found.
 
 ## Post-Compaction Recovery
 
@@ -34,8 +44,14 @@ was touched, and the BGP packages in the same run pass).
 `internal/plugins/isis/lsdb_wiring.go,78`. It is read WITHOUT any lock through the
 plain accessor `func (e *Entry) Lifetime() types.RemainingLifetime { return e.lifetime }`
 at `internal/plugins/isis/lsdb/entry.go`, reached from SNP generation at
-`internal/plugins/isis/lsdb/snp.go,360` on the flooding goroutine
+`internal/plugins/isis/lsdb/snp.go,319` on the flooding goroutine
 (`internal/plugins/isis/flooding_wiring.go,248`).
+
+Corrected 2026-08-04. This line cited `snp.go,360`, which is `SendPSNP`'s range over
+`buildPSNP`'s result: the CALLER. The read that produces the race is inside `buildPSNP`
+at `:319`. Data Flow and Design Insights cited `:319` correctly all along. The Task
+section was the one place carrying the caller. `ai/rules/evidence.md` bans exactly this
+substitution, and it survived in the section that DIAGNOSES the bug.
 
 So the LSDB has a lock discipline that its own exported accessors bypass. `Lifetime()`
 is unlikely to be the only one -- `Sequence()`, `Checksum()`, `LSPID()` and the
@@ -160,7 +176,7 @@ so the registration row is N-A by construction):
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `Sequence()`, `Checksum()`, `LSPID()` and `IsOverloaded()` are equally unsafe siblings of `Lifetime()` | the Task section's reasoning ("sit beside it in the same file with the same shape") | the fix would be four more atomics that cost reads and prove nothing | read every write site of each field | **broken** -- `replaceLocked` publishes a FRESH entry (`lsdb.go`), so those fields are written once before the entry is reachable |
-| A-2 | `lifetime` and `purged` are the ONLY fields mutated after publication | the comment `7f3bfd338` added to `entry.go` | a future reader concludes any other field is safe to expose, and the next accessor is a race | grep every assignment to every `Entry` field | **broken** -- `recvPurgeReflooded` (`aging.go`) and `deleteAt` (`aging.go`) are also post-publication, plus the three flag maps (`lsdb.go,419,440,449,472-474`); corrected by `71f91c170`. Seven fields satisfy condition 1, not two |
+| A-2 | `lifetime` and `purged` are the ONLY fields mutated after publication | the comment `7f3bfd338` added to `entry.go` | a future reader concludes any other field is safe to expose, and the next accessor is a race | grep every assignment to every `Entry` field | **broken** -- `recvPurgeReflooded` (`aging.go`) and `deleteAt` (`aging.go`) are also post-publication, plus the three flag maps (`lsdb.go,385,386,404,409,419,440,449,472-474`); corrected by `71f91c170`. Seven fields satisfy condition 1, not two. Map write sites re-enumerated 2026-08-04. This row listed `419,440,449,472-474` and omitted `385`, `386`, `404` and `409`. Every omitted site is inside `SetSRM` or `noteSRMTransmit`. Both take `d.mu`, so condition 2 still fails and the verdict is unchanged. The defect is the incomplete enumeration itself, in the assumption whose whole subject is enumeration honesty |
 | A-3 | What forces an atomic is post-publication mutation AND an off-lock read, both required | the corrected discipline at `entry.go` | either half alone would over- or under-protect | enumerate both conditions across all 14 fields | **confirmed** -- see the field table in Design Insights; exactly `lifetime` and `purged` satisfy both |
 | A-4 | Every off-lock read of an `Entry` field goes through an exported accessor | `Lookup` is the only producer of a live `*Entry` (`lsdb.go`) | an in-package off-lock read would be an unguarded race the accessor audit misses | grep every `*Entry` producer and every direct field access | **confirmed** for production code; one TEST reads a lock-only field off-lock (`aging_test.go`), benign because that test is single-goroutine -- recorded in Known Limitations |
 | A-5 | `TestISISLSDBEntryAccessorsAreRaceFree` fails deterministically if either field reverts to plain | asserted in the test's own doc comment as committed | the regression is not actually gated and the AC evidence is vacuous | mutation-verify: revert each atomic, run the test repeatedly | **broken** -- 6/12 and 10/12 single runs. Fixed in this session; now 12/12. See Deviations |
@@ -411,15 +427,15 @@ Condition 1 is "mutated after `store.entries[id] = e` (`lsdb.go`)"; condition 2 
 | `purged` | Yes -- `aging.go` (markPurgedLocked) | Yes -- `IsPurged()` from `spf_wiring.go`, `show.go`, `dis_wiring.go` | `atomic.Bool` | both conditions |
 | `recvPurgeReflooded` | Yes -- `aging.go` | No -- no accessor, read only at `aging.go` under the write lock | plain | condition 1 only |
 | `deleteAt` | Yes -- `aging.go` (`markPurgedLocked`) ONLY. `lsdb.go` is a PRE-publication write on the fresh entry (`replaceLocked`, published at `:252`) and does not count toward condition 1 | No -- no accessor, read only at `aging.go` under the write lock | plain | condition 1 only |
-| `srm` | Yes -- `lsdb.go,419,472` | No -- only via `SetSRM`/`ClearSRM`/`SRM`/`ClearCircuit`, all of which take the lock | plain map | condition 1 only |
-| `ssn` | Yes -- `lsdb.go,449,473` | No -- same, via the SSN methods | plain map | condition 1 only |
-| `srmSent` | Yes -- `lsdb.go,404,409,474` | No -- only via `SetSRM`/`noteSRMTransmit`/`ClearCircuit` | plain map | condition 1 only |
+| `srm` | Yes -- `lsdb.go,385,419,472` | No -- only via `SetSRM`/`ClearSRM`/`SRM`/`ClearCircuit`, all of which take the lock | plain map | condition 1 only |
+| `ssn` | Yes -- `lsdb.go,440,449,473` | No -- same, via the SSN methods | plain map | condition 1 only |
+| `srmSent` | Yes -- `lsdb.go,386,404,409,474` | No -- only via `SetSRM`/`noteSRMTransmit`/`ClearCircuit` | plain map | condition 1 only |
 | `sequence` | No -- assigned only in the `replaceLocked` literal (`lsdb.go`) | Yes -- `Sequence()` from `snp.go,421,423`, `flooding.go`, `lsdb_wiring.go` | plain | condition 2 only |
 | `checksum` | No -- `lsdb.go` | Yes -- `Checksum()` from `snp.go` | plain | condition 2 only |
 | `typeBlock` | No -- `lsdb.go` | Yes -- `IsOverloaded()` from `spf_wiring.go` | plain | condition 2 only |
 | `own` | No -- `lsdb.go` (read under the lock at `aging.go,119,125` and `lsdb.go`) | Reachable via `IsOwn()`, whose only caller is the regression test's reader loop (`aging_test.go`); no production off-lock read (see Known Limitations) | plain | condition 2 only, latently |
 | `raw` | No -- `lsdb.go`, and never mutated in place afterwards | Yes -- `Raw()` from `flooding.go`, `Decode()` from `spf_wiring.go`, `show.go`, `lsdb_wiring.go` | plain | condition 2 only |
-| `id` | No -- `lsdb.go` | Reachable via `LSPID()`; in-package reads are under the lock (`lsdb.go`) and the only off-lock call is the regression test (`aging_test.go`) | plain | condition 2 only, latently |
+| `id` | No -- `lsdb.go` | Reachable via `LSPID()`. The one PRODUCTION read is under the lock, in `Receive`'s `replaceLocked` call (`lsdb.go,186`). The off-lock calls are all tests (`aging_test.go`, `boundary_test.go,80,81`) | plain | condition 2 only, latently |
 | `receivedPurge` | No -- `lsdb.go`, before publication at `lsdb.go` | No production reader off-lock; read at `aging.go,119,125` under the lock | plain | neither |
 
 **Independently re-derived 2026-07-27 (second pass, different reader).** The
@@ -484,27 +500,41 @@ the answer is a two-row table rather than an argument.
   `.claude/worktrees/` checkout -- no production caller.) It is NOT a race (`own` is
   written once before publication), so it does not affect any AC, but it is the same
   `ai/rules/completion.md` argument that justified deleting `IsReceivedPurge` in
-  `71f91c170` -- applied to one accessor and not its neighbour, and the test call does
-  not discharge it (`completion.md` asks for a non-test caller). Deciding its
-  fate (delete, or wire the `own` flag into `Snapshot`/`show`) is outside this spec's
-  race scope and is flagged for the reviewer rather than actioned here.
-- **`LSPID()` is in the same position, one step milder.** Its only reads are inside
-  package `lsdb` under the lock (`lsdb.go`) plus the same regression-test reader
-  loop (`aging_test.go`); no off-lock production caller exists. Like `own`, `id` is
-  written once before publication, so plain storage is correct either way. Recorded so
-  the accessor inventory in the field table is not read as "every accessor has a
-  production off-lock caller".
-- **The condition-1 enumeration in the struct doc lists four fields, not seven.**
-  `entry.go` names `lifetime`, `purged`, `recvPurgeReflooded` and `deleteAt`; the
-  three per-circuit flag maps (`srm`, `ssn`, `srmSent`) are also mutated post-publication
-  and are addressed by the following sentence ("reachable only through LSDB methods that
-  take the lock themselves") rather than by the enumeration. The conclusion is correct
-  and the maps are covered, but the enumeration is not exhaustive -- the same shape of
-  imprecision `71f91c170` was written to remove.
-- **One test reads a LOCK-ONLY field off-lock.** `aging_test.go,159` read
-  `Lookup(...).receivedPurge` directly. Benign -- that test is single-goroutine, so there
-  is no concurrent writer -- but it is the exact shape the discipline warns against, and
-  it is only legal because the test is in package `lsdb`.
+  `71f91c170`. The standard was applied to one accessor and not its neighbour. The test
+  call does not discharge it: `completion.md` asks for a non-test caller. The independent
+  Review Gate raised this as ISSUE-2 on 2026-08-04 and reached the same verdict. It is
+  not goal-blocking, because `own` is written once before publication, so no AC turns
+  on it. **It is HOMED, not parked** (`ai/rules/rule-precedence.md`, "Closing comes
+  first"). The shard is `plan/deferrals/fixit-isis-lsdb-entry-race.md`. It is not folded
+  into the closing commit, because the fate is a genuine fork rather than a cleanup.
+  `LSPSnapshot` (`internal/plugins/isis/lsdb/lsdb.go,485`) carries no ownership field.
+  So `show isis database` cannot today tell an operator which LSPs this node originated.
+  Deleting `IsOwn()` costs three lines. Wiring `own` into the snapshot is a user-visible
+  CLI change, with YANG, doc and `.ci` consequences. That choice is the owner's.
+- **`LSPID()` is NOT in the same position.** It has one PRODUCTION caller. `Receive`
+  passes `existing.LSPID()` to `replaceLocked` under the write lock
+  (`internal/plugins/isis/lsdb/lsdb.go,186`). Its off-lock callers are all tests: the
+  regression-test reader loop (`aging_test.go`), and `boundary_test.go,80,81`. Like
+  `own`, `id` is written once before publication, so plain storage is correct either
+  way. Corrected 2026-08-04. This bullet said its only reads were in package `lsdb`
+  under the lock, plus the regression-test reader loop. That missed the two
+  `boundary_test.go` calls. It is recorded so the accessor inventory in the field table
+  is not read as "every accessor has a production off-lock caller".
+- **RESOLVED 2026-08-04. The condition-1 enumeration in the struct doc listed four
+  fields, not seven.** `entry.go` named `lifetime`, `purged`, `recvPurgeReflooded` and
+  `deleteAt`. It left the three per-circuit flag maps to the following sentence. The
+  conclusion was correct and the maps were covered. The enumeration was not exhaustive.
+  That is the same shape of imprecision `71f91c170` was written to remove, surviving in
+  the doc that DEFINES the discipline. The Review Gate raised it as NOTE-3. It is now
+  fixed: the list names all seven, and credits the six locking methods that mutate the
+  maps. The written-once list gained `id`, which it had also omitted.
+- **One test reads a LOCK-ONLY field off-lock.** `Lookup(...).receivedPurge` is read
+  directly at four sites in `aging_test.go`: `:104`, `:119`, `:152` and `:159`. The pair
+  that replaced the deleted `IsReceivedPurge()` calls is `:152` and `:159`. This is
+  benign, because every one of those tests is single-goroutine, so there is no
+  concurrent writer. It is still the exact shape the discipline warns against, and it is
+  only legal because the test is in package `lsdb`. Corrected 2026-08-04: this bullet
+  cited `:159` alone.
 - **Multi-field off-lock reads are consistency-relaxed, by design.** `buildPSNP`
   (`snp.go`) takes three separate off-lock loads. Not a race and not fixed: see
   R-3.
@@ -649,12 +679,34 @@ and no `docs/features/rfc-status.md` row moves.
 <!-- MANDATORY: Maps each stated goal to concrete proof it was achieved. -->
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| `TestISISDISElection` no longer fails under `-race` on the LSDB `Entry` field | Unit test under the race detector | `go test -race -count=10 -run TestISISDISElection ./internal/plugins/isis/` → `ok github.com/ze-software/ze/internal/plugins/isis 106.058s` (2026-07-27) |
+| `TestISISDISElection` no longer fails under `-race` on the LSDB `Entry` field | Unit test under the race detector | `go test -race -count=10 -run TestISISDISElection ./internal/plugins/isis/` → `ok github.com/ze-software/ze/internal/plugins/isis 106.058s` (2026-07-27). **Re-measured at closure, 2026-08-04: `ok ... 112.631s`** |
 | The LSDB no longer has a lock discipline its own exported accessors bypass | Unit test calling EVERY exported accessor off-lock against a live writer | `TestISISLSDBEntryAccessorsAreRaceFree` (`aging_test.go`): reader loop `:297-307` calls all nine accessors while `:272` ticks. `-race -count=20` → `ok ... 4.674s` |
 | The fix is at the discipline, not the one field | Enumeration of all 14 fields against both conditions, plus a second field found by it | Design Insights field table. `purged` was fixed because the discipline selected it, not because a test failed on it; `recvPurgeReflooded`, `deleteAt` and the three flag maps were deliberately left plain with the reason recorded at `entry.go` |
-| The fix would fail if reverted (the test is not vacuous) | Mutation verification, both fields, single runs | `lifetime` → plain `uint32`: 12/12 single runs RED. `purged` → plain `bool`: 12/12 single runs RED. Full output in Pre-Commit Verification |
-| No behavior regression in aging, purge or freshness | Full package suite under the race detector | Whole tree, 2026-07-27: `go test -race ./internal/plugins/isis/...` → all 12 packages `ok` (`isis 86.047s`, `lsdb 358.443s`, plus adjacency, circuit, cli, packet, redistribute, redistribute/events, spf, transport, types, yang). Re-run of the changed package after the test was strengthened: `go test -race ./internal/plugins/isis/lsdb/` → `ok ... 222.356s` |
-| No exported accessor is left over an unsafe or uncalled-for field | Source-tree grep | `grep -rn 'IsReceivedPurge' internal/ cmd/ pkg/ docs/ ai/ scripts/ test/` → exit 1 (the symbol, its doc and both test call sites are gone). Partial, and named as such: `IsOwn()` and `LSPID()` remain exported with no PRODUCTION caller. Neither is over an unsafe field (both are written once before publication), so AC-6 as written holds; the uncalled-for half is recorded in Known Limitations, not claimed as met |
+| The fix would fail if reverted (the test is not vacuous) | Mutation verification, both fields, single runs | `lifetime` → plain `uint32`: 12/12 single runs RED. `purged` → plain `bool`: 12/12 single runs RED. Full output in Pre-Commit Verification. **Independently re-measured at closure, 2026-08-04, and this time in an ISOLATED `git archive HEAD` extraction rather than by mutating the live tree, with the tags built the runner's way (`runner.TestBuildTags`, `internal/test/runner/runner.go,51`) rather than from a hand-written list: `CAUGHT 12 / 12` for `lifetime`, `CAUGHT 12 / 12` for `purged`. Each mutant was `go vet`-gated first, so a mutation that failed to apply could not report as a pass** |
+| No behavior regression in aging, purge or freshness | Full package suite under the race detector | Whole tree, 2026-07-27: `go test -race ./internal/plugins/isis/...` → all 12 packages `ok` (`isis 86.047s`, `lsdb 358.443s`, plus adjacency, circuit, cli, packet, redistribute, redistribute/events, spf, transport, types, yang). Re-run of the changed package after the test was strengthened: `go test -race ./internal/plugins/isis/lsdb/` → `ok ... 222.356s`. **Re-measured at closure, 2026-08-04: all 12 packages `ok` again (`isis 100.936s`, `lsdb 197.693s`, adjacency, circuit, cli, packet, redistribute, redistribute/events, spf, transport, types, yang). Re-run once more after the two documentation fixes: `-race -count=5 -run 'TestISISLSDB\|TestISISReceivedPurge'` → `ok ... 2.170s`, and `make ze-lint-changed` → `0 issues`** |
+| No exported accessor is left over an unsafe or uncalled-for field | Source-tree grep | `grep -rn 'IsReceivedPurge' internal/ cmd/ pkg/ docs/ ai/ scripts/ test/` → exit 1, re-run 2026-08-04 (the symbol, its doc and both test call sites are gone). The UNSAFE half is fully met: every one of the nine accessors reads a field that is either atomic or written once before publication. The UNCALLED-FOR half is met for eight of nine and named as not met for the ninth -- `IsOwn()` has zero non-test callers (`LSPID()` does have one: `Receive` passes `existing.LSPID()` to `replaceLocked` at `lsdb.go,186`, an earlier version of this row wrongly listed it alongside `IsOwn`). AC-6 as WRITTEN ("over a field that is mutated after publication and not atomic") holds, because `own` is written once pre-publication. The `IsOwn()` gap is homed at `plan/deferrals/fixit-isis-lsdb-entry-race.md`, not claimed as met |
+
+## Deferrals Resolved
+
+<!-- Closure must leave no dangling row. deferral_unassigned_problems in
+     scripts/dev/commit_helper.py WARNS (it does not block) on a live row with no
+     destination -- acted on here, because nothing else will. -->
+
+This spec opened with NO deferral shard: it made no deferral during implementation, and
+`plan/deferrals/fixit-isis-lsdb-entry-race.md` did not exist before closure. Closure
+CREATES it, for one row, and the shard therefore outlives this spec
+(`ai/rules/planning.md`: a shard holding a live row is not removed with its source spec).
+It is not `git rm`'d by commit B.
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `Entry.IsOwn()` is exported with no non-test caller (Review Gate run 1, ISSUE-2) | deferred | `plan/deferrals/fixit-isis-lsdb-entry-race.md`. No destination spec yet, and the row says why: the fix is a fork, not a cleanup. Deleting the accessor costs three lines; wiring `own` into `LSPSnapshot` (`internal/plugins/isis/lsdb/lsdb.go,485`, which carries no ownership field) so `show isis database` can say which LSPs this node originated is a user-visible CLI feature with YANG, doc and `.ci` consequences. The owner picks the branch |
+
+No FOREIGN shard was emptied by this closure. A `grep` over `plan/deferrals/*.md` finds
+no row anywhere naming this spec stem or the LSDB race. Four shards mention IS-IS at all:
+`rfcgate-2-deferred-nonunit-evidence-backfill`, `rfcgate-4-ledger`,
+`fixit-bgp-per-family-prefix-enforcement` and `mcp2026-1-stateless-core`. Each holds rows
+homed at other specs, untouched by this work.
 
 ## Review Gate
 
@@ -664,21 +716,62 @@ and no `docs/features/rfc-status.md` row moves.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-isis-lsdb-entry-race-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | Run 1: adversarial code review (`/ze-review`, correctness + field-discipline re-derivation + test vacuity + wiring + ISO/IEC 10589) and spec-claim re-measurement (`/ze-review-spec`, every citation, grep paste and line count re-run against source). Run 2: scoped to the two fixes (enumeration exhaustiveness, doc-vs-doc consistency, comments-only). All three passes ran as independent Opus subagents that did not write the code |
+
+**This section was an unfilled template until 2026-08-04.** The spec was presented as
+closure-ready on the strength of 15 green Implementation Audit rows, and `review_gate.py
+check` was BLOCKED for want of any artifact at all. The gate was then run, and it found
+two ISSUEs that 15 green audit rows had not. That is the whole argument for the gate being
+independent of the audit.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | `Lookup`'s doc still carried the exact false claim `71f91c170` exists to delete: "they are the only ones mutated after publication". Seven fields are mutated post-publication, so a reader of `Lookup` inherits the same wrong inference the struct doc was corrected to prevent -- an unlocked accessor over `deleteAt` looks safe | `internal/plugins/isis/lsdb/lsdb.go`, `LSDB.Lookup` doc | FIXED in the closure commit. See Fixes applied |
+| 2 | ISSUE | `Entry.IsOwn()` has zero non-test callers, and this spec's own test-strengthening pass gave it its only one. `IsReceivedPurge` was deleted in `71f91c170` on precisely this standard, with two test callers | `internal/plugins/isis/lsdb/entry.go`, `(*Entry).IsOwn` | HOMED, not fixed here: `plan/deferrals/fixit-isis-lsdb-entry-race.md`. Not goal-blocking (`own` is written once pre-publication, so no AC turns on it), and the fate is a design fork rather than a cleanup -- see Known Limitations |
+| 3 | NOTE | The condition-1 enumeration in the struct doc named 4 of the 7 qualifying fields, and the written-once list omitted `id`. The following sentence delivered the correct conclusion for the three maps, so no wrong action followed | `internal/plugins/isis/lsdb/entry.go`, `Entry` struct doc | FIXED anyway. A NOTE does not block, but this is the defect class the spec exists to remove, sitting in the doc that DEFINES the discipline |
+| 4 | NOTE | Six citation-level staleness items in the spec's own prose. `snp.go,360` was the caller, not the producer. Three flag-map write-site lists were incomplete. `LSPID()` has two more test callers. `receivedPurge` is read directly at four sites, not one. The AC-1 grep paste was hand-edited rather than run. And `bf6d9624e`, which carries AC-3's evidence, was named nowhere | `plan/spec-fixit-isis-lsdb-entry-race.md` | ALL SIX corrected in place, each marked inline with its date. No verdict changed |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- `internal/plugins/isis/lsdb/lsdb.go`, `LSDB.Lookup` doc: the parenthetical claiming
+  lifetime and purged are "the only ones mutated after publication" is replaced. The doc
+  now says they are the only ACCESSOR-REACHABLE post-publication fields, names the three
+  writers, and states plainly that `recvPurgeReflooded`, `deleteAt` and the srm/ssn/srmSent
+  maps are mutated post-publication too and stay plain because no accessor reaches them.
+- `internal/plugins/isis/lsdb/entry.go`, `Entry` struct doc: the condition-1 list now names
+  all seven qualifying fields and credits the six locking methods that mutate the three
+  maps. The written-once list gained `id`, in both the struct doc and the `lifetime` field
+  doc one comment below it.
+- Neither edit changes an executable line. Verified: `git diff -U0` with comment lines
+  filtered yields zero added or removed code lines (Run 2, finding 5).
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+### Run 2 (re-run, scoped to the fixes)
+<!-- Run 2 shrinks to what run 1's fixes touched (ai/rules/planning.md, "Bounding the loop"). -->
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | "Read the FIELD DISCIPLINE note ...; this sentence is not one" is a semicolon splice (`ai/rules/writing.md` habit 5) | `internal/plugins/isis/lsdb/lsdb.go`, `LSDB.Lookup` doc | Fixed: split into two sentences |
+| 2 | NOTE | The `lifetime` field doc's illustrative off-lock list still omitted `id`. Not false (it claims no "only"), but the same omission one comment away | `internal/plugins/isis/lsdb/entry.go,95-97` | Fixed: `id` added |
+
+Run 2 re-derived the claims the fixes assert rather than reading them:
+
+- The publication line is `lsdb.go,252`: `store.entries[id] = e` in `replaceLocked`.
+- Exactly seven fields are mutated after it. They are the seven now named.
+- The written-once set is the other seven. 7 + 7 = 14 = every field of `Entry`, so the
+  partition is exhaustive with no overlap.
+- The six map mutators all exist in `lsdb.go`. Each opens with `d.mu.Lock()`.
+- Every map READ is under `d.mu` as well.
+
+**Run 2 verdict: 0 BLOCKER, 0 ISSUE, 2 NOTE.** The gate is satisfied. Both NOTEs were
+fixed afterwards; neither introduces a claim beyond what run 2 had already verified
+(the seven/seven partition), so no run 3 is owed.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- Run 2, above
+- [ ] All NOTEs recorded above (or explicitly "none") -- four recorded, all four fixed
 - [ ] All NOTEs recorded above (or explicitly "none")
 
 ## Pre-Commit Verification
@@ -705,7 +798,7 @@ the audit tables. Feature tags used throughout are
 <!-- For EVERY AC-N: independently verify. Do NOT copy from audit — re-check. -->
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | tick + unlocked `Lifetime()`/`IsPurged()` is race-free | `go test -race -count=20 -run TestISISLSDBEntryAccessorsAreRaceFree ./internal/plugins/isis/lsdb/` → `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.674s`. Independently re-run on the second pass, 2026-07-27, with the full default-on feature tags (`ze_core` + every `ze_*` in `feature-gates.txt`, per `ai/rules/commands.md`): `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.616s`. The atomic that makes it true: `grep -n 'atomic\.' internal/plugins/isis/lsdb/entry.go` → `20: "sync/atomic"`, `95: lifetime atomic.Uint32`, `115: purged atomic.Bool` |
+| AC-1 | tick + unlocked `Lifetime()`/`IsPurged()` is race-free | `go test -race -count=20 -run TestISISLSDBEntryAccessorsAreRaceFree ./internal/plugins/isis/lsdb/` → `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.674s`. Independently re-run on the second pass, 2026-07-27, with the full default-on feature tags (`ze_core` + every `ze_*` in `feature-gates.txt`, per `ai/rules/commands.md`): `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.616s`. Re-run at closure, 2026-08-04, same tags: `ok github.com/ze-software/ze/internal/plugins/isis/lsdb 4.060s`. The atomic that makes it true: `grep -n 'atomic\.' internal/plugins/isis/lsdb/entry.go` → `62:` (the discipline note), `95: lifetime atomic.Uint32`, `115: purged atomic.Bool`. (Paste corrected 2026-08-04: the earlier version of this cell listed `20: "sync/atomic"` and omitted `62`. `"sync/atomic"` contains no `atomic.`, so line 20 cannot match the command as written -- the output had been edited by hand rather than run. Both atomic FIELDS are confirmed at 95 and 115, so the deliverable is unchanged; the defect is that a pasted command output was not the command's output) |
 | AC-2 | all seven other accessors are read off-lock in the same test | `grep -n '_ = e\.' internal/plugins/isis/lsdb/aging_test.go` → lines 297-304 (`Lifetime`, `IsPurged`, `Sequence`, `Checksum`, `LSPID`, `IsOverloaded`, `IsOwn`, `Raw`) plus `305: if lsp, err := e.Decode(); err == nil`. Nine accessors; `grep -c 'func (e \*Entry) [A-Z]' internal/plugins/isis/lsdb/entry.go` → 9. Every exported accessor is covered |
 | AC-3 | reverting either atomic turns the test RED on a single run | `lifetime` → plain `uint32`: 12 separate `-test.count=1` runs, `CAUGHT 12 / 12`. `purged` → plain `bool`: 12 separate runs, `CAUGHT 12 / 12`. Sample race report from the pre-strengthening measurement: `WARNING: DATA RACE / Write at 0x00c0003a9b44 by goroutine 12: (*Entry).setLifetime() entry.go ← tickLevelLocked() aging.go / Previous read at 0x00c0003a9b44 by goroutine 16: (*Entry).Lifetime() entry.go`. Production code restored after each mutation: `git diff --stat -- internal/plugins/isis/lsdb/entry.go internal/plugins/isis/lsdb/aging.go internal/plugins/isis/lsdb/lsdb.go` → empty |
 | AC-4 | the struct doc states both conditions and classifies every field | `sed -n '40,65p' internal/plugins/isis/lsdb/entry.go` shows the numbered conjunction ("A field needs an atomic when BOTH of these are true", items 1 and 2) and the classification sentence naming which fields stay plain and why. `grep -n 'LOCK-ONLY' internal/plugins/isis/lsdb/entry.go` → 128 (`recvPurgeReflooded`), 135 (`deleteAt`) |
@@ -738,7 +831,7 @@ the audit tables. Feature tags used throughout are
 |---------------------------------|-----------------|----------|
 | No `docs/` page carries a source anchor pointing at any changed file | `grep -rn 'source:.*isis/lsdb/\(entry\|aging\|lsdb\)\.go' docs/` → no matches. Nothing under `docs/` claims anything about these three files, so no anchor can be stale | Yes |
 | No doc mentions the deleted `IsReceivedPurge` accessor | `grep -rn 'IsReceivedPurge' internal/ cmd/ pkg/ docs/ ai/ scripts/ test/` → exit 1, no matches (2026-07-27). `plan/` is deliberately excluded from the scope: this spec names the symbol throughout as the thing it deleted, so a repo-wide grep can never be empty and citing one as "empty" was the error corrected in the AC-6 row above | Yes |
-| No RFC status row changes (checklist row 9 = No) | Clause 7.3.16/7.3.17 behavior is preserved, not extended: `TestISISLSDBAgeDecrement`, `TestISISLSDBAgeToPurge` and `TestISISReceivedPurgeRefloodSurfaced` all pass unchanged. The isis tree does carry many RFC-tagged tests, but none in the one test file this work touched: `grep -n 'RFC requirement:' internal/plugins/isis/lsdb/aging_test.go` → no matches, so no ledger `file:line` shifts. Confirmed mechanically: `make ze-rfc-check` → `rfc-requirements OK: 2720 gated MUST-level requirement(s) across 166 enrolled RFC(s); 2560 test tag(s) resolved` (exit 0), i.e. `ai/RFC-REQUIREMENTS.md` is not stale and needs no regeneration | Yes |
+| No RFC status row changes (checklist row 9 = No) | Clause 7.3.16/7.3.17 behavior is preserved, not extended: `TestISISLSDBAgeDecrement`, `TestISISLSDBAgeToPurge` and `TestISISReceivedPurgeRefloodSurfaced` all pass unchanged. The isis tree does carry many RFC-tagged tests, but none in the one test file this work touched: `grep -n 'RFC requirement:' internal/plugins/isis/lsdb/aging_test.go` → no matches, so no ledger `file:line` shifts. Confirmed mechanically: `make ze-rfc-check` → `rfc-requirements OK: 2720 gated MUST-level requirement(s) across 166 enrolled RFC(s); 2560 test tag(s) resolved` (exit 0, 2026-07-27). **Re-run at closure, 2026-08-04, still exit 0, but the counts have MOVED: `2949 gated MUST-level requirement(s) across 168 enrolled RFC(s); 3261 test tag(s) resolved`. Two RFCs and 229 requirements were enrolled by other work in the intervening week. The pasted figure above was therefore stale, and stale in the direction that matters least (a green gate reporting a smaller corpus), which is exactly why it survived unnoticed. The VERDICT is unchanged and is what this row asserts: the gate is green, no `RFC requirement:` tag lives in the one test file this spec touched (`grep -n 'RFC requirement:' internal/plugins/isis/lsdb/aging_test.go` → no matches), so no ledger `file:line` shifts and `ai/RFC-REQUIREMENTS.md` needs no regeneration on this spec's account. That file is currently modified in the working tree by a DIFFERENT session, and this closure does not touch it** | Yes |
 | No architecture doc describes the LSDB lock model (checklist row 12 = No) | The `// Design:` target of all three changed files is `plan/learned/932-isis-6-lsdb.md`, a learned summary, not a `docs/architecture/` page. The field-level discipline is documented in `entry.go` itself, which is where a developer adding a field reads | Yes |
 
 ## Checklist

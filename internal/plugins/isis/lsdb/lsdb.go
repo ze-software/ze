@@ -280,9 +280,15 @@ func (d *LSDB) Insert(level Level, lsp *packet.LSP, raw []byte) {
 // What is safe to call on it without the LSDB lock: the metadata accessors
 // (LSPID, Sequence, Checksum, IsOverloaded, IsOwn, Raw, Decode) because
 // replaceLocked writes those fields once, before the entry is reachable; and
-// Lifetime/IsPurged because those two fields are atomic precisely for this
-// (they are the only ones mutated after publication -- the aging tick and the
-// clause 7.3.16 duplicate refresh).
+// Lifetime/IsPurged because those two fields are atomic precisely for this.
+// The aging tick, markPurgedLocked and the clause 7.3.16 duplicate refresh
+// write them.
+//
+// Those two are the only ACCESSOR-REACHABLE fields mutated after publication.
+// They are NOT the only fields mutated after publication. recvPurgeReflooded,
+// deleteAt and the srm/ssn/srmSent maps are too. Those stay plain because no
+// accessor reaches them. Read the FIELD DISCIPLINE note on Entry for the
+// enumeration. This paragraph is not one.
 //
 // What is NOT safe: mutating anything, and reading any other mutable field
 // directly rather than through an accessor. The earlier wording here -- that

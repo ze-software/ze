@@ -45,9 +45,9 @@ type CircuitID uint16
 // generation while the aging tick decremented it):
 //
 //  1. It is mutated AFTER the entry is published into store.entries. Most
-//     fields are not: replaceLocked (lsdb.go) builds a FRESH Entry and swaps
-//     it in, so sequence, checksum, typeBlock, own, raw and receivedPurge are
-//     written once before the entry is reachable and never again.
+//     fields are not. replaceLocked (lsdb.go) builds a FRESH Entry and swaps
+//     it in. So id, raw, sequence, checksum, typeBlock, own and receivedPurge
+//     are written once before the entry is reachable, and never again.
 //  2. It is read WITHOUT the LSDB lock. Today that means an exported accessor
 //     on *Entry reaches it, since Lookup hands out a live pointer and a caller
 //     holding one can call any method after the lock is released. But the
@@ -55,14 +55,21 @@ type CircuitID uint16
 //     outside d.mu would race just as well. The accessor set is the current
 //     evidence for this condition, not the definition of it.
 //
-// Mutated post-publication, so condition 1 holds for: lifetime (aging tick,
-// and the clause 7.3.16 duplicate refresh), purged (markPurgedLocked),
-// recvPurgeReflooded (the one-shot re-flood guard) and deleteAt (the grace
-// timer). Of those, only lifetime and purged also satisfy condition 2, so
-// only those two are atomic. recvPurgeReflooded and deleteAt stay plain
-// PRECISELY BECAUSE no accessor exposes them -- adding one would be a race,
-// not a convenience. The srm/ssn/srmSent maps are likewise reachable only
-// through LSDB methods that take the lock themselves.
+// SEVEN fields satisfy condition 1. This list is the whole set:
+//
+//   - lifetime -- the aging tick, and the clause 7.3.16 duplicate refresh
+//   - purged -- markPurgedLocked
+//   - recvPurgeReflooded -- the one-shot re-flood guard
+//   - deleteAt -- the grace timer
+//   - srm, ssn, srmSent -- the per-circuit maps. SetSRM, ClearSRM, SetSSN,
+//     ClearSSN, noteSRMTransmit and ClearCircuit write them, all in lsdb.go
+//
+// Of the seven, only lifetime and purged also satisfy condition 2. So only
+// those two are atomic. The other five stay plain PRECISELY BECAUSE nothing
+// reads them off the lock. No accessor exposes recvPurgeReflooded or deleteAt.
+// The maps are reachable only through LSDB methods that take the lock
+// themselves. Adding an accessor over any of the five would be a race, not a
+// convenience.
 type Entry struct {
 	// id is the LSP ID (the database key, duplicated here for convenience).
 	id types.LSPID
@@ -89,9 +96,9 @@ type Entry struct {
 	// discipline note above the struct. Post-publication mutation alone does
 	// not need an atomic (recvPurgeReflooded and deleteAt are mutated after
 	// publication and stay plain, because nothing reads them off-lock), and an
-	// off-lock read alone does not either (sequence, checksum, typeBlock, own
-	// and raw are read off-lock and stay plain, because replaceLocked writes
-	// them once before the entry is reachable).
+	// off-lock read alone does not either (id, sequence, checksum, typeBlock,
+	// own and raw are read off-lock and stay plain, because replaceLocked
+	// writes them once before the entry is reachable).
 	lifetime atomic.Uint32
 	// checksum is the LSP's stored Fletcher checksum (clause 7.3.11), the value
 	// CSNP/PSNP (isis-7) compare and the freshness compare uses as a tiebreak.
