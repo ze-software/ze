@@ -15,8 +15,12 @@
 package isis
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/netip"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -336,6 +340,251 @@ func TestISISEngineDatabaseSnapshot(t *testing.T) {
 			t.Errorf("snapshot row level = %q, want l1/l2", row.Level)
 		}
 	}
+}
+
+// TestISISEngineDatabaseSnapshotOwn proves the `own` marker survives the whole
+// path an operator sees it through: Entry.own -> LSPSnapshot.Own -> the JSON row
+// of `show isis database` AND `show isis database detail`.
+//
+// VALIDATES: databaseSnapshot and databaseDetailSnapshot both emit the `own` key,
+//
+//	and both carry the entry's real ownership rather than a constant.
+//
+// PREVENTS:  the row struct losing the field (the operator loses the answer to
+//
+//	"is this one mine?"), and the field being wired to a constant (every
+//	row claims the same ownership, which is worse than no field: it is
+//	confidently wrong).
+//
+// The engine originates its own LSP at startup. The test injects a FOREIGN one
+// through the LSDB entry point the flooder uses (Receive with own=false). Each
+// level then holds one row of each kind. Both kinds are required, because an
+// assertion over own rows alone passes against `Own: true` hardcoded.
+//
+// The test also pins that lsp-id stays parseable: it asserts the detail row for
+// the own LSP still carries TLVs. databaseDetailSnapshot can only fill those by
+// feeding lsp-id back through types.ParseLSPID to find the entry.
+func TestISISEngineDatabaseSnapshotOwn(t *testing.T) {
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","hostname":"own-node","interfaces":{"interface":{"eth0":{}}}}}`)
+	defer eng.shutdown()
+
+	// A foreign L1 LSP: a different System ID, delivered on the wire path.
+	foreignID := types.NewLSPID(types.NewSourceID(types.SystemID{0, 0, 0, 0, 0, 9}, 0), 0)
+	in := &packet.LSP{
+		PDUType:           packet.PDUTypeL1LSP,
+		RemainingLifetime: 1000,
+		LSPID:             foreignID,
+		SequenceNumber:    4,
+	}
+	buf := make([]byte, in.EncodedLen())
+	raw := buf[:in.WriteTo(buf, 0)]
+	pdu, err := packet.DecodePDU(raw)
+	if err != nil {
+		t.Fatalf("DecodePDU: %v", err)
+	}
+	if r := eng.lsdb.Receive(lsdb.Level1, pdu.LSP, raw, false); !r.Stored {
+		t.Fatalf("foreign LSP not stored: %+v", r)
+	}
+
+	ownID := types.NewLSPID(types.NewSourceID(types.SystemID{0, 0, 0, 0, 0, 1}, 0), 0)
+
+	type row struct {
+		LSPID string `json:"lsp-id"`
+		Own   bool   `json:"own"`
+		TLVs  []struct {
+			Type uint8 `json:"type"`
+		} `json:"tlvs"`
+	}
+	decode := func(t *testing.T, rows []any) map[string]row {
+		t.Helper()
+		blob, err := json.Marshal(rows)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		var out []row
+		if err := json.Unmarshal(blob, &out); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		byID := make(map[string]row, len(out))
+		for _, r := range out {
+			byID[r.LSPID] = r
+		}
+		return byID
+	}
+
+	for _, tc := range []struct {
+		name string
+		rows []any
+	}{
+		{"show isis database", eng.databaseSnapshot()},
+		{"show isis database detail", eng.databaseDetailSnapshot()},
+	} {
+		byID := decode(t, tc.rows)
+		mine, ok := byID[ownID.String()]
+		if !ok {
+			t.Fatalf("%s: own LSP %s absent from %v", tc.name, ownID, byID)
+		}
+		if !mine.Own {
+			t.Errorf("%s: own LSP %s reports own=false", tc.name, ownID)
+		}
+		theirs, ok := byID[foreignID.String()]
+		if !ok {
+			t.Fatalf("%s: foreign LSP %s absent from %v", tc.name, foreignID, byID)
+		}
+		if theirs.Own {
+			t.Errorf("%s: foreign LSP %s reports own=true", tc.name, foreignID)
+		}
+	}
+
+	// lsp-id stayed a parseable identifier: the detail view resolved the own row
+	// back to its entry and decoded its TLVs. A marker glued onto lsp-id would
+	// leave this row empty.
+	if detail := decode(t, eng.databaseDetailSnapshot()); len(detail[ownID.String()].TLVs) == 0 {
+		t.Errorf("detail row for own LSP %s carries no TLVs; lsp-id no longer round-trips through ParseLSPID", ownID)
+	}
+}
+
+// TestISISEngineDatabaseLSPIDUnpolluted is the regression guarding the shape of
+// the ownership marker, separately from whether the marker is correct.
+//
+// VALIDATES: `lsp-id` carries the LSP ID and nothing else, in both database
+//
+//	views, while ownership travels in its own key.
+//
+// PREVENTS:  ownership (or any other per-row fact) being re-encoded as a marker
+//
+//	character appended to the identifier. See ai/rules/cli.md, "A value
+//	carries no marker: state is a field, never a sigil".
+//
+// The assertion is a strict ROUND TRIP, not a search for `*`. It parses the value
+// back and requires the re-rendered string to be byte-equal. That rejects any
+// decoration, not only the one character this test was written for.
+//
+// It runs over a database holding an own AND a foreign LSP. The own rows are the
+// only ones a marker would ever decorate, so they must be covered.
+func TestISISEngineDatabaseLSPIDUnpolluted(t *testing.T) {
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","hostname":"clean-node","interfaces":{"interface":{"eth0":{}}}}}`)
+	defer eng.shutdown()
+
+	foreignID := types.NewLSPID(types.NewSourceID(types.SystemID{0, 0, 0, 0, 0, 9}, 0), 0)
+	in := &packet.LSP{
+		PDUType:           packet.PDUTypeL1LSP,
+		RemainingLifetime: 1000,
+		LSPID:             foreignID,
+		SequenceNumber:    4,
+	}
+	buf := make([]byte, in.EncodedLen())
+	raw := buf[:in.WriteTo(buf, 0)]
+	pdu, err := packet.DecodePDU(raw)
+	if err != nil {
+		t.Fatalf("DecodePDU: %v", err)
+	}
+	if r := eng.lsdb.Receive(lsdb.Level1, pdu.LSP, raw, false); !r.Stored {
+		t.Fatalf("foreign LSP not stored: %+v", r)
+	}
+
+	for _, tc := range []struct {
+		name string
+		rows []any
+	}{
+		{"show isis database", eng.databaseSnapshot()},
+		{"show isis database detail", eng.databaseDetailSnapshot()},
+	} {
+		blob, err := json.Marshal(tc.rows)
+		if err != nil {
+			t.Fatalf("%s: marshal: %v", tc.name, err)
+		}
+		var generic []map[string]any
+		if err := json.Unmarshal(blob, &generic); err != nil {
+			t.Fatalf("%s: unmarshal: %v", tc.name, err)
+		}
+		if len(generic) == 0 {
+			t.Fatalf("%s: no rows", tc.name)
+		}
+		var sawOwn bool
+		for _, row := range generic {
+			got, ok := row["lsp-id"].(string)
+			if !ok {
+				t.Fatalf("%s: row has no string lsp-id: %v", tc.name, row)
+			}
+			id, err := types.ParseLSPID(got)
+			if err != nil {
+				t.Errorf("%s: lsp-id %q does not parse as an LSP ID: %v", tc.name, got, err)
+				continue
+			}
+			if id.String() != got {
+				t.Errorf("%s: lsp-id %q is decorated; the bare LSP ID is %q", tc.name, got, id.String())
+			}
+			// Ownership must be reachable as its own key, not inferred from the ID.
+			if own, present := row["own"]; !present {
+				t.Errorf("%s: row %q carries no own key", tc.name, got)
+			} else if own == true {
+				sawOwn = true
+			}
+		}
+		if !sawOwn {
+			t.Errorf("%s: no row reported own=true, so the own rows were never covered", tc.name)
+		}
+	}
+}
+
+// TestISISEngineOwnPurgeLogged proves refloodPurge CONSUMES PurgeEvent.Own. A
+// purge of this node's own LSP is logged at warn. A purge of a foreign LSP is
+// not. An own LSP reaching zero lifetime is an anomaly, because refreshOwnLSPs
+// re-stamps it long before MaxAge (ISO/IEC 10589 clause 7.3.16.1). The entry is
+// garbage-collected after the grace period, so the log is the only record that
+// outlives the event.
+//
+// VALIDATES: refloodPurge reads p.Own and warns on it.
+// PREVENTS:  Own going back to stamped-and-unread, and the warn firing for every
+//
+//	purge (which would make a foreign node's normal aging look like a
+//	local fault).
+func TestISISEngineOwnPurgeLogged(t *testing.T) {
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","hostname":"purge-node","interfaces":{"interface":{"eth0":{}}}}}`)
+	defer eng.shutdown()
+
+	var buf lockedBuffer
+	eng.log = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+	ownID := types.NewLSPID(types.NewSourceID(types.SystemID{0, 0, 0, 0, 0, 1}, 0), 0)
+	foreignID := types.NewLSPID(types.NewSourceID(types.SystemID{0, 0, 0, 0, 0, 9}, 0), 0)
+
+	eng.refloodPurge(lsdb.Level1, lsdb.PurgeEvent{LSPID: foreignID.String(), Own: false})
+	if got := buf.String(); strings.Contains(got, "own LSP purged") {
+		t.Errorf("foreign purge logged the own-LSP warning: %q", got)
+	}
+
+	eng.refloodPurge(lsdb.Level1, lsdb.PurgeEvent{LSPID: ownID.String(), Own: true, ReceivedPurge: true})
+	got := buf.String()
+	if !strings.Contains(got, "own LSP purged") {
+		t.Errorf("own purge did not log the warning: %q", got)
+	}
+	if !strings.Contains(got, ownID.String()) {
+		t.Errorf("own-purge warning does not name the LSP: %q", got)
+	}
+	if !strings.Contains(got, "received-purge=true") {
+		t.Errorf("own-purge warning does not carry the received-purge distinction: %q", got)
+	}
+}
+
+// lockedBuffer is a concurrency-safe io.Writer for slog output: refloodPurge also
+// emits an LSP-change event, whose failure path logs from the emit goroutine.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
 }
 
 // ownSeq returns the sequence number of the node's own fragment-0 LSP at level, or

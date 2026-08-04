@@ -487,14 +487,32 @@ func (d *LSDB) ClearCircuit(cid CircuitID) {
 // LSPSnapshot is one row of the `show isis database` view (rendered by isis-13).
 // It is a flat value with no pointers so it crosses the CLI/RPC boundary cleanly
 // (JSON-tagged for the show output). It carries the freshness metadata plus the
-// overload flag (spec AC-10).
+// overload flag (spec AC-10) and the ownership marker.
+//
+// Own carries NO omitempty, unlike Purged. The two booleans answer different
+// questions and that drives the tag. Purged is an exception state: a row without
+// the key is not purged, and the operator reads the key's presence as the event.
+// Own is a CLASSIFICATION every row has an answer to, and the operator filters on
+// both answers ("show me mine", "show me everyone else's"). With omitempty the
+// false rows carry no key, so a filter cannot separate "this LSP is not ours"
+// from "this build does not report ownership", and the table renderer
+// (internal/component/command/pipe_table.go, renderList) builds its column set
+// from the union of the keys present -- on a database holding no own LSP the
+// column would vanish and the operator could not tell the view has the field at
+// all. Overload is the sibling with the same shape and it carries no omitempty
+// for the same reason.
 type LSPSnapshot struct {
 	LSPID    string `json:"lsp-id"`
 	Sequence uint32 `json:"sequence"`
 	Lifetime uint16 `json:"lifetime"`
 	Checksum uint16 `json:"checksum"`
 	Overload bool   `json:"overload"`
-	Purged   bool   `json:"purged,omitempty"`
+	// Own reports that this node originated the LSP. An operator reads it to
+	// answer "is this one mine?", which is the first step of two diagnoses: an
+	// own LSP whose Lifetime is falling means the refresh timer is broken, and a
+	// purge of an own LSP means a peer withdrew this node's advertisement.
+	Own    bool `json:"own"`
+	Purged bool `json:"purged,omitempty"`
 }
 
 // Snapshot returns a stable, sorted copy of the LSPs at level for the CLI. It
@@ -513,6 +531,7 @@ func (d *LSDB) Snapshot(level Level) []LSPSnapshot {
 			Lifetime: e.Lifetime().Seconds(),
 			Checksum: e.checksum,
 			Overload: e.IsOverloaded(),
+			Own:      e.IsOwn(),
 			Purged:   e.IsPurged(),
 		})
 	}

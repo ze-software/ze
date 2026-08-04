@@ -8,7 +8,9 @@
 #            originates its own LSP, so:
 #              - show isis neighbor      -> JSON array (empty: no adjacency)   (AC-1)
 #              - show isis database      -> JSON array carrying the own LSP    (AC-2)
+#                                           with every row marked `own` true
 #              - show isis database detail -> rows carrying decoded TLVs       (AC-2)
+#                                           and the same `own` marker
 #              - show isis route         -> JSON array (empty: no remote prefix)(AC-3)
 #              - show isis interface     -> the passive interface row          (AC-4)
 #              - show isis hostname      -> the local System ID -> hostname    (AC-5)
@@ -28,6 +30,7 @@ tmpfs=isis-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch the IS-IS show/clear surface against a configured daemon."""
 
+import re
 import sys
 
 from ze_api import API, runtime_fail, result_json_data, result_text_data
@@ -80,6 +83,35 @@ def main():
         runtime_fail("show isis database detail: expected rows, got empty")
     if not any('tlvs' in row for row in detail):
         runtime_fail(f"show isis database detail: rows missing tlvs: {detail!r}")
+
+    # Ownership marker: every LSP in this database was originated by this node
+    # (it is the only router in the scenario), so `own` must be present on every
+    # row of BOTH views and true on every one.
+    #
+    # The key must be PRESENT, not merely truthy: `own` deliberately carries no
+    # omitempty, so a future `json:"own,omitempty"` would drop it from every
+    # not-own row and this assertion is what refuses that.
+    #
+    # lsp-id must carry the LSP ID and NOTHING else. Ownership travels in its own
+    # key, never as a character decorating the identifier: `*` is an input token
+    # in ze (the selector wildcard), and a sigil glued to an ID does not survive
+    # `| json` or a downstream match on the ID. The check is a strict pattern over
+    # the whole value, so it rejects any decoration rather than one character.
+    lspid_re = re.compile(r'^[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{2}-[0-9a-f]{2}$')
+    for view, rows in (('show isis database', db),
+                       ('show isis database detail', detail)):
+        missing = [row.get('lsp-id') for row in rows if 'own' not in row]
+        if missing:
+            runtime_fail(f"{view}: rows missing the own key: {missing!r}")
+        foreign = [row.get('lsp-id') for row in rows if row['own'] is not True]
+        if foreign:
+            runtime_fail(
+                f"{view}: this node's own LSPs reported own != true: {foreign!r}")
+        decorated = [row['lsp-id'] for row in rows
+                     if not lspid_re.match(row.get('lsp-id', ''))]
+        if decorated:
+            runtime_fail(
+                f"{view}: lsp-id carries more than the LSP ID: {decorated!r}")
 
     # AC-3: route list present (empty without a remote prefix).
     expect_done_list(api, 'show isis route')

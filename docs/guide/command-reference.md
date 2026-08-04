@@ -773,8 +773,8 @@ machinery (`| json`, `| table`, `| text`, `| count`, `| match`, `| resolve`,
 
 ```
 ze show isis neighbor                   # Adjacencies: system-id, interface, level, state, hold time
-ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload
-ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs
+ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload, own
+ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs (same columns plus tlvs)
 ze show isis route                      # IS-IS-computed IPv4 routes: prefix, metric, level, next-hops
 ze show isis route ipv6                 # IS-IS-computed IPv6 routes (RFC 5308)
 ze show isis interface                  # Circuits: level, type, metric, hello/hold, passive, DIS, adjacency count

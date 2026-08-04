@@ -187,7 +187,9 @@ func (e *Entry) Checksum() uint16 { return e.checksum }
 // as a transit router (enforced in isis-9 SPF).
 func (e *Entry) IsOverloaded() bool { return e.typeBlock&packet.LSPFlagOverload != 0 }
 
-// IsOwn reports whether this node originated the LSP.
+// IsOwn reports whether this node originated the LSP. LSDB.Snapshot (lsdb.go)
+// reads it into LSPSnapshot.Own so `show isis database` can mark the rows this
+// node originated.
 func (e *Entry) IsOwn() bool { return e.own }
 
 // IsPurged reports whether the entry is in the zero-age purge state (Remaining

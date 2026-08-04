@@ -125,7 +125,22 @@ func (e *engine) ageOnce() {
 // so the zero-lifetime LSP propagates. The p.ReceivedPurge distinction is read so
 // the received-purge re-flood is a deliberate, traced path rather than an
 // accident of the local-expiry loop (spec AC-9, R-4).
+//
+// A purge of an OWN LSP (p.Own) is logged at warn. It is an anomaly in both of
+// its forms, and the two forms need different operator action:
+//
+//   - A local expiry means refreshOwnLSPs did not re-stamp the LSP before
+//     MaxAge. This node has just withdrawn itself from every peer's database.
+//     ISO/IEC 10589 clause 7.3.16.1 refreshes an own LSP well before that point.
+//   - A RECEIVED purge means another system withdrew this node's advertisement.
+//
+// Neither stays visible in `show isis database`. The grace period elapses and
+// the entry is garbage-collected, so the log is the only record of the event.
 func (e *engine) refloodPurge(level lsdb.Level, p lsdb.PurgeEvent) {
+	if p.Own {
+		e.log.Warn("isis: own LSP purged",
+			"level", level.String(), "lsp-id", p.LSPID, "received-purge", p.ReceivedPurge)
+	}
 	e.armFloodByString(level, p.LSPID)
 	e.emitLSPChange(level.String(), p.LSPID, 0, "purge")
 }
@@ -766,8 +781,18 @@ func (e *engine) publishLSPChange(level, lspID string, sequence uint32, action s
 
 // databaseSnapshot returns the `show isis database` view across both levels (the
 // snapshot API consumed by isis-13). Each row carries the LSPID, sequence,
-// lifetime, checksum, and overload flag (spec AC-10). L1 rows precede L2 rows;
-// within a level the LSDB sorts by LSP ID.
+// lifetime, checksum, overload flag (spec AC-10) and the ownership marker. L1
+// rows precede L2 rows; within a level the LSDB sorts by LSP ID.
+//
+// Ownership is a per-row FIELD, never a character glued to lsp-id. The rule is
+// ai/rules/cli.md, "A value carries no marker: state is a field, never a sigil".
+// One consequence is local to this file. databaseDetailSnapshot below feeds
+// lsp-id back through types.ParseLSPID to reach the entry's TLVs. A marker would
+// blank the detail view for exactly the rows it decorated.
+//
+// The field is named `own` in both forms. The table renderer builds its columns
+// from the JSON keys (internal/component/command/pipe_table.go, renderList), so
+// the text column header IS the JSON key.
 func (e *engine) databaseSnapshot() []any {
 	out := make([]any, 0)
 	if e.lsdb == nil {
@@ -780,6 +805,7 @@ func (e *engine) databaseSnapshot() []any {
 		Lifetime uint16 `json:"lifetime"`
 		Checksum uint16 `json:"checksum"`
 		Overload bool   `json:"overload"`
+		Own      bool   `json:"own"`
 		Purged   bool   `json:"purged,omitempty"`
 	}
 	for _, lvl := range []lsdb.Level{lsdb.Level1, lsdb.Level2} {
@@ -791,6 +817,7 @@ func (e *engine) databaseSnapshot() []any {
 				Lifetime: row.Lifetime,
 				Checksum: row.Checksum,
 				Overload: row.Overload,
+				Own:      row.Own,
 				Purged:   row.Purged,
 			})
 		}
@@ -822,6 +849,7 @@ func (e *engine) databaseDetailSnapshot() []any {
 		Lifetime uint16   `json:"lifetime"`
 		Checksum uint16   `json:"checksum"`
 		Overload bool     `json:"overload"`
+		Own      bool     `json:"own"`
 		Purged   bool     `json:"purged,omitempty"`
 		TLVs     []tlvRow `json:"tlvs"`
 	}
@@ -835,6 +863,7 @@ func (e *engine) databaseDetailSnapshot() []any {
 				Lifetime: row.Lifetime,
 				Checksum: row.Checksum,
 				Overload: row.Overload,
+				Own:      row.Own,
 				Purged:   row.Purged,
 				TLVs:     []tlvRow{},
 			}

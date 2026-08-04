@@ -35,14 +35,17 @@ and hold time for each IS-IS neighbor.";
                 ze:command "ze-show:isis-database";
                 description "Show the IS-IS link-state database.
 Lists each LSP with its LSP ID, sequence number, remaining lifetime,
-checksum, and overload bit, across Level-1 and Level-2.";
+checksum, and overload bit, across Level-1 and Level-2. The own field
+is true on the LSPs this node originated and false on the LSPs it
+learned from a neighbor.";
 
                 container detail {
                     config false;
                     ze:command "ze-show:isis-database-detail";
                     description "Show the IS-IS link-state database with TLV detail.
 Expands each LSP into its decoded TLVs (type, length, value) so you
-can read exactly what each node advertises.";
+can read exactly what each node advertises. It carries the same fields
+as the summary view, the own field included.";
                 }
             }
 

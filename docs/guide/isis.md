@@ -266,6 +266,26 @@ clear isis adjacency          # tear down all adjacencies; they re-form from the
 clear isis counters           # reset the SPF-run log
 ```
 
+### Which LSPs are this node's own
+
+Every row of `show isis database` and `show isis database detail` carries an
+`own` field. It is `true` on the LSPs this node originated and `false` on the
+LSPs it learned from a neighbour. The field is named `own` in the text column and
+in the JSON key, so the two forms of the output use one word for it.
+
+Some other implementations mark the same fact with a character beside the LSP ID.
+Ze keeps it in a field of its own, because `*` is an input token in ze (the
+selector wildcard for "all") and because a marker glued to an identifier does not
+survive `| json` or a downstream match on the ID. The `lsp-id` column holds the
+LSP ID and nothing else.
+
+Two diagnoses start with this field:
+
+| What you see | What it means |
+|--------------|---------------|
+| An `own` LSP whose `lifetime` falls toward 0 | The refresh timer is not re-stamping it. At 0 the node disappears from every neighbour's database. |
+| An `own` LSP with `purged` set | A neighbour withdrew this node's advertisement, or the refresh failed and the LSP aged out. The daemon logs `isis: own LSP purged` at warn level for the same event. |
+
 Every `show isis ...` command routes its JSON through the pipe machinery, so you
 can append `| json`, `| table`, `| text`, `| count`, `| match <pat>`,
 `| resolve`, or `| origin`. `clear isis adjacency` forces a full re-learn (LSP

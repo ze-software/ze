@@ -48,10 +48,11 @@ to fix that discipline, not the one reported field.
   that only read metadata are fine". A read races a concurrent write whether or not the
   reader also writes. The doc was actively wrong, and it is why the SNP path felt safe to
   write. Fix the field without the sentence and the next accessor repeats the mistake.
-- `Entry.IsOwn()` is still exported with no non-test caller. Deferred on purpose:
-  `plan/deferrals/fixit-isis-lsdb-entry-race.md`. `LSPSnapshot` carries no ownership
-  field. So deleting the accessor and wiring `own` into `show isis database` are
-  different answers, one a three-line cleanup and one a small CLI feature.
+- `Entry.IsOwn()` was exported with no non-test caller, and the fix was a genuine fork:
+  delete the accessor, or wire `own` into `show isis database`. Deferred on purpose so
+  the owner picked. **Ruled 2026-08-04: wire it.** `LSDB.Snapshot` now reads `IsOwn()`
+  into `LSPSnapshot.Own`, and both database views carry an `own` field. The deferral
+  shard was removed with the fix.
 
 ## Gotchas
 
@@ -99,4 +100,5 @@ to fix that discipline, not the one reported field.
 - `internal/plugins/isis/lsdb/aging_test.go` -- `TestISISLSDBEntryAccessorsAreRaceFree`.
   The tick against four reader goroutines, every exported accessor in the reader loop, and
   a writer that re-originates purged LSPs so it never stops writing
-- `plan/deferrals/fixit-isis-lsdb-entry-race.md` -- the `IsOwn()` row
+- The deferral shard that held the `IsOwn()` row was removed on 2026-08-04, when the
+  owner ruled and the row was resolved by wiring the accessor into `LSDB.Snapshot`

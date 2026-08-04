@@ -284,6 +284,50 @@ func TestISISLSDBSnapshot(t *testing.T) {
 	}
 }
 
+// TestISISLSDBSnapshotOwn proves LSPSnapshot.Own reports which LSPs this node
+// originated, which is what `show isis database` marks for the operator (FRR
+// prints the same fact as an asterisk beside the LSP ID).
+//
+// VALIDATES: Snapshot reads Entry.IsOwn per row.
+// PREVENTS:  Own hardcoded, dropped from the snapshot literal, or wired to the
+//
+//	wrong entry -- each of which makes every row claim the same
+//	ownership and destroys the answer to "is this one mine?".
+//
+// The database deliberately holds BOTH kinds at the same level: Insert is the
+// origination path (own), Receive with own=false is the wire path (foreign). A
+// test over own LSPs alone passes against `Own: true` hardcoded in the snapshot
+// literal, so the foreign row is what makes the assertion discriminate.
+func TestISISLSDBSnapshotOwn(t *testing.T) {
+	d := New(nil)
+
+	mine, mineRaw := buildLSP(t, packet.PDUTypeL1LSP, lspID(1, 0), 3, 1000, nil)
+	theirs, theirsRaw := buildLSP(t, packet.PDUTypeL1LSP, lspID(9, 0), 4, 1000, nil)
+
+	d.Insert(Level1, mine, mineRaw)
+	if r := d.Receive(Level1, theirs, theirsRaw, false); !r.Stored {
+		t.Fatalf("foreign LSP not stored: %+v", r)
+	}
+
+	want := map[string]bool{
+		lspID(1, 0).String(): true,
+		lspID(9, 0).String(): false,
+	}
+	rows := d.Snapshot(Level1)
+	if len(rows) != len(want) {
+		t.Fatalf("L1 snapshot has %d rows, want %d", len(rows), len(want))
+	}
+	for _, row := range rows {
+		expect, known := want[row.LSPID]
+		if !known {
+			t.Fatalf("unexpected snapshot row %q", row.LSPID)
+		}
+		if row.Own != expect {
+			t.Errorf("snapshot row %q: Own = %v, want %v", row.LSPID, row.Own, expect)
+		}
+	}
+}
+
 // ext135TLV builds an opaque TLV 135 (Extended IP Reachability) carrying one
 // prefix, for use as an LSP body TLV in tests.
 func ext135TLV(t *testing.T, prefix netip.Prefix, metric uint32) packet.TLV {
