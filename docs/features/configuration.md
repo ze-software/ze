@@ -56,18 +56,23 @@ Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated f
 |---------|-------|-------------|
 | `prefix { maximum N; }` | Per family | Hard maximum prefix count. Mandatory. |
 | `prefix { warning N; }` | Per family | Warning threshold. Default: 90% of maximum. |
-| `prefix { teardown true/false; }` | Per peer | Tear down on exceed (default: true) or warn-only. |
-| `prefix { idle-timeout N; }` | Per peer | Seconds before auto-reconnect after teardown (0 = no reconnect). |
+| `prefix { teardown true/false; }` | Per family | Tear down on exceed (default: true) or warn-only. |
+| `prefix { idle-timeout N; }` | Per family | Seconds to wait before reconnect after this family caused a teardown. Default 0, which keeps the peer down. |
+| `prefix { reconnect never\|backoff\|timer; }` | Per family | What the peer does after this family stopped the session. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
 
-When a peer exceeds the maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false`, the session stays up but further NLRIs for the exceeded family are dropped.
+When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false` on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own `teardown` value, so one family can warn while another stops the session.
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
 
-Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hour. Backoff resets on stable session.
+
+A peer stopped by a prefix limit STAYS DOWN by default. Its state reads `idle-hold`, `ze show warnings` carries a `prefix-hold` warning that names the family, and the log line says `peer held down`. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.
+
+`reconnect backoff` asks for the opposite: the peer comes back on its usual connect backoff, 5 to 60 seconds. `reconnect timer`, or an `idle-timeout` above 0, waits idle-timeout x 2^(N-1), capped at 1 hour. The wait comes from the family that exceeded its maximum, and resets on a stable session. A `reconnect` value that contradicts `idle-timeout` in the same block is a config error.
 
 **PeeringDB integration:** `resolve peeringdb max-prefix <asn>` queries PeeringDB for a peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under `system { peeringdb { url; margin; } }` for private mirrors. Staleness warnings appear when prefix data is older than 6 months.
 
 **Prometheus metrics:** `ze_bgp_prefix_count`, `ze_bgp_prefix_maximum`, `ze_bgp_prefix_warning`, `ze_bgp_prefix_warning_exceeded`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_maximum_exceeded_total`, `ze_bgp_prefix_teardown_total`, `ze_bgp_prefix_stale`.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement -->
-<!-- source: internal/component/bgp/reactor/peer.go -- idle-timeout and reconnect logic -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- prefixReconnectDecision and holdDownAfterPrefixTeardown, per-family reconnect -->
 <!-- source: internal/component/resolve/cmd/resolve.go -- handlePeeringDBMaxPrefix -->
 
 ### Cross-Peer Update Groups

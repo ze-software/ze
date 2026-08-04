@@ -1135,8 +1135,17 @@ class Ze:
         self.container = container
 
     def rib_count(self):
-        """Return the number of received routes in Ze's RIB, or 0 on failure."""
-        output = docker_exec_quiet(self.container, ["ze", "show", "rib", "status"])
+        """Return the number of received routes in Ze's RIB, or 0 on failure.
+
+        The verb is `show bgp rib status` (docs/architecture/api/commands.md).
+        It read `show rib status` until 2026-08-04, which the daemon answers
+        with `unknown command`, so docker_exec_quiet returned "" and this
+        returned 0 for every caller. Scenario 05 was red on it; the callers
+        asserting a LOWER bound are the ones that showed it.
+        """
+        output = docker_exec_quiet(
+            self.container, ["ze", "show", "bgp", "rib", "status"]
+        )
         m = re.search(r'"routes-in"\s*:\s*(\d+)', output)
         if m:
             return int(m.group(1))

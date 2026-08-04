@@ -145,6 +145,7 @@ Pre-401 history: `plan/learned/DESIGN-HISTORY.md`, "Configuration: YANG, parser,
 - [860](plan/learned/860-yang-required-generic.md) -- How `ze:required` is enforced across multi-module YANG sections
 - [1058](plan/learned/1058-redist-source-registration.md) -- Why registry-backed config validation must populate at `init()`
 - [1180](plan/learned/1180-rpki-per-peer-action.md) -- Why a plugin keying by peer identity must read `configjson.PeerRemoteIP`
+- [1340](plan/learned/1340-fixit-bgp-per-family-prefix-enforcement.md) -- Why a YANG leaf inside a list container stored as a Go scalar is a defect before it runs, and why a `test/parse/` .ci cannot see it
 
 ## CLI/API
 

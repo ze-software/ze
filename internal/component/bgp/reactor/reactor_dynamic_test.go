@@ -208,3 +208,50 @@ func newTestReactor(t *testing.T) *Reactor {
 		clock:     clock.RealClock{},
 	}
 }
+
+// TestDynamicPeerOwnsPrefixMaps verifies each dynamic peer gets its own copy of
+// the template's prefix maps.
+//
+// VALIDATES: AC-8 and R-2. Dynamic peers are built one per accepted connection
+// from a single template. Aliasing the maps would let a write on one peer
+// change prefix enforcement for every sibling built from the same group.
+// PREVENTS: One peer's warn-only choice spreading across an IXP's worth of
+// dynamic peers.
+func TestDynamicPeerOwnsPrefixMaps(t *testing.T) {
+	r := newTestReactor(t)
+	dg := newTestDynamicGroup("ix-peers", []string{"185.1.69.0/24"}, 100)
+	dg.Settings.PrefixMaximum = map[string]uint32{"ipv4/unicast": 1000}
+	dg.Settings.PrefixWarning = map[string]uint32{"ipv4/unicast": 900}
+	dg.Settings.PrefixTeardown = map[string]bool{"ipv4/unicast": true}
+	dg.Settings.PrefixIdleTimeout = map[string]uint16{"ipv4/unicast": 30}
+	dg.Settings.PrefixUpdated = map[string]string{"ipv4/unicast": "2026-07-30"}
+	r.dynamicGroups = []*DynamicGroupConfig{dg}
+
+	r.mu.Lock()
+	first, err1 := r.createDynamicPeer(dg, netip.MustParseAddr("185.1.69.1"))
+	second, err2 := r.createDynamicPeer(dg, netip.MustParseAddr("185.1.69.2"))
+	r.mu.Unlock()
+
+	require.NoError(t, err1)
+	require.NoError(t, err2)
+
+	// Every per-family prefix value reaches the dynamic peer.
+	assert.Equal(t, uint32(1000), first.Settings().PrefixMaximum["ipv4/unicast"])
+	assert.True(t, first.Settings().PrefixTeardownFor("ipv4/unicast"))
+	assert.Equal(t, uint16(30), first.Settings().PrefixIdleTimeoutFor("ipv4/unicast"))
+	assert.Equal(t, "2026-07-30", first.Settings().OldestPrefixUpdated())
+
+	// Mutating one peer changes neither its sibling nor the template.
+	first.Settings().PrefixTeardown["ipv4/unicast"] = false
+	first.Settings().PrefixMaximum["ipv4/unicast"] = 1
+	first.Settings().PrefixIdleTimeout["ipv4/unicast"] = 1
+	first.Settings().PrefixUpdated["ipv4/unicast"] = "2000-01-01"
+
+	assert.True(t, second.Settings().PrefixTeardownFor("ipv4/unicast"),
+		"the sibling keeps its own enforcement setting")
+	assert.Equal(t, uint32(1000), second.Settings().PrefixMaximum["ipv4/unicast"])
+	assert.Equal(t, uint16(30), second.Settings().PrefixIdleTimeoutFor("ipv4/unicast"))
+	assert.Equal(t, "2026-07-30", second.Settings().OldestPrefixUpdated())
+	assert.True(t, dg.Settings.PrefixTeardownFor("ipv4/unicast"),
+		"the template is not mutated either")
+}

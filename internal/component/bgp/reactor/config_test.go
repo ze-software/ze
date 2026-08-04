@@ -1840,7 +1840,7 @@ func TestPrefixLimitConfigTeardownDefault(t *testing.T) {
 	}
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-	assert.True(t, ps.PrefixTeardown)
+	assert.True(t, ps.PrefixTeardownFor("ipv4/unicast"))
 }
 
 // TestPrefixLimitConfigTeardownFalse verifies teardown can be set to false (warn-only mode).
@@ -1854,7 +1854,7 @@ func TestPrefixLimitConfigTeardownFalse(t *testing.T) {
 	}
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-	assert.False(t, ps.PrefixTeardown)
+	assert.False(t, ps.PrefixTeardownFor("ipv4/unicast"))
 }
 
 // TestPrefixLimitConfigIdleTimeout verifies idle-timeout parsed into PeerSettings.
@@ -1868,7 +1868,7 @@ func TestPrefixLimitConfigIdleTimeout(t *testing.T) {
 	}
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-	assert.Equal(t, uint16(30), ps.PrefixIdleTimeout)
+	assert.Equal(t, uint16(30), ps.PrefixIdleTimeoutFor("ipv4/unicast"))
 }
 
 // TestPrefixLimitBoundaryMaximum verifies boundary values for prefix maximum.

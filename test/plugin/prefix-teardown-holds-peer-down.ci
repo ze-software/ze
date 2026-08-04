@@ -1,0 +1,93 @@
+# Test: a prefix teardown with the default idle-timeout keeps the peer DOWN
+#
+# The YANG default of `prefix { idle-timeout 0; }` means "no reconnect", which
+# the leaf description has always said. The peer that floods past its maximum
+# is stopped, and it stays stopped until an operator acts.
+#
+# Until 2026-08-03 the daemon did the opposite. prefixReconnectDelay declined
+# the prefix backoff for a zero idle-timeout, and Peer.run fell through to its
+# NORMAL backoff, so the peer came straight back, re-exceeded the maximum, and
+# flapped forever.
+#
+# What this test proves, and what it does NOT:
+#   * It proves the running daemon reaches the hold and NAMES it, with the
+#     family and the mode, where an operator reads it. Mutation-verified: with
+#     PrefixReconnectFor returning backoff (the old behavior) the run fails on
+#     the missing `peer held down` line.
+#   * It does NOT prove the absence of a second connection. A reject on the
+#     peer's `attempt=2` debug line was tried and REMOVED: the reconnect floor
+#     is a hard-coded 5 seconds (DefaultReconnectMin, peer.go) and the daemon is
+#     stopped as soon as the peer script ends, about 2 seconds in, so no second
+#     attempt is ever reachable inside this test and the clause could not fail.
+#     A reverted daemon passed it. The no-reconnect proof lives in
+#     TestPeerHeldDownAfterPrefixTeardown, which drives a real peer with a 20ms
+#     backoff and counts the connections it accepts.
+#
+# ze-peer: sends 2 IPv4 routes, one over the maximum of 1, then waits.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=12s
+option=asn:value=65001
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
+# Cease / Maximum Number of Prefixes Reached, with the RFC 4486 Section 4 data:
+# AFI 1, SAFI 1, count 2.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000002
+EOF_PEER
+
+# ze bgp configuration: one family, maximum 1, and no idle-timeout at all.
+# That is the shape of every peer config that never mentions the leaf.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.bgp.reactor.peer:value=debug
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=12s
+
+# The limit stopped the session, and the peer is held down by name.
+expect=stderr:contains=prefix count exceeded maximum
+expect=stderr:contains=peer held down
+expect=stderr:contains=family=ipv4/unicast
+expect=stderr:contains=reconnect=never
+
+# // test-relax: a `reject=stderr:pattern=attempt=2` clause stood here, meant to
+# prove the peer never dialed again. It is removed before this test is ever
+# promoted, because it CANNOT fail: the reconnect floor is 5 seconds
+# (DefaultReconnectMin, peer.go) and the daemon is stopped about 2 seconds in,
+# when the peer script ends. A daemon built with the fix reverted PASSES the
+# clause, which was measured, not assumed. Replaced coverage, not lost coverage:
+# TestPeerHeldDownAfterPrefixTeardown drives a real peer with a 20ms backoff and
+# counts accepted connections, which is the assertion this one only looked like.
+#
+# The timer path belongs to a configured idle-timeout, not to this peer. A
+# daemon that took it would print this line before the peer script ends.
+reject=stderr:pattern=waiting before reconnect

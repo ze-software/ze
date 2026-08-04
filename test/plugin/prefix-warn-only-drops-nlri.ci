@@ -1,0 +1,261 @@
+# Test: warn-only prefix enforcement DROPS the over-limit UPDATE, in a running daemon
+#
+# AC-2 of spec-fixit-bgp-per-family-prefix-enforcement says the excess NLRI is
+# "dropped and not installed". The sibling test
+# test/plugin/prefix-per-family-teardown.ci proves the DECISION (the log line
+# reads teardown=false for the family that overflowed) and the session survival.
+# Neither proves NON-INSTALLATION: no test reads the RIB.
+#
+# This one does. ipv4/unicast carries `maximum 2` and `teardown false`. The peer
+# announces 0.0.0.0/32 alone, then three /24s. However the read path groups them,
+# the count crosses the maximum, applyPrefixCheck returns drop=true
+# (internal/component/bgp/reactor/session_prefix.go), and processMessage returns
+# before plugin delivery (internal/component/bgp/reactor/session_read.go).
+#
+# The check is `current > maximum` AFTER the add, and the drop takes the whole
+# UPDATE, so the surviving count depends on how the read path coalesces: 1 when
+# the message that crosses the maximum carries every /24, 2 when one /24 lands
+# inside the limit first. Never more, whatever the split. That bound is the
+# property this test asserts.
+#
+# POSITIVE CONTROL: the peer announces 0.0.0.0/32 FIRST, alone, which is one
+# prefix against a maximum of 2 and so must be installed. The observer waits for
+# `show bgp rib received count` to reach 1 BEFORE it believes anything about the
+# routes that follow. Without it, a RIB plugin that never started, a dispatch
+# that never worked and a correctly dropped UPDATE all look identical: zero.
+#
+# The control MUST come from the PEER, not from ze. `received` is scopeReceived,
+# the Adj-RIB-In (showPipeline, internal/component/bgp/plugins/rib/rib_pipeline.go),
+# and a route ze originates never enters that scope. An earlier version of this
+# test used a ze-originated route as the control and read 0 forever.
+#
+# WHY A BOUND AND NOT AN EQUALITY: the three routes do not always reach
+# applyPrefixCheck as one UPDATE, so the surviving count is 1 on one run and 2 on
+# the next, both correct. ze-peer is not the variable: Peer.runMessageLoop
+# (internal/test/peer/peer.go) writes ONE UPDATE per send-route. The merging is
+# ze's own read path, readAndProcessCoalesced (session_coalesce.go), which
+# appends consecutive ipv4/unicast NLRIs carrying byte-identical attributes and
+# flushes when the read buffer drains. It is on by default and switchable with
+# `ze.bgp.reactor.coalesce=false`, so how many messages arrive depends on read
+# timing. The stable invariant is the one enforcement actually promises: the
+# Adj-RIB-In never goes past the maximum. The control assertion above establishes
+# the floor first, so the bound cannot be satisfied by a zero.
+#
+# DISCRIMINATION, measured 2026-08-04, not asserted. Mutation
+# `warn-only-installs-excess`: applyPrefixCheck's warn-only branch returns
+# `nil, false` instead of `nil, true`, built into a real binary with the runner's
+# own tags (runner.TestBuildTags) and run through
+# `ZE_TEST_NO_BUILD=1 ZE_BIN=<mutant>`. The mutant FAILS this test in 20.0s with
+# `show bgp rib received count=4, maximum is 2`; the clean binary passes in
+# 5.7 to 6.1 seconds over three consecutive runs.
+#
+# The tags matter: a mutant built with a hand-written tag list PASSED, and the
+# only difference was the build. Mutate with runner.TestBuildTags or the
+# measurement lies to you.
+#
+# The bound is polled across a settle window rather than read once, so a route
+# delivered late fails it rather than slipping in after a single early read. The
+# window is 12 attempts at 250ms: a correct daemon cannot exceed the bound at
+# any point, so the window is a false-negative margin, never a flake source.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# Hold the session open after the expectations complete: a closed peer is a
+# session-down event, which withdraws its routes and empties the RIB the plugin
+# is about to read.
+option=linger:value=true
+option=asn:value=65001
+# The control route FIRST, in its own UPDATE: 0.0.0.0/32 is one prefix against a
+# maximum of 2, so it is inside the limit and must be installed.
+option=update:value=send-default-route
+# Then three routes, which take the count past the maximum. ze-peer sends one
+# UPDATE each; ze's read path usually coalesces them into one and does not
+# always, and the test tolerates both.
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.2.0/24:next-hop=10.0.0.1
+# ze's own configured static route comes back the other way. It is NOT the
+# control (it never enters the received scope); it gives the peer a
+# deterministic message to wait for before EOR. origin=IGP, as-path [65000]
+# (eBGP, so ze prepends its ASN and sends no LOCAL_PREF), next-hop 10.0.0.1,
+# nlri 192.168.1.0/24.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE84003040A00000118C0A801
+# EOR from ze. A Cease NOTIFICATION would arrive in its place if the warn-only
+# family were torn down.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=prefix-drop-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Read ze's Adj-RIB-In count and prove the over-limit UPDATE never landed."""
+
+import json
+import sys
+
+from ze_api import API, result_text_data, runtime_fail
+
+# ipv4/unicast carries `maximum 2`. The peer announces four routes in total: the
+# control alone first, then three more that take the count past the maximum.
+# Whichever UPDATE crosses it is dropped whole, so 1 or 2 survive, never more.
+# OVER_LIMIT is how many the peer sent AFTER the control, not how many landed in
+# any one message: the read path decides that (see the header).
+MAXIMUM = 2
+# ANNOUNCED counts every route the peer offered, control included, so the two
+# messages below both speak of the same number.
+ANNOUNCED = 4
+OVER_LIMIT = 3
+# The control route arrives first, alone, and is inside the maximum, so at least
+# one route must be installed. That is the LOWER bound, and it is asserted first.
+CONTROL = 1
+
+# The one RIB scope this test reads. `count` answers {"count": N}.
+RECEIVED_QUERY = 'show bgp rib received count'
+
+
+def rib_count(result):
+    """Return the route count from a dispatch result, or None when unreadable."""
+    if result.get('status') != 'done':
+        return None
+    try:
+        payload = json.loads(result_text_data(result))
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict) or 'count' not in payload:
+        return None
+    return int(payload['count'])
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # POSITIVE CONTROL, and it runs FIRST. The peer's 0.0.0.0/32 arrived alone and
+    # inside the maximum, so it must be in the Adj-RIB-In. Until it is counted, a
+    # zero from this scope proves nothing: a RIB plugin that never started, a
+    # dispatch that never worked and a correctly dropped UPDATE all read zero.
+    control = api.dispatch_until(
+        RECEIVED_QUERY,
+        lambda res: (rib_count(res) or 0) >= CONTROL,
+        attempts=60, delay=0.25)
+    count = rib_count(control)
+    if count is None:
+        runtime_fail('bgp-rib did not answer %s: %r' % (RECEIVED_QUERY, control))
+    if count < CONTROL:
+        runtime_fail(
+            'the control route never reached the RIB: %s=%d, wanted at least %d. '
+            'A count at or under the maximum below cannot be believed without it.'
+            % (RECEIVED_QUERY, count, CONTROL))
+    print('OK control: an in-limit route is installed, %s=%d'
+          % (RECEIVED_QUERY, count), file=sys.stderr)
+
+    # THE ASSERTION. An UPDATE took the count past the maximum, so that whole
+    # message is dropped and the RIB can never hold more than the maximum. The
+    # count is never rolled back, so every later UPDATE on this family is dropped
+    # too. This polls FOR THE VIOLATION across a settle window: a route
+    # delivered late raises the count and is caught, and not finding it is the
+    # pass. A single read taken too early could not tell those two apart.
+    received = api.dispatch_until(
+        RECEIVED_QUERY,
+        lambda res: (rib_count(res) or 0) > MAXIMUM,
+        attempts=12, delay=0.25)
+    count = rib_count(received)
+    if count is None:
+        runtime_fail('%s stopped answering: %r' % (RECEIVED_QUERY, received))
+    if count > MAXIMUM:
+        runtime_fail(
+            'AC-2: warn-only must not install routes past the maximum. '
+            '%s=%d, maximum is %d. The peer announced %d routes, %d of them '
+            'after the control route'
+            % (RECEIVED_QUERY, count, MAXIMUM, ANNOUNCED, OVER_LIMIT))
+
+    print('OK AC-2: %d of %d announced routes are installed, never past the '
+          'maximum of %d, so the over-limit UPDATE was dropped'
+          % (count, ANNOUNCED, MAXIMUM), file=sys.stderr)
+
+    api._call_engine('ze-plugin-engine:dispatch-command',
+                     {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external prefix-drop-test {
+		run ./prefix-drop-test.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						teardown false
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# ze's own route. It gives the peer a deterministic message to wait for
+		# before EOR. The observer's control is the peer's default route, which
+		# is what lands in the scope the observer reads.
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+
+# The overflow happened and was judged warn-only.
+expect=stderr:contains=prefix count exceeded maximum
+expect=stderr:contains=teardown=false
+# The plugin read the RIB and the over-limit route was absent.
+expect=stderr:contains=never past the maximum
+# Warn-only never sends the Cease.
+reject=stderr:pattern=Maximum Number of Prefixes Reached

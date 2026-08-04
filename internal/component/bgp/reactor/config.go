@@ -221,6 +221,13 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
+	// Protocol event capture from capture > {enabled,directory,maximum-size,on-limit}.
+	if captureMap, ok := mapMap(tree, "capture"); ok {
+		if err := parseCaptureSettings(name, captureMap, &ps.Capture); err != nil {
+			return nil, err
+		}
+	}
+
 	// Local address from connection > local > ip (required).
 	var localAddrStr string
 	if connMap != nil {
@@ -382,6 +389,47 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	}
 
 	return ps, nil
+}
+
+// parseCaptureSettings reads the peer's `capture` container into out, which
+// arrives carrying the YANG defaults from NewPeerSettings.
+//
+// The numeric range and the enum are enforced here as well as in YANG. A peer
+// built by a caller that did not go through the schema (a test, a dynamic-group
+// template) would otherwise reach newSessionCapture with a zero maximum-size,
+// and a zero cap is UNBOUNDED at the encoder (capture.Writer treats limit <= 0
+// as no limit), which is the opposite of what the operator asked for.
+func parseCaptureSettings(peerName string, captureMap map[string]any, out *CaptureSettings) error {
+	if v, ok := mapBool(captureMap, "enabled"); ok {
+		out.Enabled = v
+	}
+	if v, ok := mapString(captureMap, "directory"); ok && v != "" {
+		out.Directory = v
+	}
+	if v, ok := mapUint32(captureMap, "maximum-size"); ok {
+		if v < MinimumCaptureSize || v > MaximumCaptureSize {
+			return fmt.Errorf("peer %s: capture maximum-size must be %d-%d megabytes, got %d",
+				peerName, MinimumCaptureSize, MaximumCaptureSize, v)
+		}
+		out.MaximumSize = v
+	}
+	if v, ok := mapString(captureMap, "on-limit"); ok && v != "" {
+		switch v {
+		case "rotate":
+			out.OnLimit = CaptureLimitRotate
+		case "stop":
+			out.OnLimit = CaptureLimitStop
+		default:
+			return fmt.Errorf("peer %s: capture on-limit must be rotate or stop, got %q", peerName, v)
+		}
+	}
+	if out.Enabled && out.Directory == "" {
+		return fmt.Errorf("peer %s: capture is enabled but its directory is empty", peerName)
+	}
+	if out.Enabled && out.MaximumSize == 0 {
+		return fmt.Errorf("peer %s: capture is enabled but its maximum-size is zero", peerName)
+	}
+	return nil
 }
 
 // parseTTLSettings decodes one `bgp peer connection ttl { ... }` block.
@@ -636,58 +684,6 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 				}
 			}
 		}
-	}
-
-	return nil
-}
-
-// parsePrefixLimitFromFamily extracts prefix maximum, warning, teardown, idle-timeout,
-// and updated from a family entry's prefix block.
-// RFC 4486 Section 4: Maximum Number of Prefixes Reached.
-// Every non-disabled family MUST have a prefix maximum configured.
-func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *PeerSettings) error {
-	prefixMap, hasPrefixBlock := mapMap(entryMap, "prefix")
-	if !hasPrefixBlock {
-		return fmt.Errorf("family %s: prefix maximum is mandatory (add prefix { maximum N; })", familyKey)
-	}
-
-	maximum, ok := mapUint32(prefixMap, "maximum")
-	if !ok || maximum == 0 {
-		return fmt.Errorf("family %s: prefix maximum is mandatory and must be > 0", familyKey)
-	}
-
-	// Initialize maps lazily.
-	if ps.PrefixMaximum == nil {
-		ps.PrefixMaximum = make(map[string]uint32)
-	}
-	if ps.PrefixWarning == nil {
-		ps.PrefixWarning = make(map[string]uint32)
-	}
-
-	ps.PrefixMaximum[familyKey] = maximum
-
-	// Warning defaults to 90% of maximum.
-	warning, hasWarning := mapUint32(prefixMap, "warning")
-	if hasWarning {
-		if warning >= maximum {
-			return fmt.Errorf("family %s: prefix warning (%d) must be less than maximum (%d)", familyKey, warning, maximum)
-		}
-		ps.PrefixWarning[familyKey] = warning
-	} else {
-		ps.PrefixWarning[familyKey] = maximum * 9 / 10
-	}
-
-	// Per-family prefix enforcement settings (teardown, idle-timeout, updated).
-	if v, ok := mapString(prefixMap, "teardown"); ok {
-		ps.PrefixTeardown = v != valFalse
-	}
-
-	if v, ok := mapUint16(prefixMap, "idle-timeout"); ok {
-		ps.PrefixIdleTimeout = v
-	}
-
-	if v, ok := mapString(prefixMap, "updated"); ok {
-		ps.PrefixUpdated = v
 	}
 
 	return nil

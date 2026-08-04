@@ -1,0 +1,109 @@
+# Test: `prefix { reconnect backoff; }` brings the peer BACK on the usual backoff
+#
+# This is the explicit opt-in half of the 2026-08-03 idle-timeout decision. The
+# YANG default keeps a peer down after a prefix-limit teardown, and the sibling
+# test test/plugin/prefix-teardown-holds-peer-down.ci proves that. An operator
+# who wants the pre-2026-08-03 behavior writes `reconnect backoff` on the family,
+# and this test proves the running daemon honors it.
+#
+# What this test proves:
+#   * The prefix maximum still stops the session, with the RFC 4486 Cease.
+#   * ze DIALS AGAIN and completes a second OPEN handshake. That is the positive
+#     assertion: connection 2 exists, so the peer really did come back. An
+#     assertion that the daemon merely stayed out of the hold would pass with the
+#     whole reconnect mechanism deleted, which is the shape this file avoids.
+#   * The peer is never held down, and never takes the idle-timeout timer path.
+#
+# Mutation-verified 2026-08-03 against a daemon built through a tmp/ overlay whose
+# PrefixReconnectFor (peersettings.go) returns PrefixReconnectNever for every
+# family, which is the daemon before the opt-in existed:
+#   * the connection-2 clause goes RED. ze-peer waits on an accept that never
+#     comes and the run ends TIME on this test.
+#   * the `peer held down` reject goes RED on its own too, measured separately on
+#     a one-connection copy of this file: `reject=stderr:pattern found: peer held
+#     down` in 1.9s. It is kept as the faster and more specific signal, but it is
+#     the connection-2 clause that states the property, because a reject alone
+#     also passes against a daemon with the whole reconnect path deleted.
+#
+# One unreproduced TIME, 2026-08-03, on the first full make ze-plugin-test after
+# promotion. The daemon stderr in that report stopped at the teardown: no
+# `timing: safeRunOnce returned`, no second attempt, nothing for 57 seconds, and
+# no truncation marker. It did not reproduce: the suite is green twice more with
+# this test at 7s, and stress-repro.py is clean over 64 invocations at 4x core
+# oversubscription. If it returns, the window to instrument is between Session.Run
+# returning and that log line in Peer.run (peer_run.go), and it needs a goroutine
+# dump from the live daemon: the runner's failure report cannot show one.
+#
+# ze-peer: sends 2 IPv4 routes over the maximum of 1 on EVERY connection it
+# accepts, so connection 2 is a full session, not a bare TCP handshake.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=20s
+option=asn:value=65001
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
+# Connection 1: Cease / Maximum Number of Prefixes Reached, with the RFC 4486
+# Section 4 data: AFI 1, SAFI 1, count 2.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000002
+# Connection 2 IS the proof of reconnection. ze-peer only reaches this line after
+# it accepted a second TCP connection AND completed a second OPEN handshake on
+# it. A daemon that resolves the family to `never` returns from its run loop and
+# never dials again, so ze-peer waits on an accept that never comes and fails.
+# The payload is a KEEPALIVE: the message is irrelevant, reaching the line is the
+# assertion.
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+EOF_PEER
+
+# ze bgp configuration: one family, maximum 1, and the explicit opt-in. No
+# idle-timeout: `reconnect backoff` and a non-zero idle-timeout contradict each
+# other and are refused at parse (parsePrefixReconnect, config_prefix.go).
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1
+						reconnect backoff
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.bgp.reactor.peer:value=debug
+
+# Process orchestration. The reconnect floor is DefaultReconnectMin, 5 seconds
+# (peer.go), and it is not configurable from a peer config, so the second attempt
+# lands about 5s after the first teardown and a green run takes about 8s. The
+# 20s timeouts are the ceiling, not the runtime: the runner stops ze as soon as
+# ze-peer completes. No sleep is used; the wait is the daemon's own timer.
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+
+# The limit stopped the session, and the peer dialed a second time.
+expect=stderr:contains=prefix count exceeded maximum
+expect=stderr:contains=attempt=2
+
+# Neither of the two non-backoff outcomes was taken. Both clauses discriminate:
+# a daemon whose family resolves to `never` prints the hold line, and one that
+# resolves to `timer` prints the wait line, each before ze-peer completes.
+reject=stderr:pattern=peer held down
+reject=stderr:pattern=waiting before reconnect

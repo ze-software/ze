@@ -134,7 +134,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			KeepalivesSent:       stats.KeepalivesSent,
 			EORReceived:          stats.EORReceived,
 			EORSent:              stats.EORSent,
-			PrefixUpdated:        s.PrefixUpdated,
+			PrefixUpdated:        s.OldestPrefixUpdated(),
 			RouteReflectorClient: s.RouteReflectorClient,
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
@@ -504,19 +504,39 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 	}
 	r.mu.RUnlock()
 
-	// Categorize peers: to remove, to add, unchanged.
+	// Categorize peers: to remove, to add, to swap in place, unchanged.
 	var toRemove []netip.AddrPort
 	var toAdd []*PeerSettings
+	var toSwap []peerSettingsSwap
 
 	for key := range currentPeers {
 		newSettings, exists := newPeerSettings[key]
 		if !exists {
 			toRemove = append(toRemove, key)
-		} else if !peerSettingsEqual(currentPeers[key], newSettings) {
+			continue
+		}
+		if peerSettingsEqual(currentPeers[key], newSettings) {
+			continue
+		}
+		// A change the running session can take applies WITHOUT a restart: the
+		// FSM, the TCP connection and the negotiated capabilities all survive
+		// (peer_settings_apply.go). Anything else still costs a bounce, and the
+		// reason names the fields that forced it, so an operator watching a
+		// session flap on reload can see why.
+		if reason := peerSettingsRestartReason(currentPeers[key], newSettings); reason != "" {
 			toRemove = append(toRemove, key)
 			toAdd = append(toAdd, newSettings)
-			reactorLogger().Debug(label+": peer settings changed", "peer", key)
+			reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", reason)
+			continue
 		}
+		toSwap = append(toSwap, peerSettingsSwap{key: key, next: newSettings})
+		reactorLogger().Debug("peer settings swapped in place", "phase", label, "peer", key)
+	}
+
+	// Swaps first: they change no map membership, so they neither see nor disturb
+	// the add and remove loops below.
+	if err := a.swapPeerSettingsJournaled(toSwap, j); err != nil {
+		return err
 	}
 
 	for key, settings := range newPeerSettings {
@@ -635,10 +655,15 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 	count := 0
 	for key := range currentPeers {
 		newSettings, exists := newPeerSettings[key]
-		if !exists {
+		switch {
+		case !exists:
 			count++ // remove
-		} else if !peerSettingsEqual(currentPeers[key], newSettings) {
+		case peerSettingsEqual(currentPeers[key], newSettings):
+			// No change.
+		case peerSettingsRestartRequired(currentPeers[key], newSettings):
 			count += 2 // remove + re-add
+		default:
+			count++ // swap in place: one apply, no session reset
 		}
 	}
 	for key := range newPeerSettings {
@@ -854,11 +879,11 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	// Excluded: compared semantically above.
 	ac.Capabilities, bc.Capabilities = nil, nil
 
-	// Excluded: PrefixUpdated is the ISO date prefix maximums were last refreshed
-	// from PeeringDB (peersettings.go:381). It is a hidden, display-only staleness
-	// marker that drives no session or datapath behavior, so a change to it alone
-	// must not bounce the session.
-	ac.PrefixUpdated, bc.PrefixUpdated = "", ""
+	// Excluded: PrefixUpdated holds the per-family ISO dates the prefix maximums
+	// were last refreshed from PeeringDB (peersettings.go). It is a hidden,
+	// display-only staleness marker that drives no session or datapath
+	// behavior, so a change to it alone must not bounce the session.
+	ac.PrefixUpdated, bc.PrefixUpdated = nil, nil
 
 	return reflect.DeepEqual(&ac, &bc)
 }

@@ -123,6 +123,14 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		}
 	}
 
+	// Protocol event capture tee (capture_replay.go). Placed here, on the
+	// complete wire message and BEFORE processMessage, because everything
+	// downstream can rewrite or short-circuit it: RFC 7606 enforcement
+	// tombstones attributes and synthesizes withdrawals, and the message
+	// observer hook fires only after that. A capture exists to record what the
+	// peer actually sent, which is exactly what the observer hook cannot see.
+	s.teeCapture(uint8(hdr.Type), buf.Buf[:hdr.Length])
+
 	// Track wire bytes received.
 	if s.prefixMetrics != nil {
 		s.prefixMetrics.wireBytesRecv.With(s.addrLabel).Add(float64(hdr.Length))
@@ -250,7 +258,10 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			s.logNotifyErr(conn, prefixNotif.ErrorCode, prefixNotif.ErrorSubcode, prefixNotif.Data)
 			s.logFSMEvent(fsm.EventNotifMsg)
 			s.closeConn()
-			return fmt.Errorf("%w: %w", ErrConnectionClosed, ErrPrefixLimitExceeded), false
+			// The cause names the offending family. peer_run.go reads that
+			// family's own idle-timeout, and the operator log says which
+			// family stopped the session.
+			return fmt.Errorf("%w: %w", ErrConnectionClosed, s.prefixTeardownCause()), false
 		}
 		if prefixDrop {
 			// AC-27: teardown=false, exceeded. Skip plugin delivery but keep session.

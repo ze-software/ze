@@ -62,7 +62,12 @@ func (sh *sessionHealth) onStateChange(from, to PeerState) {
 		sh.clearStuckLocked()
 		report.ClearWarning(reportSourceBGP, reportCodeSessionStuck, sh.peerAddr)
 
-	case PeerStateStopped:
+	// A held-down peer is treated like a stopped one here. It is deliberately
+	// making no progress after a prefix-limit teardown, so the stuck timer
+	// started on the way in would fire a session-stuck warning five minutes
+	// later and describe the hold as a fault (peer_run.go,
+	// holdDownAfterPrefixTeardown raises its own prefix-hold warning).
+	case PeerStateStopped, PeerStateIdleHold:
 		sh.clearStuckLocked()
 		sh.clearEORLocked()
 		report.ClearWarning(reportSourceBGP, reportCodeSessionStuck, sh.peerAddr)

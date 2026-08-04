@@ -26,6 +26,12 @@ const reportCodePrefixThreshold = "prefix-threshold"
 // older than stalenessThreshold (180 days)".
 const reportCodePrefixStale = "prefix-stale"
 
+// reportCodePrefixHold is the report bus code for "a prefix limit stopped this
+// session and the peer is held down until an operator acts". The Subject is the
+// peer address: one peer holds for one family at a time, and the family is in
+// the message.
+const reportCodePrefixHold = "prefix-hold"
+
 // reportCodeNotificationSent is the report bus code for "this ze instance
 // sent a BGP NOTIFICATION to a peer". The Subject is the peer address.
 const reportCodeNotificationSent = "notification-sent"
@@ -116,6 +122,27 @@ func clearPrefixThreshold(peerAddr, fam string) {
 		reportCodePrefixThreshold,
 		prefixThresholdSubject(peerAddr, fam),
 	)
+}
+
+// raisePrefixHold pushes a prefix-hold warning onto the report bus when a peer
+// is held down after a prefix-limit teardown. It stays raised for as long as the
+// peer is held, which is until an operator recreates the peer, so `ze show
+// warnings` and the login banner can tell a deliberate hold from a broken peer.
+func raisePrefixHold(peerAddr, fam string) {
+	var b textbuf.Buffer
+	report.RaiseWarning(
+		reportSourceBGP,
+		reportCodePrefixHold,
+		peerAddr,
+		b.Reset().Str("held down: ").Str(fam).Str(" exceeded its prefix maximum and asks for no reconnect").String(),
+		map[string]any{"family": fam, "reconnect": PrefixReconnectNever.String()},
+	)
+}
+
+// clearPrefixHold removes any prefix-hold warning for a peer. Called from
+// Peer.cleanup, so a peer that stops or is recreated leaves no stale warning.
+func clearPrefixHold(peerAddr string) {
+	report.ClearWarning(reportSourceBGP, reportCodePrefixHold, peerAddr)
 }
 
 // RaisePrefixStale pushes a prefix-stale warning for a peer if its
@@ -397,16 +424,21 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 
 	// Check maximum.
 	if current > int64(maximum) {
+		teardown := s.settings.PrefixTeardownFor(famName)
 		s.incrPrefixExceededMetric(famName)
 		sessionLogger().Error("prefix count exceeded maximum",
 			"peer", s.settings.Address,
 			"family", famName,
 			"count", current,
 			"maximum", maximum,
-			"teardown", s.settings.PrefixTeardown,
+			"teardown", teardown,
 		)
 
-		if s.settings.PrefixTeardown {
+		if teardown {
+			// Record which family made the decision. session_read.go reads it
+			// to name the family in the teardown error, and peer_run.go reads
+			// that family's own idle-timeout to size the reconnect delay.
+			s.prefixExceededFamily = fk
 			s.incrPrefixTeardownMetric()
 			return buildPrefixNotification(fk, uint32(current)), false //nolint:gosec // Clamped by prefix maximum (uint32)
 		}
@@ -441,6 +473,31 @@ func (s *Session) ClearReportedWarnings() {
 		}
 		clearPrefixThreshold(peerAddr, familyString(fk))
 	}
+}
+
+// prefixLimitError names the family whose prefix maximum tore the session down.
+//
+// It WRAPS ErrPrefixLimitExceeded rather than replacing it, so every existing
+// errors.Is(err, ErrPrefixLimitExceeded) on the reconnect path keeps matching.
+// peer_run.go recovers the family with errors.As and reads that family's own
+// idle-timeout: the YANG leaf is per family, so the delay must not come from a
+// family that did not overflow.
+type prefixLimitError struct {
+	// Family is the "afi/safi" string of the family that exceeded its maximum.
+	Family string
+}
+
+func (e *prefixLimitError) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("prefix limit exceeded for family ").Str(e.Family).String()
+}
+
+func (e *prefixLimitError) Unwrap() error { return ErrPrefixLimitExceeded }
+
+// prefixTeardownCause builds the teardown error for the family recorded by the
+// last applyPrefixCheck teardown decision. Called on the session read goroutine.
+func (s *Session) prefixTeardownCause() error {
+	return &prefixLimitError{Family: familyString(s.prefixExceededFamily)}
 }
 
 // buildPrefixNotification builds a Cease/MaxPrefixes NOTIFICATION.
@@ -573,8 +630,9 @@ func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSe
 		m.prefixWarning.With(peerAddr, fam).Set(float64(warning))
 	}
 
-	// Staleness: set metric based on PrefixUpdated timestamp age.
-	setPrefixStaleMetric(m, peerAddr, settings.PrefixUpdated, now)
+	// Staleness: set metric based on the oldest per-family updated date, so the
+	// gauge stays set while any one family is stale.
+	setPrefixStaleMetric(m, peerAddr, settings.OldestPrefixUpdated(), now)
 }
 
 // stalenessThreshold is the age beyond which prefix data is considered stale.

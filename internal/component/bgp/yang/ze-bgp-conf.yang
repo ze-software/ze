@@ -622,7 +622,15 @@ module ze-bgp-conf {
                     leaf idle-timeout {
                         type uint16;
                         default 0;
-                        description "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)";
+                        description "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.";
+                    }
+                    leaf reconnect {
+                        type enumeration {
+                            enum never { description "Keep the peer down. An operator restarts it."; }
+                            enum backoff { description "Reconnect on the usual connect backoff of the peer."; }
+                            enum timer { description "Reconnect after idle-timeout seconds."; }
+                        }
+                        description "What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.";
                     }
                     leaf updated {
                         type string;
@@ -769,6 +777,62 @@ module ze-bgp-conf {
             type string;
             description "Free-text label for this peer. Shown in the CLI, web UI, and logs.
                          Typically the peer's role or location (e.g., 'upstream-transit-provider').";
+        }
+
+        container capture {
+            description "Protocol event capture for this peer. When enabled, every message the peer
+                         sends is written to a JSONL file as raw wire bytes plus arrival metadata,
+                         together with the config operations applied while the capture runs. Replay
+                         the file on a developer machine with 'ze-test replay <file>' to drive the
+                         same state machine over the same input. Capture is a diagnostic aid: leave
+                         it off in steady state.
+                         The file holds the peer's routing data (prefixes, AS paths, communities,
+                         next-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,
+                         and captured config payloads are redacted. Handle a capture file like a
+                         routing-table dump.";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Capture this peer's inbound protocol events to a file. Off by default.";
+            }
+
+            leaf directory {
+                type string {
+                    length "1..4096";
+                }
+                default "/var/lib/ze/capture";
+                description "Directory holding this peer's capture files, created if absent. One file
+                             per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room
+                             for the configured maximum-size, twice over when on-limit is rotate.
+                             'ze doctor' reports whether the directory is writable.";
+            }
+
+            leaf maximum-size {
+                type uint32 {
+                    range "1..1024";
+                }
+                units megabytes;
+                default 100;
+                description "Hard cap on one capture file. The writer refuses a record that would
+                             cross the cap rather than writing part of it, so a file never exceeds
+                             this value. With on-limit rotate a peer uses at most twice this on disk;
+                             with on-limit stop, at most this.";
+            }
+
+            leaf on-limit {
+                type enumeration {
+                    enum rotate;
+                    enum stop;
+                }
+                default rotate;
+                description "What happens when a capture file reaches maximum-size. 'rotate' renames
+                             it to <file>.1, replacing any earlier rotation, and starts a fresh file,
+                             so capture continues and the newest events are kept. 'stop' closes the
+                             file and captures nothing further, so the oldest events are kept.
+                             Either way the daemon is unaffected and the file ends with a
+                             capture-stop record.";
+            }
         }
 
         container timer {

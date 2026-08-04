@@ -1,0 +1,119 @@
+# Two families disagreeing on every per-family prefix leaf must parse cleanly
+# and round-trip through the config tree.
+#
+# WHAT THIS PROVES: the YANG grammar accepts a `prefix` block on each family
+# carrying its own `maximum`, `warning`, `teardown`, `idle-timeout` and
+# `reconnect`, and `ze config dump --json` gives back both families' values
+# unmerged. The families are declared with ipv6/unicast FIRST, so the config
+# text order is the reverse of the key sort order.
+#
+# WHAT THIS DOES NOT PROVE, deliberately: per-family STORAGE. Both commands here
+# read the config TREE, and the defect this spec fixes lived downstream of the
+# tree, in parsePrefixLimitFromFamily writing peer-wide scalars
+# (internal/component/bgp/reactor/config_prefix.go). Restore that scalar form
+# and every assertion below still passes. AC-5 is proven where the storage is:
+# TestPrefixTeardownSortOrderIndependent (config_prefix_test.go) and
+# TestPrefixTeardownPerFamilyEnforcement (session_prefix_family_test.go), both
+# red under mutation parser-last-family-wins. The daemon-level proof is
+# test/plugin/prefix-per-family-teardown.ci.
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv6/unicast {
+					prefix {
+						maximum 500
+						warning 400
+						teardown true
+						idle-timeout 7
+					}
+				}
+				ipv4/unicast {
+					prefix {
+						maximum 100
+						warning 90
+						teardown false
+						idle-timeout 30
+						reconnect timer
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# Read the parsed tree back. Exit code 0 alone would pass even if the parser
+# dropped one family's leaves, so both families' values are asserted. Each
+# needle names a value that belongs to ONE family and disagrees with the
+# other's, so a tree that carried one family's values into both cannot satisfy
+# all four.
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump:exit=0
+expect=exit:code=0
+expect=stdout:pattern="maximum": ?"?100
+expect=stdout:pattern="maximum": ?"?500
+expect=stdout:pattern="idle-timeout": ?"?30
+expect=stdout:pattern="idle-timeout": ?"?7
+expect=stdout:pattern="teardown": ?"?false
+expect=stdout:pattern="teardown": ?"?true
+expect=stdout:pattern="reconnect": ?"?timer
+
+stdin=config-dump:terminator=EOF_DUMP
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv6/unicast {
+					prefix {
+						maximum 500
+						warning 400
+						teardown true
+						idle-timeout 7
+					}
+				}
+				ipv4/unicast {
+					prefix {
+						maximum 100
+						warning 90
+						teardown false
+						idle-timeout 30
+						reconnect timer
+					}
+				}
+			}
+		}
+	}
+}
+EOF_DUMP

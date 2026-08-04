@@ -83,36 +83,39 @@ func (p *Peer) run() {
 				continue
 			}
 
-			// RFC 4486: Prefix limit teardown with idle-timeout.
-			// Uses separate backoff from normal reconnect: idle-timeout x 2^(N-1), capped at 1 hour.
-			if errors.Is(err, ErrPrefixLimitExceeded) && p.settings.PrefixIdleTimeout > 0 {
-				p.prefixTeardownCount++
-				// Cap exponent to prevent time.Duration overflow (~62 doublings
-				// overflow int64 nanoseconds before the hour cap can fire).
-				if p.prefixTeardownCount > 60 {
-					p.prefixTeardownCount = 60
-				}
-				idleBase := time.Duration(p.settings.PrefixIdleTimeout) * time.Second
-				prefixDelay := idleBase
-				for i := uint32(1); i < p.prefixTeardownCount; i++ {
-					prefixDelay *= 2
-					if prefixDelay > time.Hour {
-						prefixDelay = time.Hour
-						break
-					}
-				}
-				peerLogger().Warn("prefix limit teardown, waiting before reconnect",
-					"peer", p.settings.Address,
-					"delay", prefixDelay,
-					"teardown_count", p.prefixTeardownCount,
-				)
-				p.setState(PeerStateConnecting)
-				select {
-				case <-p.ctx.Done():
+			// RFC 4486: Prefix limit teardown. The offending family says whether
+			// the peer comes back at all (ze-bgp-conf.yang, prefix reconnect).
+			if plan, ok := prefixReconnectDecision(p.settings, err, p.prefixTeardownCount+1); ok {
+				switch plan.Mode {
+				case PrefixReconnectNever:
+					// Stays down. holdDownAfterPrefixTeardown returns only when
+					// the peer is stopped, so run ends here.
+					p.holdDownAfterPrefixTeardown(plan.Family)
 					return
-				case <-p.clock.After(prefixDelay):
+				case PrefixReconnectTimer:
+					p.prefixTeardownCount++
+					// Cap the count to prevent time.Duration overflow (~62 doublings
+					// overflow int64 nanoseconds before the hour cap can fire).
+					if p.prefixTeardownCount > maxPrefixTeardownCount {
+						p.prefixTeardownCount = maxPrefixTeardownCount
+					}
+					peerLogger().Warn("prefix limit teardown, waiting before reconnect",
+						"peer", p.settings.Address,
+						"family", plan.Family,
+						"delay", plan.Delay,
+						"teardown_count", p.prefixTeardownCount,
+					)
+					p.setState(PeerStateConnecting)
+					select {
+					case <-p.ctx.Done():
+						return
+					case <-p.clock.After(plan.Delay):
+					}
+					continue
+				case PrefixReconnectBackoff, PrefixReconnectUnset:
+					// The operator asked for the usual backoff, which is the
+					// code below. PrefixReconnectFor never returns Unset.
 				}
-				continue
 			}
 
 			// Normal error: Backoff before retry
@@ -204,6 +207,10 @@ func (p *Peer) runOnce() error {
 	if p.reactor != nil {
 		session.prefixMetrics = p.reactor.rmetrics
 	}
+	// Protocol event capture (capture_replay.go), opt-in per peer. Opened per
+	// session so each session lands in a file whose header names the peer, the
+	// start time, and whether the coalesced read path was active.
+	capture := p.startCapture(session)
 	session.onNotifSent = p.IncrNotificationSent
 	session.onNotifRecv = p.IncrNotificationReceived
 	session.onOpenSent = p.IncrOpensSent
@@ -225,6 +232,7 @@ func (p *Peer) runOnce() error {
 	p.mu.Unlock()
 
 	defer func() {
+		p.stopCapture(capture)
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.negotiatedHoldTime.Store(0)
 		p.negotiatedKeepaliveTime.Store(0)
@@ -545,6 +553,10 @@ func (p *Peer) runOnce() error {
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
 	p.negotiated.Store(nil) // Clear negotiated capabilities
+	// A held-down peer that stops is no longer held: the warning describes a
+	// peer waiting for an operator, and this one is gone. Unconditional, like
+	// the other clears here -- ClearWarning on an unraised subject is a no-op.
+	clearPrefixHold(p.peerAddrLabel())
 	// RFC 6286 Section 2.1: a stopped peer holds no BGP Identifier. Safe under any caller's
 	// locks -- the claim registry never takes r.mu or p.mu.
 	p.releaseRouterIDClaim()
@@ -567,4 +579,115 @@ func (p *Peer) cleanup() {
 	}
 
 	p.setState(PeerStateStopped)
+}
+
+// maxPrefixTeardownCount caps the teardown counter that drives the prefix
+// reconnect backoff. Around 62 doublings overflow int64 nanoseconds, which is
+// reached before the one-hour cap can fire, so the counter stops here.
+const maxPrefixTeardownCount = 60
+
+// prefixReconnectPlan is what Peer.run does with a session that a prefix limit
+// stopped: which family stopped it, whether the peer comes back, and when.
+type prefixReconnectPlan struct {
+	// Family is the "afi/safi" string of the family that exceeded its maximum.
+	Family string
+	// Mode is the resolved per-family answer. Never PrefixReconnectUnset.
+	Mode PrefixReconnectMode
+	// Delay is the wait before the next attempt. Meaningful only for
+	// PrefixReconnectTimer.
+	Delay time.Duration
+}
+
+// prefixReconnectDecision decides what happens after a prefix-limit teardown.
+// ok is false when err is not one, and the caller then keeps its normal backoff.
+//
+// RFC 4486 Section 4: the session was stopped because one family exceeded its
+// configured upper bound on prefixes. The `idle-timeout` and `reconnect` leaves
+// sit inside the per-family `prefix` container (ze-bgp-conf.yang), so both come
+// from the family that overflowed. Another family's values never size the wait.
+//
+// The timer delay is idle-timeout x 2^(count-1), capped at one hour.
+//
+// This function DECIDES and never waits: it holds no context and no clock, so
+// it cannot park a peer. Peer.run executes the decision, which is the only place
+// that can block on the peer context.
+//
+// A prefix-limit teardown that names NO family still decides here, and it
+// resolves through PrefixReconnectFor with an empty key, which reads as never.
+// prefixTeardownCause (session_prefix.go) is the only producer today and it
+// always names the family, so the branch is unreachable. It exists because the
+// alternative is the fail-OPEN direction: falling through on ok=false hands the
+// peer its normal connect backoff, and a session stopped for flooding the RIB
+// that comes straight back re-floods it. A future producer of the bare sentinel
+// must not silently buy that (ai/rules/evidence.md).
+func prefixReconnectDecision(settings *PeerSettings, err error, count uint32) (prefixReconnectPlan, bool) {
+	var prefixErr *prefixLimitError
+	family := ""
+	switch {
+	case errors.As(err, &prefixErr):
+		family = prefixErr.Family
+	case errors.Is(err, ErrPrefixLimitExceeded):
+		// A prefix teardown carrying no family. Decided, not waved through.
+	default:
+		return prefixReconnectPlan{}, false
+	}
+
+	plan := prefixReconnectPlan{
+		Family: family,
+		Mode:   settings.PrefixReconnectFor(family),
+	}
+	if plan.Mode != PrefixReconnectTimer {
+		return plan, true
+	}
+
+	if count > maxPrefixTeardownCount {
+		count = maxPrefixTeardownCount
+	}
+	plan.Delay = time.Duration(settings.PrefixIdleTimeoutFor(family)) * time.Second
+	for i := uint32(1); i < count; i++ {
+		plan.Delay *= 2
+		if plan.Delay > time.Hour {
+			plan.Delay = time.Hour
+			return plan, true
+		}
+	}
+	return plan, true
+}
+
+// holdDownAfterPrefixTeardown parks the peer after a prefix limit stopped the
+// session and the offending family asked for no reconnect. It returns only when
+// the peer is stopped, so Peer.run ends with it.
+//
+// The wait is a blocking select, never a loop with a timer: a held peer costs
+// nothing and reconnects on no schedule. Inbound connections are refused while
+// the hold lasts, because a peer that gets back in through its own retry is not
+// held down at all.
+//
+// The operator sees three things: the peer state reads `idle-hold`, the log line
+// below names the family and the reason, and `ze show warnings` carries the
+// prefix-hold warning until the peer is recreated.
+func (p *Peer) holdDownAfterPrefixTeardown(fam string) {
+	p.setState(PeerStateIdleHold)
+	raisePrefixHold(p.peerAddrLabel(), fam)
+	peerLogger().Error("prefix limit teardown, peer held down",
+		"peer", p.settings.Address,
+		"family", fam,
+		"reconnect", PrefixReconnectNever,
+		"action", "raise the family prefix maximum, or set prefix reconnect backoff, then commit the peer config",
+	)
+
+	for {
+		select {
+		case <-p.ctx.Done():
+			return
+		case <-p.inboundNotify:
+			if conn := p.takeInboundConnection(); conn != nil {
+				closeConnQuietly(conn)
+				peerLogger().Debug("inbound connection refused, peer held down",
+					"peer", p.settings.Address,
+					"family", fam,
+				)
+			}
+		}
+	}
 }

@@ -75,6 +75,11 @@ type reactorMetrics struct {
 	peersAddedTotal    metrics.Counter    // Peers added via config
 	peersRemovedTotal  metrics.Counter    // Peers removed via config
 
+	// captureDroppedEvents counts protocol-event-capture records shed because
+	// the writer queue was full. Non-zero means the capture file has a gap;
+	// the gap is also written into the stream (capture_replay.go).
+	captureDroppedEvents metrics.CounterVec // labels: peer
+
 	// Wire layer
 	wireBytesRecv   metrics.CounterVec // labels: peer
 	wireBytesSent   metrics.CounterVec // labels: peer
@@ -155,6 +160,8 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		configReloadErrors: reg.CounterVec("ze_config_reload_errors_total", "Failed config reloads.", []string{"error_type"}),
 		peersAddedTotal:    reg.Counter("ze_peers_added_total", "Peers added via config."),
 		peersRemovedTotal:  reg.Counter("ze_peers_removed_total", "Peers removed via config."),
+		captureDroppedEvents: reg.CounterVec("ze_bgp_capture_dropped_events_total",
+			"Protocol event capture records shed because the writer queue was full.", []string{"peer"}),
 
 		// Wire layer
 		wireBytesRecv:   reg.CounterVec("ze_wire_bytes_received_total", "Bytes read from TCP.", []string{"peer"}),

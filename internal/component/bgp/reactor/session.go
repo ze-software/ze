@@ -351,6 +351,13 @@ type Session struct {
 	// Only accessed from session's read goroutine (no synchronization needed).
 	prefixCounts *prefixCounts
 
+	// prefixExceededFamily is the packed family key (familyKey) of the family
+	// whose prefix maximum triggered a teardown. applyPrefixCheck writes it,
+	// processMessage reads it to name the family in the teardown error, which is
+	// what lets peer_run.go pick that family's own idle-timeout. Both sites
+	// run on the session read goroutine, so it needs no lock.
+	prefixExceededFamily uint32
+
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
@@ -398,6 +405,12 @@ type Session struct {
 	// ze.bgp.reactor.coalesce=true. Accessed only from the read goroutine (no lock).
 	coalesce        coalesceState
 	coalesceEnabled bool
+
+	// captureWriter is the peer's protocol event capture, nil unless the
+	// operator enabled it on this peer. Set by Peer in runOnce() before the
+	// read loop starts, and read only from the session read goroutine, so the
+	// tee is a plain nil check with no synchronization (capture_replay.go).
+	captureWriter *sessionCapture
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -607,6 +620,14 @@ func (s *Session) SetSendCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sendCtxID = ctxID
+}
+
+// SetMessageCallback installs the per-message delivery callback. Peer assigns
+// the same field directly in runOnce; this is the exported seam for a harness
+// that drives a session without a Peer, which is what `ze-test replay` does
+// (internal/test/cli/cmd_replay.go). Set it before the read loop starts.
+func (s *Session) SetMessageCallback(cb MessageCallback) {
+	s.onMessageReceived = cb
 }
 
 // SetSourceID sets the source ID identifying this peer.

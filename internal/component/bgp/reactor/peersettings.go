@@ -6,7 +6,9 @@
 package reactor
 
 import (
+	"maps"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -298,6 +300,12 @@ type PeerSettings struct {
 	// BFD Down event.
 	BFD *BFDSettings
 
+	// Capture is the per-peer protocol event capture opt-in, from YANG
+	// `bgp peer capture { ... }`. Disabled by default; when enabled the
+	// session tees every inbound wire message to a bounded JSONL file
+	// (capture_replay.go).
+	Capture CaptureSettings
+
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool
@@ -367,18 +375,37 @@ type PeerSettings struct {
 	// Defaults to 90% of PrefixMaximum when not explicitly configured.
 	PrefixWarning map[string]uint32
 
-	// PrefixTeardown controls whether exceeding the maximum tears down the session.
-	// Default: true. When false, excess prefixes are rejected but session stays up.
-	PrefixTeardown bool
+	// PrefixTeardown controls, per family, whether exceeding the maximum stops
+	// the session. Key is "afi/safi", same as PrefixMaximum.
+	// Read it through PrefixTeardownFor, never with a bare map index: an
+	// absent key means enabled (the YANG default), and a bare read returns
+	// false, which is warn-only and disables the protection.
+	//
+	// NewPeerSettings seeds no entry here on purpose. The accessor delivers the
+	// YANG default for every family that configures no value, so seeding the map
+	// would state the same default in two places.
+	PrefixTeardown map[string]bool
 
-	// PrefixIdleTimeout is seconds to wait before auto-reconnect after prefix teardown.
-	// 0 means no auto-reconnect. Uses exponential backoff on repeated teardowns.
-	PrefixIdleTimeout uint16
+	// PrefixIdleTimeout is the seconds to wait before auto-reconnect after a
+	// prefix teardown, per family. Key is "afi/safi". The family that
+	// exceeded its maximum selects the value; another family's value never
+	// sizes the delay. 0 keeps the peer DOWN.
+	// Repeated teardowns double the delay, capped at one hour (peer_run.go).
+	PrefixIdleTimeout map[string]uint16
 
-	// PrefixUpdated is the ISO date (YYYY-MM-DD) when prefix maximums were last
-	// updated from PeeringDB. Empty means manually configured (no staleness tracking).
+	// PrefixReconnect is the per-family answer to "what does the peer do after
+	// this family stopped the session". Key is "afi/safi". An absent key, or
+	// PrefixReconnectUnset, means the answer comes from PrefixIdleTimeout.
+	// Read it through PrefixReconnectFor, never with a bare map index.
+	PrefixReconnect map[string]PrefixReconnectMode
+
+	// PrefixUpdated is the ISO date (YYYY-MM-DD) when the prefix maximum was
+	// last updated from PeeringDB, per family. Key is "afi/safi". Empty means
+	// manually configured (no staleness tracking).
 	// Hidden leaf -- not shown in config output.
-	PrefixUpdated string
+	// The peer-level surfaces (JSON, report bus, metrics) report the oldest of
+	// these dates through OldestPrefixUpdated.
+	PrefixUpdated map[string]string
 
 	// Process bindings - which plugins receive messages from this peer.
 	ProcessBindings []ProcessBinding
@@ -511,8 +538,163 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 		ConnectRetry:    DefaultConnectRetry,
 		Connection:      ConnectionBoth,
 		GroupUpdates:    true,
-		PrefixTeardown:  true,
+		// Capture defaults MUST match the YANG defaults of the peer's
+		// `capture` container in ze-bgp-conf.yang.
+		Capture: CaptureSettings{
+			Directory:   DefaultCaptureDirectory,
+			MaximumSize: DefaultCaptureMaximumSize,
+			OnLimit:     CaptureLimitRotate,
+		},
 	}
+}
+
+// PrefixTeardownFor reports whether exceeding the prefix maximum of fam must
+// tear the session down. fam is an "afi/safi" string.
+//
+// An unconfigured family reads as ENABLED. The YANG default is
+// `teardown true` (ze-bgp-conf.yang), and the prefix limit is the defense
+// against a peer that floods the RIB, so the absent case must never read as
+// warn-only (ai/rules/fail-closed-guards.md). This is why the enforcement path
+// calls this method and never indexes PrefixTeardown directly: a bare map read
+// returns the zero value false and silently disables the protection.
+func (n *PeerSettings) PrefixTeardownFor(fam string) bool {
+	if teardown, ok := n.PrefixTeardown[fam]; ok {
+		return teardown
+	}
+	return true
+}
+
+// PrefixIdleTimeoutFor returns the seconds to wait before reconnecting after
+// fam exceeded its prefix maximum. fam is an "afi/safi" string.
+//
+// An unconfigured family returns 0, which is also the YANG default. Zero is not
+// "reconnect immediately" and not "reconnect on the usual backoff": it keeps the
+// peer down, and PrefixReconnectFor is the accessor that states it.
+func (n *PeerSettings) PrefixIdleTimeoutFor(fam string) uint16 {
+	return n.PrefixIdleTimeout[fam]
+}
+
+// PrefixReconnectMode says what a peer does after one of its families stopped
+// the session for exceeding its prefix maximum. It is the Go form of the
+// per-family `prefix { reconnect ...; }` leaf (ze-bgp-conf.yang).
+type PrefixReconnectMode uint8
+
+const (
+	// PrefixReconnectUnset means the family stated no `reconnect` value. The
+	// mode then comes from `idle-timeout`. It is the zero value, so an
+	// unconfigured family is never mistaken for a configured one.
+	PrefixReconnectUnset PrefixReconnectMode = iota
+	// PrefixReconnectNever keeps the peer down. Only an operator brings it back.
+	PrefixReconnectNever
+	// PrefixReconnectBackoff reconnects on the usual connect backoff of the peer.
+	PrefixReconnectBackoff
+	// PrefixReconnectTimer reconnects after `idle-timeout` seconds, doubled on
+	// each repeat teardown and capped at one hour.
+	PrefixReconnectTimer
+)
+
+// String returns the YANG enum spelling, which is also what the log line and
+// the report bus show the operator.
+func (m PrefixReconnectMode) String() string {
+	switch m {
+	case PrefixReconnectNever:
+		return "never"
+	case PrefixReconnectBackoff:
+		return "backoff"
+	case PrefixReconnectTimer:
+		return "timer"
+	case PrefixReconnectUnset:
+		return "unset"
+	}
+	// The value itself, not a bare "unknown": a mode that reaches here is a bug,
+	// and the number is what identifies which one. Also keeps `goconst` quiet
+	// about a third "unknown" literal in this package.
+	return textbuf.StrUintStr("unknown(", uint64(m), ")")
+}
+
+// ParsePrefixReconnectMode maps a YANG enum value to its mode. ok is false for
+// any other string, which the config parser rejects rather than approximates.
+func ParsePrefixReconnectMode(s string) (mode PrefixReconnectMode, ok bool) {
+	switch s {
+	case "never":
+		return PrefixReconnectNever, true
+	case "backoff":
+		return PrefixReconnectBackoff, true
+	case "timer":
+		return PrefixReconnectTimer, true
+	}
+	return PrefixReconnectUnset, false
+}
+
+// PrefixReconnectFor resolves what the peer does after fam stopped the session
+// for exceeding its prefix maximum. fam is an "afi/safi" string. It never
+// returns PrefixReconnectUnset.
+//
+// A family that states `reconnect` gets what it asked for. A family that states
+// only `idle-timeout N` with N above zero gets the timer, which is what every
+// config written before the `reconnect` leaf existed means.
+//
+// Everything else, including a family the peer never configured, reads as
+// NEVER. That is the fail-closed direction here (ai/rules/fail-closed-guards.md):
+// a session stopped for flooding the RIB that comes straight back re-floods it,
+// and the peer flaps until an operator notices. Staying down is visible, and it
+// is what an operator gets from Cisco and from Juniper for the same event.
+// A timer of zero seconds is not a timer. `parsePrefixReconnect`
+// (config_prefix.go) rejects that pair, so a config cannot reach it, but a
+// PeerSettings built in Go can. Timer with a zero wait would give Peer.run a
+// delay of 0, and the doubling never leaves zero, so the peer would reconnect
+// at once, re-exceed its maximum, and flap with no backoff at all. It resolves
+// to NEVER here rather than in the parser alone, because this accessor is the
+// one reader and the fail-closed decision belongs where it cannot be bypassed.
+func (n *PeerSettings) PrefixReconnectFor(fam string) PrefixReconnectMode {
+	if mode, ok := n.PrefixReconnect[fam]; ok && mode != PrefixReconnectUnset {
+		if mode == PrefixReconnectTimer && n.PrefixIdleTimeout[fam] == 0 {
+			return PrefixReconnectNever
+		}
+		return mode
+	}
+	if n.PrefixIdleTimeout[fam] > 0 {
+		return PrefixReconnectTimer
+	}
+	return PrefixReconnectNever
+}
+
+// OldestPrefixUpdated returns the oldest per-family prefix `updated` date, in
+// YYYY-MM-DD form, or "" when no family carries one.
+//
+// The peer-level surfaces keep one date each: the `prefix-updated` JSON key
+// (internal/component/bgp/plugins/cmd/peer/peer.go), the prefix-stale report
+// bus warning, and the ze_bgp_prefix_stale gauge. The oldest date is the
+// conservative choice: the staleness alarm fires while any family is stale.
+//
+// Families are walked in sorted key order so a peer whose dates do not parse
+// still reports the same value on every run. A value that does not parse loses
+// to any value that does, and is returned only when no family parses.
+func (n *PeerSettings) OldestPrefixUpdated() string {
+	var oldest string
+	var oldestTime time.Time
+	var unparsed string
+
+	for _, fam := range slices.Sorted(maps.Keys(n.PrefixUpdated)) {
+		updated := n.PrefixUpdated[fam]
+		if updated == "" {
+			continue
+		}
+		t, err := time.Parse(time.DateOnly, updated)
+		if err != nil {
+			if unparsed == "" {
+				unparsed = updated
+			}
+			continue
+		}
+		if oldest == "" || t.Before(oldestTime) {
+			oldest, oldestTime = updated, t
+		}
+	}
+	if oldest != "" {
+		return oldest
+	}
+	return unparsed
 }
 
 // PeerKey returns the map key for this peer as a netip.AddrPort value type.

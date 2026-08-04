@@ -82,10 +82,43 @@ func (p *Peer) forwardFacts() *peerForwardFacts {
 // refreshForwardFacts builds and stores a new forwarding facts snapshot.
 // Called at: setEncodingContexts (after unlock), resolveDynamicPeerSettings.
 func (p *Peer) refreshForwardFacts() {
+	p.fwdFacts.Store(p.buildForwardFacts())
+}
+
+// refreshForwardFactsIfLive rebuilds the snapshot only for a peer that already has
+// one, and only if nobody replaced it meanwhile.
+//
+// A nil snapshot is the "this peer has no session" gate on the forwarding rails
+// (reactorForwardRS skips a peer whose forwardFacts() is nil, forward_rs.go), so
+// storing one unconditionally from the config-reload goroutine would make a down
+// peer look established. The compare-and-swap covers the other direction:
+// clearEncodingContexts stores nil on teardown (peer.go), and a plain store racing
+// it would resurrect the snapshot for a session that has gone.
+func (p *Peer) refreshForwardFactsIfLive() {
+	for {
+		previous := p.fwdFacts.Load()
+		if previous == nil {
+			return
+		}
+		if p.fwdFacts.CompareAndSwap(previous, p.buildForwardFacts()) {
+			return
+		}
+	}
+}
+
+// buildForwardFacts computes the snapshot. It reads the peer's settings but stores
+// nothing, so the caller decides whether publishing it is correct.
+func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	s := p.settings
 
+	// ExportFilters is read under p.mu because it is one of the mutable fields:
+	// resolveDynamicPeerSettings (reactor_dynamic.go) and applyHotSwappableSettings
+	// (peer_settings_apply.go) both write it on the pointed-to struct under this
+	// lock. Every other field read below is set at construction and never mutated
+	// (the contract on Peer.Settings, peer.go).
 	p.mu.RLock()
 	sendCtxID := p.sendCtxID
+	exportFilters := s.ExportFilters
 	p.mu.RUnlock()
 
 	ctx := p.sendCtx.Load()
@@ -115,7 +148,7 @@ func (p *Peer) refreshForwardFacts() {
 		localASReplaceAS: s.LocalASReplaceAS,
 		name:             s.Name,
 		groupName:        s.GroupName,
-		exportFilters:    s.ExportFilters,
+		exportFilters:    exportFilters,
 
 		sendCtxID:   sendCtxID,
 		sendASN4:    sendASN4,
@@ -149,7 +182,7 @@ func (p *Peer) refreshForwardFacts() {
 	precomputeNextHop(s, facts)
 	precomputeSendCommunity(s, facts)
 
-	p.fwdFacts.Store(facts)
+	return facts
 }
 
 func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {

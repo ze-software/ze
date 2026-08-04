@@ -1,0 +1,87 @@
+# Test: prefix teardown is honored per family, not per peer (RFC 4486)
+#
+# AC-2 of spec-fixit-bgp-per-family-prefix-enforcement: the operator sets
+# `teardown false` on ipv4/unicast and `teardown true` on ipv6/unicast. The peer
+# then exceeds the ipv4/unicast maximum. ipv4/unicast asked for warn-only, so
+# the session MUST stay up and the excess NLRI MUST be dropped.
+#
+# This is the defect stated as a test. The three enforcement leaves used to be
+# per-peer scalars written inside a sorted per-family loop
+# (internal/component/bgp/reactor/config.go, parsePrefixLimitFromFamily), so the
+# last family in key order governed every family. "ipv4/unicast" sorts before
+# "ipv6/unicast" (byte '4' < byte '6'), so ipv6/unicast's `teardown true` used
+# to reach ipv4/unicast and stop a session the operator asked to keep.
+#
+# The discriminating assertion is `teardown=false` beside `family=ipv4/unicast`
+# on the enforcement log line. Against the unfixed parser the same line reads
+# `teardown=true` and a Cease NOTIFICATION follows.
+
+# ze-peer: sends 3 IPv4 routes, exceeding the ipv4/unicast maximum of 2.
+# It expects the session to survive, so it waits for KEEPALIVE traffic rather
+# than a NOTIFICATION.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.2.0/24:next-hop=10.0.0.1
+# EOR from ze. A Cease NOTIFICATION would arrive in its place if the
+# warn-only family were torn down.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration: two families that disagree about teardown.
+#   ipv4/unicast  maximum 2, teardown false -> warn only
+#   ipv6/unicast  maximum 5, teardown true  -> stop the session
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						teardown false
+					}
+				}
+				ipv6/unicast {
+					prefix {
+						maximum 5
+						teardown true
+					}
+				}
+			}
+		}
+
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+
+# The overflow happened, and it was judged with ipv4/unicast's own setting.
+expect=stderr:contains=prefix count exceeded maximum
+expect=stderr:contains=family=ipv4/unicast
+expect=stderr:contains=teardown=false
+
+# No family was judged with another family's setting. Against the unfixed
+# parser this pattern matches, because ipv6/unicast's `teardown true` reached
+# ipv4/unicast.
+reject=stderr:pattern=teardown=true

@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"maps"
 	"net/netip"
 	"strings"
 	"sync/atomic"
@@ -136,16 +137,22 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 		RequiredFamilies: tmpl.RequiredFamilies,
 		IgnoreFamilies:   tmpl.IgnoreFamilies,
 		StaticRoutes:     tmpl.StaticRoutes,
-		PrefixMaximum:    tmpl.PrefixMaximum,
-		PrefixWarning:    tmpl.PrefixWarning,
-		PrefixTeardown:   tmpl.PrefixTeardown,
-		ProcessBindings:  tmpl.ProcessBindings,
-		ImportFilters:    tmpl.ImportFilters,
-		ExportFilters:    tmpl.ExportFilters,
-		LoopAllowOwnAS:   tmpl.LoopAllowOwnAS,
-		NextHopMode:      tmpl.NextHopMode,
-		NextHopAddress:   tmpl.NextHopAddress,
-		SendCommunity:    tmpl.SendCommunity,
+		// Every prefix map is CLONED, never aliased. Dynamic peers are built
+		// one per accepted connection from one template, so a shared map would
+		// let a later write on one peer change enforcement for its siblings.
+		PrefixMaximum:     maps.Clone(tmpl.PrefixMaximum),
+		PrefixWarning:     maps.Clone(tmpl.PrefixWarning),
+		PrefixTeardown:    maps.Clone(tmpl.PrefixTeardown),
+		PrefixIdleTimeout: maps.Clone(tmpl.PrefixIdleTimeout),
+		PrefixReconnect:   maps.Clone(tmpl.PrefixReconnect),
+		PrefixUpdated:     maps.Clone(tmpl.PrefixUpdated),
+		ProcessBindings:   tmpl.ProcessBindings,
+		ImportFilters:     tmpl.ImportFilters,
+		ExportFilters:     tmpl.ExportFilters,
+		LoopAllowOwnAS:    tmpl.LoopAllowOwnAS,
+		NextHopMode:       tmpl.NextHopMode,
+		NextHopAddress:    tmpl.NextHopAddress,
+		SendCommunity:     tmpl.SendCommunity,
 
 		IgnoreFamilyMismatch:   tmpl.IgnoreFamilyMismatch,
 		RequiredCapabilities:   tmpl.RequiredCapabilities,

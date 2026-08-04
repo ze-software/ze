@@ -149,13 +149,16 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// The report bus acquires its own internal mutex; reactor.mu -> report.mu
 	// is the established ordering. The bus is a leaf component (no imports
 	// of reactor), so no inversion is possible.
-	RaisePrefixStale(settings.Address.String(), settings.PrefixUpdated, r.clock.Now())
+	// The oldest per-family date drives both surfaces, so the alarm stays
+	// raised while any one family is stale.
+	oldestUpdated := settings.OldestPrefixUpdated()
+	RaisePrefixStale(settings.Address.String(), oldestUpdated, r.clock.Now())
 
 	// Log staleness warning if prefix data is outdated.
-	if IsPrefixDataStale(settings.PrefixUpdated, r.clock.Now()) {
+	if IsPrefixDataStale(oldestUpdated, r.clock.Now()) {
 		reactorLogger().Warn("prefix data is stale",
 			"peer", settings.Address,
-			"updated", settings.PrefixUpdated,
+			"updated", oldestUpdated,
 		)
 	}
 
@@ -246,6 +249,14 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 	// new holder's entry (routerIDClaims.release checks holder.peer == p).
 	peer.releaseRouterIDClaim()
 
+	// End this peer's protocol event capture synchronously, for the same reason
+	// and the same race as the claim release above: the capture file is named
+	// for the peer address (capture_replay.go), so a RemovePeer+AddPeer pair
+	// would otherwise open a second capture on a path the outgoing one still
+	// holds, and the two would rotate each other's live file into the single
+	// `.1` slot.
+	r.closeCapturesForPeer(addr)
+
 	// Clear any prefix-stale warning for this peer from the report bus.
 	// Threshold warnings are cleared by Session.ClearReportedWarnings
 	// during the session teardown defer in peer_run.go.
@@ -314,6 +325,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		r.rmetrics.peerDialSeconds.Delete(label, "ok")
 		r.rmetrics.peerDialSeconds.Delete(label, "fail")
 		r.rmetrics.peerBackoffSeconds.Delete(label)
+		r.rmetrics.captureDroppedEvents.Delete(label)
 	}
 
 	// Clean up source stats so disconnected peers don't accumulate in srcStats.

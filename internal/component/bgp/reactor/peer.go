@@ -56,6 +56,15 @@ const (
 	PeerStateActive
 	// PeerStateEstablished means the BGP session is established.
 	PeerStateEstablished
+	// PeerStateIdleHold means the peer is deliberately down and is trying
+	// nothing. A prefix limit stopped the session and the offending family
+	// asked for no reconnect (ze-bgp-conf.yang, prefix reconnect never), so the
+	// peer waits for an operator. It is distinct from PeerStateStopped, which
+	// means the peer is not running at all.
+	//
+	// New values go at the END: plugin.PeerState mirrors this list and
+	// PluginState converts by value (types_bgp.go).
+	PeerStateIdleHold
 )
 
 func (s PeerState) String() string {
@@ -68,6 +77,8 @@ func (s PeerState) String() string {
 		return "active"
 	case PeerStateEstablished:
 		return "established"
+	case PeerStateIdleHold:
+		return "idle-hold"
 	default:
 		return "unknown"
 	}

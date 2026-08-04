@@ -1,0 +1,90 @@
+# Test: the two cross-leaf `prefix { reconnect ...; }` rules reject a peer, and
+#       each error names the family it came from
+# VALIDATES: AC-12 of spec-fixit-bgp-per-family-prefix-enforcement, reached
+#            through `ze config validate`, which is the operator path.
+#              seq=1  `reconnect timer` with no `idle-timeout`. A wait of zero
+#                     seconds is not a timer, and Peer.run would take a delay of
+#                     zero, reconnect at once and re-exceed the maximum.
+#              seq=2  `reconnect never` beside `idle-timeout 30`. A peer told to
+#                     stay down has no use for a wait, so the pair is refused
+#                     rather than one half being silently ignored.
+#            Both leaves sit inside the per-family `prefix` container, so the
+#            error names the family. That is what proves parsePrefixReconnect
+#            (internal/component/bgp/reactor/config_prefix.go) is reached per
+#            family and not once per peer.
+# PREVENTS: a config whose two leaves contradict each other being accepted and
+#           then resolved by whichever leaf the code happens to read first. The
+#           YANG enum and the uint16 range each accept their own leaf, so no
+#           single-leaf schema rule can refuse the pair. The per-scenario exit=1
+#           stops a later scenario passing on an earlier scenario's exit code.
+
+stdin=timer-without-idle:terminator=EOF_TIMER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 100
+						reconnect timer
+					}
+				}
+			}
+		}
+	}
+}
+EOF_TIMER
+
+stdin=never-with-idle:terminator=EOF_NEVER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv6/unicast {
+					prefix {
+						maximum 100
+						idle-timeout 30
+						reconnect never
+					}
+				}
+			}
+		}
+	}
+}
+EOF_NEVER
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=timer-without-idle:exit=1
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=family ipv4/unicast: prefix reconnect timer needs idle-timeout above 0
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=never-with-idle:exit=1
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=family ipv6/unicast: prefix reconnect never conflicts with idle-timeout 30
