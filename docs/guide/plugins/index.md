@@ -218,6 +218,7 @@ ze --plugins
 | `iface` | OS interface orchestration: loads backend, dispatches operations | -- (Bus events, no peer binding) |
 | `iface-netlink` | Netlink backend for iface: manage, monitor, bridge, sysctl, mirror | -- (registered as iface backend) |
 | `iface-dhcp` | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | -- (Bus events) |
+| `iface-ra` | IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and netlink only. [Guide](../configuration/index.md#ipv6-router-advertisements) | -- (Config-driven, raw ICMPv6 socket per unit) |
 | `rib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
@@ -241,6 +242,7 @@ ze --plugins
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
+<!-- source: internal/plugins/iface/ra/register.go -- iface-ra registration -->
 <!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->

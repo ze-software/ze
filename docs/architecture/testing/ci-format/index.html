@@ -135,6 +135,7 @@
 </ol></li>
 <li><a href="#engine-steps">Engine Steps</a>
 <ol>
+<li><a href="#expectcommand-error">expect=command-error</a></li>
 <li><a href="#expectoutput-expectstream-predicates">expect=output / expect=stream predicates</a></li>
 <li><a href="#example_3">Example</a></li>
 </ol></li>
@@ -1514,11 +1515,36 @@ stream=&lt;monitor command text&gt;
 expect=output:&lt;predicate&gt;[:timeout=&lt;dur&gt;]
 expect=event:namespace=&lt;ns&gt;:name=&lt;name&gt;[:timeout=&lt;dur&gt;]
 expect=stream:&lt;predicate&gt;[:timeout=&lt;dur&gt;]
+expect=command-error:contains=&lt;text&gt;
 </code></pre>
 <p><code>command=</code>/<code>stream=</code> keep their full raw text (colons included). <code>expect=output</code>
 re-dispatches the most recent <code>command=</code> until its predicate holds or the
 timeout expires; <code>expect=stream</code> matches delivered <code>stream=</code> events;
 <code>expect=event</code> matches a delivered event by exclusive subscription.</p>
+<h3 id="expectcommand-error">expect=command-error</h3>
+<p><code>expect=command-error:contains=&lt;text&gt;</code> asserts that the PRECEDING <code>command=</code>
+FAILED, and that its message contains the text.</p>
+<p>Use it for a command that must refuse. The plugin SDK turns a <code>StatusError</code>
+response into a Go error, so without this directive the command step aborts the
+run before any <code>expect=</code> is reached, and no <code>.ci</code> can assert an operational
+error at all. That left one class untestable end to end, and it is the class
+where a wrong answer costs most: a command that must refuse is exactly the one
+whose failure mode is answering confidently instead. <code>test/ipsec/ipsec-show-dataplane.ci</code>
+uses it to prove that a dataplane which cannot be read SAYS so rather than
+rendering an empty table.</p>
+<p>It takes <code>contains=</code> only, and no timeout. An error is the result of one
+dispatch, so re-dispatching until one appears would wait for a state change no
+<code>expect=</code> can cause.</p>
+<p>A command failure that NO <code>expect=command-error</code> consumes still fails the run,
+whether the next step is of another kind or the command is the last step in the
+file. Every <code>.ci</code> written before this directive existed relies on that.</p>
+<!-- source: internal/test/runner/engine_steps.go -- parseEngineExpectCommandError, RunEngineSteps -->
+
+<p><strong>It must not be vacuous.</strong> A <code>command=</code> that SUCCEEDS does not satisfy
+<code>expect=command-error</code>: the step fails with "the preceding command succeeded".
+Without that rule the directive would pass for the very regression it guards, a
+refusal quietly becoming a successful empty answer
+(<code>TestRunEngineStepsCommandErrorRequiresAFailure</code>).</p>
 <h3 id="expectoutput-expectstream-predicates">expect=output / expect=stream predicates</h3>
 <p>The optional trailing <code>:timeout=&lt;dur&gt;</code> is split off the END first, so a predicate
 operand may itself contain <code>:</code> (a compact-JSON fragment, an IPv6 address). The

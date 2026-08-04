@@ -2200,14 +2200,14 @@
     "path": "show interface brief",
     "description": "One-line summary per interface: name, state, IP, and MTU.\nQuick way to see what is up and what addresses are assigned.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface",
+    "wire-method": "ze-show:interface-brief",
     "global-pipes": true
   },
   {
     "path": "show interface errors",
     "description": "Show interfaces that have errors or drops.\nFilters to only interfaces with non-zero Rx/Tx error or drop\ncounters. Quick way to find troubled links.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface",
+    "wire-method": "ze-show:interface-errors",
     "global-pipes": true
   },
   {
@@ -2244,7 +2244,7 @@
     "path": "show interface rate",
     "description": "Show per-second traffic rates on your interfaces.\nReturns rx/tx bytes and packets per second. Pass an interface name\nto narrow the output. Requires the rate tracker. For continuous\nmonitoring, use 'monitor interface rate' instead.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface",
+    "wire-method": "ze-show:interface-rate",
     "global-pipes": true
   },
   {
@@ -2258,7 +2258,7 @@
     "path": "show interface type",
     "description": "Show only interfaces of a given type.\nUsage: show interface type <type>. Types include ethernet, bridge,\nvxlan, wireguard, tunnel, bond, and more. If you pick an invalid\ntype, the error lists all valid ones.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface",
+    "wire-method": "ze-show:interface-type",
     "global-pipes": true,
     "syntax": "show interface type <type>"
   },
@@ -3604,6 +3604,33 @@
     "description": "Show the running Ze version and build date.\nYou can verify which release is deployed on this box.",
     "mode": "read-only",
     "wire-method": "ze-show:version",
+    "global-pipes": true
+  },
+  {
+    "path": "show vpn ipsec dataplane drift",
+    "description": "Compare what the IKE engine believes against what the kernel holds.\nReports each Child SA the engine counts as installed whose SPI the kernel\nSAD does not hold. The command exits non-zero when it finds drift, so a\nscript CAN test it. A rekey window holds two SPIs and is not drift.",
+    "mode": "read-only",
+    "wire-method": "ze-show:vpn-ipsec-dataplane-drift",
+    "global-pipes": true
+  },
+  {
+    "path": "show vpn ipsec dataplane policy",
+    "description": "Show the Security Policy Database the kernel holds.\nLists each policy with its selector prefixes and ports, direction, priority,\nupper-layer protocol, if_id, tunnel endpoints, and the peer that installed\nit. A policy with no matching SA is the failure this command exists to show.\nRFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this\ntree.",
+    "mode": "read-only",
+    "wire-method": "ze-show:vpn-ipsec-dataplane-policy",
+    "global-pipes": true
+  },
+  {
+    "path": "show vpn ipsec dataplane sa",
+    "description": "Show the Security Association Database the kernel holds.\nLists each installed ESP SA with its SPI, addresses, mode, algorithms,\nreplay window, byte and packet counters, and timestamps. Give 'spi <spi>'\nto show one SA. Without a selector the command dumps every SA, which on a\ndevice with many tunnels is one row per SA.",
+    "mode": "read-only",
+    "wire-method": "ze-show:vpn-ipsec-dataplane-sa",
+    "args": [
+      {
+        "name": "spi",
+        "type": "uint"
+      }
+    ],
     "global-pipes": true
   },
   {

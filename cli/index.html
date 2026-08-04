@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 387 commands across 45 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 390 commands across 46 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 387 commands across 45 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 390 commands across 46 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -14,7 +14,7 @@
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="CLI Reference - Ze" />
-        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 387 commands across 45 groups." />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 390 commands across 46 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -52,7 +52,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Reference</span>
                     <h1 id="cli-title">CLI Reference</h1>
-                    <p>387 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                    <p>390 commands across 46 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../data/cli-commands.json">data/cli-commands.json</a>.</p>
                 </div>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
@@ -496,6 +496,16 @@
 <tr id="cmd-show-traffic-stat"><td><code>show traffic stat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).<br>Without arguments, shows all interfaces. With &#x27;name &lt;interface&gt;&#x27;, filters to one interface.</td></tr>
 <tr id="cmd-show-traffic-usage"><td><code>show traffic usage</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show per-interface traffic byte counters captured by eBPF TCX.<br>Per destination/source port and protocol counters are always present; per-IP<br>top-talker counters appear when track-ip is enabled. Without arguments, lists<br>all monitored interfaces. With &#x27;name &lt;interface&gt;&#x27;, shows that one interface.</td></tr>
 </tbody></table></details>
+<details class="cli-group" id="cli-group-show-vpn" open>
+<summary>show vpn <span class="cli-group-count">6</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr id="cmd-show-vpn-ipsec-dataplane-drift"><td><code>show vpn ipsec dataplane drift</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Compare what the IKE engine believes against what the kernel holds.<br>Reports each Child SA the engine counts as installed whose SPI the kernel<br>SAD does not hold. The command exits non-zero when it finds drift, so a<br>script CAN test it. A rekey window holds two SPIs and is not drift.</td></tr>
+<tr id="cmd-show-vpn-ipsec-dataplane-policy"><td><code>show vpn ipsec dataplane policy</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the Security Policy Database the kernel holds.<br>Lists each policy with its selector prefixes and ports, direction, priority,<br>upper-layer protocol, if_id, tunnel endpoints, and the peer that installed<br>it. A policy with no matching SA is the failure this command exists to show.<br>RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this<br>tree.</td></tr>
+<tr id="cmd-show-vpn-ipsec-dataplane-sa"><td><code>show vpn ipsec dataplane sa</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the Security Association Database the kernel holds.<br>Lists each installed ESP SA with its SPI, addresses, mode, algorithms,<br>replay window, byte and packet counters, and timestamps. Give &#x27;spi &lt;spi&gt;&#x27;<br>to show one SA. Without a selector the command dumps every SA, which on a<br>device with many tunnels is one row per SA.</td></tr>
+<tr id="cmd-show-vpn-ipsec-peer-name"><td><code>show vpn ipsec peer name &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one IPsec peer.<br>Returns IKE SA state, all child SAs with traffic selectors, and<br>byte counts. Usage: show vpn ipsec peer name &lt;name&gt;.</td></tr>
+<tr id="cmd-show-vpn-ipsec-sa"><td><code>show vpn ipsec sa</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show all IKE and Child Security Associations.<br>Lists every SA with peer, negotiated algorithms, byte counts, rekey<br>timers, and uptime. Includes SPIs, NAT detection, and child SA<br>traffic selectors. Your main IPsec status command.</td></tr>
+<tr id="cmd-show-vpn-ipsec-status"><td><code>show vpn ipsec status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Quick IPsec health check.<br>Reports whether the IKE engine is running, how many peers are<br>configured, and how many IKE SAs are Established.</td></tr>
+</tbody></table></details>
 <details class="cli-group" id="cli-group-show-vpp" open>
 <summary>show vpp <span class="cli-group-count">4</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
@@ -505,7 +515,7 @@
 <tr id="cmd-show-vpp-trace-start"><td><code>show vpp trace start</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Start capturing packets in the VPP dataplane.<br>Default input node is dpdk-input, default count is 100 (max 10000).<br>After starting, use &#x27;show vpp trace show&#x27; to retrieve the captured<br>packets. Requires the VPP backend.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-other" open>
-<summary>show (other) <span class="cli-group-count">68</span></summary>
+<summary>show (other) <span class="cli-group-count">65</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-show-aaa-accounting"><td><code>show aaa accounting</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show AAA accounting counters and any dropped records.<br>Tells you whether TACACS+ accounting is working or if records are<br>being lost due to server unreachability.</td></tr>
 <tr id="cmd-show-announcements"><td><code>show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br>Usage: show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</td></tr>
@@ -565,9 +575,6 @@
 <tr id="cmd-show-traceroute"><td><code>show traceroute</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Trace the network path from this router to a target.<br>Shows each hop with its IP and round-trip time. Dest can be an IP<br>or hostname. Defaults: 30 max hops, 3 probes per hop. Increase<br>probes for more reliable RTT measurements.</td></tr>
 <tr id="cmd-show-uptime"><td><code>show uptime</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show how long the daemon has been running.<br>Returns the start time and elapsed uptime. Handy after a maintenance<br>window to confirm the process restarted.</td></tr>
 <tr id="cmd-show-version"><td><code>show version</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the running Ze version and build date.<br>You can verify which release is deployed on this box.</td></tr>
-<tr id="cmd-show-vpn-ipsec-peer-name"><td><code>show vpn ipsec peer name &lt;name&gt;</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show full detail for one IPsec peer.<br>Returns IKE SA state, all child SAs with traffic selectors, and<br>byte counts. Usage: show vpn ipsec peer name &lt;name&gt;.</td></tr>
-<tr id="cmd-show-vpn-ipsec-sa"><td><code>show vpn ipsec sa</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show all IKE and Child Security Associations.<br>Lists every SA with peer, negotiated algorithms, byte counts, rekey<br>timers, and uptime. Includes SPIs, NAT detection, and child SA<br>traffic selectors. Your main IPsec status command.</td></tr>
-<tr id="cmd-show-vpn-ipsec-status"><td><code>show vpn ipsec status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Quick IPsec health check.<br>Reports whether the IKE engine is running, how many peers are<br>configured, and how many IKE SAs are Established.</td></tr>
 <tr id="cmd-show-vrrp"><td><code>show vrrp</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show every VRRP virtual router: its group name, VRID, address<br>family, state (initialize, backup, master), configured and effective priority,<br>virtual addresses, and the macvlan device that carries the virtual MAC.</td></tr>
 <tr id="cmd-show-vrrp-interface-name"><td><code>show vrrp interface name</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the VRRP virtual routers on one parent interface.<br>Pass the interface name: show vrrp interface name &lt;interface&gt;.</td></tr>
 <tr id="cmd-show-vrrp-statistics"><td><code>show vrrp statistics</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show per-virtual-router counters: advertisements sent and<br>received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor<br>advertisement bursts, receive-validation errors by reason, and the derived skew<br>and master-down timers in microseconds (a VRRPv3 skew is sub-millisecond).</td></tr>

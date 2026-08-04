@@ -175,28 +175,24 @@ def _check_groups(module, enrolled, reqs, parse_errs, tags, parse_by_stem, statu
 
 
 def _audit_counts(module, gated_reqs, tags, enrolled):
-    by_rid = collections.defaultdict(list)
-    for tag in tags:
-        by_rid[tag.rid].append(tag)
-    audits = {stem: module.load_audit(stem) for stem in sorted(enrolled)}
-    verdicts = fresh = stale = 0
-    for req in gated_reqs:
-        verdict = audits.get(req.rfc, {}).get(req.rid)
-        if not verdict:
-            continue
-        verdicts += 1
-        if module.verdict_is_fresh(
-            verdict,
-            module.requirement_sha(req.text),
-            module.tagged_unit_shas(by_rid.get(req.rid, [])),
-        ):
-            fresh += 1
-        else:
-            stale += 1
+    """Count recorded verdicts by the generator's four freshness states.
+
+    scripts/dev/rfc_requirements.py replaced its verdict_is_fresh boolean with
+    audit_freshness(), which separates a mechanical re-stamp (SHIFTED: the
+    tagged unit is byte-identical and only the file around it moved, cleared by
+    `make ze-rfc-reseal`) from a real judgement change (STALE_UNIT,
+    STALE_REQUIREMENT, both needing a human re-read). Ask that one function
+    rather than reimplementing the rule here, and keep the split on the page:
+    folding SHIFTED into "stale" would report a line shift as a void verdict.
+    """
+    states = module.audit_freshness(gated_reqs, tags, enrolled, module.load_audits(enrolled))
+    counts = collections.Counter(state for state, _ in states.values())
+    verdicts = sum(counts.values())
     return {
         "verdicts": verdicts,
-        "fresh": fresh,
-        "stale": stale,
+        "fresh": counts.get(module.FRESH, 0),
+        "shifted": counts.get(module.SHIFTED, 0),
+        "stale": counts.get(module.STALE_UNIT, 0) + counts.get(module.STALE_REQUIREMENT, 0),
         "missing": max(len(gated_reqs) - verdicts, 0),
     }
 
@@ -380,8 +376,9 @@ def render_cards(snapshot):
         (
             "Semantic verdicts",
             fmt_int(audit["fresh"]),
-            "%s stale, %s missing and therefore not claimed" % (fmt_int(audit["stale"]), fmt_int(audit["missing"])),
-            "ok" if audit["stale"] == 0 else "bad",
+            "%s shifted, %s stale, %s missing and therefore not claimed"
+            % (fmt_int(audit.get("shifted", 0)), fmt_int(audit["stale"]), fmt_int(audit["missing"])),
+            "bad" if audit["stale"] else ("warn" if audit.get("shifted", 0) else "ok"),
         ),
     ]
     out = ['<div class="rfc-card-grid reveal">']
@@ -455,7 +452,7 @@ def render_layers(snapshot):
         ("Enrollment", "rfc/enrolled.txt", "%s enrolled RFCs" % fmt_int(gate["enrolled_rfcs"])),
         ("Test tags", "internal/, pkg/, test/", "%s resolved tags" % fmt_int(gate["test_tags"])),
         ("Public ledger", "docs/features/rfc-status.md", "%s RFCs with gaps, %s Supported with Remaining" % (fmt_int(gaps["rfcs"]), fmt_int(supported_count))),
-        ("Semantic audits", "rfc/audit/*.json", "%s fresh, %s stale, %s missing" % (fmt_int(audit["fresh"]), fmt_int(audit["stale"]), fmt_int(audit["missing"]))),
+        ("Semantic audits", "rfc/audit/*.json", "%s fresh, %s shifted, %s stale, %s missing" % (fmt_int(audit["fresh"]), fmt_int(audit.get("shifted", 0)), fmt_int(audit["stale"]), fmt_int(audit["missing"]))),
         ("AI write/edit guard", guard["hook_path"], "ON" if guard["blocks_unapproved"] else "OFF"),
         ("Verify integration", "Makefile + scripts/status/verify_run.go", "%s verify stages, make target %s" % (fmt_int(guard["verify_stage_mentions"]), "present" if guard["make_target_present"] else "missing")),
     ]
@@ -625,6 +622,7 @@ def render_markdown(snapshot):
         "| Declared gaps | %s |" % fmt_int(gaps["requirements"]),
         "| RFCs with declared gaps | %s |" % fmt_int(gaps["rfcs"]),
         "| Fresh semantic audit verdicts | %s |" % fmt_int(audit["fresh"]),
+        "| Shifted semantic audit verdicts | %s |" % fmt_int(audit.get("shifted", 0)),
         "| Stale semantic audit verdicts | %s |" % fmt_int(audit["stale"]),
         "",
         "## Requirement buckets",
@@ -674,7 +672,7 @@ def render_markdown(snapshot):
             "| Enrollment | `rfc/enrolled.txt` | %s enrolled RFCs |" % fmt_int(gate["enrolled_rfcs"]),
             "| Test tags | `internal/, pkg/, test/` | %s resolved tags |" % fmt_int(gate["test_tags"]),
             "| Public ledger | `docs/features/rfc-status.md` | %s RFCs with gaps |" % fmt_int(gaps["rfcs"]),
-            "| Semantic audits | `rfc/audit/*.json` | %s fresh, %s stale, %s missing |" % (fmt_int(audit["fresh"]), fmt_int(audit["stale"]), fmt_int(audit["missing"])),
+            "| Semantic audits | `rfc/audit/*.json` | %s fresh, %s shifted, %s stale, %s missing |" % (fmt_int(audit["fresh"]), fmt_int(audit.get("shifted", 0)), fmt_int(audit["stale"]), fmt_int(audit["missing"])),
             "| AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | %s |" % ("ON" if snapshot["agent_guard"]["blocks_unapproved"] else "OFF"),
             "| Verify integration | `Makefile` and `scripts/status/verify_run.go` | %s verify stages |" % fmt_int(snapshot["agent_guard"]["verify_stage_mentions"]),
             "",

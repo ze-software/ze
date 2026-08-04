@@ -140,10 +140,23 @@ NTP disabled (<code>set environment ntp enabled false</code>) until the operator
 in Ze config.</p>
 <p>The root filesystem is read-only (SquashFS). Persistent data lives on a separate ext4 partition mounted at <code>/perm</code>.</p>
 <h2 id="prerequisites">Prerequisites</h2>
-<p>Install once on the build machine (macOS):</p>
+<p>Install once on the build machine.</p>
+<p>macOS:</p>
 <pre><code class="language-bash">brew install e2fsprogs    # ext4 filesystem tools
 brew install qemu         # VM runtime (testing only)
 </code></pre>
+<p>Linux:</p>
+<pre><code class="language-bash">sudo apt-get install -y e2fsprogs qemu-system-x86   # Debian, Ubuntu
+sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
+</code></pre>
+<p>The build needs BOTH <code>mkfs.ext4</code> and <code>debugfs</code> from e2fsprogs: it formats
+<code>/perm</code> with the first and injects the seed database with the second. The build
+finds them by itself, in <code>/usr/sbin</code>, <code>/sbin</code>, <code>/usr/local/sbin</code>, then the
+homebrew Cellar, and it takes the first directory holding both. Pass
+<code>make ze-gokrazy E2FS=/path/to/sbin</code> to name the directory instead. An empty
+<code>E2FS=</code> is not an override and does not resume the search.</p>
+<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy e2fsprogs guard -->
+
 <p>For appliance ISO creation, install <code>grub-mkstandalone</code> (or <code>grub2-mkstandalone</code>)
 plus <code>xorriso</code>.
 <code>ze appliance iso</code> checks those tools before it stages an ISO.</p>

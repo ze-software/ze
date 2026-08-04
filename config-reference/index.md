@@ -186,6 +186,16 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       Do not send End-of-RIB automatically after initial route advertisement. When enabled, End-of-RIB must be triggered externally via the process API. Used when an external controller manages convergence signaling.
     - **rs-fast-path** `boolean`
       Forward received UPDATEs directly inside the reactor for RS-client peers, bypassing the plugin dispatch chain. Lower latency for route server forwarding. Peers with export filters are excluded and use the normal path.
+  - **capture** `container`
+    Protocol event capture for this peer. When enabled, every message the peer sends is written to a JSONL file as raw wire bytes plus arrival metadata, together with the config operations applied while the capture runs. Replay the file on a developer machine with 'ze-test replay <file>' to drive the same state machine over the same input. Capture is a diagnostic aid: leave it off in steady state. The file holds the peer's routing data (prefixes, AS paths, communities, next-hops). It holds no local secret: TCP-MD5 keys never appear on the wire, and captured config payloads are redacted. Handle a capture file like a routing-table dump.
+    - **directory** `string`
+      Directory holding this peer's capture files, created if absent. One file per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, twice over when on-limit is rotate. 'ze doctor' reports whether the directory is writable.
+    - **enabled** `boolean`
+      Capture this peer's inbound protocol events to a file. Off by default.
+    - **maximum-size** `uint32`
+      Hard cap on one capture file. The writer refuses a record that would cross the cap rather than writing part of it, so a file never exceeds this value. With on-limit rotate a peer uses at most twice this on disk; with on-limit stop, at most this.
+    - **on-limit** `enumeration`
+      What happens when a capture file reaches maximum-size. 'rotate' renames it to <file>.1, replacing any earlier rotation, and starts a fresh file, so capture continues and the newest events are kept. 'stop' closes the file and captures nothing further, so the oldest events are kept. Either way the daemon is unaffected and the file ends with a capture-stop record.
   - **connection** `container`
     Transport-level connection settings
     - **bfd** `container`
@@ -272,6 +282,16 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         Do not send End-of-RIB automatically after initial route advertisement. When enabled, End-of-RIB must be triggered externally via the process API. Used when an external controller manages convergence signaling.
       - **rs-fast-path** `boolean`
         Forward received UPDATEs directly inside the reactor for RS-client peers, bypassing the plugin dispatch chain. Lower latency for route server forwarding. Peers with export filters are excluded and use the normal path.
+    - **capture** `container`
+      Protocol event capture for this peer. When enabled, every message the peer sends is written to a JSONL file as raw wire bytes plus arrival metadata, together with the config operations applied while the capture runs. Replay the file on a developer machine with 'ze-test replay <file>' to drive the same state machine over the same input. Capture is a diagnostic aid: leave it off in steady state. The file holds the peer's routing data (prefixes, AS paths, communities, next-hops). It holds no local secret: TCP-MD5 keys never appear on the wire, and captured config payloads are redacted. Handle a capture file like a routing-table dump.
+      - **directory** `string`
+        Directory holding this peer's capture files, created if absent. One file per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, twice over when on-limit is rotate. 'ze doctor' reports whether the directory is writable.
+      - **enabled** `boolean`
+        Capture this peer's inbound protocol events to a file. Off by default.
+      - **maximum-size** `uint32`
+        Hard cap on one capture file. The writer refuses a record that would cross the cap rather than writing part of it, so a file never exceeds this value. With on-limit rotate a peer uses at most twice this on disk; with on-limit stop, at most this.
+      - **on-limit** `enumeration`
+        What happens when a capture file reaches maximum-size. 'rotate' renames it to <file>.1, replacing any earlier rotation, and starts a fresh file, so capture continues and the newest events are kept. 'stop' closes the file and captures nothing further, so the oldest events are kept. Either way the daemon is unaffected and the file ends with a capture-stop record.
     - **connection** `container`
       Transport-level connection settings
       - **bfd** `container`
@@ -486,9 +506,11 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         - **prefix** `container`
           Prefix limit configuration for this address family
           - **idle-timeout** `uint16`
-            Seconds before auto-reconnect after prefix teardown (0 = no reconnect)
+            Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.
           - **maximum** `uint32`
             Hard maximum number of prefixes accepted
+          - **reconnect** `enumeration`
+            What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.
           - **teardown** `boolean`
             Tear down session when prefix maximum exceeded (false = warn only)
           - **updated** `string`
@@ -718,9 +740,11 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **prefix** `container`
         Prefix limit configuration for this address family
         - **idle-timeout** `uint16`
-          Seconds before auto-reconnect after prefix teardown (0 = no reconnect)
+          Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.
         - **maximum** `uint32`
           Hard maximum number of prefixes accepted
+        - **reconnect** `enumeration`
+          What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.
         - **teardown** `boolean`
           Tear down session when prefix maximum exceeded (false = warn only)
         - **updated** `string`
@@ -874,6 +898,16 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       Do not send End-of-RIB automatically after initial route advertisement. When enabled, End-of-RIB must be triggered externally via the process API. Used when an external controller manages convergence signaling.
     - **rs-fast-path** `boolean`
       Forward received UPDATEs directly inside the reactor for RS-client peers, bypassing the plugin dispatch chain. Lower latency for route server forwarding. Peers with export filters are excluded and use the normal path.
+  - **capture** `container`
+    Protocol event capture for this peer. When enabled, every message the peer sends is written to a JSONL file as raw wire bytes plus arrival metadata, together with the config operations applied while the capture runs. Replay the file on a developer machine with 'ze-test replay <file>' to drive the same state machine over the same input. Capture is a diagnostic aid: leave it off in steady state. The file holds the peer's routing data (prefixes, AS paths, communities, next-hops). It holds no local secret: TCP-MD5 keys never appear on the wire, and captured config payloads are redacted. Handle a capture file like a routing-table dump.
+    - **directory** `string`
+      Directory holding this peer's capture files, created if absent. One file per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, twice over when on-limit is rotate. 'ze doctor' reports whether the directory is writable.
+    - **enabled** `boolean`
+      Capture this peer's inbound protocol events to a file. Off by default.
+    - **maximum-size** `uint32`
+      Hard cap on one capture file. The writer refuses a record that would cross the cap rather than writing part of it, so a file never exceeds this value. With on-limit rotate a peer uses at most twice this on disk; with on-limit stop, at most this.
+    - **on-limit** `enumeration`
+      What happens when a capture file reaches maximum-size. 'rotate' renames it to <file>.1, replacing any earlier rotation, and starts a fresh file, so capture continues and the newest events are kept. 'stop' closes the file and captures nothing further, so the oldest events are kept. Either way the daemon is unaffected and the file ends with a capture-stop record.
   - **connection** `container`
     Transport-level connection settings
     - **bfd** `container`
@@ -1088,9 +1122,11 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **prefix** `container`
         Prefix limit configuration for this address family
         - **idle-timeout** `uint16`
-          Seconds before auto-reconnect after prefix teardown (0 = no reconnect)
+          Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.
         - **maximum** `uint32`
           Hard maximum number of prefixes accepted
+        - **reconnect** `enumeration`
+          What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.
         - **teardown** `boolean`
           Tear down session when prefix maximum exceeded (false = warn only)
         - **updated** `string`
@@ -1327,7 +1363,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
 - **session** `container`
   Global BGP session defaults
   - **allow-shared-router-id** `boolean`
-    Accept a peer whose BGP Identifier (router-id) duplicates another established peer in the same AS. Default false enforces AS-wide uniqueness by rejecting the second OPEN with Bad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide uniqueness only a SHOULD, so accepting a shared identifier is conformant; set true when the duplication is intentional, e.g. one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same router-id. When true, ze performs no router-id uniqueness check at all (it does not implement RFC 6286 Section 2.3 collision detection).
+    Accept a peer whose BGP Identifier (router-id) duplicates another established peer in the same AS. Default false enforces AS-wide uniqueness by rejecting the second OPEN with Bad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide uniqueness only a SHOULD, so accepting a shared identifier is conformant; set true when the duplication is intentional, e.g. one anycast speaker (AS112) peering over both IPv4 and IPv6 with the same router-id. When true, only the AS-wide uniqueness claim is skipped. RFC 6286 Section 2.2 validation (a zero identifier, or this speaker's own identifier from an internal peer) still applies, and Section 2.3 connection collision resolution is implemented and likewise not gated by this leaf.
   - **asn** `container`
     AS number configuration
     - **local** `asn`
@@ -1669,7 +1705,9 @@ Environment settings for API transports
     - **port** `listener-port`
       Listen TCP port; 0 means OS-assigned
   - **tls** `boolean`
-    Enable TLS (requires blob storage for certificates)
+    Enable TLS (requires blob storage for certificates). Default true: the looking glass binds 0.0.0.0 and publishes route data. Set false to serve plaintext, for example behind a TLS-terminating proxy. Override with the ze.looking-glass.tls variable.
+  - **token** `string`
+    Bearer token that gates every /api/ and /lg/ route. Compared constant-time (sha256 + subtle.ConstantTimeCompare). Empty leaves the looking glass open, which is the default: a looking glass is a public read-only surface. Override with the ze.looking-glass.token variable.
 - **mcp** `container`
   MCP server settings (AI assistant control interface)
   - **auth-mode** `enumeration`
@@ -1679,9 +1717,9 @@ Environment settings for API transports
   - **enabled** `boolean`
     Enable MCP server
   - **identity <name>** `list`
-    Per-identity bearer entries (auth-mode=bearer-list). Each entry's token grants access to the named principal. Scopes are attached to the session and visible to later phases (tasks, elicitation).
+    Per-identity bearer entries (auth-mode=bearer-list). Each entry's token grants access to the named principal. Authentication runs on every request, so the matching entry's name and scopes ride that one authenticated request; changes take effect on the next request.
     - **scope** `string[]`
-      Optional scopes attached to the session when this identity authenticates.
+      Optional scopes carried on every request this identity authenticates.
     - **token** `string`
       Bearer token value. Compared constant-time.
   - **oauth** `container`
@@ -1768,6 +1806,8 @@ Environment settings for API transports
       Listen TCP port; 0 means OS-assigned
 - **web** `container`
   Web interface settings
+  - **certificate** `string`
+    Name of the certificate in the PKI store to serve on the HTTPS listener. The listener sends the leaf certificate and every intermediate certificate the store entry holds, so a client can build the full chain. When this leaf is not set, ze generates a self-signed certificate and serves that. When this leaf is set and the store has no entry with that name, or the entry holds no private key, the web server does not start and the reload is rejected. ze never falls back to a self-signed certificate for a configured name. Environment variable: ze.web.certificate.
   - **enabled** `boolean`
     Enable web interface
   - **insecure** `boolean`
@@ -2198,6 +2238,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
       - **vrrp** `container`
@@ -2356,6 +2432,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
       - **vrrp** `container`
@@ -2512,6 +2624,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
       - **vrrp** `container`
@@ -2604,6 +2752,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
@@ -2908,6 +3092,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
@@ -3048,6 +3268,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
       - **vrrp** `container`
@@ -3172,6 +3428,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
@@ -3258,6 +3550,42 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
             Requested prefix length
       - **forwarding** `boolean`
         Allow this interface to forward IPv6 packets between interfaces. Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA acceptance unless accept-ra is set to 2.
+      - **router-advertisement** `container`
+        Router Advertisement sender (RFC 4861). Ze advertises prefixes, flags, and resolvers on this link so hosts autoconfigure, which is the role radvd fills on other systems. Sending is separate from accepting: set forwarding true on an advertising interface, and leave accept-ra at 0 unless this interface also learns from another router.
+        - **enabled** `boolean`
+          Send Router Advertisements on this unit. RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to false so a node never becomes a router by accident.
+        - **hop-limit** `uint8`
+          Value hosts place in the Hop Limit field of their outgoing packets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this router states no value.
+        - **managed** `boolean`
+          Set the M flag: hosts get their addresses from DHCPv6 (RFC 4861 Section 4.2).
+        - **maximum-interval** `uint16`
+          Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used is picked at random between minimum-interval and this value.
+        - **minimum-interval** `uint16`
+          Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed 0.75 x maximum-interval; config verify rejects a larger value.
+        - **other-config** `boolean`
+          Set the O flag: hosts get other configuration, such as DNS, from DHCPv6 (RFC 4861 Section 4.2).
+        - **prefix <prefix>** `list`
+          Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2). Host bits below the prefix length are sent as zero.
+          - **autonomous** `boolean`
+            Set the A flag: hosts build addresses from this prefix by stateless autoconfiguration (RFC 4862).
+          - **on-link** `boolean`
+            Set the L flag: hosts treat addresses in this prefix as on-link (RFC 4861 Section 4.6.2).
+          - **preferred-lifetime** `uint32`
+            How long addresses built from the prefix stay preferred (RFC 4861 Section 4.6.2). Must not exceed valid-lifetime; config verify rejects a larger value. The default is 7 days.
+          - **valid-lifetime** `uint32`
+            How long the prefix stays valid (RFC 4861 Section 4.6.2). 4294967295 means it never expires. The default is 30 days.
+        - **rdnss** `container`
+          Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1), which points a link at a resolver without running DHCPv6.
+          - **lifetime** `uint32`
+            How long hosts may use these resolvers (RFC 8106 Section 5.1). 0 tells hosts to stop using them, and is a value an operator can set. 4294967295 means they never expire. This leaf has no default: leave it out and Ze sends 3 x maximum-interval, the value RFC 8106 Section 5.1 recommends. That is why 0 is not the default, because Ze could not then tell an operator retiring a resolver from one who set nothing.
+          - **server** `ipv6-address[]`
+            Resolver addresses. All of them share lifetime.
+        - **reachable-time** `uint32`
+          How long a host treats a neighbor as reachable after a reachability confirmation (AdvReachableTime, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **retransmit-timer** `uint32`
+          Time between retransmitted Neighbor Solicitations on this link (AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router states no value.
+        - **router-lifetime** `uint16`
+          How long hosts keep Ze in their default router list (AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not a default router, and the prefixes and resolvers in the advertisement still apply. Any other value must be at least maximum-interval; config verify rejects a smaller one.
       - **rpf-check** `enumeration`
         Reverse path filtering mode (VPP data plane only on IPv6). strict: drop packets whose source would not be routed back via this interface. loose: drop packets whose source has no route at all. disable: no source address validation.
     - **mirror** `container`
@@ -3401,6 +3729,8 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
       UDP port for the RADIUS CoA/Disconnect listener (RFC 5176), commonly 3799. Deliberately has no default: leaving it unset keeps the listener off, so an existing deployment does not start accepting CoA on upgrade. Requests are accepted only from the configured RADIUS server addresses.
     - **nas-identifier** `string`
       NAS-Identifier sent in RADIUS requests.
+    - **nas-port-id-format** `string`
+      Template for the NAS-Port-Id attribute (RFC 2869 Section 5.17) sent in Access-Request and Accounting-Request packets. The placeholders are {nas-id}, {tunnel-id} and {session-id}; every other character is copied. All three are known before the session has an interface, so one session sends one text in its Access-Request and in all its accounting records, and a billing system can join them. The 253-octet limit is the largest value a RADIUS attribute can carry (RFC 2865 Section 5). An unknown placeholder, and a {nas-id} with no nas-identifier set, are both refused when the config is committed. Unset sends no attribute.
     - **retries** `uint8`
       Number of retransmit attempts per server.
     - **server <name>** `list`
@@ -4111,11 +4441,11 @@ OSPFv2 routing instance configuration.
     - **default-cost** `uint32`
       Default summary metric for stub/NSSA areas.
     - **no-summary** `boolean`
-      Suppress Type 3 summaries in totally-stubby or totally-NSSA areas.
+      Suppress Type 3 summaries other than the required default in totally-stubby or totally-NSSA areas.
     - **nssa** `container`
       NSSA-specific configuration (applies when area-type is nssa).
       - **default-originate** `boolean`
-        Originate a Type 7 default route (0.0.0.0/0) into the NSSA.
+        On an internal NSSA router, originate a Type 7 default route into the NSSA. An NSSA border router always originates the required default.
       - **stability-interval** `uint16`
         Hysteresis before a newly elected translator stops translating after losing the role (RFC 3101 section 3.5).
       - **translate-role** `enumeration`
@@ -4350,7 +4680,7 @@ OSPFv2 routing instance configuration.
 
 ## pki
 
-*Provided by `ipsec-cookie-threshold`*
+*Provided by `ipsec-xfrm`*
 
 PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems.
 
@@ -4362,8 +4692,8 @@ PKI certificate and key store. Presence of this block enables certificate-based 
   Device certificate with optional private key and intermediate certificates.
   - **certificate** `string`
     Base64-encoded DER X.509 device certificate.
-  - **intermediate** `string`
-    Base64-encoded DER intermediate CA certificate. Stored alongside device cert for chain building.
+  - **intermediate** `string[]`
+    Base64-encoded DER intermediate CA certificates. Give them in order, from the one that issued this certificate toward the trust anchor. Ze stores them beside the device certificate for chain building, and sends them after it in the IKE_AUTH chain. RFC 7296 Section 3.6 requires an implementation be capable of being configured to send up to four X.509 certificates. This device certificate plus three intermediates is that maximum. A single value is still valid.
   - **private** `container`
     Private key associated with this certificate.
     - **key** `string`
@@ -4632,6 +4962,8 @@ Service settings
     DNS-over-TLS (DoT, RFC 7858) listener and the certificate material shared with DoH. When enabled the DoT listener binds the fixed anycast addresses (and loopback) on 'listen-port'. When cert-file/key-file are unset an ephemeral self-signed certificate is used, which strict clients cannot validate -- supply operator PEM for a publicly trusted node.
     - **cert-file** `string`
       Path to the PEM server certificate presented on DoT and DoH. Unset (together with key-file) selects an ephemeral self-signed certificate.
+    - **certificate** `string`
+      Name of the certificate in the PKI store to serve on DoT and DoH. The listeners send the leaf certificate and every intermediate certificate the store entry holds. This leaf and cert-file/key-file are mutually exclusive; setting both is a configuration error. The PKI store lives in the hub process, so a geodns or as112 plugin started as an external process cannot resolve the name: the secure listeners then do not start and the error is logged. Cleartext DNS is unaffected.
     - **enabled** `boolean`
       Enable the DNS-over-TLS listener (RFC 7858).
     - **key-file** `string`
@@ -4752,6 +5084,8 @@ Service settings
     DNS-over-TLS (DoT, RFC 7858) listener and the certificate material shared with DoH. When enabled the DoT listener binds the configured listener IPs on 'listen-port'. When cert-file/key-file are unset an ephemeral self-signed certificate is used, which strict clients cannot validate.
     - **cert-file** `string`
       Path to the PEM server certificate presented on DoT and DoH. Unset (together with key-file) selects an ephemeral self-signed certificate.
+    - **certificate** `string`
+      Name of the certificate in the PKI store to serve on DoT and DoH. The listeners send the leaf certificate and every intermediate certificate the store entry holds. This leaf and cert-file/key-file are mutually exclusive; setting both is a configuration error. The PKI store lives in the hub process, so a geodns plugin started as an external process cannot resolve the name: the secure listeners then do not start and the error is logged. Cleartext DNS is unaffected.
     - **enabled** `boolean`
       Enable the DNS-over-TLS listener (RFC 7858).
     - **key-file** `string`
@@ -5270,12 +5604,14 @@ Traffic subsystem: QoS control and byte-usage accounting.
 
 ## vpn
 
-*Provided by `ipsec-cookie-threshold`*
+*Provided by `ipsec-xfrm`*
 
 VPN subsystems.
 
 - **ipsec** `container`
   IPsec site-to-site VPN configuration.
+  - **cookie-threshold** `uint32`
+    Number of half-open IKE SAs tolerated before an inbound IKE_SA_INIT must answer a COOKIE challenge. RFC 7296 Section 2.6 makes the challenge the answer to state and CPU exhaustion from forged source addresses. The default of 0 challenges every inbound initiation, which costs one extra round trip and stops a single spoofed datagram taking a peer's only half-open handshake slot. Raise it to tolerate that many half-open handshakes before challenging.
   - **esp-group <name>** `list`
     ESP (Encapsulating Security Payload) group.
     - **lifetime** `uint32`
@@ -5283,11 +5619,11 @@ VPN subsystems.
     - **pfs** `enumeration`
       Perfect Forward Secrecy for Child SA rekeying.
     - **proposal <number>** `list`
-      ESP proposal. Lower number = higher priority.
+      ESP proposal. Lower number = higher priority. One group offers at most 255 proposals, because RFC 7296 Section 3.3.1 numbers them in one octet.
       - **encryption** `encryption-algo`
         Encryption algorithm.
       - **hash** `hash-algo`
-        Integrity algorithm. Optional for AEAD ciphers.
+        Integrity algorithm. It is required beside a non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296 Section 3.3 gives an AEAD cipher its own integrity, so an ESP proposal offers the integrity transform NONE. An ESP proposal carries no PRF transform, so this leaf never names one.
   - **ike-group <name>** `list`
     IKE (Internet Key Exchange) group.
     - **close-action** `enumeration`
@@ -5305,13 +5641,13 @@ VPN subsystems.
     - **lifetime** `uint32`
       IKE SA lifetime in seconds. 0 disables reauth.
     - **proposal <number>** `list`
-      IKE proposal. Lower number = higher priority.
+      IKE proposal. Lower number = higher priority. One group offers at most 255 proposals, because RFC 7296 Section 3.3.1 numbers them in one octet.
       - **dh-group** `uint8`
         Diffie-Hellman group number (RFC 7296 Section 3.3.2).
       - **encryption** `encryption-algo`
         Encryption algorithm.
       - **hash** `hash-algo`
-        PRF/integrity algorithm.
+        PRF and integrity algorithm. It is required beside every cipher, and an AEAD cipher is no exception. RFC 7296 Section 3.3.3 makes the PRF a mandatory transform for an IKE proposal, and this leaf names it. An ESP proposal reads the same leaf as integrity alone, and refuses it beside an AEAD cipher.
   - **interface** `string`
     WAN interface for IPsec traffic.
   - **remote-access** `container`
@@ -5321,11 +5657,11 @@ VPN subsystems.
       - **mode** `enumeration`
         EAP authentication method.
       - **x509** `container`
-        Server certificate references for EAP.
+        Server certificate references for EAP. Ze parses both leaves and no component reads them today, so neither takes effect. Ze also leaves both unchecked, so a name that no PKI store entry carries still commits here. The enforced leaves of these names are the site-to-site peer ones.
         - **ca-certificate** `string`
-          Name of the CA certificate in the PKI store.
+          Name of the CA certificate in the PKI store. It has no effect today.
         - **certificate** `string`
-          Name of the server certificate in the PKI store.
+          Name of the server certificate in the PKI store. It has no effect today.
     - **eap-user <name>** `list`
       EAP user entry for remote access authentication.
       - **certificate** `string`
@@ -5353,23 +5689,35 @@ VPN subsystems.
       - **authentication** `container`
         Peer authentication settings.
         - **ca-certificate** `string`
-          Name of the CA certificate in the PKI store (EAP and X.509 modes).
+          Name of the CA certificate in the PKI store. Required for every EAP mode and for X.509. It is the trust anchor the remote certificate must chain to, through any intermediate certificates the peer sends. Without it any self-signed certificate would authenticate. The remote certificate must also carry the remote-id identity in a subject alternative name. Ze reads the subject common name only when the certificate has no such extension.
         - **certificate** `string`
-          Name of the device certificate in the PKI store (EAP-TLS and X.509 modes).
+          Name of the device certificate in the PKI store. Required for every EAP mode, because RFC 7296 Section 2.16 makes the responder sign its AUTH with a public key. Also used by X.509 mode. Ze sends this certificate first, then the intermediate certificate the PKI entry carries.
+        - **certificate-count** `uint8`
+          The most X.509 certificates Ze sends for this peer, and the most it accepts from it. RFC 7296 Section 3.6 requires an implementation be capable of being configured to send and accept up to four. The default is that figure, so an operator who never sets this leaf gets the conformant behavior. A peer that sends more than this is REFUSED, never truncated. A silent trim would pass a count check and hide from the operator that the limit was reached. It would also make which certificates survive depend on the order the peer chose.
+        - **certificate-url** `string`
+          The http URL at which this device's own certificate is published, sent beside the SHA-1 hash when hash-and-url is true. RFC 7296 Section 3.6 requires support for the http scheme.
+        - **certificate-url-allow** `ip-prefix[]`
+          Destinations a certificate URL received from this peer CAN resolve to, beyond the fetcher's defaults. The fetcher refuses loopback, private, link-local and multicast addresses, and the cloud metadata address. It refuses them because the daemon runs on a router and holds routes an internet host does not. Naming a prefix here permits it.
+        - **hash-and-url** `boolean`
+          Use the Hash and URL certificate encodings of RFC 7296 Section 3.6. When it is true Ze sends its certificate as a SHA-1 hash plus certificate-url, advertises HTTP_CERT_LOOKUP_SUPPORTED, and resolves a peer's Hash and URL payload. It defaults to false, and that default is a security property. Resolving a peer's payload fetches a URL that peer chose, and Ze must do that before it CAN authenticate the peer. With this leaf false Ze advertises nothing, a conforming peer sends no such payload, a non-conforming one is dropped, and no fetch is reachable. The enabled fetch takes the http scheme only, a 64 KiB cap, a 5 second timeout, no redirects, denied destinations, and SHA-1 verification before any parser.
         - **local-id** `string`
           Local identity for IKE negotiation.
         - **mode** `enumeration`
           Authentication mode.
         - **pre-shared-secret** `string`
           Pre-shared key ($9$-encoded).
+        - **pre-shared-secret-encoding** `enumeration`
+          How to read the pre-shared-secret value. RFC 7296 Section 2.15 requires the management interface to accept both an ASCII string and a hex encoding of the shared secret. Set this to hex to supply the secret as hexadecimal digit pairs, which is the way to configure a secret holding non-printable octets. The encoding is stated here and is never guessed from the value. A secret such as abcdef0123456789 is both valid ASCII and valid hex, so reading it as hex would silently change an existing secret. A hex value with an odd length or a non-hexadecimal character is refused at commit rather than read as ASCII.
         - **remote-id** `string`
-          Remote identity for IKE negotiation.
+          Identity the remote endpoint must assert. When it is set, Ze refuses an IKE_AUTH whose ID payload names another identity. Comparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value accepts the two address types alone. A distinguished name is compared in RFC 4514 string form, and it binds against the certificate subject exactly, octet for octet. When it is empty Ze checks no identity, so every certificate the ca-certificate issued authenticates as this peer. Set it whenever that authority issues to more than one client.
+        - **remote-id-type** `enumeration`
+          The one IKE ID type the remote endpoint CAN assert, and when absent any type Ze CAN compare, which is the historical behavior. When it is set Ze refuses every other type, so a peer asserting ID_FQDN with the text of a configured mail address is refused. RFC 7296 Section 4 requires that it be possible to configure Ze to accept a PKIX certificate where the identity passed is ID_KEY_ID. An opaque key id corresponds to no certificate field, so Ze cannot derive that binding and refuses it by default. Setting this leaf to key-id is the operator stating that a chain to ca-certificate plus the exact key id IS the intended binding. It governs what Ze ACCEPTS, and the type Ze sends still follows the shape of local-id.
         - **x509** `container`
-          X.509 certificate references (deprecated, use direct leaves).
+          X.509 certificate references (deprecated, use the direct leaves). Ze reads a leaf here only when the direct leaf of the same name is empty. A name set here therefore meets the same requirement the direct leaf meets, and it is checked against the PKI store the same way.
           - **ca-certificate** `string`
-            Name of the CA certificate in the PKI store.
+            Name of the CA certificate in the PKI store. Ze reads it only when the direct ca-certificate leaf is empty. It then satisfies the trust anchor that every EAP mode and X.509 require.
           - **certificate** `string`
-            Name of the device certificate in the PKI store.
+            Name of the device certificate in the PKI store. Ze reads it only when the direct certificate leaf is empty. It then satisfies the certificate that every EAP mode and X.509 require.
       - **connection-type** `enumeration`
         Whether to initiate or wait for the remote peer.
       - **esp-group** `string`
@@ -5378,8 +5726,28 @@ VPN subsystems.
         Reference to an IKE group name.
       - **local-address** `string`
         Local endpoint address or interface name.
+      - **mode** `enumeration`
+        Encapsulation mode for this peer's Child SAs. RFC 7296 Section 1.3.1 states the default itself: 'Except when using this option to negotiate transport mode, all Child SAs will use tunnel mode.' Ze asks for transport mode by sending USE_TRANSPORT_MODE with the Child SA request, and the peer can decline. A declined request establishes a tunnel-mode Child SA unless transport-required is set. Transport mode constrains the traffic selectors. RFC 7296 Section 2.23.1 requires exactly one IP address in TSi and in TSr, so every traffic-selector prefix under this peer must be a single host, and a vti binding is refused because an XFRM interface carries tunnel encapsulation.
       - **remote-address** `string`
         Remote endpoint address or DNS hostname.
+      - **traffic-selector <number>** `list`
+        The traffic this peer's Child SAs carry, and the policy RFC 7296 Section 2.9 narrows a peer's proposal against. When no entry is present the peer accepts whatever the remote endpoint proposes, which is the behavior of every configuration written before this list existed. Adding an entry restricts the peer: a proposal Ze cannot narrow to a non-empty subset of these entries is answered with TS_UNACCEPTABLE. RFC 7296 Section 2.9 permits several selectors, so this is a list.
+        - **local** `container`
+          The local side of the selector pair (TSi when Ze initiates, TSr when Ze responds).
+          - **port** `union`
+            Local port of the selector. RFC 7296 Section 3.13.1 requires the port fields to be 0 and 65535 whenever the protocol is 0 or defines no port, so a value other than any needs the protocol leaf to name a protocol that has ports.
+          - **prefix** `ip-prefix`
+            Local traffic the Child SA carries.
+        - **protocol** `uint8`
+          IP protocol number the selector matches, such as 6 for TCP and 17 for UDP. Zero matches every protocol, which is RFC 7296 Section 3.13.1's 'protocol 0'.
+        - **remote** `container`
+          The remote side of the selector pair (TSr when Ze initiates, TSi when Ze responds).
+          - **port** `union`
+            Remote port of the selector. It follows the same rule as the local port: a value other than any needs the protocol leaf.
+          - **prefix** `ip-prefix`
+            Remote traffic the Child SA carries.
+      - **transport-required** `boolean`
+        Whether a peer that declines transport mode is unacceptable. RFC 7296 Section 1.3.1: 'If the responder declines the request, the Child SA will be established in tunnel mode. If this is unacceptable to the initiator, the initiator MUST delete the SA.' Only the operator knows whether it is unacceptable, so this leaf carries that decision. When it is true and the response omits USE_TRANSPORT_MODE, Ze deletes the SA rather than run a tunnel-mode Child SA the operator did not ask for. When it is false the SA stays up in tunnel mode, which is the safe default. It applies only when mode is transport.
       - **vti** `container`
         Virtual Tunnel Interface binding.
         - **bind** `string`

@@ -630,6 +630,42 @@
           {
             "children": [
               {
+                "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
+                "kind": "leaf",
+                "name": "directory",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Capture this peer's inbound protocol events to a file. Off by default.",
+                "kind": "leaf",
+                "name": "enabled",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "Hard cap on one capture file. The writer refuses a record that would\ncross the cap rather than writing part of it, so a file never exceeds\nthis value. With on-limit rotate a peer uses at most twice this on disk;\nwith on-limit stop, at most this.",
+                "kind": "leaf",
+                "name": "maximum-size",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to <file>.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
+                "kind": "leaf",
+                "name": "on-limit",
+                "source": "config",
+                "type": "enumeration"
+              }
+            ],
+            "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay <file>' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
+            "kind": "container",
+            "name": "capture",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "children": [
                   {
                     "description": "Master switch for this peer's BFD session. Set\nfalse to keep the config in place but suspend\nthe BFD client (useful for maintenance).",
@@ -933,6 +969,42 @@
                 "description": "Operational knobs that control how the reactor processes and forwards\nUPDATE messages for this peer. Most users can leave these at defaults.",
                 "kind": "container",
                 "name": "behavior",
+                "source": "config"
+              },
+              {
+                "children": [
+                  {
+                    "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
+                    "kind": "leaf",
+                    "name": "directory",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Capture this peer's inbound protocol events to a file. Off by default.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "Hard cap on one capture file. The writer refuses a record that would\ncross the cap rather than writing part of it, so a file never exceeds\nthis value. With on-limit rotate a peer uses at most twice this on disk;\nwith on-limit stop, at most this.",
+                    "kind": "leaf",
+                    "name": "maximum-size",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to <file>.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
+                    "kind": "leaf",
+                    "name": "on-limit",
+                    "source": "config",
+                    "type": "enumeration"
+                  }
+                ],
+                "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay <file>' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
+                "kind": "container",
+                "name": "capture",
                 "source": "config"
               },
               {
@@ -1695,7 +1767,7 @@
                       {
                         "children": [
                           {
-                            "description": "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)",
+                            "description": "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.",
                             "kind": "leaf",
                             "name": "idle-timeout",
                             "source": "config",
@@ -1707,6 +1779,13 @@
                             "name": "maximum",
                             "source": "config",
                             "type": "uint32"
+                          },
+                          {
+                            "description": "What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.",
+                            "kind": "leaf",
+                            "name": "reconnect",
+                            "source": "config",
+                            "type": "enumeration"
                           },
                           {
                             "description": "Tear down session when prefix maximum exceeded (false = warn only)",
@@ -2540,7 +2619,7 @@
                   {
                     "children": [
                       {
-                        "description": "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)",
+                        "description": "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.",
                         "kind": "leaf",
                         "name": "idle-timeout",
                         "source": "config",
@@ -2552,6 +2631,13 @@
                         "name": "maximum",
                         "source": "config",
                         "type": "uint32"
+                      },
+                      {
+                        "description": "What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.",
+                        "kind": "leaf",
+                        "name": "reconnect",
+                        "source": "config",
+                        "type": "enumeration"
                       },
                       {
                         "description": "Tear down session when prefix maximum exceeded (false = warn only)",
@@ -3117,6 +3203,42 @@
             "description": "Operational knobs that control how the reactor processes and forwards\nUPDATE messages for this peer. Most users can leave these at defaults.",
             "kind": "container",
             "name": "behavior",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
+                "kind": "leaf",
+                "name": "directory",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Capture this peer's inbound protocol events to a file. Off by default.",
+                "kind": "leaf",
+                "name": "enabled",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "Hard cap on one capture file. The writer refuses a record that would\ncross the cap rather than writing part of it, so a file never exceeds\nthis value. With on-limit rotate a peer uses at most twice this on disk;\nwith on-limit stop, at most this.",
+                "kind": "leaf",
+                "name": "maximum-size",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to <file>.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
+                "kind": "leaf",
+                "name": "on-limit",
+                "source": "config",
+                "type": "enumeration"
+              }
+            ],
+            "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay <file>' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
+            "kind": "container",
+            "name": "capture",
             "source": "config"
           },
           {
@@ -3879,7 +4001,7 @@
                   {
                     "children": [
                       {
-                        "description": "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)",
+                        "description": "Seconds to wait before reconnect after this family stopped the session. The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down: see the reconnect leaf.",
                         "kind": "leaf",
                         "name": "idle-timeout",
                         "source": "config",
@@ -3891,6 +4013,13 @@
                         "name": "maximum",
                         "source": "config",
                         "type": "uint32"
+                      },
+                      {
+                        "description": "What the peer does after this family stopped the session. No value means timer when idle-timeout is more than 0, and never when it is 0.",
+                        "kind": "leaf",
+                        "name": "reconnect",
+                        "source": "config",
+                        "type": "enumeration"
                       },
                       {
                         "description": "Tear down session when prefix maximum exceeded (false = warn only)",
@@ -4778,7 +4907,7 @@
       {
         "children": [
           {
-            "description": "Accept a peer whose BGP Identifier (router-id) duplicates\nanother established peer in the same AS. Default false\nenforces AS-wide uniqueness by rejecting the second OPEN with\nBad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide\nuniqueness only a SHOULD, so accepting a shared identifier is\nconformant; set true when the duplication is intentional,\ne.g. one anycast speaker (AS112) peering over both IPv4 and\nIPv6 with the same router-id. When true, ze performs no\nrouter-id uniqueness check at all (it does not implement\nRFC 6286 Section 2.3 collision detection).",
+            "description": "Accept a peer whose BGP Identifier (router-id) duplicates\nanother established peer in the same AS. Default false\nenforces AS-wide uniqueness by rejecting the second OPEN with\nBad BGP Identifier. RFC 6286 Section 2.1 makes AS-wide\nuniqueness only a SHOULD, so accepting a shared identifier is\nconformant; set true when the duplication is intentional,\ne.g. one anycast speaker (AS112) peering over both IPv4 and\nIPv6 with the same router-id. When true, only the AS-wide\nuniqueness claim is skipped. RFC 6286 Section 2.2 validation\n(a zero identifier, or this speaker's own identifier from an\ninternal peer) still applies, and Section 2.3 connection\ncollision resolution is implemented and likewise not gated\nby this leaf.",
             "kind": "leaf",
             "name": "allow-shared-router-id",
             "source": "config",
@@ -5933,11 +6062,18 @@
             "source": "config"
           },
           {
-            "description": "Enable TLS (requires blob storage for certificates)",
+            "description": "Enable TLS (requires blob storage for certificates).\nDefault true: the looking glass binds 0.0.0.0 and\npublishes route data. Set false to serve plaintext,\nfor example behind a TLS-terminating proxy.\nOverride with the ze.looking-glass.tls variable.",
             "kind": "leaf",
             "name": "tls",
             "source": "config",
             "type": "boolean"
+          },
+          {
+            "description": "Bearer token that gates every /api/ and /lg/ route.\nCompared constant-time (sha256 +\nsubtle.ConstantTimeCompare). Empty leaves the\nlooking glass open, which is the default: a looking\nglass is a public read-only surface. Override with\nthe ze.looking-glass.token variable.",
+            "kind": "leaf",
+            "name": "token",
+            "source": "config",
+            "type": "string"
           }
         ],
         "description": "Looking glass HTTP server settings",
@@ -5971,7 +6107,7 @@
           {
             "children": [
               {
-                "description": "Optional scopes attached to the session when this identity authenticates.",
+                "description": "Optional scopes carried on every request this\nidentity authenticates.",
                 "kind": "leaf-list",
                 "name": "scope",
                 "source": "config",
@@ -5985,7 +6121,7 @@
                 "type": "string"
               }
             ],
-            "description": "Per-identity bearer entries (auth-mode=bearer-list).\nEach entry's token grants access to the named principal.\nScopes are attached to the session and visible to\nlater phases (tasks, elicitation).",
+            "description": "Per-identity bearer entries (auth-mode=bearer-list).\nEach entry's token grants access to the named principal.\nAuthentication runs on every request, so the matching\nentry's name and scopes ride that one authenticated\nrequest; changes take effect on the next request.",
             "kind": "list[name]",
             "name": "identity",
             "source": "config"
@@ -6293,6 +6429,13 @@
       },
       {
         "children": [
+          {
+            "description": "Name of the certificate in the PKI store to serve on the\nHTTPS listener. The listener sends the leaf certificate and\nevery intermediate certificate the store entry holds, so a\nclient can build the full chain.\nWhen this leaf is not set, ze generates a self-signed\ncertificate and serves that.\nWhen this leaf is set and the store has no entry with that\nname, or the entry holds no private key, the web server does\nnot start and the reload is rejected. ze never falls back to\na self-signed certificate for a configured name.\nEnvironment variable: ze.web.certificate.",
+            "kind": "leaf",
+            "name": "certificate",
+            "source": "config",
+            "type": "string"
+          },
           {
             "description": "Enable web interface",
             "kind": "leaf",
@@ -7753,6 +7896,135 @@
                     "type": "boolean"
                   },
                   {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
+                  },
+                  {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
@@ -8323,6 +8595,135 @@
                     "type": "boolean"
                   },
                   {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
+                  },
+                  {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
@@ -8886,6 +9287,135 @@
                     "type": "boolean"
                   },
                   {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
+                  },
+                  {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
@@ -9217,6 +9747,135 @@
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
+                  },
+                  {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
                   },
                   {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
@@ -10335,6 +10994,135 @@
                     "type": "boolean"
                   },
                   {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
+                  },
+                  {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
@@ -10840,6 +11628,135 @@
                     "type": "boolean"
                   },
                   {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
+                  },
+                  {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
@@ -11287,6 +12204,135 @@
                     "type": "boolean"
                   },
                   {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
+                  },
+                  {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
                     "kind": "leaf",
                     "name": "rpf-check",
@@ -11595,6 +12641,135 @@
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
+                  },
+                  {
+                    "children": [
+                      {
+                        "description": "Send Router Advertisements on this unit. RFC 4861 Section 6.2.1\nrequires AdvSendAdvertisements to default to false so a node\nnever becomes a router by accident.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Value hosts place in the Hop Limit field of their outgoing\npackets (AdvCurHopLimit, RFC 4861 Section 4.2). 0 means this\nrouter states no value.",
+                        "kind": "leaf",
+                        "name": "hop-limit",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "Set the M flag: hosts get their addresses from DHCPv6\n(RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "managed",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Longest time between unsolicited Router Advertisements\n(MaxRtrAdvInterval, RFC 4861 Section 6.2.1). The interval used\nis picked at random between minimum-interval and this value.",
+                        "kind": "leaf",
+                        "name": "maximum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Shortest time between unsolicited Router Advertisements\n(MinRtrAdvInterval, RFC 4861 Section 6.2.1). Must not exceed\n0.75 x maximum-interval; config verify rejects a larger value.",
+                        "kind": "leaf",
+                        "name": "minimum-interval",
+                        "source": "config",
+                        "type": "uint16"
+                      },
+                      {
+                        "description": "Set the O flag: hosts get other configuration, such as DNS,\nfrom DHCPv6 (RFC 4861 Section 4.2).",
+                        "kind": "leaf",
+                        "name": "other-config",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Set the A flag: hosts build addresses from this prefix by\nstateless autoconfiguration (RFC 4862).",
+                            "kind": "leaf",
+                            "name": "autonomous",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "Set the L flag: hosts treat addresses in this prefix as\non-link (RFC 4861 Section 4.6.2).",
+                            "kind": "leaf",
+                            "name": "on-link",
+                            "source": "config",
+                            "type": "boolean"
+                          },
+                          {
+                            "description": "How long addresses built from the prefix stay preferred\n(RFC 4861 Section 4.6.2). Must not exceed valid-lifetime;\nconfig verify rejects a larger value. The default is 7 days.",
+                            "kind": "leaf",
+                            "name": "preferred-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "How long the prefix stays valid (RFC 4861 Section 4.6.2).\n4294967295 means it never expires. The default is 30 days.",
+                            "kind": "leaf",
+                            "name": "valid-lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          }
+                        ],
+                        "description": "Prefixes advertised in Prefix Information options\n(RFC 4861 Section 4.6.2). Host bits below the prefix length\nare sent as zero.",
+                        "kind": "list[prefix]",
+                        "name": "prefix",
+                        "source": "config"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "How long hosts may use these resolvers (RFC 8106\nSection 5.1). 0 tells hosts to stop using them, and is a\nvalue an operator can set. 4294967295 means they never\nexpire. This leaf has no default: leave it out and Ze\nsends 3 x maximum-interval, the value RFC 8106\nSection 5.1 recommends. That is why 0 is not the\ndefault, because Ze could not then tell an operator\nretiring a resolver from one who set nothing.",
+                            "kind": "leaf",
+                            "name": "lifetime",
+                            "source": "config",
+                            "type": "uint32"
+                          },
+                          {
+                            "description": "Resolver addresses. All of them share lifetime.",
+                            "kind": "leaf-list",
+                            "name": "server",
+                            "source": "config",
+                            "type": "ipv6-address"
+                          }
+                        ],
+                        "description": "Recursive DNS servers advertised to hosts (RFC 8106\nSection 5.1), which points a link at a resolver without\nrunning DHCPv6.",
+                        "kind": "container",
+                        "name": "rdnss",
+                        "source": "config"
+                      },
+                      {
+                        "description": "How long a host treats a neighbor as reachable after a\nreachability confirmation (AdvReachableTime, RFC 4861\nSection 6.2.1). 0 means this router states no value.",
+                        "kind": "leaf",
+                        "name": "reachable-time",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "Time between retransmitted Neighbor Solicitations on this link\n(AdvRetransTimer, RFC 4861 Section 6.2.1). 0 means this router\nstates no value.",
+                        "kind": "leaf",
+                        "name": "retransmit-timer",
+                        "source": "config",
+                        "type": "uint32"
+                      },
+                      {
+                        "description": "How long hosts keep Ze in their default router list\n(AdvDefaultLifetime, RFC 4861 Section 6.2.1). 0 says Ze is not\na default router, and the prefixes and resolvers in the\nadvertisement still apply. Any other value must be at least\nmaximum-interval; config verify rejects a smaller one.",
+                        "kind": "leaf",
+                        "name": "router-lifetime",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Router Advertisement sender (RFC 4861). Ze advertises prefixes,\nflags, and resolvers on this link so hosts autoconfigure, which\nis the role radvd fills on other systems. Sending is separate\nfrom accepting: set forwarding true on an advertising interface,\nand leave accept-ra at 0 unless this interface also learns from\nanother router.",
+                    "kind": "container",
+                    "name": "router-advertisement",
+                    "source": "config"
                   },
                   {
                     "description": "Reverse path filtering mode (VPP data plane only on IPv6).\nstrict: drop packets whose source would not be routed back via this interface.\nloose: drop packets whose source has no route at all.\ndisable: no source address validation.",
@@ -12075,6 +13250,13 @@
                 "description": "NAS-Identifier sent in RADIUS requests.",
                 "kind": "leaf",
                 "name": "nas-identifier",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Template for the NAS-Port-Id attribute (RFC 2869\nSection 5.17) sent in Access-Request and Accounting-Request packets. The\nplaceholders are {nas-id}, {tunnel-id} and {session-id}; every other character is\ncopied. All three are known before the session has an interface, so one session\nsends one text in its Access-Request and in all its accounting records, and a\nbilling system can join them. The 253-octet limit is the largest value a RADIUS\nattribute can carry (RFC 2865 Section 5). An unknown placeholder, and a {nas-id}\nwith no nas-identifier set, are both refused when the config is committed. Unset\nsends no attribute.",
+                "kind": "leaf",
+                "name": "nas-port-id-format",
                 "source": "config",
                 "type": "string"
               },
@@ -14607,7 +15789,7 @@
                 "type": "uint32"
               },
               {
-                "description": "Suppress Type 3 summaries in totally-stubby or totally-NSSA areas.",
+                "description": "Suppress Type 3 summaries other than the required default in totally-stubby or totally-NSSA areas.",
                 "kind": "leaf",
                 "name": "no-summary",
                 "source": "config",
@@ -14616,7 +15798,7 @@
               {
                 "children": [
                   {
-                    "description": "Originate a Type 7 default route (0.0.0.0/0) into the NSSA.",
+                    "description": "On an internal NSSA router, originate a Type 7 default route into the NSSA. An NSSA border router always originates the required default.",
                     "kind": "leaf",
                     "name": "default-originate",
                     "source": "config",
@@ -15513,8 +16695,8 @@
             "type": "string"
           },
           {
-            "description": "Base64-encoded DER intermediate CA certificate.\nStored alongside device cert for chain building.",
-            "kind": "leaf",
+            "description": "Base64-encoded DER intermediate CA certificates. Give them in\norder, from the one that issued this certificate toward the\ntrust anchor. Ze stores them beside the device certificate for\nchain building, and sends them after it in the IKE_AUTH chain.\n\nRFC 7296 Section 3.6 requires an implementation be capable of\nbeing configured to send up to four X.509 certificates. This\ndevice certificate plus three intermediates is that maximum.\nA single value is still valid.",
+            "kind": "leaf-list",
             "name": "intermediate",
             "source": "config",
             "type": "string"
@@ -16361,6 +17543,13 @@
                 "type": "string"
               },
               {
+                "description": "Name of the certificate in the PKI store to serve on DoT\nand DoH. The listeners send the leaf certificate and\nevery intermediate certificate the store entry holds.\nThis leaf and cert-file/key-file are mutually exclusive;\nsetting both is a configuration error.\nThe PKI store lives in the hub process, so a geodns or\nas112 plugin started as an external process cannot\nresolve the name: the secure listeners then do not start\nand the error is logged. Cleartext DNS is unaffected.",
+                "kind": "leaf",
+                "name": "certificate",
+                "source": "config",
+                "type": "string"
+              },
+              {
                 "description": "Enable the DNS-over-TLS listener (RFC 7858).",
                 "kind": "leaf",
                 "name": "enabled",
@@ -16792,6 +17981,13 @@
                 "description": "Path to the PEM server certificate presented on DoT and\nDoH. Unset (together with key-file) selects an ephemeral\nself-signed certificate.",
                 "kind": "leaf",
                 "name": "cert-file",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Name of the certificate in the PKI store to serve on DoT\nand DoH. The listeners send the leaf certificate and\nevery intermediate certificate the store entry holds.\nThis leaf and cert-file/key-file are mutually exclusive;\nsetting both is a configuration error.\nThe PKI store lives in the hub process, so a geodns\nplugin started as an external process cannot resolve the\nname: the secure listeners then do not start and the\nerror is logged. Cleartext DNS is unaffected.",
+                "kind": "leaf",
+                "name": "certificate",
                 "source": "config",
                 "type": "string"
               },
@@ -18623,6 +19819,13 @@
       {
         "children": [
           {
+            "description": "Number of half-open IKE SAs tolerated before an inbound\nIKE_SA_INIT must answer a COOKIE challenge. RFC 7296\nSection 2.6 makes the challenge the answer to state and CPU\nexhaustion from forged source addresses. The default of 0\nchallenges every inbound initiation, which costs one extra\nround trip and stops a single spoofed datagram taking a\npeer's only half-open handshake slot. Raise it to tolerate\nthat many half-open handshakes before challenging.",
+            "kind": "leaf",
+            "name": "cookie-threshold",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
             "children": [
               {
                 "description": "SA lifetime in seconds. 0 disables expiry.",
@@ -18648,14 +19851,14 @@
                     "type": "encryption-algo"
                   },
                   {
-                    "description": "Integrity algorithm. Optional for AEAD ciphers.",
+                    "description": "Integrity algorithm. It is required beside a\nnon-AEAD cipher, and refused beside an AEAD cipher. RFC 7296\nSection 3.3 gives an AEAD cipher its own integrity, so an ESP\nproposal offers the integrity transform NONE. An ESP proposal\ncarries no PRF transform, so this leaf never names one.",
                     "kind": "leaf",
                     "name": "hash",
                     "source": "config",
                     "type": "hash-algo"
                   }
                 ],
-                "description": "ESP proposal. Lower number = higher priority.",
+                "description": "ESP proposal. Lower number = higher priority. One group\noffers at most 255 proposals, because RFC 7296 Section 3.3.1\nnumbers them in one octet.",
                 "kind": "list[number]",
                 "name": "proposal",
                 "source": "config"
@@ -18735,14 +19938,14 @@
                     "type": "encryption-algo"
                   },
                   {
-                    "description": "PRF/integrity algorithm.",
+                    "description": "PRF and integrity algorithm. It is required beside\nevery cipher, and an AEAD cipher is no exception. RFC 7296\nSection 3.3.3 makes the PRF a mandatory transform for an IKE\nproposal, and this leaf names it. An ESP proposal reads the\nsame leaf as integrity alone, and refuses it beside an AEAD\ncipher.",
                     "kind": "leaf",
                     "name": "hash",
                     "source": "config",
                     "type": "hash-algo"
                   }
                 ],
-                "description": "IKE proposal. Lower number = higher priority.",
+                "description": "IKE proposal. Lower number = higher priority. One group\noffers at most 255 proposals, because RFC 7296 Section 3.3.1\nnumbers them in one octet.",
                 "kind": "list[number]",
                 "name": "proposal",
                 "source": "config"
@@ -18774,21 +19977,21 @@
                   {
                     "children": [
                       {
-                        "description": "Name of the CA certificate in the PKI store.",
+                        "description": "Name of the CA certificate in the PKI store.\nIt has no effect today.",
                         "kind": "leaf",
                         "name": "ca-certificate",
                         "source": "config",
                         "type": "string"
                       },
                       {
-                        "description": "Name of the server certificate in the PKI store.",
+                        "description": "Name of the server certificate in the PKI store.\nIt has no effect today.",
                         "kind": "leaf",
                         "name": "certificate",
                         "source": "config",
                         "type": "string"
                       }
                     ],
-                    "description": "Server certificate references for EAP.",
+                    "description": "Server certificate references for EAP. Ze parses\nboth leaves and no component reads them today, so neither\ntakes effect. Ze also leaves both unchecked, so a name that\nno PKI store entry carries still commits here. The enforced\nleaves of these names are the site-to-site peer ones.",
                     "kind": "container",
                     "name": "x509",
                     "source": "config"
@@ -18884,18 +20087,46 @@
                   {
                     "children": [
                       {
-                        "description": "Name of the CA certificate in the PKI store (EAP and X.509 modes).",
+                        "description": "Name of the CA certificate in the PKI store. Required for\nevery EAP mode and for X.509. It is the trust anchor the remote\ncertificate must chain to, through any intermediate certificates the\npeer sends. Without it any self-signed certificate would\nauthenticate. The remote certificate must also carry the remote-id\nidentity in a subject alternative name. Ze reads the subject common\nname only when the certificate has no such extension.",
                         "kind": "leaf",
                         "name": "ca-certificate",
                         "source": "config",
                         "type": "string"
                       },
                       {
-                        "description": "Name of the device certificate in the PKI store (EAP-TLS and X.509 modes).",
+                        "description": "Name of the device certificate in the PKI store. Required for\nevery EAP mode, because RFC 7296 Section 2.16 makes the responder sign\nits AUTH with a public key. Also used by X.509 mode. Ze sends this\ncertificate first, then the intermediate certificate the PKI entry\ncarries.",
                         "kind": "leaf",
                         "name": "certificate",
                         "source": "config",
                         "type": "string"
+                      },
+                      {
+                        "description": "The most X.509 certificates Ze sends for this peer, and the most it\naccepts from it. RFC 7296 Section 3.6 requires an implementation be\ncapable of being configured to send and accept up to four. The\ndefault is that figure, so an operator who never sets this leaf\ngets the conformant behavior.\n\nA peer that sends more than this is REFUSED, never truncated. A\nsilent trim would pass a count check and hide from the operator\nthat the limit was reached. It would also make which certificates\nsurvive depend on the order the peer chose.",
+                        "kind": "leaf",
+                        "name": "certificate-count",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "description": "The http URL at which this device's own certificate is published,\nsent beside the SHA-1 hash when hash-and-url is true. RFC 7296\nSection 3.6 requires support for the http scheme.",
+                        "kind": "leaf",
+                        "name": "certificate-url",
+                        "source": "config",
+                        "type": "string"
+                      },
+                      {
+                        "description": "Destinations a certificate URL received from this peer CAN resolve\nto, beyond the fetcher's defaults. The fetcher refuses loopback,\nprivate, link-local and multicast addresses, and the cloud metadata\naddress. It refuses them because the daemon runs on a router and\nholds routes an internet host does not. Naming a prefix here\npermits it.",
+                        "kind": "leaf-list",
+                        "name": "certificate-url-allow",
+                        "source": "config",
+                        "type": "ip-prefix"
+                      },
+                      {
+                        "description": "Use the Hash and URL certificate encodings of RFC 7296 Section 3.6.\nWhen it is true Ze sends its certificate as a SHA-1 hash plus\ncertificate-url, advertises HTTP_CERT_LOOKUP_SUPPORTED, and\nresolves a peer's Hash and URL payload.\n\nIt defaults to false, and that default is a security property.\nResolving a peer's payload fetches a URL that peer chose, and Ze\nmust do that before it CAN authenticate the peer. With this leaf\nfalse Ze advertises nothing, a conforming peer sends no such\npayload, a non-conforming one is dropped, and no fetch is reachable.\n\nThe enabled fetch takes the http scheme only, a 64 KiB cap, a\n5 second timeout, no redirects, denied destinations, and SHA-1\nverification before any parser.",
+                        "kind": "leaf",
+                        "name": "hash-and-url",
+                        "source": "config",
+                        "type": "boolean"
                       },
                       {
                         "description": "Local identity for IKE negotiation.",
@@ -18919,30 +20150,44 @@
                         "type": "string"
                       },
                       {
-                        "description": "Remote identity for IKE negotiation.",
+                        "description": "How to read the pre-shared-secret value. RFC 7296\nSection 2.15 requires the management interface to\naccept both an ASCII string and a hex encoding of\nthe shared secret. Set this to hex to supply the\nsecret as hexadecimal digit pairs, which is the way\nto configure a secret holding non-printable octets.\n\nThe encoding is stated here and is never guessed from\nthe value. A secret such as abcdef0123456789 is both\nvalid ASCII and valid hex, so reading it as hex would\nsilently change an existing secret. A hex value with\nan odd length or a non-hexadecimal character is\nrefused at commit rather than read as ASCII.",
+                        "kind": "leaf",
+                        "name": "pre-shared-secret-encoding",
+                        "source": "config",
+                        "type": "enumeration"
+                      },
+                      {
+                        "description": "Identity the remote endpoint must assert. When it is set,\nZe refuses an IKE_AUTH whose ID payload names another identity.\nComparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN,\nID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value\naccepts the two address types alone. A distinguished name is\ncompared in RFC 4514 string form, and it binds against the\ncertificate subject exactly, octet for octet.\nWhen it is empty Ze checks no identity, so every certificate the\nca-certificate issued authenticates as this peer. Set it whenever\nthat authority issues to more than one client.",
                         "kind": "leaf",
                         "name": "remote-id",
                         "source": "config",
                         "type": "string"
                       },
                       {
+                        "description": "The one IKE ID type the remote endpoint CAN assert, and when\nabsent any type Ze CAN compare, which is the historical behavior.\nWhen it is set Ze refuses every other type, so a peer asserting\nID_FQDN with the text of a configured mail address is refused.\n\nRFC 7296 Section 4 requires that it be possible to configure Ze to\naccept a PKIX certificate where the identity passed is ID_KEY_ID.\nAn opaque key id corresponds to no certificate field, so Ze cannot\nderive that binding and refuses it by default. Setting this leaf to\nkey-id is the operator stating that a chain to ca-certificate plus\nthe exact key id IS the intended binding.\n\nIt governs what Ze ACCEPTS, and the type Ze sends still follows\nthe shape of local-id.",
+                        "kind": "leaf",
+                        "name": "remote-id-type",
+                        "source": "config",
+                        "type": "enumeration"
+                      },
+                      {
                         "children": [
                           {
-                            "description": "Name of the CA certificate in the PKI store.",
+                            "description": "Name of the CA certificate in the PKI store.\nZe reads it only when the direct ca-certificate leaf\nis empty. It then satisfies the trust anchor that\nevery EAP mode and X.509 require.",
                             "kind": "leaf",
                             "name": "ca-certificate",
                             "source": "config",
                             "type": "string"
                           },
                           {
-                            "description": "Name of the device certificate in the PKI store.",
+                            "description": "Name of the device certificate in the PKI\nstore. Ze reads it only when the direct certificate\nleaf is empty. It then satisfies the certificate that\nevery EAP mode and X.509 require.",
                             "kind": "leaf",
                             "name": "certificate",
                             "source": "config",
                             "type": "string"
                           }
                         ],
-                        "description": "X.509 certificate references (deprecated, use direct leaves).",
+                        "description": "X.509 certificate references (deprecated, use\nthe direct leaves). Ze reads a leaf here only when the\ndirect leaf of the same name is empty. A name set here\ntherefore meets the same requirement the direct leaf\nmeets, and it is checked against the PKI store the same\nway.",
                         "kind": "container",
                         "name": "x509",
                         "source": "config"
@@ -18982,11 +20227,84 @@
                     "type": "string"
                   },
                   {
+                    "description": "Encapsulation mode for this peer's Child SAs.\n\nRFC 7296 Section 1.3.1 states the default itself: 'Except when\nusing this option to negotiate transport mode, all Child SAs will\nuse tunnel mode.' Ze asks for transport mode by sending\nUSE_TRANSPORT_MODE with the Child SA request, and the peer can\ndecline. A declined request establishes a tunnel-mode Child SA\nunless transport-required is set.\n\nTransport mode constrains the traffic selectors. RFC 7296 Section\n2.23.1 requires exactly one IP address in TSi and in TSr, so every\ntraffic-selector prefix under this peer must be a single host, and\na vti binding is refused because an XFRM interface carries tunnel\nencapsulation.",
+                    "kind": "leaf",
+                    "name": "mode",
+                    "source": "config",
+                    "type": "enumeration"
+                  },
+                  {
                     "description": "Remote endpoint address or DNS hostname.",
                     "kind": "leaf",
                     "name": "remote-address",
                     "source": "config",
                     "type": "string"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "description": "Local port of the selector.\n\nRFC 7296 Section 3.13.1 requires the port fields to be 0 and\n65535 whenever the protocol is 0 or defines no port, so a\nvalue other than any needs the protocol leaf to name a\nprotocol that has ports.",
+                            "kind": "leaf",
+                            "name": "port",
+                            "source": "config",
+                            "type": "union"
+                          },
+                          {
+                            "description": "Local traffic the Child SA carries.",
+                            "kind": "leaf",
+                            "name": "prefix",
+                            "source": "config",
+                            "type": "ip-prefix"
+                          }
+                        ],
+                        "description": "The local side of the selector pair (TSi when Ze\ninitiates, TSr when Ze responds).",
+                        "kind": "container",
+                        "name": "local",
+                        "source": "config"
+                      },
+                      {
+                        "description": "IP protocol number the selector matches, such as 6 for TCP and\n17 for UDP. Zero matches every protocol, which is RFC 7296\nSection 3.13.1's 'protocol 0'.",
+                        "kind": "leaf",
+                        "name": "protocol",
+                        "source": "config",
+                        "type": "uint8"
+                      },
+                      {
+                        "children": [
+                          {
+                            "description": "Remote port of the selector. It follows the same rule as the\nlocal port: a value other than any needs the protocol leaf.",
+                            "kind": "leaf",
+                            "name": "port",
+                            "source": "config",
+                            "type": "union"
+                          },
+                          {
+                            "description": "Remote traffic the Child SA carries.",
+                            "kind": "leaf",
+                            "name": "prefix",
+                            "source": "config",
+                            "type": "ip-prefix"
+                          }
+                        ],
+                        "description": "The remote side of the selector pair (TSr when Ze\ninitiates, TSi when Ze responds).",
+                        "kind": "container",
+                        "name": "remote",
+                        "source": "config"
+                      }
+                    ],
+                    "description": "The traffic this peer's Child SAs carry, and the policy RFC 7296\nSection 2.9 narrows a peer's proposal against.\n\nWhen no entry is present the peer accepts whatever the remote\nendpoint proposes, which is the behavior of every configuration\nwritten before this list existed. Adding an entry restricts the\npeer: a proposal Ze cannot narrow to a non-empty subset of these\nentries is answered with TS_UNACCEPTABLE.\n\nRFC 7296 Section 2.9 permits several selectors, so this is a list.",
+                    "kind": "list[number]",
+                    "name": "traffic-selector",
+                    "source": "config"
+                  },
+                  {
+                    "description": "Whether a peer that declines transport mode is unacceptable.\n\nRFC 7296 Section 1.3.1: 'If the responder declines the request, the\nChild SA will be established in tunnel mode. If this is unacceptable\nto the initiator, the initiator MUST delete the SA.' Only the\noperator knows whether it is unacceptable, so this leaf carries that\ndecision. When it is true and the response omits USE_TRANSPORT_MODE,\nZe deletes the SA rather than run a tunnel-mode Child SA the\noperator did not ask for. When it is false the SA stays up in\ntunnel mode, which is the safe default.\n\nIt applies only when mode is transport.",
+                    "kind": "leaf",
+                    "name": "transport-required",
+                    "source": "config",
+                    "type": "boolean"
                   },
                   {
                     "children": [

@@ -69,6 +69,17 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <li><a href="#port-conflict-detection">Port conflict detection</a></li>
 <li><a href="#dependencies">Dependencies</a></li>
 </ol></li>
+<li><a href="#ipv6-router-advertisements">IPv6 Router Advertisements</a>
+<ol>
+<li><a href="#send-and-accept-are-separate">Send and accept are separate</a></li>
+<li><a href="#container-leaves">Container leaves</a></li>
+<li><a href="#prefix-list">Prefix list</a></li>
+<li><a href="#resolvers-rdnss">Resolvers (RDNSS)</a></li>
+<li><a href="#validation">Validation</a></li>
+<li><a href="#example">Example</a></li>
+<li><a href="#send-loop">Send loop</a></li>
+<li><a href="#counters">Counters</a></li>
+</ol></li>
 <li><a href="#plugin-owned-devices-macvlan">Plugin-Owned Devices (Macvlan)</a></li>
 <li><a href="#bus-topics">Bus Topics</a></li>
 <li><a href="#compound-commands-auto-ensure-parent">Compound Commands (Auto-Ensure Parent)</a></li>
@@ -516,6 +527,36 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <tr>
 <td></td>
 <td>Custom interface identifiers</td>
+<td>missing</td>
+<td>lower</td>
+</tr>
+<tr>
+<td><strong>Router Advertisement</strong></td>
+<td>RA sender per unit (RFC 4861)</td>
+<td>have</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Prefix Information options for SLAAC</td>
+<td>have</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>RDNSS resolver option (RFC 8106)</td>
+<td>have</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Router Solicitation answers with rate limit</td>
+<td>have</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Route Information option (RFC 4191)</td>
 <td>missing</td>
 <td>lower</td>
 </tr>
@@ -1190,6 +1231,332 @@ material is the original whitepaper
 genetlink spec
 (https://www.kernel.org/doc/html/latest/userspace-api/netlink/specs/wireguard.html),
 and <code>wg(8)</code>.</p>
+<h2 id="ipv6-router-advertisements">IPv6 Router Advertisements</h2>
+<p>Ze sends IPv6 Router Advertisements on a LAN unit, which is the job radvd does on
+other systems. Hosts on the link build addresses by stateless address
+autoconfiguration (SLAAC), learn a default router, and learn DNS resolvers. The
+<code>iface-ra</code> plugin owns the socket, the timers, and the answers to Router
+Solicitations (RFC 4861).</p>
+<p>The <code>router-advertisement</code> container sits inside the per-unit <code>ipv6</code> container.
+It carries <code>ze:os "linux"</code> and <code>ze:backend "netlink"</code>. The schema walker prunes
+it on another platform, and a tree with <code>backend vpp</code> rejects it at config verify
+with <code>feature not supported by backend "vpp"</code>.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+<!-- source: internal/component/config/backend_gate.go -- ze:backend commit-time feature gate -->
+<!-- source: internal/plugins/iface/ra/register.go -- iface-ra registration -->
+
+<h3 id="send-and-accept-are-separate">Send and accept are separate</h3>
+<p>An advertising interface tells hosts to send it their off-link traffic. Set
+<code>ipv6 forwarding true</code> on that unit, or the kernel drops that traffic and every
+host on the link loses connectivity. Leave <code>accept-ra</code> at 0 unless the same
+interface also learns from another router.</p>
+<p>Config verify cannot catch this, because forwarding can arrive from a sysctl
+profile after verify runs. Ze reports the state instead. The
+<code>doctor-iface-ra-forwarding</code> check emits one warning for each advertising
+interface whose <code>net.ipv6.conf.&lt;device&gt;.forwarding</code> is 0.</p>
+<!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
+
+<h3 id="container-leaves">Container leaves</h3>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Range</th>
+<th>Unit</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>boolean</td>
+<td></td>
+<td></td>
+<td><code>false</code></td>
+<td>Send advertisements on this unit. RFC 4861 Section 6.2.1 requires the default <code>false</code>, so a node never becomes a router by accident</td>
+</tr>
+<tr>
+<td><code>maximum-interval</code></td>
+<td>uint16</td>
+<td>4..1800</td>
+<td>seconds</td>
+<td>600</td>
+<td>Longest wait between unsolicited advertisements (MaxRtrAdvInterval)</td>
+</tr>
+<tr>
+<td><code>minimum-interval</code></td>
+<td>uint16</td>
+<td>3..1350</td>
+<td>seconds</td>
+<td>200</td>
+<td>Shortest wait between unsolicited advertisements (MinRtrAdvInterval)</td>
+</tr>
+<tr>
+<td><code>router-lifetime</code></td>
+<td>uint16</td>
+<td>0..9000</td>
+<td>seconds</td>
+<td>1800</td>
+<td>How long hosts keep Ze in their default router list (AdvDefaultLifetime)</td>
+</tr>
+<tr>
+<td><code>hop-limit</code></td>
+<td>uint8</td>
+<td>0..255</td>
+<td></td>
+<td>64</td>
+<td>Value hosts put in the Hop Limit field of their outgoing packets. 0 states no value</td>
+</tr>
+<tr>
+<td><code>managed</code></td>
+<td>boolean</td>
+<td></td>
+<td></td>
+<td><code>false</code></td>
+<td>The M flag: hosts get their addresses from DHCPv6</td>
+</tr>
+<tr>
+<td><code>other-config</code></td>
+<td>boolean</td>
+<td></td>
+<td></td>
+<td><code>false</code></td>
+<td>The O flag: hosts get other configuration, such as DNS, from DHCPv6</td>
+</tr>
+<tr>
+<td><code>reachable-time</code></td>
+<td>uint32</td>
+<td>0..3600000</td>
+<td>milliseconds</td>
+<td>0</td>
+<td>How long a host treats a neighbor as reachable after a confirmation. 0 states no value</td>
+</tr>
+<tr>
+<td><code>retransmit-timer</code></td>
+<td>uint32</td>
+<td></td>
+<td>milliseconds</td>
+<td>0</td>
+<td>Time between retransmitted Neighbor Solicitations on this link. 0 states no value</td>
+</tr>
+</tbody>
+</table>
+<p>Ze picks each unsolicited interval at random between <code>minimum-interval</code> and
+<code>maximum-interval</code>, which keeps two routers on one link from synchronizing
+(RFC 4861 Section 6.2.4). The first three advertisements after a start wait
+16 seconds at most, so a new router is found quickly.</p>
+<!-- source: internal/plugins/iface/ra/ifacera.go -- unsolicitedInterval, maxInitialAdvertisements -->
+
+<h3 id="prefix-list">Prefix list</h3>
+<p>Each <code>prefix</code> entry becomes one Prefix Information option (RFC 4861
+Section 4.6.2). The list key is the prefix in CIDR notation. SLAAC needs a
+64-bit prefix (RFC 4862 Section 5.5.3).</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Unit</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>on-link</code></td>
+<td>boolean</td>
+<td></td>
+<td><code>true</code></td>
+<td>The L flag: hosts treat addresses in this prefix as on-link</td>
+</tr>
+<tr>
+<td><code>autonomous</code></td>
+<td>boolean</td>
+<td></td>
+<td><code>true</code></td>
+<td>The A flag: hosts build addresses from this prefix by SLAAC</td>
+</tr>
+<tr>
+<td><code>valid-lifetime</code></td>
+<td>uint32</td>
+<td>seconds</td>
+<td>2592000</td>
+<td>How long the prefix stays valid. 30 days. 4294967295 never expires</td>
+</tr>
+<tr>
+<td><code>preferred-lifetime</code></td>
+<td>uint32</td>
+<td>seconds</td>
+<td>604800</td>
+<td>How long addresses from the prefix stay preferred. 7 days</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/iface/config_ra.go -- raParsePrefixEntry, raDefaultValidLifetime, raDefaultPreferredLifetime -->
+
+<h3 id="resolvers-rdnss">Resolvers (RDNSS)</h3>
+<p>The <code>rdnss</code> container points a link at a resolver without a DHCPv6 server
+(RFC 8106 Section 5.1). <code>server</code> is a leaf-list of up to 8 IPv6 addresses, and
+all of them share one <code>lifetime</code>.</p>
+<p><code>lifetime</code> has no default, and the two zero-like cases stay apart because of
+that.</p>
+<table>
+<thead>
+<tr>
+<th>You write</th>
+<th>Ze advertises</th>
+<th>Hosts do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="cell-no">✕</td>
+<td>3 x <code>maximum-interval</code></td>
+<td>Use the resolvers, and refresh them on each advertisement</td>
+</tr>
+<tr>
+<td><code>lifetime 0</code></td>
+<td>0</td>
+<td>Stop using these resolvers</td>
+</tr>
+<tr>
+<td><code>lifetime 4294967295</code></td>
+<td>4294967295</td>
+<td>Use the resolvers, and never expire them</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/iface/config_ra.go -- raUnitConfig.RDNSSLifetime, EffectiveRDNSSLifetime -->
+
+<h3 id="validation">Validation</h3>
+<p>The YANG ranges bound each leaf on its own. Config verify applies the cross-leaf
+rules of RFC 4861 that no single range can express, and every one of them
+rejects the commit.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Rejected input</th>
+<th>Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>minimum-interval</code> is at most 0.75 x <code>maximum-interval</code></td>
+<td><code>minimum-interval 500</code> with <code>maximum-interval 600</code></td>
+<td><code>above three quarters of maximum-interval</code></td>
+</tr>
+<tr>
+<td><code>router-lifetime</code> is 0, or at least <code>maximum-interval</code></td>
+<td><code>router-lifetime 300</code> with <code>maximum-interval 600</code></td>
+<td><code>below maximum-interval, and not 0</code></td>
+</tr>
+<tr>
+<td><code>preferred-lifetime</code> is at most <code>valid-lifetime</code></td>
+<td><code>valid-lifetime 3600</code> alone</td>
+<td><code>preferred-lifetime 604800 is above valid-lifetime 3600</code></td>
+</tr>
+<tr>
+<td>The prefix carries no host bits</td>
+<td><code>prefix 2001:db8:1::1/64</code></td>
+<td><code>host bits set below the prefix length, write 2001:db8:1::/64</code></td>
+</tr>
+<tr>
+<td>The prefix is not link-local</td>
+<td><code>prefix fe80::/64</code></td>
+<td><code>the link-local prefix is not advertised</code></td>
+</tr>
+</tbody>
+</table>
+<p>Two of these rows are traps worth reading twice.</p>
+<p><code>router-lifetime 0</code> is valid input, and it means that Ze advertises its prefixes
+and its resolvers while it is not a default router (RFC 4861 Section 4.2). The
+"at least <code>maximum-interval</code>" rule applies to every other value.</p>
+<p><code>preferred-lifetime</code> defaults to 604800, so lowering only <code>valid-lifetime</code> below
+that number is rejected. Set both leaves together.</p>
+<p>Ze rejects a prefix with host bits rather than masking them, because a masked
+prefix advertises something the operator did not write.</p>
+<!-- source: internal/component/iface/config_ra.go -- raValidate, raParsePrefixEntry -->
+
+<h3 id="example">Example</h3>
+<p>A LAN unit that advertises one prefix, two resolvers, and itself as the default
+router:</p>
+<pre><code>interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv6 {
+                address [ 2001:db8:1::1/64 ];
+                forwarding true;
+                router-advertisement {
+                    enabled true;
+                    maximum-interval 900;
+                    minimum-interval 300;
+                    router-lifetime 1800;
+                    hop-limit 64;
+                    prefix 2001:db8:1::/64 {
+                        on-link true;
+                        autonomous true;
+                        valid-lifetime 86400;
+                        preferred-lifetime 43200;
+                    }
+                    rdnss {
+                        server [ 2001:db8:1::53 2001:db8:1::54 ];
+                        lifetime 3600;
+                    }
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<!-- source: test/parse/iface-router-advertisement.ci -- accepted router-advertisement unit -->
+
+<h3 id="send-loop">Send loop</h3>
+<p>One goroutine owns the socket and every timer of one sender. It joins <code>ff02::2</code>
+to receive Router Solicitations, and it sends to <code>ff02::1</code>. Every advertisement
+leaves with Hop Limit 255, which RFC 4861 Section 6.1.2 makes a receiver check.</p>
+<p>A solicitation draws an answer after a random wait of 500 milliseconds at most.
+Consecutive multicast advertisements stay 3 seconds apart, so a flood of
+solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
+A sender that stops sends up to three advertisements with a Router Lifetime of
+0. Each host then drops Ze from its default router list at once.</p>
+<p>Nothing leaves a link that is down. The next link-up event restarts the initial
+burst.</p>
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
+<!-- source: internal/plugins/iface/ra/ifacera.go -- solicitedDelay, solicitedSendTime, minDelayBetweenRAs -->
+
+<h3 id="counters">Counters</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Counts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_iface_ra_sent_total</code></td>
+<td>CounterVec</td>
+<td><code>interface</code></td>
+<td>Every advertisement put on the wire, unsolicited and solicited together</td>
+</tr>
+<tr>
+<td><code>ze_iface_ra_solicited_total</code></td>
+<td>CounterVec</td>
+<td><code>interface</code></td>
+<td>The advertisements that answered a Router Solicitation</td>
+</tr>
+</tbody>
+</table>
+<p>A solicited advertisement increments both counters, so <code>ze_iface_ra_sent_total</code>
+stays the total.</p>
+<!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
+
 <h2 id="plugin-owned-devices-macvlan">Plugin-Owned Devices (Macvlan)</h2>
 <p>Beyond the plugin-owned <strong>address</strong> registry (a plugin declares addresses ze
 should keep on an interface), iface offers a plugin-owned <strong>device</strong> registry

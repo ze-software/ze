@@ -1,6 +1,6 @@
 # Command Equivalents
 
-387 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+390 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -488,6 +488,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show traffic usage [<name>]` | Read-only | - | - | - | - | [details](show-traffic-usage/) |
 | `show uptime` | Read-only | - | - | - | `show system uptime` | [details](show-uptime/) |
 | `show version` | Read-only | - | - | - | `show system uptime` | [details](show-version/) |
+| `show vpn ipsec dataplane drift` | Read-only | - | - | - | - | [details](show-vpn-ipsec-dataplane-drift/) |
+| `show vpn ipsec dataplane policy` | Read-only | - | - | - | - | [details](show-vpn-ipsec-dataplane-policy/) |
+| `show vpn ipsec dataplane sa [<spi>]` | Read-only | - | - | - | - | [details](show-vpn-ipsec-dataplane-sa/) |
 | `show vpn ipsec peer name <name>` | Read-only | - | - | - | - | [details](show-vpn-ipsec-peer-name/) |
 | `show vpn ipsec sa` | Read-only | - | - | - | - | [details](show-vpn-ipsec-sa/) |
 | `show vpn ipsec status` | Read-only | - | - | - | - | [details](show-vpn-ipsec-status/) |

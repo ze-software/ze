@@ -1,6 +1,6 @@
 # CLI Reference
 
-387 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+390 commands across 46 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -477,6 +477,17 @@
 | `show traffic stat` | Read-only | Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface. |
 | `show traffic usage` | Read-only | Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface. |
 
+## show vpn (6)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `show vpn ipsec dataplane drift` | Read-only | Compare what the IKE engine believes against what the kernel holds. Reports each Child SA the engine counts as installed whose SPI the kernel SAD does not hold. The command exits non-zero when it finds drift, so a script CAN test it. A rekey window holds two SPIs and is not drift. |
+| `show vpn ipsec dataplane policy` | Read-only | Show the Security Policy Database the kernel holds. Lists each policy with its selector prefixes and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that installed it. A policy with no matching SA is the failure this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this tree. |
+| `show vpn ipsec dataplane sa` | Read-only | Show the Security Association Database the kernel holds. Lists each installed ESP SA with its SPI, addresses, mode, algorithms, replay window, byte and packet counters, and timestamps. Give 'spi <spi>' to show one SA. Without a selector the command dumps every SA, which on a device with many tunnels is one row per SA. |
+| `show vpn ipsec peer name` | Read-only | Show full detail for one IPsec peer. Returns IKE SA state, all child SAs with traffic selectors, and byte counts. Usage: show vpn ipsec peer name <name>. |
+| `show vpn ipsec sa` | Read-only | Show all IKE and Child Security Associations. Lists every SA with peer, negotiated algorithms, byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child SA traffic selectors. Your main IPsec status command. |
+| `show vpn ipsec status` | Read-only | Quick IPsec health check. Reports whether the IKE engine is running, how many peers are configured, and how many IKE SAs are Established. |
+
 ## show vpp (4)
 
 | Command | Mode | Description |
@@ -486,7 +497,7 @@
 | `show vpp trace show` | Read-only | Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend. |
 | `show vpp trace start` | Read-only | Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend. |
 
-## show (other) (68)
+## show (other) (65)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -548,9 +559,6 @@
 | `show traceroute` | Read-only | Trace the network path from this router to a target. Shows each hop with its IP and round-trip time. Dest can be an IP or hostname. Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT measurements. |
 | `show uptime` | Read-only | Show how long the daemon has been running. Returns the start time and elapsed uptime. Handy after a maintenance window to confirm the process restarted. |
 | `show version` | Read-only | Show the running Ze version and build date. You can verify which release is deployed on this box. |
-| `show vpn ipsec peer name` | Read-only | Show full detail for one IPsec peer. Returns IKE SA state, all child SAs with traffic selectors, and byte counts. Usage: show vpn ipsec peer name <name>. |
-| `show vpn ipsec sa` | Read-only | Show all IKE and Child Security Associations. Lists every SA with peer, negotiated algorithms, byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child SA traffic selectors. Your main IPsec status command. |
-| `show vpn ipsec status` | Read-only | Quick IPsec health check. Reports whether the IKE engine is running, how many peers are configured, and how many IKE SAs are Established. |
 | `show vrrp` | Read-only | Show every VRRP virtual router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the macvlan device that carries the virtual MAC. |
 | `show vrrp interface name` | Read-only | Show the VRRP virtual routers on one parent interface. Pass the interface name: show vrrp interface name <interface>. |
 | `show vrrp statistics` | Read-only | Show per-virtual-router counters: advertisements sent and received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor advertisement bursts, receive-validation errors by reason, and the derived skew and master-down timers in microseconds (a VRRPv3 skew is sub-millisecond). |

@@ -63,6 +63,7 @@
 <li><a href="#01-ppp-ipv4">01-ppp-ipv4</a></li>
 <li><a href="#02-ppp-bgp-redistribute-frr">02-ppp-bgp-redistribute-frr</a></li>
 <li><a href="#03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</a></li>
+<li><a href="#04-radius-acct-attrs">04-radius-acct-attrs</a></li>
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to Other Evidence</a></li>
 <li><a href="#design-pattern">Design Pattern</a></li>
@@ -85,6 +86,7 @@ route redistribution from a live PPP session.</p>
     01-ppp-ipv4/       PPP IPv4 dataplane proof
     02-ppp-bgp-redistribute-frr/   BGP route redistribution proof
     03-ze-lac-xl2tpd-lns/   ze as INITIATOR (LAC) vs real xl2tpd LNS
+    04-radius-acct-attrs/   subscriber attributes in RADIUS auth + accounting
 </code></pre>
 <p>Scenarios 01/02 (ze = LNS) contain <code>ze.conf</code>, <code>xl2tpd.conf</code>, <code>ppp-options</code>,
 <code>l2tp-secrets</code>, and a <code>check.py</code> with a <code>check()</code> function. A scenario that
@@ -139,6 +141,17 @@ connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
 <code>test/l2tp/lns-outgoing-call.ci</code>. The LAC incoming-call PPP data plane (kernel
 channel bridge, A-4) is env-blocked — see the scenario README and
 <code>make ze-qemu-l2tp-ppp-test</code>.</p>
+<h3 id="04-radius-acct-attrs">04-radius-acct-attrs</h3>
+<p>Proves the subscriber attributes ze sends to a RADIUS server for a real PPP
+session: NAS-Port-Id (RFC 2869 Section 5.17) resolved from the operator's
+<code>nas-port-id-format</code> in the Access-Request and in the accounting records, and
+Framed-IP-Address (RFC 2865 Section 5.8) in the Accounting-Start carrying the
+address pppd actually negotiated (RFC 2866 Section 4.1). The assertion reads
+what the server decoded, not what ze logged.</p>
+<p>Self-contained (<code>run.py</code>): a third container runs a mock RADIUS server on the
+lab network, started before the LAC so no session authenticates against an
+absent server. Everything else is the shared ze=LNS flow, so it needs the same
+PPPoL2TP host support as 01 and 02.</p>
 <h2 id="relationship-to-other-evidence">Relationship to Other Evidence</h2>
 <table>
 <thead>

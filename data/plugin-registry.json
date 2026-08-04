@@ -632,7 +632,7 @@
     "doc": {}
   },
   {
-    "name": "ipsec-cookie-threshold",
+    "name": "ipsec-xfrm",
     "description": "IKEv2 engine for native IPsec VPN",
     "config_roots": [
       "vpn",

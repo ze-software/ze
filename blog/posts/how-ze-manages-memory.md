@@ -39,7 +39,7 @@ Standard BGP messages are limited to 4,096 octets. A peer which advertises the [
 
 The received UPDATE remains a read-only wire message. When Ze needs part of it, such as its path attributes or announced prefixes, it creates a byte-slice view over the relevant bytes in the receive buffer. Iterators examine attributes and prefixes one at a time. Requesting the next hop parses only that attribute; the communities and AS path stay exactly as they arrived.
 
-Creating these slice views allocates no heap memory and copies no bytes. Each view points into the receive buffer and remains valid only while the receive path keeps that buffer alive. Ze's API enforces this lifetime rule because the Go compiler does not.
+Creating these slice views allocates no heap memory and copies no bytes. Each view is an ordinary Go slice over the receive buffer, so the garbage collector keeps those bytes alive for as long as anything still holds the view. What a view cannot survive is reuse. Once the receive path releases the buffer back to its pool, the next read fills the same memory, and a view kept past that point reads a later message. Go has no way to say where that release point is, so the rule lives in Ze's API.
 
 Before the receive step returns, ownership of the buffer passes to Ze's recent UPDATE cache. The cache keeps the original bytes available to forwarding and other consumers. Normally it returns the buffer to the pool after every consumer has acknowledged the UPDATE and any explicit retention has been released; a safety valve can evict stalled entries.
 

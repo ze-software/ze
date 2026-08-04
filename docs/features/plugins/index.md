@@ -314,7 +314,7 @@ Generated group for registry entries mapped to the VPN area. Config roots: `pki`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ipsec-cookie-threshold`](ipsec-cookie-threshold/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | `config-loaded` | `internal/component/ike/engine` |
+| [`ipsec-xfrm`](ipsec-xfrm/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | `config-loaded` | `internal/component/ike/engine` |
 
 ## VPP
 

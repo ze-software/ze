@@ -1,4 +1,4 @@
-# `ipsec-cookie-threshold` plugin
+# `ipsec-xfrm` plugin
 
 IKEv2 engine for native IPsec VPN
 

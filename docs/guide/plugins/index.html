@@ -487,6 +487,11 @@ byte-compatible with earlier releases.</p>
 <td>-- (Bus events)</td>
 </tr>
 <tr>
+<td><code>iface-ra</code></td>
+<td>IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and netlink only. <a href="../configuration/#ipv6-router-advertisements">Guide</a></td>
+<td>-- (Config-driven, raw ICMPv6 socket per unit)</td>
+</tr>
+<tr>
 <td><code>rib</code></td>
 <td>System RIB: selects best route across protocols by admin distance</td>
 <td>-- (Bus events, no peer binding)</td>
@@ -563,6 +568,7 @@ byte-compatible with earlier releases.</p>
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
+<!-- source: internal/plugins/iface/ra/register.go -- iface-ra registration -->
 <!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->

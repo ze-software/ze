@@ -923,13 +923,35 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>owner</td>
 <td>iface (owned-device registry)</td>
 </tr>
+<tr>
+<td><code>ze_iface_ra_sent_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>iface-ra</td>
+</tr>
+<tr>
+<td><code>ze_iface_ra_solicited_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>iface-ra</td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
 <!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
+<!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
 <!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
 <!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
+
+<p>The two <code>iface-ra</code> counters carry one <code>interface</code> label each.
+<code>ze_iface_ra_sent_total</code> counts every Router Advertisement put on the wire.
+<code>ze_iface_ra_solicited_total</code> counts the subset that answered a Router
+Solicitation, and each of those increments both counters, so the first one stays
+the total. A rise in the solicited counter with a flat send rate means that
+hosts join the link.</p>
+<!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
 
 <p><code>ze_plugin_write_watchdog_total</code> increments when a plugin RPC write on a
 transport that does not support <code>SetWriteDeadline</code> (SSH channels, <code>io.Pipe</code>)

@@ -24,6 +24,7 @@ test/l2tp-interop/
     01-ppp-ipv4/       PPP IPv4 dataplane proof
     02-ppp-bgp-redistribute-frr/   BGP route redistribution proof
     03-ze-lac-xl2tpd-lns/   ze as INITIATOR (LAC) vs real xl2tpd LNS
+    04-radius-acct-attrs/   subscriber attributes in RADIUS auth + accounting
 ```
 
 Scenarios 01/02 (ze = LNS) contain `ze.conf`, `xl2tpd.conf`, `ppp-options`,
@@ -95,6 +96,20 @@ connection. The full OCRQ→OCRP→OCCN call flow is proven functionally by
 `test/l2tp/lns-outgoing-call.ci`. The LAC incoming-call PPP data plane (kernel
 channel bridge, A-4) is env-blocked — see the scenario README and
 `make ze-qemu-l2tp-ppp-test`.
+
+### 04-radius-acct-attrs
+
+Proves the subscriber attributes ze sends to a RADIUS server for a real PPP
+session: NAS-Port-Id (RFC 2869 Section 5.17) resolved from the operator's
+`nas-port-id-format` in the Access-Request and in the accounting records, and
+Framed-IP-Address (RFC 2865 Section 5.8) in the Accounting-Start carrying the
+address pppd actually negotiated (RFC 2866 Section 4.1). The assertion reads
+what the server decoded, not what ze logged.
+
+Self-contained (`run.py`): a third container runs a mock RADIUS server on the
+lab network, started before the LAC so no session authenticates against an
+absent server. Everything else is the shared ze=LNS flow, so it needs the same
+PPPoL2TP host support as 01 and 02.
 
 ## Relationship to Other Evidence
 

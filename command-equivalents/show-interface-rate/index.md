@@ -5,7 +5,7 @@
 - Syntax: `show interface rate`
 - Registry path: `show interface rate`
 - Mode: Read-only
-- Wire method: `ze-show:interface`
+- Wire method: `ze-show:interface-rate`
 - Global pipes: yes
 
 Show per-second traffic rates on your interfaces. Returns rx/tx bytes and packets per second. Pass an interface name to narrow the output. Requires the rate tracker. For continuous monitoring, use 'monitor interface rate' instead.

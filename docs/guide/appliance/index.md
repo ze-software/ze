@@ -24,12 +24,29 @@ The root filesystem is read-only (SquashFS). Persistent data lives on a separate
 
 ## Prerequisites
 
-Install once on the build machine (macOS):
+Install once on the build machine.
+
+macOS:
 
 ```bash
 brew install e2fsprogs    # ext4 filesystem tools
 brew install qemu         # VM runtime (testing only)
 ```
+
+Linux:
+
+```bash
+sudo apt-get install -y e2fsprogs qemu-system-x86   # Debian, Ubuntu
+sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
+```
+
+The build needs BOTH `mkfs.ext4` and `debugfs` from e2fsprogs: it formats
+`/perm` with the first and injects the seed database with the second. The build
+finds them by itself, in `/usr/sbin`, `/sbin`, `/usr/local/sbin`, then the
+homebrew Cellar, and it takes the first directory holding both. Pass
+`make ze-gokrazy E2FS=/path/to/sbin` to name the directory instead. An empty
+`E2FS=` is not an override and does not resume the search.
+<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy e2fsprogs guard -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.

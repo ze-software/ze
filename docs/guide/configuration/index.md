@@ -482,24 +482,112 @@ family {
 }
 ```
 
-Warning defaults to 90% of maximum when not set. Peer-level settings control enforcement behavior:
+Warning defaults to 90% of maximum when not set. Enforcement behavior is set in
+the same per-family `prefix` block, so each family gets its own policy:
 
 ```
 peer transit-a {
-    prefix {
-        teardown false
-        idle-timeout 30
-    }
     family {
-        ipv4/unicast { prefix { maximum 1000000; } }
+        ipv4/unicast {
+            prefix {
+                maximum 1000000
+                teardown false
+                idle-timeout 30
+            }
+        }
+        ipv6/unicast {
+            prefix {
+                maximum 200000
+                teardown true
+            }
+        }
+    }
+}
+```
+
+This peer warns on an IPv4 overflow and keeps the session, and stops the session
+on an IPv6 overflow. Each family reads its own leaves. A family that sets no
+value uses the default.
+
+| Setting | Scope | Default | Description |
+|---------|-------|---------|-------------|
+| `teardown` | Per family | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, drop excess NLRIs. |
+| `idle-timeout` | Per family | `0` | Seconds to wait before reconnect after this family stopped the session. 0 keeps the peer down. |
+| `reconnect` | Per family | derived | `never`, `backoff` or `timer`. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
+
+#### After a prefix teardown, the peer stays down
+
+A session stopped by a prefix limit does not come back on its own. The peer
+state reads `idle-hold`, `ze show warnings` names the family that stopped it,
+and the log says `peer held down`. An operator brings the peer back by
+recreating it: raise that family's `maximum` and commit, or delete and add the
+peer.
+
+This is the default because a peer that reconnects into the same limit exceeds
+it again and flaps. To ask for the reconnect anyway:
+
+```
+peer transit-a {
+    family {
+        ipv4/unicast {
+            prefix {
+                maximum 1000000
+                reconnect backoff
+            }
+        }
+        ipv6/unicast {
+            prefix {
+                maximum 200000
+                idle-timeout 30
+            }
+        }
+    }
+}
+```
+
+IPv4 comes back on the usual connect backoff, 5 to 60 seconds. IPv6 waits 30
+seconds, and the wait doubles on each repeat teardown up to one hour. Ze refuses
+a `reconnect` value that contradicts `idle-timeout` in the same block, for
+example `reconnect never` beside `idle-timeout 30`.
+
+### Protocol Event Capture
+
+Ze can write every message a peer sends to a file, together with the config
+operations applied while the capture runs. Replay the file on a developer
+machine with `ze-test replay <file>` to drive the same state machine over the
+same input. Capture is off by default. Turn it on for one peer when you need to
+reproduce a session bug, and turn it off again.
+
+```
+peer transit-a {
+    capture {
+        enabled true
+        directory /var/lib/ze/capture
+        maximum-size 100
+        on-limit rotate
     }
 }
 ```
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `teardown` | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, drop excess NLRIs. |
-| `idle-timeout` | `0` | Seconds before reconnect after prefix teardown. 0 = no reconnect. |
+| `enabled` | `false` | Capture this peer's inbound protocol events. |
+| `directory` | `/var/lib/ze/capture` | Holds one file per peer, named `bgp-<peer-address>.jsonl`. Created if absent. |
+| `maximum-size` | `100` | Hard cap on one file, in megabytes, range 1 to 1024. The writer refuses a record that would cross the cap, so a file never exceeds this value. |
+| `on-limit` | `rotate` | `rotate` renames the full file to `<file>.1` and starts a fresh one, so the newest events are kept and the peer uses at most twice `maximum-size` on disk. `stop` closes the file, so the oldest events are kept. |
+
+`ze doctor` reports a capture directory the daemon cannot write. When the writer
+queue fills, Ze sheds events rather than stopping the BGP read loop, counts them
+in `ze_bgp_capture_dropped_events_total`, and writes the gap into the file.
+
+The file holds the peer's routing data: prefixes, AS paths, communities and
+next-hops. It holds no local secret. TCP-MD5 keys never travel on the wire, and
+captured config payloads are redacted. Handle the file like a routing-table
+dump.
+
+<!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture, startCapture -->
+<!-- source: internal/component/bgp/reactor/config.go -- parseCaptureSettings -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container capture -->
 
 ### PeeringDB Prefix Data
 
@@ -1565,6 +1653,105 @@ compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 <!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, RPFMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
 
+### IPv6 Router Advertisements
+
+The `router-advertisement` container in a unit's `ipv6` container makes Ze send
+IPv6 Router Advertisements on that unit (RFC 4861). Hosts on the link build
+addresses by stateless address autoconfiguration (SLAAC), learn a default
+router, and learn DNS resolvers. This is the job radvd does on other systems.
+
+The container is Linux only and netlink only. A tree with `backend vpp` rejects
+it at config verify with `feature not supported by backend "vpp"`.
+
+```
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv6 {
+                address [ 2001:db8:1::1/64 ];
+                forwarding true;
+                router-advertisement {
+                    enabled true;
+                    maximum-interval 900;
+                    minimum-interval 300;
+                    router-lifetime 1800;
+                    hop-limit 64;
+                    managed false;
+                    other-config false;
+                    reachable-time 30000;
+                    retransmit-timer 1000;
+                    prefix 2001:db8:1::/64 {
+                        on-link true;
+                        autonomous true;
+                        valid-lifetime 86400;
+                        preferred-lifetime 43200;
+                    }
+                    rdnss {
+                        server [ 2001:db8:1::53 2001:db8:1::54 ];
+                        lifetime 3600;
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+| Leaf | Range | Unit | Default | Meaning |
+|------|-------|------|---------|---------|
+| `enabled` | boolean | | `false` | Send advertisements on this unit |
+| `maximum-interval` | 4..1800 | seconds | 600 | Longest wait between unsolicited advertisements |
+| `minimum-interval` | 3..1350 | seconds | 200 | Shortest wait between unsolicited advertisements |
+| `router-lifetime` | 0..9000 | seconds | 1800 | How long hosts keep Ze in their default router list |
+| `hop-limit` | 0..255 | | 64 | Hop Limit hosts put in their outgoing packets. 0 states no value |
+| `managed` | boolean | | `false` | The M flag: hosts get their addresses from DHCPv6 |
+| `other-config` | boolean | | `false` | The O flag: hosts get other configuration from DHCPv6 |
+| `reachable-time` | 0..3600000 | milliseconds | 0 | Neighbor reachable time for hosts. 0 states no value |
+| `retransmit-timer` | uint32 | milliseconds | 0 | Neighbor Solicitation retransmit time. 0 states no value |
+| `prefix <cidr>` | list | | | One Prefix Information option for each entry |
+| `prefix <cidr> on-link` | boolean | | `true` | The L flag |
+| `prefix <cidr> autonomous` | boolean | | `true` | The A flag, which turns SLAAC on for this prefix |
+| `prefix <cidr> valid-lifetime` | uint32 | seconds | 2592000 | How long the prefix stays valid |
+| `prefix <cidr> preferred-lifetime` | uint32 | seconds | 604800 | How long addresses from the prefix stay preferred |
+| `rdnss server` | up to 8 | | | Resolver addresses advertised to hosts (RFC 8106) |
+| `rdnss lifetime` | uint32 | seconds | none | How long hosts use these resolvers |
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+
+Set `ipv6 forwarding true` on an advertising unit. Hosts send Ze their off-link
+traffic. The kernel drops that traffic while `net.ipv6.conf.<device>.forwarding`
+is 0. `ze doctor` reports `doctor-iface-ra-forwarding` for each advertising
+interface in that state. Leave `accept-ra` at 0 unless the same interface also learns from another
+router.
+
+<!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding -->
+
+Two zero values are legal input and each one carries its own meaning.
+`router-lifetime 0` says that Ze advertises its prefixes and its resolvers while
+it is not a default router (RFC 4861 Section 4.2). `rdnss lifetime 0` tells hosts
+to stop using the resolvers (RFC 8106 Section 5.1). `rdnss lifetime` has no
+default: leave the leaf out and Ze sends 3 x `maximum-interval` instead, which
+keeps "retire the resolvers" apart from "say nothing about a lifetime".
+
+Config verify applies four cross-leaf rules and rejects the commit on each one:
+
+| Rule | Rejected input |
+|------|----------------|
+| `minimum-interval` is at most 0.75 x `maximum-interval` | `minimum-interval 500` with `maximum-interval 600` |
+| `router-lifetime` is 0, or at least `maximum-interval` | `router-lifetime 300` with `maximum-interval 600` |
+| `preferred-lifetime` is at most `valid-lifetime` | `valid-lifetime 3600` with the default `preferred-lifetime 604800` |
+| A prefix carries no host bits, and is not link-local | `prefix 2001:db8:1::1/64`, `prefix fe80::/64` |
+
+The third row is the common trap. `preferred-lifetime` defaults to 604800, so
+lowering only `valid-lifetime` below that number is rejected. Set both leaves
+together.
+
+<!-- source: internal/component/iface/config_ra.go -- raValidate, raParsePrefixEntry -->
+
+See [Interface Management](../../features/interfaces/index.md#ipv6-router-advertisements)
+for the send loop, the counters, and the RFC references.
+
 ## Storage SMART Management
 
 Ze can monitor disk health via direct ATA/NVMe ioctls (no `smartctl` binary needed).
@@ -1965,6 +2152,68 @@ never block CLI operation. Default is `disabled`.
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
+
+### TLS Certificates From the PKI Store
+
+Three TLS listeners can serve a certificate held in the `pki {}` store instead
+of a self-signed one: the web/API HTTPS listener, and the DoT/DoH listeners of
+the as112 and geodns services. Each has a `certificate` leaf that names a
+`pki { certificate <name> }` entry.
+
+```
+pki {
+    ca corp-ca {
+        certificate <base64-DER>;
+    }
+    certificate lan {
+        certificate <base64-DER>;
+        intermediate <base64-DER>;
+        private {
+            key <base64-DER>;
+        }
+    }
+}
+
+environment {
+    web {
+        enabled true;
+        certificate lan;
+    }
+}
+
+service {
+    as112 {
+        enabled true;
+        tls {
+            enabled true;
+            certificate lan;
+        }
+    }
+}
+```
+
+The listener sends the leaf certificate and every intermediate the store entry
+holds, so a client can build the chain to the trust anchor. A store entry with
+no intermediate serves the leaf alone.
+
+| Rule | Detail |
+|------|--------|
+| Default | No `certificate` leaf means ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
+| Fail closed | A `certificate` that names no store entry, or names one with no `private { key }`, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected. |
+| Mutually exclusive | In a `tls {}` container, `certificate` and `cert-file`/`key-file` are two sources of the same material. Setting both is rejected at commit. |
+| Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
+| Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener serves the new chain from the next handshake without rebinding, so open SSE streams survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
+| One commit | A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config. |
+| Env override | `ze.web.certificate` sets the web certificate and takes precedence over the config file. |
+| Pre-flight | `ze doctor` reports a reference that is missing, keyless, expired, or whose intermediate does not reach a configured CA, as `doctor-tls-reference` or `doctor-tls-expired`. Run it before deploying. |
+
+An external geodns plugin process cannot read the in-process store: a
+`certificate` reference there fails loudly and the secure listeners stay down.
+
+<!-- source: internal/component/pki/tls.go -- ServerTLSMaterial, CheckCertReference -->
+<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial (fail-closed selection) -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- UpdateWebCertificate (rotation seam) -->
+<!-- source: internal/core/dnsserver/secure.go -- SecureConfig.Certificate, buildSecureTLS resolver branch -->
 
 ### Named Listeners
 

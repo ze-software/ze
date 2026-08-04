@@ -5,7 +5,7 @@
 - Syntax: `show interface brief`
 - Registry path: `show interface brief`
 - Mode: Read-only
-- Wire method: `ze-show:interface`
+- Wire method: `ze-show:interface-brief`
 - Global pipes: yes
 
 One-line summary per interface: name, state, IP, and MTU. Quick way to see what is up and what addresses are assigned.
