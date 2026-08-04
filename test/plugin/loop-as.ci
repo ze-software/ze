@@ -1,8 +1,13 @@
-# Test: AS loop detection (RFC 4271 Section 9)
+# Test: AS loop detection (RFC 4271 Section 9.1.2)
 # AC-2: iBGP UPDATE with local ASN in AS_PATH -> route treated as withdrawn.
 #
 # ze-peer sends a route with ASN 65000 (ze's local AS) in the AS_PATH.
 # Ze detects the loop and silently drops the route (treat-as-withdraw).
+#
+# RFC requirement: RFC4271-9.1.2-5 negative -- the running daemon excludes a route whose
+# AS_PATH carries its own autonomous system number, proven on the wire rather than at the
+# filter helper: ze-peer sends 65002,65000,65003 to a speaker whose local AS is 65000 and
+# ze logs the loop instead of accepting the route (RFC 4271 Section 9.1.2).
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1

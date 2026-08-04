@@ -21,7 +21,7 @@ var logger = slogutil.LazyLogger("bgp.filter")
 // Returns accept=false if a loop is detected.
 //
 // Three checks:
-//  1. AS loop: local ASN in AS_PATH (all sessions, RFC 4271 Section 9)
+//  1. AS loop: local ASN in AS_PATH (all sessions, RFC 4271 Section 9.1.2)
 //  2. Originator-ID loop: ORIGINATOR_ID == local Router ID (iBGP only, RFC 4456 Section 8)
 //  3. Cluster-list loop: local Router ID in CLUSTER_LIST (iBGP only, RFC 4456 Section 8)
 func LoopIngress(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
@@ -94,9 +94,17 @@ func LoopIngress(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any)
 
 		switch code { //nolint:exhaustive // only loop-relevant attributes checked
 		case attribute.AttrASPath:
-			// RFC 4271 Section 9: "If the local AS appears in the AS_PATH attribute,
-			// the route MUST be excluded from the Phase 2 decision function."
-			// allow-own-as: tolerate up to AllowOwnAS occurrences before rejecting.
+			// RFC 4271 Section 9.1.2: "If the AS_PATH attribute of a BGP route contains
+			// an AS loop, the BGP route should be excluded from the Phase 2 decision
+			// function. AS loop detection is done by scanning the full AS path (as
+			// specified in the AS_PATH attribute), and checking that the autonomous
+			// system number of the local system does not appear in the AS path."
+			// The keyword is lower case in the RFC, so this is a recommendation.
+			// The full path means every segment: the iterator yields AS_SET as well as
+			// AS_SEQUENCE, and the segment type is not consulted here.
+			// allow-own-as: tolerate up to AllowOwnAS occurrences before rejecting. The
+			// same paragraph puts a speaker "configured to accept routes with its own
+			// autonomous system number in the AS path" outside the scope of the document.
 			iter := attribute.NewASPathIterator(data, src.ASN4)
 			for {
 				_, asns, ok := iter.Next()

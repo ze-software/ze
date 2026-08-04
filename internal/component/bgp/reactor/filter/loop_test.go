@@ -110,6 +110,10 @@ func accept(src filterapi.PeerFilterInfo, body []byte) bool {
 // --- AS Loop Detection ---
 
 // TestDetectASLoop verifies local ASN in AS_SEQUENCE is detected.
+//
+// RFC requirement: RFC4271-9.1.2-5 negative -- an AS_PATH whose AS_SEQUENCE carries the
+// local autonomous system number is excluded, so the route never reaches the decision
+// process (§9.1.2).
 // VALIDATES: AC-1, AC-2 -- route with local ASN in AS_PATH treated as withdrawn.
 func TestDetectASLoop(t *testing.T) {
 	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001, 65003}, false))
@@ -117,6 +121,10 @@ func TestDetectASLoop(t *testing.T) {
 }
 
 // TestDetectASLoop_ASSet verifies local ASN in AS_SET is detected.
+//
+// RFC requirement: RFC4271-9.1.2-5 negative -- "scanning the full AS path" reaches an
+// AS_SET segment too, so the local autonomous system number in an AS_SET excludes the
+// route exactly as it does in an AS_SEQUENCE (§9.1.2).
 // VALIDATES: AC-10 -- AS_SET members count for loop detection.
 func TestDetectASLoop_ASSet(t *testing.T) {
 	body := makeUpdateBody(buildASSetAttr([]uint32{65002, 65001}))
@@ -124,6 +132,10 @@ func TestDetectASLoop_ASSet(t *testing.T) {
 }
 
 // TestDetectASLoop_NotPresent verifies no false positive when local ASN absent.
+//
+// RFC requirement: RFC4271-9.1.2-5 positive -- an AS_PATH that does not carry the local
+// autonomous system number is NOT excluded, so the exclusion is bound to the loop and is
+// not a blanket reject (§9.1.2).
 // VALIDATES: AC-3 -- route without local ASN accepted normally.
 func TestDetectASLoop_NotPresent(t *testing.T) {
 	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65003, 65004}, false))
