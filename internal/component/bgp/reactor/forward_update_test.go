@@ -1496,6 +1496,62 @@ func TestForwardUpdateDirectExceedsCapRejects(t *testing.T) {
 	assert.Contains(t, err.Error(), "exceeds cap")
 }
 
+// TestForwardUpdateDirectRefusalAcksTheBatch covers the three refusals that
+// return before the per-id ack loop: over the destination cap, an empty
+// destination list, and no established peer matching. Each still owes the
+// cache-consumer contract an ack on every id it took delivery of.
+//
+// VALIDATES: a refused batch releases its cache entries.
+// PREVENTS: pinned read buffers. An unordered consumer has no cumulative ack to
+// sweep the ids later, so an unacked entry sits in the pool until the 5-minute
+// safety valve, and the valve only fires once a later entry is fully acked.
+func TestForwardUpdateDirectRefusalAcksTheBatch(t *testing.T) {
+	tests := []struct {
+		name         string
+		msgID        uint64
+		destinations func() []netip.AddrPort
+	}{
+		{
+			name:  "over the destination cap",
+			msgID: 7001,
+			destinations: func() []netip.AddrPort {
+				tooMany := make([]netip.AddrPort, maxForwardDestinations+1)
+				for i := range tooMany {
+					//nolint:gosec // test: i is small, fits in uint16
+					tooMany[i] = netip.AddrPortFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 0)
+				}
+				return tooMany
+			},
+		},
+		{
+			name:         "empty destination list",
+			msgID:        7002,
+			destinations: func() []netip.AddrPort { return nil },
+		},
+		{
+			name:  "no established peer matches",
+			msgID: 7003,
+			destinations: func() []netip.AddrPort {
+				return []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("192.0.2.77"), 0)}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter, _, cache := fastpathSetup(t, 1, tc.msgID)
+			defer cache.Stop()
+
+			require.True(t, cache.Contains(tc.msgID), "entry must be cached before the refusal")
+
+			err := adapter.ForwardUpdatesDirect([]uint64{tc.msgID}, tc.destinations(), "rs")
+			require.Error(t, err, "the batch must be refused")
+			assert.False(t, cache.Contains(tc.msgID),
+				"refused batch left id %d in the cache; rs has no cumulative ack to sweep it", tc.msgID)
+		})
+	}
+}
+
 // TestForwardUpdateDirectDedupsDuplicateIDs verifies that duplicate IDs in
 // the batch are collapsed before dispatch (Round 2 ISSUE fix).
 //

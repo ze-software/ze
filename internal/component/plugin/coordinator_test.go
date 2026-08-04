@@ -221,6 +221,113 @@ func TestCoordinatorUnsetReactor(t *testing.T) {
 	}
 }
 
+// TestCacheConsumerDeclaredBeforeReactorReachesIt drives the startup order the
+// daemon actually uses: every plugin declares in Stage 1, and the BGP reactor is
+// built in the bgp plugin's Stage 2 OnConfigure (bgp/plugin/register.go), so a
+// cache-consumer declaration is ALWAYS made while no reactor is attached.
+//
+// VALIDATES: the declaration, and its ack ordering, survive that gap.
+// PREVENTS: route loss. Dropping the declaration left bgp-rs unknown to
+// RecentUpdateCache, which then applied FIFO cumulative-ack semantics to a
+// plugin that declared CacheConsumerUnordered. One ack of a later message id
+// then evicted an entry bgp-rs had batched but not yet forwarded, and the
+// UPDATE reached nobody: "BUG: ForwardUpdatesDirect: msgID missing from cache"
+// (reactor/reactor_api_forward_batch.go), measured in interop scenario 54.
+func TestCacheConsumerDeclaredBeforeReactorReachesIt(t *testing.T) {
+	c := NewCoordinator(map[string]any{})
+
+	// Stage 1: the plugins declare. No reactor exists yet.
+	c.RegisterCacheConsumer("bgp-rs", true)
+	c.RegisterCacheConsumer("bgp-persist", false)
+
+	// Stage 2: the bgp plugin builds the reactor and attaches it.
+	m := &mockReactor{}
+	if err := c.SetReactor(m); err != nil {
+		t.Fatal(err)
+	}
+
+	unordered, ok := m.cacheConsumers["bgp-rs"]
+	if !ok {
+		t.Fatal("bgp-rs declared cache-consumer in Stage 1 and the reactor was never told")
+	}
+	if !unordered {
+		t.Error("bgp-rs reached the reactor as an ordered consumer; it declared unordered")
+	}
+	if fifo, ok := m.cacheConsumers["bgp-persist"]; !ok || fifo {
+		t.Errorf("bgp-persist = (%v, present=%v), want (false, present=true)", fifo, ok)
+	}
+	if n := m.cacheRegisterCalls["bgp-rs"]; n != 1 {
+		t.Errorf("bgp-rs registered %d times, want 1: the cache logs a BUG on a repeat", n)
+	}
+}
+
+// VALIDATES: a declaration made after the reactor is attached still reaches it,
+// and a consumer that unregisters before the reactor attaches is not replayed.
+// PREVENTS: the recorded set turning into a leak that resurrects a dead plugin.
+//
+// bgp-rs is declared beside bgp-rr and never unregistered, so "bgp-rr is
+// absent" cannot pass by nothing ever being replayed.
+func TestCacheConsumerRegistrationTracksLifecycle(t *testing.T) {
+	c := NewCoordinator(map[string]any{})
+
+	c.RegisterCacheConsumer("bgp-rr", true)
+	c.RegisterCacheConsumer("bgp-rs", true)
+	c.UnregisterCacheConsumer("bgp-rr")
+
+	m := &mockReactor{}
+	if err := c.SetReactor(m); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m.cacheConsumers["bgp-rs"]; !ok {
+		t.Fatal("bgp-rs was declared and never unregistered, but the reactor was not told")
+	}
+	if _, ok := m.cacheConsumers["bgp-rr"]; ok {
+		t.Error("bgp-rr unregistered before attach but was replayed onto the reactor")
+	}
+
+	c.RegisterCacheConsumer("bgp-rs", true)
+	if unordered, ok := m.cacheConsumers["bgp-rs"]; !ok || !unordered {
+		t.Errorf("post-attach declaration = (%v, present=%v), want (true, present=true)", unordered, ok)
+	}
+
+	c.UnregisterCacheConsumer("bgp-rs")
+	if _, ok := m.cacheConsumers["bgp-rs"]; ok {
+		t.Error("UnregisterCacheConsumer did not reach the attached reactor")
+	}
+}
+
+// VALIDATES: RegisterReactor("bgp") replays the recorded declarations, because
+// it and SetReactor write the same map row.
+// PREVENTS: the fixed defect coming back through the other door. Only
+// SetReactor carried the replay, and RegisterReactor is on the exported
+// CoordinatorAccessor surface, so a caller reaching for it would attach the BGP
+// reactor with every cache consumer unknown to it.
+func TestRegisterReactorBGPReplaysCacheConsumers(t *testing.T) {
+	c := NewCoordinator(map[string]any{})
+	c.RegisterCacheConsumer("bgp-rs", true)
+
+	m := &mockReactor{}
+	c.RegisterReactor("bgp", m)
+
+	unordered, ok := m.cacheConsumers["bgp-rs"]
+	if !ok {
+		t.Fatal("RegisterReactor(\"bgp\") attached the reactor without replaying the declarations")
+	}
+	if !unordered {
+		t.Error("bgp-rs reached the reactor as an ordered consumer; it declared unordered")
+	}
+	if r := c.Reactor("bgp"); r == nil {
+		t.Error("RegisterReactor(\"bgp\") did not store the reactor")
+	}
+
+	// A non-BGP name keeps the plain store, with no replay.
+	other := &mockReactor{}
+	c.RegisterReactor("ospf", other)
+	if len(other.cacheConsumers) != 0 {
+		t.Errorf("ospf reactor was told about %d cache consumers; cache consumers are BGP's", len(other.cacheConsumers))
+	}
+}
+
 // mockReactor tracks which methods are called.
 type mockReactor struct {
 	peersCalled    bool
@@ -231,6 +338,13 @@ type mockReactor struct {
 	barrierExpected int
 	barrierSignaled string
 	reloadCalled    bool
+
+	// cacheConsumers records name -> unordered for every RegisterCacheConsumer
+	// this reactor was told about; unregistered names are deleted.
+	cacheConsumers map[string]bool
+	// cacheRegisterCalls counts registrations per name. The real cache logs
+	// "BUG: duplicate RegisterConsumer" on a repeat, so once is the contract.
+	cacheRegisterCalls map[string]int
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -278,8 +392,18 @@ func (m *mockReactor) SignalPeerUpBarrier(peer string) {
 	m.barrierSignaled = peer
 }
 
-func (m *mockReactor) RegisterCacheConsumer(string, bool) {}
-func (m *mockReactor) UnregisterCacheConsumer(string)     {}
+func (m *mockReactor) RegisterCacheConsumer(name string, unordered bool) {
+	if m.cacheConsumers == nil {
+		m.cacheConsumers = make(map[string]bool)
+		m.cacheRegisterCalls = make(map[string]int)
+	}
+	m.cacheConsumers[name] = unordered
+	m.cacheRegisterCalls[name]++
+}
+
+func (m *mockReactor) UnregisterCacheConsumer(name string) {
+	delete(m.cacheConsumers, name)
+}
 func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
 	return nil
 }

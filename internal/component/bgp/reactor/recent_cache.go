@@ -101,11 +101,28 @@ type RecentUpdateCache struct {
 	// implicit acks never touch pre-registration entries.
 	highestAddedID uint64
 
-	// nonFIFOConsumers tracks consumers that process entries out of global
-	// message ID order (e.g., per-source-peer workers in bgp-rs).
-	// For these consumers, Ack() uses per-entry semantics: no cumulative
-	// ack loop, and id <= lastAck acks are not skipped.
-	nonFIFOConsumers map[string]bool
+	// consumerFloor is highestAddedID at the moment each consumer registered:
+	// the highest id it was never given. pluginLastAck starts there too, but an
+	// unordered consumer's acks move that value, so the floor is kept apart.
+	// UnregisterConsumer needs it to leave pre-registration entries alone.
+	consumerFloor map[string]uint64
+
+	// unorderedBit holds one row per consumer that processes entries out of
+	// global message ID order (per-source-peer workers in bgp-rs). PRESENCE is
+	// what marks a consumer unordered, so Ack answers "unordered?" and "which
+	// bit?" in one map lookup on the hot path.
+	//
+	// For these consumers Ack() uses per-entry semantics: no cumulative ack
+	// loop, and id <= lastAck acks are not skipped. The value is that consumer's
+	// bit in cacheEntry.ackedUnordered, which is how UnregisterConsumer tells an
+	// entry the consumer already acked from one it still owes. lastAck cannot
+	// answer that here, and decrementing an already-acked entry a second time
+	// evicts it under a consumer that has NOT acked it: that consumer's later
+	// forward then finds nothing and the UPDATE is lost. A zero value means no
+	// bit was available (more than 32 unordered consumers), and
+	// UnregisterConsumer then leaves the entries to the safety valve rather than
+	// risking the double decrement.
+	unorderedBit map[string]uint32
 
 	// Background gap scan lifecycle.
 	stopCh       chan struct{}
@@ -121,10 +138,38 @@ type RecentUpdateCache struct {
 func (c *RecentUpdateCache) SetConsumerUnordered(name string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.nonFIFOConsumers == nil {
-		c.nonFIFOConsumers = make(map[string]bool)
+	c.assignUnorderedBitLocked(name)
+}
+
+// assignUnorderedBitLocked marks name unordered and gives it the lowest bit no
+// other unordered consumer holds. When all 32 bits are taken the row is still
+// written, with a zero bit: presence is what Ack reads to pick the per-entry
+// path, and a consumer silently downgraded to cumulative acking is the very
+// defect this tracking exists to prevent. Zero costs the unregister walk
+// instead; see unorderedBit.
+// Must be called with c.mu held.
+func (c *RecentUpdateCache) assignUnorderedBitLocked(name string) {
+	if c.unorderedBit == nil {
+		c.unorderedBit = make(map[string]uint32, 4)
 	}
-	c.nonFIFOConsumers[name] = true
+	if _, ok := c.unorderedBit[name]; ok {
+		return
+	}
+	var taken uint32
+	for _, b := range c.unorderedBit {
+		taken |= b
+	}
+	for i := range 32 {
+		bit := uint32(1) << uint(i)
+		if taken&bit == 0 {
+			c.unorderedBit[name] = bit
+			return
+		}
+	}
+	c.unorderedBit[name] = 0
+	cacheLogger().Error("no ack-tracking bit left for an unordered cache consumer; "+
+		"its entries will wait for the safety valve when it unregisters",
+		"plugin", name, "limit", 32)
 }
 
 // cacheEntry wraps an update with consumer tracking.
@@ -135,6 +180,10 @@ type cacheEntry struct {
 	pendingConsumers int          // How many plugin acks are still needed
 	earlyAckCount    int          // Acks received before Activate() (fast plugin race)
 	retainCount      atomic.Int32 // API-level retains; atomic for lock-free Decrement fast path
+
+	// ackedUnordered carries one bit per unordered consumer that has acked this
+	// entry (RecentUpdateCache.unorderedBit). Only UnregisterConsumer reads it.
+	ackedUnordered uint32
 }
 
 // totalConsumers returns the total number of active consumers (plugin + API retain).
@@ -448,11 +497,14 @@ func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	// No cumulative loop — acking a high ID must NOT evict lower entries
 	// that other workers haven't processed yet.
 	// No id <= lastAck skip — workers may ack entries below lastAck.
-	if c.nonFIFOConsumers[plugin] {
+	if bit, unordered := c.unorderedBit[plugin]; unordered {
 		e, ok := c.entries.Get(id)
 		if !ok {
 			return ErrUpdateExpired
 		}
+		// Record the ack before it can evict, so UnregisterConsumer never
+		// decrements this entry a second time on this plugin's behalf.
+		e.ackedUnordered |= bit
 		c.ackEntryLocked(id, e)
 		if id > c.pluginLastAck[plugin] {
 			c.pluginLastAck[plugin] = id
@@ -478,8 +530,8 @@ func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 
 	// Forward ack: implicit cumulative ack for entries between lastAck+1 and id.
 	// Acking N means "I've handled everything up to N."
-	// Uses seqmap.Since() to iterate only cached entries in range — O(log n + k)
-	// where k is the number of cached entries, not the ID gap size.
+	// Uses seqmap.Since() to iterate only cached entries at or above lastAck+1 —
+	// k cached entries, not the ID gap size.
 	// Collect-then-ack: cannot modify seqmap during Since iteration (compaction).
 	type ackRef struct {
 		id    uint64
@@ -488,7 +540,12 @@ func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	var intermediates []ackRef
 	c.entries.Since(lastAck+1, func(key uint64, _ uint64, ie *cacheEntry) bool {
 		if key >= id {
-			return false // Stop before target (handled separately below)
+			// Stop before the target, which is acked separately below. Since
+			// delivers in ascending sequence order whatever order this cache
+			// inserted in (seqmap keeps its log sorted), so the first key at or
+			// above the target means every later one is too, and the walk is
+			// bounded by the entries in range rather than by the whole log.
+			return false
 		}
 		intermediates = append(intermediates, ackRef{key, ie})
 		return true
@@ -685,15 +742,28 @@ func (c *RecentUpdateCache) RegisterConsumer(name string) {
 			"plugin", name)
 		return
 	}
+	if c.consumerFloor == nil {
+		c.consumerFloor = make(map[string]uint64, 4)
+	}
+	// The floor is written first and the two writes stay adjacent. A name in
+	// pluginLastAck with no floor row reads as floor 0, which is the permissive
+	// value: the unregister walk would then cover every entry in the cache. The
+	// duplicate guard above returns before either write, so no path reaches that
+	// state today, and keeping the writes in this order is what stops a later
+	// early return between them from creating one (ai/rules/evidence.md).
+	c.consumerFloor[name] = c.highestAddedID
 	c.pluginLastAck[name] = c.highestAddedID
 }
 
 // UnregisterConsumer removes a cache-consumer plugin and adjusts pending counts.
 // For FIFO consumers: uses seqmap.Since(lastAck+1) to walk only entries above
 // lastAck (entries below were already acked via cumulative ack).
-// For unordered consumers: uses seqmap.Range to walk ALL entries (cannot use
-// lastAck as a skip marker because entries below lastAck may not have been
-// individually acked).
+// For unordered consumers: walks from consumerFloor instead, because its own
+// acks move lastAck and it can no longer serve as the registration watermark,
+// and skips every entry carrying this consumer's ackedUnordered bit, which it
+// has already acked. Without that skip the walk decrements them a second time
+// and evicts them under a consumer that has not acked, losing that consumer's
+// UPDATE.
 // Entries that reach zero total consumers are evicted immediately.
 // Called when a cache-consumer plugin disconnects or is removed.
 func (c *RecentUpdateCache) UnregisterConsumer(name string) {
@@ -705,29 +775,52 @@ func (c *RecentUpdateCache) UnregisterConsumer(name string) {
 		return
 	}
 	delete(c.pluginLastAck, name)
-	isUnordered := c.nonFIFOConsumers[name]
-	delete(c.nonFIFOConsumers, name)
+	bit, isUnordered := c.unorderedBit[name]
+	floor := c.consumerFloor[name]
+	delete(c.unorderedBit, name)
+	delete(c.consumerFloor, name)
+
+	// An unordered consumer with no ack-tracking bit cannot be told apart from
+	// itself: every entry looks unacked. Decrementing them all would evict
+	// entries other consumers still owe an ack on, which loses their UPDATEs.
+	// Leave them to the gap safety valve instead; that is a delayed buffer
+	// return, not a dropped route.
+	if isUnordered && bit == 0 {
+		cacheLogger().Warn("unordered consumer unregistered without ack tracking; "+
+			"its entries wait for the safety valve", "plugin", name)
+		return
+	}
 
 	// Collect entries to process (cannot modify seqmap during iteration).
 	type entryRef struct {
 		id    uint64
 		entry *cacheEntry
 	}
-	var refs []entryRef
+	// Walk from this consumer's own watermark. Both branches take every entry
+	// above it, and only the watermark differs: an unordered consumer's acks
+	// move pluginLastAck, so its registration point is kept apart in
+	// consumerFloor.
+	from := lastAck
 	if isUnordered {
-		c.entries.Range(func(id uint64, _ uint64, e *cacheEntry) bool {
-			refs = append(refs, entryRef{id, e})
-			return true
-		})
-	} else {
-		c.entries.Since(lastAck+1, func(id uint64, _ uint64, e *cacheEntry) bool {
-			refs = append(refs, entryRef{id, e})
-			return true
-		})
+		from = floor
 	}
+	var refs []entryRef
+	c.entries.Since(from+1, func(id uint64, _ uint64, e *cacheEntry) bool {
+		refs = append(refs, entryRef{id, e})
+		return true
+	})
 
 	// Process collected entries
 	for _, r := range refs {
+		if isUnordered {
+			acked := r.entry.ackedUnordered&bit != 0
+			// Free the bit for the next consumer that takes it, so a stale set
+			// bit cannot make that consumer skip an entry it does owe.
+			r.entry.ackedUnordered &^= bit
+			if acked {
+				continue // Already acked per-entry; decrementing again evicts it early.
+			}
+		}
 		if r.entry.pending {
 			// Entry not yet activated — record as early ack so Activate()
 			// applies a reduced consumer count (prevents stuck entries

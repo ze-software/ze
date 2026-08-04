@@ -44,7 +44,9 @@ var errNoPeersMatch = errors.New("forward-cached: no established peers match des
 // Duplicate IDs are collapsed before dispatch; the API accepts any order.
 // Empty destinations return errNoDestinations without dispatching: this
 // prevents an accidental wildcard broadcast when a caller passes the empty
-// slice or when every supplied entry is malformed.
+// slice or when every supplied entry is malformed. A refused batch still acks
+// every id for pluginName -- refusing to forward is not refusing to own the
+// entries the caller took delivery of.
 //
 // Empty updateIDs is a success no-op (returns nil without dispatching).
 // Non-empty updateIDs with every id missing returns the last per-id lookup
@@ -57,6 +59,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 	if len(destinations) > maxForwardDestinations {
 		fwdLogger().Error("forward-cached: destination list exceeds cap",
 			"count", len(destinations), "cap", maxForwardDestinations, "plugin", pluginName)
+		a.ackBatch(updateIDs, pluginName)
 		return fmt.Errorf("forward-cached: %d destinations exceeds cap %d", len(destinations), maxForwardDestinations)
 	}
 
@@ -67,6 +70,13 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 	// route-server flush window.
 	matchingPeers, resolveErr := a.resolveDestinationPeers(destinations)
 	if resolveErr != nil {
+		// Refusing the batch is not a reason to keep its cache entries. The
+		// caller took delivery of every id, so the cache-consumer contract owes
+		// an ack on each one whatever the outcome -- exactly as the per-id
+		// refused-source branch below does. An unordered consumer has no
+		// cumulative ack to sweep them later, so skipping this pinned their read
+		// buffers until the 5-minute safety valve.
+		a.ackBatch(updateIDs, pluginName)
 		if errors.Is(resolveErr, errNoDestinations) {
 			fwdLogger().Warn("forward-cached: empty destination list, refusing to broadcast",
 				"ids", len(updateIDs), "plugin", pluginName)
@@ -165,6 +175,21 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		return lastErr
 	}
 	return nil
+}
+
+// ackBatch acks every id for pluginName without forwarding. Used by the
+// batch-level refusal paths, which decline before the per-id loop can ack.
+// A no-op when pluginName is empty (a non-consumer caller owes no ack).
+func (a *reactorAPIAdapter) ackBatch(updateIDs []uint64, pluginName string) {
+	if pluginName == "" {
+		return
+	}
+	for _, id := range dedupIDs(updateIDs) {
+		if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
+			cacheLogger().Debug("cache ack on refused batch failed",
+				"id", id, "plugin", pluginName, "err", ackErr)
+		}
+	}
 }
 
 // resolveDestinationPeers maps destination addresses to established peers under

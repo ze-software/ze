@@ -877,11 +877,17 @@ func (a *reactorAPIAdapter) ListUpdates() []uint64 {
 // unordered=false: FIFO consumer (cumulative ack — existing behavior).
 // unordered=true: per-entry ack only, no cumulative sweep. Required for
 // consumers like bgp-rs that process entries out of global message ID order.
+// The ordering is declared BEFORE the consumer is registered, and the order of
+// these two calls is load-bearing. Each takes the cache lock on its own, so the
+// other order leaves a window in which the consumer is registered and reads as
+// FIFO, and one cumulative ack landing in that window evicts an entry this
+// consumer has not handled. Marked-but-unregistered is the harmless half: the
+// registration is what UnregisterConsumer and the walk key on.
 func (a *reactorAPIAdapter) RegisterCacheConsumer(name string, unordered bool) {
-	a.r.recentUpdates.RegisterConsumer(name)
 	if unordered {
 		a.r.recentUpdates.SetConsumerUnordered(name)
 	}
+	a.r.recentUpdates.RegisterConsumer(name)
 }
 
 // UnregisterCacheConsumer removes a cache-consumer plugin and adjusts pending counts.

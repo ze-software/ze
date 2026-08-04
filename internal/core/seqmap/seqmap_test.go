@@ -502,3 +502,98 @@ func TestCompactSortsMultipleLiveEntries(t *testing.T) {
 		assert.Less(t, seqs[i-1], seqs[i], "seq order violated at index %d", i)
 	}
 }
+
+// TestSinceHonorsBoundOnUnsortedLog pins Since's stated bound for a caller that
+// breaks the non-decreasing contract. sort.Search assumes a sorted log, so an
+// entry below fromSeq that sits AFTER the search index used to be handed to fn.
+//
+// VALIDATES: no entry with seq < fromSeq reaches fn, whatever the insert order.
+// PREVENTS: route loss in RecentUpdateCache (bgp/reactor). Its ids come from
+// nextMsgID() before the ingress filter chain and its Add() calls run on
+// per-peer read goroutines, so its log is not sorted. Ack acks every entry the
+// walk delivers, so an out-of-bound entry is acked by a plugin that never
+// handled it, evicted under a consumer that still owes it, and its UPDATE is
+// forwarded to nobody.
+func TestSinceHonorsBoundOnUnsortedLog(t *testing.T) {
+	m := New[uint64, int]()
+	// Insert order is the log order. 5 lands after the search index for 21.
+	for _, s := range []uint64{20, 30, 5} {
+		m.Put(s, s, int(s))
+	}
+
+	var got []uint64
+	m.Since(21, func(k uint64, _ uint64, _ int) bool {
+		got = append(got, k)
+		return true
+	})
+
+	require.Equal(t, []uint64{30}, got, "Since(21) must deliver only entries at or above 21")
+}
+
+// TestSinceVisitsEveryEntryOnUnsortedLog is the other half of the bound: a
+// binary search over an unsorted log starts PAST entries at or above fromSeq
+// and never visits them.
+//
+// VALIDATES: every live entry >= fromSeq reaches fn, whatever the insert order.
+// PREVENTS: a stranded consumer obligation in RecentUpdateCache (bgp/reactor).
+// Its cumulative ack and its unregister walk both release entries through a
+// Since walk, so one that is never delivered keeps a plugin's pending count
+// above zero and pins a pooled read buffer until the 5-minute safety valve.
+func TestSinceVisitsEveryEntryOnUnsortedLog(t *testing.T) {
+	m := New[uint64, int]()
+	// sort.Search for >= 41 over [40,50,10,60] returns index 3, so a plain
+	// binary search would miss 50.
+	for _, s := range []uint64{40, 50, 10, 60} {
+		m.Put(s, s, int(s))
+	}
+
+	var got []uint64
+	m.Since(41, func(k uint64, _ uint64, _ int) bool {
+		got = append(got, k)
+		return true
+	})
+
+	require.Equal(t, []uint64{50, 60}, got, "Since(41) must deliver every entry at or above 41")
+}
+
+// TestPutKeepsTheLogSorted pins the invariant Since's binary search rests on.
+// It replaces an earlier test of a `sorted` flag and a full-scan fallback: the
+// log is now kept sorted at insert, so the flag and the fallback are gone and
+// there is nothing left to flag. Coverage moved, not dropped -- the property
+// asserted here (Since delivers every entry at or above the bound, whatever
+// the insert order) is the one the flag existed to preserve, and
+// TestSinceVisitsEveryEntryOnUnsortedLog still asserts it end to end.
+//
+// VALIDATES: the log is non-decreasing in seq after any insert order, and a
+// live entry is never lost to the slide.
+// PREVENTS: Since silently degrading. A log that stops being sorted makes
+// sort.Search start past entries it must visit, and RecentUpdateCache
+// (bgp/reactor) releases consumer obligations through exactly that walk.
+func TestPutKeepsTheLogSorted(t *testing.T) {
+	m := New[uint64, int]()
+	for _, s := range []uint64{40, 10, 60, 5, 55, 41} {
+		m.Put(s, s, int(s))
+	}
+
+	for i := 1; i < len(m.log); i++ {
+		require.LessOrEqual(t, m.log[i-1].seq, m.log[i].seq,
+			"log out of order at index %d", i)
+	}
+
+	var got []uint64
+	m.Since(0, func(k uint64, _ uint64, _ int) bool {
+		got = append(got, k)
+		return true
+	})
+	assert.Equal(t, []uint64{5, 10, 40, 41, 55, 60}, got, "every entry, in sequence order")
+
+	// A replaced key keeps one live entry at its new position.
+	m.Put(10, 70, 700)
+	require.Equal(t, 6, m.Len(), "replacing a key must not change the live count")
+	got = got[:0]
+	m.Since(0, func(k uint64, _ uint64, _ int) bool {
+		got = append(got, k)
+		return true
+	})
+	assert.Equal(t, []uint64{5, 40, 41, 55, 60, 10}, got, "the replaced key moved to its new sequence")
+}

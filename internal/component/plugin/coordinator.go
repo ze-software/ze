@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"sync"
 
@@ -31,6 +32,25 @@ type Coordinator struct {
 	reactors    map[string]any        // named protocol reactors (e.g., "bgp", "ospf")
 	bootstrap   registry.BGPBootstrap // config-load state handed to the BGP reactor factory
 	postStartup func()                // called by SignalPluginStartupComplete (e.g., start peers)
+
+	// cacheConsumers records every live cache-consumer declaration: plugin name
+	// to its ack ordering (true = unordered). A config-path plugin declares this
+	// in startup Stage 1, and the BGP reactor is built in the bgp plugin's
+	// Stage 2 OnConfigure, so those declarations are all made while no reactor
+	// is attached. Holding the set here and replaying it from SetReactor is what
+	// makes a declaration independent of that order; a plugin started later
+	// declares straight onto the attached reactor and is recorded just the same.
+	// Dropping the early ones left bgp-rs registered nowhere: the cache then
+	// treated it as a FIFO consumer, and one cumulative ack evicted an entry
+	// bgp-rs had batched but not yet forwarded.
+	//
+	// consumerMu covers the set AND the reactor calls it produces, so a
+	// declaration reaches the reactor exactly once however it races SetReactor.
+	// Lock order: consumerMu above mu, never the reverse. Holding it across a
+	// reactor call is safe because the reactor's cache path never re-enters the
+	// Coordinator.
+	consumerMu     sync.Mutex
+	cacheConsumers map[string]bool
 }
 
 // NewCoordinator creates a Coordinator with the given config tree.
@@ -61,7 +81,18 @@ func (c *Coordinator) Bootstrap() registry.BGPBootstrap {
 // IS-IS) can register its reactor here. Callers retrieve it with Reactor()
 // and type-assert to the protocol-specific interface they need.
 // Pass nil to unregister.
+//
+// The name "bgp" is delegated to SetReactor. Both write the same map row, and
+// only SetReactor replays the recorded cache-consumer declarations onto the
+// arriving reactor; attaching the BGP reactor through this door instead would
+// silently reinstate the defect cacheConsumers exists to prevent.
 func (c *Coordinator) RegisterReactor(name string, r any) {
+	if name == "bgp" {
+		if err := c.SetReactor(r); err != nil {
+			coordinatorLogger().Error("coordinator: bgp reactor rejected by RegisterReactor", "error", err)
+		}
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if r == nil {
@@ -82,17 +113,34 @@ func (c *Coordinator) Reactor(name string) any {
 // SetReactor registers the BGP reactor for ReactorLifecycle delegation.
 // Pass nil to unregister. Returns error if r is non-nil but not ReactorLifecycle.
 // Stores the reactor under the name "bgp" in the named reactor map.
+// Attaching a reactor also replays the cache-consumer declarations recorded so
+// far, which is the only moment the early ones can reach it: see cacheConsumers.
 func (c *Coordinator) SetReactor(r any) error {
+	// consumerMu spans the attach AND the replay, so a declaration that arrives
+	// in between is either in the snapshot or sees the attached reactor itself,
+	// never both and never neither.
+	c.consumerMu.Lock()
+	defer c.consumerMu.Unlock()
+
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if r == nil {
 		delete(c.reactors, "bgp")
+		c.mu.Unlock()
 		return nil
 	}
-	if _, ok := r.(ReactorLifecycle); !ok {
+	lifecycle, ok := r.(ReactorLifecycle)
+	if !ok {
+		c.mu.Unlock()
 		return fmt.Errorf("coordinator: expected ReactorLifecycle, got %T", r)
 	}
 	c.reactors["bgp"] = r
+	replay := make(map[string]bool, len(c.cacheConsumers))
+	maps.Copy(replay, c.cacheConsumers)
+	c.mu.Unlock()
+
+	for name, unordered := range replay {
+		lifecycle.RegisterCacheConsumer(name, unordered)
+	}
 	return nil
 }
 
@@ -337,14 +385,36 @@ func (c *Coordinator) SignalPeerUpBarrier(peerAddr string) {
 // --- ReactorCacheCoordinator ---
 
 // RegisterCacheConsumer initializes tracking for a cache-consumer plugin.
+// The declaration is recorded whether or not a reactor is attached yet, and
+// SetReactor replays it: a plugin declares in startup Stage 1, and the BGP
+// reactor does not exist until Stage 2 (see cacheConsumers).
 func (c *Coordinator) RegisterCacheConsumer(name string, unordered bool) {
+	c.consumerMu.Lock()
+	defer c.consumerMu.Unlock()
+
+	c.mu.Lock()
+	if c.cacheConsumers == nil {
+		c.cacheConsumers = make(map[string]bool, 4)
+	}
+	c.cacheConsumers[name] = unordered
+	c.mu.Unlock()
+
 	if r := c.getReactor(); r != nil {
 		r.RegisterCacheConsumer(name, unordered)
 	}
 }
 
-// UnregisterCacheConsumer removes a cache-consumer plugin.
+// UnregisterCacheConsumer removes a cache-consumer plugin. The recorded
+// declaration is dropped too, so a later SetReactor does not resurrect a
+// consumer that has gone.
 func (c *Coordinator) UnregisterCacheConsumer(name string) {
+	c.consumerMu.Lock()
+	defer c.consumerMu.Unlock()
+
+	c.mu.Lock()
+	delete(c.cacheConsumers, name)
+	c.mu.Unlock()
+
 	if r := c.getReactor(); r != nil {
 		r.UnregisterCacheConsumer(name)
 	}

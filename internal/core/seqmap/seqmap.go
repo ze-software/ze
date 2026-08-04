@@ -17,8 +17,18 @@ type entry[K comparable, V any] struct {
 }
 
 // Map is a key-value map supporting efficient range queries by sequence number.
-// Sequence numbers must be assigned in non-decreasing order by the caller.
+// Sequence numbers SHOULD be assigned in non-decreasing order by the caller:
+// that is the case Put makes cheap. An out-of-order sequence is placed at its
+// sorted position instead of appended, so the log is sorted at all times and
+// Since is correct for every caller whatever the order.
 // Not safe for concurrent use; callers must synchronize externally.
+//
+// Keeping the log sorted rather than tolerating an unsorted one is deliberate.
+// RecentUpdateCache (bgp/reactor) breaks the order for real: it takes the id
+// from nextMsgID() and calls Add only after the ingress filter chain, on
+// per-peer read goroutines. Its cumulative ack walks a Since range on the
+// per-UPDATE path under an exclusive lock, so paying a short insert on the rare
+// out-of-order arrival is far cheaper than dropping that walk to a full scan.
 type Map[K comparable, V any] struct {
 	items map[K]*entry[K, V]
 	log   []*entry[K, V]
@@ -34,7 +44,10 @@ func New[K comparable, V any]() *Map[K, V] {
 
 // Put inserts or replaces a key with the given sequence number and value.
 // If the key already exists, the old entry is logically deleted.
-// Sequence numbers must be non-decreasing across calls.
+//
+// A sequence at or above the last one appends, which is the whole cost for a
+// caller that assigns them in non-decreasing order. A lower one is placed at
+// its sorted position so the log never stops being sorted; see Map.
 func (m *Map[K, V]) Put(key K, seq uint64, value V) {
 	if old, ok := m.items[key]; ok {
 		old.live = false
@@ -42,8 +55,23 @@ func (m *Map[K, V]) Put(key K, seq uint64, value V) {
 	}
 	e := &entry[K, V]{key: key, seq: seq, val: value, live: true}
 	m.items[key] = e
-	m.log = append(m.log, e)
+	m.insertLog(e)
 	m.maybeCompact()
+}
+
+// insertLog appends e, or slides it into place when its sequence is below the
+// tail. Ties go after the entries they equal, which nothing depends on: it is
+// the arrival order, and Since skips the dead entry a replaced key leaves.
+func (m *Map[K, V]) insertLog(e *entry[K, V]) {
+	n := len(m.log)
+	if n == 0 || e.seq >= m.log[n-1].seq {
+		m.log = append(m.log, e)
+		return
+	}
+	i := sort.Search(n, func(i int) bool { return m.log[i].seq > e.seq })
+	m.log = append(m.log, nil)
+	copy(m.log[i+1:], m.log[i:])
+	m.log[i] = e
 }
 
 // Delete removes a key. Returns true if the key existed.
@@ -83,6 +111,12 @@ func (m *Map[K, V]) Clear() {
 
 // Since calls fn for each live entry with sequence >= fromSeq, in ascending
 // sequence order. If fn returns false, iteration stops early.
+//
+// The bound holds for every caller and every insert order, because Put keeps
+// the log sorted. That matters rather than being tidy: RecentUpdateCache
+// (bgp/reactor) acks each entry fn hands it, so an extra entry there is acked
+// by a plugin that never handled it and a missing one strands that plugin's
+// obligation and pins a pooled read buffer.
 func (m *Map[K, V]) Since(fromSeq uint64, fn func(key K, seq uint64, value V) bool) {
 	if len(m.log) == 0 {
 		return

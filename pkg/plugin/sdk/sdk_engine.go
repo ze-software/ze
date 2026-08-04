@@ -66,6 +66,13 @@ func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command 
 // Returns an error when the reactor cannot look up any of the updateIDs or
 // the request cannot be dispatched. Individual per-destination failures are
 // logged and do not fail the call.
+//
+// AN ERROR STILL CONSUMES THE IDS. The engine acks every id it was given
+// whether it forwarded them or not: the ack is what closes the cache-consumer
+// obligation, and holding an entry open because the forward was refused pins a
+// pooled read buffer for minutes. So do NOT retry a failed call with the same
+// ids, and do not call ReleaseCached for them afterwards -- both act on entries
+// that are already gone.
 func (p *Plugin) ForwardCached(ctx context.Context, updateIDs []uint64, destinations []string) error {
 	// Fast path: typed DirectBridge dispatch (no JSON serialization).
 	if p.bridge != nil && p.bridge.HasForwardCached() {

@@ -25,25 +25,28 @@ option=bind:value=0.0.0.0
 option=timeout:value=300s
 
 # NOTHING IS ANNOUNCED UNTIL BOTH DESTINATIONS ARE UP, and that wait is the
-# point of the scenario rather than a start-up convenience. Ze carries no rib
-# plugin here, so a route announced while a destination is still coming up
-# reaches nobody and is not stored: there is no replay, and replay is built by a
-# DIFFERENT rail (reactor/peer_rib_routes.go) that has stripped LOCAL_PREF
-# correctly all along. Announcing early tests that rail and leaves the forward
-# rail unexercised -- measured on 2026-08-04, when an earlier draft of this file
-# stayed green with the forward rail's strip removed.
+# point of the scenario rather than a start-up convenience. The forward rail
+# skips a destination that is not established yet (forwardUpdateCore,
+# reactor/reactor_api_forward.go), so a prefix announced early either never
+# arrives or arrives by some other path. An earlier draft of this file did
+# announce early and stayed GREEN with the forward rail's strip removed --
+# measured on 2026-08-04 -- so whatever delivered it there was not the rail
+# under test. The wait is what makes every prefix travel that rail.
 #
 # Ze sends a KEEPALIVE every 5 s at the 15 s hold ze.conf sets, so four of them
 # is a 20 s wait. FRR and GoBGP both reach Established inside that on the lab
 # bridge, and check.py waits on each session besides.
 #
-# THE SAME THREE PREFIXES ARE ANNOUNCED TWICE, and the repeat is not belt and
-# braces. Ze drops the first UPDATE that follows a long quiet session on this
-# configuration -- `BUG: ForwardUpdatesDirect: msgID missing from cache`
-# (reactor/reactor_api_forward_batch.go), logged by bgp-rs and reproduced twice
-# on 2026-08-04 at a 50 s and a 70 s wait. That defect is NOT what this scenario
-# tests and is reported separately; a re-announce is ordinary BGP and keeps this
-# file measuring the attribute rather than the drop.
+# EACH PREFIX IS ANNOUNCED ONCE. A re-announce used to sit at the end of this
+# file to hide a Ze defect: the announce reached nobody and logged `BUG:
+# ForwardUpdatesDirect: msgID missing from cache`
+# (reactor/reactor_api_forward_batch.go). The cause was in the plugin
+# Coordinator: it dropped every cache-consumer declaration made before the BGP
+# reactor attached, which is every one of them, so bgp-rs ran as a FIFO
+# consumer and the End-of-RIB behind the announce cumulatively evicted the
+# announce's cache entry before bgp-rs flushed it. Fixed in
+# plugin/coordinator.go. A test shaped around a bug is not evidence, so the
+# repeat is gone.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
@@ -58,11 +61,6 @@ action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # announce sits in the initial burst would not say so.
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3602
-
-# (3) Re-announce all three, unchanged, for the reason the header gives.
-expect=bgp:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-action=send:conn=1:seq=10:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3600180A3601
-action=send:conn=1:seq=11:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3602
 
 # Hold the session open while check.py polls both daemons. A peer whose script
 # is exhausted exits, and its session dropping makes Ze withdraw the relayed

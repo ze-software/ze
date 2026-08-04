@@ -280,14 +280,17 @@ the stripped UPDATE and installs the route.
 
 **Two properties of the lab decide which rail is under test, and both were
 measured rather than assumed.** A scenario that announces BEFORE its
-destinations are established delivers through `bgp-rib`'s replay, which is
-`peer_rib_routes.go` and was already correct: an earlier draft of scenario 54
-did exactly that and stayed GREEN with the forward rail's strip removed. The
-injector therefore waits for the destinations first. Separately, the first
-UPDATE after a long quiet session is dropped with `BUG: ForwardUpdatesDirect:
-msgID missing from cache` (`reactor_api_forward_batch.go`), reproduced at 50 s
-and at 70 s of idle, so the scenario re-announces. That drop is a SEPARATE
-defect, reported and not fixed here.
+destinations are established does not exercise the forward rail: an earlier
+draft of scenario 54 did exactly that and stayed GREEN with the forward rail's
+strip removed, so its prefixes arrived by some other path. Which path was never
+traced to a producer, and the claim that it was `bgp-rib`'s replay through
+`peer_rib_routes.go` does not survive one (2026-08-04). The injector therefore
+waits for the destinations first. The announce was also
+dropped with `BUG: ForwardUpdatesDirect: msgID missing from cache`
+(`reactor_api_forward_batch.go`), which the scenario hid behind a re-announce.
+That was a SEPARATE defect and is now fixed at its source in
+`plugin/coordinator.go` (`plan/learned/1335-cache-consumer-declared-before-reactor.md`).
+Scenario 54 announces each prefix once again.
 
 ## Files to Modify
 - `internal/component/bgp/filterapi/filterapi.go` (or `editset.go`) - export the

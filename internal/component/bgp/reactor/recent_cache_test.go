@@ -1327,6 +1327,180 @@ func TestCacheUnorderedConsumerUnregister(t *testing.T) {
 	}
 }
 
+// TestCacheUnorderedUnregisterKeepsEntriesItAlreadyAcked pins the one thing
+// UnregisterConsumer's all-entries walk cannot work out from lastAck: which
+// entries this unordered consumer has already acked.
+//
+// VALIDATES: the walk decrements an entry ONCE per departing consumer.
+// PREVENTS: route loss. Decrementing an already-acked entry a second time takes
+// the count to zero under a consumer that has NOT acked it, evicts the entry,
+// and that consumer's later ForwardCached then logs "BUG: ForwardUpdatesDirect:
+// msgID missing from cache" and forwards the UPDATE to nobody.
+func TestCacheUnorderedUnregisterKeepsEntriesItAlreadyAcked(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.RegisterConsumer("rs")
+	cache.SetConsumerUnordered("rs")
+	cache.RegisterConsumer("slow")
+	cache.SetConsumerUnordered("slow")
+
+	// Two consumers took delivery of both entries.
+	for i := uint64(1); i <= 2; i++ {
+		cache.Add(newTestUpdate(i))
+		cache.Activate(i, 2)
+	}
+
+	// rs handled entry 1 and not entry 2. slow has handled neither.
+	if err := cache.Ack(1, "rs"); err != nil {
+		t.Fatalf("Ack(1, rs): %v", err)
+	}
+	if !cache.Contains(1) {
+		t.Fatal("entry 1 evicted while slow still owes an ack")
+	}
+
+	cache.UnregisterConsumer("rs")
+
+	// rs owed entry 2 only, so entry 2 now waits on slow alone, and entry 1
+	// still waits on slow. Neither may be gone.
+	for i := uint64(1); i <= 2; i++ {
+		if !cache.Contains(i) {
+			t.Errorf("entry %d evicted by the unregister walk; slow never acked it", i)
+		}
+	}
+
+	// slow finishes, and only then does the cache empty.
+	for i := uint64(1); i <= 2; i++ {
+		if err := cache.Ack(i, "slow"); err != nil {
+			t.Fatalf("Ack(%d, slow): %v", i, err)
+		}
+	}
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0 once every consumer has acked", cache.Len())
+	}
+}
+
+// TestCacheUnorderedUnregisterSkipsPreRegistrationEntries pins the other thing
+// the all-entries walk must not touch: entries that existed before this consumer
+// registered. RegisterConsumer records consumerFloor for exactly this, because
+// an unordered consumer's own acks move pluginLastAck and it can no longer
+// serve as the registration watermark.
+//
+// VALIDATES: the walk leaves entries at or below the floor alone.
+// PREVENTS: route loss. Those entries were never delivered to the departing
+// consumer, so decrementing them takes the count to zero under the consumer
+// that IS still working on them.
+//
+// The ids arrive out of order, which this cache produces for real:
+// reactor_notify.go takes the id from nextMsgID() before the ingress filter
+// chain, so a slow peer's UPDATE reaches Add() behind a faster peer's later id.
+// The walk must still reach 50 and 60, which rests on seqmap keeping its log
+// sorted: with a plain append, the binary search for the floor lands past entry
+// 50 and late's obligation on it is never released.
+func TestCacheUnorderedUnregisterSkipsPreRegistrationEntries(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.RegisterConsumer("keeper")
+	cache.SetConsumerUnordered("keeper")
+
+	cache.Add(newTestUpdate(40))
+	cache.Activate(40, 1)
+
+	// "late" registers behind entry 40, so its floor is 40.
+	cache.RegisterConsumer("late")
+	cache.SetConsumerUnordered("late")
+
+	// 50 and 60 are delivered to both; 10 carries an id below late's floor, so
+	// it predates late's registration and only keeper owes it.
+	for _, delivery := range []struct {
+		id       uint64
+		consumer int
+	}{{50, 2}, {10, 1}, {60, 2}} {
+		cache.Add(newTestUpdate(delivery.id))
+		cache.Activate(delivery.id, delivery.consumer)
+	}
+
+	// late handles 60 and not 50. This is what separates the floor from
+	// pluginLastAck: the ack moves lastAck to 60, so a walk starting there
+	// would never reach 50, the one entry late still owes.
+	if err := cache.Ack(60, "late"); err != nil {
+		t.Fatalf("Ack(60, late): %v", err)
+	}
+
+	cache.UnregisterConsumer("late")
+
+	// Nothing goes yet: keeper still owes an ack on all four.
+	for _, id := range []uint64{10, 40, 50, 60} {
+		if !cache.Contains(id) {
+			t.Errorf("entry %d evicted by late's unregister walk while keeper still owes it", id)
+		}
+	}
+
+	for _, id := range []uint64{10, 40, 50, 60} {
+		if err := cache.Ack(id, "keeper"); err != nil {
+			t.Fatalf("Ack(%d, keeper): %v", id, err)
+		}
+	}
+	// Empty only if the walk released late's obligation on 50.
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0: late's unregister left an obligation behind", cache.Len())
+	}
+}
+
+// TestCacheUnorderedAckBitClearedOnUnregister verifies that the ack-tracking bit
+// a departing unordered consumer held is cleared from the entries carrying it,
+// so the consumer that takes that bit next is never told it already acked them.
+//
+// VALIDATES: the bit is per-consumer, not per-entry-forever.
+// PREVENTS: the opposite failure of the test above -- an entry pinned to the
+// safety valve because a stale bit made a later consumer's walk skip it.
+func TestCacheUnorderedAckBitClearedOnUnregister(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.RegisterConsumer("first")
+	cache.SetConsumerUnordered("first")
+	cache.RegisterConsumer("keeper")
+	cache.SetConsumerUnordered("keeper")
+
+	cache.Add(newTestUpdate(1))
+	cache.Activate(1, 2)
+
+	if err := cache.Ack(1, "first"); err != nil {
+		t.Fatalf("Ack(1, first): %v", err)
+	}
+	cache.mu.RLock()
+	firstBit := cache.unorderedBit["first"]
+	entry, found := cache.entries.Get(1)
+	ackRecorded := found && entry.ackedUnordered&firstBit != 0
+	cache.mu.RUnlock()
+	if firstBit == 0 {
+		t.Fatal("first got no ack-tracking bit")
+	}
+	if !ackRecorded {
+		t.Fatal("Ack did not record first's bit on entry 1")
+	}
+
+	cache.UnregisterConsumer("first")
+	if !cache.Contains(1) {
+		t.Fatal("entry 1 evicted while keeper still owes an ack")
+	}
+	cache.mu.RLock()
+	entry, found = cache.entries.Get(1)
+	bitSurvived := found && entry.ackedUnordered&firstBit != 0
+	cache.mu.RUnlock()
+	if bitSurvived {
+		t.Error("first's bit survived its unregister; the next consumer to take it would skip entry 1")
+	}
+
+	// keeper finishes: the entry goes, which it could not do if the walk had
+	// already decremented it on first's behalf twice.
+	if err := cache.Ack(1, "keeper"); err != nil {
+		t.Fatalf("Ack(1, keeper): %v", err)
+	}
+	if cache.Contains(1) {
+		t.Error("entry 1 survived every consumer acking it")
+	}
+}
+
 // TestCacheUnorderedConsumerReAck verifies that an unordered consumer
 // can ack an entry with id < lastAck (which would be a no-op for FIFO consumers).
 //
@@ -2075,4 +2249,37 @@ func TestReactorPressureDisabledByDefault(t *testing.T) {
 	c.mu.RUnlock()
 
 	require.Equal(t, 0.0, hw, "load-aware reclamation must be disabled by default (high-water 0)")
+}
+
+// TestCacheFIFOCumulativeAckSweepsOutOfOrderEntries pins the cumulative sweep
+// against the insert order this cache really produces. reactor_notify.go takes
+// the id from nextMsgID() and reaches Add() only after the ingress filter
+// chain, on per-peer read goroutines, so a lower id routinely lands in the log
+// behind a higher one.
+//
+// VALIDATES: acking N acks every cached entry between lastAck and N, whatever
+// order they were added in.
+// PREVENTS: a pinned pooled read buffer. A sweep that stops at the first entry
+// at or above the target leaves the ones behind it unacked, and nothing else
+// releases them until the 5-minute safety valve.
+func TestCacheFIFOCumulativeAckSweepsOutOfOrderEntries(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.RegisterConsumer("fifo")
+
+	// 40 lands in the log before 20 and 30, so a sweep that stops on it never
+	// reaches them.
+	for _, id := range []uint64{40, 20, 30} {
+		cache.Add(newTestUpdate(id))
+		cache.Activate(id, 1)
+	}
+
+	// Acking 40 means "I have handled everything up to 40".
+	if err := cache.Ack(40, "fifo"); err != nil {
+		t.Fatalf("Ack(40, fifo): %v", err)
+	}
+
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0: the cumulative sweep left %v unacked", cache.Len(), cache.List())
+	}
 }
