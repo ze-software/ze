@@ -68,9 +68,13 @@ type ServiceDeps struct {
 
 	// Web resolved bindings. These stay generic: no internal/component/web type
 	// crosses the always-on registry boundary.
-	WebEnabled        bool
-	WebAddrs          []string
-	InsecureWeb       bool
+	WebEnabled  bool
+	WebAddrs    []string
+	InsecureWeb bool
+	// WebCertificate names an entry in the PKI store to serve on HTTPS. Empty
+	// selects the self-signed certificate. A plain string (no pki type crosses
+	// this boundary); the factory resolves it through pki.ServerTLSMaterial.
+	WebCertificate    string
 	Authorizer        aaa.Authorizer
 	Recorder          audit.Recorder
 	CommitHook        func() error

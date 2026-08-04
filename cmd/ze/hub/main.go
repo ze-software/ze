@@ -336,6 +336,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	lgTLS := true
 	lgTLSSet := false
 	lgToken := env.Get("ze.looking-glass.token")
+	// Names the PKI store entry the HTTPS listener serves. Env first; the config
+	// file fills it in below only when the environment left it blank, matching
+	// the precedence every other web setting uses.
+	webCertificate := env.Get("ze.web.certificate")
 	if webListenAddr != "" {
 		webAddrs = []string{webListenAddr}
 		webEnabled = true
@@ -405,12 +409,24 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Config file fills in whatever the env vars and CLI flags left blank.
 	// ExtractXxx returns cfg.Servers with at least one entry when the block
 	// is enabled in YANG; every entry flows through to the binder below.
+	//
+	// ADDRESSES come only from a config block that asks for a listener, so
+	// `enabled false` still means "config does not start the web server".
 	if webCfg, ok := zeconfig.ExtractWebConfig(loadResult.Tree); ok {
 		if len(webAddrs) == 0 {
 			webAddrs = endpointsToAddrs(webCfg.Servers)
 			insecureWeb = webCfg.Insecure
 		}
 		webEnabled = true
+	}
+	// SETTINGS (certificate) apply whenever the block exists, whatever supplied
+	// the address. Gating this on `enabled` discarded the operator's certificate
+	// choice when --web, ze.web.listen, or ze.web.enabled started the server,
+	// leaving a self-signed certificate on a listener the operator believed was
+	// serving their own chain
+	// (plan/learned/1327-enabled-gate-discards-service-settings.md).
+	if webSettings, ok := zeconfig.ExtractWebSettings(loadResult.Tree); ok && webCertificate == "" {
+		webCertificate = webSettings.Certificate
 	}
 	// Two questions, deliberately asked separately (see ExtractMCPSettings).
 	//
@@ -478,6 +494,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
 		logStartupFailure("pki load", pkiErr)
 		return 1
+	}
+
+	// Fail closed on a broken web certificate reference (AC-3, R-5). The check
+	// runs the SAME resolution the listener will run, so a name that passes here
+	// is a name the listener can serve. Refusing to start is the point: a daemon
+	// that booted and served a self-signed certificate instead would look
+	// healthy while presenting the wrong identity to every client.
+	if webEnabled && webCertificate != "" {
+		if _, _, certErr := zepki.ServerTLSMaterial(webCertificate); certErr != nil {
+			fmt.Fprintf(os.Stderr, "error: environment.web.certificate: %v\n", certErr)
+			logStartupFailure("web certificate", certErr)
+			return 1
+		}
 	}
 
 	system.RegisterConntrackManagedKeys()
@@ -994,6 +1023,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		WebEnabled:        webEnabled,
 		WebAddrs:          webAddrs,
 		InsecureWeb:       insecureWeb,
+		WebCertificate:    webCertificate,
 		Authorizer:        liveAAABundleAuthorizer{},
 		Recorder:          auditLog,
 		CommitHook:        reloadAfterCommit,
