@@ -52,15 +52,18 @@ func (p *pendingRekey) clear() {
 	}
 }
 
-// requestWindowTimeout bounds how long one self-initiated request holds the window
-// of RFC 7296 §2.3. A Delete is best-effort and is never resent. A lost answer to
-// one would otherwise stop every later request on this SA. It would stop the DPD
-// probe with them.
+// requestWindowTimeout is how long one self-initiated request holds the window of RFC
+// 7296 §2.3 before the SA is deemed to have failed (serviceRequestWindow,
+// established.go). §2.1 gives the initiator two exits and this is the second one.
 //
 // A rekey bounds its own hold through its retransmissions. A DPD probe bounds its
 // own hold in two ways. The liveness budget ends it. An authenticated inbound also
 // retires the probe, and maintainSA frees the window in the same step
-// (retireRequest, below). Only a Delete therefore reaches this value.
+// (retireRequest, below).
+//
+// A Delete and the INVALID_MESSAGE_ID notify reach this value. Both arm the window's
+// own retransmission slot (armRequestRetransmit, below), so both are repeated
+// maxRequestRetransmits times first. Those attempts complete inside this bound.
 const requestWindowTimeout = 30 * time.Second
 
 // msgIDRekeyThreshold is the Message ID at which an SA asks for an IKE SA rekey
@@ -140,7 +143,7 @@ func (sa *SA) msgIDNearExhaustion() bool {
 // request, so no later request is built on it. That alone would leave the SA quiet
 // rather than closed, so maintainSA reads the same flag and closes the SA.
 func (sa *SA) reserveRequestWindow() bool {
-	if sa.requestOutstanding || sa.msgIDExhausted {
+	if !sa.requestWindowAvailable() {
 		return false
 	}
 	sa.requestOutstanding = true
@@ -149,8 +152,22 @@ func (sa *SA) reserveRequestWindow() bool {
 	return true
 }
 
-// releaseRequestWindow frees the window without an answer. A caller uses it when its
-// build failed, or when it abandons its own exchange.
+// requestWindowAvailable reports whether reserveRequestWindow would succeed now. It
+// claims nothing and it spends nothing.
+//
+// A caller that MUST advance the Message ID before it builds asks this first.
+// reserveRequestWindow binds the window to the CURRENT NextMsgID, so such a caller
+// cannot reserve first. Reserving after the advance leaves a refusal holding a spent
+// Message ID. The peer then waits for a request at an id no message ever carries. With
+// a window of one, every later request falls outside its window. sendIKESATeardown
+// (delete.go) is that caller.
+func (sa *SA) requestWindowAvailable() bool {
+	return !sa.requestOutstanding && !sa.msgIDExhausted
+}
+
+// releaseRequestWindow frees the window without an answer. Three callers use it. A
+// build that failed, an exchange the caller abandons, and an SA the caller is
+// destroying, whose awaited answer has therefore lost its purpose.
 func (sa *SA) releaseRequestWindow() {
 	sa.requestOutstanding = false
 	sa.clearRequestRetransmit()
@@ -187,19 +204,19 @@ func (sa *SA) clearRequestRetransmit() {
 
 // maxRequestRetransmits bounds how often the window's stored request is repeated.
 //
-// RFC 7296 Section 2.1 repeats a request until it draws a reply or the SA is deemed
-// failed. This slot carries a request that is not itself worth failing the SA over,
-// so the repeats stop and requestWindowStale then frees the window. Three attempts
-// under retransmitBackoff complete well inside requestWindowTimeout, so the window is
-// never freed underneath an attempt still to come.
+// RFC 7296 Section 2.1 repeats a request until it draws a reply, or until the SA is
+// deemed to have failed. This bound stops the repeats. It does NOT forget the request:
+// requestWindowStale then takes the section's second exit and fails the SA
+// (serviceRequestWindow, established.go). Three attempts under
+// retransmitBackoff complete well inside requestWindowTimeout, so the SA is never
+// failed underneath an attempt still to come.
 const maxRequestRetransmits = 3
 
 // shouldRetransmitRequest reports whether the stored request has waited past its
 // current backoff and has repeats left.
 //
-// A window with no stored datagram reads false. That is the rekey, the DPD probe, and
-// the Delete: the first two repeat themselves, and the third is deliberately never
-// resent (requestWindowTimeout, above).
+// A window with no stored datagram reads false. That is the rekey and the DPD probe,
+// which each repeat themselves on their own clock.
 func (sa *SA) shouldRetransmitRequest(now time.Time) bool {
 	if !sa.requestOutstanding || len(sa.requestMsg) == 0 {
 		return false
@@ -259,8 +276,9 @@ func (sa *SA) retireRequest(msgID uint32) {
 }
 
 // requestWindowStale reports whether the outstanding request has waited past
-// requestWindowTimeout. Only a caller that knows no other timer covers the holder
-// acts on it (serviceRequestWindow, established.go).
+// requestWindowTimeout, which RFC 7296 Section 2.1 makes the point at which the SA is
+// deemed to have failed. Only a caller that knows no other timer covers the holder acts
+// on it (serviceRequestWindow, established.go).
 func (sa *SA) requestWindowStale(now time.Time) bool {
 	return sa.requestOutstanding && now.Sub(sa.requestSentAt) >= requestWindowTimeout
 }

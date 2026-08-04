@@ -37,32 +37,60 @@ type pendingDelete struct {
 	child *ChildSA
 }
 
-// sendDeleteIKE sends an INFORMATIONAL Delete for the IKE SA (best-effort). RFC
-// 7296 §1.4, §3.11: an IKE Delete carries no SPIs.
-func (ps *PeerSession) sendDeleteIKE(sa *SA, tr *transport.UDPTransport, log *slog.Logger) {
-	if tr == nil {
-		return
-	}
-	// RFC 7296 §2.3: one self-initiated request at a time. A Delete is best-effort
-	// and a teardown must never wait for a window, so a held window drops it. The
-	// peer then learns of the loss through its own dead-peer detection.
-	if !sa.reserveRequestWindow() {
-		log.Debug("ike: IKE delete dropped, a request is outstanding", "peer", ps.peerName)
-		return
-	}
-	del := &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}
+// writeDelete builds and sends one INFORMATIONAL Delete. The caller MUST already hold
+// the request window, and this frees it again when the build fails. A zero spi with
+// ProtocolIKE names the IKE SA itself, which RFC 7296 Section 3.11 gives no SPI at all.
+//
+// RFC 7296 Section 2.1 MUST: "IKE is a reliable protocol: the initiator MUST retransmit
+// a request until it either receives a corresponding response or deems the IKE SA to
+// have failed." A Delete has no retransmission machine of its own, unlike the rekey and
+// the DPD probe, so it arms the window's slot. serviceRequestRetransmit
+// (established.go) repeats it from there, under the Message ID of the request it
+// repeats, which the same section requires.
+//
+// ONE of the three Deletes is actually repeated, and that is by design rather than an
+// oversight. The make-before-break ESP Delete leaves the IKE SA running, so the owner
+// loop is there to repeat it. The two IKE Deletes end their SA on the same return: the
+// goodbye returns from maintainSA, and the post-rekey Delete is followed by
+// oldSA.forgetKeys(). Both take the section's SECOND branch, where the initiator deems
+// the SA failed and discards its state, so neither owes a retransmission.
+func (ps *PeerSession) writeDelete(sa *SA, tr *transport.UDPTransport, del *wire.PayloadDelete, log *slog.Logger) {
 	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: del}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
-		log.Debug("ike: IKE delete build failed", "peer", ps.peerName, "error", err)
+		log.Debug("ike: delete build failed", "peer", ps.peerName,
+			"protocol", del.ProtocolID, "error", err)
 		sa.releaseRequestWindow()
 		return
 	}
 	sa.advanceMsgID()
+	sa.armRequestRetransmit(msg)
 	sendRaw(sa, tr, msg, log)
 }
 
-// sendDeleteESP sends an INFORMATIONAL Delete for a Child SA pair (best-effort, no
-// awaited response). RFC 7296 §1.4, §2.8: the rekey initiator deletes the old SA.
+// sendDeleteIKE sends an INFORMATIONAL Delete for the IKE SA. RFC 7296 §1.4, §3.11: an
+// IKE Delete carries no SPIs.
+//
+// A refused window sends nothing, and the RFC leaves no other answer. §2.3 MUST: "An
+// IKE endpoint MUST wait for a response to each of its messages before sending a
+// subsequent message". Ze declares a window of one, so a request still awaiting its
+// answer forbids this one. Both callers reach here with the window free: the goodbye
+// waits for the answer first (waitForRequestWindow, established.go), and the post-rekey
+// Delete runs on the answer that freed it. What is left is an exhausted Message ID
+// space, where §2.2 leaves no id to carry the request either.
+func (ps *PeerSession) sendDeleteIKE(sa *SA, tr *transport.UDPTransport, log *slog.Logger) {
+	if tr == nil {
+		return
+	}
+	if !sa.reserveRequestWindow() {
+		log.Warn("ike: IKE delete not sent, the request window is not free",
+			"peer", ps.peerName, "msgid-exhausted", sa.msgIDExhausted)
+		return
+	}
+	ps.writeDelete(sa, tr, &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}, log)
+}
+
+// sendDeleteESP sends an INFORMATIONAL Delete for a Child SA pair. RFC 7296 §1.4,
+// §2.8: the rekey initiator deletes the old SA.
 //
 // The Delete names the pair's INBOUND SPI, because RFC 7296 Section 1.4.1 asks for the
 // SPIs "as they would be expected in the headers of inbound packets".
@@ -77,22 +105,15 @@ func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uin
 	if tr == nil {
 		return
 	}
-	// RFC 7296 §2.3: one self-initiated request at a time. The make-before-break
-	// Delete runs right after the rekey response freed the window, so it usually
-	// takes it at once. A held window drops the Delete, because it is best-effort
-	// and the peer removes the old Child SA on its own lifetime.
+	// RFC 7296 §2.3, as in sendDeleteIKE above. The one caller runs on the rekey
+	// response that freed the window, so the reservation succeeds. A refusal means the
+	// Message ID space is exhausted, and §2.2 leaves no id to carry the request.
 	if !sa.reserveRequestWindow() {
-		log.Debug("ike: ESP delete dropped, a request is outstanding", "peer", ps.peerName)
+		log.Warn("ike: ESP delete not sent, the request window is not free",
+			"peer", ps.peerName, "spi", spi, "msgid-exhausted", sa.msgIDExhausted)
 		return
 	}
-	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: espDeletePayload([]uint32{spi})}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
-	if err != nil {
-		log.Debug("ike: delete build failed", "peer", ps.peerName, "error", err)
-		sa.releaseRequestWindow()
-		return
-	}
-	sa.advanceMsgID()
-	sendRaw(sa, tr, msg, log)
+	ps.writeDelete(sa, tr, espDeletePayload([]uint32{spi}), log)
 }
 
 // sendIKESATeardown ends an AUTHENTICATED IKE SA that this node is abandoning because it
@@ -120,8 +141,9 @@ func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uin
 // Section 1.3.1's "the initiator MUST delete the SA" after a declined transport-mode
 // request is a policy decision, not a protocol violation by the peer.
 //
-// Best-effort, like every other Delete: a held request window drops it rather than delaying
-// a teardown, and the peer then learns of the loss through its own dead-peer detection.
+// This one is best-effort, and it is the only Delete that is. The two callers sit in
+// handleAuthResponse (fsm.go), which abandons the SA on the same return. No owner loop
+// ever runs on that SA, so nothing is left to send a deferred Delete or repeat this one.
 func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, log *slog.Logger) {
 	if tr == nil || sa == nil {
 		return
@@ -150,9 +172,19 @@ func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, lo
 	// An SA at the 32-bit ceiling has no id left to spend. advanceMsgID marks it exhausted
 	// rather than wrapping, and reserveRequestWindow below then refuses, so the teardown is
 	// dropped instead of reusing an id (RFC 7296 Section 2.2).
+	//
+	// THE WINDOW IS TESTED BEFORE THE ADVANCE, and reserved after it. Asking
+	// reserveRequestWindow first would bind the window to the id the IKE_AUTH request
+	// already spent. Advancing first leaves a refusal holding a spent id. The split
+	// avoids both (requestWindowAvailable, msgid.go).
+	if !sa.requestWindowAvailable() {
+		log.Debug("ike: teardown notify dropped, a request is outstanding", "peer", sa.PeerName)
+		return
+	}
 	sa.advanceMsgID()
 	if !sa.reserveRequestWindow() {
-		log.Debug("ike: teardown notify dropped, a request is outstanding", "peer", sa.PeerName)
+		log.Debug("ike: teardown notify dropped, the message id space is exhausted",
+			"peer", sa.PeerName)
 		return
 	}
 	payloads := make([]wire.PayloadEntry, 0, 2)

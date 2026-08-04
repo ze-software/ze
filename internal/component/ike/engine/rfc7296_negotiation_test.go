@@ -326,11 +326,20 @@ func TestNegRekeyRejectsMismatchedKEGroup(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-1.3-2 positive -- crypto.SharedSecret (crypto/dh.go) refuses a MODP
-// peer value whose length is not the length of the prime modulus. A value of another
-// group reaches this primitive only when a caller forgot the group comparison. It fails
-// closed there rather than produces a secret the peer never computes.
-// RFC requirement: RFC7296-1.3-2 negative -- a value of the modulus length is accepted and the
+// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
+// correctness-only test edits. The two tags below read RFC7296-1.3-2, which asks the
+// RESPONDER to reject a mismatched group and answer INVALID_KE_PAYLOAD. This test
+// builds no message and emits no Notify, so it can never prove that row. It proves
+// the length rule of Section 3.4, so the tags now name RFC7296-3.4-1. Row
+// RFC7296-1.3-2 keeps both polarities from TestNegRekeyRejectsMismatchedKEGroup above,
+// which asserts the INVALID_KE_PAYLOAD type and the two octets naming the group.
+//
+// RFC requirement: RFC7296-3.4-1 positive -- Section 3.4 binds the SENDER: a MODP public value
+// MUST be the length of the prime modulus. crypto.SharedSecret (crypto/dh.go) enforces
+// it on RECEIPT, which is the same length rule read from the other end. A peer value of
+// another length fails closed there rather than produces a secret the peer never
+// computes.
+// RFC requirement: RFC7296-3.4-1 negative -- a value of the modulus length is accepted and the
 // two sides agree on the secret. The refusal is therefore about the length of the value,
 // and the primitive did not stop working.
 func TestNegSharedSecretRefusesWrongLength(t *testing.T) {

@@ -23,11 +23,10 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from lab import (
     StrongSwan,
-    ZE_CONTAINER,
-    docker_exec,
     log_fail,
     log_info,
     log_pass,
+    ze_cli,
 )
 
 REESTABLISH_BOUND = 30  # seconds; far under the ~150s DPD fallback
@@ -51,7 +50,7 @@ def check():
 
     # 2. Operator bounces the tunnel on Ze. This dispatches clear-all to the engine,
     #    which sends strongSwan an authenticated INFORMATIONAL Delete and re-initiates.
-    docker_exec(ZE_CONTAINER, ["ze", "cli", "-c", "clear vpn ipsec sa"])
+    ze_cli("clear vpn ipsec sa")
     log_info("ran `clear vpn ipsec sa` on Ze")
 
     # 3. strongSwan must accept the Delete + fresh re-init and re-establish with a NEW

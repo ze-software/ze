@@ -144,9 +144,7 @@ type SA struct {
 	//
 	// The rekey and the DPD probe keep their own copies (pendingRekey.sentMsg,
 	// dpdState.probeMsg) and never arm this slot. It serves the requests that have no
-	// machine of their own, which today is the INVALID_MESSAGE_ID notify. A Delete
-	// deliberately arms nothing: it ends the SA, so a lost one desynchronizes a
-	// counter no later request reads.
+	// machine of their own: the INVALID_MESSAGE_ID notify, and every Delete.
 	//
 	// requestAttempts counts the repeats already made and requestLastSent is when the
 	// last one went out. Together they drive the same backoff every other retransmit

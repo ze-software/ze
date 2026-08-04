@@ -221,6 +221,52 @@ def ze_xfrm_policy():
     return docker_exec_quiet(ZE_CONTAINER, ["ip", "xfrm", "policy"])
 
 
+# The client-side store `ze cli` reads its credentials from, and the account it
+# authenticates as. Both live only inside the container, so nothing here reaches
+# an operator machine.
+ZE_CLI_STORE = "/tmp/ze-cli-store"
+ZE_CLI_USER = "interop"
+ZE_CLI_PASSWORD = "testpass"
+ZE_CLI_PORT = "2222"
+
+# The bcrypt form of ZE_CLI_PASSWORD, for the `system authentication user` entry a
+# scenario's ze.conf must carry. It is the same published cost-4 hash the functional
+# suite uses (test/plugin/authz-default.ci), so it is not a new secret.
+ZE_CLI_PASSWORD_HASH = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+
+
+def ze_cli(command, timeout=30):
+    """Run one CLI command against the Ze daemon in the lab container.
+
+    `ze cli` talks to the daemon over SSH and resolves its username from a
+    client-side zefs store. A container that never ran `ze init` has no store, so
+    the invocation fails with "no stored username and none supplied" before it
+    reaches the daemon. This seeds that store once, then supplies the password
+    through ze.ssh.password, which is exactly what the functional suite does
+    (test/plugin/authz-default.ci).
+
+    The scenario's ze.conf MUST enable the SSH server on ZE_CLI_PORT and carry the
+    ZE_CLI_USER account with ZE_CLI_PASSWORD_HASH. Nothing else in the lab starts a
+    listener, so a config without it refuses the connection.
+    """
+    seed = "printf '%s\\n%s\\n127.0.0.1\\n%s\\n' | ZE_CONFIG_DIR=%s ze init" % (
+        ZE_CLI_USER,
+        ZE_CLI_PASSWORD,
+        ZE_CLI_PORT,
+        ZE_CLI_STORE,
+    )
+    run = 'ZE_CONFIG_DIR=%s ZE_SSH_PASSWORD=%s ze cli -c "%s"' % (
+        ZE_CLI_STORE,
+        ZE_CLI_PASSWORD,
+        command,
+    )
+    return docker_exec(
+        ZE_CONTAINER,
+        ["sh", "-c", "[ -d %s ] || %s >/dev/null; %s" % (ZE_CLI_STORE, seed, run)],
+        timeout=timeout,
+    )
+
+
 # --- strongSwan helpers ------------------------------------------------------
 
 

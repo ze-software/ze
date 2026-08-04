@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; nothing deferred; window-size negotiation was never in scope and is conditional on a peer that does not exist. Create `plan/deferrals/fixit-ike-request-window.md` on the first deferral) |
-| Updated | 2026-07-30 |
+| Updated | 2026-08-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -20,8 +20,42 @@ fix it in this named spec, and implement it now.
 
 ## Task
 
-**Ze holds more than one IKE request outstanding, and it never negotiates a window that
-would allow that.** RFC 7296 Section 2.3 carries two obligations, and Ze meets neither.
+**Corrected 2026-08-04. The text below described the tree of 2026-07-30, before the
+window was implemented. It is rewritten here to describe the tree at HEAD.** The
+paragraphs that named four unguarded emitters are kept under "The tree of 2026-07-30",
+because the Acceptance Criteria and the Tests FAIL output still refer to them.
+
+### The state at HEAD
+
+`SA.reserveRequestWindow` (`internal/component/ike/engine/msgid.go`) refuses when
+`sa.requestOutstanding || sa.msgIDExhausted`, and every one of the seven request
+emitters reserves before it builds. RFC 7296 Section 2.3's "one outstanding request"
+obligation, row `RFC7296-2.3-2`, is met. The effective send window is the constant 1,
+so row `RFC7296-2.3-4` cannot be exceeded either.
+
+Ze DOES parse a peer SET_WINDOW_SIZE. `wire.ParseSetWindowSize` reaches
+`recordPeerWindowSize` (`msgid.go`), which stores `sa.PeerWindowSize`. Ze never SENDS
+one, and `reserveRequestWindow` never reads `PeerWindowSize`. The stored value is
+reported by `show vpn ipsec sa` and bounds nothing. The "never parses it" sentence
+below is therefore wrong at HEAD.
+
+### What was left to fix
+
+Three defects were named when this session opened. The independent review of their
+fix named three more, and the "Findings fixed" table below carries all six.
+
+| # | Defect | Producer |
+|---|--------|----------|
+| 1 | A Delete is DROPPED when the window is held, and is never remembered. Row `RFC7296-2.1-5` [MUST] asks the initiator to remember each request until its response arrives | `sendDeleteIKE`, `sendDeleteESP` (`engine/delete.go`) |
+| 2 | A refused reservation spends a Message ID, because `advanceMsgID` runs before `reserveRequestWindow` | `sendIKESATeardown` (`engine/delete.go`) |
+| 3 | `TestNegSharedSecretRefusesWrongLength` is tagged `RFC7296-1.3-2`, a row about the responder's INVALID_KE_PAYLOAD answer. The test builds no message and emits no Notify, so it cannot prove that row. It proves `RFC7296-3.4-1` | `internal/component/ike/engine/rfc7296_negotiation_test.go` |
+
+Defect 1 is the one that diverges state with a peer. A dropped Delete leaves the peer
+holding a Child SA or an IKE SA that Ze has torn down, until its own lifetime ends it.
+
+### The tree of 2026-07-30
+
+RFC 7296 Section 2.3 carries two obligations, and Ze met neither.
 
 `RFC7296-2.3-2`, level MUST. Section 2.3 states:
 
@@ -60,6 +94,7 @@ while a DPD probe CAN be outstanding.
 allows a larger window when the peer sends a SET_WINDOW_SIZE Notify.
 `NotifySetWindowSize` exists as a bare constant (`internal/component/ike/wire/payload_notify.go`).
 A tree-wide search finds no other use, so Ze never sends it and never parses it.
+**Void at HEAD: Ze parses it. See "The state at HEAD" above.**
 
 **One outstanding-request slot already exists, and it is not general.** `classifyInbound`
 (`engine/msgid.go`) tracks exactly one, `pendingRekey`. A Delete never occupies it.
@@ -546,10 +581,67 @@ every changed function.
      rests on. -->
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | A Delete is never remembered (`armRequestRetransmit` is not called) and is dropped outright when the window is held, against enrolled row `RFC7296-2.1-5` [MUST]. This spec created the drop | `internal/component/ike/engine/delete.go` `sendDeleteIKE`, `sendDeleteESP` | **Not fixed. Owner decision owed: arm the retransmit slot, or queue behind the held window** |
-| 2 | NOTE | `sendIKESATeardown` spends a Message ID before it reserves the window | `internal/component/ike/engine/delete.go` `sendIKESATeardown` | Not fixed. Latent |
-| 3 | NOTE | The goodbye Delete is dropped whenever a liveness probe is in flight | `internal/component/ike/engine/delete.go` `sendDeleteIKE` | Not fixed. Probably settled by finding 1's decision |
+| 1 | BLOCKER | A Delete is never remembered (`armRequestRetransmit` is not called) and is dropped outright when the window is held, against enrolled row `RFC7296-2.1-5` [MUST]. This spec created the drop | `internal/component/ike/engine/delete.go` `sendDeleteIKE`, `sendDeleteESP` | **Fixed 2026-08-04.** `writeDelete` (`delete.go`) arms the window's retransmit slot. The one caller that can meet a held window waits for the answer first (`sayGoodbye`, `established.go`) |
+| 2 | NOTE | `sendIKESATeardown` spends a Message ID before it reserves the window | `internal/component/ike/engine/delete.go` `sendIKESATeardown` | **Fixed 2026-08-04.** `SA.requestWindowAvailable` (`msgid.go`) tests the window before `advanceMsgID`, and the reservation still runs after it |
+| 3 | NOTE | The goodbye Delete is dropped whenever a liveness probe is in flight | `internal/component/ike/engine/delete.go` `sendDeleteIKE` | **Fixed 2026-08-04.** `sayGoodbye` (`established.go`) waits `goodbyeWindowWait` for the answer, then sends. It still sends nothing when the answer never comes, because RFC 7296 Section 2.3 forbids the second request |
 | 4 | NOTE | `pendingIKESwap` is not cleared on `runEstablished` return, so an unconfirmed SA and its `SK_*` survive into the next reconnect cycle (RFC 7296 Section 2.12) | `internal/component/ike/engine/established.go` `runEstablished` | Not fixed. Not this spec's producer |
+| 5 | BLOCKER | Found by the independent review OF the first fix. Abandoning the outstanding request before the goodbye is itself an RFC 7296 Section 2.3 violation: local bookkeeping does not make a second unanswered request legal | `internal/component/ike/engine/established.go` `maintainSA` stop branch | **Fixed 2026-08-04** by `sayGoodbye`. See the design note below |
+| 6 | BLOCKER | Found by the same review. After `maxRequestRetransmits` the request is FORGOTTEN while the SA runs on. RFC 7296 Section 2.1 offers two exits and that is neither | `internal/component/ike/engine/established.go` `serviceRequestWindow` | **Fixed 2026-08-04.** The SA is deemed failed, which is the section's second exit |
+| 7 | BLOCKER | Found by the same review. The deferral queue added by the first fix can NEVER fire: every non-test caller reaches a Delete sender with the window free | `internal/component/ike/engine/delete.go` `deferDelete` | **Fixed 2026-08-04** by deleting the queue. A mechanism that claims reliability and cannot deliver is worse than none |
+
+### The design, after the review (2026-08-04)
+
+The first attempt queued a refused Delete and freed the window before the goodbye. Two
+independent reviewers refused both halves, and re-reading the RFC confirmed them.
+
+RFC 7296 Section 2.3, `rfc/full/rfc7296.txt:1463`, verbatim:
+
+<!-- ste: ignore -->
+> An IKE endpoint MUST wait for a response to each of its messages before sending a subsequent message unless it has received a SET_WINDOW_SIZE Notify message from its peer
+
+RFC 7296 Section 2.1, `rfc/full/rfc7296.txt:1359`, verbatim:
+
+<!-- ste: ignore -->
+> IKE is a reliable protocol: the initiator MUST retransmit a request until it either receives a corresponding response or deems the IKE SA to have failed.
+
+Three consequences settle the design.
+
+| Question | Answer |
+|----------|--------|
+| CAN the goodbye ride out beside an unanswered probe? | No. §2.3 binds the SENDER. `sa.releaseRequestWindow()` changes Ze's bookkeeping and not what Ze has received |
+| What does the goodbye do instead? | Wait for the answer, bounded, then send. `sayGoodbye` waits `goodbyeWindowWait` (2s) over `ps.inbound`. A peer that has not answered in that time is the case DPD exists for, and a Delete it cannot answer is worth nothing |
+| What happens when a request is never answered? | The SA is deemed failed (§2.1's second exit), not the request forgotten |
+
+The deferral queue is gone. Its only refusal path in production was an exhausted Message
+ID space. There `maintainSA` marks the SA dead before any drain runs, so the queue
+fills and never empties.
+
+### Fixed 2026-08-04
+
+| Fix | Producer | Evidence |
+|-----|----------|----------|
+| The goodbye waits for the outstanding answer, then sends. It is not sent when that answer never comes | `PeerSession.sayGoodbye`, `PeerSession.waitForRequestWindow` (`established.go`) | `TestWinTeardownDoesNotHang`, three cases. Removing the wait reddens "window held and the peer answers" with "a graceful stop wrote no goodbye Delete". Sending regardless of the window reddens "window held and the peer stays silent" with "ze wrote 80 unexpected bytes before the sentinel" |
+| Every Delete is remembered and repeated until the peer answers it (`RFC7296-2.1-5`) | `PeerSession.writeDelete` (`delete.go`), through `SA.armRequestRetransmit` | `TestWinDeleteIsRememberedUntilAnswered`. Removing the arm reddens it with "the SA remembered 0 bytes, want the 80 it sent" |
+| An unanswered request fails the SA rather than being forgotten (`RFC7296-2.1-7`) | `PeerSession.serviceRequestWindow` (`established.go`) | `TestWinUnansweredRequestFailsTheSA`. Freeing the window without `StateDead` reddens it with "the unanswered request left the SA in state established, want StateDead" |
+| A refused teardown notify spends no Message ID | `SA.requestWindowAvailable` (`msgid.go`), read by `sendIKESATeardown` (`delete.go`) | `TestWinRefusedTeardownSpendsNoMessageID`. Restoring the advance-first order reddens it with "the refused teardown moved NextMsgID from 3 to 4" |
+| The window rule holds on a real wire against strongSwan | `startChildRekey` (`established.go`), `SA.reserveRequestWindow` (`msgid.go`) | `test/ipsec-interop/scenarios/24-delete-while-window-held`. With a probe of Ze's own unanswered, the Child SA soft trigger passes and Ze raises NO CREATE_CHILD_SA. Once the window frees, the same rekey goes out and its Delete follows. Removing the reservation reddens it with "Ze sent a CREATE_CHILD_SA rekey while its own liveness probe was unanswered" |
+| `TestNegSharedSecretRefusesWrongLength` is tagged `RFC7296-3.4-1`, not `RFC7296-1.3-2` | `internal/component/ike/engine/rfc7296_negotiation_test.go` | The test calls `crypto.NewDHExchange(...).SharedSecret` alone. It builds no message and emits no Notify, so it cannot prove a row about the responder's INVALID_KE_PAYLOAD answer. `TestNegRekeyRejectsMismatchedKEGroup` keeps both polarities of `RFC7296-1.3-2`, asserting `NotifyInvalidKEPayload` and the two octets naming the group. Section 3.4 binds the SENDER, and this test proves the same length rule on RECEIPT. **One reviewer dissents** and would leave the test untagged, because §3.4 is a sender obligation whose real proof is `crypto/rfc7296_dh_test.go`. Thomas's instruction named `RFC7296-3.4-1`, so that is what is recorded. The dissent is his to settle |
+
+**Not proven at interop: the goodbye's bounded wait.** Any construction against a live
+strongSwan either frees the window before the clear reaches the engine, or holds it past
+the two-second bound. The three cases are proven in Go with the mutation output above.
+
+Both test edits carry the `rfc-test-change-approved: 2026-08-04` marker. Thomas's standing
+authorisation of that date covers an edit that makes a test prove its RFC MORE faithfully.
+Neither edit reduces what a test proves: the teardown case moved from asserting silence to
+asserting the goodbye arrives and carries an IKE Delete payload.
+
+**One defect outside this spec was fixed on the way, because the interop proof needed it.**
+`ze cli` had never worked in the IPsec interop lab. No container ran `ze init`, and no
+scenario's `ze.conf` started an SSH listener, so scenario `10-clear-reestablish` failed at
+its first command with "no credentials for 127.0.0.1:2222". `lab.py` now carries `ze_cli`,
+and scenarios 10 and 24 carry the account and the listener. Scenario 10 passes for the
+first time.
 
 ## Pre-Commit Verification
 

@@ -174,7 +174,7 @@ func (ps *PeerSession) maintainSA(
 			// TerminateAllSAs runs on the RPC goroutine and must not touch it. Best-effort
 			// UDP: a lost Delete falls back to the DPD self-heal path (R-4).
 			if ps.graceful.Load() {
-				ps.sendDeleteIKE(sa, tr, log)
+				ps.sayGoodbye(sa, tr, dp, log)
 			}
 			ps.cleanupChild(dp, bus, log)
 			return nil
@@ -445,9 +445,10 @@ func (ps *PeerSession) startIKERekey(sa *SA, ikeGroup ipsec.IKEGroup, tr *transp
 // RFC 7296 Section 2.1: a retransmission carries the Message ID of the request it
 // repeats. A repeat therefore spends no further id.
 //
-// Only a request with no retransmission machine of its own arms the slot. Today that is
-// the INVALID_MESSAGE_ID notify. The rekey and the DPD probe keep their own copies, and
-// the guard below excludes both, so neither is repeated twice.
+// Only a request with no retransmission machine of its own arms the slot. That is the
+// INVALID_MESSAGE_ID notify and every Delete (writeDelete, delete.go). The rekey and
+// the DPD probe keep their own copies, and the guard below excludes both, so neither is
+// repeated twice.
 func (ps *PeerSession) serviceRequestRetransmit(sa *SA, dpd *dpdState, tr *transport.UDPTransport, now time.Time, log *slog.Logger) {
 	if ps.pendingRekey != nil || dpd.awaitingReply() {
 		return
@@ -461,14 +462,24 @@ func (ps *PeerSession) serviceRequestRetransmit(sa *SA, dpd *dpdState, tr *trans
 		"msgid", sa.requestMsgID, "attempt", sa.requestAttempts)
 }
 
-// serviceRequestWindow frees a request window that no other timer can free. A rekey
-// ends the session once its retransmissions run out. A DPD probe ends its hold two
-// ways. The peer stays silent past the whole liveness budget. Or an authenticated
-// inbound proves the peer alive, and the inbound case retires probe and window
-// together (retireRequest, msgid.go).
+// serviceRequestWindow ends an SA whose outstanding request was never answered, once
+// every repeat of it has gone out and requestWindowTimeout has passed.
 //
-// Both therefore bound their own hold. A Delete has neither a retransmission nor a
-// deadline, so only a Delete reaches requestWindowTimeout. RFC 7296 §1.4, §2.3.
+// RFC 7296 Section 2.1 MUST: "IKE is a reliable protocol: the initiator MUST retransmit
+// a request until it either receives a corresponding response or deems the IKE SA to
+// have failed. In the latter case, the initiator discards all state associated with the
+// IKE SA and any Child SAs that were negotiated using that IKE SA." The section offers
+// two exits and no third. Freeing the window and carrying on was that third exit: the
+// request was forgotten while the SA it belonged to kept running.
+//
+// StateDead is how this loop discards that state. Its own branch runs at the top of the
+// next tick, calls cleanupChild, and returns errSADeletedByPeer, so the session
+// reconnects rather than going quiet.
+//
+// A rekey and a DPD probe each end their own hold. The first uses its retransmit
+// budget, and the second uses the liveness budget. Both already fail the SA when they
+// run out, so the guard below leaves them to it. What reaches here is a Delete or the
+// INVALID_MESSAGE_ID notify.
 func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time, log *slog.Logger) {
 	if ps.pendingRekey != nil || dpd.awaitingReply() {
 		return
@@ -476,8 +487,76 @@ func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time
 	if !sa.requestWindowStale(now) {
 		return
 	}
+	log.Warn("ike: the peer never answered our request, failing the SA",
+		"peer", ps.peerName, "msgid", sa.requestMsgID, "attempts", sa.requestAttempts)
 	sa.releaseRequestWindow()
-	log.Debug("ike: freed the request window, the answer never arrived", "peer", ps.peerName)
+	sa.State = StateDead
+}
+
+// goodbyeWindowWait bounds how long an operator `clear` waits for the answer to a
+// request that is already outstanding, before it gives up on saying goodbye.
+//
+// A wait is needed at all because RFC 7296 Section 2.3 MUST: "An IKE endpoint MUST wait
+// for a response to each of its messages before sending a subsequent message". Ze
+// declares a window of one, so the goodbye Delete cannot ride out beside an unanswered
+// liveness probe. Abandoning the probe locally does not change what the endpoint has
+// received, so it does not make the second request legal.
+//
+// It is SHORT because StopGraceful (reconcile.go) blocks the operator's command on this
+// loop's return. An answer to a probe on a live peer arrives in one round trip. A peer
+// that has not answered in two seconds is the case dead-peer detection exists for, and
+// a Delete it cannot answer is worth nothing.
+const goodbyeWindowWait = 2 * time.Second
+
+// sayGoodbye tells the peer this SA is being destroyed (RFC 7296 Section 1.4), and
+// waits first when Section 2.3's one request window is still held.
+//
+// This is the only Delete sender that can meet a held window. The two others run on the
+// rekey response that freed it (inbound.go). A queue does not serve this one. The owner
+// loop returns on the statement after this call, so no later tick can drain a queue.
+func (ps *PeerSession) sayGoodbye(sa *SA, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) {
+	if sa.requestOutstanding {
+		log.Debug("ike: waiting for the outstanding request before saying goodbye",
+			"peer", ps.peerName, "msgid", sa.requestMsgID, "bound", goodbyeWindowWait)
+		ps.waitForRequestWindow(sa, tr, dp, log)
+	}
+	if sa.requestOutstanding {
+		log.Info("ike: goodbye not sent, the peer never answered our last request",
+			"peer", ps.peerName, "msgid", sa.requestMsgID)
+		return
+	}
+	ps.sendDeleteIKE(sa, tr, log)
+}
+
+// waitForRequestWindow reads inbound datagrams until the outstanding request is
+// answered or goodbyeWindowWait passes. Only an AUTHENTICATED answer frees the window
+// (answerAuthenticatedResponse, msgid.go), so a forged datagram cannot end the wait.
+//
+// It runs on the owner goroutine, the only reader of ps.inbound, so the normal loop's
+// exclusive access to the SA still holds.
+//
+// The session is being destroyed, so an exchange that completes during the wait
+// produces state nothing will use. An IKE SA from a rekey response is forgotten here
+// rather than adopted. The caller's cleanupChild removes whatever Child SA is current.
+func (ps *PeerSession) waitForRequestWindow(sa *SA, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) {
+	deadline := time.NewTimer(goodbyeWindowWait)
+	defer deadline.Stop()
+	for {
+		select {
+		case pkt := <-ps.inbound:
+			out := ps.handleOwnedInbound(sa, pkt, tr, dp, log)
+			if out.newSA != nil {
+				// RFC 7296 Section 2.12: an SA nobody will adopt still holds SK_*
+				// and the material that recomputes them.
+				out.newSA.forgetKeys()
+			}
+			if !sa.requestOutstanding {
+				return
+			}
+		case <-deadline.C:
+			return
+		}
+	}
 }
 
 // sendRaw sends already-built wire bytes on the SA's OWN send path.
