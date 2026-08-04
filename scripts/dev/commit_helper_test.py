@@ -1088,6 +1088,126 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
         self.assertEqual(rc, 2, msg)
 
 
+class TestBrokenHeadFixEscape(unittest.TestCase):
+    """A broken HEAD must not block the commit that fixes it.
+
+    VALIDATES: `ze-tracked-build-check` is the one structural gate whose red
+    lives in HEAD, not in the working tree, so it is cleared BY a commit rather
+    than before one. `--broken-head-fix "<reason>"` lets that commit through, and
+    only that one: the escape applies when tracked-build is the ONLY structural
+    red.
+    PREVENTS: the deadlock the gate would otherwise create. A commit that lands a
+    consumer without its producer reddens tracked-build; the structural refusal
+    then blocks every commit including the one landing the producer, leaving the
+    owner-only `--structural-red-ok` as the sole route. HEAD stays broken for
+    everybody who builds it until the owner is available.
+    """
+
+    def _run(self, reds: list[str], extra: list[str]):
+        import contextlib
+        import io
+
+        saved = (ch.verify_status, ch.structural_gate_reds)
+        ch.verify_status = lambda repo: ("stale", "structural red")
+        ch.structural_gate_reds = lambda repo: reds
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                _git(root, "init", "-q")
+                _git(root, "config", "user.email", "t@example.com")
+                _git(root, "config", "user.name", "t")
+                _git(root, "config", "commit.gpgsign", "false")
+                (root / "f.txt").write_text("hello\n")
+                err = io.StringIO()
+                out = io.StringIO()
+                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+                    rc = ch.main(
+                        [
+                            "--repo",
+                            str(root),
+                            "create",
+                            "--session",
+                            "abcd1234",
+                            "--subject",
+                            "fixture",
+                            "--file",
+                            "f.txt",
+                            "--lesson-not-needed",
+                            "fixture test for the broken-head escape",
+                        ]
+                        + extra
+                    )
+                return rc, err.getvalue() + out.getvalue()
+        finally:
+            ch.verify_status, ch.structural_gate_reds = saved
+
+    def test_a_broken_head_alone_blocks_without_the_flag(self):
+        rc, msg = self._run([ch.TRACKED_BUILD_GATE], [])
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("STRUCTURAL GATE", msg)
+
+    def test_the_refusal_names_the_escape(self):
+        # Telling the reader to "re-run a full verify until green" is advice that
+        # cannot work here: only a commit clears this red.
+        _, msg = self._run([ch.TRACKED_BUILD_GATE], [])
+        self.assertIn("--broken-head-fix", msg)
+
+    def test_the_flag_lets_the_fixing_commit_through(self):
+        rc, msg = self._run(
+            [ch.TRACKED_BUILD_GATE],
+            [
+                "--broken-head-fix",
+                "lands the PeerInfo field peer.go already reads",
+                "--unverified",
+                "record is stale because HEAD does not compile",
+            ],
+        )
+        self.assertEqual(rc, 0, msg)
+        # Loud, or a broken HEAD reads the same as a green one in the transcript.
+        self.assertIn("HEAD does not compile", msg)
+
+    def test_the_flag_requires_a_reason(self):
+        rc, msg = self._run([ch.TRACKED_BUILD_GATE], ["--broken-head-fix", "   "])
+        self.assertEqual(rc, 2, msg)
+        # Assert the STRUCTURAL refusal specifically: a blank reason would exit 2
+        # through the later not-FRESH-green check too, so the exit code alone
+        # does not discriminate.
+        self.assertIn("STRUCTURAL GATE", msg)
+
+    def test_it_does_not_double_as_an_unverified(self):
+        # It clears the STRUCTURAL refusal and nothing else. `verify_status` goes
+        # stale for flaky test reds and for age too, and a reason written about
+        # HEAD does not speak for those, so --unverified is still required.
+        rc, msg = self._run([], ["--broken-head-fix", "no structural red here"])
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("FRESH-green", msg)
+
+    def test_it_does_not_wave_through_a_stale_record_even_when_head_is_broken(self):
+        # The half the previous case misses: tracked-build IS red, the flag IS
+        # applied, and the record may ALSO be stale for reasons the reason given
+        # says nothing about. --unverified is still owed.
+        rc, msg = self._run(
+            [ch.TRACKED_BUILD_GATE], ["--broken-head-fix", "lands the missing producer"]
+        )
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("FRESH-green", msg)
+
+    def test_the_refusal_names_both_flags(self):
+        _, msg = self._run([ch.TRACKED_BUILD_GATE], [])
+        self.assertIn("--broken-head-fix", msg)
+        self.assertIn("--unverified", msg)
+
+    def test_it_cannot_wave_through_another_structural_red(self):
+        # The narrowness IS the guard: a lint or tier red riding alongside a
+        # broken HEAD must still refuse.
+        rc, msg = self._run(
+            [ch.TRACKED_BUILD_GATE, "ze-tier-check"],
+            ["--broken-head-fix", "lands the missing producer"],
+        )
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("ze-tier-check", msg)
+
+
 class TestStructuralGatesAreLiveStages(unittest.TestCase):
     """STRUCTURAL_GATES must only name stages `make ze-verify` actually runs.
 

@@ -159,6 +159,34 @@ See `make help-test` for the full list.
 
 Common case (one group changed): ~2 min total instead of 6+.
 
+### The one stage that does not read your working tree
+
+Every stage above compiles and runs the files on your disk, uncommitted ones
+included. `ze-tracked-build-check` (`scripts/checks/tracked_build.go`) is the
+exception: it extracts the commit with `git archive` and compiles the extracted
+tree, so it sees only what git holds.
+
+That is the population that breaks when a commit takes a consumer and leaves its
+producer uncommitted. The build is green on your disk and red for everybody who
+clones. Run it after the commit script when the commit carried Go:
+
+```sh
+make ze-tracked-build-check              # HEAD
+make ze-tracked-build-check REV=7abe8a07e  # any commit
+```
+
+It builds six flavors over `./...`: `ze_core ze_distro`, `ze_test` and
+`ze_core ze_appliance` each carry the feature tags that commit declared in
+`feature-gates.txt`; `ze_setup`, `ze_core ze_setup` and `ze_installer` carry
+none, matching the Makefile targets that build them. The installer flavor pins
+`GOOS=linux`, and every flavor must select the tag-gated FILES its own tags own
+(`ze_core_dispatch.go` for the core flavors, `setup_dispatch.go` for `ze_setup`,
+and so on). Naming the package is not enough: `cmd/ze/main.go` carries no build
+constraint, so the package resolves under any tag set at all, and `go build
+./...` skips every file its constraints exclude while still exiting 0.
+About 45 seconds warm. It does not compile `_test.go` files, because `go build`
+never does.
+
 Output is captured to `tmp/ze-verify.log`. On failure:
 
 ```sh
@@ -210,3 +238,4 @@ fuzz corpus entry becomes a regression test automatically.
 | Mutation test changed files | `make ze-mutation-changed` |
 | Mutation test one package | `make ze-mutation-pkg PKG=./internal/core/textbuf/` |
 | Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
+| Check the commit I just made compiles | `make ze-tracked-build-check` |

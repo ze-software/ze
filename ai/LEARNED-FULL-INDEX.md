@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 915 summaries
+Total: 917 summaries
 
 ## 400-499
 
@@ -974,3 +974,5 @@ Total: 915 summaries
 | 1338 | one gate where the handler runs, not one guard per producer | `plan/learned/1338-relay-withdraw-attribute-gate.md` |
 | 1339 | a capture tee belongs on the bytes, not on the dispatch hook | `plan/learned/1339-capture-tee-before-enforcement.md` |
 | 1340 | fixit-bgp-per-family-prefix-enforcement | `plan/learned/1340-fixit-bgp-per-family-prefix-enforcement.md` |
+| 1341 | fixit-isis-lsdb-entry-race | `plan/learned/1341-fixit-isis-lsdb-entry-race.md` |
+| 1342 | Tracked Build Gate | `plan/learned/1342-tracked-build-gate.md` |

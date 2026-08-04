@@ -738,13 +738,18 @@ def verify_status(repo: Path) -> tuple[str, str]:
 # TEST stages, these NEVER fail for flaky or environmental reasons: a red means
 # the tree is structurally broken -- a module-tier misplacement, a lint or vet
 # violation, a broken plugin boundary, an unresolved iface, a stale generated
-# file, or a stale wiring index. They are therefore NOT eligible to be parked
+# file, a stale wiring index, or a HEAD that does not compile
+# (ze-tracked-build-check). They are therefore NOT eligible to be parked
 # in plan/known-failures/
 # or waved through with --unverified. Every name here MUST be a stage that
 # stagesForMode actually emits, or it matches nothing and gates nothing;
 # that is enforced by TestStructuralGatesAreLiveStages (Go, scripts/status)
 # and test_structural_gates_are_live_stages (Python, scripts/dev).
 # See ai/rules/git-safety.md.
+# The stage whose red is cleared BY a commit rather than before one, because it
+# judges what git already holds. See the escape in create().
+TRACKED_BUILD_GATE = "ze-tracked-build-check"
+
 STRUCTURAL_GATES = frozenset(
     {
         "ze-lint",
@@ -755,6 +760,7 @@ STRUCTURAL_GATES = frozenset(
         "ze-regen-check-readonly",
         "ze-verify-wiring-docs",
         "ze-vet-evidence",
+        TRACKED_BUILD_GATE,
     }
 )
 
@@ -2248,13 +2254,34 @@ def create(args: argparse.Namespace) -> int:
     vstate, detail = verify_status(repo)
     if vstate == "stale":
         # A DETERMINISTIC STRUCTURAL GATE red (tier/lint/vet/plugin-boundary/
-        # iface-resolution/regen-check-readonly/wiring-docs) is never flaky or
-        # environmental: it means the tree is structurally broken. Such a red is
+        # iface-resolution/regen-check-readonly/wiring-docs/tracked-build) is
+        # never flaky or environmental: the tree is structurally broken. Such a red is
         # NOT bypassable by --unverified or a plan/known-failures/ known-red
         # (those cover flaky TEST stages only). This closes the hole that let a
         # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
         # shipped red on main. See ai/rules/git-safety.md.
         gate_reds = structural_gate_reds(repo)
+        # ze-tracked-build-check is the one structural gate whose red lives in
+        # HEAD rather than in the working tree, so it is NOT cleared before the
+        # next commit -- it is cleared BY it, by landing the producer that was
+        # left behind. Refusing every commit until it goes green is a deadlock:
+        # the gate blocks the only commit that can fix it, and the sole escape
+        # would be the owner-only --structural-red-ok. This flag is that escape
+        # made reachable, and it is deliberately NARROW: it applies only when
+        # tracked-build is the ONLY structural red, so it can never wave through
+        # a lint, tier, vet or wiring failure riding alongside it.
+        broken_head_declared = bool((args.broken_head_fix or "").strip())
+        if set(gate_reds) == {TRACKED_BUILD_GATE} and broken_head_declared:
+            print(
+                "WARNING: HEAD does not compile ("
+                + TRACKED_BUILD_GATE
+                + " is red).\n  This commit is declared to be the fix: "
+                + args.broken_head_fix.strip()
+                + "\n  Run `make ze-tracked-build-check` after the script and confirm it is"
+                " green.\n  If it is not, HEAD is still broken for everybody who builds it.",
+                file=sys.stderr,
+            )
+            gate_reds = []
         # ONE escape, owner-only, and deliberately NOT --unverified: keeping it a
         # separate flag means the flaky-test path can never reach this branch by
         # accident, and the reason has to be written down. Without any escape a
@@ -2279,21 +2306,54 @@ def create(args: argparse.Namespace) -> int:
                 "ze-verify has a DETERMINISTIC STRUCTURAL GATE red that "
                 "--unverified cannot bypass: " + ", ".join(gate_reds) + ".\n"
                 "  Structural gates (tier/lint/vet/plugin-boundary/iface-resolution/\n"
-                "  regen-check-readonly/wiring-docs) never fail for flaky or environmental\n"
-                "  reasons -- a red means the tree is structurally broken. They are\n"
-                "  NOT eligible for --unverified or a plan/known-failures/ known-red.\n"
-                "  Fix it at the source (run `make " + gate_reds[0] + "` to see the\n"
-                "  failure). To CLEAR this refusal you must refresh the verify record:\n"
-                "  only `make ze-verify` (or `make ze-verify-changed`) rewrites\n"
+                "  regen-check-readonly/wiring-docs/tracked-build) never fail for flaky\n"
+                "  or environmental reasons -- a red means the tree is structurally\n"
+                "  broken. They are NOT eligible for --unverified or a\n"
+                "  plan/known-failures/ known-red.\n"
+                + (
+                    "  " + TRACKED_BUILD_GATE + " is red: HEAD ITSELF does not compile,\n"
+                    "  usually because a commit took a consumer and left its producer\n"
+                    "  uncommitted. That red is cleared BY a commit, not before one. If THIS\n"
+                    '  commit lands the missing producer, pass --broken-head-fix "<reason>"\n'
+                    '  (and --unverified "<reason>" as well: the verify record is not green,\n'
+                    "  and a reason written about HEAD does not speak for anything else).\n"
+                    if TRACKED_BUILD_GATE in gate_reds
+                    else ""
+                )
+                + "  Fix it at the source (run `make " + gate_reds[0] + "` to see the\n"
+                "  failure). "
+                + (
+                    "For every gate EXCEPT tracked-build, to CLEAR this\n"
+                    "  refusal you must refresh the verify record:\n"
+                    if TRACKED_BUILD_GATE in gate_reds
+                    else "To CLEAR this refusal you must refresh the verify record:\n"
+                )
+                + "  only `make ze-verify` (or `make ze-verify-changed`) rewrites\n"
                 "  tmp/ze-verify-failures.json -- `make "
                 + gate_reds[0]
                 + "` alone does\n"
                 "  NOT. Re-run a full verify until green and this clears."
+                + (
+                    "\n  tracked-build is the exception: only the commit that lands the\n"
+                    "  missing producer clears it, which is what --broken-head-fix is for.\n"
+                    "  That flag is honored ONLY when tracked-build is the sole structural\n"
+                    "  red, so fix any gate listed beside it first."
+                    if TRACKED_BUILD_GATE in gate_reds
+                    else ""
+                )
             )
         # --structural-red-ok acknowledges a strictly WORSE condition than
         # --unverified (a red structural gate, not a flaky test), so it satisfies
         # this check too rather than demanding both flags for one decision.
-        if not args.unverified and not (args.structural_red_ok or "").strip():
+        # --broken-head-fix is deliberately NOT in this list. It answers one
+        # question -- "may the commit that repairs a broken HEAD be prepared" --
+        # and `verify_status` goes stale for flaky test reds and for age as well.
+        # Letting a reason written about HEAD wave those through would make it a
+        # self-service --unverified. The fixing commit passes both flags.
+        if (
+            not args.unverified
+            and not (args.structural_red_ok or "").strip()
+        ):
             raise UsageError(
                 "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
                 "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
@@ -2528,6 +2588,15 @@ def build_parser() -> argparse.ArgumentParser:
     create_cmd.add_argument(
         "--lesson-not-needed",
         help="explicit reason no learned summary is useful for this commit",
+    )
+    create_cmd.add_argument(
+        "--broken-head-fix",
+        help="reason to allow a commit while ze-tracked-build-check is red, i.e. "
+        "HEAD itself does not compile. Use when THIS commit lands the producer a "
+        "previous commit left behind. Accepted only when tracked-build is the ONLY "
+        "structural red, so it can never wave through a lint, tier or wiring failure. "
+        "It clears the STRUCTURAL refusal and nothing else: pass --unverified as "
+        "well, since the verify record is not green either",
     )
     create_cmd.add_argument(
         "--unverified",

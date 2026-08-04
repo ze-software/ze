@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 304 design docs, 3237 files
+Total: 305 design docs, 3240 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2739,6 +2739,10 @@ Total: 304 design docs, 3237 files
 - `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
 - `internal/component/bgp/reactor/forward_dedup.go` -- one materialization per policy group
 
+## `plan/learned/1342-tracked-build-gate.md`
+
+- `scripts/checks/tracked_build.go` -- compile what git holds
+
 ## `plan/learned/415-prefix-data.md`
 
 - `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
@@ -4448,6 +4452,8 @@ Total: 304 design docs, 3237 files
 
 | File | Topic |
 |------|-------|
+| `cmd/ze/hub/main_reload_pki_test.go` | reload ordering (AC-10) and rollback (R-3) |
+| `cmd/ze/hub/service_web_tls_test.go` | hub web TLS material selection tests |
 | `internal/component/pki/tls.go` | server TLS material from the PKI store |
 | `internal/component/pki/tls_test.go` | server TLS material tests |
 | `internal/component/web/doctor.go` | doctor check for environment.web.certificate |

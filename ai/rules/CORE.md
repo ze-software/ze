@@ -34,6 +34,7 @@ Rules: 8 of 26. Reasons: no past task would surface it, precedence rung 1/2, the
 | Your commit omits a shared plan file you edited | Check `git log -1 -- <file>` before assuming the edit was lost: another session probably committed it already. |
 | You see foreign rows in a shared plan file's diff | That is expected, not misconduct. Do not "clean" them out; you would revert another session's work. |
 **Explicit commit requests are a fast path.** When the user asks for a
+**One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
@@ -42,7 +43,7 @@ Rules: 8 of 26. Reasons: no past task would surface it, precedence rung 1/2, the
 **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
 8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 **`git rm` safety:** before using `git rm` in a commit script, verify
 **Helper format:**
@@ -51,7 +52,9 @@ Rules: 8 of 26. Reasons: no past task would surface it, precedence rung 1/2, the
 ## Commit Granularity
 Single-focus commits: one logical change per commit.
 ## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
-When several sessions work the same tree, each session MUST commit the features it is in charge of implementing -- never leave your own finished work uncommitted for another session to sweep or strand.
+**A FAILED commit leaves the index STAGED, and the next session's commit inherits
+it.
+**The failure mode is invisible from the failed run.** It exits non-zero, prints
 ## Before Any Commit
 ### Step 0: Does `ze-verify` apply?
 BLOCKING only when the commit could plausibly affect build, tests, or generated code.
@@ -66,7 +69,16 @@ BLOCKING only when the commit could plausibly affect build, tests, or generated 
 `make ze-verify` (timeout 240s).
 ### Structural Gates Are Never Known-Red (BLOCKING)
 The item-2 "log to `plan/known-failures/`" path is for **non-deterministic** failures only -- flaky or environmental TEST reds (load-sensitive races, GC-pressure pool flakes, host-specific listener probes).
-**The one escape is owner-only: `--structural-red-ok "<reason>"`.** It is a
+**The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
+### Your Working Tree Is Not What You Committed (BLOCKING)
+**Nothing else in this repository COMPILES what git holds.** `make ze`,
+`ze-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and run your WORKING TREE, uncommitted and untracked files included.
+| Situation | Do |
+|-----------|-----|
+| You are about to `--file` a consumer | Name the file that DEFINES every symbol it newly uses, and check that file is in the same `--file` list or already committed (`git log -1 -- <path>`) |
+| The commit script has just run and it carried Go | Run `make ze-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
+| It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
+**What it does NOT read: test files.** `go build` never compiles `_test.go`, so a
 ### Thomas Owner Override: Commit Without Verify
 Thomas owns the repository and may explicitly override the `ze-verify` requirement for commit-script preparation.
 1. prepare a commit script, and
@@ -107,7 +119,7 @@ TREE, so it reads their half-finished edits too, and a fully green run is unreac
 **A deterministic STRUCTURAL gate is still never waved through** (see "Structural
 **Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
 ### ONCE, AT THE END. Never during development (BLOCKING)
-**`make ze-verify` is a 22-stage full gate and takes 25 to 30 minutes. Run it ONE
+**`make ze-verify` is a 24-stage full gate and takes 25 to 30 minutes. Run it ONE
 time, when the work is finished and you are about to prepare the commit script.** Running it to "check in" mid-change is the single most expensive habit available in this repository, and it buys nothing a scoped check...
 **Run what the change touches.** Every surface has one owning target, and it costs
 **Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
@@ -123,6 +135,7 @@ time, when the work is finished and you are about to prepare the commit script.*
 | A `*.yang` file or a `ze:command` | `make ze-doc-test`, `make ze-cli-grammar-check` |
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
 | A new package's placement | `make ze-tier-check` |
+| Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-verify-changed` |
 **When the table has no row for what you touched, derive it.** `mk/*.mk` names every

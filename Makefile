@@ -3,8 +3,9 @@
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
-.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet ze-ci-dispatch-check
+.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record
+.PHONY: ze-tracked-build-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-regen ze-regen-check ze-regen-check-readonly ze-arch-map ze-arch-map-check
@@ -530,6 +531,17 @@ ze-port-defaults-check:
 	@$(GO) run scripts/checks/port_defaults.go --selftest
 	@$(GO) run scripts/checks/port_defaults.go
 
+# YANG leaf mention report (spec-improve-7 AC-8). ADVISORY, and deliberately in
+# NO verify stage: the signal is a heuristic (a leaf name that appears in no
+# string literal of the owning package is PROBABLY never read), so it reports
+# and exits 0. The blocking half of that spec is the root-claim gate in
+# internal/component/plugin/all/config_claims_test.go, which runs under
+# ze-unit-test. --selftest first proves the scan fires on a fixture whose
+# answer is known; TestYANGLeafMentionReport (scripts/checks) runs the same.
+ze-yang-leaf-mentions:
+	@$(GO) run scripts/checks/yang_leaf_mentions.go --selftest
+	@$(GO) run scripts/checks/yang_leaf_mentions.go
+
 # Test-sensitivity ratchet (spec-test-health-dashboard AC-10/AC-11): a test that
 # cannot fail, and a test file no build tag reaches, both read as coverage while
 # providing none. Neither is detectable by any count of tests, which is why the
@@ -540,6 +552,22 @@ ze-port-defaults-check:
 ze-test-sensitivity-check:
 	@$(GO) run scripts/checks/inert_tests.go --selftest
 	@$(GO) run scripts/checks/inert_tests.go --check
+
+# Tracked-build gate (plan/learned/1342-tracked-build-gate.md): compile the tree
+# GIT HOLDS, which is the one population no other check here compiles. Every
+# other gate builds the working tree, so a consumer committed without its
+# producer is green for its author and broken for anybody who builds the commit
+# -- four commits broke `make ze` at HEAD that way on 2026-08-04.
+#
+# --selftest first proves the two vacuity guards still fire: `go build ./...`
+# exits 0 over a pattern that matched nothing buildable, so a flavor that
+# compiled zero packages would otherwise report success.
+#
+# REV=<commit-ish> judges another commit (`make ze-tracked-build-check REV=7abe8a07e`).
+# The extracted tree is removed at the end; add ARGS=--keep to inspect it.
+ze-tracked-build-check:
+	@$(GO) run scripts/checks/tracked_build.go --selftest
+	@$(GO) run scripts/checks/tracked_build.go $(if $(REV),--rev=$(REV)) $(ARGS)
 
 # Regenerate the testing-state page (docs/features/test-health.md), its structured
 # sibling test/health/latest.json, and the ratchet baseline. Output is a pure
@@ -968,6 +996,9 @@ help-dev:
 	@echo "    ze-validate-commands     YANG command tree vs registered handlers"
 	@echo "    ze-consistency           Code/doc consistency: design refs, cross-refs, stale refs"
 	@echo "    ze-verify-wiring-docs     Changed-file-aware wiring, docs, command, and inventory gate"
+	@echo ""
+	@echo "  Commit integrity:"
+	@echo "    ze-tracked-build-check   Compile the tree GIT HOLDS (REV=<sha> for another commit)"
 	@echo ""
 	@echo "  Spec management:"
 	@echo "    ze-spec-status           Spec inventory with progress status"

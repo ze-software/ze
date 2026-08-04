@@ -88,6 +88,7 @@ Use these before inventing a new mechanism:
 | Command inventory | `make ze-command-list`, `make ze-command-list-json` |
 | Spec progress | `make ze-spec-status`, `make ze-spec-status-json` |
 | Generated plugin imports | `make ze-plugin-imports-check` |
+| Whether the tree GIT HOLDS compiles, as opposed to the working tree every other gate reads | `make ze-tracked-build-check` (`REV=<sha>` judges another commit). Runs in `ze-verify`, both modes, and is a structural gate in `scripts/dev/commit_helper.py` |
 | Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
 
 **If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, add the missing discovery link before claiming completion.**

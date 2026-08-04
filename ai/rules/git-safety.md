@@ -53,6 +53,9 @@ script and run it immediately. Do not re-audit the implementation, run late
 completeness/remaining-work tables, inspect speculative companion artifacts,
 or rerun lint/tests just because commit was requested. Inspect only enough
 state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
+**One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
+after the script has run** (step 7). It judges the commit you just made, which no
+run before that commit could see.
 If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
@@ -65,7 +68,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
    **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
 8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
@@ -248,13 +251,28 @@ failures only -- flaky or environmental TEST reds (load-sensitive races,
 GC-pressure pool flakes, host-specific listener probes). A **deterministic
 structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
 `ze-vet-evidence`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
-`ze-regen-check-readonly`, and `ze-verify-wiring-docs` fail only when the tree is
-structurally broken (a misplaced module tier, a lint/vet violation, a broken
-plugin boundary, an unresolved iface, a stale generated file, a stale wiring
-index). Such a red must be fixed at the source before any commit -- do not park
-it, do not `--unverified` past it.
+`ze-regen-check-readonly`, `ze-verify-wiring-docs`, and `ze-tracked-build-check`
+fail only when the tree is structurally broken (a misplaced module tier, a
+lint/vet violation, a broken plugin boundary, an unresolved iface, a stale
+generated file, a stale wiring index, a HEAD that does not compile). Such a red
+must be fixed at the source before any commit -- do not park it, do not
+`--unverified` past it.
 
-**The one escape is owner-only: `--structural-red-ok "<reason>"`.** It is a
+`ze-tracked-build-check` is the one entry whose red is cleared BY a commit
+rather than before one. It judges what git already holds, so a broken HEAD is
+fixed by committing the producer a previous commit left behind, and every other
+gate on the list is fixed in the working tree first. Refusing every commit until
+it goes green would therefore deadlock: the refusal would block the only commit
+that can lift it. **`--broken-head-fix "<reason>"` is that commit's route
+through**, and it is narrow by construction: `commit_helper.py` accepts it only
+when tracked-build is the ONLY structural red, so a lint, tier or wiring failure
+riding alongside still refuses. Run `make ze-tracked-build-check` after the
+script and confirm it went green. If it did not, HEAD is still broken for
+everybody who builds it.
+
+**The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
+narrow `--broken-head-fix` above is the only other, and it reaches one gate).
+It is a
 SEPARATE flag from `--unverified` precisely so the flaky-test path can never
 reach this branch, it refuses an empty reason, and it prints the red gate names
 with the reason to stderr so a red tree can never look green in a transcript.
@@ -270,6 +288,36 @@ fixing your own red (`ai/rules/completion.md`).
 `ze-regen-check-readonly` qualifies on the rule's own terms: a stale generated
 file is deterministic, reproducible, and fixed by `make ze-regen` (or the
 specific `--fix` the failing check names). It is never flaky or environmental.
+
+### Your Working Tree Is Not What You Committed (BLOCKING)
+
+**Nothing else in this repository COMPILES what git holds.** `make ze`,
+`ze-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
+run your WORKING TREE, uncommitted and untracked files included. (One gate does
+read the commit: `commit_helper.py` judges discovery-index freshness against a
+materialized HEAD. It regenerates indexes; it compiles nothing.) So a commit
+that takes a CONSUMER while its PRODUCER stays uncommitted is green for you and
+broken for everybody who builds what git holds. On 2026-08-04 four commits broke
+`make ze` at HEAD that way in one day (7abe8a07e, 025a74b72, aa1b7a4d4,
+fa372140b), with every gate green at the moment each was made. It is a blind
+spot, not four accidents.
+
+`make ze-tracked-build-check` (`scripts/checks/tracked_build.go`) is the one
+check that reads what git holds: it extracts the commit with `git archive` and
+compiles six build flavors of the extracted tree. Three rules follow.
+
+| Situation | Do |
+|-----------|-----|
+| You are about to `--file` a consumer | Name the file that DEFINES every symbol it newly uses, and check that file is in the same `--file` list or already committed (`git log -1 -- <path>`) |
+| The commit script has just run and it carried Go | Run `make ze-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
+| It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
+
+`REV=<commit-ish>` judges any commit, so a break found later is bisectable:
+`make ze-tracked-build-check REV=7abe8a07e`. `ARGS=--keep` leaves the extracted
+tree in place for inspection.
+
+**What it does NOT read: test files.** `go build` never compiles `_test.go`, so a
+test file committed without its fixture producer stays invisible here.
 
 Known gap, recorded rather than papered over. Several checks run under BOTH
 `ze-doc-test` and `ze-regen-check-readonly`. That overlap is harmless: the runner
@@ -444,7 +492,7 @@ settled tree.
 
 ### ONCE, AT THE END. Never during development (BLOCKING)
 
-**`make ze-verify` is a 22-stage full gate and takes 25 to 30 minutes. Run it ONE
+**`make ze-verify` is a 24-stage full gate and takes 25 to 30 minutes. Run it ONE
 time, when the work is finished and you are about to prepare the commit script.**
 Running it to "check in" mid-change is the single most expensive habit available in
 this repository, and it buys nothing a scoped check does not.
@@ -484,6 +532,7 @@ make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
 | A `*.yang` file or a `ze:command` | `make ze-doc-test`, `make ze-cli-grammar-check` |
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
 | A new package's placement | `make ze-tier-check` |
+| Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-verify-changed` |
 
@@ -512,7 +561,7 @@ does not overlap the work, it doubles the wall clock.
 **A NARROW FAILURE GETS A NARROW RE-RUN, NEVER A SECOND FULL PASS.** When the
 end-of-development run comes back with one or two failing stages and you fix
 exactly those, re-run the GATE THAT FAILED and the tests of the package you
-touched. Twenty-one green stages that nothing has touched since do not become
+touched. Twenty-three green stages that nothing has touched since do not become
 more green by being run again.
 
 **The status record is what forces the second pass, so plan the FIRST one to be
