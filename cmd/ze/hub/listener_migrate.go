@@ -10,6 +10,7 @@ import (
 	"log/slog"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -17,6 +18,15 @@ import (
 type Reconfigurable interface {
 	Addresses() []string
 	Reconfigure(ctx context.Context, newAddrs []string) error
+}
+
+// TLSUpdatable is implemented by any server that can replace its serving
+// certificate without rebinding. Declared here, alongside Reconfigurable and for
+// the same reason: always-on hub code must be able to rotate the web server's
+// certificate without importing the compile-out-able web package
+// (//go:build ze_web).
+type TLSUpdatable interface {
+	UpdateTLSCertificate(certPEM, keyPEM []byte) error
 }
 
 // serviceChange describes a single service's listener migration.
@@ -34,6 +44,7 @@ type serviceChange struct {
 // migrations to minimize downtime.
 type ListenerMigrator struct {
 	web    Reconfigurable
+	webTLS TLSUpdatable
 	lg     Reconfigurable
 	mcp    Reconfigurable
 	rest   Reconfigurable
@@ -68,6 +79,34 @@ func NewListenerMigrator(web Reconfigurable) *ListenerMigrator {
 
 // SetWeb updates the web server reference.
 func (m *ListenerMigrator) SetWeb(web Reconfigurable) { m.web = web }
+
+// SetWebTLS updates the web server's certificate-rotation reference. Takes
+// TLSUpdatable (not *web.WebServer) so always-on code never imports the web
+// package, the same reason SetLG takes Reconfigurable.
+func (m *ListenerMigrator) SetWebTLS(s TLSUpdatable) { m.webTLS = s }
+
+// UpdateWebCertificate re-resolves certName in the PKI store and installs the
+// resulting chain on the running web server, without rebinding its listeners.
+// Called on reload AFTER the new store is installed, so a commit that rotates
+// the certificate's material takes effect on the next handshake (AC-9).
+//
+// An empty certName means the operator configured no reference: the self-signed
+// certificate keeps serving and nothing is touched. A non-empty name that no
+// longer resolves is an ERROR that fails the reload, never a silent downgrade to
+// the self-signed certificate the listener may still be holding (R-5).
+func (m *ListenerMigrator) UpdateWebCertificate(certName string) error {
+	if m.webTLS == nil || certName == "" {
+		return nil
+	}
+	certPEM, keyPEM, err := zepki.ServerTLSMaterial(certName)
+	if err != nil {
+		return fmt.Errorf("web tls certificate %q: %w", certName, err)
+	}
+	if err := m.webTLS.UpdateTLSCertificate(certPEM, keyPEM); err != nil {
+		return fmt.Errorf("web tls certificate %q: %w", certName, err)
+	}
+	return nil
+}
 
 // SetLG updates the looking glass server reference. Takes Reconfigurable (not
 // *lg.LGServer) so always-on code never imports the lg package: lg is built
