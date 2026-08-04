@@ -24,11 +24,18 @@ import (
 // PeerState represents the high-level state of a BGP peer.
 type PeerState uint8
 
+// The values mirror reactor.PeerState one for one, because reactor converts by
+// value (reactor.PeerState.PluginState). A new state goes at the END of BOTH
+// lists, never in the middle.
 const (
 	PeerStateStopped PeerState = iota
 	PeerStateConnecting
 	PeerStateActive
 	PeerStateEstablished
+	// PeerStateIdleHold means the peer is deliberately down: a prefix limit
+	// stopped the session and the family that overflowed asked for no
+	// reconnect, so only an operator brings the peer back.
+	PeerStateIdleHold
 )
 
 func (s PeerState) String() string {
@@ -41,6 +48,8 @@ func (s PeerState) String() string {
 		return "active"
 	case PeerStateEstablished:
 		return "established"
+	case PeerStateIdleHold:
+		return "idle-hold"
 	}
 	return textbuf.StrIntStr("unknown(", int64(s), ")")
 }
@@ -109,6 +118,12 @@ type PeerInfo struct {
 	ConnectionsEstablished uint32
 	ConnectionsDropped     uint32
 	FlapCount              uint32
+
+	// ConnectRetryCounter is RFC 4271 §8.1.1 mandatory session attribute 2,
+	// "the number of times a BGP peer has tried to establish a peer session".
+	// Raised by the FSM on every teardown §8.2.2 gives an increment clause,
+	// zeroed only by an operator start or stop.
+	ConnectRetryCounter uint32
 
 	// Last notification details (lifetime, survives session reset).
 	LastNotifCode    uint8
