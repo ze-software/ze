@@ -134,7 +134,7 @@ func TestRollbackReloadRestoresProviderOnSubsystemFailure(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, []string{"bad"}, probe.seen)
 
-	err = rollbackReload(context.Background(), nil, eng, cp, prior)
+	err = rollbackReload(context.Background(), nil, eng, cp, prior, nil)
 	require.NoError(t, err)
 
 	bgpRoot, err := cp.Get("bgp")
