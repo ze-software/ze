@@ -5,7 +5,8 @@
     "2026-07-29 re-stamp, RFC7606-5.1-2 and RFC7606-5.1-3 only. Neither verdict was re-judged; both fingerprint maps were refreshed after proving what changed under them. (a) test/plugin/rfc7606-relay-one-field.ci: COMMENT-ONLY. Proven mechanically, not asserted -- the 20 directive lines (expect=/action=/reject=/option=/cmd=/stdin=/tmpfs= plus the terminators) are byte-identical to HEAD; the header gained three explanations (which buildFwdBody arm it actually drives, why the notification reject rule was silent, and that scenario 47 now carries a second 5.1-3 binding) and two em dashes became `--`. tagged_unit_shas hashes the whole enclosing file, so a comment stales a verdict about assertions the comment never touched. (b) A NEW key appeared under 5.1-3: test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28. That is added evidence, which cannot invalidate a verdict about the evidence already there. The requirement text is byte-identical -- the re-stamp script refuses on a requirement_sha mismatch, so this is checked rather than claimed. No other verdict was touched.",
     "Mechanical re-stamp by scripts/dev/rename_module_path.py: the module path moved from codeberg.org/thomas-mangin/ze to github.com/ze-software/ze. tagged_unit_shas fingerprints the whole enclosing file, so rewriting an import line stales a verdict about assertions the rename never touched. Every verdict re-stamped below was re-sealed ONLY after proving, per file, that its normalised content at HEAD with codeberg.org/thomas-mangin/ze replaced by github.com/ze-software/ze is identical to its content now, and that the requirement text is byte-identical to what was judged. A verdict failing either proof was refused and left stale. The proof is the code in rename_only_since_head(), not this note.",
     "2026-07-29 SCHEMA MIGRATION, plan/spec-rfcgate-3-audit-teeth.md. Not a re-audit: this record is brought into the schema the gate now validates on read. Four corrections, each explained on its own verdict, plus a mechanical `units` backfill of every verdict that was already fresh at file level. `units` fingerprints the enclosing top-level FUNCTION of each tagged test rather than the whole file, which is what lets the gate tell a mechanical line shift (SHIFTED, cleared by `make ze-rfc-reseal`) from a real change to what a test asserts (STALE, needs /ze-rfc-audit). Six of the sixteen commits that have touched this file were hand re-stamps in which no verdict changed; that class is what the unit fingerprint removes. Exactly ONE verdict was judged here, RFC7606-5.1-2, and only because its recorded value was outside the vocabulary and therefore unrepairable without reading. Every other verdict value is untouched.",
-    "2026-08-01 RE-AUDIT of RFC7606-5.1-2 and RFC7606-5.4-1 only, after commit 8e67a9b03 pooled the RFC 6793 transcode buffer in fwdUpdateForDestination. Both verdicts were STALE, which make ze-rfc-reseal refuses, so both were re-judged against rfc/full/rfc7606.txt and the producing code rather than re-stamped. Neither verdict changed and neither requirement_sha moved, so no checklist line was edited. 5.1-2's tagged unit gained a pool release and no assertion; 5.4-1's `code` key had rotted out of its function into whole-file scope and was re-pointed. The other 50 verdicts in this file were not re-examined: the audit is sampled and the gate is total."
+    "2026-08-01 RE-AUDIT of RFC7606-5.1-2 and RFC7606-5.4-1 only, after commit 8e67a9b03 pooled the RFC 6793 transcode buffer in fwdUpdateForDestination. Both verdicts were STALE, which make ze-rfc-reseal refuses, so both were re-judged against rfc/full/rfc7606.txt and the producing code rather than re-stamped. Neither verdict changed and neither requirement_sha moved, so no checklist line was edited. 5.1-2's tagged unit gained a pool release and no assertion; 5.4-1's `code` key had rotted out of its function into whole-file scope and was re-pointed. The other 50 verdicts in this file were not re-examined: the audit is sampled and the gate is total.",
+    "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
@@ -566,8 +567,8 @@
       "note": "IMPLEMENTED 2026-07-20. validateTrafficEngineeringAttr (message/rfc7606_optional_attrs.go) registers code 24 and rejects anything shorter than one RFC 5543 descriptor (36 octets: SwitchingCap+Encoding+Reserved+8x4 bandwidth). Negative TestRFC7606TrafficEngineeringTooShort pins lengths 0/1/35 to TreatAsWithdraw with AttrCode 24; positive TestRFC7606TrafficEngineeringValid pins 36/44/72 to Action None, so a validator that rejected everything would fail. Both drive ValidateUpdateRFC7606, not the validator directly. The check is deliberately minimal because 7.13 states RFC 5543 'does not detail what constitutes malformation'; over-validating would blackhole valid routes.",
       "requirement_sha": "237bc8c27cb21cac",
       "tests": {
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringTooShort": "c53904e7a8456607",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringValid": "c53904e7a8456607"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringTooShort": "e83f8df17845676f",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringValid": "e83f8df17845676f"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringTooShort": "f616b09cc2b5b615",
@@ -603,8 +604,8 @@
       "note": "IMPLEMENTED 2026-07-20. validateIPv6ExtCommunityAttr registers code 25 and applies 7.15's exact rule: malformed unless the length is a non-zero multiple of 20. Negative TestRFC7606IPv6ExtCommunityBadLength pins 0/19/21/30; positive TestRFC7606IPv6ExtCommunityValidLength pins 20/40. Zero is covered explicitly because 0 % 20 == 0 would pass a multiple-of-20 test alone.",
       "requirement_sha": "2bf7fb14e345cc40",
       "tests": {
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityBadLength": "c53904e7a8456607",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityValidLength": "c53904e7a8456607"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityBadLength": "e83f8df17845676f",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityValidLength": "e83f8df17845676f"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityBadLength": "f3322a701a9b2be7",
@@ -616,7 +617,7 @@
       "note": "IMPLEMENTED 2026-07-20, and the basis CHANGED. Previously met by omission (nothing validated code 25, so nothing could error). Now met by design: validateIPv6ExtCommunityAttr takes the attribute value as `_` and tests length alone, so no Type or Sub-Type can reach a rejection. TestRFC7606IPv6ExtCommunityUnrecognizedType pins Type 0x3f / Sub-Type 0xee with a valid length 20 to Action None -- the length clause cannot fire and mask the type question. Positive-only by the same argument as 7.14-2: the rule is a prohibition, so a negative would assert the rejection the RFC forbids.",
       "requirement_sha": "eedc81a2acb3586b",
       "tests": {
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityUnrecognizedType": "c53904e7a8456607"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityUnrecognizedType": "e83f8df17845676f"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityUnrecognizedType": "d2b5621f4f7fd98c"
@@ -632,8 +633,8 @@
         "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerMalformedStillWithdraws": "b97264b03f6a0840",
         "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetNestingCapBoundary": "b97264b03f6a0840",
         "internal/component/bgp/message/rfc7606_attrset_discard_test.go::TestRFC7606AttrSetInnerDiscardDoesNotWithdraw": "64aebe5de15df4b9",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetMalformed": "c53904e7a8456607",
-        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetValid": "c53904e7a8456607"
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetMalformed": "e83f8df17845676f",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetValid": "e83f8df17845676f"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerASPathAlwaysFourOctet": "01f1fa6935946336",
