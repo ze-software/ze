@@ -20,6 +20,7 @@ Symptom-based troubleshooting using Ze's built-in diagnostic commands. `ze docto
 | Process killed | `show system kernel-log level err` |
 | Route/link/addr changes | `monitor system netlink all` |
 | Packet-level debugging | `show capture interface eth0 tcp port 179 count 10 format text` |
+| Config commits but does nothing | `ze doctor --json` (look for `doctor-config-root-unclaimed`) |
 
 ## Failure Categories
 
@@ -299,6 +300,23 @@ show tcp-check <dns-server> 53
 show errors
 show config diff
 ```
+
+### 13a. Config Accepted But The Feature Does Nothing
+
+A config block that commits cleanly and changes no behavior usually reaches
+nobody. Ze picks the plugins for a config change by matching the changed path
+against the config roots each plugin declares. A path that matches nothing is
+stored and delivered to no one.
+
+```
+ze doctor --json
+ze explain doctor-config-root-unclaimed
+```
+
+`doctor-config-root-unclaimed` names the subtree. The usual cause is a plugin
+that is not in this binary or did not start; check with `ze plugin list`.
+
+<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
 
 ### 14. Plugin Crash / Restart Loop
 

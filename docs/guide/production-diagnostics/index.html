@@ -72,6 +72,7 @@
 <li><a href="#11-kernel-route-missing">11. Kernel Route Missing</a></li>
 <li><a href="#12-dns-resolution-failure">12. DNS Resolution Failure</a></li>
 <li><a href="#13-config-commit-failure">13. Config Commit Failure</a></li>
+<li><a href="#13a-config-accepted-but-the-feature-does-nothing">13a. Config Accepted But The Feature Does Nothing</a></li>
 <li><a href="#14-plugin-crash-restart-loop">14. Plugin Crash / Restart Loop</a></li>
 <li><a href="#15-cli-ssh-unresponsive">15. CLI / SSH Unresponsive</a></li>
 <li><a href="#16-web-ui-unreachable">16. Web UI Unreachable</a></li>
@@ -143,6 +144,10 @@
 <tr>
 <td>Packet-level debugging</td>
 <td><code>show capture interface eth0 tcp port 179 count 10 format text</code></td>
+</tr>
+<tr>
+<td>Config commits but does nothing</td>
+<td><code>ze doctor --json</code> (look for <code>doctor-config-root-unclaimed</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -293,6 +298,18 @@ unexpectedly short-lived records.</p>
 <pre><code>show errors
 show config diff
 </code></pre>
+<h3 id="13a-config-accepted-but-the-feature-does-nothing">13a. Config Accepted But The Feature Does Nothing</h3>
+<p>A config block that commits cleanly and changes no behavior usually reaches
+nobody. Ze picks the plugins for a config change by matching the changed path
+against the config roots each plugin declares. A path that matches nothing is
+stored and delivered to no one.</p>
+<pre><code>ze doctor --json
+ze explain doctor-config-root-unclaimed
+</code></pre>
+<p><code>doctor-config-root-unclaimed</code> names the subtree. The usual cause is a plugin
+that is not in this binary or did not start; check with <code>ze plugin list</code>.</p>
+<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
+
 <h3 id="14-plugin-crash-restart-loop">14. Plugin Crash / Restart Loop</h3>
 <pre><code>show errors count 20
 show warnings

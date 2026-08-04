@@ -117,6 +117,10 @@
 <td>TLS 1.2 minimum; auto-generated ECDSA P-256 self-signed certificate when no cert is provided</td>
 </tr>
 <tr>
+<td>PKI certificate</td>
+<td><code>environment.web.certificate</code> names a <code>pki {}</code> store entry to serve instead, sending the leaf and every stored intermediate. A configured name that does not resolve stops the listener; ze never falls back to self-signed for it. Rotates on reload without rebinding, so open SSE streams survive. See <a href="../../guide/configuration/#tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</a></td>
+</tr>
+<tr>
 <td>Security headers</td>
 <td>HSTS, CSP, X-Frame-Options DENY, no-store cache on all authenticated responses</td>
 </tr>
@@ -175,7 +179,8 @@ Expected result: Ze commits the browser user&#x27;s isolated draft and the activ
   </details>
 </figure>
 
-<!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation -->
+<!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation, UpdateTLSCertificate -->
+<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial: PKI store or self-signed, fail closed -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
 <!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware, LoginHandler -->

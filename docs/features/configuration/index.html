@@ -201,22 +201,28 @@ straight from each plugin's own YANG module.</p>
 </tr>
 <tr>
 <td><code>prefix { teardown true/false; }</code></td>
-<td>Per peer</td>
+<td>Per family</td>
 <td>Tear down on exceed (default: true) or warn-only.</td>
 </tr>
 <tr>
 <td><code>prefix { idle-timeout N; }</code></td>
-<td>Per peer</td>
-<td>Seconds before auto-reconnect after teardown (0 = no reconnect).</td>
+<td>Per family</td>
+<td>Seconds to wait before reconnect after this family caused a teardown. Default 0, which keeps the peer down.</td>
+</tr>
+<tr>
+<td><code>prefix { reconnect never\|backoff\|timer; }</code></td>
+<td>Per family</td>
+<td>What the peer does after this family stopped the session. No value means <code>timer</code> when <code>idle-timeout</code> is above 0, and <code>never</code> when it is 0.</td>
 </tr>
 </tbody>
 </table>
-<p>When a peer exceeds the maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code>, the session stays up but further NLRIs for the exceeded family are dropped.</p>
-<p>Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hour. Backoff resets on stable session.</p>
+<p>When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code> on that family, the session stays up but further NLRIs for the exceeded family are dropped. Each family reads its own <code>teardown</code> value, so one family can warn while another stops the session.</p>
+<p>A peer stopped by a prefix limit STAYS DOWN by default. Its state reads <code>idle-hold</code>, <code>ze show warnings</code> carries a <code>prefix-hold</code> warning that names the family, and the log line says <code>peer held down</code>. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.</p>
+<p><code>reconnect backoff</code> asks for the opposite: the peer comes back on its usual connect backoff, 5 to 60 seconds. <code>reconnect timer</code>, or an <code>idle-timeout</code> above 0, waits idle-timeout x 2^(N-1), capped at 1 hour. The wait comes from the family that exceeded its maximum, and resets on a stable session. A <code>reconnect</code> value that contradicts <code>idle-timeout</code> in the same block is a config error.</p>
 <p><strong>PeeringDB integration:</strong> <code>resolve peeringdb max-prefix &lt;asn&gt;</code> queries PeeringDB for a peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under <code>system { peeringdb { url; margin; } }</code> for private mirrors. Staleness warnings appear when prefix data is older than 6 months.</p>
 <p><strong>Prometheus metrics:</strong> <code>ze_bgp_prefix_count</code>, <code>ze_bgp_prefix_maximum</code>, <code>ze_bgp_prefix_warning</code>, <code>ze_bgp_prefix_warning_exceeded</code>, <code>ze_bgp_prefix_ratio</code>, <code>ze_bgp_prefix_maximum_exceeded_total</code>, <code>ze_bgp_prefix_teardown_total</code>, <code>ze_bgp_prefix_stale</code>.</p>
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement -->
-<!-- source: internal/component/bgp/reactor/peer.go -- idle-timeout and reconnect logic -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- prefixReconnectDecision and holdDownAfterPrefixTeardown, per-family reconnect -->
 <!-- source: internal/component/resolve/cmd/resolve.go -- handlePeeringDBMaxPrefix -->
 
 <h3 id="cross-peer-update-groups">Cross-Peer Update Groups</h3>
