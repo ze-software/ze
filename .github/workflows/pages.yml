@@ -48,6 +48,17 @@ jobs:
         run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/site/assets/demos"
 
 
+      # The demo scenarios redirect ze's output into per-demo log files, so a
+      # failed render or validation reaches the job log as a bare exit status.
+      # Print those logs before the job ends or the failure is undiagnosable.
+      - name: Show demo state on failure
+        if: failure()
+        run: |
+          state=main/tmp/terminal-demos/state
+          sudo ls -laR "$state" || true
+          sudo find "$state" -maxdepth 2 -type f -name '*.log' \
+            -exec sh -c 'echo "=== $1 ==="; tail -50 "$1"' _ {} \; || true
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
