@@ -35,6 +35,7 @@ Rules: 8 of 26. Reasons: no past task would surface it, precedence rung 1/2, the
 | You see foreign rows in a shared plan file's diff | That is expected, not misconduct. Do not "clean" them out; you would revert another session's work. |
 **Explicit commit requests are a fast path.** When the user asks for a
 **One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
+**Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It was raised twice as
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
