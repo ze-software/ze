@@ -375,10 +375,28 @@ func buildESPProposals(espGroup ipsec.ESPGroup) []crypto.ESPProposal {
 // acceptedOffer is the result of the initiator's re-check of a response. Protocol names
 // which of the two proposal sets the responder answered with. The matching field holds
 // the local proposal that the accepted offer agrees with.
+//
+// RFC 7296 Section 3.3.6 puts the parameters of the exchange in the responder's answer.
+// It "MUST select a single complete set of parameters from the offers". The caller
+// therefore KEYS from the matching field below. A caller that reads the error alone
+// learns that the answer was consistent, and then keys from its own first proposal. That
+// is the two ends disagreeing with nothing to detect it.
 type acceptedOffer struct {
 	Protocol uint8
 	IKE      crypto.IKEProposal
-	ESP      crypto.ESPProposal
+	// ESP is the offer as the peer returned it. RFC 7296 Section 3.3.6 has the
+	// attributes of a selected transform come back unmodified, so this is the peer's
+	// own encoding. crypto.NegotiateESP returns the remote proposal, whose integrity
+	// transform carries an id with no key length (wireProposalsToESP). It names the
+	// accepted suite. It is NOT the shape key derivation reads.
+	ESP crypto.ESPProposal
+	// ESPConfig is the configured proposal that the accepted offer agrees with. An ESP
+	// caller uses this field. It is the ESP equivalent of the IKE field above.
+	// crypto.matchIKE returns the LOCAL proposal, so IKE already carries the local key
+	// lengths. ESP does not. Each consumer needs this type anyway: espTransforms
+	// derives the keys from it, and installChildSA (child.go) reads the dataplane
+	// algorithm names off it.
+	ESPConfig ipsec.ESPProposal
 }
 
 var (
@@ -389,7 +407,31 @@ var (
 	// errAcceptedOfferMismatch reports an accepted offer that agrees with no proposal
 	// this side sent.
 	errAcceptedOfferMismatch = errors.New("ike: the accepted offer matches no proposal we sent")
+	// errAcceptedOfferUnmapped reports an accepted ESP offer that the negotiation agreed
+	// with, and that no configured proposal answers to. It cannot happen while
+	// buildESPProposals derives its input from the same group. It is refused rather than
+	// answered with a zero proposal, which would key an SA with no cipher.
+	errAcceptedOfferUnmapped = errors.New("ike: the accepted ESP offer maps to no configured proposal")
 )
+
+// espConfigForAccepted returns the configured ESP proposal that the accepted offer agrees
+// with. It reads the transforms rather than the Proposal Num. RFC 7296 Section 3.3.1 makes
+// that number the PEER's, so it names nothing in this node's configuration.
+//
+// The comparison is exact. The initiator check runs crypto.NegotiateESP under a key-length
+// rule that accepts only the length this side offered (RFC 7296 Section 3.3.5, "the Key
+// Length attribute ... is always returned unchanged").
+func espConfigForAccepted(espGroup ipsec.ESPGroup, chosen crypto.ESPProposal) (ipsec.ESPProposal, bool) {
+	for _, p := range espGroup.Proposals {
+		enc, integ := espTransforms(p)
+		if enc.ID == chosen.Encryption.ID &&
+			enc.KeyLength == chosen.Encryption.KeyLength &&
+			integ.ID == chosen.Integrity.ID {
+			return p, true
+		}
+	}
+	return ipsec.ESPProposal{}, false
+}
 
 // verifyAcceptedOffer checks a responder's accepted offer against the proposals this side
 // sent, and returns the local proposal it agrees with.
@@ -417,7 +459,11 @@ func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espG
 		if err != nil {
 			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
 		}
-		return acceptedOffer{Protocol: wire.ProtocolESP, ESP: chosen}, nil
+		local, ok := espConfigForAccepted(espGroup, chosen)
+		if !ok {
+			return acceptedOffer{}, errAcceptedOfferUnmapped
+		}
+		return acceptedOffer{Protocol: wire.ProtocolESP, ESP: chosen, ESPConfig: local}, nil
 	default:
 		return acceptedOffer{}, errAcceptedOfferProtocol
 	}

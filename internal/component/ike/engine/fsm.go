@@ -852,7 +852,8 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	// the ESP proposals it sent. It stops the exchange when the two disagree. An EAP
 	// round carries no SAr2, so the check runs on the response that holds one.
 	if childOffer != nil {
-		if _, err := verifyAcceptedOffer(childOffer, sa.IKEGroup, sa.ESPGroup); err != nil {
+		offer, err := verifyAcceptedOffer(childOffer, sa.IKEGroup, sa.ESPGroup)
+		if err != nil {
 			log.Warn("ike: IKE_AUTH accepted offer rejected", "peer", sa.PeerName, "error", err)
 			// Same Section 2.21.2 obligation as the negotiation teardown above. The
 			// responder accepted an offer ze never made, so NO_PROPOSAL_CHOSEN names it.
@@ -860,6 +861,20 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 			sa.State = StateDead
 			return
 		}
+		// The accepted proposal keys the Child SA, so the SA's ESP group narrows to it
+		// here. RFC 7296 Section 3.3.6 lets the responder "select a single complete set
+		// of parameters from the offers". buildWireESPProposals put EVERY configured
+		// proposal on the wire, so the set it selected is not always the first.
+		//
+		// Without this, the check above passes for a peer that accepted the second
+		// proposal. initiatorFirstChildSA (child.go) then keys from the first. The
+		// tunnel comes up, and the peer drops every ESP packet it carries.
+		//
+		// selectResponderESP (responder.go) narrows the same field on the responder
+		// side. Three sites read the narrowed group after this. They are the first
+		// Child SA, the CREATE_CHILD_SA offer of each later rekey, and the
+		// accepted-offer check of its response.
+		sa.ESPGroup.Proposals = []ipsec.ESPProposal{offer.ESPConfig}
 	}
 
 	// RFC 7296 Section 2.16: EAP payload present means the responder requests EAP.

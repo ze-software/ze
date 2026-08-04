@@ -467,6 +467,53 @@ This spec's "R-1 Settled" section already states that cost in the same terms and
 refusal deliberately. The finding adds no new fact, so it is recorded rather than reopened.
 It is worth putting to the owner beside BLOCKER 2, because both bear on the same guard.
 
+## BLOCKER 1 and BLOCKER 2 fixed, 2026-08-04
+
+### BLOCKER 1 -- the accepted offer now keys the Child SA
+
+`acceptedOffer` (`internal/component/ike/engine/initiator.go`) gains `ESPConfig`, the
+CONFIGURED proposal the accepted offer agrees with. `espConfigForAccepted` resolves it from
+the transforms, because RFC 7296 Section 3.3.1 makes the Proposal Num the peer's. The field
+is the ESP equivalent of `IKE`. `crypto.matchIKE` returns the LOCAL proposal, so `offer.IKE`
+already carries the local key lengths. `crypto.matchESP` returns the REMOTE one, whose
+integrity transform carries an id and no key length.
+
+| Site | Producer | Now |
+|------|----------|-----|
+| IKE_SA_INIT response | `handleSAInitResponse` (`fsm.go`) | unchanged: already keyed from `offer.IKE` |
+| IKE_AUTH response | `handleAuthResponse` (`fsm.go`) | narrows `sa.ESPGroup.Proposals` to `offer.ESPConfig`, as `selectResponderESP` does on the responder side |
+| Child SA rekey response | `applyChildRekeyResponse` (`rekey.go`) | keys and installs from `offer.ESPConfig`, and narrows the replacement child's own group |
+| IKE SA rekey response | `applyIKERekeyResponse` (`rekey.go`) | unchanged: already keyed from `offer.IKE` |
+
+`runEstablished` (`established.go`) called `createFirstChildSA` with the SESSION's
+unnarrowed group, so the narrowing alone would not have reached the first Child SA. The call
+moved into `initiatorFirstChildSA` (`child.go`), which reads `sa.ESPGroup` and takes no group
+argument. The test drives that same function.
+
+`TestNegInitiatorInstallsAcceptedESPSuite` (`rfc7296_negotiation_test.go`) drives a peer that
+accepts the SECOND of two ESP proposals, at both sites. It asserts the algorithms of the ESP
+states ze programs. It carries no `RFC requirement:` tag. No row of `rfc/short/rfc7296.md`
+states the obligation it proves, and ISSUE 3 above is what an invented tag would repeat.
+
+### BLOCKER 2 -- the MODP range guard has a fixture that reaches it
+
+`TestDHInvalidPublicKey` (`internal/component/ike/crypto/dh_test.go`) passed one octet, which
+AC-3's length refusal answers first. Each case now pads to `modp2048Len`, and each asserts
+`ErrInvalidPublicKey` AND `NOT ErrPublicKeyLength`. The cases are 0, 1, p-1, and p.
+
+### Mutation verification
+
+| Producer broken | Result |
+|-----------------|--------|
+| `prop := old.ESPGroup.Proposals[0]` restored in `applyChildRekeyResponse` | RED: `child-rekey` installed aes256/sha256, want aes128/sha512 |
+| the narrowing dropped from `handleAuthResponse` | RED: `ike-auth-first-child`, same message |
+| the `(1, p-1)` comparison disabled in `SharedSecret` | RED at all four cases of `TestDHInvalidPublicKey`. The one-octet fixture it replaced stayed GREEN under the same mutation |
+
+### Still open
+
+ISSUE 3 is untouched. Correcting it edits an `RFC requirement:` tag, which this work is not
+authorized to do.
+
 ## Findings for the supervising session
 
 ### Superseded 2026-08-03: the direction was corrected, and a deeper defect was found under it

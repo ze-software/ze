@@ -648,3 +648,160 @@ func TestNegInitiatorRejectsUnproposedOffer(t *testing.T) {
 		}
 	})
 }
+
+// negESPGroupPair returns an ESP group whose two proposals share no transform. A Child SA
+// keyed from the first carries a different cipher AND a different integrity algorithm
+// than one keyed from the second. An assertion on the installed suite tells the two apart.
+func negESPGroupPair() ipsec.ESPGroup {
+	return ipsec.ESPGroup{
+		Name:     "esp-pair",
+		Lifetime: 3600,
+		Proposals: []ipsec.ESPProposal{
+			{Number: 1, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256},
+			{Number: 2, Encryption: ipsec.EncryptionAES128, Hash: ipsec.HashSHA512},
+		},
+	}
+}
+
+// negESPGroupSecond returns the group holding only the proposal negESPGroupPair puts
+// SECOND. A peer configured with it accepts a non-first proposal of the offer. RFC 7296
+// Section 3.3.6 lets a responder do that. It selects "a single complete set of parameters
+// from the offers", and nothing binds that choice to the first proposal.
+func negESPGroupSecond() ipsec.ESPGroup {
+	g := negESPGroupPair()
+	g.Proposals = g.Proposals[1:]
+	return g
+}
+
+// negAcceptedSuite names the algorithms the peer accepts in the tests below. They are the
+// SECOND proposal's, and they are what the dataplane must be programmed with.
+const (
+	negAcceptedEnc  = "aes128"
+	negAcceptedAuth = "sha512"
+	negFirstEnc     = "aes256"
+	negFirstAuth    = "sha256"
+)
+
+// negAuthExchange runs a handshake to the IKE_AUTH response, with the two ends carrying
+// DIFFERENT ESP groups. The initiator offers iniESP, the peer accepts from respESP, and
+// the returned bytes are the response the peer really built.
+func negAuthExchange(t *testing.T, iniESP, respESP ipsec.ESPGroup) (*SA, []byte) {
+	t.Helper()
+	log := slogutil.DiscardLogger()
+	ikeGroup := testIKEGroup()
+	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "negotiation-psk")
+
+	table := NewSATable()
+	ini, err := newInitiatorSA("ze", iniPeer, ikeGroup, iniESP)
+	if err != nil {
+		t.Fatalf("newInitiatorSA: %v", err)
+	}
+	table.Insert(ini)
+	saInitReq := buildSAInitRequest(ini, ikeGroup)
+	ini.InitiatorSAInitMsg = saInitReq
+	ini.State = StateSAInitSent
+
+	resp, err := newResponderSA("ze", respPeer, ikeGroup, respESP, ini.InitiatorSPI)
+	if err != nil {
+		t.Fatalf("newResponderSA: %v", err)
+	}
+	handleSAInitRequest(resp, parseMsg(t, saInitReq), saInitReq, nil, nil, log)
+	handleSAInitResponse(ini, parseMsg(t, resp.LastSentMsg), resp.LastSentMsg, table, nil, nil, log)
+	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: respESP}
+	ps.handleAuthRequest(resp, parseMsg(t, ini.LastSentMsg), ini.LastSentMsg, nil, nil, log)
+	return ini, resp.LastSentMsg
+}
+
+// negESPRekeyAccepted builds a Child SA rekey response whose SA payload carries exactly
+// the proposal at index idx of group. RFC 7296 Section 3.3 makes a response name one
+// proposal, so this is the wire shape a real peer answers with.
+func negESPRekeyAccepted(t *testing.T, group ipsec.ESPGroup, idx int) []wire.PayloadEntry {
+	t.Helper()
+	props := buildWireESPProposals(group, 0x11223344)
+	if idx >= len(props) {
+		t.Fatalf("proposal index %d is past the %d the group offers", idx, len(props))
+	}
+	return []wire.PayloadEntry{
+		{Payload: &wire.PayloadSA{Proposals: props[idx : idx+1]}},
+		{Payload: &wire.PayloadNonce{NonceData: negNonce(0x22)}},
+	}
+}
+
+// negInstalledSuite returns the encryption and integrity algorithm names of the ESP states
+// a mock dataplane holds. It fails the test when the two states disagree. Both halves of a
+// Child SA pair are keyed from ONE proposal.
+func negInstalledSuite(t *testing.T, dp *mockDP) (string, string) {
+	t.Helper()
+	if len(dp.sas) != 2 {
+		t.Fatalf("the dataplane holds %d ESP states, want 2 (inbound and outbound)", len(dp.sas))
+	}
+	if dp.sas[0].EncAlgo != dp.sas[1].EncAlgo || dp.sas[0].AuthAlgo != dp.sas[1].AuthAlgo {
+		t.Fatalf("the two ESP states carry different suites: %s/%s and %s/%s",
+			dp.sas[0].EncAlgo, dp.sas[0].AuthAlgo, dp.sas[1].EncAlgo, dp.sas[1].AuthAlgo)
+	}
+	return dp.sas[0].EncAlgo, dp.sas[0].AuthAlgo
+}
+
+// TestNegInitiatorInstallsAcceptedESPSuite drives a peer that accepts the SECOND of two
+// ESP proposals, and asserts the suite ze programs the dataplane with.
+//
+// RFC 7296 Section 3.3.6: "Responders MUST select a single complete set of parameters
+// from the offers ... The initiator of an exchange MUST check that the accepted offer is
+// consistent with one of its proposals". The section then obliges the initiator to stop
+// the exchange when it is not.
+//
+// The consistency check is half of the rule. The set the responder selected is the set
+// that keys the Child SA. An initiator can check the offer and then key from its own
+// first proposal. It agrees with the peer on paper, and disagrees with it on the wire.
+//
+// The failure this catches is silent. The exchange completes, the Child SA installs, and
+// the tunnel reads healthy. The peer then drops every ESP packet. The assertion sits at
+// the dataplane, because that is where the disagreement becomes traffic loss.
+func TestNegInitiatorInstallsAcceptedESPSuite(t *testing.T) {
+	log := slogutil.DiscardLogger()
+
+	// Site one: the first Child SA, negotiated in IKE_AUTH.
+	t.Run("ike-auth-first-child", func(t *testing.T) {
+		ini, answer := negAuthExchange(t, negESPGroupPair(), negESPGroupSecond())
+		handleAuthResponse(ini, parseMsg(t, answer), answer, nil, nil, log)
+		if ini.State != StateEstablished {
+			t.Fatalf("state = %v, want established: the peer accepted a proposal we sent", ini.State)
+		}
+
+		dp := &mockDP{}
+		if _, err := initiatorFirstChildSA(ini, ini.PeerCfg, 7, dp, log); err != nil {
+			t.Fatalf("initiatorFirstChildSA: %v", err)
+		}
+		enc, auth := negInstalledSuite(t, dp)
+		if enc != negAcceptedEnc || auth != negAcceptedAuth {
+			t.Fatalf("the Child SA installed %s/%s, want the accepted proposal's %s/%s"+
+				" (the first proposal names %s/%s)",
+				enc, auth, negAcceptedEnc, negAcceptedAuth, negFirstEnc, negFirstAuth)
+		}
+	})
+
+	// Site two: the Child SA rekey response.
+	t.Run("child-rekey", func(t *testing.T) {
+		ini, _, _ := establishPSK(t)
+		ini.ESPGroup = negESPGroupPair()
+		dp := &mockDP{}
+		child, err := createFirstChildSA(ini, negESPGroupPair(), "10.0.0.1", "10.0.0.2", 1, dp, log)
+		if err != nil {
+			t.Fatalf("createFirstChildSA: %v", err)
+		}
+		_, pending, err := initiateChildRekey(ini, child)
+		if err != nil {
+			t.Fatalf("initiateChildRekey: %v", err)
+		}
+		dp.sas = nil
+		if _, err := applyChildRekeyResponse(ini, pending, negESPRekeyAccepted(t, negESPGroupPair(), 1), dp, log); err != nil {
+			t.Fatalf("applyChildRekeyResponse: %v", err)
+		}
+		enc, auth := negInstalledSuite(t, dp)
+		if enc != negAcceptedEnc || auth != negAcceptedAuth {
+			t.Fatalf("the rekeyed Child SA installed %s/%s, want the accepted proposal's %s/%s"+
+				" (the first proposal names %s/%s)",
+				enc, auth, negAcceptedEnc, negAcceptedAuth, negFirstEnc, negFirstAuth)
+		}
+	})
+}

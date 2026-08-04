@@ -77,7 +77,7 @@ func (ps *PeerSession) runEstablished(
 	var child *ChildSA
 	if sa.IsInitiator {
 		var err error
-		child, err = createFirstChildSA(sa, ps.espGroup, peer.LocalAddress, peer.RemoteAddress, ifID, dp, log)
+		child, err = initiatorFirstChildSA(sa, peer, ifID, dp, log)
 		if err != nil {
 			log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
 			return err

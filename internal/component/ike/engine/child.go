@@ -175,6 +175,27 @@ func GenerateESPSPI() (uint32, error) {
 	}
 }
 
+// initiatorFirstChildSA creates the first Child SA of an IKE SA this node initiated.
+//
+// It reads the SA's OWN ESP group, and no other. handleAuthResponse (fsm.go) narrows that
+// group to the proposal the responder accepted. selectResponderESP (responder.go) narrows
+// the same field on the responder side. RFC 7296 Section 3.3.6 makes the accepted offer
+// the set that keys the Child SA. A caller that passed the session's unnarrowed
+// configuration would key from the first CONFIGURED proposal, while the peer keyed from
+// the accepted one.
+//
+// runEstablished (established.go) is its only production caller. The group lives here
+// rather than in that caller's argument list so no site can supply a different one.
+func initiatorFirstChildSA(
+	sa *SA,
+	peer ipsec.SiteToSitePeer,
+	ifID uint32,
+	dp dataplane.Dataplane,
+	log *slog.Logger,
+) (*ChildSA, error) {
+	return createFirstChildSA(sa, sa.ESPGroup, peer.LocalAddress, peer.RemoteAddress, ifID, dp, log)
+}
+
 // createFirstChildSA creates the initial Child SA after IKE_AUTH completes.
 // RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr).
 func createFirstChildSA(

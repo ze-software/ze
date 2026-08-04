@@ -230,11 +230,17 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 
 	old := pending.oldChild
 	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against the ESP
-	// proposals it sent. It stops the exchange when the two disagree.
-	if _, err := verifyAcceptedOffer(accepted, sa.IKEGroup, old.ESPGroup); err != nil {
+	// proposals it sent. It stops the exchange when the two disagree. The replacement
+	// Child SA then takes the suite the peer selected. That suite is not always the
+	// first proposal of the offer. The section lets the responder "select a single
+	// complete set of parameters from the offers", and buildWireESPProposals sends them
+	// all. Keying from Proposals[0] would install a Child SA under an algorithm the peer
+	// never agreed to, and the peer would drop every packet it carries.
+	offer, err := verifyAcceptedOffer(accepted, sa.IKEGroup, old.ESPGroup)
+	if err != nil {
 		return nil, fmt.Errorf("child rekey response: %w", err)
 	}
-	prop := old.ESPGroup.Proposals[0]
+	prop := offer.ESPConfig
 	rekeyEnc, rekeyInteg := espTransforms(prop)
 	keys, err := crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
 		pending.localNonce, nr, rekeyEnc, rekeyInteg)
@@ -243,6 +249,12 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	}
 	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator.
 	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true)
+	// The replacement records the suite it is keyed with, and nothing else. It inherits
+	// the retired SA's group. respondChildRekey reads Proposals[0] of that group when
+	// the peer rekeys this SA next. An unselected proposal left in front of the accepted
+	// one would make ze answer that rekey for an algorithm this pair never ran. Only the
+	// child's own copy changes. The retired SA keeps its group.
+	child.ESPGroup.Proposals = []ipsec.ESPProposal{prop}
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
 		return nil, err
