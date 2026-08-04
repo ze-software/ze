@@ -238,6 +238,16 @@ func TestRefusedOpenIncrementsCounter(t *testing.T) {
 	// TestSecondOpenOnEstablishedSessionIsRefused.
 	require.NoError(t, session.Start())
 	server, client := net.Pipe()
+	t.Cleanup(func() { _ = client.Close() })
+	_ = acceptWithReader(t, session, server, client)
+
+	// The drain starts AFTER the handshake read, never before it. net.Pipe is
+	// unbuffered and delivers each write to exactly ONE reader, and
+	// acceptWithReader does its own read of the OPEN and then waits for it. A
+	// drain started first wins that read, so the helper's own reader blocks and
+	// wg.Wait never returns: the test hung for its whole timeout rather than
+	// failing. It still has to run before handleOpen below, which writes a
+	// NOTIFICATION that an unread pipe would block on forever.
 	go func() {
 		buf := make([]byte, 4096)
 		for {
@@ -246,8 +256,6 @@ func TestRefusedOpenIncrementsCounter(t *testing.T) {
 			}
 		}
 	}()
-	t.Cleanup(func() { _ = client.Close() })
-	_ = acceptWithReader(t, session, server, client)
 
 	vec := reg.counterVec("ze_bgp_open_in_established_total")
 	require.NotNil(t, vec, "ze_bgp_open_in_established_total must be registered")
