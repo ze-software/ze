@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 906 summaries
+Total: 908 summaries
 
 ## 400-499
 
@@ -965,3 +965,5 @@ Total: 906 summaries
 | 1329 | gokrazy-init-bump | `plan/learned/1329-gokrazy-init-bump.md` |
 | 1330 | rfcgate-2-deferred-nonunit-evidence-backfill | `plan/learned/1330-rfcgate-2-deferred-nonunit-evidence-backfill.md` |
 | 1331 | Five config roots nobody claims, and the third delivery path | `plan/learned/1331-config-roots-nobody-claims.md` |
+| 1332 | Dead Peer Detection sent its probe in cleartext | `plan/learned/1332-fixit-ike-dpd-cleartext.md` |
+| 1333 | A second INFORMATIONAL handler tore tunnels down with no key material | `plan/learned/1333-fixit-ike-informational-second-producer.md` |

@@ -81,10 +81,12 @@ records it and does not edit the rule.
 
 ### Item 5: no `.ci` holds a DPD interval open, so the liveness probe is unproven at daemon level
 
-Added 2026-08-03, homed here from `plan/spec-fixit-ike-dpd-cleartext.md` (row in
-`plan/deferrals/fixit-ike-dpd-cleartext.md`).
+Added 2026-08-03, homed here from the DPD cleartext fixit, which closed the same day as
+`plan/learned/1332-fixit-ike-dpd-cleartext.md`. The row lives in
+`plan/deferrals/fixit-ike-dpd-cleartext.md`, which survives that closure because it still
+holds this live row.
 
-That spec fixed a probe Ze sent in cleartext, and proved the fix with four unit tests in
+That work fixed a probe Ze sent in cleartext, and proved the fix with four unit tests in
 `internal/component/ike/engine/rfc7296_dpd_test.go` plus the existing ipsec suite. It did
 not add the daemon-level proof it names as the strongest. That proof is a `.ci` that
 configures a DPD `interval` and asserts the tunnel is STILL up after more than one interval

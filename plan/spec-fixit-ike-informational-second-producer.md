@@ -257,3 +257,186 @@ text. `RFC7296-1.4-4` keeps its current evidence, which is `handleInformationalO
 
 A legitimate peer request that arrives in the establish window is dropped. The peer
 retransmits it, so the answer is late and never lost.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The three dead-end handlers are gone. `grep -rn "func handleInformational\b|func
+  handleEstablishedInbound|func handleDeletePayload\b"` over `internal/component/ike/`
+  returns nothing.
+- `handleInbound`'s `case StateEstablished` (`internal/component/ike/engine/fsm.go`) drops the
+  packet and logs why. `handleOwnedInbound` is now the only handler for a post-establishment
+  message, and it decrypts first.
+- `runInitiator` (`fsm.go`) carries `defer table.RemoveByPeer(sa.PeerName)`, registered AFTER
+  `defer sa.forgetKeys()` so it RUNS BEFORE it.
+- `routeInbound` (`internal/component/ike/engine/register.go`) cites RFC 7296 Section 2.1 at
+  its queue-full drop, and says which direction the drop costs.
+
+### Bugs Found/Fixed
+- A cleartext datagram naming the right SPI pair with a plaintext IKE Delete reached
+  `sa.State = StateDead`. Covered by the `cleartext IKE Delete` case of
+  `TestRteUnownedEstablishedSATrustsNothing`, which is the `RFC7296-2.4-3 negative` binding.
+- Every failed initiator cycle leaked one `StateEstablished` SATable entry, so
+  `ze_ipsec_tunnel_up` reported a dead peer as up. Covered by
+  `TestRteInitiatorCycleLeavesNoTableEntry` and, for a cycle that actually established,
+  by `TestIcyEstablishedCycleLeavesNoTableEntry` (`initiator_cycle_test.go`).
+
+### Documentation Updates
+- No doc change needed. `grep -rln "source: internal/component/ike/engine/inbound.go" docs/`
+  returns nothing. `docs/features/rfc-status.md`'s RFC 7296 row already states it: "Section
+  2.4 refuses a verdict about the peer from an unauthenticated message, because an
+  established SA is served by one handler that decrypts first."
+- `docs/guide/ipsec.md` and `docs/DESIGN.md` carry `source:` anchors for
+  `internal/component/ike/engine/register.go`. Both were re-read: neither describes
+  `routeInbound`'s queue-full arm, which is the only part of that file this spec changed.
+
+### Deviations from Plan
+- None. The three handlers named in Files to Modify were the three that existed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first shape of the SATable removal was a deferred `table.Remove(sa.InitiatorSPI, sa.ResponderSPI)` | Go evaluates a deferred call's ARGUMENTS where the defer is written, so the responder SPI was captured as the zero `newInitiatorSA` left, and the removal deleted a key `UpdateKey` had already replaced | Reading A-3's validation: a cycle that establishes and then ends | Removed by PEER NAME instead. The 10-line comment at the defer records why |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| No post-establishment message may reach a handler that has not decrypted | Done | `fsm.go` `handleInbound`, `case StateEstablished` | The three dead-end handlers are deleted, not guarded |
+| An initiator cycle must not leak an SATable entry | Done | `fsm.go` `runInitiator`, `defer table.RemoveByPeer` | |
+| The queue-full drop must carry its RFC citation | Done | `register.go` `routeInbound` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRteUnownedEstablishedSATrustsNothing/cleartext_IKE_Delete` asserts the SA stays `StateEstablished` | The drop arm reads nothing from the outer chain |
+| AC-2 | Done | The same case asserts no datagram is written | The arm has no transport in hand and calls only `log.Debug` |
+| AC-3 | Done | `.../protected_INFORMATIONAL_request` | No owner-only state (`cacheResponse`, `SKKeys`) is touched |
+| AC-4 | Done | `.../protected_IKE_Delete_on_the_owner_loop` reaches `StateDead` | This is the `RFC7296-2.4-3 positive` binding: the SAME bytes, authenticated, still work |
+| AC-5 | Done | `TestRteInitiatorCycleLeavesNoTableEntry` (stopped cycle) and `TestIcyEstablishedCycleLeavesNoTableEntry` (established cycle, and an IKE-rekeyed one) | Two files. See the Review Gate note on which one discriminates the by-name choice |
+| AC-6 | Done | `register.go` `routeInbound`, the `default:` arm of the select: "RFC 7296 Section 2.1 makes that survivable in both directions, but only because both are retransmitted" | It also names the case the citation does NOT cover: a self-initiated request that nothing repeats |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRteUnownedEstablishedSATrustsNothing` | Done | `internal/component/ike/engine/rfc7296_routing_test.go` | Four sub-cases; carries both polarities of `RFC7296-2.4-3` |
+| `TestRteInitiatorCycleLeavesNoTableEntry` | Done | same file | Proves the removal exists |
+| `TestIcyEstablishedCycleLeavesNoTableEntry` | Done (beyond plan) | `internal/component/ike/engine/initiator_cycle_test.go` | Proves the removal is correct for a cycle that reached `UpdateKey`, and for an IKE-rekeyed one |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/ike/engine/inbound.go` | Done | Three handlers deleted |
+| `internal/component/ike/engine/fsm.go` | Done | Drop arm, plus the deferred removal |
+| `internal/component/ike/engine/register.go` | Done | The Section 2.1 citation |
+| `internal/component/ike/engine/rfc7296_routing_test.go` | Done | Created |
+
+### Audit Summary
+- **Total items:** 16 (3 requirements, 6 ACs, 3 tests, 4 files)
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An off-path attacker must not tear an established tunnel down with a cleartext Delete | functional, negative | `TestRteUnownedEstablishedSATrustsNothing/cleartext_IKE_Delete`. It discriminates: restoring the outer-chain `StateDead` write reddens exactly this case, and the mutation table records it |
+| The same Delete, authenticated, must still work | functional, positive | `.../protected_IKE_Delete_on_the_owner_loop`. Removing `StateDead` from `handleDeletePayload` reddens exactly this case, so the two polarities are not passengers of each other |
+| No second producer may exist for a post-establishment message | structural | `grep -rn "func handleInformational\b\|func handleEstablishedInbound\|func handleDeletePayload\b" --include=*.go internal/component/ike/` returns nothing. A guard would have left the producer reachable; deletion does not |
+| A failed initiator cycle must leave no SATable entry | functional | `TestRteInitiatorCycleLeavesNoTableEntry` for a cycle that never started; `TestIcyEstablishedCycleLeavesNoTableEntry` for one that established and one that was IKE-rekeyed. The second is what discriminates removal-by-name from removal-by-SPI-pair |
+| The daemon still establishes and re-establishes with the routing change | functional (`.ci`) | `test/ipsec/ipsec-sa-installed.ci`, `test/ipsec/ipsec-clear-reestablish.ci`, both in the `ipsec` suite `mk/test-functional.mk` runs on every push |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| (no shard) | n/a | The spec's metadata row is `-` and no `plan/deferrals/fixit-ike-informational-second-producer.md` exists. This spec deferred nothing |
+
+No shard is removed by this closure. No FOREIGN shard was emptied by it.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-ike-informational-second-producer-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md` |
+| `review_gate.py check` | clean (`review_gate: OK (0 code files, clean, hashes match ...)`) |
+| Reviewer lenses used | Three independent subagents through `/ze-review`: logic+wiring+removed-behaviour; security+edge-cases+test-vacuity; RFC 7296 conformance+interop |
+
+**Round 1 scope, written before the round ran:** the whole five-spec IKE changeset at HEAD
+(`git log --oneline -14 -- internal/component/ike/`), including the sibling call sites of
+every changed function. Three lenses, because the ask was "re-verify before closing".
+
+### Findings fixed
+<!-- Only BLOCKER and ISSUE. Every finding was reproduced against source by the
+     closing agent before it was graded; a reviewer can be wrong. -->
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE, **refuted on verification** | `TestRteInitiatorCycleLeavesNoTableEntry` closes `stopCh` before `runInitiator`, so the cycle never reaches `handleSAInitResponse`, the responder SPI is still zero, and a deferred by-SPI-pair removal would pass identically. The reviewer concluded AC-5 had no discriminating test | `internal/component/ike/engine/rfc7296_routing_test.go` | Nothing to fix. The reading of THAT test is right; the conclusion is not. `TestIcyEstablishedCycleLeavesNoTableEntry` (`internal/component/ike/engine/initiator_cycle_test.go`) already drives a full established cycle AND an IKE-rekeyed one through `icyRunCycle`, and its docstring names the by-SPI-pair trap verbatim. Both sub-cases pass. The reviewer searched only the test file this spec names, which is why the spec now names the sibling file too |
+
+Verified clean by the logic/wiring lens on this spec's own hunts: no behaviour was lost with
+the three deleted handlers, and `defer table.RemoveByPeer` cannot reach another cycle's SA
+because `matchResponderPeer` (`register.go`) matches only `ConnectionRespond` peers. Verified
+CONFORMANT by the RFC lens: the drop arm concludes nothing from an unauthenticated datagram,
+and the test drives it from the entry point while showing the same bytes authenticated still
+reach `StateDead`.
+
+No BLOCKER and no surviving ISSUE, so the loop ended at round 1.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/rfc7296_routing_test.go` | Yes | `ls -la`: 6065 bytes |
+| `internal/component/ike/engine/initiator_cycle_test.go` | Yes | `grep -n "^func "` returns `icyRunCycle`, `TestIcyEstablishedCycleLeavesNoTableEntry`, `TestIcyRekeyRepointsTheSessionAtTheNewSA` |
+| `test/ipsec/ipsec-sa-installed.ci` | Yes | `ls test/ipsec/` |
+| `test/ipsec/ipsec-clear-reestablish.ci` | Yes | `ls test/ipsec/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4 | The unowned established arm trusts nothing, and the owner loop still works | `--- PASS: TestRteUnownedEstablishedSATrustsNothing (0.14s)`. Read `fsm.go` `case StateEstablished`: the whole arm is one `log.Debug` |
+| AC-5 | No SATable entry survives a cycle | `--- PASS: TestRteInitiatorCycleLeavesNoTableEntry (0.01s)`; `--- PASS: TestIcyEstablishedCycleLeavesNoTableEntry/a_plain_established_cycle (0.04s)`; `--- PASS: .../a_cycle_whose_IKE_SA_was_rekeyed (0.06s)` |
+| AC-5 (producer) | The removal is by peer name and deferred | Read `fsm.go` `runInitiator`: `defer table.RemoveByPeer(sa.PeerName)`, registered after `defer sa.forgetKeys()` |
+| AC-6 | The queue-full drop carries the citation | Read `register.go` `routeInbound`: the `default:` arm names RFC 7296 Section 2.1 and states which direction the drop costs |
+| (deletion) | The three handlers are gone | `grep -rn "func handleInformational\b\|func handleEstablishedInbound\|func handleDeletePayload\b" --include=*.go internal/component/ike/` returns nothing |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `handleInbound` with an established, unowned SA -> the drop arm | `test/ipsec/ipsec-clear-reestablish.ci` | Read the file: it clears an SA and requires re-establishment, which drives the parallel half-open path `routeInbound` distinguishes. The unowned-established case itself is proven in Go, since no `.ci` can force the owner loop not to hold an SA |
+| `runInitiator` returning -> the SATable removal | `test/ipsec/ipsec-sa-installed.ci` | Read the file: it establishes an SA and asserts the dataplane state, so a leaked entry would not be visible there. The removal is proven in Go by the two cycle tests, one of which drives a real handshake through `icyRunCycle` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The build is green after the deletion: `ok github.com/ze-software/ze/internal/component/ike/engine` |
+| A-2 | confirmed | No test references the deleted functions; the package compiles and its tests pass |
+| A-3 | **broken** | A deferred `table.Remove` does NOT read the responder SPI at return time. Go evaluates a deferred call's arguments where the defer is written, so it captured the zero. Recorded in the Mistake Log; the fix is the removal by peer name |
+| R-1 | confirmed harmless | `SATable.Remove` deletes a map key, so a second call is a no-op. `RemoveByPeer` returns a count and is idempotent the same way |
+| R-2 | confirmed harmless | `runInitiator` owns its SA and `runResponder` handles the other role. `register.go` `matchResponderPeer` matches only `ConnectionRespond` peers, so a `ConnectionInitiate` session never shares a peer name with a responder SA |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC compliance disclosure for Section 2.4 | `docs/features/rfc-status.md` RFC 7296 row states it verbatim | Yes |
+| `docs/guide/ipsec.md` and `docs/DESIGN.md` anchor `register.go` | Both re-read on 2026-08-03. Neither describes `routeInbound`'s queue-full arm, the only part of that file this spec changed | Yes |
+| No anchored claim points at `inbound.go` or `fsm.go`'s changed arm | `grep -rln "source: internal/component/ike/engine/inbound.go" docs/` returns nothing; `fsm.go`'s anchor in `docs/guide/ipsec.md` describes the handshake, not the drop arm | Yes |
+| Metrics | `ze_ipsec_sa_count` and `ze_ipsec_tunnel_up` become CORRECT rather than changing meaning, so no doc claim about them is now stale | Yes |
+| Config syntax, CLI, API, plugin SDK, wire format, comparison table | No change | Yes |
+
+## Core Insight
+
+The decrypt was not missing from `handleInformational`. `handleInformational` could never
+have had one: it walked `msg.Payloads`, which `wire.Message.ReadFrom` fills from the OUTER
+chain, and a real peer's Delete lives inside the SK payload. So the only payloads it could
+ever see were the ones an attacker had sent in the clear. A handler that reads the outer
+chain after establishment is a cleartext-only handler whatever its author intended, and that
+is the shape to hunt for. Adding a decrypt would have made it a second owner of `SKKeys` on
+the wrong goroutine; the fix was to have one producer, not a safer second one.
