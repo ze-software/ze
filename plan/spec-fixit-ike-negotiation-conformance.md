@@ -389,9 +389,106 @@ lost only its refusal, so each of the four sites is proven to gate the mismatch 
 
 Every mutation was reverted, and the suite is green again.
 
+## CLOSURE REFUSED 2026-08-03 -- three findings, one of them a live defect
+
+`/ze-close` ran the deliverables review, re-verified every AC against its producing
+function, and put the changeset to three independent reviewer subagents. **This spec is NOT
+closed.** Every finding below was reproduced against source before it was graded.
+
+AC-1 through AC-11 are each implemented and each has a passing tagged test. That is not the
+same as the spec's goal being met, and the goal is the sentence in the Task section: "the
+initiator and the responder can disagree about what was negotiated, and nothing detects it."
+
+### BLOCKER 1 -- the accepted offer is verified, then thrown away
+
+`verifyAcceptedOffer` returns the local proposal it agreed with. Two of its four call sites
+discard that return value and then key from `Proposals[0]`:
+
+| Site | Producer | What it keys from |
+|------|----------|-------------------|
+| Child SA rekey response | `internal/component/ike/engine/rekey.go` `applyChildRekeyResponse` | `if _, err := verifyAcceptedOffer(...)`, then `prop := old.ESPGroup.Proposals[0]` |
+| IKE_AUTH response | `internal/component/ike/engine/fsm.go` `handleAuthResponse` | `if _, err := verifyAcceptedOffer(childOffer, ...)`, then `internal/component/ike/engine/child.go` `createFirstChildSA` reads `espGroup.Proposals[0]` |
+
+`buildWireESPProposals` (`internal/component/ike/engine/initiator.go`) puts EVERY configured
+proposal on the wire, and `verifyAcceptedOffer` matches the accepted offer against all of
+them. So a peer that accepts proposal #2 passes the check, and Ze then keys the Child SA
+with proposal #1's cipher and key length. The tunnel comes up and black-holes ESP.
+
+The responder half of this same defect is already fixed and already tested:
+`selectResponderESP` (`internal/component/ike/engine/responder.go`) narrows
+`sa.ESPGroup.Proposals` to the one it chose, and `responder_test.go` carries a
+multi-proposal test for exactly this. **The initiator never narrows.** This spec added the
+detection of one disagreement and left a second one in place, in the very code path it
+touched.
+
+The fix is to bind the result: carry `offer.ESP` into `crypto.DeriveChildSAKeys` and
+`installChildTolerant`, or narrow `sa.ESPGroup` to the accepted proposal at both initiator
+sites. The regression test is a two-proposal ESP group whose peer accepts the second, with
+the installed suite asserted.
+
+### BLOCKER 2 -- AC-3 silenced the only test of the MODP small-value guard
+
+`SharedSecret` (`internal/component/ike/crypto/dh.go`) applies
+`remotePub.Cmp(one) <= 0 || remotePub.Cmp(pMinusOne) >= 0` on the MODP branch. That guard is
+now reachable ONLY by a value of exactly `modp2048Len` octets, because AC-3's length refusal
+runs first. The one test named for it, `TestDHInvalidPublicKey`
+(`internal/component/ike/crypto/dh_test.go`), passes `[]byte{0}`, one octet. It used to
+reach the bounds check; it now short-circuits at `ErrPublicKeyLength`, which WRAPS
+`ErrInvalidPublicKey`, so `errors.Is` still matches and the test stayed green while the
+behaviour it proved stopped being exercised. Every other `SharedSecret` call in the tree
+passes a real public key, a short value, or an ECP value.
+
+This is a removed guard, and this spec removed it. The fix is cases in
+`TestDHInvalidPublicKey` passing `padBigInt(0, modp2048Len)`, `padBigInt(1, ...)` and
+`padBigInt(p-1, ...)`, asserting `ErrInvalidPublicKey` AND `!errors.Is(err,
+ErrPublicKeyLength)`, so the next length-check change cannot re-silence it the same way.
+
+### ISSUE 3 -- a tag attaches `RFC7296-1.3-2` evidence to a different rule
+
+`internal/component/ike/engine/rfc7296_negotiation_test.go`, the tag above
+`TestNegSharedSecretRefusesWrongLength`, reads `RFC requirement: RFC7296-1.3-2 positive`.
+`RFC7296-1.3-2` is the responder's duty to "reject the request and indicate its preferred
+Diffie-Hellman group in the INVALID_KE_PAYLOAD Notify payload". A length refusal inside
+`SharedSecret` produces no such Notify. The requirement IS genuinely proven, by
+`TestNegRekeyRejectsMismatchedKEGroup` over `respondIKERekey`; this second tag inflates the
+row's proof with evidence for another rule. Its case name "the natural encoding of the group
+generator" also reads as a degeneracy test when it is a length test: the PADDED generator is
+accepted, and `crypto/rfc7296_dh_test.go` asserts that acceptance.
+
+### Recorded, not a blocker: the receive-side length refusal stays over-strict by choice
+
+The RFC lens graded AC-3 OVER-STRICT. RFC 7296 Section 3.4 binds the SENDER ("The length of
+the Diffie-Hellman public value for MODP groups MUST be equal to the length of the prime
+modulus ... prepending zero bits to the value if necessary") and places no matching
+obligation on a receiver. Against a peer that does not pad, `g^x mod p` carries a leading
+zero octet about one time in 256, so the tunnel fails intermittently with no Notify.
+
+This spec's "R-1 Settled" section already states that cost in the same terms and chooses the
+refusal deliberately. The finding adds no new fact, so it is recorded rather than reopened.
+It is worth putting to the owner beside BLOCKER 2, because both bear on the same guard.
+
 ## Findings for the supervising session
 
-### `resolveRekeyCollision` reads Section 2.8.1 in the opposite direction
+### Superseded 2026-08-03: the direction was corrected, and a deeper defect was found under it
+
+The subsection below was written on 2026-07-30 and is kept for the record. Two things have
+changed since.
+
+`resolveRekeyCollision` no longer exists. `plan/spec-fixit-ike-rekey-collision-inverted.md`
+renamed it `localNonceIsLower` and inverted the decision at both call sites, so the endpoint
+whose exchange carries the LOWER nonce now abandons it. AC-5 as worded ("The new IKE SA
+carrying the lowest nonce is deleted by the node that created it") therefore HOLDS against
+the tree, and the conflict this subsection describes is gone.
+
+What replaced it is worse, and it is recorded in that spec's own closure-refusal section:
+RFC 7296 Section 2.8.1 resolves the collision from "the lowest of THE FOUR nonces used in
+the two exchanges", after both responses have arrived, and it says the receiving endpoint
+"cannot yet know which of the exchanges will have the lowest nonce, so it will just note the
+situation and respond as usual". Ze compares TWO nonces at request-receipt time and answers
+nothing when it keeps its own exchange. AC-6's inheritance MUST still holds. AC-4's routing
+still holds. The nonce arithmetic underneath them does not.
+
+### The 2026-07-30 record: `resolveRekeyCollision` reads Section 2.8.1 in the opposite direction
 
 RFC 7296 Section 2.8.1 says the SA created with the LOWEST of the four nonces "SHOULD be
 closed by the endpoint that created it". `resolveRekeyCollision` (`rekey.go`) documents the

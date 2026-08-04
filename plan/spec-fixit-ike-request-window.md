@@ -396,3 +396,285 @@ one. Every mutation was reverted.
 Ze's window stays 1. A peer that offers a larger window with SET_WINDOW_SIZE gains nothing,
 which matches strongSwan and libreswan. If a future peer makes that costly, the negotiation
 is a separate spec and is not scoped here.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- One outstanding-request slot on the SA. `SA.reserveRequestWindow` and
+  `SA.releaseRequestWindow` (`internal/component/ike/engine/msgid.go`) take and free it, and
+  `reserveRequestWindow` also refuses an SA whose Message ID is exhausted.
+- Seven non-test emitter sites take the slot before they read `sa.NextMsgID`:
+  `startChildRekey` and `startIKERekey` (`established.go`), `sendDPD` (`dpd.go`), the three
+  Delete senders (`delete.go`), and the INVALID_MESSAGE_ID emitter
+  (`notify_invalid_msgid.go`). Every one of them defers rather than drops, and every one
+  releases the slot when its build fails.
+- `SA.answerAuthenticatedResponse` (`msgid.go`) frees the slot, and only when the answer
+  names the outstanding request's Message ID. It is called at two POST-DECRYPT sites in
+  `handleOwnedInbound` (`inbound.go`).
+- `SA.armRequestRetransmit` / `shouldRetransmitRequest` / `noteRequestRetransmit` and
+  `requestWindowStale` bound how long a slot can be held, so a lost answer frees it instead
+  of silencing the SA forever.
+- `rfc/short/rfc7296.md` gained rows `RFC7296-2.3-2` and `RFC7296-2.3-4`.
+- `internal/component/ike/engine/rfc7296_window_test.go` holds both tagged pairs.
+
+### Bugs Found/Fixed
+- One `maintainSA` tick emitted a DPD probe AND a rekey request, at consecutive Message IDs
+  with no answer to either. Covered by `TestWinOneRequestPerTick`, whose red output measured
+  208 unexpected bytes: the rekey that rode out beside the probe.
+- The Delete senders had no guard at all beyond `tr == nil`. Covered by
+  `TestWinDeleteDefersWhileProbeOutstanding`.
+- **A forged datagram freed the window.** The first shape released the slot in
+  `classifyInbound`, which runs BEFORE authentication. A datagram naming the right SPIs and
+  the exact outstanding Message ID, with one byte flipped, freed it. Found by the owner on
+  2026-07-30 and fixed by moving the release to the two post-decrypt sites. Covered by the
+  forged-answer case of `TestWinResponseReleasesSlot`, which was the ONLY assertion in the
+  suite that saw mutation C.
+
+### Documentation Updates
+- `docs/features/rfc-status.md`'s RFC 7296 row already states the behaviour: "Section 2.3
+  window: Ze declares a window of one and accepts exactly one request id... A peer request
+  that crosses one of ours is accepted and answered, and a request outside the window is
+  never acknowledged."
+- No `docs/` claim is anchored to the changed producers:
+  `grep -rln "source: internal/component/ike/engine/msgid.go" docs/` and the same for
+  `delete.go` and `inbound.go` return nothing.
+
+### Deviations from Plan
+- **AC-4's release site MOVED, by owner ruling on 2026-07-30.** The spec's Key Design
+  Decisions table names the release site as `classifyInbound`; that row is marked superseded
+  in this spec. The release now sits at two post-decrypt sites in `handleOwnedInbound` and
+  both call `SA.answerAuthenticatedResponse`. The single-site property was traded for
+  authentication, and the method's doc comment carries the two-site contract so a third
+  response path cannot silently skip it.
+- The slot is taken at SEVEN sites, not the four the Task table enumerates. `delete.go`
+  carries three senders rather than the two the table counted, and
+  `notify_invalid_msgid.go` is an emitter the Task table predates.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The release was put in `classifyInbound`, which "already sees every inbound message" | `classifyInbound` runs before the message is authenticated, so a forged datagram naming the right SPIs and Message ID freed the window | The owner read the design and voided the row on 2026-07-30 | A test was written FIRST for the property being lost, then the release moved to two post-decrypt sites |
+| assumption | The Task table said four emitter paths | Seven non-test sites read `sa.NextMsgID` for a self-initiated request | The tree-wide grep at implementation time (A-1's own validation) | All seven route through `reserveRequestWindow` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `RFC7296-2.3-2`: wait for a response before sending a subsequent message | Done | `msgid.go` `SA.reserveRequestWindow`, taken at 7 sites | |
+| `RFC7296-2.3-4`: never exceed the peer's stated window size | Done | same slot; the window is 1 and is never widened | SET_WINDOW_SIZE is deliberately not implemented, matching strongSwan and libreswan |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `grep -rn "reserveRequestWindow" --include=*.go internal/component/ike/ \| grep -v _test.go` returns the definition plus 7 call sites, each immediately before the build that reads `sa.NextMsgID` | |
+| AC-2 | Done | `TestWinOneRequestPerTick`, `TestWinDeleteDefersWhileProbeOutstanding` | Both assert the second request writes NOTHING, using a sentinel-byte probe rather than a bare absence |
+| AC-3 | Done | `TestWinResponseReleasesSlot`: the deferred request goes out after the answer | Mutation B (remove the release) reddens exactly this |
+| AC-4 | **Changed** | `SA.answerAuthenticatedResponse` (`msgid.go`), called at `inbound.go` lines 114 and 186, both after a successful `decryptAndParse` | The AC text says "released by the inbound classifier". Owner ruling of 2026-07-30 superseded it; see Deviations. The SUBSTANCE of AC-4 (a response to ANY request kind frees the slot) holds |
+| AC-5 | Done | `TestWinTeardownDoesNotHang` | The Delete keeps its best-effort character |
+| AC-6 | Done | `rfc7296_window_test.go` carries `RFC7296-2.3-2 positive` and `negative` | Mutations A and B both redden it |
+| AC-7 | Done | same file carries `RFC7296-2.3-4 positive` and two `negative` tags | The second negative is the forged-answer case |
+| AC-8 | Done | `TestWinOneRequestPerTick` failed against the pre-fix tree with "208 unexpected bytes" | Recorded verbatim under Tests FAIL |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestWinOneRequestPerTick` | Done | `internal/component/ike/engine/rfc7296_window_test.go` | |
+| `TestWinResponseReleasesSlot` | Done | same file | Carries the forged-answer assertion |
+| `TestWinDeleteDefersWhileProbeOutstanding` | Done | same file | |
+| `TestWinTeardownDoesNotHang` | Done | same file | |
+| `TestWinStaleWindowIsFreed` | Done (beyond plan) | same file | Covers `requestWindowStale`, added with the retransmit bound |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/ike/engine/sa.go` | Done | The slot fields and the exhaustion flag |
+| `internal/component/ike/engine/msgid.go` | Done | Take, release, answer, retransmit bound |
+| `internal/component/ike/engine/established.go` | Done | Both rekey branches, plus `serviceRequestWindow` |
+| `internal/component/ike/engine/dpd.go` | Done | The probe takes the slot |
+| `internal/component/ike/engine/rekey.go` | Done | Both initiators are reached through the `established.go` takes |
+| `internal/component/ike/engine/inbound.go` | Done | The two release sites |
+| `internal/component/ike/engine/delete.go` | Done (beyond plan) | The Delete senders moved out of `inbound.go` into their own file; all three take the slot |
+| `internal/component/ike/engine/notify_invalid_msgid.go` | Done (beyond plan) | A seventh emitter the Task table predated |
+| `internal/component/ike/engine/rfc7296_window_test.go` | Done | Created |
+
+### Audit Summary
+- **Total items:** 20 (2 requirements, 8 ACs, 5 tests, 9 files, counting the beyond-plan rows)
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-4's release site, by owner ruling, recorded in Deviations and in the spec's Key Design Decisions)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One `maintainSA` tick must emit ONE request, never two | functional (Go, sentinel-byte transport) | `TestWinOneRequestPerTick`. Against the pre-fix tree it reported "ze wrote 208 unexpected bytes before the sentinel"; it passes now. Mutation A (never refuse) reddens it |
+| The unguarded Delete path must respect the window | functional | `TestWinDeleteDefersWhileProbeOutstanding`. Pre-fix: "an IKE Delete while the probe is unanswered: ze wrote 80 unexpected bytes" |
+| A deferred request must still go out, so the window is not a mute | functional | `TestWinResponseReleasesSlot`. Mutation B (never free) reddens it with "the deferred Delete never went out after the window freed" |
+| Only an AUTHENTICATED answer may free the window | functional, negative | The forged-answer case of `TestWinResponseReleasesSlot`. Mutation C (release back in `classifyInbound`) reddens exactly one assertion in the whole suite, and it is this one |
+| Teardown must not hang on a held slot | functional | `TestWinTeardownDoesNotHang`, both sub-cases |
+| The daemon still establishes and rekeys with the slot in place | functional (`.ci`) | The `ipsec` suite, 8/8, recorded above. `ipsec-child-rekey` drives a real CREATE_CHILD_SA through a taken slot |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| (no shard) | n/a | The metadata row named `plan/deferrals/fixit-ike-request-window.md`, which never existed. Corrected to `-` on 2026-08-03. This spec deferred nothing |
+| SET_WINDOW_SIZE negotiation | cancelled | Never in scope. Neither strongSwan (`task_manager_v2.c` models no window size) nor libreswan 3.30 ("received unsupported NOTIFY v2N_SET_WINDOW_SIZE") implements it, so it buys no interoperability. Recorded in Known Limitations as conditional on a peer that does not exist |
+
+No shard is removed by this closure, because none exists. No FOREIGN shard was emptied by it.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | **none recorded -- the gate is NOT satisfied** |
+| `review_gate.py check` | not run. The round produced a BLOCKER, so there is no clean pass to record |
+| Reviewer lenses used | Three independent subagents through `/ze-review`: logic+wiring+removed-behaviour; security+edge-cases+test-vacuity; RFC 7296 conformance+interop |
+
+**Round 1 scope, written before the round ran:** the whole five-spec IKE changeset at HEAD
+(`git log --oneline -14 -- internal/component/ike/`), including the sibling call sites of
+every changed function.
+
+### Findings fixed
+<!-- Only BLOCKER and ISSUE. Nothing here is fixed yet: see "CLOSURE REFUSED
+     2026-08-03" below for the full text of each finding and the RFC sentence it
+     rests on. -->
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | A Delete is never remembered (`armRequestRetransmit` is not called) and is dropped outright when the window is held, against enrolled row `RFC7296-2.1-5` [MUST]. This spec created the drop | `internal/component/ike/engine/delete.go` `sendDeleteIKE`, `sendDeleteESP` | **Not fixed. Owner decision owed: arm the retransmit slot, or queue behind the held window** |
+| 2 | NOTE | `sendIKESATeardown` spends a Message ID before it reserves the window | `internal/component/ike/engine/delete.go` `sendIKESATeardown` | Not fixed. Latent |
+| 3 | NOTE | The goodbye Delete is dropped whenever a liveness probe is in flight | `internal/component/ike/engine/delete.go` `sendDeleteIKE` | Not fixed. Probably settled by finding 1's decision |
+| 4 | NOTE | `pendingIKESwap` is not cleared on `runEstablished` return, so an unconfirmed SA and its `SK_*` survive into the next reconnect cycle (RFC 7296 Section 2.12) | `internal/component/ike/engine/established.go` `runEstablished` | Not fixed. Not this spec's producer |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/rfc7296_window_test.go` | Yes | `ls -la`; `grep -n "^func TestWin"` returns five tests |
+| `internal/component/ike/engine/msgid.go` | Yes | Read on 2026-08-03; `reserveRequestWindow` at the `requestOutstanding \|\| msgIDExhausted` guard |
+| `internal/component/ike/engine/delete.go` | Yes | Three `reserveRequestWindow` call sites read on 2026-08-03 |
+| `internal/component/ike/engine/notify_invalid_msgid.go` | Yes | One `reserveRequestWindow` call site |
+| `test/ipsec/ipsec-child-rekey.ci` | Yes | `ls test/ipsec/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Every emitter takes the slot before reading `NextMsgID` | `grep -rn "reserveRequestWindow" --include=*.go internal/component/ike/ \| grep -v _test.go` -> 7 call sites (`established.go` 401, 426; `dpd.go` 132; `delete.go` 49, 84, 154; `notify_invalid_msgid.go` 91) plus the definition at `msgid.go` 142. The remaining hits are comments |
+| AC-2, AC-8 | One tick emits one request | `--- PASS: TestWinOneRequestPerTick (1.04s)` |
+| AC-3, AC-4 | The answer frees the slot and the deferred request goes | `--- PASS: TestWinResponseReleasesSlot (0.04s)` |
+| AC-2 (Delete path) | The unguarded path now defers | `--- PASS: TestWinDeleteDefersWhileProbeOutstanding (0.04s)` |
+| AC-5 | Teardown does not hang | `--- PASS: TestWinTeardownDoesNotHang (0.07s)` |
+| AC-4 (post-decrypt) | Both release sites sit after authentication | Read `inbound.go`: line 114 is inside `if _, err := decryptAndParse(...); err == nil`, line 186 is after the main `decryptAndParse` succeeded and is guarded by `if isResponse` |
+| AC-6, AC-7 | Both rows carry both polarities | `grep -rn "RFC7296-2.3-2 \|RFC7296-2.3-4 " --include=*.go` -> five tags in `rfc7296_window_test.go` |
+| (bound) | A lost answer frees the slot rather than silencing the SA | `--- PASS: TestWinStaleWindowIsFreed (0.04s)` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `maintainSA` tick, DPD due AND lifetime soft-expired -> the shared slot take | `test/ipsec/ipsec-child-rekey.ci` | Yes for the rekey half: the `.ci` drives a real CREATE_CHILD_SA between two daemons through `startChildRekey`, which now reserves the slot first. The DPD-and-rekey COLLISION itself is proven in Go by `TestWinOneRequestPerTick`, because no user-facing surface exposes which datagram one tick emitted |
+| Inbound Delete while a probe is outstanding -> the slot take on the unguarded path | `test/ipsec/ipsec-clear-reestablish.ci` | Yes for the Delete path reaching the wire; the collision is proven in Go by `TestWinDeleteDefersWhileProbeOutstanding` |
+| Response classified -> the slot release | `test/ipsec/ipsec-sa-installed.ci` | Read the file: it establishes and holds an SA, which requires every answered request to have freed the slot. The forged-answer half is proven in Go, since no `.ci` can forge an integrity failure |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | **broken, then corrected** | The grep found SEVEN sites, not four. `delete.go` carries three senders and `notify_invalid_msgid.go` is an eighth emitter the Task table predates. All seven take the slot. Recorded in Deviations and in the Mistake Log |
+| A-2 | broken | `classifyInbound` does see every response, but it sees them BEFORE authentication, so it was the wrong place to release. Owner ruling 2026-07-30. Recorded in Deviations and in the Mistake Log |
+| R-1 | confirmed and bounded | A deferred probe waits rather than sending. `dpd.lastSent` keeps its value so the next tick raises it again, and `requestWindowStale` bounds the wait |
+| R-2 | confirmed | `TestWinTeardownDoesNotHang` proves shutdown does not wait for a slot; the Delete stays best-effort |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC compliance disclosure for Section 2.3 | `docs/features/rfc-status.md` RFC 7296 row: "Section 2.3 window: Ze declares a window of one and accepts exactly one request id" | Yes |
+| No anchored `docs/` claim points at a changed producer | `grep -rln "source: internal/component/ike/engine/msgid.go" docs/`, and the same for `delete.go`, `inbound.go`, `dpd.go` -> nothing | Yes |
+| Config surface | No change. The window is not configurable and SET_WINDOW_SIZE is deliberately absent | Yes |
+| CLI / API / plugin SDK / wire format / comparison table / test infrastructure / architecture | No change. `show vpn ipsec sa`'s `peer-window-size` field predates this spec and reports what the PEER declared, which this spec does not touch | Yes |
+
+## CLOSURE REFUSED 2026-08-03 -- the window made a Delete droppable, against an enrolled MUST
+
+`/ze-close` re-verified AC-1 through AC-8 against their producing functions and put the
+changeset to three independent reviewer subagents. **This spec is NOT closed.** Everything
+recorded above holds: the slot exists, all seven emitters take it, both release sites sit
+after authentication, and every AC has a passing tagged test. One finding below is a
+MUST-level non-conformance on a path this spec created, and it must be settled first.
+
+### BLOCKER 1 -- a Delete is neither remembered nor retransmitted, and is dropped outright
+
+Row `RFC7296-2.1-5`, already enrolled at MUST level in `rfc/short/rfc7296.md`:
+
+<!-- ste: ignore -->
+> The initiator MUST remember each request until it receives the corresponding response.
+
+`sendDeleteIKE` and `sendDeleteESP` (`internal/component/ike/engine/delete.go`) both reserve
+the window, build, `sendRaw`, and never call `sa.armRequestRetransmit`. Its only non-test
+caller in the tree is `notify_invalid_msgid.go`. Both also `return` silently when the window
+is held:
+
+```
+if !sa.reserveRequestWindow() {
+        log.Debug("ike: ESP delete dropped, a request is outstanding", "peer", ps.peerName)
+        return
+}
+```
+
+**Before this spec, `sendDeleteESP` sent unconditionally.** The drop is new, and this spec
+created it. A make-before-break ESP Delete lost this way leaves the peer's retired Child SA
+and its policy installed until its own lifetime expires.
+
+The justification on record is the fifth Key Design Decision row, "A teardown Delete keeps
+its best-effort character", and the comment in `msgid.go` calling a Delete "never resent".
+Per `ai/rules/rfc-compliance.md` a comment is its author's belief and not a decision record,
+and no owner ruling was taken on this against the enrolled MUST. Row `RFC7296-2.1-5`'s
+tagged test (`rfc7296_retransmit_test.go`) covers the generic window slot, so the Delete
+path is untagged and unproven against the requirement it is supposed to meet.
+
+Two fixes are on the table and the choice is the owner's: arm the retransmit slot for the
+Delete so the window's own bounded retransmission carries it, or queue the Delete behind the
+held window instead of dropping it, as strongSwan's `queued_tasks` does. Dropping it is not
+one of them.
+
+### NOTE 2 -- `sendIKESATeardown` spends a Message ID before it reserves
+
+`internal/component/ike/engine/delete.go` `sendIKESATeardown` calls `sa.advanceMsgID()` and
+then `reserveRequestWindow()`. A refused reservation returns with the id spent and nothing
+sent. Latent today: both callers sit in `handleAuthResponse`, where no window is ever held,
+and the SA dies immediately after. Reserve first, then advance.
+
+### NOTE 3 -- the goodbye Delete is dropped whenever a liveness probe is in flight
+
+`sendDeleteIKE` refuses on a held window, and `TestWinTeardownDoesNotHang` pins that as
+intended. The SA is being destroyed, so the probe's answer is worthless:
+`sa.retireRequest(dpd.probeMsgID)` before the goodbye would keep the window rule and still
+say goodbye. Related to BLOCKER 1 and probably settled by the same decision.
+
+### NOTE 4 -- `pendingIKESwap` outlives its session
+
+`runEstablished` (`internal/component/ike/engine/established.go`) clears `ownedSA` and
+`pendingRekey` on return but never `ps.pendingIKESwap`. `PeerSession` is reused across
+reconnect cycles (`reconcile.go`), so an SA built by `respondIKERekey` and never confirmed
+survives into the next cycle, and its `SK_*` survive with it, against RFC 7296 Section 2.12.
+`handleInformationalOwned` would then answer the next peer IKE Delete by swapping the owner
+loop onto an SA from the previous session. Reported by the logic lens; not this spec's
+producer, and recorded here because this spec is the one still open over that file.
+
+## Core Insight
+
+Four guards that each knew about three others was the shape that produced the defect, and
+it is the shape a fifth emitter silently re-creates. One slot with one owner cannot be
+forgotten by a new caller in the same way, but it moved the risk rather than removing it:
+the new failure mode is a response path that does not free the slot. That is why
+`answerAuthenticatedResponse`'s doc comment names the two-site contract explicitly and says
+what a third path owes.
+
+The sharper lesson is about WHERE a slot may be freed. "The one place that sees every
+message" and "the one place that has authenticated the message" are different places, and
+the first is the tempting one because it is single. Releasing a security-relevant resource
+before authentication hands the attacker the resource. Only one assertion in the whole
+suite could see the difference between a real answer and a datagram that resembled one.

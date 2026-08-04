@@ -293,3 +293,101 @@ The RFC states the deletion as a SHOULD, so the inversion is not a MUST violatio
 own. `RFC7296-2.8.2-1`'s MUST is the inheritance, and that holds either way. The reason to
 fix it anyway is interoperability: the direction has to match the peer's, and every other
 implementation follows the RFC.
+
+---
+
+## CLOSURE REFUSED 2026-08-03 -- the direction was corrected, the algorithm is still wrong
+
+`/ze-close` re-verified AC-1 through AC-7 against their producing functions and put the
+changeset to three independent reviewer subagents. **This spec is NOT closed.** The RFC
+lens read Section 2.8.1 verbatim and found two MUST-level defects that this spec's own
+tagged tests now PIN as correct behaviour. Both were reproduced against
+`rfc/full/rfc7296.txt` and against source before being graded.
+
+What this spec DID achieve stands: the direction is corrected at both call sites, the helper
+states a fact rather than a verdict, and the "(lower nonce wins)" gloss is gone from the
+checklist row, the summary row and `docs/guide/ipsec.md`. The findings below are about the
+comparison this spec deliberately did not touch ("The comparison itself is correct ... Only
+the direction is wrong").
+
+### BLOCKER 1 -- a nonce collision leaves an authenticated peer request unanswered
+
+Section 2.8.1, describing the moment a node receives the colliding request:
+
+<!-- ste: ignore -->
+> At this point, A knows there is a simultaneous rekeying happening. However, it cannot yet know which of the exchanges will have the lowest nonce, so it will just note the situation and respond as usual.
+
+Section 2.21.3:
+
+<!-- ste: ignore -->
+> After the IKE SA is authenticated, all requests having errors MUST result in a response notifying the other end of the error.
+
+Both "our nonce is higher, ignoring peer request" arms of `handleCreateChildSAOwned`
+(`internal/component/ike/engine/inbound.go`, the Child branch and the IKE branch) return
+`ownedOutcome{}` with no `respondChildRekey`, no `respondError` and no `cacheResponse`. The
+peer's authenticated request draws nothing at all, `sa.ExpectedMsgID` never advances, and
+each retransmission re-enters the same arm. Against strongSwan a simultaneous rekey then
+kills the tunnel about half the time: our nonce is higher, we say nothing, the peer
+retransmits its budget and declares the SA dead.
+
+**The violation carries a green bar.** `TestRekeyCollisionIKEBranchLowestNonceAbandons`
+(`internal/component/ike/engine/rekey_test.go`), the `RFC7296-2.8-1 negative` binding,
+asserts it in words -- "It writes no answer" -- and enforces it with
+`rtxExpectSilence(...)`. Per `ai/rules/rfc-compliance.md` the test is the violation with a
+green bar on top, and it must be corrected together with the code.
+
+### BLOCKER 2 -- the collision is resolved from two nonces of four, and decided too early
+
+<!-- ste: ignore -->
+> If redundant SAs are created through such a collision, the SA created with the lowest of the four nonces used in the two exchanges SHOULD be closed by the endpoint that created it.
+
+The RFC's worked example makes the point decisive: "Suppose that the lowest nonce was Nr1 in
+message resp2; in this case, B (the sender of req2) deletes the redundant new SA". **Nr1 is
+a RESPONDER nonce**, and it decides the outcome. The comparison happens after both responses
+have arrived, when "there are three Child SA pairs between A and B ... A and B can now
+compare the nonces".
+
+`localNonceIsLower` (`internal/component/ike/engine/rekey.go`) is called from both sites with
+`p.localNonce` (our Ni) against `nonceFromPayloads(inner)` (the peer's Ni). Two of the four
+nonces, at request-receipt time, which is the moment the RFC says is too early to know.
+
+Two Ze peers agree with each other, because the rule stays symmetric. A conforming peer
+disagrees whenever the global minimum is a responder nonce sitting in the exchange with the
+higher Ni, which is roughly a quarter of collisions, leaving either zero surviving new SAs
+or two redundant ones. This is the same class of failure the spec's own "interoperability
+failure" table describes, one layer down.
+
+### ISSUE 3 -- row `RFC7296-2.8-1` is enrolled at the wrong requirement level
+
+The row is tagged `[MUST]`. Section 2.8.1 says "SHOULD be closed by the endpoint that
+created it" and Section 2.8.2 says "SHOULD be deleted by the node that created it". The MUST
+in Section 2.8.1 is a different sentence -- "a node MUST accept incoming packets through
+either SA" -- and `RFC7296-2.8.1-1` already holds it. The row's TEXT also states the
+four-nonce rule correctly, which the code does not implement, so the row currently describes
+behaviour Ze does not have and grades it at a level the RFC does not ask for.
+
+### ISSUE 4 -- `TestRekeyCollision` is thin evidence for the row it is tagged with
+
+`TestRekeyCollision` asserts that `localNonceIsLower` behaves like `bytes.Compare`. It DOES
+discriminate an inversion of the helper, which this spec's own mutation table records, so it
+is not vacuous. It cannot discriminate an inversion of the `!` at either call site, which is
+where the RFC's direction actually lives, and it carries a full `RFC requirement:` tag as
+though it could. `TestRekeyCollisionLowestNonceAbandons` and
+`TestRekeyCollisionIKEBranchLowestNonceAbandons` are the bindings that carry the rule.
+
+### Owner decision needed before this can be fixed
+
+BLOCKER 1 and BLOCKER 2 cannot be fixed without editing RFC-tagged tests, which
+`ai/rules/testing.md` reserves to the user and the `rfc-tagged-test` hook refuses without a
+`// rfc-test-change-approved:` marker naming what was approved. The 2026-07-30 authorization
+in this spec covers correcting the DIRECTION; it does not cover replacing the algorithm.
+
+BLOCKER 2 is also a redesign rather than an edit: responding as usual and resolving after
+both responses arrive means holding both exchanges open, keeping our own Nr and the peer's,
+and deleting the redundant SA at a point the code has no state for today. It touches
+`pendingRekey`, `pendingIKESwap`, the responder path, and three enrolled tagged tests.
+
+The question owed is which way to fix it, never whether to skip it
+(`ai/rules/rfc-compliance.md`). No interop scenario in `test/ipsec-interop/` exercises a
+simultaneous rekey collision, which is why both defects survived to HEAD, and a scenario
+that does is part of the fix rather than an extra.
