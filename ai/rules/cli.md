@@ -9,6 +9,7 @@
 - **Every CLI command must place a closed keyword before any user-supplied value.** This eliminates ambiguity where a free-form value could collide with a keyword.
 - **All CLI commands MUST follow the patterns in "CLI Patterns" below.** Structural template: `ai/patterns/cli-command.md`. Rationale: `ai/rationale/cli-patterns.md`.
 - **Every command that produces output MUST support all pipe operators.**
+- **A row's state is a field or a column, never a character glued to a value.** No `*`, `>`, `+` or leading dot on an identifier. A sigil corrupts the value for `| grep` and has nowhere to live in `| json`, so the text and JSON forms stop agreeing on what the value is. `*` is also already an input token here, the selector wildcard. See "A value carries no marker" below.
 - **Every error, log line, and failure output you write must let a human or an agent see what failed, why, and what to do next, without opening the source.** The error is the corrective signal: if it does not point at the fix, the reader cannot act and an agent cannot self-correct.
 - **All JSON output MUST follow the conventions in "JSON Format" below.** Rationale: `ai/rationale/json-format.md`.
 - **All agent-facing CLI output must follow the rules in "Agent Tooling Contract" below.**
@@ -558,6 +559,36 @@ a clear next step exists, but a deep internal error need not invent one.
 | Name the subject and the value, not just the type | "invalid value" with no value is unactionable |
 | Truncate large blobs (bodies, dumps, hex) before embedding | A 10 MB error is unreadable for both humans and agents |
 | No `fmt.Sprintf`/`fmt.Errorf` on hot paths -- see `ai/rules/performance.md` | Boundary and one-shot errors may use `fmt.Errorf`; hot paths use append builders |
+
+### A value carries no marker: state is a field, never a sigil
+
+**A row's state is a FIELD or a COLUMN. It is never a character glued to another
+field's value.** No `*`, no `>`, no `+`, no leading dot. If a row is different,
+say so in a place a reader and a pipe can both find.
+
+Other implementations do decorate. FRR and Extreme both print the local system's
+IS-IS LSP as `rtr.00-00 *`. Copying that here breaks two things at once.
+
+| What breaks | Why |
+|-------------|-----|
+| The value | `\| grep <lsp-id>` stops matching, and a parsed field carries a character that is not part of the identifier. The text form and the JSON form then disagree about what the identifier IS |
+| The token | `*` is already an INPUT token in Ze: the selector wildcard for "all" (`peer *`, `clear bgp rib in *`, `192.168.*.*`), documented in `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md` and `docs/guide/route-injection.md`. One character pointing in two directions |
+
+A marker that exists only in the text rendering is not information, it is
+decoration: `| json` has nowhere to put it, so the two forms carry different
+facts. Every command here composes with the pipe operators, which is why the
+sigil is a Ze-specific defect rather than a style preference.
+
+**The fix is always the same shape.** Add the boolean or enum to the snapshot
+type, render it as its own column, and give the column and the JSON field the
+same name so a reader moving between forms learns one vocabulary. The value
+column keeps the value and nothing else.
+
+**Test the value, not only the marker.** A test that asserts the state appears
+does not catch a sigil that also pollutes the identifier. Assert the identifier
+field is EXACTLY the identifier. Without that assertion nothing stops the
+asterisk returning the next time somebody reads another vendor's output as a
+model.
 
 ### Fail closed, never vacuously
 
