@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 917 summaries
+Total: 918 summaries
 
 ## 400-499
 
@@ -976,3 +976,4 @@ Total: 917 summaries
 | 1340 | fixit-bgp-per-family-prefix-enforcement | `plan/learned/1340-fixit-bgp-per-family-prefix-enforcement.md` |
 | 1341 | fixit-isis-lsdb-entry-race | `plan/learned/1341-fixit-isis-lsdb-entry-race.md` |
 | 1342 | Tracked Build Gate | `plan/learned/1342-tracked-build-gate.md` |
+| 1343 | The Demo PTY Harness Waits On State, Not On A Deadline | `plan/learned/1343-demo-pty-harness-waits-on-state.md` |

@@ -19,13 +19,19 @@ assert_not_contains "${before}" "┌"
 output=$(
     python3 /src/demos/terminal/pty-session.py \
         --command 'run show bgp summary' \
+        --command '@wait peers-established' \
         --command '@escape' \
+        --command '@wait router-id' \
         --command 'set environment cli format default table' \
         --command 'show | compare' \
         --command commit \
+        --command '@wait Session committed' \
         --command 'run show bgp summary' \
+        --command '@wait peers-established' \
         --command '@escape' \
+        --command '@wait router-id' \
         --command exit \
+        --command '@wait operational\]' \
         --command exit \
         -- sshpass -e ssh ze-demo
 )

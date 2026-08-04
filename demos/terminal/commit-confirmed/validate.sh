@@ -15,16 +15,21 @@ output=$(
         --command 'set system host edge-trial' \
         --command 'show | compare' \
         --command 'commit confirmed 5' \
+        --command '@wait Confirm within' \
         --command 'show system host' \
-        --command '@sleep 7' \
+        --command '@wait automatically rolled back' \
         --command 'show system host' \
         --command 'set system host edge-confirmed' \
         --command 'commit confirmed 5' \
+        --command '@wait Confirm within' \
         --command confirm \
+        --command '@wait confirmed and saved permanently' \
         --command '@sleep 7' \
         --command 'show system host' \
         --command exit \
+        --command '@wait operational\]' \
         --command '@escape' \
+        --command '@wait Quit\?' \
         --command '@escape' \
         -- ze config edit -f "${config}"
 )
