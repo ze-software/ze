@@ -47,6 +47,80 @@ var spanIndexPool = sync.Pool{
 	New: func() any { return new(attribute.SpanIndex) },
 }
 
+// advertiseGate answers, at most once per rebuild, whether the body this rebuild
+// WRITES carries reachable NLRI. planAttr reads it to decide whether an
+// attribute that is absent from the source may be CREATED.
+//
+// RFC 4271 Section 4.3 describes the shape it protects: "An UPDATE message might
+// advertise only routes that are to be withdrawn from service, in which case the
+// message will not include path attributes or Network Layer Reachability
+// Information." Section 6.3 makes an incomplete well-known set a wire error: "If
+// any of the well-known mandatory attributes are not present, then the Error
+// Subcode MUST be set to Missing Well-known Attribute." An egress rule that adds
+// one attribute to an UPDATE advertising nothing produces exactly that set, and
+// FRR 10.3.1 answers it with "Missing well-known attribute <TYPE>" followed by
+// "rcvd UPDATE with errors in attr(s)!! Withdrawing route", so the withdrawal
+// never takes effect at the peer. It names whichever well-known mandatory
+// attribute it misses first: measured AS_PATH on 2026-08-04, for a withdrawal
+// carrying a lone NEXT_HOP (test/interop/scenarios/53-relay-withdraw-nexthop-self-frr).
+//
+// The verdict is lazy because it is needed only when a plan would create
+// something: a rebuild that merely rewrites attributes already on the wire never
+// asks. It is also answered from values buildModifiedPayload already computed,
+// so it costs no walk of its own: attrEnd comes from the header parse, and the
+// MP_REACH question from the span index that the same function just built.
+//
+// wireu.PayloadAdvertisesNLRI is the definition of this question, and
+// TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI pins the two together over
+// every shape rather than leaving the agreement to a comment. The predicate
+// itself stays the one definition for callers that hold only a payload
+// (ASPathEdit.Record, the RFC 9234 OTC gate).
+type advertiseGate struct {
+	payload      []byte
+	attrEnd      int
+	nlriOverride []byte
+	spans        *attribute.SpanIndex
+	known        bool
+	value        bool
+}
+
+// advertises reports whether the body this rebuild WRITES carries reachable
+// NLRI.
+//
+// The legacy NLRI section it asks about is the one being written, which is the
+// override when the caller supplies one. A filter's `nlri ipv4/unicast add`
+// block is never proven a subset of the source (extractLegacyNLRIOverride,
+// filter_delta.go), so BOTH directions matter: an override can empty a body that
+// advertised, and it can fill one that did not.
+func (g *advertiseGate) advertises() bool {
+	if g.known {
+		return g.value
+	}
+	g.known = true
+
+	if g.nlriOverride != nil {
+		// The rebuild REPLACES the legacy NLRI section, so the source's own
+		// prefixes say nothing about the body being written.
+		if len(g.nlriOverride) > 0 {
+			g.value = true
+			return g.value
+		}
+		// Every legacy prefix dropped. Only MP_REACH_NLRI can still advertise.
+		_, g.value = g.spans.Find(attribute.AttrMPReachNLRI)
+		return g.value
+	}
+
+	// RFC 4271 Section 4.3: the NLRI field is whatever trails the attributes.
+	if len(g.payload) > g.attrEnd {
+		g.value = true
+		return g.value
+	}
+	// No native NLRI, but an advertisement can still ride in MP_REACH_NLRI
+	// (RFC 4760 Section 3).
+	_, g.value = g.spans.Find(attribute.AttrMPReachNLRI)
+	return g.value
+}
+
 // buildModifiedPayload applies attribute modifications to a source UPDATE
 // payload with a single exactly-sized merge walk into a pooled buffer.
 //
@@ -128,7 +202,9 @@ func buildModifiedPayload(
 	}
 	withdrawnOverride := mods.WithdrawnRewrite()
 	if mods.Len() == 0 && nlriOverride == nil && withdrawnOverride == nil {
-		// The ONE legitimate nil: there was nothing to apply.
+		// A legitimate nil: there was nothing to apply. The advertise gate below
+		// produces the same verdict for a second reason; both mean "forward the
+		// route as it stands", and neither means a modification was lost.
 		return nil, 0, modifyFailureNone
 	}
 
@@ -187,18 +263,38 @@ func buildModifiedPayload(
 	// destination's operations were accumulated are handed back now.
 	edit.SetGens(mods.Gens())
 
+	// The one gate that stops any handler creating an attribute on a body that
+	// advertises nothing. It is read from planAttr, the single place a handler
+	// runs, so a producer recording the operation cannot forget it and a plugin
+	// handler in another package inherits it.
+	gate := advertiseGate{payload: payload, attrEnd: attrEnd, nlriOverride: nlriOverride, spans: spans}
+
 	// PLAN. One slot per touched code, in ascending code order because the
 	// operations are now sorted that way.
+	planned := false
 	for from := 0; from < len(ops); {
 		code := ops[from].Code
 		to := from + 1
 		for to < len(ops) && ops[to].Code == code {
 			to++
 		}
-		if fail := planAttr(edit, spans, section, ops[from:to], from, code, handlers); fail.failed() {
+		did, fail := planAttr(edit, spans, section, ops[from:to], from, code, handlers, &gate)
+		if fail.failed() {
 			return nil, 0, fail
 		}
+		planned = planned || did
 		from = to
+	}
+
+	// Every operation was refused by the gate above, so the rebuild would copy
+	// the source byte for byte. This is the SECOND producer of the nil that means
+	// "nothing to apply" -- the first is the empty accumulator above -- and it
+	// keeps a relayed withdrawal on the zero-copy forward path instead of
+	// charging it a per-destination copy for a change that did not happen.
+	// Unreachable when any code planned, because planAttr either commits a slot
+	// or returns a failure.
+	if !planned && nlriOverride == nil && withdrawnOverride == nil {
+		return nil, 0, modifyFailureNone
 	}
 
 	// A store that outgrew its inline capacity allocated. That is correct and is
@@ -351,6 +447,10 @@ func buildModifiedPayload(
 // It is the only place a handler is called, so every reason a handler's
 // operations might not land is decided here, before any buffer exists. A
 // half-built payload is therefore not a state this function can produce.
+//
+// It reports whether it planned anything. False means the gate refused the code
+// outright, which is not a failure: the operations asked to CREATE an attribute
+// on a body that advertises nothing (see advertiseGate).
 func planAttr(
 	edit *filterapi.EditSet,
 	spans *attribute.SpanIndex,
@@ -359,18 +459,8 @@ func planAttr(
 	opFrom int,
 	code uint8,
 	handlers map[uint8]filterapi.AttrModHandler,
-) modifyFailure {
-	handler := handlers[code]
-	if handler == nil {
-		// The operations for this code are NOT applied. Copying the source
-		// through and reporting success forwards the route carrying the very
-		// attribute the policy meant to change, and for RFC 9234 OTC it emits a
-		// route missing an attribute a MUST requires.
-		fwdLogger().Warn("no attr mod handler registered, suppressing route", "code", code)
-		edit.CommitFailed(code)
-		return modifyFailureNoHandler
-	}
-
+	gate *advertiseGate,
+) (bool, modifyFailure) {
 	var src []byte
 	srcOff, srcLen, valOff, valLen := 0, 0, 0, 0
 	if span, ok := spans.Find(attribute.AttributeCode(code)); ok {
@@ -381,17 +471,42 @@ func planAttr(
 		src = section[srcOff : srcOff+srcLen]
 	}
 
+	// RFC 4271 Section 4.3 and Section 6.3: no rule may CREATE a path attribute
+	// on an UPDATE that advertises no reachable NLRI -- a withdrawal, or an RFC
+	// 4724 Section 2 End-of-RIB marker, both of which stop being what they are
+	// the moment one attribute is stamped on them. Rewriting an attribute the
+	// source already carried stays allowed: presence is what the receiver's
+	// well-known-mandatory check reads, and re-encoding an AS_PATH that rode
+	// along at the destination's AS width is still owed (RFC 6793 Section 4.2.2).
+	//
+	// This is decided BEFORE the handler lookup so an unregistered code cannot
+	// fail the route closed over an attribute that must not exist anyway.
+	if src == nil && !gate.advertises() {
+		return false, modifyFailureNone
+	}
+
+	handler := handlers[code]
+	if handler == nil {
+		// The operations for this code are NOT applied. Copying the source
+		// through and reporting success forwards the route carrying the very
+		// attribute the policy meant to change, and for RFC 9234 OTC it emits a
+		// route missing an attribute a MUST requires.
+		fwdLogger().Warn("no attr mod handler registered, suppressing route", "code", code)
+		edit.CommitFailed(code)
+		return false, modifyFailureNoHandler
+	}
+
 	p := edit.Attr(code, src, srcOff, srcLen, valOff, valLen, codeOps, opFrom)
 	if panicked := safeAttrModHandler(handler, code, p); panicked {
 		edit.CommitFailed(code)
-		return modifyFailureHandlerFault
+		return false, modifyFailureHandlerFault
 	}
 	id := edit.Commit(p)
 	if edit.SlotFailed(id) {
 		fwdLogger().Warn("attr mod handler refused the modification, suppressing route", "code", code)
-		return modifyFailureHandlerFault
+		return false, modifyFailureHandlerFault
 	}
-	return modifyFailureNone
+	return true, modifyFailureNone
 }
 
 // attrEmitter walks the output attribute order exactly once per call.

@@ -1220,9 +1220,13 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 			// Fail closed. mods.HasModifications() is true, so a nil payload
 			// here can only mean the build refused; re-advertising the stale
 			// route unmodified would undo the RFC 9494 egress filter's decision.
-			// modified == nil with no named failure is unreachable today (the
-			// "nothing to apply" early return needs an EMPTY accumulator), and
-			// is folded in here so a future path cannot make it a silent leak.
+			// modified == nil with no named failure has TWO producers since
+			// 2026-08-04: an empty accumulator, and a rebuild whose every
+			// operation the advertise gate refused (advertiseGate,
+			// forward_build.go). Neither reaches here -- a stale
+			// re-advertisement carries the stored route's NLRI, so the gate
+			// answers "advertises" and refuses nothing -- and it is folded in
+			// anyway so a future path cannot make it a silent leak.
 			//
 			// The nil-with-no-failure half reaches recordModifyFailure as
 			// modifyFailureNone, which does not log, so it keeps its own line.

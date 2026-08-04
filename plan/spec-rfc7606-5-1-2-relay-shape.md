@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/2 (follow-on: withdraw-only relay shape) |
+| Phase | 3/3 (follow-on 2: the remaining withdraw-only attribute producers) |
 | Updated | 2026-08-04 |
 
 ## Post-Compaction Recovery
@@ -541,6 +541,11 @@ no assertion changed. Seven are in `wireu/aspath_slot_test.go` (via
 
 ### Found while doing this, NOT fixed here
 
+**Rows 1, 2 and 3 are FIXED by "Follow-On 2" below (2026-08-04), by one guard in
+`planAttr` rather than the three separate ones this table anticipated.** Rows 4
+and 5 stand as written. The paragraph and table are kept unedited so the reasoning
+that homed the work here stays readable.
+
 All three were confirmed by independent review, and none is reached on the rail
 this spec owns. The first two are the same defect CLASS as the one fixed above:
 a per-destination rule that adds an attribute without asking whether the UPDATE
@@ -555,6 +560,130 @@ that is a spec of its own with its own interop witnesses.
 | The egress community tag records `AttrModAdd`, and `genericCommunityHandler` (`bgp/plugins/filter_community/handler.go`) emits from an Add with no source value | `applyEgressFilter` (`bgp/plugins/filter_community/egress.go`) | a plugin's own policy surface, a third producer again |
 | `tryShift` (`wireu/aspath_slot.go`) returns before `recordAS4Path`, so the fast prepend path carries a received AS4_PATH onward between two NEW speakers (RFC 6793 Section 4.1 "MUST NOT be carried"). Pre-existing, on the ADVERTISING rail, and untouched by this change; the withdraw-only half of the same hole IS fixed here, by `recordWithdrawOnly` | `ASPathEdit.tryShift` | the fast path cannot express the AS4_PATH merge it would need for the both-OLD case, so closing it is a redesign of that path rather than a guard |
 | An RS-Client DESTINATION (RFC 9234 wire role 2) is proven nowhere. `role-otc-rs-withdraw-eor.ci`'s dest declares wire role 3, which `roleNames` (`role/role.go`) calls customer; egress rule 1's third named destination role rests on the Customer case reading as representative | `role/otc.go` | RFC 9234 scope, not relay shape. Recorded in that `.ci`'s header |
+
+## Follow-On 2: the remaining withdraw-only attribute producers (2026-08-04)
+
+Closes three rows of the table above, the one titled "Found while doing this,
+NOT fixed here". A fourth producer came from the review of this change.
+
+### The defect, restated once for all four
+
+A per-destination egress rule CREATED a path attribute on a relayed UPDATE that
+advertises no reachable NLRI. Four producers did it, each on a different rail:
+
+| Producer | File | Reached when |
+|----------|------|--------------|
+| `applyFactsNextHop` -- `Op(3, Set)`, `Op(14, Set)` | `reactor/peer_forward_facts.go` | the operator configures a next-hop rewrite |
+| `forwardUpdateCore` / `reactorForwardRS` -- `Op(9, Set)`, `Op(10, Prepend)`, landing on `originatorIDHandler` and `clusterListHandler` | `reactor/reactor_api_forward.go`, `reactor/forward_rs.go`, `reactor/filter_delta_handlers.go` | the iBGP route-reflector rail (RFC 4456 Section 8) |
+| the egress community tag, landing on `genericCommunityHandler` | `bgp/plugins/filter_community/egress.go` | a route server strips or adds control communities |
+| a policy chain's text delta on any code, landing on `genericAttrSetHandler` | `reactor/filter_ordered.go` | an import or export policy sets an attribute |
+
+RFC 4271 Section 4.3 states the shape. An UPDATE that withdraws only "will not
+include path attributes or Network Layer Reachability Information".
+
+Section 6.3 makes the result a wire error. "If any of the well-known mandatory
+attributes are not present, then the Error Subcode MUST be set to Missing
+Well-known Attribute."
+An RFC 4724 Section 2 End-of-RIB stops being a marker the moment one attribute
+lands on it.
+
+### The layer, and why it is NOT `forwardUpdateCore`
+
+The design first proposed was one `advertises` bit hoisted into
+`forwardUpdateCore` and threaded to the recording sites. The code says otherwise,
+for four reasons in order of weight.
+
+1. **`forwardUpdateCore` is one of FIVE drivers.** `buildModifiedPayload` is
+   reached from `reactor_api_forward.go`, `forward_rs.go`, `filter_ordered.go`
+   twice (import and export chains) and `reactor_api_batch.go` (stale
+   re-advertise). A bit at one driver covers one rail.
+2. **A driver cannot tell CREATE from MODIFY.** Refusing to RECORD the operation
+   also cancels the legitimate rewrite of an attribute that rode along on the
+   withdrawal, which is exactly the distinction `79b46ef60` was careful to keep
+   (`recordTranscode` still re-encodes an AS_PATH that was already there).
+   `src == nil` is known only inside `planAttr`.
+3. **One producer lives in a plugin package.** `genericCommunityHandler`
+   (`filter_community`) never sees a reactor-local bit.
+4. **The bit must describe the body the rebuild WRITES, not the one it reads.**
+   An export chain that denies every prefix passes `nlriOverride = []byte{}`, so
+   a source-only reading calls an emptying body an advertisement.
+
+The guard therefore sits in `planAttr` (`reactor/forward_build.go`), the single
+place a handler is called. It reads `advertiseGate`, a lazy memoized wrapper
+over `wireu.PayloadAdvertisesNLRI`. That is still the one definition.
+`buildModifiedPayload` reports "nothing to apply" when every code was refused, so
+a relayed withdrawal keeps the zero-copy forward instead of paying a copy for a
+change that did not happen.
+
+### Tests
+
+| Test | File | Proves |
+|------|------|--------|
+| `TestRelayCreatesNoAttributeOnABodyAdvertisingNothing` | `reactor/forward_build_withdraw_shape_test.go` | 4 producers x 3 bodies (withdraw-only, legacy EoR, MP_UNREACH-only), each paired with an advertising control |
+| `TestRelayStillRewritesAnAttributeAWithdrawalCarries` | same | the create/modify boundary: an AS_PATH riding along is still transcoded |
+| `TestRelayCreatesNoAttributeWhenEveryPrefixIsFiltered` | same | the `nlriOverride` shape, both polarities |
+| `TestForwardNextHopSelfLeavesAWithdrawalUntouched` | same | the whole rail through `ForwardUpdate`, byte-identical withdrawal and EoR, plus a rewritten advertisement |
+| `TestForwardReflectionLeavesAWithdrawalUntouched` | same | the same, on the iBGP RFC 4456 rail |
+| `TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI` | same | the gate and `wireu.PayloadAdvertisesNLRI` answer identically over seven shapes, so the O(1) shortcut cannot drift from the definition |
+| `TestRelayCreatesTheAttributeWhenAnOverrideAddsNLRI` | same | an override that ADDS NLRI to a withdraw-only source makes the body an advertisement, so the attribute lands (review finding 2) |
+| `TestPolicyChainCreatesNoAttributeOnAWithdrawal` | `reactor/filter_ordered_test.go` | the policy-chain entry point, both chains, plus an advertising control (review finding 3) |
+| `relay-withdraw-nexthop-self.ci` | `test/plugin/` | the VERIFY tier: the running daemon relays a withdrawal to a `next-hop self` peer byte-identical, and rewrites the advertisement's next-hop on the same session |
+| `53-relay-withdraw-nexthop-self-frr` | `test/interop/scenarios/` | FRR 10.3.1 accepts the relayed withdrawal with next-hop-self configured, and the advertisement's next-hop IS rewritten |
+| `54-relay-withdraw-reflector-frr` | same | the iBGP witness: FRR accepts the reflected withdrawal, and the reflected advertisement DOES carry ORIGINATOR_ID and CLUSTER_LIST |
+
+### Mutation evidence (all measured, 2026-08-04)
+
+| Mutant | Result |
+|--------|--------|
+| `planAttr`: `if false && src == nil && !gate.advertises()` | 22 subtests RED across all four producers and both entry-point rails. Withdrawal `0004180a00000000` becomes `0004180a00000007400304c0000201` (a lone NEXT_HOP); legacy EoR `00000000` becomes `00000007400304c0000201`; the reflected withdrawal gains `8009040a000002 800a040a000001` |
+| `planAttr`: drop the `src == nil` half, so the gate blocks modification too | `TestRelayStillRewritesAnAttributeAWithdrawalCarries` RED: "a rewrite of a PRESENT attribute must still happen on a withdrawal" |
+| `advertiseGate.advertises`: disable the `nlriOverride` branch | `...WhenEveryPrefixIsFiltered/every-prefix-denied` RED: the rebuilt attrs are `{0x1: ORIGIN, 0x3: NEXT_HOP}`, "should not contain 0x3" |
+| `buildModifiedPayload`: disable the nothing-planned early return | 12 subtests RED on `assert.Nil(result)`: the relay pays a byte-identical copy and loses zero-copy |
+| `planAttr`: drop the guard, run interop 53 | RED at the NEGATIVE, positive still green (next-hop-self engaged). FRR 10.3.1: `[EC 33554482] 172.30.0.2 Missing well-known attribute AS_PATH.` and `[EC 33554455] 172.30.0.2(Unknown) rcvd UPDATE with errors in attr(s)!! Withdrawing route.` |
+| `advertiseGate.advertises`: `|| len(g.payload) != 4`, so only a legacy EoR is guarded, run interop 54 **as first drafted** | **SURVIVED.** FRR accepted a withdrawal carrying ORIGINATOR_ID and CLUSTER_LIST without a word: its mandatory-attribute check fires only once NEXT_HOP or MP_REACH_NLRI is present. The scenario was REBUILT around a byte-exact witness -- see below |
+| `planAttr`: drop the guard, run the rebuilt interop 54 | RED, and the failure names the stamped bytes: the reflected End-of-RIB arrives as `0000000E800904AC1E0003800A04AC1E0002` -- ORIGINATOR_ID plus CLUSTER_LIST, no NLRI, no longer an RFC 4724 Section 2 marker |
+
+**Scenario 54 was measured vacuous once, then rebuilt.** Its first draft put FRR
+on the receiving side. It asserted that FRR raised no attribute error over the
+reflected withdrawal. The mutant above proved that assertion cannot fail. The
+reason is structural in FRR, not a fixture accident.
+
+FRR is now the SOURCE. It originates the prefix, and `check.py` drives
+`no network` to withdraw it. The receiving witness is a raw `ze-test peer`, and it
+asserts the reflected withdrawal byte for byte. Scenario 53 keeps the
+complementary claim, that a conforming receiver ACCEPTS what ze relays, on the
+rail where FRR can see the difference.
+
+### Run 5: independent review of Follow-On 2 (2026-08-04)
+
+Two independent reviewer subagents on Opus 5, neither of which wrote the code: A
+over the production change, B over the tests and interop. Zero BLOCKER survives;
+every ISSUE was fixed and mutation-verified. Artifact:
+`tmp/review/relay-withdraw-attribute-gate-<session>.md`.
+
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| 1 | BLOCKER | `RFC6793-4.2.2-1 positive` on `TestRelayStillRewritesAnAttributeAWithdrawalCarries` is a false compliance claim. The test hand-builds the narrowed AS_PATH and never runs `ASPathEdit.recordTranscode`, so it is a tautology with respect to that id | fixed: tag removed with a marker recording why. `ze-rfc-check` green at 3251 tags |
+| 2 | ISSUE | The gate corrected only the EMPTYING direction of `nlriOverride`. A NON-EMPTY override can ADD NLRI to a withdraw-only source, so the built body advertised while the policy's attribute went missing, under `modifyFailureNone` | fixed: both directions. `TestRelayCreatesTheAttributeWhenAnOverrideAddsNLRI`, mutant-killed |
+| 3 | ISSUE | The policy-chain driver was never given a withdraw-only body, so producer 4 was proven only at the helper | fixed: `TestPolicyChainCreatesNoAttributeOnAWithdrawal`, both chains plus a control. Mutant stamps `4005 04 000000c8` |
+| 4 | ISSUE | Every verify-tier proof was a unit test; both daemon witnesses were nightly interop | fixed: `test/plugin/relay-withdraw-nexthop-self.ci`. Mutant reddens it with `+ NEXT_HOP: 127.0.0.2 (unexpected)` |
+| 5 | ISSUE | The gate re-parsed the header and re-walked the attribute section `spans` already indexes, per destination | fixed: reads `attrEnd` plus `spans.Find`, so it costs no walk. `TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI` pins it to the shared predicate over seven shapes |
+| 6 | ISSUE | `decideStaleReadvertise`'s comment was falsified by the new early return | fixed: names both producers of that nil and why neither reaches it |
+| 7 | MINOR | Two comments each claimed to be "the ONE legitimate nil" | fixed |
+| 8 | MINOR | Three sites claimed FRR says "Missing well-known attribute NEXT_HOP"; measured was AS_PATH | fixed at all three, with the scenario named |
+| 9 | NOTE | An op removing MP_REACH beside an empty `nlriOverride` would let a create land on a body ending with no NLRI | accepted: no production producer removes code 14 |
+
+### Fixtures corrected, not assertions
+
+Fifteen fixtures in three reactor test files relayed an UPDATE with NO NLRI, and
+asserted that an egress rule ADDED an attribute to it. They were withdraw-only
+UPDATEs claiming to be advertisements, the shape `aspath_slot_test.go` carried
+before `79b46ef60`. Each gained an NLRI prefix, and no assertion changed.
+
+`TestProgressiveBuildWithdrawnPreserved` is the one exception: it is a genuine
+withdrawal, so its modification moved from CREATING an OTC attribute to
+REWRITING the ORIGIN the fixture already carried. The withdrawn-bytes assertion
+it exists for is untouched. None of the fifteen is RFC-tagged.
 
 ## Goal Validation (BLOCKING)
 

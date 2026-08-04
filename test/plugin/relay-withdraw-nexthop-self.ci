@@ -1,0 +1,194 @@
+# Test: next-hop-self does NOT stamp a NEXT_HOP onto a relayed withdrawal
+# VALIDATES: RFC 4271 Section 4.3 -- "An UPDATE message might advertise only
+#            routes that are to be withdrawn from service, in which case the
+#            message will not include path attributes or Network Layer
+#            Reachability Information." A per-destination next-hop rewrite has
+#            nothing to rewrite on such a message, so it must add nothing.
+#
+# PREVENTS: applyFactsNextHop (internal/component/bgp/reactor/peer_forward_facts.go)
+#           recording Op(3, AttrModSet) with no question asked about whether the
+#           UPDATE advertises anything. Before advertiseGate (forward_build.go),
+#           every withdrawal relayed to a peer with `next-hop self` reached it
+#           carrying a lone NEXT_HOP and no ORIGIN and no AS_PATH. RFC 4271
+#           Section 6.3 makes that a Missing Well-known Attribute error, and FRR
+#           10.3.1 answers it -- so the withdrawal never took effect and the route
+#           stayed live at the peer.
+#
+# WHY A .ci AND NOT ONLY THE INTEROP SCENARIO. This runs in the verify tier.
+# test/interop/scenarios/53-relay-withdraw-nexthop-self-frr proves a real FRR
+# ACCEPTS the shape, but interop is the nightly tier, so without this file the
+# daemon's own wire output for this producer is proven only by unit tests.
+# role-otc-fwd-withdraw.ci does not cover it: its peers configure no next-hop
+# rewrite, so nhMode is nhModeNone there and applyFactsNextHop returns before
+# recording anything.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). An assertion that an
+# attribute is ABSENT passes when the mechanism that adds it is deleted. So the
+# POSITIVE and the NEGATIVE run on the SAME session to the SAME peer in one run:
+# dest seq=1 requires the advertisement to carry the REWRITTEN next-hop
+# 7F000002, and dest seq=2 requires the withdrawal to carry no attribute at all.
+# A build where next-hop-self never fires reddens seq=1; a build without the gate
+# reddens seq=2. Neither red can be reached by the peer having disconnected: the
+# observer proves each message was written to the dest before releasing the next.
+
+# Source peer (ASN 65001) on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The source must outlive the dest's assertions: the two sessions establish
+# independently and a source that closes makes ze withdraw its routes, which
+# would deliver the dest a withdrawal it never asked for.
+option=linger:value=true
+# seq=1 -- advertise 10.0.0.0/24: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+# seq=2 -- BARRIER, not an assertion. The observer injects 192.0.2.0/24 to THIS
+# peer only, and only after ze has already written the dest the advertisement.
+# Without it the withdrawal below races the dest's establishment, and a dest that
+# is not yet a forward target sees neither message.
+expect=bgp:conn=1:seq=2:contains=18C00002
+# seq=3 -- withdraw 10.0.0.0/24. withdrawnLen=4, attrLen=0.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_SOURCE
+
+# Dest peer (ASN 65002) on 127.0.0.2 -- the wire assertions live here. It is the
+# peer that carries `next-hop self`.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=30s
+# seq=1 POSITIVE -- the advertisement MUST carry the REWRITTEN next-hop:
+# 4003 04 7F000002, ze's local address for this session (127.0.0.2), not the
+# source's 1.1.1.1. This is what proves next-hop-self is engaged; without it
+# seq=2 below would pass on a build where the rewrite never ran at all.
+expect=bgp:conn=1:seq=1:contains=4003047F000002
+# seq=2 NEGATIVE -- the forwarded withdrawal, BYTE-IDENTICAL to what the source
+# sent: attrLen=0000, no attribute of any code. A stamped withdrawal reads
+# attrLen=0007 with 4003047F000002, and this exact-hex rule refuses it.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_DEST
+
+# Observer: sequences the source's withdrawal behind "the dest was actually sent
+# the advertisement", so neither assertion can pass or fail by absence.
+tmpfs=relay-nhself.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Sequence the source peer's withdrawal behind the dest's advertisement."""
+import sys
+from ze_api import API, runtime_fail
+
+DEST = '127.0.0.2'
+
+
+def dest_updates(api):
+    """Real UPDATEs written to the dest peer, End-of-RIB markers excluded.
+
+    updates-sent counts EVERY UPDATE written to the peer, the initial-sync EoR
+    included (IncrUpdatesSent in reactor/reactor_notify.go sees only the message
+    type). eor-sent is the separate marker counter, so the difference is the
+    forwarded traffic this test is about.
+    """
+    return (api.peer_counter('updates-sent', peer=DEST)
+            - api.peer_counter('eor-sent', peer=DEST))
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce FIRST so the poll behind it is a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC.
+    api.quiesce()
+    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=40):
+        runtime_fail('dest peer was never sent the advertisement')
+    print('OK: dest was sent the advertisement', file=sys.stderr)
+
+    # Release the source's withdrawal. This route goes to the SOURCE only, and
+    # its NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 barrier
+    # matches on.
+    api.send('peer 127.0.0.1 update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
+
+    # The dest must still be alive when its seq=2 rule runs, so hold the daemon
+    # up until the withdrawal has actually been written to it.
+    if not api.wait_until(lambda: dest_updates(api) >= 2, attempts=40):
+        runtime_fail('dest peer was never sent the forwarded withdrawal')
+    print('OK: dest was sent the forwarded withdrawal', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze (ASN 65000) with two external peers on separate loopbacks. Only the DEST
+# carries `next-hop self`: rewriting toward the source would prove nothing.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external relay-nhself {
+		run ./relay-nhself.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		process relay-nhself {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			# The subject of this test. Every UPDATE relayed to this peer now has
+			# a NEXT_HOP operation recorded against it by applyFactsNextHop.
+			next-hop self;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

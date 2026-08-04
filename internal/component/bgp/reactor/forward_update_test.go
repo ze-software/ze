@@ -26,6 +26,16 @@ import (
 // in -- and the forward rail now refuses it (errForwardNoSource).
 const forwardSourceAddr = "10.0.0.1"
 
+// fwdTestNLRI is the one advertised prefix every forward fixture in this file
+// carries, 10.0.0.0/24.
+//
+// It is load-bearing rather than decoration. These fixtures relay a route to
+// which an egress rule ADDS an attribute, and buildModifiedPayload refuses to
+// create one on a body that advertises nothing (advertiseGate, forward_build.go
+// -- RFC 4271 Sections 4.3 and 6.3). Without the prefix the bodies below are
+// relayed WITHDRAWALS, and the modification each test exists to drive never runs.
+var fwdTestNLRI = []byte{24, 10, 0, 0}
+
 // makeForwardSourcePeer builds the established source peer a forwarded UPDATE
 // was learned from.
 //
@@ -356,12 +366,13 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	// Build a minimal UPDATE payload: WithdrawnLen=0, AttrLen=4 (ORIGIN=IGP), no NLRI.
+	// Build a minimal UPDATE payload: WithdrawnLen=0, AttrLen=4 (ORIGIN=IGP), one NLRI prefix.
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
-	payload := make([]byte, 2+2+len(origAttrs))
+	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	// withdrawnLen = 0 (first 2 bytes already zero)
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
+	copy(payload[4+len(origAttrs):], fwdTestNLRI)
 
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(300)
@@ -482,9 +493,10 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00}
-	payload := make([]byte, 2+2+len(origAttrs))
+	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
+	copy(payload[4+len(origAttrs):], fwdTestNLRI)
 
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(301)
@@ -583,9 +595,10 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00}
-	payload := make([]byte, 2+2+len(origAttrs))
+	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
+	copy(payload[4+len(origAttrs):], fwdTestNLRI)
 
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(302)
@@ -774,9 +787,10 @@ func cacheReflectableUpdate(t *testing.T, cache *RecentUpdateCache, id uint64) {
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
-	payload := make([]byte, 2+2+len(origAttrs))
+	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
+	copy(payload[4+len(origAttrs):], fwdTestNLRI)
 
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(id)
@@ -1083,9 +1097,10 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
-	payload := make([]byte, 2+2+len(origAttrs))
+	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
+	copy(payload[4+len(origAttrs):], fwdTestNLRI)
 
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(msgID)
@@ -1703,9 +1718,10 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
-	payload := make([]byte, 2+2+len(origAttrs))
+	payload := make([]byte, 2+2+len(origAttrs)+len(fwdTestNLRI))
 	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
 	copy(payload[4:], origAttrs)
+	copy(payload[4+len(origAttrs):], fwdTestNLRI)
 
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	wu.SetMessageID(700)

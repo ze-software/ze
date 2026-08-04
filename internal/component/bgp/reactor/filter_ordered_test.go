@@ -170,6 +170,18 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 // applied and the build reports modifyFailureNoHandler. Forwarding then would
 // send a route the policy had not changed.
 
+// policyChainAdvertisingBody is the minimal ADVERTISING UPDATE body the
+// text-delta chain tests drive: withdrawn-len 0, attr-len 0, one NLRI prefix
+// 10.0.0.0/24.
+//
+// It was `{0, 0, 0, 0}` before 2026-08-04, which is a legacy RFC 4724 Section 2
+// End-of-RIB marker. buildModifiedPayload refuses to CREATE a path attribute on
+// a body that advertises nothing (advertiseGate, forward_build.go), so on that
+// body the filter's LOCAL_PREF Set was dropped before the guard these tests
+// exist to drive was ever reached. The raw-override tests below keep the 4-byte
+// body on purpose: it is the decode boundary they pin.
+func policyChainAdvertisingBody() []byte { return []byte{0, 0, 0, 0, 24, 10, 0, 0} }
+
 // modifyingFilter returns a seam that answers every filter call with a text
 // delta setting LOCAL_PREF, which textDeltaToModOps turns into one AttrModSet
 // operation on code 5.
@@ -201,7 +213,7 @@ func TestRunIngressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 		attrModHandlers: map[uint8]filterapi.AttrModHandler{},
 	}
 
-	body := []byte{0, 0, 0, 0} // withdrawn-len 0, attr-len 0
+	body := policyChainAdvertisingBody()
 	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
 
 	require.False(t, res.accept,
@@ -225,7 +237,7 @@ func TestRunEgressPolicyChainASN4ModifyFailureFailsClosed(t *testing.T) {
 	}
 	filters := []filterapi.FilterRef{{Name: "set-local-pref"}}
 
-	body := []byte{0, 0, 0, 0}
+	body := policyChainAdvertisingBody()
 	res := r.runEgressPolicyChainASN4(filters, "10.0.0.7", 65001, 65000, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
@@ -247,7 +259,7 @@ func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	}
 	filters := []filterapi.FilterRef{{Name: "set-local-pref"}}
 
-	body := []byte{0, 0, 0, 0}
+	body := policyChainAdvertisingBody()
 	res := r.runEgressPolicyChain(filters, "10.0.0.8", 65001, 65000, testWireUpdate(body))
 
 	require.False(t, res.accept, "forwarded egress path must suppress on a modify failure")
@@ -391,7 +403,7 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 // denies everything passes every negative test above and is useless.
 func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 	handlers := attrModHandlersWithDefaults()
-	body := []byte{0, 0, 0, 0}
+	body := policyChainAdvertisingBody()
 
 	t.Run("ingress", func(t *testing.T) {
 		addr := netip.MustParseAddr("10.0.0.9")
@@ -427,5 +439,72 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 		require.True(t, res.accept, "an applicable modification must not be refused")
 		assert.False(t, res.failed, "an applied modification is not a failure")
 		require.NotNil(t, res.wireOverride, "the wire override must reach the caller")
+	})
+}
+
+// VALIDATES: the advertise gate is driven from the POLICY-CHAIN entry point, not
+// only from buildModifiedPayload. A filter delta that would CREATE LOCAL_PREF on
+// a relayed withdrawal creates nothing, and the route is still forwarded.
+//
+// PREVENTS: a coverage hole an independent review found on 2026-08-04. Producer 4
+// of the spec's Follow-On 2 table -- a policy chain's text delta landing on
+// genericAttrSetHandler -- reaches buildModifiedPayload through
+// runIngressPolicyChain / runEgressPolicyChain, and every other test in this file
+// now passes an ADVERTISING body, so no test sent a withdraw-only body down this
+// rail (ai/rules/evidence.md: drive the guard from its entry point, never the
+// helper alone).
+//
+// RFC 4271 Section 4.3: a message that withdraws only "will not include path
+// attributes". Section 6.3 makes one stamped attribute a Missing Well-known
+// Attribute error at the receiver.
+func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
+	// withdrawn-len 4, prefix 10.0.0.0/24, attr-len 0. No attributes at all.
+	withdrawal := []byte{0, 4, 24, 10, 0, 0, 0, 0}
+
+	newReactor := func() *Reactor {
+		return &Reactor{
+			api:              &pluginserver.Server{},
+			policyFilterSeam: modifyingFilter(),
+			attrModHandlers:  attrModHandlersWithDefaults(),
+		}
+	}
+
+	t.Run("ingress", func(t *testing.T) {
+		addr := netip.MustParseAddr("10.0.0.20")
+		peer := NewPeer(&PeerSettings{
+			Address:       addr,
+			LocalAS:       65000,
+			PeerAS:        65001,
+			ImportFilters: []filterapi.FilterRef{{Name: "set-local-pref"}},
+		})
+
+		res := newReactor().runIngressPolicyChain(peer, addr, 65001, testWireUpdate(withdrawal), withdrawal)
+
+		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still accepted")
+		assert.Nil(t, res.modifiedPayload,
+			"nothing landed, so the withdrawal keeps its own bytes")
+	})
+
+	t.Run("egress", func(t *testing.T) {
+		res := newReactor().runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "set-local-pref"}},
+			"10.0.0.21", 65001, 65000, testWireUpdate(withdrawal), false)
+
+		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still forwarded")
+		assert.False(t, res.failed, "refusing to create is not a step that could not run")
+		assert.Nil(t, res.wireOverride,
+			"no override, so the relay forwards the source withdrawal unchanged")
+	})
+
+	// The control on the same rail: an ADVERTISING body still gets LOCAL_PREF, so
+	// a gate stuck closed reddens here rather than passing both halves above.
+	t.Run("advertising-body-still-modified", func(t *testing.T) {
+		body := policyChainAdvertisingBody()
+		res := newReactor().runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "set-local-pref"}},
+			"10.0.0.22", 65001, 65000, testWireUpdate(body), false)
+
+		require.True(t, res.accept)
+		require.NotNil(t, res.wireOverride, "an advertisement is still decorated")
+		assert.Contains(t, rebuiltAttrs(t, res.wireOverride.Payload()), byte(5),
+			"the filter's LOCAL_PREF (code 5) reaches a body that advertises something")
 	})
 }

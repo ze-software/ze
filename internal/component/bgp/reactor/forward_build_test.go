@@ -26,6 +26,15 @@ func buildModTestPayload(attrs, nlri []byte) []byte {
 	return buf
 }
 
+// modTestNLRI is one advertised prefix, 10.0.0.0/24.
+//
+// A fixture whose modification CREATES an attribute must carry it.
+// buildModifiedPayload refuses to create a path attribute on a body that
+// advertises no reachable NLRI (advertiseGate, RFC 4271 Sections 4.3 and 6.3),
+// so a fixture with no NLRI is a withdraw-only UPDATE claiming to be an
+// advertisement, and it proves nothing about the rebuild it drives.
+var modTestNLRI = []byte{24, 10, 0, 0}
+
 // makeAttr builds a single path attribute: flags + code + len + value.
 func makeAttr(flags, code byte, value []byte) []byte {
 	attr := make([]byte, 3+len(value))
@@ -256,7 +265,7 @@ func TestProgressiveBuildMultiOps(t *testing.T) {
 // only its skip-and-forward conclusion is reversed. See modifyFailure.failed.
 func TestProgressiveBuildUnknownCode(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
-	payload := buildModTestPayload(origin, nil)
+	payload := buildModTestPayload(origin, modTestNLRI)
 
 	var mods filterapi.ModAccumulator
 	mods.Op(99, filterapi.AttrModSet, []byte{0x01}) // No handler for code 99.
@@ -271,6 +280,14 @@ func TestProgressiveBuildUnknownCode(t *testing.T) {
 
 // VALIDATES: Withdrawn section copied verbatim.
 // PREVENTS: Withdrawn routes corrupted by attr mods.
+//
+// The modification REPLACES the ORIGIN the source carries rather than adding a
+// new OTC attribute, which is what it did before 2026-08-04. This body withdraws
+// and advertises nothing, so creating an attribute on it is the RFC 4271 Section
+// 6.3 Missing-Well-known-Attribute shape that advertiseGate now refuses: the
+// fixture was asserting the withdrawn bytes survive a rebuild that must never
+// happen. Replacing a PRESENT attribute drives the same rebuild and asserts the
+// same bytes.
 func TestProgressiveBuildWithdrawnPreserved(t *testing.T) {
 	// Build payload with withdrawn routes.
 	withdrawn := []byte{24, 10, 0, 0} // 10.0.0.0/24
@@ -284,18 +301,16 @@ func TestProgressiveBuildWithdrawnPreserved(t *testing.T) {
 	binary.BigEndian.PutUint16(payload[2+len(withdrawn):], uint16(attrLen))
 	copy(payload[2+len(withdrawn)+2:], origin)
 
-	// Add a new OTC attribute to force modification.
-	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+	// Rewrite the ORIGIN the source already carries, to force a modification.
+	originHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
 		p.Op(0)
-		p.Emit(0xC0, 35)
+		p.Emit(0x40, 1)
 	})
 
 	var mods filterapi.ModAccumulator
-	asnBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(asnBuf, 65000)
-	mods.Op(35, filterapi.AttrModSet, asnBuf)
+	mods.Op(1, filterapi.AttrModSet, []byte{0x02}) // ORIGIN=INCOMPLETE
 
-	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{1: originHandler}, nil, nil)
 	require.NotNil(t, result)
 
 	// Check withdrawn section preserved.
@@ -334,7 +349,7 @@ func TestProgressiveBuildNLRIPreserved(t *testing.T) {
 // PREVENTS: Wrong attr_len causing parse failures.
 func TestProgressiveBuildAttrLenBackfill(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00}) // 4 bytes
-	payload := buildModTestPayload(origin, nil)
+	payload := buildModTestPayload(origin, modTestNLRI)
 
 	// Handler adds 7-byte OTC.
 	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
@@ -402,7 +417,7 @@ func TestProgressiveBuildExtendedLengthAttr(t *testing.T) {
 	copy(extAttr[4:], extValue)
 
 	attrs := slices.Concat(origin, extAttr)
-	payload := buildModTestPayload(attrs, nil)
+	payload := buildModTestPayload(attrs, modTestNLRI)
 
 	// Add OTC via handler (new attribute, not touching extended-length one).
 	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
@@ -463,7 +478,7 @@ func TestProgressiveBuildMalformedPayload(t *testing.T) {
 // unchanged; only the forward-anyway conclusion is reversed.
 func TestProgressiveBuildNewAttrHandlerPanic(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
-	payload := buildModTestPayload(origin, nil)
+	payload := buildModTestPayload(origin, modTestNLRI)
 
 	panicHandler := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("test panic creating new attr")
@@ -565,7 +580,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 
 	t.Run("invalid_offset_new_attr", func(t *testing.T) {
 		origin := makeAttr(0x40, 1, []byte{0x00})
-		payload := buildModTestPayload(origin, nil)
+		payload := buildModTestPayload(origin, modTestNLRI)
 
 		// A handler that refuses while creating a NEW attribute.
 		badHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
