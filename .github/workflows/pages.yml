@@ -78,6 +78,12 @@ jobs:
           done
           echo "--- ze start in the foreground (30s cap) ---"
           timeout 30 ze start ze.conf; echo "ze start exit=$?"
+          echo "--- crash reports ---"
+          ls -la "${config}/crash" || true
+          for f in "${config}"/crash/*; do
+              [ -f "$f" ] || continue
+              echo "== $f"; head -80 "$f"
+          done
           echo "--- ze version ---"; ze version; echo "version exit=$?"
           echo "--- limits ---"; ulimit -a; free -m
           echo "--- cgroup ---"; cat /sys/fs/cgroup/memory.max 2>/dev/null || true
