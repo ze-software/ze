@@ -45,7 +45,18 @@ import (
 // Deciding the duplicate inside the loop removes the class rather than the instance: no exit
 // added to that loop later can outrun a verdict already returned.
 //
-// RFC requirement: RFC7606-3.g-1 positive -- a second MP_REACH_NLRI is a session reset even when a later attribute's framing abandons the Section 4 walk before the end of the attribute section.
+// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
+// correctness-only test edits. POLARITY CORRECTED, positive -> negative. No assertion
+// changes. A duplicate MP attribute IS the violation, so a test asserting that Ze
+// rejects it is a negative by the convention in ai/skills/ze-rfc.md, whose worked
+// example tags "valid ORIGIN length 1 is accepted" positive and "ORIGIN length 2 is
+// treated as withdraw" negative. This file's own siblings already agree: message/
+// rfc7606_test.go tags "a second MP_REACH_NLRI selects session reset" negative. The
+// genuine positive for this row is "a single MP_REACH_NLRI is not a multiplicity
+// error" (message/rfc7606_test.go), which is untouched, so the row keeps both
+// polarities and the coverage ratchet cannot fire.
+//
+// RFC requirement: RFC7606-3.g-1 negative -- a second MP_REACH_NLRI is a session reset even when a later attribute's framing abandons the Section 4 walk before the end of the attribute section.
 func TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk(t *testing.T) {
 	registerEVPNRecognizer(t)
 	s := nlriTypeTestSession()
@@ -76,15 +87,20 @@ func TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk(t *testing.T) {
 // counters feed one verdict, and a fix that moved only the MP_REACH branch would leave the
 // same hole open on the withdrawal side, where Section 5.4 also applies.
 //
-// RFC requirement: RFC7606-3.g-1 positive -- a second MP_UNREACH_NLRI is a session reset on the same terms as a second MP_REACH_NLRI.
+// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
+// correctness-only test edits. POLARITY CORRECTED, positive -> negative, for the reason
+// given on the MP_REACH twin above. No assertion changes.
+//
+// RFC requirement: RFC7606-3.g-1 negative -- a second MP_UNREACH_NLRI is a session reset on the same terms as a second MP_REACH_NLRI.
 func TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk(t *testing.T) {
 	s := nlriTypeTestSession()
 
-	// Two MP_UNREACH attributes, ipv4/unicast, withdrawing 10.0.0.0/24.
-	unreach := []byte{0x00, 0x01, 0x01, 0x18, 0x0a, 0x00, 0x00}
+	// Two MP_UNREACH attributes, ipv4/unicast, withdrawing 10.0.1.0/24.
+	unreach := []byte{0x00, 0x01, 0x01, 0x18, 0x0a, 0x00, 0x01}
 	attrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
 		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0x01, 0x01, 0x01, 0x01, // NEXT_HOP 1.1.1.1, for the announced route
 	}
 	for range 2 {
 		attrs = append(attrs, 0x80, 0x0f, byte(len(unreach)))
@@ -92,7 +108,16 @@ func TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk(t *testing.T) {
 	}
 	attrs = append(attrs, 0x40, 0x02, 0x40) // Section 4 framing error
 
-	body := makeUpdateBody(nil, attrs, nil)
+	// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
+	// correctness-only test edits. The fixture GAINS a reachable route; no assertion
+	// changes. Without it this body carried no NLRI and no MP_REACH, which is also the
+	// Section 5.2 shape, so structuralError (message/rfc7606.go) escalated to session
+	// reset whether or not the duplicate was ever judged. Measured: the test stayed
+	// GREEN with the Section 3.g in-loop check reverted, so it proved nothing. An
+	// announced route removes the Section 5.2 escape and leaves Section 3.g as the only
+	// rule that can reach this verdict.
+	nlri := []byte{0x18, 0x0a, 0x00, 0x00} // 10.0.0.0/24 announced
+	body := makeUpdateBody(nil, attrs, nlri)
 	_, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
 	require.Error(t, err)
 	assert.Equal(t, message.RFC7606ActionSessionReset, action,

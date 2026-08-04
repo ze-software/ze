@@ -41,10 +41,19 @@ import (
 // Reachable NLRI removes the Section 5.2 escape, so Section 3.g is the only rule left that
 // can produce this verdict, and reverting the in-loop check turns this test red.
 //
-// The confounded twin should have its fixture corrected and this file folded back into it.
-// That edit needs the owner's approval, which the closing session did not have.
+// The twin's fixture WAS corrected on 2026-08-04 under Thomas's standing authorisation, so
+// both now carry a route and both now redden when the in-loop check is reverted (measured:
+// each fails with the verdict moved back after the loop). This file is therefore redundant
+// with its twin and is a fold-back candidate, not a workaround. It is kept rather than
+// deleted because removing a tracked test is the owner's call, and two passing proofs of one
+// MUST cost less than a deletion nobody asked for.
 //
-// RFC requirement: RFC7606-3.g-1 positive -- a second MP_UNREACH_NLRI is a session reset even when a later attribute's framing abandons the Section 4 walk, in an UPDATE that carries reachable NLRI so no other rule can reach the same verdict.
+// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
+// correctness-only test edits. POLARITY CORRECTED, positive -> negative. A duplicate MP
+// attribute is the violation, so rejecting it is a negative (ai/skills/ze-rfc.md). No
+// assertion changes.
+//
+// RFC requirement: RFC7606-3.g-1 negative -- a second MP_UNREACH_NLRI is a session reset even when a later attribute's framing abandons the Section 4 walk, in an UPDATE that carries reachable NLRI so no other rule can reach the same verdict.
 func TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent(t *testing.T) {
 	s := nlriTypeTestSession()
 
