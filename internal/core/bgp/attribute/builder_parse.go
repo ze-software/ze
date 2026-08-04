@@ -113,15 +113,6 @@ func (b *Builder) ParseASPath(s string) error {
 	return nil
 }
 
-// Well-known community values per RFC 1997 and RFC 3765.
-var wellKnownCommunities = map[string]uint32{
-	"no-export":           0xFFFFFF01, // RFC 1997
-	"no-advertise":        0xFFFFFF02, // RFC 1997
-	"no-export-subconfed": 0xFFFFFF03, // RFC 1997
-	"nopeer":              0xFFFFFF04, // RFC 3765
-	"blackhole":           0xFFFF029A, // RFC 7999
-}
-
 // ParseCommunity parses a community string.
 // APPENDS to any previously set communities (does not replace).
 // Supports formats:
@@ -153,9 +144,11 @@ func (b *Builder) ParseCommunity(s string) error {
 }
 
 func parseSingleCommunity(s string) (uint32, error) {
-	// Check well-known communities first
-	if v, ok := wellKnownCommunities[strings.ToLower(s)]; ok {
-		return v, nil
+	// Check well-known communities first, against the one registry. A private
+	// table here accepted 5 names while the package parser accepted 31, so the
+	// same community name resolved or failed depending on the entry point.
+	if v, ok := CommunityValue(s); ok {
+		return uint32(v), nil
 	}
 
 	// Parse ASN:value format

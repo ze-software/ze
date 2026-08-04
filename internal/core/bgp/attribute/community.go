@@ -2,13 +2,16 @@
 // RFC: rfc/short/rfc1997.md — BGP communities
 // RFC: rfc/short/rfc4360.md — extended communities
 // RFC: rfc/short/rfc8092.md — large communities
+// Related: flowspec_action.go -- keyword table producing ExtendedCommunity values
 
 package attribute
 
 import (
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"slices"
+	"strings"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -121,6 +124,53 @@ var communityNames = map[Community]string{
 	CommunityBlackhole:               "blackhole",
 }
 
+// communityAliases holds accepted spellings the canonical name does not
+// generate. The underscore form of every canonical name is derived. Only
+// irregular spellings belong here: "gshut" for graceful-shutdown, and the
+// hyphenated forms of "nopeer", whose canonical name carries no hyphen to
+// convert.
+//
+// Aliases are accepted on parse and never produced on output, so the reverse
+// table is deliberately larger than the forward one.
+var communityAliases = map[string]Community{
+	"gshut":   CommunityGracefulShutdown,
+	"no-peer": CommunityNoPeer,
+	"no_peer": CommunityNoPeer,
+}
+
+// communityValues maps every accepted text spelling to its wire value. It is
+// DERIVED from communityNames plus communityAliases, never written by hand: a
+// second hand-maintained table is what let two parsers drift to 5 names and 31.
+//
+// Text keys this map. Every other lookup in this package keys on the numeric
+// value. Parsing is the one boundary where the input is text.
+// Read-only after the init phase completes, so no mutex is needed.
+var communityValues = func() map[string]Community {
+	m := make(map[string]Community, len(communityNames)*2+len(communityAliases))
+	for value, name := range communityNames {
+		addCommunityText(m, value, name)
+	}
+	maps.Copy(m, communityAliases)
+	return m
+}()
+
+// addCommunityText records a canonical name and its underscore spelling.
+func addCommunityText(m map[string]Community, value Community, name string) {
+	m[name] = value
+	if underscored := strings.ReplaceAll(name, "-", "_"); underscored != name {
+		m[underscored] = value
+	}
+}
+
+// CommunityValue resolves a well-known community name to its wire value.
+// The lookup accepts the canonical name, its underscore spelling, and any
+// registered alias. Callers that also accept ASN:value or hex forms use
+// ParseCommunity, which consults this first.
+func CommunityValue(name string) (Community, bool) {
+	v, ok := communityValues[strings.ToLower(name)]
+	return v, ok
+}
+
 // CommunityFrom4 constructs a Community from 4 raw bytes (network byte order).
 func CommunityFrom4(b [4]byte) Community {
 	return Community(uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]))
@@ -139,6 +189,26 @@ func RegisterCommunityName(value Community, name string) error {
 		return fmt.Errorf("community 0x%08X already registered as %q, cannot re-register as %q", uint32(value), existing, name)
 	}
 	communityNames[value] = name
+	// Both directions come from this one call, so a registered name is parseable
+	// as soon as it is renderable. Registering only the forward map is how a
+	// plugin's name became visible to String() and invisible to every parser.
+	addCommunityText(communityValues, value, name)
+	return nil
+}
+
+// RegisterCommunityAlias registers one more accepted spelling for a
+// community that is already named. The alias parses to the value and is never
+// rendered: output always uses the canonical name from RegisterCommunityName.
+// Called by plugins during init(). Idempotent for the same alias and value.
+// Must only be called during init() (not thread-safe for concurrent writes).
+func RegisterCommunityAlias(value Community, alias string) error {
+	if _, ok := communityNames[value]; !ok {
+		return fmt.Errorf("community 0x%08X has no registered name, cannot add alias %q", uint32(value), alias)
+	}
+	if existing, ok := communityValues[alias]; ok && existing != value {
+		return fmt.Errorf("community alias %q already resolves to 0x%08X, cannot point it at 0x%08X", alias, uint32(existing), uint32(value))
+	}
+	communityValues[alias] = value
 	return nil
 }
 

@@ -63,43 +63,15 @@ func (c Community) AppendText(buf []byte) []byte {
 // appendCommunityText appends a standard community (32-bit value) using
 // its well-known lowercase name if known, otherwise "<asn>:<val>".
 func appendCommunityText(buf []byte, c uint32) []byte {
-	switch c {
-	case uint32(CommunityNoExport):
-		return append(buf, "no-export"...)
-	case uint32(CommunityNoAdvertise):
-		return append(buf, "no-advertise"...)
-	case uint32(CommunityNoExportSubconfed):
-		return append(buf, "no-export-subconfed"...)
-	case uint32(CommunityNoPeer):
-		return append(buf, "nopeer"...)
-	case uint32(CommunityGracefulShutdown):
-		return append(buf, "graceful-shutdown"...)
-	case uint32(CommunityAcceptOwn):
-		return append(buf, "accept-own"...)
-	case uint32(CommunityRouteFilterTranslatedV4):
-		return append(buf, "route-filter-translated-v4"...)
-	case uint32(CommunityRouteFilterV4):
-		return append(buf, "route-filter-v4"...)
-	case uint32(CommunityRouteFilterTranslatedV6):
-		return append(buf, "route-filter-translated-v6"...)
-	case uint32(CommunityRouteFilterV6):
-		return append(buf, "route-filter-v6"...)
-	case uint32(CommunityLLGRStale):
-		return append(buf, "llgr-stale"...)
-	case uint32(CommunityNoLLGR):
-		return append(buf, "no-llgr"...)
-	case uint32(CommunityAcceptOwnNexthop):
-		return append(buf, "accept-own-nexthop"...)
-	case uint32(CommunityStandbyPE):
-		return append(buf, "standby-pe"...)
-	case uint32(CommunityBlackhole):
-		return append(buf, "blackhole"...)
-	default:
-		buf = strconv.AppendUint(buf, uint64(c>>16), 10)
-		buf = append(buf, ':')
-		buf = strconv.AppendUint(buf, uint64(c&0xFFFF), 10)
+	// Dispatch on the numeric value against the name registry. A hardcoded
+	// switch here was a second copy of communityNames. A name registered by a
+	// plugin then rendered through String() and not through this path.
+	if name, ok := communityNames[Community(c)]; ok {
+		return append(buf, name...)
 	}
-	return buf
+	buf = strconv.AppendUint(buf, uint64(c>>16), 10)
+	buf = append(buf, ':')
+	return strconv.AppendUint(buf, uint64(c&0xFFFF), 10)
 }
 
 // appendClusterID appends a cluster ID as dotted-decimal "a.b.c.d".
@@ -123,13 +95,8 @@ func appendClusterID(buf []byte, id uint32) []byte {
 // "incomplete" token to match legacy FormatOrigin behavior.
 func (o Origin) AppendText(buf []byte) []byte {
 	buf = append(buf, "origin "...)
-	switch o {
-	case OriginIGP:
-		return append(buf, "igp"...)
-	case OriginEGP:
-		return append(buf, "egp"...)
-	case OriginIncomplete:
-		return append(buf, "incomplete"...)
+	if name, ok := originTextNames[o]; ok {
+		return append(buf, name...)
 	}
 	return append(buf, "incomplete"...)
 }

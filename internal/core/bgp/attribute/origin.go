@@ -52,12 +52,15 @@ var originTextNames = map[Origin]string{
 	OriginIncomplete: "incomplete",
 }
 
-// originFromText maps lowercase wire/JSON names to Origin values.
-var originFromText = map[string]Origin{
-	"igp":        OriginIGP,
-	"egp":        OriginEGP,
-	"incomplete": OriginIncomplete,
-}
+// originFromText maps lowercase wire/JSON names to Origin values. DERIVED from
+// originTextNames so the accepted spellings and the emitted ones cannot drift.
+var originFromText = func() map[string]Origin {
+	m := make(map[string]Origin, len(originTextNames))
+	for value, name := range originTextNames {
+		m[name] = value
+	}
+	return m
+}()
 
 // String returns the human-readable origin name ("IGP", "EGP", or "INCOMPLETE").
 func (o Origin) String() string {

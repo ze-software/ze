@@ -27,61 +27,6 @@ var (
 	errMissingLargeCommunityValue = errors.New("missing large-community value")
 )
 
-// Well-known community values per IANA BGP Well-Known Communities registry.
-const (
-	TextCommunityNoExport                uint32 = 0xFFFFFF01 // RFC 1997
-	TextCommunityNoAdvertise             uint32 = 0xFFFFFF02 // RFC 1997
-	TextCommunityNoExportSubconfed       uint32 = 0xFFFFFF03 // RFC 1997
-	TextCommunityNoPeer                  uint32 = 0xFFFFFF04 // RFC 3765
-	TextCommunityGracefulShutdown        uint32 = 0xFFFF0000 // RFC 8326
-	TextCommunityAcceptOwn               uint32 = 0xFFFF0001 // RFC 7611
-	TextCommunityRouteFilterTranslatedV4 uint32 = 0xFFFF0002 // IANA
-	TextCommunityRouteFilterV4           uint32 = 0xFFFF0003 // IANA
-	TextCommunityRouteFilterTranslatedV6 uint32 = 0xFFFF0004 // IANA
-	TextCommunityRouteFilterV6           uint32 = 0xFFFF0005 // IANA
-	TextCommunityLLGRStale               uint32 = 0xFFFF0006 // RFC 9494
-	TextCommunityNoLLGR                  uint32 = 0xFFFF0007 // RFC 9494
-	TextCommunityAcceptOwnNexthop        uint32 = 0xFFFF0008 // IANA (draft)
-	TextCommunityStandbyPE               uint32 = 0xFFFF0009 // RFC 9026
-	TextCommunityBlackhole               uint32 = 0xFFFF029A // RFC 7999
-)
-
-// wellKnownCommunityNames maps lowercase text names (kebab-case and underscore
-// variants) to their uint32 wire values. Used by ParseCommunity for name lookup.
-var wellKnownCommunityNames = map[string]uint32{
-	"no-export":                  TextCommunityNoExport,
-	"no_export":                  TextCommunityNoExport,
-	"no-advertise":               TextCommunityNoAdvertise,
-	"no_advertise":               TextCommunityNoAdvertise,
-	"no-export-subconfed":        TextCommunityNoExportSubconfed,
-	"no_export_subconfed":        TextCommunityNoExportSubconfed,
-	"nopeer":                     TextCommunityNoPeer,
-	"no-peer":                    TextCommunityNoPeer,
-	"no_peer":                    TextCommunityNoPeer,
-	"graceful-shutdown":          TextCommunityGracefulShutdown,
-	"graceful_shutdown":          TextCommunityGracefulShutdown,
-	"gshut":                      TextCommunityGracefulShutdown,
-	"accept-own":                 TextCommunityAcceptOwn,
-	"accept_own":                 TextCommunityAcceptOwn,
-	"route-filter-translated-v4": TextCommunityRouteFilterTranslatedV4,
-	"route_filter_translated_v4": TextCommunityRouteFilterTranslatedV4,
-	"route-filter-v4":            TextCommunityRouteFilterV4,
-	"route_filter_v4":            TextCommunityRouteFilterV4,
-	"route-filter-translated-v6": TextCommunityRouteFilterTranslatedV6,
-	"route_filter_translated_v6": TextCommunityRouteFilterTranslatedV6,
-	"route-filter-v6":            TextCommunityRouteFilterV6,
-	"route_filter_v6":            TextCommunityRouteFilterV6,
-	"llgr-stale":                 TextCommunityLLGRStale,
-	"llgr_stale":                 TextCommunityLLGRStale,
-	"no-llgr":                    TextCommunityNoLLGR,
-	"no_llgr":                    TextCommunityNoLLGR,
-	"accept-own-nexthop":         TextCommunityAcceptOwnNexthop,
-	"accept_own_nexthop":         TextCommunityAcceptOwnNexthop,
-	"standby-pe":                 TextCommunityStandbyPE,
-	"standby_pe":                 TextCommunityStandbyPE,
-	"blackhole":                  TextCommunityBlackhole,
-}
-
 // wellKnownCanonicalNames is the sorted, deterministic list of canonical
 // (kebab-case) well-known community names. Built once from communityNames.
 var wellKnownCanonicalNames = func() []string {
@@ -112,8 +57,8 @@ func WellKnownCommunityNames() []string {
 //   - Bare integers: raw 32-bit community value
 //   - Hex values: 0xNNNNNNNN format
 func ParseCommunity(s string) (uint32, error) {
-	if v, ok := wellKnownCommunityNames[strings.ToLower(s)]; ok {
-		return v, nil
+	if v, ok := CommunityValue(s); ok {
+		return uint32(v), nil
 	}
 
 	// Check for hex format (0xNNNNNNNN)
