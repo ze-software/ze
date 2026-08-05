@@ -47,12 +47,47 @@ leaf-list:
 | The web render reads `Decorate` off a `*config.LeafNode` | `internal/component/web/fragment.go` (`buildFieldMeta`) |
 | Every leaf decorated today is a plain `leaf`, never a leaf-list | `ze-bgp-conf.yang`, `:312`, `:448`, `:453` (three `asn-name`, one `reverse-dns`) |
 
-So adding `ze:decorate "community-name"` to line 237 today would parse, validate,
-and then be silently dropped: `getDecorateExtension` would never be called for that
-entry. The work is to teach the decorator path about leaf-lists (decorating each
-element), then attach the decorator. That a `ze:decorate` on a leaf-list is
-accepted and ignored rather than rejected is itself worth fixing per
-`ai/rules/evidence.md`.
+So adding `ze:decorate "community-name"` to the community leaf-list today would
+parse, validate, and then be silently dropped: `getDecorateExtension` would never
+be called for that entry. The work is to teach the decorator path about
+leaf-lists (decorating each element), then attach the decorator. That a
+`ze:decorate` on a leaf-list is accepted and ignored rather than rejected is
+itself worth fixing per `ai/rules/evidence.md`.
+
+### Landed 2026-08-05: the fail-open half only
+
+The last sentence above is DONE and the rest of this spec is not. `yangToNode`
+(`internal/component/config/yang_schema.go`) now refuses a `ze:decorate` on any
+multi-valued leaf through `recordSchemaBuildError`, the accumulator `ze:related`
+already used for errors that cannot travel the `yangTo*` signature chain. The
+message names the decorator and the path. `isLeafListNode` decides which entries
+count, mirroring the branches that build `MultiLeafNode`, `BracketLeafListNode`
+and `ValueOrArrayNode`.
+
+Refusing nothing that worked: no leaf-list in the tree carries `ze:decorate`. All
+four uses (`asn-name` three times, `reverse-dns` once, all in
+`internal/component/bgp/yang/ze-bgp-conf.yang`) are on plain leaves and are
+unaffected, which `TestDecorateOnSingleLeafStillAccepted` pins.
+
+Three tests, both claims mutation-verified. Deleting the guard fails
+`TestDecorateOnLeafListRejectedAtLoad` on every syntax; refusing on leaf-list
+shape without reading the decorator fails
+`TestLeafListWithoutDecorateIsNotRejected`.
+
+**What is still owed, and it is the whole point of this spec.** The decorator is
+not attached and a community still renders as `65535:65281` rather than
+`no-export`. Doing it needs, in order:
+
+| Step | Where |
+|------|-------|
+| A `Decorate` field on the multi-valued node types | `internal/component/config/schema.go` |
+| Populate it at the four leaf-list branches | `internal/component/config/yang_schema.go` |
+| A render path that emits a field for a leaf-list and decorates EACH element | `internal/component/web/fragment.go`. `populateFragmentFields` today builds a `FieldMeta` for `*config.LeafNode` alone and produces nothing at all for a leaf-list, so this is a new path rather than an added field |
+| `ze:decorate "community-name"` on the leaf-list | `internal/component/bgp/yang/ze-bgp-conf.yang` |
+| Delete the guard above, and its three tests | `internal/component/config/yang_schema.go` |
+
+The guard is deliberately the thing that stops step 4 landing on its own and
+looking like it worked.
 
 ## Required Reading
 

@@ -304,6 +304,28 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	// Check for ze:syntax extension in YANG entry
 	syntax := getSyntaxExtension(entry)
 
+	// ze:decorate names a display-time decorator, and Decorate is a field on
+	// LeafNode ALONE. Every leaf-list syntax below builds MultiLeafNode,
+	// BracketLeafListNode or ValueOrArrayNode, none of which has that field, and
+	// only yangToLeaf ever calls getDecorateExtension. So a decorator written on
+	// a leaf-list parses, validates, and is then dropped without a word: the web
+	// render reads Decorate off a *config.LeafNode and never sees the entry.
+	//
+	// Refuse it rather than discard it. A silently ignored decorator is a guard
+	// that fails open, and the author has no way to tell "not supported" from
+	// "supported and broken" (ai/rules/evidence.md). No leaf-list carries
+	// ze:decorate today, so this refuses nothing that works.
+	//
+	// Supporting it means teaching the render path to decorate each element and
+	// giving the leaf-list node types the field. That work is
+	// plan/spec-bgp-deferred-community-name-leaf.md, which wants it for the BGP
+	// community leaf-list. Delete this guard when that lands.
+	if decorator := getDecorateExtension(entry); decorator != "" && isLeafListNode(syntax, entry) {
+		recordSchemaBuildError(fmt.Errorf(
+			"%s: ze:decorate %q on a leaf-list is not supported and would be silently dropped; "+
+				"only a single-valued leaf can carry a decorator", path, decorator))
+	}
+
 	switch syntax {
 	case "flex":
 		return yangToFlex(entry, path)
@@ -354,6 +376,22 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	default:
 		return nil
 	}
+}
+
+// isLeafListNode reports whether yangToNode will build a multi-valued leaf node
+// for this entry, from either an explicit ze:syntax or plain YANG leaf-list.
+//
+// It mirrors the branches in yangToNode that return MultiLeafNode,
+// BracketLeafListNode or ValueOrArrayNode. Keep the two in step: a new
+// multi-valued syntax added there and not named here goes back to dropping a
+// ze:decorate in silence, which is the failure the caller exists to stop.
+func isLeafListNode(syntax string, entry *gyang.Entry) bool {
+	switch syntax {
+	case "multi-leaf", "bracket", "value-or-array":
+		return true
+	}
+	// A plain leaf-list with no ze:syntax reaches the same node types.
+	return entry.Kind == gyang.LeafEntry && entry.IsLeafList()
 }
 
 // getSyntaxExtension reads the ze:syntax extension from a YANG entry.

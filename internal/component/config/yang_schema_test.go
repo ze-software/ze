@@ -1376,3 +1376,96 @@ func TestBareRequiredRejectedAtLoad(t *testing.T) {
 	require.Error(t, buildErr, "bare ze:required; should produce a schema build error")
 	assert.Contains(t, buildErr.Error(), "bare ze:required;")
 }
+
+// TestDecorateOnLeafListRejectedAtLoad pins the refusal of ze:decorate on a
+// multi-valued leaf, for every syntax that reaches a leaf-list node type.
+//
+// VALIDATES: a decorator that the render path cannot read fails the schema build
+// instead of being discarded.
+// PREVENTS: the fail-open this replaced. Decorate is a field on LeafNode alone
+// and only yangToLeaf reads the extension, so a decorator on a leaf-list parsed,
+// validated and then vanished, leaving the author unable to tell "not supported"
+// from "supported and broken".
+func TestDecorateOnLeafListRejectedAtLoad(t *testing.T) {
+	syntaxes := []struct {
+		name   string
+		syntax string
+	}{
+		{"plain leaf-list, no ze:syntax", ""},
+		{"ze:syntax multi-leaf", "multi-leaf"},
+		{"ze:syntax bracket", "bracket"},
+		{"ze:syntax value-or-array", "value-or-array"},
+	}
+
+	for _, tt := range syntaxes {
+		t.Run(tt.name, func(t *testing.T) {
+			resetSchemaBuildErrors()
+
+			exts := []*gyang.Statement{{Keyword: "ze:decorate", Argument: "community-name"}}
+			if tt.syntax != "" {
+				exts = append(exts, &gyang.Statement{Keyword: "ze:syntax", Argument: tt.syntax})
+			}
+			entry := &gyang.Entry{
+				Kind:     gyang.LeafEntry,
+				Name:     "community",
+				Type:     &gyang.YangType{Kind: gyang.Ystring},
+				ListAttr: &gyang.ListAttr{}, // makes IsLeafList() true
+				Exts:     exts,
+			}
+
+			node := yangToNode(entry, "bgp/update/attribute/community")
+			require.NotNil(t, node, "the node is still built; the decorator is what is refused")
+
+			buildErr := flushSchemaBuildErrors()
+			require.Error(t, buildErr, "ze:decorate on a leaf-list must fail the schema build")
+			assert.Contains(t, buildErr.Error(), "ze:decorate")
+			assert.Contains(t, buildErr.Error(), "leaf-list")
+			assert.Contains(t, buildErr.Error(), "community-name", "the message names the decorator")
+			assert.Contains(t, buildErr.Error(), "bgp/update/attribute/community", "the message names the path")
+		})
+	}
+}
+
+// TestDecorateOnSingleLeafStillAccepted proves the guard is scoped: a decorator
+// on a plain leaf is unaffected and still reaches LeafNode.Decorate.
+//
+// VALIDATES: the four ze:decorate uses in ze-bgp-conf.yang keep working.
+// PREVENTS: a guard that refuses every decorator, which would pass a test
+// asserting only that leaf-lists are refused.
+func TestDecorateOnSingleLeafStillAccepted(t *testing.T) {
+	resetSchemaBuildErrors()
+
+	entry := &gyang.Entry{
+		Kind: gyang.LeafEntry,
+		Name: "remote",
+		Type: &gyang.YangType{Kind: gyang.Ystring},
+		Exts: []*gyang.Statement{{Keyword: "ze:decorate", Argument: "asn-name"}},
+	}
+
+	node := yangToNode(entry, "bgp/peer/session/asn/remote")
+	leaf, ok := node.(*LeafNode)
+	require.True(t, ok, "a single-valued leaf must still build a LeafNode")
+	assert.Equal(t, "asn-name", leaf.Decorate, "the decorator must still be carried")
+
+	assert.NoError(t, flushSchemaBuildErrors(), "a decorator on a plain leaf is not an error")
+}
+
+// TestLeafListWithoutDecorateIsNotRejected proves the guard reads the decorator
+// and not merely the node shape.
+//
+// VALIDATES: every existing leaf-list still builds cleanly.
+// PREVENTS: a guard keyed on leaf-list-ness alone, which would fail the schema
+// build for the many leaf-lists that carry no decorator.
+func TestLeafListWithoutDecorateIsNotRejected(t *testing.T) {
+	resetSchemaBuildErrors()
+
+	entry := &gyang.Entry{
+		Kind:     gyang.LeafEntry,
+		Name:     "labels",
+		Type:     &gyang.YangType{Kind: gyang.Ystring},
+		ListAttr: &gyang.ListAttr{},
+	}
+
+	require.NotNil(t, yangToNode(entry, "bgp/update/attribute/labels"))
+	assert.NoError(t, flushSchemaBuildErrors(), "a leaf-list with no decorator is not an error")
+}
