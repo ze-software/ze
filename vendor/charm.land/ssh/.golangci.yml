@@ -1,0 +1,68 @@
+version: "2"
+run:
+  tests: false
+linters:
+  enable:
+    - bodyclose
+    - exhaustive
+    - goconst
+    - godot
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - tparallel
+    - unconvert
+    - unparam
+    - whitespace
+    - wrapcheck
+  exclusions:
+    rules:
+      - text: '(slog|log)\.\w+'
+        linters:
+          - noctx
+      - text: "var-naming"
+        linters:
+          - revive
+      # This package is a thin wrapper around x/crypto/ssh and the stdlib.
+      # Errors are passed through as-is by design; wrapping them adds no
+      # value to the caller.
+      - text: "error returned from (external package|interface method)"
+        linters:
+          - wrapcheck
+      # Port numbers, terminal dimensions, and exit codes are all bounded
+      # by the SSH protocol and cannot overflow in practice.
+      - text: "G115: integer overflow conversion"
+        linters:
+          - gosec
+      # net.Listen in this package is for server-side sockets, not HTTP
+      # client requests.
+      - text: "net.Listen must not be called"
+        linters:
+          - noctx
+      # The accept loop backoff pattern matches net/http and is not
+      # improved by further extraction.
+      - text: "`if e != nil` has complex nested blocks"
+        linters:
+          - nestif
+    generated: lax
+    presets:
+      - common-false-positives
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax

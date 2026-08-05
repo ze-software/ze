@@ -39,7 +39,7 @@ It is a cryptographic network protocol for operating network services securely o
 That means, among other things, that we can write custom SSH servers without touching `openssh-server`,
 so we can securely do more things than just providing a shell.
 
-Wish is a library that helps writing these kind of apps using Go.
+Wish is a library that helps writing these kinds of apps using Go.
 
 ## Middleware
 
@@ -95,8 +95,18 @@ and [Git server](examples/git) in the [examples](examples) folder.
 
 * [Soft Serve](https://github.com/charmbracelet/soft-serve)
 * [Wishlist](https://github.com/charmbracelet/wishlist)
+* [VHS](https://github.com/charmbracelet/vhs)
 * [SSHWordle](https://github.com/davidcroda/sshwordle)
 * [clidle](https://github.com/ajeetdsouza/clidle)
+* [pico.sh](https://pico.sh)
+* [Fztea](https://github.com/jon4hz/fztea)
+* [SSH Slides](https://github.com/ivantsepp/ssh-slides)
+* [Charming Slack](https://github.com/taciturnaxolotl/charming-slack)
+* [fissh](https://github.com/breqdev/fissh.breq.dev)
+* [Battlesship](https://github.com/JavierPoduje/battlesship)
+* [Purdue Hackers](https://github.com/purduehackers/organize)
+* [Go-Jitsu](https://github.com/noetarbouriech/go-jitsu)
+* [Matt Gleich's terminal](https://github.com/gleich/terminal)
 * [ssh-warm-welcome](https://git.coopcloud.tech/decentral1se/ssh-warm-welcome)
 
 [bubbletea]: https://github.com/charmbracelet/bubbletea
