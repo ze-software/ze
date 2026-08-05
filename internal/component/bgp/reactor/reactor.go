@@ -1087,6 +1087,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// would leave the counter dead in exactly the configurations where a
 		// contract violation is reachable.
 		filterapi.SetMetricsRegistry(r.metricsRegistry)
+		// The announce size guard's counter, for the same reason: both drop sites
+		// are free functions with no Reactor to read rmetrics off
+		// (announce_metrics.go).
+		setAnnounceMetricsRegistry(r.metricsRegistry)
 		go r.metricsUpdateLoop()
 	}
 

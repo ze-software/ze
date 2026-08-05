@@ -822,6 +822,10 @@ var errWithdrawTooLarge = errors.New("withdraw NLRIs exceed the build buffer; sp
 // response -- so the failure is observable from both ends
 // (ai/rules/evidence.md, ai/rules/cli.md).
 func logAnnounceTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
+	// Counted as well as logged. The route not arriving is the whole symptom, and
+	// a Warn line is not something an operator can alert on
+	// (announce_metrics.go).
+	recordAnnounceDroppedOversize(announceRailBatch, stage)
 	routesLogger().Warn("announce rejected: attributes do not fit the build buffer",
 		"family", batch.Family, "nlri-count", len(batch.NLRIs),
 		"buffer-bytes", bufLen, "stage", stage,

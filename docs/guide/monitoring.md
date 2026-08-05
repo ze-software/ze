@@ -388,6 +388,30 @@ forward rail, the route-server rail, the ingress and egress policy chains, and
 the RFC 9494 stale re-advertise rail.
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
 
+#### Announces Refused For Size
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_announce_dropped_oversize_total` | counter | `rail`, `stage` | An announce did not fit its build buffer and was not sent to that peer |
+
+An increment means a route never reached one peer. Ze queries the encoded size
+before it writes, so no truncated UPDATE goes out: the announce is abandoned
+whole. Nothing else reports this to the operator, because the peer is not
+notified and the session is not disturbed.
+<!-- source: internal/component/bgp/reactor/announce_metrics.go -- recordAnnounceDroppedOversize -->
+
+Both label sets are closed. `rail` is `batch` for an announce built from the API
+and `queued` for one built from the RIB. `stage` is `nlri` when the prefix block
+did not fit and `attributes` when the path-attribute block did not.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- logAnnounceTooLarge -->
+<!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- logRIBRouteTooLarge -->
+
+A `batch` increment also reaches the caller: `AnnounceNLRIBatch` returns
+`errAnnounceTooLarge`, which the dispatcher turns into a `StatusError` response,
+so a plugin sees its own announce refused. A `queued` increment has no such
+channel and the counter is the only signal besides the log line. Act on either by
+sending fewer prefixes per announce, or by reducing the attributes on the route.
+
 #### Prefix Limits (RFC 4486)
 
 | Metric | Type | Labels | Description |

@@ -203,6 +203,9 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 // without this line the route would simply never arrive
 // (ai/rules/evidence.md, ai/rules/cli.md).
 func logRIBRouteTooLarge(n nlri.NLRI, bufLen int, stage string) {
+	// Counted as well as logged, for the reason announce_metrics.go gives: the
+	// route silently not arriving is the whole symptom.
+	recordAnnounceDroppedOversize(announceRailQueued, stage)
 	routesLogger().Warn("queued route rejected: does not fit the build buffer",
 		"family", n.Family(), "nlri", n.String(),
 		"buffer-bytes", bufLen, "stage", stage,

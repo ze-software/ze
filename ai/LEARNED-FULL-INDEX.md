@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 925 summaries
+Total: 926 summaries
 
 ## 400-499
 
@@ -984,3 +984,4 @@ Total: 925 summaries
 | 1349 | Context economy: where agent sessions spend tokens, and what changes it | `plan/learned/1349-context-economy.md` |
 | 1350 | A Run That Ends On Virtual Time Cannot Wait For A Real Reconnect | `plan/learned/1350-fixit-chaos-reconnect-load-sensitive.md` |
 | 1351 | A Comment That Asserted Safety Kept A Remote Denial Of Service Open | `plan/learned/1351-fixit-rs-community-strip-arity-deferred-removevalues-quality.md` |
+| 1352 | Regenerating An Index From The Working Tree Publishes Other Sessions' Unlanded Work | `plan/learned/1352-wire-edit-4-api-origin-deferred-oversize-metric.md` |

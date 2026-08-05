@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 306 design docs, 3254 files
+Total: 306 design docs, 3255 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -941,6 +941,7 @@ Total: 306 design docs, 3254 files
 | `internal/component/bgp/plugins/rs/worker.go` | route server plugin |
 | `internal/component/bgp/plugins/softver/softver.go` | software-version capability plugin |
 | `internal/component/bgp/reactor/announce_build.go` | one exactly-sized one-pass writer for every announce rail |
+| `internal/component/bgp/reactor/announce_metrics.go` | announce writers, fail-closed size guard |
 | `internal/component/bgp/reactor/api_sync.go` | API process synchronization |
 | `internal/component/bgp/reactor/config.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/config_capabilities.go` | BGP capability parsing from config tree |

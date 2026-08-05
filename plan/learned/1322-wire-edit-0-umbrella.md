@@ -65,7 +65,9 @@ fix into five independently landable children.
   `plan/learned/1321-wire-edit-5-fanout-dedup.md`
 - Commits: `bbd53bf22`, `a1aec5e6c`, `ddf04953a`, `e2037e598`, `b1fa7ab1e`,
   `bd1f3d873`, `f1f746fb6`, `ea6a4bbda`
-- Survivors: `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`,
+- Survivors: `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` (the EBGP wire
+  cache deletion; it absorbed a duplicate of itself on 2026-08-05, and this row
+  cited the duplicate until then),
   `plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`,
   `plan/spec-wire-edit-4-api-origin-deferred-oversize-metric.md`,
   `plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`,
