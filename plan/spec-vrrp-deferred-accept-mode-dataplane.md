@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-05 |
 
 ## Post-Compaction Recovery
 
@@ -23,6 +23,56 @@ work's home. The surviving `plan/spec-vrrp-7-vpp.md` covers the VPP dataplane
 only and does not own this topic.
 
 Two pieces of deferred work, verified against the producing code on 2026-07-16:
+
+## OWNER RULING 2026-08-05: implement the accept-mode filtering
+
+**Thomas ruled that ze IMPLEMENTS the dataplane filtering.** The two cheaper
+answers put beside it were not taken: rejecting `accept-mode false` on a
+non-owner at config validation, and leaving the disclosed `{gap}` as it stands.
+
+This closes an open RFC MUST NOT violation rather than adding a feature.
+`RFC9568-6.4.3-7` says "Active: never accept packets addressed to the Virtual
+Router IPvX address(es) when neither owner nor Accept_Mode True", and the ledger
+carries it as a `{gap}`. Under the 2026-07-27 directive that classification was
+void and had to be re-raised rather than cited; this is the answer.
+
+**Re-verified at the producers 2026-08-05**, so implementation starts from
+measurement:
+
+- The FSM emits `InstallVIPs{VIPs: i.cfg.VIPs}` unconditionally at all three
+  promotion sites (`internal/plugins/vrrp/fsm/fsm.go`).
+- `doInstallVIPs` registers the whole VIP set through the iface address-owner
+  registry with no differentiation (`internal/plugins/vrrp/instance.go`).
+- `AcceptMode` reaches config parsing, the version-2 rejection rule, and the show
+  snapshot. Nothing else. `fsm/events.go` states it in the struct: "stored for
+  the state snapshot only".
+
+So a non-owner Active with `accept-mode false` answers traffic on the virtual
+address today, whatever the operator configured.
+
+### What the ruling commits ze to
+
+| Piece | Where |
+|-------|-------|
+| Per-VIP filtering installed on promotion, removed on demotion | The `InstallVIPs` payload must carry the decision, and `doInstallVIPs` must act on it. Today neither sees `AcceptMode` |
+| The Section 6.1 owner exemption | `EffectiveAcceptMode` (`internal/plugins/vrrp/groups.go`) already folds ownership in, so the decision input exists |
+| The R014 carve-out: never drop IPv6 NS/NA even with Accept_Mode false | ICMPv6 types 135 and 136 must survive the filter. This is `RFC9568-6.1-1` |
+| A tagged test per requirement row | `RFC9568-6.4.3-7` and `RFC9568-6.1-1` |
+| A QEMU integration test | Mandatory for linux-only code, never skipped for "needs hardware" (`ai/rules/platform-linux.md`) |
+| The YANG description stops disclaiming the gap | `internal/plugins/vrrp/yang/ze-vrrp-conf.yang` |
+
+### The ledger consequence, easy to miss
+
+`RFC9568-6.1-1` is currently `{not-applicable}` and its reason says why: the
+prohibition "carves an exception out of Accept_Mode packet filtering, and ze
+installs no such filter at all". **Once the filter exists that reason expires.**
+The requirement becomes live and needs its own tagged test, so re-classifying it
+is part of this spec's closure rather than a later discovery.
+
+### Scope note
+
+Item 2 below, priority-decrement tracking, is untouched by this ruling and stays
+open. It is a separate feature with its own YANG surface.
 
 1. **accept-mode is not enforced on the dataplane.** The leaf is parsed
    (`groups.go`), cross-leaf validated (rejected under version 2,
