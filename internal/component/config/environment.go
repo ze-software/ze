@@ -49,6 +49,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.enabled", Type: "bool", Description: "Enable web server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.certificate", Type: "string", Description: "Name of the PKI store certificate to serve on HTTPS (empty means self-signed)"})
 	// Workbench experiment selector. Default `finder` keeps the established UI
 	// during Phases 1-3; flips to `workbench` after the Phase 4 Promotion Criteria
 	// pass; `finder` becomes the emergency rollback after the flip. Removed in
