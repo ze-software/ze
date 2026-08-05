@@ -14,8 +14,11 @@ charm.land/lipgloss/v2
 # charm.land/log/v2 v2.0.0
 ## explicit; go 1.25.8
 charm.land/log/v2
-# charm.land/wish/v2 v2.0.1
-## explicit; go 1.25.9
+# charm.land/ssh v0.4.2
+## explicit; go 1.25.0
+charm.land/ssh
+# charm.land/wish/v2 v2.0.3
+## explicit; go 1.25.12
 charm.land/wish/v2
 charm.land/wish/v2/activeterm
 charm.land/wish/v2/bubbletea
@@ -54,12 +57,9 @@ github.com/charmbracelet/ultraviolet
 github.com/charmbracelet/x/ansi
 github.com/charmbracelet/x/ansi/kitty
 github.com/charmbracelet/x/ansi/parser
-# github.com/charmbracelet/x/conpty v0.1.1
+# github.com/charmbracelet/x/conpty v0.2.0
 ## explicit; go 1.24.0
 github.com/charmbracelet/x/conpty
-# github.com/charmbracelet/x/errors v0.0.0-20251110184232-6ab307057ac7
-## explicit; go 1.24.0
-github.com/charmbracelet/x/errors
 # github.com/charmbracelet/x/term v0.2.2
 ## explicit; go 1.24.0
 github.com/charmbracelet/x/term
@@ -69,6 +69,9 @@ github.com/charmbracelet/x/termios
 # github.com/charmbracelet/x/windows v0.2.2
 ## explicit; go 1.23.0
 github.com/charmbracelet/x/windows
+# github.com/charmbracelet/x/xpty v0.1.4
+## explicit; go 1.25.0
+github.com/charmbracelet/x/xpty
 # github.com/cilium/ebpf v0.22.0
 ## explicit; go 1.25.0
 github.com/cilium/ebpf
@@ -261,6 +264,9 @@ github.com/pierrec/lz4/v4/internal/lz4block
 github.com/pierrec/lz4/v4/internal/lz4errors
 github.com/pierrec/lz4/v4/internal/lz4stream
 github.com/pierrec/lz4/v4/internal/xxh32
+# github.com/pires/go-proxyproto v0.12.0
+## explicit; go 1.25
+github.com/pires/go-proxyproto
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
@@ -384,8 +390,8 @@ golang.org/x/crypto/ssh/knownhosts
 # golang.org/x/crypto/x509roots/fallback v0.0.0-20260630172432-7626c5025624
 ## explicit; go 1.25.0
 golang.org/x/crypto/x509roots/fallback/bundle
-# golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
-## explicit; go 1.24.0
+# golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+## explicit; go 1.25.0
 golang.org/x/exp/slices
 golang.org/x/exp/slog
 golang.org/x/exp/slog/internal
@@ -482,10 +488,10 @@ golang.zx2c4.com/wireguard/wgctrl/internal/wguser
 golang.zx2c4.com/wireguard/wgctrl/internal/wgwindows
 golang.zx2c4.com/wireguard/wgctrl/internal/wgwindows/internal/ioctl
 golang.zx2c4.com/wireguard/wgctrl/wgtypes
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.82.1
+# google.golang.org/grpc v1.83.0
 ## explicit; go 1.25.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
