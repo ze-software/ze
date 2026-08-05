@@ -85,11 +85,18 @@ jobs:
               echo "== $f"; head -80 "$f"
           done
           echo "--- ze version ---"; ze version; echo "version exit=$?"
-          echo "--- limits ---"; ulimit -a; free -m
-          echo "--- cgroup ---"; cat /sys/fs/cgroup/memory.max 2>/dev/null || true
-          echo "--- processes ---"; ps -eo pid,stat,wchan:20,etime,comm
           SCRIPT
           chmod +x main/tmp/demo-debug.sh
+          # ze pipes its own stderr through a reader goroutine that dies with
+          # the process, so a startup panic never reaches the log. Rebuild with
+          # that redirect disabled so the panic prints to the real stderr.
+          sed -i \
+            's|if err := redirectStderr(syslogAddr, crashDir); err != nil {|if err := (error)(nil); err != nil {|' \
+            main/internal/core/crashlog/crashlog.go
+          grep -n "if err := (error)(nil)" main/internal/core/crashlog/crashlog.go
+          tags="ze_core ze_distro $(awk '$1 ~ /^ze_/ {print $1}' main/feature-gates.txt | sort -u | tr '\n' ' ')"
+          (cd main && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+            go build -tags "$tags" -o tmp/terminal-demos/bin/ze ./cmd/ze)
           docker run --rm --network none \
             --cap-add NET_ADMIN --cap-add NET_RAW --cap-add SYS_ADMIN \
             --security-opt seccomp=unconfined \
