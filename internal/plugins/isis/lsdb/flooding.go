@@ -90,6 +90,17 @@ type Flooder struct {
 	pendMu  sync.Mutex
 	pending map[CircuitID]map[Level]map[types.LSPID]pendingReq
 
+	// ackOnly is the per-circuit set of LSPs this node must ACKNOWLEDGE in its
+	// next PSNP but does NOT hold, so the SSN flag cannot carry the ack (SSN lives
+	// on an LSDB entry). ISO/IEC 10589 clause 7.3.16.4 a) requires exactly that
+	// pairing: "If no LSP from S is in memory, then the IS shall 1) send an
+	// acknowledgement of the LSP on circuit C, but 2) shall not retain the LSP
+	// after the acknowledgement has been sent." Each entry carries the ARRIVED
+	// LSP's own sequence, lifetime and checksum, because an acknowledgement echoes
+	// what was received. Drained (and cleared) by the next PSNP. Guarded by
+	// pendMu, keyed like pending.
+	ackOnly map[CircuitID]map[Level]map[types.LSPID]packet.LSPEntry
+
 	// metrics holds the per-level Prometheus handles (umbrella canonical series,
 	// owner isis-7) behind an atomic pointer. SetMetrics swaps in a fully-built set
 	// with a single atomic store; the hot flooding/SNP paths load it with a single
@@ -130,6 +141,7 @@ func NewFlooder(db *LSDB, tx TxFunc, circuits CircuitsFunc) *Flooder {
 		tx:       tx,
 		circuits: circuits,
 		pending:  make(map[CircuitID]map[Level]map[types.LSPID]pendingReq),
+		ackOnly:  make(map[CircuitID]map[Level]map[types.LSPID]packet.LSPEntry),
 	}
 	f.mp.Store(&flooderMetrics{
 		lspsRecv:  nop.CounterVec("", "", nil),
@@ -237,6 +249,10 @@ func levelOf(pt packet.PDUType) (Level, bool) {
 //   - incoming seq is strictly LOWER: set SRM on the incoming circuit to send
 //     our newer copy back to the sender (AC-4).
 //
+// An LSP bearing one of OUR OWN LSP IDs short-circuits all three outcomes: the
+// LSDB refuses the write and reports OwnConflict (clause 7.3.16.4 c-1), and the
+// caller re-originates above the claimed sequence. See the OwnConflict branch.
+//
 // "do not re-flood on the incoming circuit" (ISO/IEC 10589 clause 7.3.14) is
 // enforced by skipping cid when arming SRM-on-others.
 //
@@ -254,6 +270,44 @@ func (f *Flooder) ReceiveLSP(cid CircuitID, p2p bool, lsp *packet.LSP, raw []byt
 
 	id := lsp.LSPID
 	res := f.db.Receive(level, lsp, raw, f.isOwn(id))
+
+	if res.OwnConflict {
+		// Another system claimed a sequence for one of OUR LSP IDs. The LSDB
+		// refused the write (ISO/IEC 10589 clause 7.3.16.4 c-1) and only
+		// re-origination at a higher sequence settles it (c-2..c-3), which the
+		// engine drives from res.ConflictSequence. Two flags must NOT be armed
+		// here: SRM on other circuits would flood a withdrawal of ourselves that
+		// we just refused to hold, and SRM on the arrival circuit would answer with
+		// the stale lower-sequence copy the sender has already superseded. c-4's
+		// "set SRMflag on all circuits" is the engine's armFlood over the
+		// REGENERATED LSP, not over this one.
+		//
+		// The arrival is acknowledged either way, because clause 7.3.16.4 a-1 says
+		// "shall". SSN carries it when an entry exists to hold the flag. When one
+		// does not -- the a) shape, no LSP from S in memory -- SSN is a no-op
+		// (SetSSN needs an entry), so the acknowledgement goes in the ack-only set
+		// and the next PSNP carries it at the ARRIVED sequence. It is not stored
+		// (a-2), so this queue is the only thing that survives the arrival, and it
+		// survives only until the PSNP goes out.
+		if held := f.db.Lookup(level, id); held != nil {
+			f.db.SetSSN(level, id, cid)
+		} else {
+			f.recordAckOnly(cid, level, id, packet.LSPEntry{
+				RemainingLifetime: lsp.RemainingLifetime,
+				LSPID:             id,
+				SequenceNumber:    lsp.SequenceNumber,
+				Checksum:          lsp.Checksum,
+			})
+		}
+		// A CSNP reporting our own LSP above our sequence records a pending request
+		// (clause 7.3.15.2 b-3 carries no own-LSP exemption, so asking for it is
+		// correct). The copy has now arrived and will never be stored, so the
+		// request is as satisfied as it will ever be: drop it rather than keep
+		// re-asking for a copy this node is about to supersede.
+		f.clearPending(cid, level, id)
+		f.metricSet().dropped.With(level.String(), "own-seq-conflict").Inc()
+		return res
+	}
 
 	switch res.Freshness {
 	case Newer:

@@ -153,6 +153,21 @@ func DecodeLSP(pt PDUType, full, body []byte) (LSP, error) {
 	return l, nil
 }
 
+// LSPChecksumOf reads the 2-octet Checksum field out of an ENCODED LSP PDU
+// (common header included) and reports whether the PDU was long enough to hold
+// it. It exists because the checksum in the bytes and the Checksum field of the
+// LSP struct can diverge: SignPDU inserts TLV 10 and recomputes the checksum in
+// the BYTES (finalizeLSPChecksum) without touching the struct WriteTo filled in.
+// Anything that stores or advertises an LSP's checksum must read it from the
+// bytes it actually stored, never from a struct built before signing.
+func LSPChecksumOf(pdu []byte) (uint16, bool) {
+	off := CommonHeaderLen + lspChecksumFieldBodyOff
+	if off+1 >= len(pdu) {
+		return 0, false
+	}
+	return uint16(pdu[off])<<8 | uint16(pdu[off+1]), true
+}
+
 // VerifyChecksum recomputes the Fletcher checksum over this LSP's raw bytes and
 // reports whether it is valid (ISO/IEC 10589 clause 7.3.11). It requires
 // RawBytes to be set (a decoded LSP); for an LSP built in memory the checksum

@@ -1322,15 +1322,20 @@ LSDB, SPF, and FRR interop run as QEMU integration tests (raw L2 needs
 | `isis-show.ci` | The full `show isis <noun>` / `clear isis <action>` surface dispatches through the engine: with a NET and a passive interface (so the engine starts without `CAP_NET_RAW`), `show isis neighbor` returns an empty array, `show isis database` carries the own LSP, `show isis database detail` expands TLVs, `show isis route` is present, `show isis interface` reports the passive circuit, `show isis hostname` maps the local System ID to the configured name (TLV 137), `show isis spf-log` is present, and `clear isis adjacency` / `clear isis counters` return a status payload (no `unknown command`). Proxy arg-rejection and render shape are unit-tested in `cmd_show_test.go` / `show_test.go` |
 | `isis-doctor.ci` | The IS-IS doctor codes are explainable (`ze explain doctor-isis-net-missing` / `doctor-isis-system-id-mismatch` / `doctor-isis-raw-socket`), and `ze doctor --json` against a config whose `system-id` disagrees with the NET emits `doctor-isis-system-id-mismatch`. The net-missing and raw-socket firing paths are unit-tested (`doctor_test.go`, isis-3 `transport/doctor_test.go`) |
 
-The six FRR interop scenarios (`test/interop/scenarios/isis-{p2p,lan-dis,dualstack,auth,convergence,redist}-frr`)
+The seven FRR interop scenarios (`test/interop/scenarios/isis-{p2p,lan-dis,dualstack,auth,convergence,redist,purge-reorig}-frr`)
 exercise the protocol against a live FRR `isisd` over the shared Docker bridge: P2P
 adjacency + convergence, LAN DIS election + pseudo-node LSP, IPv4+IPv6 reachability,
-HMAC-MD5 authentication, link-down reconvergence, and IS-IS<->BGP redistribution.
+HMAC-MD5 authentication, link-down reconvergence, IS-IS<->BGP redistribution, and
+re-origination above a purge of Ze's own LSP (ISO/IEC 10589 clause 7.3.16.4 c):
+`isis-purge-reorig-frr` floods a purge of Ze's own LSP at a sequence Ze never
+issued, and FRR must end up holding Ze's LSP at a HIGHER sequence with a live
+holdtime, with Ze still in FRR's Level-1 topology.
 They are the goal-validation evidence for the IS-IS umbrella and run under the
 Linux Docker interop harness (`test/interop/daemons` has `isisd=yes`), not on darwin.
 
 Run with `bin/ze-test isis --all` or `make ze-isis-test`. The offline wire-decode
 suite is separate (`test/isis-wire/`, `make ze-isis-wire-test`).
+<!-- source: test/interop/scenarios/isis-purge-reorig-frr/check.py -- re-origination above an own-LSP purge, witnessed by FRR -->
 <!-- source: internal/test/cli/register.go -- isis CI suite registration -->
 <!-- source: test/isis/isis-config.ci -- config validation evidence -->
 <!-- source: test/isis/isis-adjacency.ci -- adjacency config-surface evidence -->

@@ -240,8 +240,42 @@ up/down bit is set only on a down-level leak (RFC 2966), exactly as IPv4 TLV 135
 
 **Sequence numbers and wraparound.** Sequence numbers start at 1 (0 is reserved,
 never a purge) and increment monotonically on every (re)origination and refresh
-(clause 7.3.3). At `0xFFFFFFFF` the LSP ID is purged and its re-origination is
+(clause 7.3.16.1). At `0xFFFFFFFF` the LSP ID is purged and its re-origination is
 suspended for MaxAge + ZeroAgeLifetime, after which it re-originates from 1.
+
+**A claim on an own LSP ID.** An LSP bearing this node's own System ID, arriving
+at a sequence the node did not issue, is **never stored** (clause 7.3.16.4 c-1:
+"shall not overwrite with the received LSP"). The node instead raises its own
+sequence **above** the claimed one and re-originates, arming SRM on every eligible
+circuit (clause 7.3.16.4 c-2..c-4, deferring to clause 7.3.16.1). This covers a
+neighbour's **purge** of the node's own LSP, a higher sequence returned by a
+system that outlived the node's last incarnation, and the equal-sequence
+differing-checksum case (clause 7.3.16.2, LSP confusion). A claim BELOW the
+node's own sequence is not answered: the ordinary flood of the copy the node
+already holds corrects the sender (clause 7.3.16.4 b-3). Neither is a claim on an
+LSP ID the node does not originate, nor a REPEAT of a claim already answered (one
+answer per claim, so a retransmission cannot drive a sequence-bump storm). A
+claim AT the maximum sequence falls into the wraparound path above, so raising a
+sequence can never defeat the suspension, and a claim raised during a suspension
+neither shortens it nor survives it.
+
+When the node holds NO copy of the claimed LSP ID, clause 7.3.16.4 a) governs
+instead: the arrival is acknowledged and not retained. The SSN flag cannot carry
+that acknowledgement (it lives on an LSDB entry, and there is none), so it is
+queued and the next PSNP carries it at the ARRIVED sequence. An acknowledgement
+echoes what was received; a REQUEST goes out at sequence 0 so the holder reads it
+as older and supplies the LSP.
+
+**An own LSP's stored checksum comes from its own bytes.** `LSP.WriteTo` fills the
+struct with the pre-signature checksum and `SignPDU` recomputes it inside the
+bytes, so anything that stores or advertises an own LSP's checksum reads it back
+from the encoded PDU (`packet.LSPChecksumOf`). A divergence there makes the CSNP
+this node sources advertise a value no receiver can reproduce, which clause
+7.3.16.2 turns into a purge of this node's own LSP.
+<!-- source: internal/plugins/isis/lsdb/origination.go -- RaiseSequenceFloor, encodeAndSign -->
+<!-- source: internal/plugins/isis/lsdb/lsdb.go -- ownConflictResult -->
+<!-- source: internal/plugins/isis/lsdb/snp.go -- recordAckOnly, drainAckOnly -->
+<!-- source: internal/plugins/isis/own_lsp_conflict.go -- reoriginateAboveClaim -->
 
 **Aging and purge.** Remaining Lifetime decrements once per second (clause
 7.3.16.4). At 0 the LSP becomes a **purge**: it is re-flooded (isis-7) and

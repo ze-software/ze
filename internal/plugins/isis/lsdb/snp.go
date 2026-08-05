@@ -68,6 +68,52 @@ func (f *Flooder) recordPending(cid CircuitID, level Level, id types.LSPID, req 
 	set[id] = req
 }
 
+// recordAckOnly queues an ACKNOWLEDGEMENT of an LSP this node received but does
+// not hold, so the next PSNP on circuit cid carries it (ISO/IEC 10589 clause
+// 7.3.16.4 a-1). The entry echoes the ARRIVED values, which is what makes it an
+// acknowledgement rather than a request: a request goes out at sequence 0 so the
+// holder reads it as older and supplies the LSP (pendingFor), while an entry at
+// the sender's own sequence is read as an ack and clears its SRM.
+//
+// It is bounded by maxPendingPerCircuit for the same reason the request set is:
+// a peer that floods LSPs for LSP IDs this node does not hold must not grow it
+// without bound. A full set drops the ack; the sender retransmits.
+func (f *Flooder) recordAckOnly(cid CircuitID, level Level, id types.LSPID, e packet.LSPEntry) {
+	f.pendMu.Lock()
+	defer f.pendMu.Unlock()
+	byLevel := f.ackOnly[cid]
+	if byLevel == nil {
+		byLevel = make(map[Level]map[types.LSPID]packet.LSPEntry)
+		f.ackOnly[cid] = byLevel
+	}
+	set := byLevel[level]
+	if set == nil {
+		set = make(map[types.LSPID]packet.LSPEntry)
+		byLevel[level] = set
+	}
+	if _, exists := set[id]; !exists && len(set) >= maxPendingPerCircuit {
+		return
+	}
+	set[id] = e
+}
+
+// drainAckOnly removes and returns the queued acknowledgements for circuit cid at
+// level. Unlike a pending REQUEST, which stays until the LSP arrives, an
+// acknowledgement is sent once: clause 7.3.16.4 a-2 has this node retain nothing
+// about the LSP after the acknowledgement goes out.
+func (f *Flooder) drainAckOnly(cid CircuitID, level Level) []packet.LSPEntry {
+	f.pendMu.Lock()
+	set := f.ackOnly[cid][level]
+	out := make([]packet.LSPEntry, 0, len(set))
+	for id, e := range set {
+		out = append(out, e)
+		delete(set, id)
+	}
+	f.pendMu.Unlock()
+	sort.Slice(out, func(i, j int) bool { return out[i].LSPID.Less(out[j].LSPID) })
+	return out
+}
+
 // clearPending removes a pending-request entry for id on circuit cid at level
 // (called when the requested LSP arrives and is stored, AC-15). A no-op when
 // absent.
@@ -327,6 +373,11 @@ func (f *Flooder) buildPSNP(cid CircuitID, level Level, srcID types.SourceID) []
 	// REQUEST list: pending-request entries (LSPs we do not yet hold). These stay
 	// pending until the LSP arrives (clearPending in ReceiveLSP).
 	entries = append(entries, f.pendingFor(cid, level)...)
+
+	// ACK-ONLY list: LSPs this node received, refused to retain, and owes an
+	// acknowledgement for (ISO/IEC 10589 clause 7.3.16.4 a). Drained, not held:
+	// a-2 leaves nothing retained once the acknowledgement is sent.
+	entries = append(entries, f.drainAckOnly(cid, level)...)
 
 	if len(entries) == 0 {
 		return nil

@@ -1,6 +1,8 @@
 // Design: plan/learned/932-isis-6-lsdb.md -- own-LSP origination from live state.
-// ISO/IEC 10589 clause 7.3.12 (origination triggers), 7.3.3 (sequence numbers /
-// wraparound), 9.8 (LSP type block / overload). Wide metrics only (RFC 5305).
+// ISO/IEC 10589 clause 7.3.12 (origination triggers), 7.3.16.1 (sequence numbers
+// / wraparound / raising an own sequence above another system's claim), 7.3.16.4
+// (a received purge of an own LSP), 9.8 (LSP type block / overload). Wide metrics
+// only (RFC 5305).
 //
 // RFC: rfc/short/rfc1195.md -- TLV 129 (Protocols Supported), TLV 132 (IP Interface Address)
 // RFC: rfc/short/rfc5305.md -- TLV 22 (Extended IS Reach, 24-bit metric), TLV 135 (Extended IP Reach, 32-bit metric)
@@ -171,13 +173,101 @@ type Originator struct {
 
 	mu sync.Mutex
 	// lastSeq records the last sequence number assigned to each own LSP ID so the
-	// next origination increments it (clause 7.3.3). An ID absent here originates
-	// at FirstSequenceNumber (1).
+	// next origination increments it (clause 7.3.16.1). An ID absent here
+	// originates at FirstSequenceNumber (1). It is ALSO the floor another system's
+	// claim raises: RaiseSequenceFloor writes the sequence a neighbor advertised
+	// for one of our LSP IDs here, so the next origination moves above it rather
+	// than re-issuing a value the network has already superseded.
 	lastSeq map[types.LSPID]types.SequenceNumber
 	// suspendUntil records, per own LSP ID, a time before which the ID must NOT
-	// be re-originated after a sequence wraparound (clause 7.3.3: purge then wait
-	// MaxAge + ZeroAgeLifetime). An ID absent here is not suspended.
+	// be re-originated after a sequence wraparound (clause 7.3.16.1: purge then
+	// wait MaxAge + ZeroAgeLifetime). An ID absent here is not suspended.
 	suspendUntil map[types.LSPID]time.Time
+	// answeredClaim records, per own LSP ID, the highest sequence another system
+	// claimed for it that this node has ALREADY answered with a re-origination.
+	// It is what makes RaiseSequenceFloor answer a given claim once rather than
+	// once per retransmission of it: raising the floor writes lastSeq[id] = seq,
+	// so the "already above it" test cannot damp a claim whose answer never
+	// advances lastSeq. Keyed only for IDs lastSeq already holds, so a remote
+	// party can never grow it.
+	answeredClaim map[types.LSPID]types.SequenceNumber
+}
+
+// RaiseSequenceFloor records that some OTHER system claimed sequence seq for one
+// of this system's own LSP IDs, so the next origination of id emits a sequence
+// STRICTLY GREATER than seq. It reports whether the claim still stands (the
+// caller then re-originates id); false means this system has already issued a
+// higher sequence and its own flood will settle the disagreement.
+//
+// ISO/IEC 10589 clause 7.3.16.1, quoted from the identical text of RFC 1142
+// (the IETF republication of the same protocol specification, section 7.3.16.1;
+// the ISO text itself is not redistributable, see iso/README.md):
+//
+//	"If an Intermediate system R somewhere in the domain has information that
+//	 the current sequence number for source S is greater than that held by S, R
+//	 will return to S a Link State PDU for S with R's value for the sequence
+//	 number. When S receives this LSP it shall change its sequence number to be
+//	 the next number greater than the new one received, and shall generate a
+//	 link state PDU."
+//
+// Clause 7.3.16.4 c) applies the same rule to a received PURGE of an own LSP:
+// the system "shall not overwrite with the received LSP", "shall change the
+// sequence number of the un-expired LSP from S as described in 7.3.16.1",
+// "generate a new LSP" and "set SRMflag on all circuits". Without this the
+// originator computed the next sequence from lastSeq alone -- its own private
+// counter -- so a purge carrying a sequence this system never issued was never
+// superseded and the LSP stayed withdrawn network-wide.
+//
+// It stores seq itself (not seq+1): originateFragmentLocked increments through
+// NextChecked, so the wraparound path composes with no special case. A floor at
+// MaxSequenceNumber makes the next origination WRAP -- purge at the maximum,
+// suspend the ID for MaxAge + ZeroAgeLifetime, count the wrap -- which is what
+// the same clause requires ("if an Intermediate system needs to increment its
+// sequence number, but the sequence number is already equal to SequenceModulus
+// - 1 ... the Routeing Module shall be disabled for a period of at least MaxAge
+// + ZeroAgeLifetime ... When it is re-enabled the IS shall start again with
+// sequence number 1"). A claim arriving while an ID is ALREADY suspended raises
+// nothing at all: the wrap deletes the ID's lastSeq entry, and the not-originated
+// test below refuses a claim on an ID with no entry. So the suspension can be
+// neither shortened nor survived, and the restart is from 1 as the clause
+// requires -- by then every copy carrying the high sequence has expired.
+//
+// That wrap is reachable by a hostile claim: a peer that advertises
+// MaxSequenceNumber for one of our LSP IDs makes us withdraw it and stay silent
+// for MaxAge + ZeroAgeLifetime. The clause leaves no other conforming answer, and
+// the control is IS-IS authentication (spec-isis-10): an unauthenticated segment
+// already lets an attacker forge our LSP outright, which is strictly worse.
+func (o *Originator) RaiseSequenceFloor(id types.LSPID, seq types.SequenceNumber) bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	prev, originated := o.lastSeq[id]
+	if !originated {
+		// This node has never originated the ID, or a wraparound suspension has
+		// deleted its state. Clause 7.3.16.4 c) is conditioned on "an un-expired
+		// LSP from S ... in memory": with none, there is nothing to change the
+		// sequence OF, and clause 7.3.16.4 a) asks only that the arrival be
+		// acknowledged and not retained. Refusing here also keeps a remote party
+		// from creating per-LSP-ID state in this map by claiming IDs in our own
+		// System ID's fragment space.
+		return false
+	}
+	if prev > seq {
+		return false // already above it; our own flood settles the disagreement.
+	}
+	if answered, ok := o.answeredClaim[id]; ok && answered >= seq {
+		// This claim has already been answered. Answering again would re-originate
+		// once per RETRANSMISSION of the same stale LSP, and for a fragment the
+		// current state no longer produces the answer never advances lastSeq, so
+		// the "already above it" test above can never damp it. The answer already
+		// flooded is what settles the disagreement.
+		return false
+	}
+	// prev == seq is a live disagreement, not a no-op: clause 7.3.16.2 (LSP
+	// confusion) is exactly our sequence with a different checksum, and it is
+	// resolved the same way, by moving above it.
+	o.answeredClaim[id] = seq
+	o.lastSeq[id] = seq
+	return true
 }
 
 // SetSigner installs the per-level LSP signer (spec-isis-10). The signer takes a
@@ -194,10 +284,26 @@ func (o *Originator) SetSigner(sign func(pdu []byte) []byte) {
 // holds o.mu, so o.sign is read safely). The signer re-inserts TLV 10 first and
 // recomputes the Fletcher checksum (spec-isis-10), so the stored/flooded bytes
 // carry valid authentication (RFC 5304 sec 2).
+//
+// It then refreshes lsp.Checksum from the SIGNED BYTES, and that write is
+// load-bearing. packet.LSP.WriteTo fills the struct with the PRE-signature
+// checksum; packet.SignPDU recomputes the checksum inside the byte slice
+// (finalizeLSPChecksum) and never writes back to the struct. Every caller here
+// hands BOTH to LSDB.Insert, which stores lsp.Checksum as the entry's metadata
+// while storing raw as the bytes it floods. Leaving them divergent gives a
+// signed own LSP an entry whose checksum does not match its own bytes, which
+// breaks two things at once: the CSNP this node sources advertises a checksum no
+// receiver can reproduce (ISO/IEC 10589 clause 7.3.16.2 then reads our own LSP
+// as confused and purges it), and this node reads the echo of its own flood as a
+// same-sequence checksum mismatch, answers it under clause 7.3.16.4, and bumps
+// its sequence once per echo.
 func (o *Originator) encodeAndSign(lsp *packet.LSP) []byte {
 	raw := encodeLSP(lsp)
 	if o.sign != nil {
 		raw = o.sign(raw)
+		if ck, ok := packet.LSPChecksumOf(raw); ok {
+			lsp.Checksum = ck
+		}
 	}
 	return raw
 }
@@ -209,10 +315,11 @@ func NewOriginator(lsdb *LSDB, now func() time.Time) *Originator {
 		now = time.Now
 	}
 	return &Originator{
-		lsdb:         lsdb,
-		now:          now,
-		lastSeq:      make(map[types.LSPID]types.SequenceNumber),
-		suspendUntil: make(map[types.LSPID]time.Time),
+		lsdb:          lsdb,
+		now:           now,
+		lastSeq:       make(map[types.LSPID]types.SequenceNumber),
+		suspendUntil:  make(map[types.LSPID]time.Time),
+		answeredClaim: make(map[types.LSPID]types.SequenceNumber),
 	}
 }
 
@@ -240,7 +347,7 @@ type OriginateResult struct {
 //   - assigns each fragment a monotonically increasing sequence number, skipping
 //     any LSP ID currently suspended after a wraparound, and triggers wraparound
 //     handling at 0xFFFFFFFF (purge + suspend + re-originate-from-1, clause
-//     7.3.3, spec AC-4);
+//     7.3.16.1, spec AC-4);
 //   - stamps MaxLifetime and lets the codec compute the Fletcher checksum on
 //     encode (clause 7.3.11), then stores the fragment;
 //   - purges any previously-originated fragment that this pass no longer needs
@@ -308,10 +415,16 @@ func (o *Originator) Originate(level Level, node NodeInfo, state LevelState) Ori
 // with the codec (which computes the Fletcher checksum on WriteTo), and stores
 // it. It returns whether it wrote the fragment and whether the sequence wrapped.
 // On wrap it purges the LSP ID and suspends re-origination for MaxAge +
-// ZeroAgeLifetime (clause 7.3.3). The caller holds o.mu.
+// ZeroAgeLifetime (clause 7.3.16.1). The caller holds o.mu.
+//
+// The suspension test comes FIRST, and that ordering is what makes the wrap path
+// and RaiseSequenceFloor compose: a floor raised while an ID is suspended cannot
+// shorten the window (this returns before reading lastSeq), and cannot survive it
+// (the elapsed branch deletes lastSeq, restarting from 1 exactly as clause
+// 7.3.16.1 requires once every copy carrying the high sequence has expired).
 func (o *Originator) originateFragmentLocked(level Level, pt packet.PDUType, id types.LSPID, typeBlock uint8, lifetime uint16, tlvs []packet.TLV, now time.Time) (wrote, wrapped bool) {
 	// Honor an active wraparound suspension: do not re-originate the ID until
-	// the window elapses (clause 7.3.3).
+	// the window elapses (clause 7.3.16.1).
 	if until, ok := o.suspendUntil[id]; ok {
 		if now.Before(until) {
 			return false, false
@@ -319,17 +432,27 @@ func (o *Originator) originateFragmentLocked(level Level, pt packet.PDUType, id 
 		// Window elapsed: clear the suspension and re-originate from 1.
 		delete(o.suspendUntil, id)
 		delete(o.lastSeq, id)
+		// The floor and the claim marker are per-incarnation state: the restart is
+		// from sequence 1, so a claim answered before the suspension must not
+		// suppress an answer to the same claim after it.
+		delete(o.answeredClaim, id)
 	}
 
+	// prev is this system's own last-assigned sequence, RAISED to any higher value
+	// another system has claimed for this LSP ID (RaiseSequenceFloor). Reading only
+	// the private counter here is what let a neighbor's purge at a sequence this
+	// system never issued win permanently.
 	prev := o.lastSeq[id] // zero (reserved) when first originated -> Next yields 1
 	next, didWrap := prev.NextChecked()
 	if didWrap {
 		// Sequence reached 0xFFFFFFFF: purge at the max sequence and suspend the
 		// ID for MaxAge + ZeroAgeLifetime before re-originating from 1 (clause
-		// 7.3.3, spec AC-4).
+		// 7.3.16.1, spec AC-4). A floor raised to the maximum lands here too, so
+		// raising a sequence can never silently defeat the wrap suspension.
 		o.purgeFragmentLocked(level, pt, id, typeBlock, types.MaxSequenceNumber)
 		o.suspendUntil[id] = now.Add(DefaultMaxAge + ZeroAgeLifetime)
 		delete(o.lastSeq, id)
+		delete(o.answeredClaim, id)
 		o.lsdb.incWraps(level)
 		return false, true
 	}

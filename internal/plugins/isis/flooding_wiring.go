@@ -176,6 +176,14 @@ func (e *engine) handleLSP(rf transport.RawFrame) {
 		return
 	}
 	res := e.flooder.ReceiveLSP(cid, p2p, pdu.LSP, rf.PDU)
+	if res.OwnConflict {
+		// Another system claimed a sequence for one of OUR LSP IDs. Nothing was
+		// stored (ISO/IEC 10589 clause 7.3.16.4 c-1) and the topology did not
+		// change, so no event and no SPF: the answer is to re-originate above the
+		// claim, which emits its own change event when it writes the new LSP.
+		e.reoriginateAboveClaim(lspLevel(pdu.LSP.PDUType), pdu.LSP.LSPID, res.ConflictSequence)
+		return
+	}
 	// Only a NEWER LSP (Stored) changed the topology: emit an LSP-change event and
 	// re-run SPF (isis-9). An Equal duplicate only refreshed the held lifetime (no
 	// topology change) -- emit a non-"add" "refresh" event but do not pretend a new
@@ -325,6 +333,17 @@ func levelToken(pt packet.PDUType) string {
 		return "l2"
 	}
 	return "l1"
+}
+
+// lspLevel maps an LSP PDU type to the database level it belongs to (ISO/IEC
+// 10589 clause 9.5: the PDU type encodes the level). Any type other than the L2
+// LSP is Level 1; callers reach it only after the flooder has already accepted
+// the PDU as an L1 or L2 LSP, so there is no third case to report.
+func lspLevel(pt packet.PDUType) lsdb.Level {
+	if pt == packet.PDUTypeL2LSP {
+		return lsdb.Level2
+	}
+	return lsdb.Level1
 }
 
 // adjToLSDBLevel maps an adjacency.Level to the lsdb.Level.

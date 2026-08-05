@@ -32,6 +32,11 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
+// ensureIfaceBackend loads the iface component's default backend when nothing
+// else has. It is a package variable so a test can substitute it: the real one
+// opens a netlink socket, which a unit test has no business doing.
+var ensureIfaceBackend = iface.EnsureBackend
+
 // rcvTimeout bounds a blocking Recvfrom so the RX goroutine wakes to check its
 // stop channel even when no frame arrives (R-3).
 const rcvTimeout = 500 * time.Millisecond
@@ -252,6 +257,17 @@ func joinMulticast(fd, ifindex int, mac [MACLen]byte) error {
 // the SIOCGIF* ioctl wrapper): the name it is given is the logical interface
 // name, which may differ from the kernel device name.
 func resolveInterface(name string) (ifindex int, hwaddr [MACLen]byte, mtu int, err error) {
+	// An IS-IS-only config has no interface{} block, and the iface component
+	// loads its backend from THAT block alone (register.go OnConfigure). Without
+	// one, iface.Resolve fails "iface: no backend loaded" and every circuit fails
+	// to open, so IS-IS never forms an adjacency on a config that names its
+	// interfaces only under isis{}. EnsureBackend loads the build-time default
+	// and is a no-op when an explicit interface{} backend already loaded one, so
+	// `interface { backend vpp }` still wins. OSPF resolves the same way
+	// (internal/plugins/ospf/transport/backend_linux.go resolveOSPFInterface).
+	if eerr := ensureIfaceBackend(); eerr != nil {
+		return 0, hwaddr, 0, fmt.Errorf("isis/transport: interface %s: %w", name, eerr)
+	}
 	b, rerr := iface.Resolve(name)
 	if rerr != nil {
 		return 0, hwaddr, 0, fmt.Errorf("isis/transport: resolve %s: %w", name, rerr)

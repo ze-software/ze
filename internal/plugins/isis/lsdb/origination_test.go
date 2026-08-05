@@ -239,7 +239,7 @@ func TestISISSequenceWraparound(t *testing.T) {
 	}
 
 	// While suspended (before MaxAge + ZeroAgeLifetime) a re-origination does NOT
-	// rewrite the LSP (clause 7.3.3).
+	// rewrite the LSP (clause 7.3.16.1).
 	clk.advance(DefaultMaxAge) // still inside MaxAge + ZeroAgeLifetime
 	res = o.Originate(Level2, node, state)
 	if len(res.Originated) != 0 {
