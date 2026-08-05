@@ -255,13 +255,13 @@ from stdin (<code>ze -</code>) is unaffected.</p>
       <span>launcher.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/launcher.png?v=cae872cf66" aria-label="Discover Ze commands interactively demonstration">
-      <source src="../../../assets/demos/launcher.webm?v=46c97f8572" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/launcher.webm?v=46c97f8572">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/launcher.png?v=bb8520296b" aria-label="Discover Ze commands interactively demonstration">
+      <source src="../../../assets/demos/launcher.webm?v=5f2c9c7ead" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/launcher.webm?v=5f2c9c7ead">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 5 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.05</span><span>1 minute 5 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/launcher.txt?v=0399dbc59f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -847,13 +847,13 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
       <span>host-inventory.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/host-inventory.png?v=01c12c6314" aria-label="Inspect a Linux host before Ze starts demonstration">
-      <source src="../../../assets/demos/host-inventory.webm?v=8c89c5019c" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/host-inventory.webm?v=8c89c5019c">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/host-inventory.png?v=c5efe62e66" aria-label="Inspect a Linux host before Ze starts demonstration">
+      <source src="../../../assets/demos/host-inventory.webm?v=e3e17ac796" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/host-inventory.webm?v=e3e17ac796">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>51 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.05</span><span>51 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/host-inventory.txt?v=5b221c4c0f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1230,8 +1230,8 @@ is a thin proxy to a fixed engine command; the output routes through the pipe
 machinery (<code>| json</code>, <code>| table</code>, <code>| text</code>, <code>| count</code>, <code>| match</code>, <code>| resolve</code>,
 <code>| origin</code>).</p>
 <pre><code>ze show isis neighbor                   # Adjacencies: system-id, interface, level, state, hold time
-ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload
-ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs
+ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload, own
+ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs (same columns plus tlvs)
 ze show isis route                      # IS-IS-computed IPv4 routes: prefix, metric, level, next-hops
 ze show isis route ipv6                 # IS-IS-computed IPv6 routes (RFC 5308)
 ze show isis interface                  # Circuits: level, type, metric, hello/hold, passive, DIS, adjacency count

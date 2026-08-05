@@ -216,7 +216,9 @@ straight from each plugin's own YANG module.</p>
 </tr>
 </tbody>
 </table>
-<p>When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code> on that family, the session stays up but further NLRIs for the exceeded family are dropped. Each family reads its own <code>teardown</code> value, so one family can warn while another stops the session.</p>
+<p>When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code> on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own <code>teardown</code> value, so one family can warn while another stops the session.</p>
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
+
 <p>A peer stopped by a prefix limit STAYS DOWN by default. Its state reads <code>idle-hold</code>, <code>ze show warnings</code> carries a <code>prefix-hold</code> warning that names the family, and the log line says <code>peer held down</code>. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.</p>
 <p><code>reconnect backoff</code> asks for the opposite: the peer comes back on its usual connect backoff, 5 to 60 seconds. <code>reconnect timer</code>, or an <code>idle-timeout</code> above 0, waits idle-timeout x 2^(N-1), capped at 1 hour. The wait comes from the family that exceeded its maximum, and resets on a stable session. A <code>reconnect</code> value that contradicts <code>idle-timeout</code> in the same block is a config error.</p>
 <p><strong>PeeringDB integration:</strong> <code>resolve peeringdb max-prefix &lt;asn&gt;</code> queries PeeringDB for a peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under <code>system { peeringdb { url; margin; } }</code> for private mirrors. Staleness warnings appear when prefix data is older than 6 months.</p>
@@ -417,13 +419,13 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
       <span>config-graph.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../../assets/demos/config-graph.png?v=60a75596e2" aria-label="Find every peer affected by a group change demonstration">
-      <source src="../../../assets/demos/config-graph.webm?v=551b0249a0" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../../assets/demos/config-graph.webm?v=551b0249a0">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../../assets/demos/config-graph.png?v=f10c574616" aria-label="Find every peer affected by a group change demonstration">
+      <source src="../../../assets/demos/config-graph.webm?v=fbb0bda458" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../../assets/demos/config-graph.webm?v=fbb0bda458">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 41 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.05</span><span>1 minute 41 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../../assets/demos/config-graph.txt?v=1708ee2fac">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">

@@ -1,11 +1,11 @@
 {
   "gate": {
-    "ok": true,
-    "error_count": 0,
-    "gated_must": 2720,
-    "enrolled_rfcs": 166,
-    "test_tags": 2575,
-    "message": "rfc-requirements OK: 2720 gated MUST-level requirement(s) across 166 enrolled RFC(s); 2575 test tag(s) resolved."
+    "ok": false,
+    "error_count": 1,
+    "gated_must": 2950,
+    "enrolled_rfcs": 168,
+    "test_tags": 3265,
+    "message": "rfc-requirements OK: 2950 gated MUST-level requirement(s) across 168 enrolled RFC(s); 3265 test tag(s) resolved."
   },
   "satisfaction": [
     {
@@ -13,16 +13,16 @@
       "short": "Test pair",
       "condition": "positive tag + negative tag",
       "key": "both_polarities",
-      "count": 974,
-      "share": 35.8
+      "count": 1210,
+      "share": 41.0
     },
     {
       "label": "One polarity plus reason",
       "short": "Single polarity",
       "condition": "{single-polarity} annotation + required tag",
       "key": "single_polarity",
-      "count": 370,
-      "share": 13.6
+      "count": 371,
+      "share": 12.6
     },
     {
       "label": "Not applicable",
@@ -30,15 +30,15 @@
       "condition": "{not-applicable} annotation",
       "key": "not_applicable",
       "count": 841,
-      "share": 30.9
+      "share": 28.5
     },
     {
       "label": "Declared gap",
       "short": "Gap",
       "condition": "{gap} annotation + public ledger disclosure",
       "key": "gap",
-      "count": 535,
-      "share": 19.7
+      "count": 528,
+      "share": 17.9
     },
     {
       "label": "One polarity, unexcused",
@@ -58,16 +58,16 @@
     }
   ],
   "gaps": {
-    "requirements": 535,
-    "rfcs": 84,
+    "requirements": 528,
+    "rfcs": 82,
     "status_counts": [
       {
         "status": "Partial",
-        "count": 61
+        "count": 60
       },
       {
         "status": "Experimental",
-        "count": 16
+        "count": 15
       },
       {
         "status": "Supported",
@@ -85,11 +85,11 @@
     "supported_with_remaining": [
       {
         "rfc": "RFC 1350",
-        "remaining": "RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go:407) instead of silently ignoring a duplicate or stale ACK."
+        "remaining": "RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK."
       },
       {
         "rfc": "RFC 4301",
-        "remaining": "One MUST gap (RFC4301-4.4.1.1-1): SPD selectors are limited to IP-prefix + next-layer-protocol; TCP/UDP/SCTP port and ICMP type/code selectors are not modeled or projected (internal/component/ike/dataplane/dataplane.go:110-130; engine/initiator.go:325 tsToIPNet drops ports)."
+        "remaining": "One MUST gap (RFC4301-4.4.1.1-1): SPD selectors are limited to IP-prefix + next-layer-protocol; TCP/UDP/SCTP port and ICMP type/code selectors are not modeled or projected (internal/component/ike/dataplane/dataplane.go; engine/initiator.go tsToIPNet drops ports)."
       },
       {
         "rfc": "RFC 6396",
@@ -97,7 +97,7 @@
       },
       {
         "rfc": "RFC 7313",
-        "remaining": "Four MUST-level receive-side gaps annotated in `rfc/short/rfc7313.md`: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go:751-756), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance."
+        "remaining": "Four MUST-level receive-side gaps annotated in `rfc/short/rfc7313.md`: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance."
       },
       {
         "rfc": "RFC 7911",
@@ -122,7 +122,7 @@
       },
       {
         "rfc": "RFC 4271",
-        "count": 21,
+        "count": 20,
         "status": "Partial"
       },
       {
@@ -170,8 +170,9 @@
   "audit": {
     "verdicts": 52,
     "fresh": 52,
+    "shifted": 0,
     "stale": 0,
-    "missing": 2668
+    "missing": 2898
   },
   "checks": [
     {
@@ -221,8 +222,10 @@
     },
     {
       "name": "Generated ledger freshness",
-      "errors": [],
-      "error_count": 0
+      "errors": [
+        "ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index"
+      ],
+      "error_count": 1
     }
   ],
   "agent_guard": {

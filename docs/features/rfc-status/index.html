@@ -194,7 +194,7 @@
 <td>BGP Role and OTC</td>
 <td>Supported</td>
 <td>Role capability negotiation, role mismatch NOTIFICATION, OTC egress stamping, OTC ingress leak detection and treat-as-withdraw, unicast-only (AFI 1/2, SAFI 1) OTC scoping read from MP_REACH_NLRI or, for a withdrawal, MP_UNREACH_NLRI. Both stamping rules are conditioned on the UPDATE advertising reachable NLRI, per Section 5's "if a route is to be advertised" / "if a route is received", so a withdrawal, an MP_UNREACH-only UPDATE and an End-of-RIB marker (both RFC 4724 encodings, which an added attribute would stop being a marker at all) are never stamped (<code>payloadAdvertisesNLRI</code>, <code>isPayloadUnicast</code>). <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/role/otc.go</code></span></span></td>
-<td>One coverage gap, no known source gap: the withdrawal shape is proven by unit tests only. No functional test asserts that a withdraw-only UPDATE toward a Customer leaves the wire without an OTC attribute, and no scenario exercises a conforming receiver against it -- the case RFC 7606 Section 5.2 escalates to "session reset". <span class="ev-src"><span class="ev-ref"><code>test/plugin/</code></span><span class="ev-ref"><code>test/interop/</code></span></span></td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>RFC 8516</td>

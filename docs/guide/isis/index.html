@@ -64,6 +64,7 @@ user-facing behaviour; the wire format is documented in
 <li><a href="#dual-stack-ipv6">Dual-stack IPv6</a></li>
 <li><a href="#observing-and-clearing-is-is">Observing and clearing IS-IS</a>
 <ol>
+<li><a href="#which-lsps-are-this-nodes-own">Which LSPs are this node&#x27;s own</a></li>
 <li><a href="#web-views">Web views</a></li>
 <li><a href="#metrics">Metrics</a></li>
 <li><a href="#readiness-checks">Readiness checks</a></li>
@@ -312,6 +313,35 @@ show isis spf-log             # recent SPF runs: time, level, trigger, duration,
 clear isis adjacency          # tear down all adjacencies; they re-form from the next Hello
 clear isis counters           # reset the SPF-run log
 </code></pre>
+<h3 id="which-lsps-are-this-nodes-own">Which LSPs are this node's own</h3>
+<p>Every row of <code>show isis database</code> and <code>show isis database detail</code> carries an
+<code>own</code> field. It is <code>true</code> on the LSPs this node originated and <code>false</code> on the
+LSPs it learned from a neighbour. The field is named <code>own</code> in the text column and
+in the JSON key, so the two forms of the output use one word for it.</p>
+<p>Some other implementations mark the same fact with a character beside the LSP ID.
+Ze keeps it in a field of its own, because <code>*</code> is an input token in ze (the
+selector wildcard for "all") and because a marker glued to an identifier does not
+survive <code>| json</code> or a downstream match on the ID. The <code>lsp-id</code> column holds the
+LSP ID and nothing else.</p>
+<p>Two diagnoses start with this field:</p>
+<table>
+<thead>
+<tr>
+<th>What you see</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>An <code>own</code> LSP whose <code>lifetime</code> falls toward 0</td>
+<td>The refresh timer is not re-stamping it. At 0 the node disappears from every neighbour's database.</td>
+</tr>
+<tr>
+<td>An <code>own</code> LSP with <code>purged</code> set</td>
+<td>A neighbour withdrew this node's advertisement, or the refresh failed and the LSP aged out. The daemon logs <code>isis: own LSP purged</code> at warn level for the same event.</td>
+</tr>
+</tbody>
+</table>
 <p>Every <code>show isis ...</code> command routes its JSON through the pipe machinery, so you
 can append <code>| json</code>, <code>| table</code>, <code>| text</code>, <code>| count</code>, <code>| match &lt;pat&gt;</code>,
 <code>| resolve</code>, or <code>| origin</code>. <code>clear isis adjacency</code> forces a full re-learn (LSP

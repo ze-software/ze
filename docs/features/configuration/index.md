@@ -60,7 +60,9 @@ Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated f
 | `prefix { idle-timeout N; }` | Per family | Seconds to wait before reconnect after this family caused a teardown. Default 0, which keeps the peer down. |
 | `prefix { reconnect never\|backoff\|timer; }` | Per family | What the peer does after this family stopped the session. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
 
-When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false` on that family, the session stays up but further NLRIs for the exceeded family are dropped. Each family reads its own `teardown` value, so one family can warn while another stops the session.
+When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false` on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own `teardown` value, so one family can warn while another stops the session.
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
+
 
 A peer stopped by a prefix limit STAYS DOWN by default. Its state reads `idle-hold`, `ze show warnings` carries a `prefix-hold` warning that names the family, and the log line says `peer held down`. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.
 
@@ -164,9 +166,9 @@ External processes receive BGP events and send commands:
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Play the WebM recording](../../../assets/demos/config-graph.webm?v=551b0249a0) · [View the poster](../../../assets/demos/config-graph.png?v=60a75596e2) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
+[Play the WebM recording](../../../assets/demos/config-graph.webm?v=fbb0bda458) · [View the poster](../../../assets/demos/config-graph.png?v=f10c574616) · [Plain-text transcript](../../../assets/demos/config-graph.txt?v=1708ee2fac)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
+Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

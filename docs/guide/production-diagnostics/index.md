@@ -383,9 +383,9 @@ reverse DNS hostnames instead.
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Play the WebM recording](../../../assets/demos/traceroute.webm?v=bda9d06121) · [View the poster](../../../assets/demos/traceroute.png?v=ebcd3e247b) · [Plain-text transcript](../../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Play the WebM recording](../../../assets/demos/traceroute.webm?v=f5cdded84c) · [View the poster](../../../assets/demos/traceroute.png?v=3babb137aa) · [Plain-text transcript](../../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 2 seconds.
+Recorded with Ze 26.08.05 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 2 seconds.
 
 ```console
 $ ssh ze-demo

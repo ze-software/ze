@@ -52,9 +52,9 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../../assets/demos/zefs-config.webm?v=644b96eda1) · [View the poster](../../../assets/demos/zefs-config.png?v=26fc4f1939) · [Plain-text transcript](../../../assets/demos/zefs-config.txt?v=4253c65985)
+[Play the WebM recording](../../../assets/demos/zefs-config.webm?v=89ce0ef365) · [View the poster](../../../assets/demos/zefs-config.png?v=2e83eff63a) · [Plain-text transcript](../../../assets/demos/zefs-config.txt?v=4253c65985)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 55 seconds.
+Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 55 seconds.
 
 ```console
 $ ze init < "$ZE_INIT_INPUT"

@@ -511,7 +511,7 @@ value uses the default.
 
 | Setting | Scope | Default | Description |
 |---------|-------|---------|-------------|
-| `teardown` | Per family | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, drop excess NLRIs. |
+| `teardown` | Per family | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, and the UPDATE that crossed the maximum is dropped whole, not NLRI by NLRI. |
 | `idle-timeout` | Per family | `0` | Seconds to wait before reconnect after this family stopped the session. 0 keeps the peer down. |
 | `reconnect` | Per family | derived | `never`, `backoff` or `timer`. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
 

@@ -124,9 +124,9 @@ The seconds parameter accepts values from 1 to 3600 (one hour).
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Play the WebM recording](../../../assets/demos/commit-confirmed.webm?v=21514fce6f) · [View the poster](../../../assets/demos/commit-confirmed.png?v=4e03c49d64) · [Plain-text transcript](../../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Play the WebM recording](../../../assets/demos/commit-confirmed.webm?v=63f78d0aff) · [View the poster](../../../assets/demos/commit-confirmed.png?v=cd8c861d17) · [Plain-text transcript](../../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 31 seconds.
+Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 31 seconds.
 
 ```console
 $ ze config edit -f ze.conf

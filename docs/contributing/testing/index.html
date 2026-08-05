@@ -68,7 +68,10 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <li><a href="#mutation-tests-gomu">Mutation tests (gomu)</a></li>
 <li><a href="#interop-and-integration-tests">Interop and integration tests</a></li>
 </ol></li>
-<li><a href="#how-ze-verify-works">How ze-verify works</a></li>
+<li><a href="#how-ze-verify-works">How ze-verify works</a>
+<ol>
+<li><a href="#the-one-stage-that-does-not-read-your-working-tree">The one stage that does not read your working tree</a></li>
+</ol></li>
 <li><a href="#interpreting-output">Interpreting output</a>
 <ol>
 <li><a href="#unit-test-failures">Unit test failures</a></li>
@@ -315,6 +318,28 @@ make ze-live-rpki-test            # real RPKI data (needs internet)
 <li><strong>ExaBGP compatibility</strong></li>
 </ol>
 <p>Common case (one group changed): ~2 min total instead of 6+.</p>
+<h3 id="the-one-stage-that-does-not-read-your-working-tree">The one stage that does not read your working tree</h3>
+<p>Every stage above compiles and runs the files on your disk, uncommitted ones
+included. <code>ze-tracked-build-check</code> (<code>scripts/checks/tracked_build.go</code>) is the
+exception: it extracts the commit with <code>git archive</code> and compiles the extracted
+tree, so it sees only what git holds.</p>
+<p>That is the population that breaks when a commit takes a consumer and leaves its
+producer uncommitted. The build is green on your disk and red for everybody who
+clones. Run it after the commit script when the commit carried Go:</p>
+<pre><code class="language-sh">make ze-tracked-build-check              # HEAD
+make ze-tracked-build-check REV=7abe8a07e  # any commit
+</code></pre>
+<p>It builds six flavors over <code>./...</code>: <code>ze_core ze_distro</code>, <code>ze_test</code> and
+<code>ze_core ze_appliance</code> each carry the feature tags that commit declared in
+<code>feature-gates.txt</code>; <code>ze_setup</code>, <code>ze_core ze_setup</code> and <code>ze_installer</code> carry
+none, matching the Makefile targets that build them. The installer flavor pins
+<code>GOOS=linux</code>, and every flavor must select the tag-gated FILES its own tags own
+(<code>ze_core_dispatch.go</code> for the core flavors, <code>setup_dispatch.go</code> for <code>ze_setup</code>,
+and so on). Naming the package is not enough: <code>cmd/ze/main.go</code> carries no build
+constraint, so the package resolves under any tag set at all, and <code>go build
+./...</code> skips every file its constraints exclude while still exiting 0.
+About 45 seconds warm. It does not compile <code>_test.go</code> files, because <code>go build</code>
+never does.</p>
 <p>Output is captured to <code>tmp/ze-verify.log</code>. On failure:</p>
 <pre><code class="language-sh">grep -E &quot;^--- FAIL|^FAIL|TEST FAILURE&quot; tmp/ze-verify.log
 </code></pre>
@@ -392,6 +417,10 @@ fuzz corpus entry becomes a regression test automatically.</p>
 <tr>
 <td>Debug a verify failure</td>
 <td><code>grep FAIL tmp/ze-verify.log</code></td>
+</tr>
+<tr>
+<td>Check the commit I just made compiles</td>
+<td><code>make ze-tracked-build-check</code></td>
 </tr>
 </tbody>
 </table>

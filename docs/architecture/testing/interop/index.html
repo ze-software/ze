@@ -66,6 +66,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#optional-sidecars">Optional sidecars</a></li>
 <li><a href="#prove-a-scenario-discriminates">Prove a scenario discriminates</a></li>
 <li><a href="#daemon-helpers">Daemon Helpers</a></li>
+<li><a href="#a-process-plugin-that-fails">A process plugin that fails</a></li>
 <li><a href="#scenario-inventory">Scenario Inventory</a></li>
 <li><a href="#running">Running</a></li>
 <li><a href="#debugging-failures">Debugging Failures</a></li>
@@ -308,8 +309,51 @@ discriminates".</p>
 <p>All classes (<code>FRR</code>, <code>BIRD</code>, <code>GoBGP</code>, <code>Ze</code>) are defined in <code>interop.py</code>. Each wraps the
 daemon's native CLI (<code>vtysh</code>, <code>birdc</code>, <code>gobgp</code>, <code>ze</code>) via <code>docker exec</code>. Start with an
 existing scenario (e.g., <code>01-ebgp-ipv4-frr/check.py</code>) as a template.</p>
-<p>All session waiters poll with a configurable timeout (default 90s, override via <code>SESSION_TIMEOUT</code> env var).</p>
+<p>All session waiters poll with a configurable timeout (default 90s, override via <code>SESSION_TIMEOUT</code> env var).
+The harness passes that value into the Ze container as <code>SESSION_TIMEOUT</code>, so a process
+plugin can size its own barriers against the harness budget instead of repeating a
+constant (<code>docker_run(..., env=)</code>).</p>
 <!-- source: test/interop/interop.py -- wait_session, wait_route, check_route -->
+
+<h3 id="a-process-plugin-that-fails">A process plugin that fails</h3>
+<p>A scenario can drive Ze from a process plugin (<code>test/scripts/ze_api.py</code>). When such a
+plugin calls <code>runtime_fail</code>, it writes the <code>ZE-OBSERVER-FAIL</code> sentinel to its stderr
+and stops Ze. The <code>.ci</code> runner rejects that sentinel in <code>validateLogging</code>; this lab
+has no such reject, so the plugin's failure would otherwise reach <code>check.py</code> as a
+route that never arrived, or as <code>containers not healthy</code> 30 seconds later.</p>
+<p><code>raise_if_observer_failed(when)</code> reads the sentinel from the LAST 2000 lines of Ze's
+log and raises with the plugin's own message. The tail is the right end to read:
+<code>runtime_fail</code> requests shutdown immediately after writing the sentinel, so Ze stops
+within a few lines of it. A scenario whose Ze writes more than 2000 lines after the
+sentinel must raise the <code>lines</code> bound.</p>
+<p>An unreadable log raises as well, with the docker error rather than the plugin's
+message. "I could not look" is not "the plugin is fine".</p>
+<p>Three call sites, and only the last one fires on every failure:</p>
+<table>
+<thead>
+<tr>
+<th>Site</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run.py</code>, the scenario's <code>except BaseException</code> handler</td>
+<td>ALWAYS, on any scenario failure. Uses <code>observer_failure_note</code>, which returns text instead of raising, because a second exception there would replace the failure being reported</td>
+</tr>
+<tr>
+<td><code>wait_containers_healthy</code></td>
+<td>only when the plugin already stopped Ze before the health loop gave up. A race, measured as such on <code>11-addpath-frr</code></td>
+</tr>
+<tr>
+<td><code>check.py</code>, before the first wait and again when a wait fails</td>
+<td>when the scenario knows which of its own waits the plugin can outrun</td>
+</tr>
+</tbody>
+</table>
+<!-- source: test/interop/interop.py -- observer_fail_line, raise_if_observer_failed, observer_failure_note -->
+<!-- source: test/interop/run.py -- main -->
+<!-- source: test/interop/scenarios/55-wire-edit-api-origin-bird/check.py -- worked example -->
 
 <h3 id="scenario-inventory">Scenario Inventory</h3>
 <p>The suite has grown to over 100 scenario directories in <code>test/interop/scenarios/</code>. The table

@@ -75,9 +75,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../../assets/demos/launcher.webm?v=46c97f8572) · [View the poster](../../../assets/demos/launcher.png?v=cae872cf66) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
+[Play the WebM recording](../../../assets/demos/launcher.webm?v=5f2c9c7ead) · [View the poster](../../../assets/demos/launcher.png?v=bb8520296b) · [Plain-text transcript](../../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
+Recorded with Ze 26.08.05 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
 
 ```console
 $ ze
@@ -434,9 +434,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=8c89c5019c) · [View the poster](../../../assets/demos/host-inventory.png?v=01c12c6314) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Play the WebM recording](../../../assets/demos/host-inventory.webm?v=e3e17ac796) · [View the poster](../../../assets/demos/host-inventory.png?v=c5efe62e66) · [Plain-text transcript](../../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
+Recorded with Ze 26.08.05 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -811,8 +811,8 @@ machinery (`| json`, `| table`, `| text`, `| count`, `| match`, `| resolve`,
 
 ```
 ze show isis neighbor                   # Adjacencies: system-id, interface, level, state, hold time
-ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload
-ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs
+ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload, own
+ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs (same columns plus tlvs)
 ze show isis route                      # IS-IS-computed IPv4 routes: prefix, metric, level, next-hops
 ze show isis route ipv6                 # IS-IS-computed IPv6 routes (RFC 5308)
 ze show isis interface                  # Circuits: level, type, metric, hello/hold, passive, DIS, adjacency count

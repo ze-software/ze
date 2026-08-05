@@ -1,5 +1,5 @@
 {
-  "blog_articles": 2,
+  "blog_articles": 4,
   "changes": 34,
   "cli_commands": 390,
   "config_sections": 36,
@@ -8,11 +8,11 @@
     "core_experimental": 51,
     "planned": 4
   },
-  "generated_at": "2026-08-04",
+  "generated_at": "2026-08-05",
   "github_stars": 49,
   "interop": {
-    "scenario_dirs_raw": 113,
-    "scenarios": 113,
+    "scenario_dirs_raw": 115,
+    "scenarios": 115,
     "target_display": "8",
     "targets": 8
   },
