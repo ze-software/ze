@@ -190,7 +190,7 @@ instead of being left as an unexplained annotation.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| relay through ze (configured as a route server) | `test/interop/scenarios/47-rfc7606-relay-shape-frr` | FRR | FRR installs ze's relayed output; discriminates the duplicate-NEXT_HOP defect (RED when reverted); proves the §5.1 split output is accepted | **DELIVERED, 4/4 stable** |
+| relay through ze (configured as a route server) | `test/interop/scenarios/47-rfc7606-relay-shape-frr` | FRR | FRR installs ze's relayed output; discriminates the duplicate-NEXT_HOP defect (RED when reverted); proves the §5.1 split output is accepted | **DELIVERED.** "4/4 stable" was measured on 2026-07-22 and was FALSE by 2026-08-05: one run in four failed on a race in the injector script. Fixed at source (`option=linger`), 3/3 green after. See "Interop 47 was NOT stable, and is now" in the Review Gate |
 
 ### Future (if deferring any tests)
 - None.
@@ -271,7 +271,7 @@ N/A — no new family, capability or attribute.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Relay emits one field per UPDATE | the new `.ci` plus a reactor unit test |
-| Gate reflects it | `grep -c "{gap" rfc/short/rfc7606.md` returns 2 |
+| Gate reflects it | `grep -c "{gap" rfc/short/rfc7606.md` returns 1 (re-measured 2026-08-05; it read 2 when this row was written, and §5.4 closed on 2026-08-01 under a later spec. RFC7606-5.1-2 carries no annotation, which is what this spec owns) |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -408,7 +408,7 @@ Add `// RFC 7606 Section 5.1: "<quoted requirement>"` above the enforcing code.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| A relayed UPDATE carries at most one NLRI-bearing field | done | `reactor/forward_body.go,:101` | both fits branches |
+| A relayed UPDATE carries at most one NLRI-bearing field | done | `reactor/forward_body.go` `buildFwdBody` | both fits branches. Re-read 2026-08-05: the wire branch guards on `peerWire.MixesNLRIFields()` beside the size test and calls `wireu.SplitWireUpdate`; the re-encode branch guards on `destUpdate.MixesNLRIFields()` and reaches `fwdSplitParsedUpdate`. The `:101` this row carried is a line number the file no longer has |
 | Reuse the existing splitters, no third one | done | `wireu/split.go`, `message/update_split.go` | `SplitCompliant` shares `splitByShape` with `Split` |
 | Receive-side tolerance unchanged | done | nothing on the receive path was touched | the reactor suite passes |
 | Zero-copy preserved for compliant UPDATEs | done | `TestForwardCompliantShapeKeepsZeroCopy` | asserts backing-array identity |
@@ -482,9 +482,15 @@ route stayed live there.
 ### The fix, and the layer
 
 `ASPathEdit.Record` now routes to `recordTranscode` when the intent's Prepend is
-empty OR `PayloadAdvertisesNLRI` says the payload carries no reachable NLRI.
-`recordPrepend`, the only frame that can create an AS_PATH, is then unreachable
-for a withdraw-only UPDATE.
+empty, and to `recordWithdrawOnly` when `PayloadAdvertisesNLRI` says the payload
+carries no reachable NLRI. `recordPrepend`, the only frame that can create an
+AS_PATH, is then unreachable for a withdraw-only UPDATE.
+
+(Re-read against source 2026-08-05. The second arm landed on `recordTranscode`
+as first written; Run 4 finding 1 below moved it to `recordWithdrawOnly`, which
+wraps `recordTranscode` and adds the RFC 6793 Section 4.1 equal-width AS4_PATH
+drop that `recordPrepend` used to perform. This paragraph still named the first
+shape.)
 
 **Why `Record` and not `forwardUpdateCore`.** Three reasons, in order of weight.
 
@@ -532,12 +538,17 @@ identical question -- now delegates to it, and its duplicate byte-walk plus the
 
 ### Fixtures corrected, not assertions
 
-Eight test fixtures asserted a prepend over a payload carrying no NLRI, so they
+Nine test fixtures asserted a prepend over a payload carrying no NLRI, so they
 were withdraw-only UPDATEs claiming to be advertisements. Each gained an NLRI;
-no assertion changed. Seven are in `wireu/aspath_slot_test.go` (via
-`probeAdvertisedNLRI`); the eighth is `TestReactorForwardRSEBGPPrepend`
+no assertion changed. Eight are in `wireu/aspath_slot_test.go` (via
+`probeAdvertisedNLRI`); the ninth is `TestReactorForwardRSEBGPPrepend`
 (`reactor/forward_rs_test.go`), which is RFC-tagged and carries an
 `rfc-test-change-approved:` marker.
+
+(Recounted 2026-08-05 from `git show 79b46ef60 -- wireu/aspath_slot_test.go`:
+eight non-import hunks, one per fixture. This paragraph said seven and eight,
+written before Run 4 finding 5 added `TestASPathSlotRSClientSkipsPrepend` to the
+set and the count was never revisited.)
 
 ### Found while doing this, NOT fixed here
 
@@ -630,6 +641,7 @@ change that did not happen.
 | `relay-withdraw-nexthop-self.ci` | `test/plugin/` | the VERIFY tier: the running daemon relays a withdrawal to a `next-hop self` peer byte-identical, and rewrites the advertisement's next-hop on the same session |
 | `53-relay-withdraw-nexthop-self-frr` | `test/interop/scenarios/` | FRR 10.3.1 accepts the relayed withdrawal with next-hop-self configured, and the advertisement's next-hop IS rewritten |
 | `54-relay-withdraw-reflector-frr` | same | the iBGP witness: FRR accepts the reflected withdrawal, and the reflected advertisement DOES carry ORIGINATOR_ID and CLUSTER_LIST |
+| `relay-withdraw-reflector.ci` | `test/plugin/` | the VERIFY tier for the RFC 4456 pair (added 2026-08-05, Run 6 finding 6): ze reflects between two RR clients, the advertisement carries ORIGINATOR_ID 7F000001 and CLUSTER_LIST 0A000001, and the withdrawal is byte-identical. Both mutants killed |
 
 ### Mutation evidence (all measured, 2026-08-04)
 
@@ -694,11 +706,24 @@ it exists for is untouched. None of the fifteen is RFC-tagged.
 | The zero-copy path survives for single-field UPDATEs | identity assertion plus benchmark | `TestForwardCompliantShapeKeepsZeroCopy` compares `&body[0]` with `&result.rawBodies[0][0]`; `TestSplitWireUpdateCompliantShapeUntouched` asserts the same pointer comes back; `BenchmarkMixesNLRIFields` measures 3.3ns per destination |
 | The check is paid per message, not per peer | timing ratio plus benchmark | `TestWireUpdateMixesNLRIFieldsCachedPerMessage` fails when the cache is removed (warm 3ns becomes 41ns); the first version of that test asserted allocations and proved nothing, since neither side allocates |
 | Interop | FRR | scenario 47: FRR installs both the replayed route (discriminates the NEXT_HOP dedup -- RED without it) and the live-split announce (proves §5.1 split output accepted). Split-vs-unsplit is not peer-discriminable (RFC 7606 third bullet); that lives in unit + `.ci` |
-| Gate | ze-rfc-check | green, 2543 tags resolved, up from 2535 |
+| Gate | ze-rfc-check | green. Re-measured 2026-08-05: 2949 gated MUST-level requirements across 168 enrolled RFCs, 3261 test tags resolved. The 2543 recorded here on 2026-07-20 was that day's corpus, not this spec's |
 | Lint | ze-lint-changed | 0 findings in the three changed packages |
 | No regression | package tests | `internal/component/bgp/...` 81 packages ok; the one red is the known missing-build-tag artifact in `bgp/config`, green with the ze_core plus ze_ssh tags |
 
 ## Review Gate
+
+**Machine artifact (the one `commit_helper.py` reads):**
+`tmp/review/rfc7606-5-1-2-relay-shape-<session>.md`, verdict `clean`, 31 files
+hash-pinned, three independent Opus 5 reviewers.
+`python3 scripts/dev/review_gate.py check --spec rfc7606-5-1-2-relay-shape` exits 0.
+
+It did not exist until 2026-08-05. Runs 4 and 5 were recorded under work-names
+(`withdraw-only-relay-shape`, `relay-withdraw-attribute-gate`) rather than the
+spec stem, so the gate this spec closes against read as BLOCKED while the spec's
+prose read as reviewed. A stem is not a label: `spec_closure_stem`
+(`scripts/dev/commit_helper.py`) derives it from the removed spec path, so a
+review filed under any other name is a review of nothing as far as closure is
+concerned.
 
 Author mutation testing first; independent review recorded under Run 2.
 
@@ -756,9 +781,116 @@ real is refused, and Ze's own `message.BuildEOR` output still classifies as an
 End-of-RIB); non-vacuity of all four new tests; both `inject.msg` barriers; and
 all eleven `rfc-test-change-approved:` markers, none of which weakens.
 
+### Run 6 (closure review, 2026-08-05)
+
+Two independent reviewer subagents on Opus 5, neither of which wrote any of this
+code: A over the production change at HEAD, B over the tests and interop. This is
+the run the machine gate reads. Artifact:
+`tmp/review/rfc7606-5-1-2-relay-shape-<session>.md`.
+
+Everything below was re-measured against source or a real run, not carried over.
+
+| # | From | Severity | Finding | Resolution |
+|---|------|----------|---------|------------|
+| 1 | A | ISSUE | `OTCEgressFilter`'s comment said "nothing downstream declines to fabricate the attribute", falsified by `planAttr`'s gate, and anchored on a line number the file no longer has | fixed: the comment now names `planAttr` and says why the RFC 9234 condition still belongs here as well (`role/otc.go`) |
+| 2 | A | ISSUE | Two comments said `Record` sends a no-NLRI payload to `recordTranscode`; it sends it to `recordWithdrawOnly`, which adds the RFC 6793 Section 4.1 AS4_PATH drop | fixed at both sites (`wireu/aspath_slot.go`), and in this spec's own "The fix, and the layer" paragraph |
+| 3 | A | ISSUE (withdrawn on verification) | An export chain that drops every legacy prefix yields `nlriOverride = []byte{}`, and the rebuild writes the source's whole attribute section onto a body with no NLRI. Reported as an RFC 4271 Section 4.3 / RFC 7606 Section 5.2 violation | NOT a defect. RFC 4271 Section 6.3 settles it in the other direction: "An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message." RFC 7606 Section 5.2 does not forbid the shape either; it escalates error handling only "if any path attribute errors are encountered in such an UPDATE message". The attribute set here is the source's own, complete and correct. The defect this spec fixed was the opposite shape: an INCOMPLETE well-known set. Recorded as a NOTE, no code change |
+| 4 | A | MINOR | `Message.IsEOR`'s block quote paraphrased RFC 4724 Section 2, dropping "contains only the", which is the property `isBareMPUnreach` enforces | fixed: verbatim quote plus a line saying which word is load-bearing (`internal/test/peer/message.go`) |
+| 5 | B | ISSUE | Scenario 54's `ze.conf` still described the VACUOUS first draft: "check.py reads FRR's answer". The rebuild moved the witness to a raw `ze-test peer` precisely because FRR could not observe it | fixed: the comment records the measurement and names the real witness |
+| 6 | B | ISSUE | Verify-tier daemon witness existed for one producer only (`applyFactsNextHop`). The RFC 4456 reflection pair was proven at daemon level by nightly interop 54 alone | fixed: `test/plugin/relay-withdraw-reflector.ci`, an iBGP route reflector with two clients. Both mutants killed -- see the table below |
+| 7 | B | MINOR | `aspath_slot_test.go`'s file header still attributed the prepend to "Section 9.1.2"; the clause is Section 5.1.2 b. Run 4 finding 2 fixed six sites and missed this one | fixed |
+| 8 | B | MINOR | Scenario 54 recorded as a general property of FRR 10.3.1 that its mandatory-attribute check "only fires once NEXT_HOP or MP_REACH_NLRI is present". Scenarios 51 and 52 each measured FRR raising exactly that error with neither attribute present. Both cannot hold as stated | fixed: 54's docstring narrows the measurement to the INTERNAL sessions that produced it and names the two external measurements it must not contradict. Session type is the uncontrolled variable, and no scenario has controlled for it |
+| 9 | B | NOTE | This spec said "Eight fixtures ... Seven are in `aspath_slot_test.go`" | fixed: recounted from the commit, nine and eight |
+| 10 | A | NOTE | `rewriteASPathPrepend` (`wireu/aspath_rewrite.go`) still inserts an AS_PATH when absent, ungated. Its only entry `ReceivedUpdate.EBGPWire` has no non-test caller, so the defect is dormant rather than live | recorded: re-wiring that path reintroduces `79b46ef60`'s defect |
+| 11 | A | NOTE | The gate's refusal is silent -- no log, no counter. An operator whose export policy sets an attribute on a withdrawal gets no signal | recorded: correct outcome, zero observability |
+| 12 | B | NOTE | `TestASPathSlotWithdrawOnlyDropsAS4Path`'s OLD-destination control asserts inside `if ok { ... }`, so a mutant recording no op passes that half. The pair still discriminates through the NEW-NEW subtest | recorded: a weak control, not a hole |
+
+### Run 6 measurements (2026-08-05, all re-run rather than cited)
+
+| What | Result |
+|------|--------|
+| `make ze-tracked-build-check` | green |
+| `make ze-rfc-check` | green: 2949 gated MUST-level requirements, 168 enrolled RFCs, 3261 tags resolved |
+| `make ze-test-pkg` on `wireu`, `message`, `reactor`, `plugins/role`, `internal/test/peer` | all green |
+| `make ze-plugin-test` | 596/596 PASS, including `rfc7606-relay-one-field`, `role-otc-fwd-withdraw`, `role-otc-rs-withdraw-eor`, `relay-withdraw-nexthop-self` |
+| interop 52, 53, 54 | PASS |
+| interop 47 | **FAILED**, then fixed -- see below |
+| `relay-withdraw-reflector.ci`, gate mutant `if false && src == nil && !gate.advertises()` | RED: `+ ORIGINATOR_ID: 7f000001 (unexpected)`, `+ CLUSTER_LIST: 0a000001 (unexpected)` on the withdrawal |
+| `relay-withdraw-reflector.ci`, positive-control mutant (`forwardUpdateCore` records neither Op(9) nor Op(10)) | RED at seq=1: the reflected advertisement arrives without either attribute |
+
+### Interop 47 was NOT stable, and is now
+
+The Interop Tests table above claimed `47-rfc7606-relay-shape-frr` was
+"DELIVERED, 4/4 stable". Re-run on 2026-08-05 it FAILED, then passed three times:
+roughly one run in four.
+
+The race is in the injector script, not in ze. Two trailing
+`expect=bgp:...KEEPALIVE` rules held the session open while `check.py` polled
+FRR. FRR re-advertises 10.0.0.0/24 and 203.0.113.0/24 back to ze (AS_PATH
+[65002 65004]), ze relays that to the injector, and an UPDATE arriving while only
+KEEPALIVE rules are pending is a hard mismatch:
+
+> Expected: KEEPALIVE (len=19)
+> Received: UPDATE (len=56) ORIGIN: IGP AS_PATH: [65002 65004] NEXT_HOP: 172.30.0.3
+
+The peer then exited, ze logged `forward matched no target ... 172.30.0.9=down`,
+and `check.py` failed on a missing route rather than on anything the scenario
+asserts. Whether that UPDATE arrives before or after ze's KEEPALIVE is FRR's
+timing, so the rules asserted a claim the scenario never meant to make.
+
+Fixed at source with `option=linger:value=true` and the two filler rules deleted:
+the peer announces success after the last directive, then holds the session and
+discards what arrives. 3/3 green after the change. **This is the second time this
+spec has met the same trap** -- the Mistake Log above records it for the `.ci`
+("declaring the peers' End-of-RIB opts INTO the race"). Scenarios 52, 53 and 54
+still use the trailing-KEEPALIVE idiom; all three passed here, and none of them
+has a peer that re-advertises back through ze.
+
+### Run 7 (confirming pass over Run 6's fixes, 2026-08-05)
+
+One independent reviewer on Opus 5, over the fix delta ONLY, holding it against
+Run 6's claims. It found three defects in the fixes themselves, which is the
+reason this loop exists.
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| 1 | ISSUE | Run 6 finding 8 narrowed the over-wide FRR claim in scenario 54's `check.py`, and the SAME delta re-wrote it into `ze.conf`: "its mandatory-attribute check fires only once NEXT_HOP or MP_REACH_NLRI is present". Fixed at one site and reintroduced at the other, in one change | fixed: `ze.conf` now says FRR did not look on THIS scenario's shape, that why is not established, and that the sessions here are internal while 51 and 52 measured the error on external ones |
+| 2 | ISSUE | The Wiring row rewritten in Run 6 named `advertiseGate.advertises` as a caller of `wireu.PayloadAdvertisesNLRI`. It is not one: it answers the same question from values `buildModifiedPayload` already computed. The corrected row asserted a call graph that does not exist | fixed: the row now names exactly two non-test callers and says what keeps the gate from drifting |
+| 3 | MINOR | Run 6 finding 2 said the `recordTranscode` misnaming was fixed "at both sites". A third sat inside `Record` itself, above the dispatch | fixed: the paragraph now names both landing frames and says which test picks which |
+| 4 | NOTE | `docs/features/rfc-status.md`'s RFC 9234 row still published "No `test/plugin/` functional test asserts that a withdraw-only UPDATE toward a Customer leaves the wire without an OTC attribute", which `role-otc-fwd-withdraw.ci` has asserted since 2026-08-04 | fixed although out of this spec's letter: it is a false PUBLIC claim about a test this spec re-baselined. The row now names both `.ci` files and scenario 51, with a source anchor |
+| 5 | NOTE | The deferral shard's re-verification line read flat: `Record` tests the empty-Prepend case FIRST, so a route-server intent still lands on `recordTranscode` | fixed in the shard |
+
+Reported sound by this reviewer, each re-derived rather than accepted: every
+comment edit against its producing function; the RFC 4724 Section 2 quote
+verbatim against `rfc/full/rfc4724.txt`; `relay-withdraw-reflector.ci`'s
+non-vacuity, positive control and barrier, checked line for line against its
+sibling; that scenario 47's `option=linger` removed only the two filler waits and
+that the last directive still executes; and that Run 6 finding 3's withdrawal is
+justified by RFC 4271 Section 6.3 and RFC 7606 Section 5.2's own conditional.
+
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- all ISSUEs fixed and mutation-verified; NOTEs recorded
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE -- Run 7 closed Run 6's findings and its own; NOTEs recorded
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+## Deferrals Resolved
+
+| Shard | Row | Final status | Evidence |
+|-------|-----|--------------|----------|
+| `plan/deferrals/fixit-otc-src-role-meta-fallback.md` | Ze puts an incomplete well-known attribute set on a relayed withdraw-only UPDATE, and FRR rejects it | done | Fixed in "Follow-On" above. `ASPathEdit.Record` makes `recordPrepend` unreachable for a payload with no reachable NLRI; `role-otc-fwd-withdraw.ci` PASSES in the 2026-08-05 plugin suite asserting `attrLen=0000` byte for byte; interop 52 PASSES |
+
+That shard's only row is now terminal, so the shard is residue and its removal
+belongs to the actor who emptied it (`ai/rules/planning.md`).
+**It is NOT in this closure's script, and the reason is mechanical rather than a
+choice.** The row's Status cell read `**landed 2026-08-04**` at HEAD, which is a
+state written as a sigil on a value. `deferral_shard_removal_problems`
+(`scripts/dev/commit_helper.py`) accepts `done`, `cancelled` or `resolved` and
+reads the shard **from HEAD, not the working tree**, so a `--remove` prepared in
+the same run as the correction is refused on HEAD's spelling no matter what the
+working tree says. Verified by dry run on 2026-08-05.
+
+The correction to `done` therefore rides in commit A, and the shard becomes
+removable by any commit prepared after commit A is HEAD. That is one commit of
+latency, not an open question: nothing is left to decide.
 
 ## Pre-Commit Verification
 
@@ -785,7 +917,7 @@ all eleven `rfc-test-change-approved:` markers, none of which weakens.
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | a peer relays a mixed UPDATE through the daemon | `test/plugin/rfc7606-relay-one-field.ci` | yes: 20/20 green, 4/4 red with the relay branches reverted and the binary rebuilt |
-| every new exported symbol has a non-test caller | - | `NLRIBearingFieldCount` called by both `MixesNLRIFields` implementations and by tests; `(*Update).MixesNLRIFields` by `SplitCompliant` and `buildFwdBody:101`; `(*WireUpdate).MixesNLRIFields` by `SplitWireUpdate:40` and `buildFwdBody:60`; `SplitCompliant` by `fwdSplitParsedUpdate` |
+| every new exported symbol has a non-test caller | - | Re-checked 2026-08-05, by symbol rather than by line: `NLRIBearingFieldCount` called by both `MixesNLRIFields` implementations; `(*Update).MixesNLRIFields` by `SplitCompliant` and by `buildFwdBody`'s re-encode branch; `(*WireUpdate).MixesNLRIFields` by `SplitWireUpdate` and by `buildFwdBody`'s wire branch; `SplitCompliant` by `fwdSplitParsedUpdate`; `PayloadAdvertisesNLRI` by exactly two non-test callers, `ASPathEdit.Record` and `role/otc.go`'s `payloadAdvertisesNLRI`. `advertiseGate.advertises` is NOT one of them: it answers the same question from values `buildModifiedPayload` already computed, and `TestAdvertiseGateAgreesWithPayloadAdvertisesNLRI` is what keeps the two from drifting |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -799,8 +931,9 @@ all eleven `rfc-test-change-approved:` markers, none of which weakens.
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| rfc-status says two gaps for RFC 7606 | matches `grep -c '{gap' rfc/short/rfc7606.md` = 2 | yes |
-| the audit verdict names the tests that prove it | `rfc/audit/rfc7606.json` binds 8 tagged units; `make ze-rfc-check` green at 2543 tags | yes |
+| rfc-status matches the summary's gap count | re-measured 2026-08-05: `grep -c '{gap' rfc/short/rfc7606.md` = 1, and the `docs/features/rfc-status.md` RFC 7606 row says "One MUST-level gap". The one that remains is RFC7606-5.1-1, the deliberate MP ordering divergence. §5.4 closed 2026-08-01 under a later spec, which is why this row read 2 when written | yes |
+| RFC7606-5.1-2 carries no `{gap}` and is proven in both polarities | `rfc/short/rfc7606.md,:330` has no annotation; tagged tests in `reactor/forward_body_rfc7606_test.go`, `message/rfc7606_shape_test.go`, `wireu/shape_rfc7606_test.go`, `wireu/split_eor_test.go` and `test/plugin/rfc7606-relay-one-field.ci` | yes |
+| the audit verdict names the tests that prove it | `rfc/audit/rfc7606.json` binds the tagged units; `make ze-rfc-check` re-run green 2026-08-05 at 3261 tags | yes |
 | mp-nlri-ordering.md enforcement table | each row traced to the function named; three source anchors added | yes |
 | `check_doc_links.py` | all corpus path references resolve | yes |
 

@@ -710,11 +710,17 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	// "is to be advertised" is the first clause of the rule, and it is a
 	// condition, not scene-setting. Without payloadAdvertisesNLRI this block
 	// queued an OTC mod for a pure withdrawal, for an MP_UNREACH-only UPDATE
-	// and for an End-of-RIB marker, and the reactor's unconsumed-ops pass wrote
-	// the 7 bytes onto the wire (forward_build.go:242-259 calls the handler
-	// with src=nil, so nothing downstream declines to fabricate the attribute).
-	// See payloadAdvertisesNLRI for why that output is interop-fatal rather
-	// than merely useless.
+	// and for an End-of-RIB marker, and the reactor wrote the 7 bytes onto the
+	// wire. See payloadAdvertisesNLRI for why that output is interop-fatal
+	// rather than merely useless.
+	//
+	// The reactor now declines that fabrication too: planAttr (forward_build.go)
+	// refuses any operation whose source attribute is absent when advertiseGate
+	// says the body being written carries no reachable NLRI. This gate stays,
+	// because the two answer different questions -- planAttr refuses to WRITE an
+	// attribute nobody may create, while this condition is RFC 9234 Section 5's
+	// own "is to be advertised" clause deciding whether the obligation to add
+	// one arises at all.
 	if mods != nil && payloadAdvertisesNLRI(payload) &&
 		(destRemoteRole == roleCustomer || destRemoteRole == rolePeer || destRemoteRole == roleRSClient) {
 		attrs := extractAttrsFromPayload(payload)

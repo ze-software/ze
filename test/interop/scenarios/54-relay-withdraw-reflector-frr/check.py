@@ -6,11 +6,25 @@ correctness-only test edits, "making a negative discriminate". This scenario was
 first written hours ago in this same session with FRR as the RECEIVER, asserting
 "FRR raised no attribute error over the reflected withdrawal". That negative was
 then MEASURED VACUOUS: the mutant that stamps ORIGINATOR_ID and CLUSTER_LIST onto
-the withdrawal SURVIVED, because FRR 10.3.1's mandatory-attribute check only
-fires once NEXT_HOP or MP_REACH_NLRI is present. The rewrite moves the receiving
-witness to a byte-exact one and moves FRR to the source side. Nothing is
-weakened: an assertion that could not fail is replaced by one that fails on a
-single changed byte.
+the withdrawal SURVIVED -- FRR 10.3.1 accepted it without a word. The rewrite
+moves the receiving witness to a byte-exact one and moves FRR to the source side.
+Nothing is weakened: an assertion that could not fail is replaced by one that
+fails on a single changed byte.
+
+rfc-test-change-approved: 2026-08-05 -- Thomas standing authorisation for
+correctness-only test edits. COMMENT ONLY, no assertion and no RFC tag touched.
+The paragraph below narrows a recorded measurement to the sessions that produced
+it. What it says about the code is unchanged; what it claims about FRR is no
+longer wider than the evidence.
+
+WHAT THAT MEASUREMENT DOES AND DOES NOT SAY. It was taken on THIS scenario's
+sessions, which are INTERNAL, over a withdrawal carrying ORIGINATOR_ID and
+CLUSTER_LIST. It is not a general property of FRR 10.3.1, and stating it as one
+would contradict two measurements taken the same day on EXTERNAL sessions:
+scenario 51 reddens with "Missing well-known attribute NEXT_HOP" over an
+OTC-only withdrawal, and scenario 52 with the same line over an AS_PATH-only
+one. Session type is the variable nobody has controlled for, so the reach of
+each measurement stops at the scenario that took it (ai/rules/evidence.md).
 
 Ze (AS 65000) is a route reflector with two clients: FRR at 172.30.0.3, which
 ORIGINATES the route and later withdraws it, and a raw `ze-test peer` at

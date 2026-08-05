@@ -56,10 +56,11 @@ var ErrASPathIntentEmpty = errors.New("AS_PATH intent: no ASNs to prepend")
 //
 // An empty Prepend means transcode only, which is the RFC 7947 Section 2.2.2
 // route-server case: an RS client's AS_PATH is never modified, but an ASN4
-// transcode still applies when the widths differ. A non-empty Prepend is also
-// resolved as transcode-only when the payload advertises no NLRI, because RFC
+// transcode still applies when the widths differ. A non-empty Prepend over a
+// payload that advertises no NLRI is resolved by recordWithdrawOnly, because RFC
 // 4271 Section 5.1.2 b conditions the prepend on a route being advertised (see
-// Record).
+// Record). That is transcode PLUS the RFC 6793 Section 4.1 equal-width AS4_PATH
+// drop, not plain transcode.
 type ASPathIntent struct {
 	Prepend []uint32
 	SrcASN4 bool
@@ -115,11 +116,17 @@ func (e *ASPathEdit) Record(mods *filterapi.ModAccumulator, payload []byte, in A
 	// the receiver -- observed against FRR 10.3.1, which answers every such
 	// withdrawal with "rcvd UPDATE with errors in attr(s)!! Withdrawing route".
 	//
-	// The transcode case is the right landing point rather than an early return:
-	// an AS_PATH or AGGREGATOR that RODE ALONG on a withdraw-only UPDATE is still
+	// Transcoding is the right landing point rather than an early return: an
+	// AS_PATH or AGGREGATOR that RODE ALONG on a withdraw-only UPDATE is still
 	// re-encoded at the destination's AS number width (RFC 6793 Section 4.2.2),
-	// while one that was never there is never invented. recordTranscode reads only
-	// SrcASN4 and DstASN4, so the unused Prepend costs nothing.
+	// while one that was never there is never invented.
+	//
+	// Two frames land there, and the order of the tests below is what picks one.
+	// An EMPTY Prepend is the RFC 7947 route-server case and goes to
+	// recordTranscode, which reads only SrcASN4 and DstASN4. A non-empty Prepend
+	// over a payload advertising nothing goes to recordWithdrawOnly, which is
+	// recordTranscode plus the RFC 6793 Section 4.1 equal-width AS4_PATH drop that
+	// recordPrepend would otherwise have performed.
 	if len(in.Prepend) == 0 {
 		return e.recordTranscode(mods, section, &spans, in)
 	}
@@ -214,7 +221,7 @@ func (e *ASPathEdit) recordPrepend(mods *filterapi.ModAccumulator, section []byt
 		// ADVERTISES a route, so an advertisement reaching an EBGP peer without one
 		// gets a complete attribute created rather than a prepend applied to
 		// nothing. Only an advertisement reaches here: Record sends a payload with
-		// no reachable NLRI to recordTranscode, because a withdraw-only UPDATE
+		// no reachable NLRI to recordWithdrawOnly, because a withdraw-only UPDATE
 		// carries no route for the well-known set to describe (RFC 4271
 		// Section 4.3).
 		path = &attribute.ASPath{}

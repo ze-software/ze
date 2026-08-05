@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — the AS-path family as generate slots
-// RFC: rfc/short/rfc4271.md — AS_PATH prepend to an EBGP peer (Section 9.1.2)
+// RFC: rfc/short/rfc4271.md — AS_PATH prepend to an EBGP peer (Section 5.1.2 b)
 // RFC: rfc/short/rfc6793.md — AS4_PATH obligation, AGGREGATOR to AS_TRANS (Section 4.2.2), malformed AS4_PATH discard (Section 6)
 // RFC: rfc/short/rfc7947.md — a route server MUST NOT modify AS_PATH for an RS client (Section 2.2.2)
 

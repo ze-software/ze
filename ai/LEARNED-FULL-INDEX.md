@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 918 summaries
+Total: 921 summaries
 
 ## 400-499
 
@@ -977,3 +977,6 @@ Total: 918 summaries
 | 1341 | fixit-isis-lsdb-entry-race | `plan/learned/1341-fixit-isis-lsdb-entry-race.md` |
 | 1342 | Tracked Build Gate | `plan/learned/1342-tracked-build-gate.md` |
 | 1343 | The Demo PTY Harness Waits On State, Not On A Deadline | `plan/learned/1343-demo-pty-harness-waits-on-state.md` |
+| 1344 | The Demo State Tree Needs One Owner, And A Failure Must Name Itself | `plan/learned/1344-demo-state-tree-needs-one-owner.md` |
+| 1345 | A Node That Never Reads The Network's Claim On Its Own LSP | `plan/learned/1345-isis-own-lsp-purge-sequence-floor.md` |
+| 1346 | A Directive You Only Want To Wait On Is Still An Assertion | `plan/learned/1346-rfc7606-5-1-2-relay-shape.md` |

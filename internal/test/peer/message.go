@@ -67,9 +67,15 @@ func (m *Message) IsUpdate() bool { return m.Kind() == MsgUPDATE }
 //
 //	"An UPDATE message with no reachable Network Layer Reachability
 //	 Information (NLRI) and empty withdrawn NLRI is specified as the End-of-RIB
-//	 marker [...] For any other address family, it's an UPDATE message with the
-//	 MP_UNREACH_NLRI attribute and no withdrawn routes for that <AFI, SAFI>."
+//	 marker [...] For any other address family, it is an UPDATE message that
+//	 contains only the MP_UNREACH_NLRI attribute [BGP-MP] with no withdrawn
+//	 routes for that <AFI, SAFI>."
 //	                                              -- RFC 4724 Section 2
+//
+// "contains only" is the load-bearing word and is quoted here because
+// isBareMPUnreach enforces it: an UPDATE carrying MP_UNREACH_NLRI beside any
+// other attribute is not a marker. An earlier paraphrase said "with the
+// MP_UNREACH_NLRI attribute", which drops exactly that property.
 //
 // So: an empty UPDATE body, or one whose ONLY path attribute is an
 // MP_UNREACH_NLRI carrying nothing but AFI and SAFI, with no withdrawn routes

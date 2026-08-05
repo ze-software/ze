@@ -2279,8 +2279,8 @@ Of those exclusions, 12 carry `relocated-to-spec` (`rfc7296` 12): the obligation
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC4456-8-1` | MUST | 8 | `internal/component/bgp/reactor/forward_rr_test.go:149` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:53` (interop/nightly) | `internal/component/bgp/reactor/forward_build_withdraw_shape_test.go:466` (unit/verify), `internal/component/bgp/reactor/forward_rr_test.go:180` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:54` (interop/nightly) |  |
-| `RFC4456-8-2` | MUST | 8 | `internal/component/bgp/reactor/forward_rr_test.go:151` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:55` (interop/nightly) | `internal/component/bgp/reactor/forward_rr_test.go:184` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:56` (interop/nightly) |  |
+| `RFC4456-8-1` | MUST | 8 | `internal/component/bgp/reactor/forward_rr_test.go:149` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:67` (interop/nightly) | `internal/component/bgp/reactor/forward_build_withdraw_shape_test.go:466` (unit/verify), `internal/component/bgp/reactor/forward_rr_test.go:180` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:68` (interop/nightly) |  |
+| `RFC4456-8-2` | MUST | 8 | `internal/component/bgp/reactor/forward_rr_test.go:151` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:69` (interop/nightly) | `internal/component/bgp/reactor/forward_rr_test.go:184` (unit/verify), `test/interop/scenarios/54-relay-withdraw-reflector-frr/check.py:70` (interop/nightly) |  |
 | `RFC4456-8-3` | MUST NOT | 8 | `internal/component/bgp/reactor/forward_rr_test.go:153` (unit/verify) | `internal/component/bgp/reactor/forward_rr_test.go:182` (unit/verify) |  |
 | `RFC4456-8-4` | MUST | 8 | `internal/component/bgp/reactor/forward_rr_test.go:178` (unit/verify) | `internal/component/bgp/reactor/forward_rr_test.go:155` (unit/verify) |  |
 | `RFC4456-8-5` | SHOULD | 8 | -- | -- |  |
