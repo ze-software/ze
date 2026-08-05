@@ -12,7 +12,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 .PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
@@ -197,6 +197,16 @@ ze-rules-router-report:
 
 ze-rules-router-report-json:
 	@python3 scripts/dev/rules_router.py --json
+
+# Where this repository's agent sessions spend their tokens: API calls, the
+# context carried at each one, the context-size histogram, and a capped-context
+# counterfactual. Reads the machine-local Claude Code transcript store
+# (~/.claude/projects/<slug>/), so a checkout with no transcripts reports that
+# and exits 0. Token counts only, never money. Override the ceiling with
+# `make ze-token-economy ZE_CONTEXT_CAP=150000`.
+ZE_CONTEXT_CAP ?= 200000
+ze-token-economy:
+	@python3 scripts/dev/token_economy.py --cap $(ZE_CONTEXT_CAP)
 
 # Rule format lint: every ai/rules/*.md carries the required **When:** /
 # **Severity:** metadata block (see ai/rules/rule-format.md), so tooling can

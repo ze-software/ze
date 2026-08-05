@@ -16,19 +16,100 @@ See also: `/ze-close` (deliverables, security, docs, Review Gate, the two closur
 `ai/rules/planning.md`: the main thread supervises, it does not run this
 phase itself.
 
-- **If you are the main thread:** spawn an agent to run this skill, hand it the
-  spec path and the phase, then stop. Do not run the steps below inline. You do
-  not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
-  Independent work goes out in ONE message with parallel `Agent` calls.
-- **If you are that agent:** run the steps below. You have no LSP tool and cannot
-  ask the user, so when you hit a STOP-and-ask condition, halt and put the
-  question in your report for the main thread to carry.
+- **If you are the main thread: spawn ONE AGENT PER IMPLEMENTATION PHASE, never
+  one agent for the whole spec.** Read the spec's **Implementation Phases**
+  section. Treat each phase as one work package. Hand each agent the spec path,
+  its phase number, and the per-spec state file path (below). Do not run the
+  steps below inline. You do not need to ask permission first
+  (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+- **Order the phase agents by their dependencies.** Phases that do not depend on
+  each other go out in ONE message with parallel `Agent` calls. A phase that
+  consumes what an earlier phase wrote waits for that phase's handoff.
+- **Resolve every symbol BEFORE you spawn, and put `file + symbol + line range`
+  in the agent's prompt.** This is an optimisation, not a precondition: an agent
+  can resolve symbols itself, by the LSP tool where its registry carries one and
+  by `gopls` from Bash where it does not (`ai/rules/context-economy.md`). What
+  you buy is paying the resolution ONCE rather than once per agent, and it is
+  worth buying: `gopls symbols` on `internal/component/ike/engine/fsm.go` costs
+  1,297 bytes against 44,164 for the file (34.1x), and an agent given a bare file
+  name that resolves nothing reads all of it.
+- **A phase whose VERIFICATION needs `findReferences` or `goToImplementation` IS
+  delegatable: the agent answers it by the LSP tool or by `gopls references` /
+  `gopls implementation`, whichever route is live for it.** "Every call site
+  updated" and "every implementation of this interface handles the new case" are
+  questions `grep` answers wrongly -- it matches text, comments and string
+  literals included -- and that is a reason to name the operation in the agent's
+  prompt, not a reason to keep the phase inline. Sizing an agent is a cost
+  decision, and tool availability does not constrain it.
+- **Why one agent per phase.** Cost per API call is the context size at that
+  call, and context grows with turns. A long agent therefore pays more for every
+  later call it makes. Measured over this machine's session transcripts
+  (`make ze-token-economy`), implementation agents ran 144 API calls each
+  at 294k mean context, more of both than any other phase. Splitting
+  the spec across phase agents cuts the turns each one carries. It does not cut
+  the work: every phase still runs the full steps below.
+- **If you are a phase agent:** run the steps below for YOUR phase. When an
+  earlier phase already did steps 1-3, take what it FOUND from the state file
+  rather than re-deriving it. To place a symbol your prompt did not resolve, use
+  the LSP tool if your registry carries it and `gopls symbols` / `definition` /
+  `references` from Bash if it does not, rather than reading whole files to hunt
+  for it. You cannot ask the user. When you hit a
+  STOP-and-ask condition, halt and put the question in your report for the main
+  thread to carry.
+- **Taking steps 1-3 from the state file never skips a BLOCKING step.** The
+  digest says what an earlier phase DID; it is not evidence about the tree you
+  are about to edit (`ai/rules/context-economy.md`, "A digest is not evidence").
+  Step 2's status edit and step 3's audit and assumption validation JUDGE THE
+  CURRENT TREE, and in a shared checkout that tree moved between phase 1 and
+  yours. Re-run them, using the digest to make them cheap: it tells you where to
+  look, never what you will find there.
 - **Either way:** every claim in the report names the function that PRODUCES the
   behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
   unverified is fabrication with an extra hop. Report the conclusion and the
   evidence that would overturn it, never the search. Under 40 lines
   (`ai/rules/writing.md`).
+
+### Phase handoff: the per-spec state file
+
+Every phase agent ends by APPENDING its handoff to the per-spec state file
+`tmp/session/session-state-<spec-stem>-<SID>.md`, the path `_state_file`
+computes in `.claude/hooks/lib/state-file.sh` and `_find_latest_state_for_spec`
+recovers across sessions. That file already exists and already carries digests
+after compaction. Write into it. A new handoff file family is layering
+(`ai/rules/no-layering.md`).
+
+The next phase's agent READS that file before it reads any source. It does not
+re-derive the phase before it. Re-reading a source file the handoff already
+digests is the cost this decomposition removes. Read the source when the digest
+lacks the detail you need. That is a judgement, never a default.
+
+A handoff carries four things:
+
+| Part | Content |
+|------|---------|
+| Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
+| Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
+| Verified green | the exact targets run and their result (`make ze-unit-test`, the wiring test name, the phase's Verify line from the spec) |
+| Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
+
+### Work-package size (BLOCKING)
+
+**A work package is sized so ONE agent finishes it, and the boundary is chosen
+at DECOMPOSITION. It is never permission to stop mid-package.** Reaching the
+edge of your context is not reaching the edge of your package.
+
+| Situation | Do |
+|-----------|-----|
+| Your package is finished | Write the handoff, report, stop |
+| Your package is bigger than you can finish | Write the handoff for what IS finished, then REPORT to the main thread that the package needs a continuation. The main thread spawns it |
+| An acceptance criterion inside your package looks too expensive | It stays in the package. You do not trim it, and you do not narrow it |
+| You are running long | Finish the package. "I was near a budget" is not a reason to leave a stub, a TODO, or a deferral row |
+
+`ai/rules/completion.md` is untouched by this decomposition. No partial work, no
+parking, no stub, no deferral, no weakened test. Every one of those bans applies
+to a phase agent as it applies to one agent implementing a whole spec. The only
+thing that changed is how many agents share the work.
 
 ## Scope: this skill stops before closure
 
@@ -124,6 +205,13 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
     `/ze-close`, and that `ai/rules/planning.md` puts it on the review
     model. Do NOT append `plan/TEMPLATE-CLOSURE.md`, do NOT run `/ze-review` as
     the gate, and do NOT prepare a commit script here.
+    - **Write the handoff first.** Before you report, append your phase handoff
+      to the per-spec state file (see Delegation, "Phase handoff"). The report
+      is for the main thread. The handoff is for the next phase's agent. Both
+      are owed, and neither replaces the other.
+    - Closure is reached when the LAST phase is green, not when your phase is.
+      A phase agent that is not the last one reports its phase and stops. The
+      main thread spawns the next phase.
 
 ## Rules
 

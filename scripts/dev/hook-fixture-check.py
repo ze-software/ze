@@ -2349,6 +2349,101 @@ def run_delegation(results: Results) -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
+# --------------------------------------------------------------------------- #
+# subagent-context: what the spawn-time injection carries (AC-5)
+# The delegation section above pins that the block names the parent's spec.
+# This one pins its CONTENT: the context-economy directives, and the per-spec
+# digest path when one exists.
+# --------------------------------------------------------------------------- #
+
+
+def _subagent_context(work: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+        text=True,
+        capture_output=True,
+        env=_deleg_env(work),
+        timeout=30,
+    )
+
+
+def run_subagent_context(results: Results) -> None:
+    """plan/spec-context-economy.md AC-5: every spawned agent is told to batch
+    its tool calls and to read the range it was handed rather than a whole file,
+    and is handed the per-spec digest when the parent session has one. R-4 caps
+    this at the directives with measured value, so the rule itself stays a path,
+    not a paste."""
+    print("subagent-context:")
+
+    # The directives reach every agent, spec or no spec, and they point at the
+    # rule rather than restating it.
+    work = _deleg_project(spec=None)
+    try:
+        r = _subagent_context(work)
+        out = r.stdout
+        results.check(
+            "subagent-context-carries-economy",
+            r.returncode == 0
+            and "ONE message" in out
+            and "Read the range" in out
+            and "Grep" in out
+            and "ai/rules/context-economy.md" in out,
+            out,
+        )
+        # Whether a spawned agent's registry carries the LSP tool is a property
+        # of the harness build and the machine, and both change: one dev machine
+        # here answers "No matching deferred tools found", the other serves the
+        # tool. So the injection must NOT assert absence ("NO LSP") -- an agent
+        # told it has none stops looking, on the machine where it does. It
+        # carries the two-step resolution order instead: query the tool, fall
+        # back to gopls on PATH, which ze-setup guarantees. Both routes must be
+        # named, and the range the prompt already carries stays preferred to
+        # either.
+        results.check(
+            "subagent-context-carries-lsp-fallback-order",
+            r.returncode == 0
+            and "select:LSP" in out
+            and "gopls symbols" in out
+            and "gopls definition|references" in out
+            and "line range" in out
+            and "NO LSP" not in out,
+            out,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # A claimed spec WITH a state file: the digest path is injected, resolved by
+    # lib/state-file.sh, never spelled a second time by the hook.
+    work = _deleg_project(spec="spec-fixture.md")
+    state = os.path.join(
+        work, "tmp", "session", f"session-state-fixture-{_DELEG_SID}.md"
+    )
+    try:
+        with open(state, "w", encoding="utf-8") as fh:
+            fh.write("# state\n\nPhase 1 digest.\n")
+        r = _subagent_context(work)
+        results.check(
+            "subagent-context-carries-spec-digest",
+            r.returncode == 0 and f"session-state-fixture-{_DELEG_SID}.md" in r.stdout,
+            r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # No state file: silence, not an empty path. An injected "Digest: " with
+    # nothing after it sends the agent looking for a file that does not exist.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        r = _subagent_context(work)
+        results.check(
+            "subagent-context-no-digest-when-absent",
+            "Digest of that spec" not in r.stdout and r.returncode == 0,
+            r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def run_delegation_reminder(results: Results) -> None:
     """ai/rules/planning.md: the harness guard "Do not call the AgentTool
     unless the user requested it" arrives LAST in the system prompt and wins on
@@ -2795,7 +2890,6 @@ def run_phase_gates(results: Results) -> None:
         )
 
 
-
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
@@ -2804,6 +2898,7 @@ SECTIONS = {
     "rfc-test-guard": run_rfc_test_guard,
     "mark-source-read": run_mark_source_read,
     "delegation": run_delegation,
+    "subagent-context": run_subagent_context,
     "delegation-reminder": run_delegation_reminder,
     "phase-gates": run_phase_gates,
 }

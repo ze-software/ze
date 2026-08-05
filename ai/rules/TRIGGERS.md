@@ -8,7 +8,7 @@ in hand, READ that rule's file before acting. A row marked `always-on` is
 already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away at the path in its row.
 
-Rules: 26 (26 blocking, 0 advisory). Always-on: 8.
+Rules: 27 (27 blocking, 0 advisory). Always-on: 8.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
@@ -17,6 +17,7 @@ Rules: 26 (26 blocking, 0 advisory). Always-on: 8.
 | `ai/rules/commands.md` | blocking | running any test, build, lint, or verification command from Bash, or writing a shell loop that forks or waits |
 | `ai/rules/completion.md` | blocking | before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim |
 | `ai/rules/config.md` | blocking | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values |
+| `ai/rules/context-economy.md` | blocking | spawning an agent, batching tool calls, looking up a symbol, reading a source file, or running a shell command in a long session |
 | `ai/rules/evidence.md` | blocking | stating what code does, writing or reviewing a guard, or writing any string that enumerates data a registry already holds |
 | `ai/rules/git-safety.md` | blocking, always-on | before any git operation, and when writing or running a commit script |
 | `ai/rules/go-standards.md` | blocking | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references... |

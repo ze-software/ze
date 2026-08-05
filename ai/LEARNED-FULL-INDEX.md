@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 921 summaries
+Total: 923 summaries
 
 ## 400-499
 
@@ -980,3 +980,5 @@ Total: 921 summaries
 | 1344 | The Demo State Tree Needs One Owner, And A Failure Must Name Itself | `plan/learned/1344-demo-state-tree-needs-one-owner.md` |
 | 1345 | A Node That Never Reads The Network's Claim On Its Own LSP | `plan/learned/1345-isis-own-lsp-purge-sequence-floor.md` |
 | 1346 | A Directive You Only Want To Wait On Is Still An Assertion | `plan/learned/1346-rfc7606-5-1-2-relay-shape.md` |
+| 1348 | A Namespace Keyed On The Session Splits Again When The Session Splits | `plan/learned/1348-commit-script-path-per-prepared-commit.md` |
+| 1349 | Context economy: where agent sessions spend tokens, and what changes it | `plan/learned/1349-context-economy.md` |

@@ -20,15 +20,31 @@ phase itself.
   spec path and the phase, then stop. Do not run the steps below inline. You do
   not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
   Independent work goes out in ONE message with parallel `Agent` calls.
-- **If you are that agent:** run the steps below. You have no LSP tool and cannot
-  ask the user, so when you hit a STOP-and-ask condition, halt and put the
-  question in your report for the main thread to carry.
+- **If you are that agent:** run the steps below. Resolve symbols with the LSP
+  tool if your registry carries it and with `gopls` from Bash if it does not
+  (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
+  STOP-and-ask condition, halt and put the question in your report for the main
+  thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
   behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report
   unverified is fabrication with an extra hop. Report the conclusion and the
   evidence that would overturn it, never the search. Under 40 lines
   (`ai/rules/writing.md`).
+- **Read the per-spec state file first.** When a spec is claimed,
+  `tmp/session/session-state-<spec-stem>-<SID>.md` already carries each
+  implementation phase's handoff: files changed with a digest, which AC-N are
+  covered, what is green. `_find_latest_state_for_spec` in
+  `.claude/hooks/lib/state-file.sh` resolves it. Read it before the diff. Do not
+  re-read a source file only to learn what the digest already tells you.
+- **Reading it NEVER reduces this review's independence or its lens count.** The
+  digest says what was TOUCHED. It is not evidence. It never stands in for
+  reading a file you must judge. Every finding still names the PRODUCING
+  function, read from source (`ai/rules/evidence.md`). Every step and lens below
+  runs in full.
+- **Review is not a cost target.** It is the cheapest phase measured, and it
+  prevents the most expensive one. Never skip a lens, a step, or a source read
+  to make it shorter.
 
 ## Steps
 

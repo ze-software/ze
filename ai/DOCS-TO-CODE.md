@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 305 design docs, 3240 files
+Total: 306 design docs, 3254 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3802,6 +3802,7 @@ Total: 305 design docs, 3240 files
 | `internal/plugins/isis/lsdb/lsdb.go` | the Link-State Database store. |
 | `internal/plugins/isis/lsdb/origination.go` | own-LSP origination from live state. |
 | `internal/plugins/isis/lsdb_wiring.go` | engine <-> LSDB wiring (origination trigger, aging loop). |
+| `internal/plugins/isis/own_lsp_conflict.go` | own-LSP origination and sequence state. |
 
 ## `plan/learned/933-isis-7-flooding.md`
 
@@ -4252,6 +4253,20 @@ Total: 305 design docs, 3240 files
 | `internal/core/capture/writer.go` | bounded JSONL capture writer |
 | `internal/test/cli/cmd_replay.go` | replay a captured BGP session |
 
+## `plan/spec-ipsec-dataplane-inspection.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/cmd/show_dataplane.go` | kernel dataplane read surface |
+| `internal/component/ike/cmd/show_dataplane_test.go` | kernel dataplane read surface |
+| `internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go` | kernel dataplane read surface |
+| `internal/component/ike/dataplane/xfrm_readback_linux_test.go` | kernel dataplane read surface |
+| `internal/component/ike/engine/doctor_xfrm.go` | IPsec dataplane reachability check |
+| `internal/component/ike/engine/doctor_xfrm_linux.go` | kernel XFRM probe (Linux) |
+| `internal/component/ike/engine/doctor_xfrm_other.go` | kernel XFRM probe (non-Linux) |
+| `internal/component/ike/engine/health_drift.go` | kernel dataplane read surface |
+| `internal/component/ike/engine/health_drift_test.go` | kernel dataplane read surface |
+
 ## `plan/spec-ipsec-esp-dual-form-receive.md`
 
 - `internal/component/ike/dataplane/espform.go` -- one Child SA receives both ESP forms
@@ -4361,7 +4376,9 @@ Total: 305 design docs, 3240 files
 | `internal/plugins/isis/lsdb/lsdb_test.go` | LSDB store/freshness/flags/snapshot tests. |
 | `internal/plugins/isis/lsdb/metrics_test.go` | LSDB Prometheus metrics (owner isis-6). |
 | `internal/plugins/isis/lsdb/origination_test.go` | own-LSP origination tests. |
+| `internal/plugins/isis/lsdb/own_conflict_test.go` | own-LSP sequence conflicts. |
 | `internal/plugins/isis/lsdb_wiring_test.go` | engine<->LSDB wiring tests (Wiring Test table). |
+| `internal/plugins/isis/own_lsp_conflict_test.go` | engine reaction to a claim on an own LSP ID. |
 
 ## `plan/spec-isis-7-flooding.md`
 
@@ -4459,6 +4476,8 @@ Total: 305 design docs, 3240 files
 | `internal/component/web/doctor.go` | doctor check for environment.web.certificate |
 | `internal/component/web/doctor_test.go` | web TLS certificate doctor check tests |
 | `internal/component/web/register.go` | doctor check registration for the web component |
+| `internal/component/web/server_tls_test.go` | web TLS chain + rotation tests |
+| `internal/core/dnsserver/secure_pki_test.go` | DoT/DoH PKI certificate reference tests |
 
 ## `plan/spec-rfc7606-5-1-2-relay-shape.md`
 

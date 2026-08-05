@@ -18,9 +18,11 @@ phase itself.
   spec path and the phase, then stop. Do not run the steps below inline. You do
   not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
   Independent work goes out in ONE message with parallel `Agent` calls.
-- **If you are that agent:** run the steps below. You have no LSP tool and cannot
-  ask the user, so when you hit a STOP-and-ask condition, halt and put the
-  question in your report for the main thread to carry.
+- **If you are that agent:** run the steps below. Resolve symbols with the LSP
+  tool if your registry carries it and with `gopls` from Bash if it does not
+  (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
+  STOP-and-ask condition, halt and put the question in your report for the main
+  thread to carry.
 - **Either way:** every claim in the report names the function that PRODUCES the
   behavior, as the file plus the symbol (`ai/rules/evidence.md`). The main
   thread verifies each one against source before acting; relaying a report

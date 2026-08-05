@@ -36,14 +36,45 @@ Loading LSP is ~1 tool call and zero-cost if unused. Skipping it costs a round-t
 with the user every time you are wrong about what the task needs. The asymmetry is
 not close.
 
-**Subagent carve-out.** The requirement is to ISSUE the query, not to succeed in
-loading a tool your harness does not expose. LSP is genuinely absent for subagents:
-`ToolSearch query="select:LSP"` returns "No matching deferred tools found". A subagent
-that issued the query and got that response has SATISFIED step 1 -- proceed, do not
-retry, do not treat the empty result as a skipped step. The gate agrees:
-`.claude/hooks/block-until-lsp.sh` lifts on the query text, not on a successful load
-(by design -- a stuck session is the worse failure). The banned excuses above are about
-SKIPPING the query; issuing it and getting nothing back is not a skip.
+**Empty-result carve-out.** The requirement is to ISSUE the query, not to succeed in
+loading a tool your harness does not expose. Some contexts get "No matching deferred
+tools found" back, subagents on some builds among them. Issuing the query and getting
+that answer SATISFIES step 1 -- proceed, do not retry, do not treat it as a skipped
+step. The gate agrees: `.claude/hooks/block-until-lsp.sh` lifts on the query text, not
+on a successful load (by design -- a stuck session is the worse failure). The banned
+excuses above are about SKIPPING the query; issuing it and getting nothing back is not
+a skip.
+
+**An empty result routes you to the second way, it does not leave you without one.**
+`gopls` is on PATH (`make ze-setup` installs it) and every context has Bash, so the
+same server answers the same questions: `gopls symbols <file>` maps a file, and
+`gopls definition|references <file>:<line>:<col>` answers about a symbol. The recipes
+and their measured costs are in `ai/rules/context-economy.md`. Which contexts carry
+the tool varies by harness build and by machine, so check rather than assume -- and
+never read a whole file to hunt for a symbol on the strength of one empty query.
+
+**A loaded schema is not a working server.** The tool talks to `gopls`; without that
+binary every call returns `ENOENT: gopls` and the session silently falls back to
+reading whole files. That is what happened on one of the two dev machines: the server
+was absent there until 2026-08-05, and that machine's transcript store held 33
+sessions with no LSP call in any of them (`make ze-token-economy` reads
+`~/.claude/projects/`, so its counts are per-machine and say nothing about the other).
+The gate could not see it, and by design will not: it lifts on the query text, because
+a stuck session is the worse failure.
+
+So a context whose registry DID serve the tool verifies the server ONCE per session,
+right after step 1:
+
+```
+command -v gopls || make ze-setup
+```
+
+When it is missing, SAY SO and install it (`make ze-setup` installs `gopls`, among
+the rest; `make ze-setup CHECK=1` only reports). Working on without a server, having
+seen it is absent, is the failure this paragraph exists to name. Once per session is
+the whole cost: do not re-probe before each call. A context that fell back to the CLI
+needs no separate probe -- it calls `gopls` directly, so a missing binary announces
+itself on the first call instead of failing silently behind a tool.
 
 **Mechanical rule:** the first `ToolSearch` / `Bash` / `Read` / `Edit` / anything
 in a new session must be `ToolSearch query="select:LSP"`. If it is not, you have

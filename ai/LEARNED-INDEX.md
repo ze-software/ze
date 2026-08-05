@@ -59,6 +59,7 @@ Pre-401 history: `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding an
 - [859](plan/learned/859-perf-hot-alloc-reduction.md) -- How value-type route keys removed the hot-path string maps
 - [875](plan/learned/875-filter-delta-parse-once.md) -- Why the filter modify path parses filter text once instead of four times
 - [785](plan/learned/785-rfc7606-validation-cache.md) -- Why an RFC 7606 validation cache was rejected despite a high hit rate
+- [1347](plan/learned/1347-perf-next-1-ebgp-wire-lockfree.md) -- Why a speedup needs a baseline benchmark that survives the change, and how an optimized path went dead before its spec closed
 
 ## Plugin System
 
@@ -312,6 +313,7 @@ Agent rules, self-improvement, discovery paths, and development-time inventories
 - [1308](plan/learned/1308-stop-hook-reregistration.md) -- Why registering a hook is half a fix, and what the claim marker must outlive
 - [1309](plan/learned/1309-detail-budget.md) -- Detail is a cost the reader pays. Verification is an action, the citation is a choice
 - [1310](plan/learned/1310-phase-gates.md) -- Two rules with no gate: use the skill, and implement on the implementation model
+- [1349](plan/learned/1349-context-economy.md) -- Where agent sessions spend tokens, and three traps in reading the transcripts
 - [1093](plan/learned/1093-followup-hooks.md) -- Which three dead agent-guard hooks were enabled, and where they now run
 
 ## Testing

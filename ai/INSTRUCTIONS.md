@@ -130,8 +130,10 @@ user prompt to trigger it.
 - Independent work goes out in ONE message with parallel `Agent` calls.
 - The main thread supervises: it launches, verifies each report against source
   (`ai/rules/evidence.md`), decides, and gates the next phase.
-- The exceptions are narrow and stay in the main thread: anything the user must
-  answer, and anything needing LSP (subagents have no LSP tool).
+- The one exception is narrow and stays in the main thread: anything the user
+  must answer. Symbol work is NOT an exception -- a subagent whose registry
+  carries no LSP tool resolves symbols with `gopls` from Bash
+  (`ai/rules/context-economy.md`).
 
 ## Verify before you claim
 

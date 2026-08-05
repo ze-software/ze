@@ -37,6 +37,7 @@ Useful as a CI preflight check.
 | `jq` | JSON processing |
 | `golangci-lint` | Go linter (via `go install`) |
 | `goimports` | Go import formatter (via `go install`) |
+| `gopls` | Go language server behind the agent LSP tool (via `go install`) |
 | `python3` | Runs evidence and dev scripts |
 | `pipx` | Python tool installer |
 | `ruff` | Python linter (via `pipx`) |

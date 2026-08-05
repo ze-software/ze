@@ -24,6 +24,7 @@ BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 # Parent session's claimed spec, if any.
 SPEC=""
 SPEC_STATUS=""
+SPEC_STATE=""
 source .claude/hooks/lib/state-file.sh 2>/dev/null || true
 if type _session_id &>/dev/null; then
     SID=$(_session_id 2>/dev/null || echo "")
@@ -32,6 +33,14 @@ if type _session_id &>/dev/null; then
         if [ -n "$CLAIM" ] && [ "$CLAIM" != "unassigned" ] && [ -f "plan/$CLAIM" ]; then
             SPEC="plan/$CLAIM"
             SPEC_STATUS=$(grep -m1 -E "^\| Status \|" "$SPEC" 2>/dev/null | sed 's/|//g; s/Status//; s/^ *//; s/ *$//')
+            # The per-spec digest an earlier phase wrote. One resolver owns this
+            # file family (lib/state-file.sh); never spell a second path here.
+            # Absent file means absent line: an empty path teaches nothing.
+            if type _find_latest_state_for_spec &>/dev/null; then
+                STEM=$(echo "$CLAIM" | sed 's/^spec-//; s/\.md$//')
+                SPEC_STATE=$(_find_latest_state_for_spec "$STEM" 2>/dev/null || true)
+                [ -n "$SPEC_STATE" ] && [ -f "$SPEC_STATE" ] || SPEC_STATE=""
+            fi
         fi
     fi
 fi
@@ -55,6 +64,12 @@ if [ -n "$SPEC" ]; then
 Spec claimed by the session that spawned you: $SPEC${SPEC_STATUS:+ (Status: $SPEC_STATUS)}
 Read it before acting. Its acceptance criteria are what your work is judged against.
 EOF
+    if [ -n "$SPEC_STATE" ]; then
+        cat <<EOF
+Digest of that spec's earlier phases: $SPEC_STATE
+Read it before re-deriving what an earlier phase already established.
+EOF
+    fi
 fi
 
 cat <<'EOF'
@@ -63,8 +78,13 @@ You are a subagent under ai/rules/planning.md. Your contract:
 - Report FACTS, each cited as file:line, and read the function that PRODUCES a
   behavior rather than one that consumes it (ai/rules/evidence.md). Your
   report is a claim the main thread will verify, not evidence on its own.
-- You have NO LSP tool and you CANNOT ask the user. If the task genuinely needs
-  either, say so in your report and stop rather than guessing.
+- To resolve a symbol, in this order: try the LSP tool (ToolSearch
+  query="select:LSP") and use it if your registry carries it; if that comes back
+  empty, run gopls from Bash -- same server, same answers. gopls symbols <file>
+  maps a file, then gopls definition|references <file>:<line>:<col>. Prefer the
+  file, symbol and line range your prompt already carries. Never read a whole
+  file to hunt for a symbol, and never report that you could not look. You
+  CANNOT ask the user.
 - Rules are ROUTED, not preloaded. ai/rules/TRIGGERS.md names every rule in one
   line each, with its severity and the situation that makes it apply. When a
   trigger matches your task, READ ai/rules/<name>.md before acting on its topic.
@@ -72,4 +92,10 @@ You are a subagent under ai/rules/planning.md. Your contract:
   ai/rules/CORE.md is already loaded in full and needs no read.
 - Never claim done with work remaining (ai/rules/completion.md), and
   never park a blocker or weaken a test to reach green (ai/rules/completion.md).
+- Batch independent tool calls into ONE message: 85% of measured API calls
+  carried exactly one tool call.
+- Read the range you were given; where none was, Grep first and Read the range
+  it names, never the whole file: 62% of measured Reads re-read a path this
+  session had already read.
+  Full rule: ai/rules/context-economy.md.
 EOF

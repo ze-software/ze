@@ -18,11 +18,14 @@ import glob
 import grp
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # DRIFT-GUARD: appliance check names from applianceDoctorChecks()
 # in internal/appliance/doctor_checks.go. The Go drift test
@@ -77,6 +80,16 @@ REQUIRED_TOOLS: list[Tool] = [
         name="goimports",
         probe=["goimports"],
         go_install="golang.org/x/tools/cmd/goimports@latest",
+    ),
+    Tool(
+        name="gopls",
+        probe=["gopls"],
+        go_install="golang.org/x/tools/gopls@latest",
+        note=(
+            "language server behind the agent LSP tool; without it every LSP call"
+            " returns ENOENT and the session reads whole files instead"
+            " (ai/rules/context-economy.md)"
+        ),
     ),
     Tool(name="python3", probe=["python3"], brew="python", apt="python3"),
     Tool(
@@ -155,6 +168,94 @@ OPTIONAL_TOOLS: list[Tool] = [
         note="Linux root-only pppd for the same L2TP PPP/NCP evidence tests",
     ),
 ]
+
+
+# --- Language server: gopls must ANSWER, not merely exist -----------------
+#
+# `gopls` on PATH is not the same thing as a working language server, and the
+# difference is invisible until an LSP call is made. On this machine gopls was
+# absent for weeks while the BLOCKING "load LSP first" rule was satisfied every
+# session, because that gate lifts on the query text and no call was ever made:
+# every one would have returned ENOENT. A presence check would not have caught
+# it either. So this check RUNS the server and requires an answer.
+#
+# The probe file is internal/core/clock/clock.go: 128 lines, and its package
+# imports `time` and nothing else, which is the smallest dependency footprint
+# in the repository. gopls must load and type-check the package to answer, so a
+# probe on a package with a wide import graph would measure the graph rather
+# than the server.
+GOPLS_PROBE_FILE = "internal/core/clock/clock.go"
+
+# gopls type-checks the package before it answers, so the first run on a cold
+# Go build cache pays for the standard library too. Measured warm on this
+# machine: 3.4s. The timeout is ~35x that, which leaves a cold cache room
+# without letting a hung server hold `make ze-setup` open indefinitely. A check
+# that reds spuriously is a check somebody disables.
+GOPLS_PROBE_TIMEOUT = 120
+
+# One line of `gopls symbols` output: a name, a symbol kind, and a range.
+GOPLS_SYMBOL_LINE = re.compile(r"\b[A-Z][A-Za-z]+\s+\d+:\d+-\d+:\d+")
+
+GOPLS_NOT_INSTALLED = "gopls is not installed; the gopls row above installs it"
+GOPLS_NOT_ANSWERING = "gopls is present but not answering"
+
+
+def gopls_probe(timeout: int = GOPLS_PROBE_TIMEOUT) -> subprocess.CompletedProcess:
+    """Ask the language server for the symbols of one small file.
+
+    Split out from `gopls_status` so a unit test can fake the answer instead of
+    shelling out to a real server it cannot control.
+    """
+    return subprocess.run(
+        ["gopls", "symbols", GOPLS_PROBE_FILE],
+        cwd=str(REPO_ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+    )
+
+
+def gopls_status(probe=gopls_probe) -> tuple[str, str]:
+    """Whether the language server answers, and why not when it does not.
+
+    Returns a state and a message written for whoever has to fix it:
+
+    "ok"       -- the server answered with symbols.
+    "absent"   -- no gopls on PATH. A DIFFERENT problem with a different fix,
+                  and the Tool row above already installs it.
+    "broken"   -- gopls ran and gave nothing usable: a timeout, a non-zero
+                  exit, or output with no symbol in it. Typically a broken
+                  module cache, a package that does not build, or a version
+                  mismatch -- none of which installing gopls again repairs.
+    "na"       -- the probe file is not there, so this is not a Ze checkout and
+                  there is nothing to ask about.
+    """
+    if shutil.which("gopls") is None:
+        return ("absent", GOPLS_NOT_INSTALLED)
+    if not (REPO_ROOT / GOPLS_PROBE_FILE).is_file():
+        return ("na", f"no {GOPLS_PROBE_FILE} to probe")
+    try:
+        result = probe()
+    except subprocess.TimeoutExpired:
+        return (
+            "broken",
+            f"{GOPLS_NOT_ANSWERING}: no reply within {GOPLS_PROBE_TIMEOUT}s on"
+            f" {GOPLS_PROBE_FILE}",
+        )
+    except OSError as err:
+        return ("broken", f"{GOPLS_NOT_ANSWERING}: {err}")
+    out = result.stdout.decode(errors="replace")
+    if result.returncode != 0:
+        detail = result.stderr.decode(errors="replace").strip().splitlines()
+        why = detail[0] if detail else f"exit {result.returncode}"
+        return ("broken", f"{GOPLS_NOT_ANSWERING}: {why}")
+    symbols = [line for line in out.splitlines() if GOPLS_SYMBOL_LINE.search(line)]
+    if not symbols:
+        return (
+            "broken",
+            f"{GOPLS_NOT_ANSWERING}: no symbol in its reply for {GOPLS_PROBE_FILE}",
+        )
+    return ("ok", f"{len(symbols)} symbols from {GOPLS_PROBE_FILE}")
 
 
 # --- Linux system tunable: unprivileged user namespaces -------------------
@@ -496,6 +597,21 @@ def main() -> int:
             else:
                 skipped.append(tool.name)
                 print(f"  [skipped]   {tool.name} (optional)")
+
+    # Not a binary but a behaviour: gopls on PATH is not a working language
+    # server, and every LSP call fails the same silent way when it is not one.
+    # Runs in both modes -- an install that leaves a mute server is not a setup.
+    state, detail = gopls_status()
+    if state == "ok":
+        print(f"  [present]   gopls-answers ({detail})")
+    elif state == "na":
+        print(f"  [present]   gopls-answers (n/a: {detail})")
+    elif state == "absent":
+        print(f"  [skipped]   gopls-answers ({detail})")
+        skipped.append("gopls-answers")
+    else:
+        print(f"  [MISSING]   gopls-answers ({detail})")
+        missing_required.append("gopls-answers")
 
     # Linux kernel tunable (not a binary): unprivileged user namespaces must be
     # allowed or Chrome's sandbox fails, breaking the agent-browser web tests.

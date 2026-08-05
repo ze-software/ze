@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 26 rules
+Total: 27 rules
 
 | Rule | When to read | Severity | File |
 |------|--------------|----------|------|
@@ -15,6 +15,7 @@ Total: 26 rules
 | Running Commands | running any test, build, lint, or verification command from Bash, or writing a shell loop that forks or waits | blocking | `ai/rules/commands.md` |
 | Finishing Work | before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim | blocking | `ai/rules/completion.md` |
 | Configuration and YANG | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values | blocking | `ai/rules/config.md` |
+| Context Economy | spawning an agent, batching tool calls, looking up a symbol, reading a source file, or running a shell command in a long session | blocking | `ai/rules/context-economy.md` |
 | Evidence and Guards | stating what code does, writing or reviewing a guard, or writing any string that enumerates data a registry already holds | blocking | `ai/rules/evidence.md` |
 | Git Safety | before any git operation, and when writing or running a commit script | blocking | `ai/rules/git-safety.md` |
 | Go Standards | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references, compatibility shims, or a Go compiler bump | blocking | `ai/rules/go-standards.md` |

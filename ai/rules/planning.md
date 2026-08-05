@@ -34,7 +34,7 @@ Rationale: `ai/rationale/planning.md`
 
 **Launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
 
-**Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report must contain. It has no LSP tool and cannot ask the user -- do not hand it work that needs either.
+**Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report must contain. It cannot ask the user -- do not hand it work that needs an answer from them. It CAN resolve symbols: by the LSP tool where its registry carries one, by `gopls` from Bash where it does not (`ai/rules/context-economy.md`).
 
 **Verify what a subagent reports; never relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/evidence.md`). Before acting on a finding or repeating it to the user, confirm the code it cites actually produces the behavior it describes.
 
@@ -43,6 +43,14 @@ Rationale: `ai/rationale/planning.md`
 **Delegation never dilutes the independence of review.** Reviewer subagents must be spawned separately from the implementation agent and must not be given the implementer's reasoning as their starting point ("Critical Review Is the Central Deliverable", below).
 
 **Delegation does not override phase-to-model boundaries.** Subagents inherit the PHASE, not the task shape ("Model Selection by Work Phase", below), so the main thread still announces a boundary and stops rather than delegating an implementation phase from a review session to get around the switch.
+
+**Supervise THINLY: launch, verify the report against source, decide, gate the next phase. The main thread does not run the exploration itself.** Measured across this machine's sessions, 6,264 of the 9,187 main-thread tool calls were Bash (`make ze-token-economy`, reading of 2026-08-05); each one is reading that belonged in an agent whose report is the only thing that survives into the supervising context (`ai/rules/context-economy.md`).
+
+**A main thread whose context passes 600k writes its per-spec state file and hands off rather than continuing.** The file is `tmp/session/session-state-<spec-stem>-<SID>.md`, and `_find_latest_state_for_spec` (`.claude/hooks/lib/state-file.sh`) is what the next session reads it back with. Measured: 49.5% of main-thread context was fed at calls already above 600k, against a 1M ceiling, where every later call pays the whole context again.
+
+**Implementation is delegated ONE agent per implementation phase, not one agent per spec.** Give each agent the spec path, the phase it owns, and the per-spec state file; it writes its handoff there when the phase is green, and the next agent reads that file instead of re-deriving the phase before it. Measured: implementation agents ran 144 API calls each at 294k mean context, more of both than any other phase, because context grows with turns inside one agent.
+
+**A work-package boundary is chosen at DECOMPOSITION, and it is never a license to stop early.** An agent whose package turns out too big REPORTS the size to the main thread, which re-cuts the packages. It never trims an acceptance criterion, parks a defect, or weakens a test to fit the package it was given (`ai/rules/completion.md` is unchanged by this: every AC still needs working code and a test before anyone claims completion).
 
 ### Banned Reasoning (delegation)
 
@@ -53,6 +61,8 @@ Rationale: `ai/rationale/planning.md`
 | "I already have the context loaded, an agent would have to re-read it" | Re-reading is cheap; a main thread that fills with implementation detail cannot supervise the phases that follow |
 | "The agent's report looks right, I will pass it on" | Unverified relay is fabrication with an extra hop (`ai/rules/evidence.md`) |
 | "I will implement it and then spawn a reviewer" | The implementation phase was owed a subagent too. One rule broken does not excuse the next |
+| "This grep is quicker if I run it here" | Exploration in the main thread is the spend supervision exists to avoid: 6,264 main-thread Bash calls across 32 measured sessions |
+| "My package is too big, so I will cut the last acceptance criterion" | The boundary was chosen at decomposition. Report the size and let the main thread re-cut it; scope reduction is the user's call (`ai/rules/completion.md`) |
 
 ### Enforcement (delegation)
 
