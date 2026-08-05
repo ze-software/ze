@@ -639,6 +639,13 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	fp.mu.RLock()
 	if fp.stopped {
 		fp.mu.RUnlock()
+		// done() releases the recent-update CACHE reference. Returning the
+		// item's pooled buffers is a separate obligation, and the caller has
+		// already acquired them: the two forward rails construct the fwdItem
+		// with peerBufIdx and peerPoolRef set before dispatching. Neither
+		// TryDispatch nor the caller releases on a false return, so without
+		// this the Outgoing Peer Pool buffer is never handed back.
+		fp.releaseItem(&item)
 		if item.done != nil {
 			item.done()
 		}
@@ -658,6 +665,9 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 		fp.mu.Lock()
 		if fp.stopped {
 			fp.mu.Unlock()
+			// Same obligation as the fast-path stopped branch above: the item
+			// still holds the caller's pooled buffer here.
+			fp.releaseItem(&item)
 			if item.done != nil {
 				item.done()
 			}
