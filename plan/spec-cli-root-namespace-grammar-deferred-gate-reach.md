@@ -20,7 +20,57 @@ gone, so nothing on disk was ever going to become that spec. A prose destination
 is a deletion with a polite name (`ai/rules/planning.md`). This file is
 their home.
 
-## Re-verified 2026-08-05, and blocked on the Surface 1 question
+## OWNER RULING 2026-08-05: Surface 1 is ANSWERED. No defect there.
+
+**Thomas: "We do not want any flags where the cli maps to the Yang otherwise it
+is ok."**
+
+So R3 binds the YANG-mapped command surface. A flag on a root handler in
+`cmd/ze/`, which maps to no YANG node, is legitimate.
+
+`--plugins` is exactly that: `registry.MustRegisterRootHandler` in
+`cmd/ze/ze_core_dispatch.go`, offline mode, no YANG behind it. It is CORRECT as
+it stands and needs no rename.
+
+**The ruling changed nothing, it confirmed what `ai/rules/cli.md` already says.**
+Its "No Flag Syntax in YANG" section states that the `--flag` form "is a
+presentation artifact of the offline `cmd/ze/` Go flag tooling
+(`flag.NewFlagSet`) and belongs ONLY there, never in the YANG layer". This spec
+asked as an open question something the rule had already answered. Nobody had
+connected the two.
+
+**Both Surface 1 questions are therefore closed.** Its first was whether a
+root-level flag is legitimate grammar at all: yes, off the YANG surface. Its
+second, what verb form replaces it, was conditional on the first being "no" and
+never becomes reachable.
+
+**And the gate is not wrong either, only silent about why.** `CheckName`, which
+owns R1, R2, R3 and R7, is run over the YANG tree and never over roots
+(`scripts/checks/cli_grammar.go`). Under the ruling that is the correct scope,
+not an oversight. Roots get `CheckRootNamespace` alone, which is R9
+namespace-collision discipline, and R9 SHOULD bind them: a root colliding with a
+YANG namespace confuses a reader whatever surface declares it.
+
+## What is left, and it is much smaller than this file was written to describe
+
+Only Surface 2, and only its R9 half.
+
+The 33 `MustRegisterLocalMeta` paths reach no gate: nothing under
+`internal/component/command/grammar/` mentions local metas, and
+`scripts/checks/cli_grammar.go` enumerates roots only. Under the ruling they need
+no R1/R2/R3 either, because they are not YANG-mapped. What they plausibly DO owe
+is the same namespace discipline roots owe, so that a local path cannot collide
+with a YANG namespace unnoticed.
+
+Whether that is worth a gate is a judgement about how likely the collision is,
+not a defect to fix. `registeredRootNames` already shows the shape: a Go AST walk
+over `cmd/ze` and `internal` taking the first string-literal argument, which
+mirrors trivially for `(Must)RegisterLocalMeta`.
+
+Status stays `blocked` pending that one judgement, NOT pending the flag question,
+which is answered above.
+
+## Re-verified 2026-08-05 (superseded in part by the ruling above)
 
 Both surfaces are still uncovered. Measured, not carried from the text above.
 
