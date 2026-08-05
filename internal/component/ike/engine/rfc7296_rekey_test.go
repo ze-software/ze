@@ -55,6 +55,7 @@ func (d *rkyDP) InstallPolicy(_ dataplane.SPParams) error              { return 
 func (d *rkyDP) RemovePolicy(_, _ *net.IPNet, _ dataplane.SADir) error { return nil }
 func (d *rkyDP) RemovePolicyParams(_ dataplane.SPParams) error         { return nil }
 func (d *rkyDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)          { return nil, nil }
+func (d *rkyDP) ListPolicies() ([]dataplane.PolicyInfo, error)         { return nil, nil }
 func (d *rkyDP) Close() error                                          { return nil }
 
 // installedSA returns the parameters of the installed SA with this SPI, or nil.

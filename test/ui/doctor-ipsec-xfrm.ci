@@ -1,0 +1,56 @@
+# Test: ze doctor --json reports an IPsec config whose XFRM dataplane does not answer
+# VALIDATES: AC-9. The ike plugin's XFRM reachability check is reachable from the
+# USER entry point -- registration, phase filtering, platform filtering and the
+# diagnostic code all have to line up for this to emit anything.
+# PREVENTS: the silent failure the check exists for. Every other IPsec surface
+# reports what the engine believed at install time, so a host that cannot carry a
+# single SA still shows a tunnel as up and carries nothing.
+# Required by ai/rules/repo-maintenance.md ("Test Requirement": unit AND
+# functional), mirroring test/ui/doctor-ipsec-cookie-threshold.ci.
+
+# The probe is forced to fail so the diagnostic is reached on a host whose kernel
+# is healthy. Without the override this test would pass only where XFRM happens to
+# be absent, which is the vacuity trap of ai/rules/interop-and-goal-validation.md.
+option=env:var=ze.test.ike.xfrm-fail:value=true
+
+tmpfs=ipsec-xfrm.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ipsec-xfrm.conf
+expect=stdout:contains=doctor-ipsec-xfrm-unavailable
+# The netlink failure must reach the operator. A message that says the dataplane is
+# unavailable and nothing about the cause names no action.
+expect=stdout:contains=ze.test.ike.xfrm-fail
+
+cmd=foreground:seq=2:exec=ze explain doctor-ipsec-xfrm-unavailable
+expect=exit:code=0
+expect=stdout:contains=CONFIG_INET_ESP

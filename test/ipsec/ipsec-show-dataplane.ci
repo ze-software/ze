@@ -1,0 +1,125 @@
+# Functional test: show vpn ipsec dataplane sa / policy / drift (reachability)
+# Spec: plan/spec-ipsec-dataplane-inspection.md (AC-6, AC-7)
+#
+# Verifies: all three dataplane commands are reachable end to end through CLI
+# dispatch, and that under a backend which cannot enumerate the kernel each one
+# SAYS SO rather than rendering an empty table.
+#
+# This is REACHABILITY evidence, not kernel evidence. The noop backend installs
+# nothing and refuses both list methods by design
+# (internal/component/ike/dataplane/noop.go), so what this proves is that the
+# refusal reaches the operator through the real command path. The kernel
+# read-back itself is proven by ipsec-show-dataplane-kernel.ci, which needs
+# CAP_NET_ADMIN, and by the Go integration tier in
+# internal/component/ike/dataplane/.
+#
+# The distinction matters because the failure this whole surface exists to
+# prevent is a command that answers "no SAs installed" when nobody asked the
+# kernel. A test that accepted an empty table here would accept exactly that.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=30s
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+# A bgp block routes the config through the main loader; without it a minimal
+# environment-only parser owns plugin{} blocks
+# (internal/component/hub/config.go parsePluginBlock).
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=25s
+
+# AC-6: the SAD dump refuses rather than rendering an empty table. The assertion
+# names the REFUSAL, not merely a non-empty output: an empty table would also
+# produce output, and matching on that would pass for the bug this test exists
+# to catch.
+command=show vpn ipsec dataplane sa
+expect=command-error:contains=cannot enumerate the SAD
+
+# AC-6: the SPD dump refuses on the same terms.
+command=show vpn ipsec dataplane policy
+expect=command-error:contains=cannot enumerate the SPD
+
+# AC-6: drift reads the SAD to compare against, so it refuses too. It must NOT
+# report "no drift", which is what an empty SAD would produce.
+command=show vpn ipsec dataplane drift
+expect=command-error:contains=cannot enumerate the SAD
+
+# RFC 4303 Section 2.1 reserves SPI 0, so the selector refuses it rather than
+# treating a typo as a full dump. The refusal comes from the YANG range on the
+# spi leaf, which the CLI grammar enforces BEFORE the handler runs, so the
+# message an operator sees is the range one. The handler keeps its own RFC 4303
+# check for a programmatic caller that reaches it directly; that arm is proven by
+# TestShowDataplaneSARejectsSPIZero.
+command=show vpn ipsec dataplane sa spi 0
+expect=command-error:contains=out of range 1..4294967295
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

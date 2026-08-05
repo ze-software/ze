@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 )
 
 var (
@@ -383,12 +384,95 @@ type SPParams struct {
 	TunnelDst net.IP
 }
 
-// SAInfo is a summary of an installed SA returned by ListSAs.
+// SAInfo is one Security Association as the DATAPLANE holds it, returned by
+// ListSAs.
+//
+// It reports the kernel's SAD, never the IKE engine's belief about it. The two
+// disagree whenever the kernel expires an SA, an operator flushes it, or a rekey
+// strands one, and reporting that disagreement is why this type exists.
+//
+// NO KEY MATERIAL IS CARRIED. The kernel returns the encryption and integrity
+// keys on every dump (netlink.XfrmState carries Auth, Crypt and Aead, each with
+// a Key), and this type keeps the algorithm NAME and the key LENGTH instead. A
+// key that reaches this struct reaches a terminal, a log, and a `| json` pipe.
 type SAInfo struct {
 	SPI  uint32
 	Src  net.IP
 	Dst  net.IP
 	IfID uint32
+
+	// Proto is the IPsec transform: ESP = 50, AH = 51.
+	Proto uint8
+	// Mode is ModeTransport or ModeTunnel.
+	Mode  uint8
+	ReqID uint32
+
+	// Encryption names the cipher. For an AEAD cipher it names the combined
+	// transform and Integrity is empty, because RFC 7296 Section 3.3.2 lets an
+	// AEAD transform carry integrity itself rather than negotiating a separate
+	// one. An empty Integrity beside a non-empty Encryption is therefore a fact
+	// about the negotiation, not a missing read.
+	Encryption        string
+	EncryptionKeyBits int
+	Integrity         string
+	IntegrityKeyBits  int
+
+	ReplayWindow uint32
+
+	// BytesCurrent and PacketsCurrent are what the SA has carried. They come
+	// from the kernel because the IKE engine never sees ESP payload: counting in
+	// userspace would report zero forever.
+	BytesCurrent   uint64
+	PacketsCurrent uint64
+	// BytesHard and PacketsHard are the lifetime ceilings. Zero means no limit.
+	BytesHard   uint64
+	PacketsHard uint64
+
+	// AddedAt is when the kernel accepted the SA. UsedAt is when it last carried
+	// a packet, and is the zero time when it has carried none.
+	AddedAt time.Time
+	UsedAt  time.Time
+}
+
+// PolicyInfo is one Security Policy as the DATAPLANE holds it, returned by
+// ListPolicies.
+//
+// RFC 4301 Section 4.4 defines the SPD and the SAD as two databases, and this
+// type is deliberately not merged into SAInfo: a policy with no matching state
+// is the failure the read surface exists to show, and a merged view hides it.
+type PolicyInfo struct {
+	// Src and Dst are the SELECTOR, the inner traffic the policy matches. A nil
+	// prefix is the wildcard.
+	Src     *net.IPNet
+	Dst     *net.IPNet
+	SrcPort PortMatch
+	DstPort PortMatch
+	Dir     SADir
+	// UpperProto is the upper-layer protocol the selector matches. Zero is any.
+	UpperProto uint8
+	Priority   int
+	IfIndex    int
+	IfID       uint32
+	Action     SPAction
+
+	// TunnelSrc and TunnelDst are the TEMPLATE endpoints, single addresses, not
+	// prefixes. They are how the kernel resolves this policy to a state. Both are
+	// nil for a bypass policy, which carries no template at all.
+	TunnelSrc net.IP
+	TunnelDst net.IP
+	Mode      uint8
+	ReqID     uint32
+
+	// Owner names the peer that installed this policy, and OwnerKnown says
+	// whether ze installed it at all.
+	//
+	// A false OwnerKnown is a legitimate and common answer, not an error: the
+	// kernel SPD holds every policy on the node, including ones another daemon
+	// or the operator installed. A renderer MUST say so rather than leaving the
+	// field blank, because a blank owner reads as "unowned" when the truth is
+	// "not ours" (ai/rules/evidence.md).
+	Owner      string
+	OwnerKnown bool
 }
 
 // Dataplane abstracts the ESP SA/SP installation backend.
@@ -404,7 +488,21 @@ type Dataplane interface {
 	// OSPF proto-89 policies): the kernel identifies a policy by its whole
 	// selector, so the proto must match on delete.
 	RemovePolicyParams(p SPParams) error
+
+	// ListSAs dumps the SAD. A zero ifID means every if_id; any other value
+	// filters on it.
+	//
+	// A backend that cannot enumerate MUST return ErrNotSupported and a nil
+	// slice, never an empty slice and a nil error. The two are indistinguishable
+	// to a caller, and the second one renders as "no SAs are installed", which
+	// answers the operator's question with a confident lie
+	// (ai/rules/evidence.md).
 	ListSAs(ifID uint32) ([]SAInfo, error)
+
+	// ListPolicies dumps the SPD, every policy the dataplane holds. The same
+	// ErrNotSupported obligation as ListSAs applies.
+	ListPolicies() ([]PolicyInfo, error)
+
 	Close() error
 }
 

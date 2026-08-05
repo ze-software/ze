@@ -40,4 +40,8 @@ func (b *xfrmBackend) ListSAs(_ uint32) ([]SAInfo, error) {
 	return nil, fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }
 
+func (b *xfrmBackend) ListPolicies() ([]PolicyInfo, error) {
+	return nil, fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
+}
+
 func (b *xfrmBackend) Close() error { return nil }

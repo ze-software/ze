@@ -199,8 +199,20 @@ func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 	return b.RemovePolicy(p.Src, p.Dst, p.Dir)
 }
 
+// ListSAs and ListPolicies REFUSE rather than report an empty dataplane.
+//
+// VPP holds the SAs and the policies this backend installed, and reading them
+// back needs the VPP binary-API dump this backend does not implement. Returning
+// an empty list would report VPP's populated dataplane as empty, which is worse
+// than saying nothing: it is a wrong answer that looks like a right one
+// (ai/rules/evidence.md). Implementing the dump is separable work, recorded in
+// the spec's Known Limitations.
 func (b *vppBackend) ListSAs(_ uint32) ([]SAInfo, error) {
-	return nil, nil
+	return nil, fmt.Errorf("%w: the vpp backend cannot enumerate the SAD; use the VPP CLI to read it back", ErrNotSupported)
+}
+
+func (b *vppBackend) ListPolicies() ([]PolicyInfo, error) {
+	return nil, fmt.Errorf("%w: the vpp backend cannot enumerate the SPD; use the VPP CLI to read it back", ErrNotSupported)
 }
 
 func (b *vppBackend) Close() error {

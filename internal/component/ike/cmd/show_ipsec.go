@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -43,10 +44,11 @@ func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 	sort.Slice(allSAs, func(i, j int) bool { return allSAs[i].PeerName < allSAs[j].PeerName })
 
 	peerInfos := engine.PeerInfoMap()
+	kernel := readSADCounters()
 	now := time.Now()
 	rows := make([]map[string]any, 0, len(allSAs))
 	for _, sa := range allSAs {
-		row := saToMap(sa, now, peerInfos)
+		row := saToMap(sa, now, peerInfos, kernel)
 		rows = append(rows, row)
 	}
 
@@ -111,11 +113,12 @@ func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, args []string) (*p
 
 	allSAs := table.All()
 	peerInfos := engine.PeerInfoMap()
+	kernel := readSADCounters()
 	now := time.Now()
 	var matched []map[string]any
 	for _, sa := range allSAs {
 		if sa.PeerName == peerName {
-			matched = append(matched, saToMap(sa, now, peerInfos))
+			matched = append(matched, saToMap(sa, now, peerInfos, kernel))
 		}
 	}
 
@@ -132,7 +135,53 @@ func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, args []string) (*p
 	}, nil
 }
 
-func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo) map[string]any {
+// sadCounters is the kernel SAD, indexed by SPI, for one command invocation.
+//
+// known says whether the SAD was READ AT ALL. It is not the same question as
+// whether a given SPI is in it, and collapsing the two is how a tunnel that has
+// carried gigabytes comes to report zero: the noop backend and an unprivileged
+// process both leave the SAD unreadable, and a zero counter there is a wrong
+// answer rather than a missing one (ai/rules/evidence.md).
+type sadCounters struct {
+	known bool
+	bySPI map[uint32]dataplane.SAInfo
+}
+
+// lookup returns the counters for one SPI, and whether they are known.
+func (c sadCounters) lookup(spi uint32) (bytes, packets uint64, ok bool) {
+	if !c.known {
+		return 0, 0, false
+	}
+	info, found := c.bySPI[spi]
+	if !found {
+		return 0, 0, false
+	}
+	return info.BytesCurrent, info.PacketsCurrent, true
+}
+
+// readSADCounters dumps the kernel SAD for the counter columns.
+//
+// A failure is NOT an error for the caller. `show vpn ipsec sa` reports engine
+// belief and has done so since before this surface existed; losing the kernel
+// columns must not lose the command. The failure is recorded as "not known" and
+// every counter renders as null rather than as zero.
+func readSADCounters() sadCounters {
+	dp := dataplane.Get()
+	if dp == nil {
+		return sadCounters{}
+	}
+	sas, err := dp.ListSAs(0)
+	if err != nil {
+		return sadCounters{}
+	}
+	bySPI := make(map[uint32]dataplane.SAInfo, len(sas))
+	for i := range sas {
+		bySPI[sas[i].SPI] = sas[i]
+	}
+	return sadCounters{known: true, bySPI: bySPI}
+}
+
+func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo, kernel sadCounters) map[string]any {
 	var uptimeSeconds float64
 	if sa.State == engine.StateEstablished && !sa.EstablishedAt.IsZero() {
 		uptimeSeconds = now.Sub(sa.EstablishedAt).Seconds()
@@ -161,7 +210,7 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo)
 	if info, ok := peerInfos[sa.PeerName]; ok {
 		m["rekey-count"] = info.RekeyCount
 		if info.HasChild {
-			m["child-sa"] = map[string]any{
+			child := map[string]any{
 				"inbound-spi":    info.ChildInSPI,
 				"outbound-spi":   info.ChildOutSPI,
 				"if-id":          info.ChildIfID,
@@ -171,8 +220,51 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo)
 				"esp-integrity":  info.ESPIntegrity,
 				"lifetime":       info.Lifetime,
 			}
+			addChildCounters(child, info, kernel)
+			m["child-sa"] = child
 		}
 	}
 
 	return m
+}
+
+// addChildCounters fills the four counter keys the `sa` and `peer name` YANG
+// descriptions have advertised as "byte counts" since 2026-06-03.
+//
+// They come from the kernel because the IKE engine never sees ESP payload: the
+// kernel moves those bytes, so counting them in userspace would report zero for
+// a working tunnel.
+//
+// EVERY KEY IS ALWAYS PRESENT, and an unknown counter is null rather than zero.
+// The two are different answers: zero says the SA carried nothing, null says
+// nobody could ask. A caller that renders null as 0 would reintroduce exactly the
+// false-green this spec exists to remove (ai/rules/evidence.md).
+func addChildCounters(child map[string]any, info engine.PeerInfo, kernel sadCounters) {
+	inBytes, inPackets, inKnown := kernel.lookup(info.ChildInSPI)
+	outBytes, outPackets, outKnown := kernel.lookup(info.ChildOutSPI)
+
+	child["bytes-in"] = counterOrNil(inBytes, inKnown)
+	child["packets-in"] = counterOrNil(inPackets, inKnown)
+	child["bytes-out"] = counterOrNil(outBytes, outKnown)
+	child["packets-out"] = counterOrNil(outPackets, outKnown)
+
+	// counters-known reports whether the SAD WAS READ, not whether this SA was
+	// found in it. The two are different answers and the difference is this
+	// spec's whole subject:
+	//
+	//   false -- nobody could ask the kernel (no backend, noop or VPP backend,
+	//            no CAP_NET_ADMIN). Nothing is known about this tunnel.
+	//   true, with null counters -- the kernel WAS asked and does not hold this
+	//            SPI. That is drift, and `show vpn ipsec dataplane drift` names it.
+	//
+	// Deriving this from whether the lookups hit would collapse the two and throw
+	// the more interesting one away.
+	child["counters-known"] = kernel.known
+}
+
+func counterOrNil(v uint64, known bool) any {
+	if !known {
+		return nil
+	}
+	return v
 }

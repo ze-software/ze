@@ -65,6 +65,7 @@ func (m *mockDP) InstallPolicy(p dataplane.SPParams) error {
 func (m *mockDP) RemovePolicy(_, _ *net.IPNet, _ dataplane.SADir) error { return nil }
 func (m *mockDP) RemovePolicyParams(_ dataplane.SPParams) error         { return nil }
 func (m *mockDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)          { return nil, nil }
+func (m *mockDP) ListPolicies() ([]dataplane.PolicyInfo, error)         { return nil, nil }
 func (m *mockDP) Close() error                                          { return nil }
 
 func testSA() *SA {

@@ -141,8 +141,9 @@ func (d *ownedDP) RemovePolicyParams(p dataplane.SPParams) error {
 	return nil
 }
 
-func (d *ownedDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error) { return nil, nil }
-func (d *ownedDP) Close() error                                 { return nil }
+func (d *ownedDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)  { return nil, nil }
+func (d *ownedDP) ListPolicies() ([]dataplane.PolicyInfo, error) { return nil, nil }
+func (d *ownedDP) Close() error                                  { return nil }
 
 // ownerOf returns the owner recorded against a Child SA's policy for one
 // direction, and whether a policy is installed at all.

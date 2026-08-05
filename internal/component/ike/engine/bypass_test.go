@@ -31,9 +31,10 @@ type removedPolicy struct {
 	dir      dataplane.SADir
 }
 
-func (d *bypassDP) InstallSA(_ dataplane.SAParams) error         { return nil }
-func (d *bypassDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error) { return nil, nil }
-func (d *bypassDP) Close() error                                 { return nil }
+func (d *bypassDP) InstallSA(_ dataplane.SAParams) error          { return nil }
+func (d *bypassDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)  { return nil, nil }
+func (d *bypassDP) ListPolicies() ([]dataplane.PolicyInfo, error) { return nil, nil }
+func (d *bypassDP) Close() error                                  { return nil }
 
 func (d *bypassDP) RemoveSA(spi uint32, _ net.IP, _ uint8) error {
 	d.removedSAs = append(d.removedSAs, spi)

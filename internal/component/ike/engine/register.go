@@ -231,6 +231,19 @@ func init() {
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-ipsec-cookie-threshold"},
 			Check:        checkIPsecCookieThreshold,
+		}, {
+			// Every Child SA ze installs goes through XFRM. A host whose XFRM
+			// dataplane does not answer negotiates a tunnel that carries
+			// nothing, and no other IPsec surface says so: they all report
+			// engine belief (ai/rules/repo-maintenance.md, "Netlink
+			// dependency").
+			Name:         "ipsec-xfrm",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        734,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ipsec-xfrm-unavailable"},
+			Check:        checkXFRMReachable,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

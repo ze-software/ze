@@ -41,6 +41,10 @@ func (m *mockDataplane) ListSAs(_ uint32) ([]SAInfo, error) {
 	return nil, nil
 }
 
+func (m *mockDataplane) ListPolicies() ([]PolicyInfo, error) {
+	return nil, nil
+}
+
 func (m *mockDataplane) Close() error { return nil }
 
 func TestDataplaneInterface(t *testing.T) {

@@ -1,4 +1,5 @@
 // Design: plan/learned/745-ipsec-10-cli-diag.md -- IPsec health check
+// Related: health_drift.go -- the kernel-versus-belief drift signal this check folds in
 
 package engine
 
@@ -34,6 +35,18 @@ func checkIPsecHealth() (health.Status, string) {
 
 	if established < len(peers) {
 		return health.StatusDegraded, "some peers not established"
+	}
+
+	// Every check above reads what the IKE engine BELIEVES. A tunnel whose Child
+	// SA the kernel has expired, flushed, or never accepted passes all of them,
+	// because the engine's own records still say the install call succeeded. The
+	// kernel is the only source that can contradict them.
+	//
+	// A dataplane that cannot be read is NOT drift. It is a question that was not
+	// asked, and reporting healthy on it would be the same false green in a new
+	// place (ai/rules/evidence.md).
+	if drifting, known := driftingPeers(); known && len(drifting) > 0 {
+		return health.StatusDegraded, driftDetail(drifting)
 	}
 
 	return health.StatusHealthy, ""

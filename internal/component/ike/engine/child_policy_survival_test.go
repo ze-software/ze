@@ -86,8 +86,9 @@ func (d *spdDP) RemovePolicyParams(p dataplane.SPParams) error {
 	return nil
 }
 
-func (d *spdDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error) { return nil, nil }
-func (d *spdDP) Close() error                                 { return nil }
+func (d *spdDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)  { return nil, nil }
+func (d *spdDP) ListPolicies() ([]dataplane.PolicyInfo, error) { return nil, nil }
+func (d *spdDP) Close() error                                  { return nil }
 
 // dirName names a direction for a failure message. dataplane.SADir is a bare uint8, so
 // %v prints a number a reader then has to look up.

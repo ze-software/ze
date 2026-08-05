@@ -3,6 +3,8 @@
 package dataplane
 
 import (
+	"context"
+	"net"
 	"net/netip"
 	"testing"
 
@@ -97,5 +99,29 @@ func TestESPFormReceiverCloseWhileWatching(t *testing.T) {
 	}
 	if _, ok := r.reg.target(0x3333); ok {
 		t.Error("close left an SPI watched, so a later Watch would not restart the receiver")
+	}
+}
+
+// VALIDATES: espFormBypassInboundPolicy refuses a connection it cannot exempt, rather than
+// reporting success.
+// PREVENTS: the silent half of the defect this exemption fixes. A caller that reads a nil
+// error believes the reader is exempt from the inbound IPsec policy check. If it is not,
+// the kernel drops every datagram the reader was opened to recover and the SA carries one
+// ESP wire form only, with no error anywhere (ai/rules/evidence.md). The exemption is
+// therefore reported, and startLocked closes the socket and fails when it cannot be made.
+func TestESPFormBypassRefusesANonIPSocket(t *testing.T) {
+	var lc net.ListenConfig
+	pc, err := lc.ListenPacket(context.Background(), "udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("bind udp: %v", err)
+	}
+	defer func() {
+		if cerr := pc.Close(); cerr != nil {
+			t.Errorf("close udp: %v", cerr)
+		}
+	}()
+
+	if err := espFormBypassInboundPolicy(pc); err == nil {
+		t.Fatal("a UDP socket was reported as exempt from the inbound IPsec policy check; the exemption applies to the raw IP socket alone")
 	}
 }

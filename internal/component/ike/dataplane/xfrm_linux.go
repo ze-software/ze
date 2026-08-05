@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/vishvananda/netlink"
 
@@ -24,6 +25,19 @@ import (
 // for a reason other than ENOENT, and driving that arm from the helper alone would leave
 // the entry point itself unproven (ai/rules/evidence.md).
 var xfrmPolicyDel = netlink.XfrmPolicyDel
+
+// xfrmStateList and xfrmPolicyList are the kernel dumps the read surface makes.
+//
+// They are variables for the same reason xfrmPolicyDel above is: the mapping
+// from a kernel record onto SAInfo and PolicyInfo is where a field is dropped,
+// mis-scaled, or offset by one, and a test that can only reach it through a real
+// netlink socket proves it on the machine that happens to run it. Driving the
+// map from a fixture proves it everywhere, and the integration tests beside it
+// still prove the dump itself against a real kernel.
+var (
+	xfrmStateList  = netlink.XfrmStateList
+	xfrmPolicyList = netlink.XfrmPolicyList
+)
 
 type xfrmBackend struct {
 	// espForms serves the ESP wire form the installed state refuses. One XFRM state
@@ -405,24 +419,191 @@ func xfrmSelectorPort(side string, p PortMatch) (int, error) {
 }
 
 func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
-	states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
+	states, err := xfrmStateList(netlink.FAMILY_ALL)
 	if err != nil {
 		return nil, fmt.Errorf("xfrm: state list: %w", err)
 	}
-	var out []SAInfo
+	out := make([]SAInfo, 0, len(states))
 	for i := range states {
 		s := &states[i]
 		if ifID != 0 && uint32(s.Ifid) != ifID {
 			continue
 		}
-		out = append(out, SAInfo{
-			SPI:  uint32(s.Spi),
-			Src:  s.Src,
-			Dst:  s.Dst,
-			IfID: uint32(s.Ifid),
-		})
+		out = append(out, saInfoFromState(s))
 	}
 	return out, nil
+}
+
+// saInfoFromState maps one kernel SAD record onto SAInfo.
+//
+// Every field below comes from the DUMP. netlink fills Statistics, Limits, Mode,
+// Reqid and ReplayWindow in xfrmStateFromXfrmUsersaInfo while parsing the dump
+// message, so no per-SA XFRM_MSG_GETSA round trip is needed.
+//
+// The algorithm arms carry Name and key LENGTH and never Key. netlink.XfrmState
+// holds the live encryption and integrity keys, and this is the boundary where
+// they stop.
+func saInfoFromState(s *netlink.XfrmState) SAInfo {
+	info := SAInfo{
+		SPI:            uint32(s.Spi),
+		Src:            s.Src,
+		Dst:            s.Dst,
+		IfID:           uint32(s.Ifid),
+		Proto:          uint8(s.Proto),
+		ReqID:          uint32(s.Reqid),
+		ReplayWindow:   uint32(s.ReplayWindow),
+		BytesCurrent:   s.Statistics.Bytes,
+		PacketsCurrent: s.Statistics.Packets,
+		BytesHard:      s.Limits.ByteHard,
+		PacketsHard:    s.Limits.PacketHard,
+		AddedAt:        unixOrZero(s.Statistics.AddTime),
+		UsedAt:         unixOrZero(s.Statistics.UseTime),
+	}
+	if mode, ok := zeXFRMMode(uint8(s.Mode)); ok {
+		info.Mode = mode
+	}
+	// RFC 7296 Section 3.3.2: an AEAD transform carries integrity itself, so the
+	// kernel fills Aead and leaves Crypt and Auth nil. Reporting an empty
+	// Integrity there is the truth about the negotiation, not a failed read.
+	switch {
+	case s.Aead != nil:
+		info.Encryption = s.Aead.Name
+		info.EncryptionKeyBits = len(s.Aead.Key) * 8
+	case s.Crypt != nil:
+		info.Encryption = s.Crypt.Name
+		info.EncryptionKeyBits = len(s.Crypt.Key) * 8
+	}
+	if s.Auth != nil {
+		info.Integrity = s.Auth.Name
+		info.IntegrityKeyBits = len(s.Auth.Key) * 8
+	}
+	return info
+}
+
+// unixOrZero converts a kernel epoch stamp, keeping "never" distinct from 1970.
+//
+// The kernel writes 0 into UseTime for an SA that has carried no packet. Passing
+// that to time.Unix yields 1970-01-01, which renders as a real timestamp and
+// reads as "last used a very long time ago" rather than "never used". The zero
+// time.Time is the value a renderer can tell apart.
+func unixOrZero(sec uint64) time.Time {
+	if sec == 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(sec), 0).UTC()
+}
+
+func (b *xfrmBackend) ListPolicies() ([]PolicyInfo, error) {
+	policies, err := xfrmPolicyList(netlink.FAMILY_ALL)
+	if err != nil {
+		return nil, fmt.Errorf("xfrm: policy list: %w", err)
+	}
+	out := make([]PolicyInfo, 0, len(policies))
+	for i := range policies {
+		out = append(out, b.policyInfoFromKernel(&policies[i]))
+	}
+	return out, nil
+}
+
+// policyInfoFromKernel maps one kernel SPD record onto PolicyInfo and resolves
+// the peer that installed it.
+//
+// THE OWNER JOIN IS THE POINT. The kernel identifies a policy by its selector
+// alone and stores no installer, so the only way to name one is to invert the
+// kernel row back into the SPParams key policyOwners recorded at install time.
+//
+// That inversion is lossless for every policy ze can install, and the reason is
+// xfrmSelectorPort: it REFUSES any port mask other than 0 or 0xffff, so the
+// kernel's mask-free port maps back to exactly AnyPortMatch or ExactPortMatch.
+// A backend that could install a partial mask would need the mask from the
+// kernel, and netlink's parseXfrmPolicy discards it.
+//
+// A policy ze did not install resolves to no owner. That is the common case on a
+// node running another IKE daemon, and OwnerKnown false is the answer, never a
+// blank owner and never a nearest match.
+func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
+	info := PolicyInfo{
+		Src:        normalizeSelectorPrefix(p.Src),
+		Dst:        normalizeSelectorPrefix(p.Dst),
+		SrcPort:    portMatchFromKernel(p.SrcPort),
+		DstPort:    portMatchFromKernel(p.DstPort),
+		Dir:        SADir(p.Dir) + 1,
+		UpperProto: uint8(p.Proto),
+		Priority:   p.Priority,
+		IfIndex:    p.Ifindex,
+		IfID:       uint32(p.Ifid),
+	}
+	// An ALLOW policy with no template is the SPD BYPASS disposition of RFC 4301
+	// Section 4.4.1. A template present means the policy protects.
+	if p.Action == netlink.XFRM_POLICY_ALLOW && len(p.Tmpls) == 0 {
+		info.Action = SPActionBypass
+	}
+	if len(p.Tmpls) > 0 {
+		t := &p.Tmpls[0]
+		info.TunnelSrc = t.Src
+		info.TunnelDst = t.Dst
+		info.ReqID = uint32(t.Reqid)
+		if mode, ok := zeXFRMMode(uint8(t.Mode)); ok {
+			info.Mode = mode
+		}
+	}
+	info.Owner, info.OwnerKnown = b.policies.ownerOf(SPParams{
+		Src:        info.Src,
+		Dst:        info.Dst,
+		Dir:        info.Dir,
+		UpperProto: info.UpperProto,
+		SrcPort:    info.SrcPort,
+		DstPort:    info.DstPort,
+		IfIndex:    info.IfIndex,
+		IfID:       info.IfID,
+	})
+	return info
+}
+
+// normalizeSelectorPrefix turns the kernel's materialized wildcard back into the
+// nil prefix ze installs.
+//
+// policySelectorKey renders a nil prefix as the empty string (cidrKey), while
+// the kernel always returns a real *net.IPNet and writes a wildcard as 0.0.0.0/0
+// or ::/0. Left alone, a site-to-site policy installed with a nil selector would
+// never match its own ownership record, and every such row would report no
+// owner. The prefix is the SAME selector either way, so this is normalization,
+// not a guess.
+func normalizeSelectorPrefix(n *net.IPNet) *net.IPNet {
+	if n == nil {
+		return nil
+	}
+	ones, bits := n.Mask.Size()
+	if ones == 0 && bits != 0 && n.IP.IsUnspecified() {
+		return nil
+	}
+	return n
+}
+
+// portMatchFromKernel inverts one kernel selector port.
+//
+// The kernel selector carries a port and a mask, but netlink's parseXfrmPolicy
+// keeps only the port. The inverse is still exact HERE because xfrmSelectorPort
+// refuses to install any mask but 0 or 0xffff: port 0 was written by an any
+// match, and a non-zero port by an exact one.
+func portMatchFromKernel(port int) PortMatch {
+	if port == 0 {
+		return AnyPortMatch()
+	}
+	return ExactPortMatch(uint16(port))
+}
+
+// zeXFRMMode is the inverse of kernelXFRMMode. The two constant sets are offset
+// by one, so a missing inverse would silently report every tunnel as transport.
+func zeXFRMMode(kernelMode uint8) (uint8, bool) {
+	switch kernelMode {
+	case kernelModeTransport:
+		return ModeTransport, true
+	case kernelModeTunnel:
+		return ModeTunnel, true
+	default:
+		return 0, false
+	}
 }
 
 func (b *xfrmBackend) Close() error { return b.espForms.Close() }

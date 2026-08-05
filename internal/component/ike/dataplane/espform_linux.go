@@ -15,9 +15,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+)
+
+// The XFRM socket-policy values espFormBypassInboundPolicy sets, spelled here rather
+// than inline so the numbers carry their kernel names (include/uapi/linux/xfrm.h).
+const (
+	xfrmPolicyDirIn       = 0 // XFRM_POLICY_IN
+	xfrmPolicyActionAllow = 0 // XFRM_POLICY_ALLOW
+	xfrmInfinity          = ^uint64(0)
 )
 
 // errNoESPFormReceiver reports that this backend was built without the receiver that
@@ -187,6 +196,66 @@ func (r *espFormReceiver) running() bool {
 	return r.conn != nil
 }
 
+// espFormBypassInboundPolicy exempts one socket from the inbound IPsec policy check.
+//
+// WHY THIS EXISTS, and it is MEASURED rather than reasoned. Linux runs
+// xfrm4_policy_check on every packet it delivers to a raw socket: net/ipv4/raw.c
+// raw_rcv drops the packet and raises XfrmInTmplMismatch when the check fails. The
+// datagrams this receiver exists to read are exactly the ones that failed to arrive
+// through an SA, and ze's own inbound Child SA policy (engine/child.go, dir in with
+// an ESP template over the negotiated selectors) demands that they did. So the
+// kernel refuses to hand ze the packet ze installed the reader to recover, and the
+// one ESP form is lost with no log line anywhere.
+//
+// Measured in the strongSwan lab on 2026-08-03: with the reader open and the peer
+// sending bare ESP to a templated state, /proc/net/raw showed the protocol-50
+// socket with drops equal to the packet count, ze's inbound SA stayed at 0 packets,
+// and XfrmInStateMismatch and XfrmInTmplMismatch each advanced once per datagram.
+//
+// A per-SOCKET policy is the right bound and a global one is not. Exempting
+// "inbound ESP" globally would exempt every peer's ESP from the policy check,
+// which is the check that proves a packet arrived through the SA the operator
+// configured. This exemption reaches only datagrams delivered to this one raw
+// socket, and the cryptography is untouched: XFRM still decrypts, still owns the
+// replay window, and still applies the inbound policy to the re-presented datagram.
+// It is the same bound strongSwan takes for its own sockets (engine/bypass.go
+// records the shape).
+//
+// RFC 4301 Section 4.4.1: BYPASS is an SPD disposition, and this is one, scoped to
+// a socket ze owns.
+func espFormBypassInboundPolicy(conn net.PacketConn) error {
+	raw, ok := conn.(*net.IPConn)
+	if !ok {
+		return errors.New("dataplane: the ESP form reader is not an IP socket, so it cannot be exempted from the inbound IPsec policy check")
+	}
+	sc, err := raw.SyscallConn()
+	if err != nil {
+		return err
+	}
+
+	// XFRM_INF on every limit: a socket exemption has no lifetime, and a zero limit
+	// is not the spelling for that.
+	pol := nl.XfrmUserpolicyInfo{
+		Sel: nl.XfrmSelector{Family: unix.AF_INET},
+		Lft: nl.XfrmLifetimeCfg{
+			SoftByteLimit:   xfrmInfinity,
+			HardByteLimit:   xfrmInfinity,
+			SoftPacketLimit: xfrmInfinity,
+			HardPacketLimit: xfrmInfinity,
+		},
+		Dir:    xfrmPolicyDirIn,
+		Action: xfrmPolicyActionAllow,
+	}
+
+	var setErr error
+	if ctlErr := sc.Control(func(fd uintptr) {
+		setErr = unix.SetsockoptString(int(fd), unix.IPPROTO_IP, unix.IP_XFRM_POLICY, string(pol.Serialize()))
+	}); ctlErr != nil {
+		return ctlErr
+	}
+	return setErr
+}
+
 // startLocked opens both sockets and starts the reader. r.mu must be held.
 func (r *espFormReceiver) startLocked() error {
 	// (*net.ListenConfig).ListenPacket rather than net.ListenPacket: the package
@@ -196,6 +265,15 @@ func (r *espFormReceiver) startLocked() error {
 	var lc net.ListenConfig
 	conn, err := lc.ListenPacket(context.Background(), "ip4:esp", "0.0.0.0")
 	if err != nil {
+		return err
+	}
+	// Before the reader runs, and reported rather than swallowed. Without the
+	// exemption the reader blocks forever on a socket the kernel drops into, and
+	// the SA receives one ESP form only (ai/rules/evidence.md).
+	if err := espFormBypassInboundPolicy(conn); err != nil {
+		if cerr := conn.Close(); cerr != nil {
+			r.logger().Debug("esp-form: close reader after the policy exemption failed", "error", cerr)
+		}
 		return err
 	}
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)

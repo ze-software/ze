@@ -11,7 +11,10 @@
 
 package dataplane
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 func newNoopBackend() (Dataplane, error) { return noopDataplane{}, nil }
 
@@ -22,5 +25,20 @@ func (noopDataplane) RemoveSA(uint32, net.IP, uint8) error             { return 
 func (noopDataplane) InstallPolicy(SPParams) error                     { return nil }
 func (noopDataplane) RemovePolicy(*net.IPNet, *net.IPNet, SADir) error { return nil }
 func (noopDataplane) RemovePolicyParams(SPParams) error                { return nil }
-func (noopDataplane) ListSAs(uint32) ([]SAInfo, error)                 { return nil, nil }
 func (noopDataplane) Close() error                                     { return nil }
+
+// ListSAs and ListPolicies REFUSE rather than report an empty dataplane.
+//
+// The write methods above succeed so an unprivileged .ci can complete an IKEv2
+// negotiation. The read methods cannot follow them: this backend installs
+// nothing, so "no SAs" is true of its own state and false about the machine, and
+// an operator who reaches these commands is asking about the machine. Answering
+// a question you cannot answer with a confident empty table is the fail-open
+// shape ai/rules/evidence.md bans.
+func (noopDataplane) ListSAs(uint32) ([]SAInfo, error) {
+	return nil, fmt.Errorf("%w: the noop dataplane installs nothing, so it cannot enumerate the SAD", ErrNotSupported)
+}
+
+func (noopDataplane) ListPolicies() ([]PolicyInfo, error) {
+	return nil, fmt.Errorf("%w: the noop dataplane installs nothing, so it cannot enumerate the SPD", ErrNotSupported)
+}
