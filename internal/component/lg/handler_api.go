@@ -236,6 +236,9 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 			"routes_imported": 0,
 			"routes_exported": 0,
 			"routes_filtered": 0,
+			// Always false: these four are placeholders and no source is
+			// consulted for a BMP-monitored peer at all.
+			"routes_counts_available": false,
 			"routes": map[string]any{
 				"imported":  0,
 				"filtered":  0,
@@ -553,7 +556,11 @@ func transformProtocols(ze map[string]any) map[string]any {
 			"routes_imported": accepted,
 			"routes_exported": sent,
 			"routes_filtered": filtered,
-			"uptime":          uptimeSeconds(peer),
+			// Says whether the four counts above mean anything. See
+			// routeCountsAvailable: the zeros are kept for compatibility even
+			// when Ze has no source for them.
+			"routes_counts_available": routeCountsAvailable(peer),
+			"uptime":                  uptimeSeconds(peer),
 			// Nested routes object for Alice-LG.
 			"routes": map[string]any{
 				"imported":  accepted,
@@ -820,6 +827,33 @@ func uptimeSeconds(peer map[string]any) float64 {
 }
 
 // getNum extracts a numeric value from a map, returning 0 if missing.
+// routeCountsAvailable reports whether the peer summary carried route counts at
+// all, as opposed to Ze being unable to produce them.
+//
+// The producer is deliberate here and this preserves its decision.
+// fetchRibRouteCounts (internal/component/cmd/peer/summary.go) OMITS
+// routes-received and its siblings when the bgp-rib plugin is not loaded, and
+// records that they are "never faked to 0". getNum then returns 0 for the
+// missing key, so the transform below publishes a zero the producer refused to
+// invent, and an operator cannot tell "this peer sent no routes" from "Ze cannot
+// tell you" (ai/rules/evidence.md: a zero value must never be a valid-looking
+// answer).
+//
+// Upstream birdwatcher solves this by omitting the key: its parser returns
+// before writing when BIRD prints "---" for a count (alice-lg/birdwatcher,
+// bird/parser.go, setChangeCount). Ze keeps the zero instead, by owner decision
+// of 2026-08-05, because this is a compatibility surface and Alice-LG's reaction
+// to an absent count cannot be tested from here. The truth travels beside it in
+// routes_counts_available. Both conventions are recorded in
+// docs/architecture/api/birdwatcher-compat.md so the trade can be revisited.
+//
+// routes-received is the probe key: mergeRibRouteCounts emits all three counts
+// together or none, so one key answers for the set.
+func routeCountsAvailable(m map[string]any) bool {
+	_, ok := m["routes-received"]
+	return ok
+}
+
 func getNum(m map[string]any, key string) float64 {
 	v, ok := m[key]
 	if !ok {

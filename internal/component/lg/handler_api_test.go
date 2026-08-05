@@ -695,3 +695,99 @@ func TestGetNum(t *testing.T) {
 		})
 	}
 }
+
+// TestRouteCountsAvailableFlagsFabricatedZeros pins the field that tells a
+// consumer whether the four route counts mean anything.
+//
+// VALIDATES: routes_counts_available is true only when the producer actually
+// supplied counts, and the counts themselves keep their compatibility zeros.
+// PREVENTS: the fabricated zero being indistinguishable from a real one.
+// fetchRibRouteCounts OMITS the keys when bgp-rib is not loaded and says they
+// are "never faked to 0"; getNum then returns 0 for the missing key and this
+// transform published it, so an operator could not tell "no routes" from "Ze
+// cannot tell you" (ai/rules/evidence.md).
+//
+// Upstream birdwatcher omits the key entirely in this case (bird/parser.go,
+// setChangeCount, returns early on BIRD's "---"). Ze keeps the zero for
+// Alice-LG compatibility by owner decision of 2026-08-05 and carries the truth
+// beside it; docs/architecture/api/birdwatcher-compat.md records both.
+func TestRouteCountsAvailableFlagsFabricatedZeros(t *testing.T) {
+	withCounts := map[string]any{
+		"summary": map[string]any{
+			"peers": []any{map[string]any{
+				"address": "192.0.2.1", "name": "peer1", "state": "established",
+				"routes-received": float64(60), "routes-accepted": float64(60), "routes-sent": float64(50),
+			}},
+		},
+	}
+	withoutCounts := map[string]any{
+		"summary": map[string]any{
+			"peers": []any{map[string]any{
+				"address": "192.0.2.2", "name": "peer2", "state": "established",
+			}},
+		},
+	}
+
+	got := func(ze map[string]any) map[string]any {
+		bw := transformProtocols(ze)
+		protocols, ok := bw["protocols"].(map[string]any)
+		if !ok || len(protocols) != 1 {
+			t.Fatalf("expected exactly one protocol, got %v", bw["protocols"])
+		}
+		for _, p := range protocols {
+			m, ok := p.(map[string]any)
+			if !ok {
+				t.Fatalf("protocol is not an object: %T", p)
+			}
+			return m
+		}
+		return nil
+	}
+
+	present := got(withCounts)
+	if present["routes_counts_available"] != true {
+		t.Errorf("counts supplied: routes_counts_available = %v, want true", present["routes_counts_available"])
+	}
+	if present["routes_received"] != float64(60) {
+		t.Errorf("counts supplied: routes_received = %v, want 60", present["routes_received"])
+	}
+
+	absent := got(withoutCounts)
+	if absent["routes_counts_available"] != false {
+		t.Errorf("counts absent: routes_counts_available = %v, want false", absent["routes_counts_available"])
+	}
+	if absent["routes_received"] != float64(0) {
+		t.Errorf("counts absent: routes_received = %v, want the compatibility zero", absent["routes_received"])
+	}
+}
+
+// TestBMPProtocolsDeclareCountsUnavailable covers G-3, the same defect without
+// even the producer's honesty behind it.
+//
+// VALIDATES: transformBMPProtocols admits its four counts are placeholders.
+// PREVENTS: a BMP-monitored peer reporting a confident zero for counts no
+// source was ever consulted for.
+func TestBMPProtocolsDeclareCountsUnavailable(t *testing.T) {
+	ze := map[string]any{
+		"peers": []any{map[string]any{
+			"router": "r1", "peer-bgp-id": "10.0.0.1",
+			"peer-as": float64(65001), "up": true,
+		}},
+	}
+
+	bw := transformBMPProtocols(ze)
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok || len(protocols) == 0 {
+		t.Fatalf("expected at least one BMP protocol, got %v", bw["protocols"])
+	}
+	for name, p := range protocols {
+		m, ok := p.(map[string]any)
+		if !ok {
+			t.Fatalf("protocol %s is not an object", name)
+		}
+		if m["routes_counts_available"] != false {
+			t.Errorf("%s: routes_counts_available = %v, want false (no source is consulted)",
+				name, m["routes_counts_available"])
+		}
+	}
+}
