@@ -197,7 +197,7 @@ func stateStyled(state string) string {
 		return dashGreenStyle.Render(state)
 	case "connecting", "active", "opensent", "openconfirm":
 		return dashYellowStyle.Render(state)
-	case "stopped", "idle":
+	case "stopped", "idle", "idle-hold":
 		return dashRedStyle.Render(state)
 	}
 	return state
