@@ -1,0 +1,10 @@
+noauth
+name alice
+password s3cr3t
+refuse-eap
+nodefaultroute
+ipcp-accept-local
+ipcp-accept-remote
+noipv6
+debug
+nodetach

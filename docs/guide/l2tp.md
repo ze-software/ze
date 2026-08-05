@@ -233,7 +233,8 @@ RADIUS client plugin providing:
 
 - **Access-Request** -- PAP/CHAP-MD5/MS-CHAPv2 credential forwarding to
   RADIUS servers with failover and retry
-- **Accounting** -- Start, Stop, and Interim-Update records (RFC 2866)
+- **Accounting** -- Start, Stop, and Interim-Update records (RFC 2866),
+  reporting the subscriber address as Framed-IP-Address
 - **CoA/DM** -- Change of Authorization and Disconnect-Message listener
   (RFC 5176) for RADIUS-initiated session changes and disconnects
 
@@ -244,6 +245,7 @@ l2tp {
     auth {
         radius {
             nas-identifier ze-lns;
+            nas-port-id-format "{nas-id}:{tunnel-id}.{session-id}";
             timeout 3;
             retries 3;
             acct-interval 300;
@@ -257,6 +259,19 @@ l2tp {
     }
 }
 ```
+
+`nas-port-id-format` is the template for the NAS-Port-Id attribute (RFC 2869
+Section 5.17). An LNS has no physical port to number, so the operator composes
+one from `{nas-id}`, `{tunnel-id}` and `{session-id}`. Every other character is
+copied. All three values are known before the session has an interface, so the
+Access-Request and every accounting record of one session carry the same text
+and a billing system can join them. The text is resolved once per session, so a
+config reload does not move it mid-session.
+
+Three templates are refused when the config is committed: one naming a
+placeholder that does not exist, one longer than 253 characters (the largest
+value a RADIUS attribute can carry), and one using `{nas-id}` with no
+`nas-identifier` set. Unset sends no attribute.
 
 `coa-port` enables the UDP Change of Authorization and Disconnect-Message
 listener. It has no default: leaving it unset keeps the listener off, so an
