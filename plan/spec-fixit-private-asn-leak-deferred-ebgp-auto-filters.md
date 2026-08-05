@@ -59,6 +59,47 @@ and another one to remove local pref"*. Given in answer to the EBGP-prepend ques
 `plan/spec-fixit-private-asn-leak.md` flagged and deliberately did not answer
 ("Flagged for Thomas"; also listed as an approved open item at `:281` and `:409`).
 
+## RE-SCOPED 2026-08-05: the RFC violation is CLOSED. Only the architecture is left.
+
+The section below says RFC 4271 Section 5.1.5 "is not enforced on the forwarded
+egress path at all", and gives the grep that proved it. **That is no longer
+true.** Re-measured today:
+
+- The spec's own grep, `grep -i localpref internal/component/bgp/wireu/*.go`,
+  still returns nothing, but the enforcement moved rather than being absent.
+  `applyFactsLocalPref` (`internal/component/bgp/reactor/forward_local_pref.go`)
+  records `AttrModSuppress` on LOCAL_PREF for every destination where
+  `localPrefAllowedTo` says it may not go, which is exactly the EBGP case. It
+  guards both the payload the source carried AND an egress filter that SETS the
+  attribute on a route whose source had none, through `modsTouchLocalPref`.
+- So the IBGP-source-to-EBGP-destination leak this spec was written around is
+  gone.
+
+**Both halves of Thomas's ruling are also already implemented as mod operations,
+just not as visible chain entries.** The AS-path prepend is a filter action,
+`faASPathPrepend` spelled `as-path-prepend`
+(`internal/component/bgp/reactor/filter_chain.go`), and
+`ExtractASPathPrependOps` puts it into the export mods
+(`internal/component/bgp/reactor/filter_ordered.go`). The LOCAL_PREF removal is
+the suppress op above.
+
+### What actually remains
+
+The ruling asked for "an 'auto-added' filter added to the chain of ebgp peer".
+Today the two behaviours are applied by the reactor's forward-facts logic, and
+`prependDefaultFilters` (`internal/component/bgp/config/peers.go`) still appends
+to `ps.ImportFilters` alone: nothing is auto-added to an export chain, which the
+section below records correctly and which is still true.
+
+So the remaining work is a CONFIG SURFACE question, not a correctness one: should
+these two become visible auto-added entries on the export chain, so an operator
+reading the peer's filters sees them, mirroring the import side? That is worth
+doing for legibility, and it is no longer urgent, because nothing is leaking
+while it waits.
+
+Status moved to `ready` with that narrower scope. Do not re-open it as an RFC
+defect; the RFC half is closed and this note is the evidence.
+
 ### This is not only a design preference. One half of it is an unenforced RFC MUST NOT
 
 The trace (2026-07-16) found that **RFC 4271 §5.1.5 is not enforced on the forwarded egress
