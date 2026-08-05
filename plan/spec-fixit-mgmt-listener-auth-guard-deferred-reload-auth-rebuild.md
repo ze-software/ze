@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | spec-fixit-mgmt-listener-auth-guard |
 | Phase | - |
-| Updated | 2026-07-17 |
+| Updated | 2026-08-05 |
 
 Update (2026-07-22 plan review): the parent's blocking deliverable has LANDED
 on disk -- `cmd/ze/hub/mgmt_guard.go` + `checkMgmtListeners` exist (learned
@@ -91,6 +91,48 @@ Every path funnels into `buildChange(name, srv, newAddrs)`
 (`listener_migrate.go`), whose only per-service input is `newAddrs`, and the
 diff it drives (`listenerDiff`, `:221`) compares address lists. No auth field is
 read, compared, or applied, so a reload cannot rebuild a server's auth mode.
+
+## Re-verified 2026-08-05: the gap is real, and it is SILENT
+
+Confirmed at the producer. `buildChange` (`cmd/ze/hub/listener_migrate.go`) takes
+`newAddrs` as its only per-service input, runs `listenerDiff` over address lists,
+and returns `false` when the two lists agree:
+
+```go
+oldAddrs := srv.Addresses()
+_, add, remove := listenerDiff(oldAddrs, newAddrs)
+if len(add) == 0 && len(remove) == 0 {
+    return serviceChange{}, false
+}
+```
+
+So an operator who edits config to turn authentication ON, without touching the
+listen address, produces NO change set at all. `ReloadListeners` logs nothing:
+its three log lines all sit inside the per-change loop that this reload never
+enters. The operator sees a clean reload and believes the service is
+authenticated. It is not.
+
+**What limits the damage, and what does not.** The parent spec's AC-7 shipped and
+holds: `MarkUnauthenticated` records services built without authentication and
+`ReloadListeners` refuses to migrate one to a non-loopback address. So the
+unauthenticated server cannot be moved somewhere reachable. It is not remotely
+exploitable. What survives is the operator's false belief, which nothing corrects.
+
+**Two separable deliverables, and they are not the same size.**
+
+| # | Deliverable | Size |
+|---|-------------|------|
+| 1 | Say something. Compare the configured auth mode against what the running server was built with, and report the difference on reload | Small. Needs the configured mode plumbed to the migrator, which today only holds the `unauth` name set |
+| 2 | Rebuild. Stop and reconstruct the server so the new auth mode takes effect | Large. Servers are constructed once, so this is connection draining, restart ordering, and rollback |
+
+Deliverable 1 satisfies "fail closed OR say something" (`ai/rules/evidence.md`)
+and is complete on its own axis. It was NOT landed on 2026-08-05, because taking
+it alone would reduce this spec's stated scope without approval
+(`ai/rules/completion.md`). **If Thomas wants the cheap half first, say so and it
+is a short change.** Otherwise both land together.
+
+Status moved `ready` from the previous value: the research is done, the producer
+is verified, and the two deliverables are sized.
 
 **Why it was not simply widened:** the source spec's AC-7 stops a running
 *unauthenticated* listener from being migrated onto a non-loopback address, which is
