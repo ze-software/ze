@@ -100,9 +100,31 @@ def file_hash(path: str) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def spec_stem(spec: str) -> str:
+    """Reduce any spelling of a spec reference to its bare stem.
+
+    Accepts all three forms a caller reaches for, because all three occur in the
+    wild and two of them used to fail silently:
+
+        plan/spec-<stem>.md   the path ze-close and commit_helper.py carry
+        spec-<stem>.md        the filename
+        <stem>                the bare stem this tool documents
+
+    Stripping only the "spec-" prefix left a leading "plan/" in place, so
+    `--spec plan/spec-X.md` resolved to tmp/review/plan/spec-X-<session>.md, a
+    directory that does not exist. The tool then reported BLOCKED with the
+    remedy "run an independent review", which is the one thing that could not
+    help: the review had been run and its artifact was sitting in tmp/review/
+    under the right name. commit_helper.py never hit this because it derives the
+    stem itself with _SPEC_STEM_RE; only direct callers did, and they read the
+    BLOCKED as a missing review.
+    """
+    stem = spec.rsplit("/", 1)[-1]
+    return stem.removeprefix("spec-").removesuffix(".md")
+
+
 def artifact_path(spec: str) -> Path:
-    stem = spec.removeprefix("spec-").removesuffix(".md")
-    return ARTIFACT_DIR / f"{stem}-{session_id()}.md"
+    return ARTIFACT_DIR / f"{spec_stem(spec)}-{session_id()}.md"
 
 
 def is_code(path: str) -> bool:

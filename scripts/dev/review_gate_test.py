@@ -211,5 +211,46 @@ class CommitHelperIntegrationCase(unittest.TestCase):
         self.assertIsNone(ch.spec_closure_stem(("internal/x.go",), ()))
 
 
+class SpecStemAcceptsEverySpelling(unittest.TestCase):
+    """VALIDATES: --spec resolves the same artifact from all three spellings.
+
+    PREVENTS: the silent false BLOCKED. artifact_path() stripped only the
+    "spec-" prefix, so a leading "plan/" survived and
+    `--spec plan/spec-X.md` resolved to tmp/review/plan/spec-X-<session>.md.
+    That directory does not exist, so the tool reported BLOCKED and advised
+    running an independent review -- the one remedy that could not help, since
+    the review HAD been run and its artifact was sitting in tmp/review/ under
+    the correct name. commit_helper.py was immune because it derives the stem
+    itself, so only direct callers saw it, and they read it as a missing review.
+
+    The path form is the one ze-close and commit_helper.py both carry, so it is
+    the spelling a caller is most likely to paste.
+    """
+
+    def test_all_three_spellings_agree(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import review_gate as rg
+
+        want = "gokrazy-init-bump"
+        for spelling in (
+            "plan/spec-gokrazy-init-bump.md",
+            "spec-gokrazy-init-bump.md",
+            "gokrazy-init-bump",
+        ):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(rg.spec_stem(spelling), want)
+
+    def test_artifact_path_carries_no_directory(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import review_gate as rg
+
+        # The bug was invisible in the stem and visible only in the path: a
+        # surviving "plan/" turned one filename into a subdirectory nobody
+        # creates, so assert on the parent rather than on the name alone.
+        p = rg.artifact_path("plan/spec-gokrazy-init-bump.md")
+        self.assertEqual(p.parent, rg.ARTIFACT_DIR)
+        self.assertTrue(p.name.startswith("gokrazy-init-bump-"), p.name)
+
+
 if __name__ == "__main__":
     unittest.main()
