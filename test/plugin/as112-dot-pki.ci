@@ -1,0 +1,135 @@
+# spec-pki-full-chain AC-5: an as112 DoT listener configured with
+#  resolves that name in the PKI store and binds,
+# serving the operator certificate instead of an ephemeral self-signed one.
+#
+# Exercises: OnConfigure -> as112Server.applyConfig -> dnsserver.ApplyWithSecure
+#   -> buildSecureTLS resolver branch -> pki.ServerTLSMaterial -> bindDoT.
+# A bound listener IS the assertion: resolution failure is fail-loud, so a
+# missing or keyless entry leaves the secure listeners unstarted and this test
+# times out on the connect. The chain CONTENT is asserted by the Go handshake
+# tests (pki.TestServerTLSMaterialAssemblesChain,
+# web.TestWebServerServesPKIChain); the observer sandbox cannot import ssl to
+# drive a handshake, as test/plugin/as112-dot.ci already records.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=as112-dot-pki-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import socket
+import sys
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        bound = False
+        for _ in range(40):
+            try:
+                with socket.create_connection(('127.0.0.1', 18854), timeout=1):
+                    bound = True
+                    break
+            except OSError:
+                pass
+        if not bound:
+            runtime_fail('dot: listener not bound on 127.0.0.1:18854 '
+                         '(pki certificate reference did not resolve)')
+        print('OK: as112 dot bound with pki certificate', file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+pki {
+	ca dot-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate dot-lan {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+		private {
+			key MHcCAQEEIJWSrBva0yYuEY9NyV6LSqFoZ4eRNSoFUCZj9KdmaPuioAoGCCqGSM49AwEHoUQDQgAE9ujhR+AuyNpjClq9wS3fPg4sLDh2JYdiXLRih2EDVDNJAhFQEQ6RbqhwdSMnZUmPBBuoNbt1T6U+jcrRyF0VhA==
+		}
+	}
+}
+
+service {
+	as112 {
+		enabled true
+		tls {
+			enabled true
+			listen-port 18854
+			certificate dot-lan
+		}
+	}
+}
+
+plugin {
+	external as112-dot-pki-test {
+		run ./as112-dot-pki-test.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process as112-dot-pki-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

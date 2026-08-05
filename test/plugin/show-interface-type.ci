@@ -1,0 +1,169 @@
+# Test: `show interface type <t>` filters, and rejects an unknown type
+# Exercises: dispatch-command -> ze-show:interface -> handleShowInterface ->
+#            showInterfaceByType (internal/component/iface/cmd/show_interface.go)
+# VALIDATES: the filtered set equals the interfaces of that type in the full list,
+#            and an unknown type is REJECTED with the valid types derived from the
+#            running set rather than answered with everything.
+# PREVENTS:  a filter that stops filtering. The negative case is what catches it on
+#            a host that happens to have only one interface type (the positive
+#            set-equality alone would still pass there).
+
+option=skip-os:value=darwin
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=show-interface-type-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show interface type` filters by type and rejects an unknown one."""
+
+import json
+import sys
+
+from ze_api import API, dispatch, runtime_fail, result_text_data
+
+# No interface can be classified as this: the name is not a valid Ze type and no
+# kernel link kind matches it.
+UNKNOWN_TYPE = 'zz-not-an-interface-type'
+
+
+def decoded(resp, label):
+    status = resp.get('status')
+    if status != 'done':
+        runtime_fail(f'{label}: status={status} data={result_text_data(resp)}')
+    data = result_text_data(resp)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    return data
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        # The full list is the reference the filtered view is judged against.
+        every = decoded(dispatch(api, 'show interface'), 'interface-all')
+        if not isinstance(every, list) or not every:
+            runtime_fail(f'interface-all: expected a non-empty list, got {every!r}')
+
+        classified = [i for i in every if isinstance(i, dict) and i.get('type')]
+        if not classified:
+            runtime_fail(f'interface-all: no interface carries a "type": {every}')
+
+        wanted = classified[0]['type']
+        expected = sorted(
+            i['name'] for i in classified if i['type'].lower() == wanted.lower())
+
+        # ze-dispatch-check: dynamic -- the type is read off the running host, so
+        # the test cannot hardcode one (ai/rules/evidence.md, derive not hardcode).
+        # The static path `show interface type` is covered by the rejection below.
+        filtered = decoded(dispatch(api, f'show interface type {wanted}'),
+                           'interface-type')
+        if not isinstance(filtered, dict) or 'interfaces' not in filtered:
+            runtime_fail(f'interface-type: expected an "interfaces" wrapper, got {filtered!r}')
+        rows = filtered['interfaces']
+        if not isinstance(rows, list):
+            runtime_fail(f'interface-type: "interfaces" is {type(rows).__name__}, not a list')
+
+        got = sorted(r.get('name') for r in rows if isinstance(r, dict))
+        if got != expected:
+            runtime_fail(
+                f'interface-type {wanted}: filtered set {got} != the {wanted} '
+                f'interfaces in the full list {expected}')
+        for row in rows:
+            if row.get('type', '').lower() != wanted.lower():
+                runtime_fail(
+                    f'interface-type {wanted}: row {row.get("name")} has '
+                    f'type={row.get("type")!r}')
+
+        # A type nothing matches must be REJECTED, and the error must derive the
+        # valid list from the running set. A filter that stopped filtering would
+        # answer `done` here with every interface.
+        rejected = dispatch(api, 'show interface type zz-not-an-interface-type')
+        if rejected.get('status') != 'error':
+            runtime_fail(
+                f'interface-type {UNKNOWN_TYPE}: expected an error, got '
+                f'status={rejected.get("status")} data={result_text_data(rejected)}')
+        message = str(result_text_data(rejected))
+        if 'unknown interface type' not in message:
+            runtime_fail(f'interface-type {UNKNOWN_TYPE}: unexpected error text: {message}')
+        if wanted.lower() not in message.lower():
+            runtime_fail(
+                f'interface-type {UNKNOWN_TYPE}: the rejection does not list the '
+                f'running type {wanted!r}: {message}')
+
+        print(f'OK: show interface type {wanted} -> {got}; {UNKNOWN_TYPE} rejected',
+              file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-interface-type-test {
+		run ./show-interface-type-test.run
+		encoder json
+	}
+}
+
+# The interface block makes the iface component run OnConfigure ->
+# iface.LoadBackend("netlink"), so ListInterfaces has a backend to read. No
+# interface is declared, so the managed set is empty and nothing is created or
+# deleted: every read below is of links the host already has.
+interface {
+	backend netlink
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process show-interface-type-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: show interface type
+reject=stderr:pattern=panic

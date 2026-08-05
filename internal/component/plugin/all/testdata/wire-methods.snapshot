@@ -186,9 +186,13 @@ ze-show:host-platform
 ze-show:host-storage
 ze-show:host-thermal
 ze-show:interface
+ze-show:interface-brief
 ze-show:interface-counters
 ze-show:interface-detail
+ze-show:interface-errors
+ze-show:interface-rate
 ze-show:interface-scan
+ze-show:interface-type
 ze-show:irr-check
 ze-show:irr-prefix
 ze-show:irr-status
@@ -298,6 +302,9 @@ ze-show:traffic-stat
 ze-show:traffic-usage
 ze-show:uptime
 ze-show:version
+ze-show:vpn-ipsec-dataplane-drift
+ze-show:vpn-ipsec-dataplane-policy
+ze-show:vpn-ipsec-dataplane-sa
 ze-show:vpn-ipsec-peer
 ze-show:vpn-ipsec-sa
 ze-show:vpn-ipsec-status
