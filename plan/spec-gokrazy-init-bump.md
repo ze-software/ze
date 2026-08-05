@@ -4,15 +4,21 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 5/6 |
-| Updated | 2026-07-22 |
+| Phase | 6/6 |
+| Updated | 2026-08-05 |
 
 Phase corrected 2026-07-22: the bump landed and is committed (`8dc8f389d`
 "feat(appliance): bump gokrazy init 20260703 (clears CVE-2026-25680)" plus
 `eae560cc6` x/net -> v0.56.0); builddir go.mods pin `gokrazy
 v0.0.0-20260703061218-a4a45a20149d`, the new version is vendored under
-`gokrazy/modcache/`, and no CVE workaround comment remains. The plausible
-remaining item is AC-7 (recurrence guardrail) -- verify it before closing.
+`gokrazy/modcache/`, and no CVE workaround comment remains.
+
+Re-measured 2026-08-05 at closure. AC-7 is done (`ai/rules/platform-linux.md`
+runbook, the `ai/INDEX.md` pointer row, `.github/dependabot.yml`), so the note
+above naming it "the plausible remaining item" is stale. AC-6, the appliance
+QEMU proof, was the real remaining item and it now PASSES: this host acquired
+`qemu-system-x86_64`, `xl2tpd`, `pppd` and kvm-group access since the
+2026-07-10 measurement. All 7 acceptance criteria are green.
 
 ## Post-Compaction Recovery
 
@@ -122,7 +128,7 @@ Out of scope: top-level `go.mod` (it does not reference `github.com/gokrazy/gokr
 | A-1 | Upstream `@...20260703...` requires `x/net v0.56.0` natively | proxy `.mod` fetch (2026-07-03 version) + `main` go.mod both show `x/net v0.56.0` | bump doesn't clear the alert; must keep a pin | re-read the fetched `.mod` at implement time | confirmed — proxy .mod + new committed `go.mod:23` = `x/net v0.56.0` |
 | A-2 | The committed init source is pristine upstream (no local patches) | single git commit `86960d858`; no patch markers in `reboot_amd64.go`/`gokrazy.go` | re-vendor clobbers local work | `git log` on the two files (done in research) | confirmed — single commit `86960d858`; `loadModules`/`KexecFileLoad` still present in new source |
 | A-3 | `ze-gokrazy-deps` re-vendors the NEW version into a whitelisted path and the old tree can be `git rm`'d + pruned cleanly | `.gitignore` uses `@*` glob; deps runs `go mod download all` | dirty/partial modcache; build can't find init | run deps, `git status`, then `make ze-gokrazy` | confirmed — 58 removed/58 added, no stray files, old dir pruned + no reappearance, AC-5 build green |
-| A-4 | The 4-month upstream init delta does not break appliance boot or the appliance API used by ze | pristine upstream, gokrazy API stable | appliance fails to boot or supervise | QEMU suite (integration/l2tp/pppoe) | PENDING — AC-6 not runnable on this host (no qemu/xl2tpd/pppd, non-root); R-6 realized |
+| A-4 | The 4-month upstream init delta does not break appliance boot or the appliance API used by ze | pristine upstream, gokrazy API stable | appliance fails to boot or supervise | QEMU suite (integration/l2tp/pppoe) | confirmed 2026-08-05 — both appliance proofs pass; the earlier "not runnable on this host" was re-measured and is false |
 | A-5 | Dropping the explicit `x/net v0.56.0` pin still yields `>= 0.56.0` via the new gokrazy require | new upstream go.mod requires 0.56.0; MVS max | a transitive dep pulls a lower x/net | inspect resolved `go list -m golang.org/x/net` per builddir after deps | confirmed — `go list` = `x/net v0.56.0` in gokrazy/dhcp/serial-busybox; kernel doesn't pull x/net |
 
 ### Risks
@@ -133,7 +139,7 @@ Out of scope: top-level `go.mod` (it does not reference `github.com/gokrazy/gokr
 | R-3 | Re-vendor leaves a stale old-version dir on disk (untracked) that reappears in a future commit | `git status` shows old `@...20260218...` tree | explicitly `rm -rf` the old modcache dir + confirm `git status` clean |
 | R-4 | Dropping the pin lets x/net regress below 0.56.0 | `go list -m golang.org/x/net` < 0.56.0 | re-add a minimal pin only if MVS resolves lower (A-5) |
 | R-5 | Kernel-lockdown design spec left pointing at a dead path | grep for old version string in `plan/` | refresh the two refs (AC-4) |
-| R-6 | Host lacks root/xl2tpd/pppd/PPPoL2TP → full appliance L2TP proof can't run here | `ze-check-qemu`/deployment test reports missing deps | user requires FULL L2TP proof (AC-6 blocks); provide setup + commands, keep spec OPEN until green elsewhere — no partial-done |
+| R-6 | Host lacks root/xl2tpd/pppd/PPPoL2TP → full appliance L2TP proof can't run here | `ze-check-qemu`/deployment test reports missing deps | NOT realized. Re-measured 2026-08-05: `make ze-deployment-preflight` reports `ok: xl2tpd + pppd + ping + /dev/ppp + iproute2 + PPPoL2TP kernel support`. The full L2TP proof ran here and passed |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -183,7 +189,7 @@ Out of scope: top-level `go.mod` (it does not reference `github.com/gokrazy/gokr
      test/appliance/serial-login.ci, which boots nothing (ai/rules/platform-linux.md). -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `make ze-vpp-hugepages-qemu-test` | `mk/test-integration.mk` | gokrazy image built by `ze appliance build` boots in QEMU on the new init | UNRUN (AC-6) |
+| `make ze-vpp-hugepages-qemu-test` | `mk/test-integration.mk` | gokrazy image built by `ze appliance build` boots in QEMU on the new init | PASS 2026-08-05 |
 | `test/l2tp/handshake-full.ci` | `test/l2tp/` | L2TP control path intact (functional suite, regression) | |
 | `test/pppoe/pppoe-basic.ci` | `test/pppoe/` | PPPoE path intact (functional suite, regression) | |
 
@@ -327,7 +333,7 @@ Driver targets: `ze-deployment-gokrazy-l2tp-ppp-test` (`scripts/evidence/effecti
 - AC-4: refreshed the two `spec-kernel-lockdown-hardening.md` path refs; `loadModules`/`KexecFileLoad` still present in new source.
 - AC-5: `make ze-gokrazy E2FS=/usr/sbin` → "Build complete!", `tmp/gokrazy/ze.img`. New committed `go.mod:23` = `x/net v0.56.0` (scanned manifest now carries the fix).
 - AC-7: runbook `ai/rules/platform-linux.md` (+ regenerated `ai/rules/INDEX.md`, `ai/INDEX.md` pointer) and `.github/dependabot.yml` (weekly grouped gomod + github-actions).
-- **AC-6 (BLOCKING) NOT done:** appliance QEMU boot + full L2TP proof unrunnable here (no qemu, no xl2tpd/pppd, non-root). Downstream review/closure paused; NOT committed; spec remains in-progress.
+- **AC-6 DONE 2026-08-05** (this bullet previously read "NOT done: unrunnable here (no qemu, no xl2tpd/pppd, non-root)"; that was true on 2026-07-10 and false at closure). Both appliance proofs pass. One repair was needed to get there and it is worth knowing: the durable runtime-kernel cache entry keyed `7.1.4-...-73cdffea-...` actually held release `7.1.1-ze` and carried no `modules.builtin`, so `effective-gokrazy-l2tp-ppp.py` refused with exit 1 rather than booting an appliance whose ze would crash-loop on its fail-closed module probe. That fail-closed refusal is correct behaviour and it named the fix; `make ze-kernel KERNEL_ARCH=amd64` rebuilt the entry and the proof passed.
 - Added (user request, related to AC-6 provisioning): `scripts/dev/dev-setup.py` now lists `xl2tpd` + `ppp` as optional Linux L2TP-evidence deps, so `make ze-setup` surfaces them; `ai/INDEX.md` updated. Verified: ruff clean, `dev_setup_drift_test.go` green (its regex only matches `appliance-*` `APPLIANCE_CHECKS` keys, not the tool lists), `ze-setup --check` now reports `xl2tpd`/`ppp` as optional.
 - Fixed (Linux-support bug surfaced by AC-6): `mk/gokrazy.mk` hardcoded `E2FS := /opt/homebrew/...` (macOS), which a `:=` env var can't override, so the L2TP script's `make ze-gokrazy` failed the e2fsprogs guard on Linux. Now autodetects (`ifndef E2FS` → first of `/usr/sbin`,`/sbin`,`/usr/local/sbin`,homebrew Cellar carrying BOTH `mkfs.ext4` and `debugfs`); `make -n` resolves `E2FS=/usr/sbin` here. Corrected at closure 2026-08-03: the probe and the guard originally tested `mkfs.ext4` alone, which let a directory missing `debugfs` pass and fail later with its stderr discarded; the guard now names whichever tool is missing. Also corrected: an override is `make ... E2FS=/path`. `make ... E2FS=` (explicitly empty) does NOT resume autodetect, and the mechanism is not the obvious one. `ifndef` tests whether the variable expands to something NON-EMPTY, so the empty override still enters the block and the probe RUNS; its result is discarded because a command-line assignment beats the makefile's `:=`, `E2FS` stays empty, and the guard rejects it. Measured on GNU make with a two-line reproducer.
 
@@ -349,6 +355,7 @@ Learned insight: gok's checked-in modcache means a Dependabot alert on `gokrazy/
 - AC-7 recurrence guardrail: `ai/rules/platform-linux.md` runbook, an `ai/INDEX.md` pointer row, and `.github/dependabot.yml` (weekly grouped `gomod` plus `github-actions`, scoped to the root module).
 - `mk/gokrazy.mk` E2FS autodetection, so the appliance build works on Linux.
 - At closure 2026-08-03: the E2FS probe and guard now require BOTH `mkfs.ext4` and `debugfs`, and the guard names whichever is missing and points at the distro package as well as homebrew.
+- At closure 2026-08-05: AC-6 was executed rather than deferred. The appliance built on the bumped init boots in QEMU, gokrazy init supervises ze, and a full L2TP PPP/IPCP session against a real xl2tpd LAC completes with dataplane ping, route inject and clean teardown. That is the proof the whole bump existed to earn, and it is the one thing the spec had never had.
 
 ### Bugs Found/Fixed
 - `mk/gokrazy.mk` hardcoded a macOS homebrew `E2FS` path with `:=`, which an environment variable cannot override, so every Linux appliance build failed the e2fsprogs guard. Fixed by autodetection.
@@ -359,11 +366,33 @@ Learned insight: gok's checked-in modcache means a Dependabot alert on `gokrazy/
 - `ai/rules/platform-linux.md` (the bump runbook) and the `ai/INDEX.md` pointer row, both landed with AC-7.
 - `docs/guide/appliance.md` Prerequisites, updated at closure. It offered `brew install e2fsprogs` under a "(macOS)" heading and nothing else, which the Linux autodetect this spec added made incomplete. It now carries the Linux packages, states that BOTH `mkfs.ext4` and `debugfs` are needed and why, gives the search order, and records that an empty `E2FS=` is not an override. A source anchor on `mk/gokrazy.mk` was added with it.
 - No `docs/` page quotes the gokrazy version, so the bump left no stale version claim: a grep of `docs/` for the old and the new version strings returns nothing.
-- `make ze-doc-test` was NOT run at closure. A concurrent session is mid-restructure under `ai/`, and the doc gate reads the working tree.
+- `make ze-doc-test` WAS run on 2026-08-05, twice (the earlier "not run" no longer holds).
+  **The stages that own this spec's surfaces are GREEN.** Source anchors: `checked 1576
+  code paths, 453 packages ... all references valid`, which covers the new
+  `<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy e2fsprogs guard -->`
+  anchor in `docs/guide/appliance.md`. `ai/DOCS-TO-CODE.md up to date`. Learned numbering,
+  rules index, rule format, rules digest and digest anchors all pass.
+- Two stages are RED and both are attributed to concurrent work in this shared checkout,
+  not to this spec. (a) `ai/LEARNED-FULL-INDEX.md is stale`: `plan/learned/1347-perf-next-1-ebgp-wire-lockfree.md`
+  and `plan/learned/1348-commit-script-path-per-prepared-commit.md` were created at 06:24
+  and 06:25 while this closure was running, after `make ze-discovery-index` had already
+  brought the index up to date. (b) `learned staleness ... 323 dead reference(s); the
+  baseline allows 322`: exactly one over, and `learned_staleness.py --json` names its
+  owner outright, `plan/learned/1348-...`, whose problem is `no ## Files section`. This
+  spec's own summary contributes ZERO dead references (the same JSON reports 0 findings
+  for 1329). Neither file is this spec's to edit, and neither regenerated index is in
+  this spec's commit.
 
 ### Deviations from Plan
-- AC-6 is UNRUN and the spec closes with it unrun. It needs root, `/dev/ppp` and PPPoL2TP, which this host does not have. It is homed at `plan/spec-finish-appliance-qemu-evidence.md`, which lists it as a work item and exists to execute it.
-- The boot proof named in the plan was wrong (see Bugs Found/Fixed). The proof AC-6 owes is `make ze-vpp-hugepages-qemu-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
+- AC-6 was RUN on 2026-08-05 and the spec closes with it green. An earlier draft of this
+  section said it would close with AC-6 unrun, homed at
+  `plan/spec-finish-appliance-qemu-evidence.md`, because the host lacked root, `/dev/ppp`
+  and PPPoL2TP. That was re-measured and is false: the host carries every prerequisite,
+  `make ze-deployment-preflight` reports the PPP/NCP line `ok`, and both proofs pass. No
+  deviation remains here. `ai/rules/platform-linux.md` forbids treating "needs hardware"
+  as a skip, and the hardware was there.
+- The boot proof named in the plan was wrong (see Bugs Found/Fixed). The proof AC-6 owes is
+  `make ze-vpp-hugepages-qemu-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
 
 ## Implementation Audit
 
@@ -371,7 +400,7 @@ Learned insight: gok's checked-in modcache means a Dependabot alert on `gokrazy/
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 | Bump the version string in 7 builddir modules, refresh go.sums | Done | `gokrazy/ze/builddir/**/go.mod` + `go.sum` | `git grep 20260218074004` returns hits only in this spec's prose |
-| Remove the false `x/net` workaround comment and redundant pin | Done | the 5 gokrazy builddir go.mods | no `x/net` require survives in any tracked builddir manifest |
+| Remove the false `x/net` workaround comment and redundant pin | Done | 6 builddir go.mods | re-measured 2026-08-05: `git show 8dc8f389d` drops `golang.org/x/net v0.56.0` from `gokrazy`, `serial-busybox` and `cmd/{dhcp,ntp,heartbeat,randomd}`. `rtr7/kernel` never carried one. The earlier "5" in this row was wrong. No `x/net` require survives in any tracked builddir manifest |
 | Re-vendor the committed init source | Done | `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/` | one tracked version directory, and one on disk |
 | Refresh the two stale path refs in the kernel-lockdown spec | Done | `plan/spec-kernel-lockdown-hardening.md`, its two modcache anchors | zero hits for the old string |
 | AC-7 recurrence guardrail | Done | `ai/rules/platform-linux.md`, `ai/INDEX.md`, `.github/dependabot.yml` | the runbook is a 7-step procedure, not a stub |
@@ -383,16 +412,16 @@ Learned insight: gok's checked-in modcache means a Dependabot alert on `gokrazy/
 | AC-2 | Done | the 7 builddir go.mods | the two surviving `replace` comments were re-checked and are true |
 | AC-3 | Done | `git ls-files gokrazy/modcache/`, `ls gokrazy/modcache/github.com/gokrazy/` | one version directory, tracked and on disk; `git status gokrazy/` clean |
 | AC-4 | Done | the two modcache anchors in `plan/spec-kernel-lockdown-hardening.md` | `loadModules` and `KexecFileLoad` exist in the new source |
-| AC-5 | Done (2026-07-10), not reproducible now | recorded build output | `tmp/gokrazy/ze.img` is transient and gone. The corroborating fact still holds: the committed init `go.mod` requires `x/net v0.56.0` |
-| AC-6 | **UNRUN** | nothing | needs root, `/dev/ppp`, PPPoL2TP. Homed at `plan/spec-finish-appliance-qemu-evidence.md`, live row in `plan/deferrals/gokrazy-init-bump.md` |
+| AC-5 | Done, re-verified 2026-08-05 | `make ze-vpp-hugepages-qemu-test` | the earlier "not reproducible now" is void. That target builds a real appliance image through `ze appliance build` against the bumped init and boots it, so the build path is green on this tree today, not only in a 2026-07-10 transcript. The committed init `go.mod` requires `x/net v0.56.0` |
+| AC-6 | **Done 2026-08-05** | `make ze-vpp-hugepages-qemu-test` and `scripts/evidence/effective-gokrazy-l2tp-ppp.py` | RUN, not homed. The "needs root, `/dev/ppp`, PPPoL2TP, no qemu/xl2tpd/pppd" blocker was stale: this host now carries `qemu-system-x86_64`, `xl2tpd`, `pppd`, `/dev/ppp`, `l2tp_ppp`, kvm-group access and passwordless sudo, and `make ze-deployment-preflight` reports the full PPP/NCP prerequisite line `ok`. Boot proof: `VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64`, asserted over SSH into the booted appliance. L2TP proof: `OK: gokrazy Ze appliance completed real L2TP PPP/IPCP with Ze ppp0 and LAC ppp0, dataplane ping, route inject, and clean teardown`, exit 0 |
 | AC-7 | Done | `ai/rules/platform-linux.md`, the `ai/INDEX.md` dependabot pointer row, `.github/dependabot.yml` | the caveat that dependabot.yml does not suppress security scanning is stated in the file header |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | Unit tests | N-A | - | a version bump has no unit surface |
-| `make ze-vpp-hugepages-qemu-test` | Not run | `mk/test-integration.mk` | AC-6; replaces the wrongly cited `serial-login.ci` |
-| `ze-deployment-gokrazy-l2tp-ppp-test` | Not run | `scripts/evidence/effective-gokrazy-l2tp-ppp.py` | AC-6 |
+| `make ze-vpp-hugepages-qemu-test` | PASS 2026-08-05 | `mk/test-integration.mk` | AC-6; replaces the wrongly cited `serial-login.ci` |
+| `ze-deployment-gokrazy-l2tp-ppp-test` | PASS 2026-08-05 | `scripts/evidence/effective-gokrazy-l2tp-ppp.py` | AC-6; exit 0 after rebuilding a stale runtime-kernel cache entry |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -405,17 +434,17 @@ Learned insight: gok's checked-in modcache means a Dependabot alert on `gokrazy/
 
 ### Audit Summary
 - **Total items:** 7 acceptance criteria
-- **Done:** 6 (AC-1 to AC-5, AC-7)
+- **Done:** 7 (AC-1 to AC-7)
 - **Partial:** 0
 - **Skipped:** 0
-- **Unrun and homed:** 1 (AC-6, `plan/spec-finish-appliance-qemu-evidence.md`)
+- **Unrun and homed:** 0. AC-6 was the last one and it ran green on 2026-08-05
 - **Changed:** the AC-6 proof target, recorded in Deviations
 
 ## Deferrals Resolved
 
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
-| Full QEMU gokrazy L2TP appliance proof (AC-6) | deferred (live) | `plan/spec-finish-appliance-qemu-evidence.md`, which lists it in its Task section. The shard SURVIVES this closure and is not removed |
+| Full QEMU gokrazy L2TP appliance proof (AC-6) | **done 2026-08-05** | Not deferred after all: the run happened at closure on this host. `make ze-vpp-hugepages-qemu-test` PASS, `effective-gokrazy-l2tp-ppp.py` exit 0. The shard row is set to `done`. `plan/spec-finish-appliance-qemu-evidence.md` keeps its own second row (iface-absent-link-graceful AC-3), so that spec stays open and this closure orphans nothing |
 | Make the make-path credential injection fail closed (`debugfs` exits 0 on failure with its stderr discarded) | deferred (live) | `plan/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md`, work item added under "Added 2026-08-03". Found by the closure review |
 
 No row anywhere in `plan/deferrals/` names `plan/spec-gokrazy-init-bump.md` as a
@@ -426,7 +455,7 @@ Destination, so this closure orphans nothing.
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
 | Clear Dependabot alert #26 at source (no stale x/net manifest) | grep + alert state | `grep -r "x/net v0.38.0" --include=go.mod` → empty on tracked files; alert #26 auto-closes after rescan |
-| New init boots + supervises without regression | functional (QEMU appliance) | NOT MET at closure. `make ze-vpp-hugepages-qemu-test` + `ze-deployment-gokrazy-l2tp-ppp-test` on the rebuilt image are unrun; AC-6 is homed at `plan/spec-finish-appliance-qemu-evidence.md` |
+| New init boots + supervises without regression | functional (QEMU appliance) | MET 2026-08-05. `make ze-vpp-hugepages-qemu-test` boots an image built on the bumped init and asserts `hugepages-total=64` over the Ze CLI. `effective-gokrazy-l2tp-ppp.py` boots the appliance, supervises ze, and completes L2TP PPP/IPCP with dataplane ping and route inject against xl2tpd |
 | x/net resolves to the fixed version | resolution check | `go list -m golang.org/x/net` per builddir → `>= v0.56.0` |
 | Recurrence made cheaper | artifact exists | AC-7 guardrail present (`.github/dependabot.yml` and/or runbook) |
 
@@ -435,7 +464,8 @@ Destination, so this closure orphans nothing.
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/gokrazy-init-bump-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md` |
-| `review_gate.py check` | clean (1 code file, hashes match) |
+| `review_gate.py check` | clean, re-run 2026-08-05: `review_gate: OK (1 code files, clean, hashes match ...)`, exit 0. `mk/gokrazy.mk` was not touched at this closure, so the pinned hash still matches |
+| Argument form (trap) | Pass the STEM, not the spec path. `review_gate.py artifact_path` does `spec.removeprefix("spec-")`, which does not strip a leading `plan/`, so `--spec plan/spec-gokrazy-init-bump.md` looks for `tmp/review/plan/spec-gokrazy-init-bump-<sid>.md` and reports BLOCKED with exit 3 while the real artifact sits elsewhere. `commit_helper.py` derives the stem with `_SPEC_STEM_RE = ^plan/spec-(?P<stem>.+)\.md$`, so the form the commit gate actually uses is `--spec gokrazy-init-bump` |
 | Reviewer lenses used | independent `/ze-review` subagent over three runs: logic and wiring, guard fail-closed behaviour, make semantics. The closure author verified every finding at source before acting on it |
 
 ### Run 1 (initial)
@@ -461,6 +491,21 @@ Destination, so this closure orphans nothing.
 | 10 | ISSUE | The new comment stated the wrong `make` mechanism. It said `ifndef` is false for an empty command-line override. Measured: `ifndef` tests NON-EMPTINESS, so the probe RUNS and its result is then discarded, because a command-line assignment beats the makefile's `:=` | `mk/gokrazy.mk` comment, the learned summary, this spec's Design Insights | Reworded in all three, after reproducing the behaviour with a two-line makefile |
 | 11 | ISSUE | Found by the closure author while verifying finding 10: the closure draft claimed no `docs/` source anchor named a changed file. The grep refuted it, and `docs/guide/appliance.md` Prerequisites offered `brew install` only, which this spec's Linux autodetect made incomplete | `docs/guide/appliance.md` | Rewritten with the Linux packages, the two-tool requirement, the search order and the `E2FS=` semantics, plus a `mk/gokrazy.mk` source anchor |
 
+### Run 4 (2026-08-05, closure re-measurement)
+
+No code changed, so no new review was recorded; the artifact's pinned `mk/gokrazy.mk`
+hash still matches. What changed is evidence, and it all moved the same way: the spec
+was PESSIMISTIC about its own state.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 12 | ISSUE | AC-6 was recorded UNRUN with the reason "no qemu, no xl2tpd/pppd, non-root, no `/dev/ppp`, no PPPoL2TP". Every clause was re-measured and every one is false on this host | AC-6, A-4, R-6, Goal Validation, Deviations, Wiring Verified, Audit Summary, the deferral shard | Both proofs RUN and green. All eight places corrected |
+| 13 | ISSUE | The durable runtime-kernel cache entry keyed `7.1.4-runtime-amd64-runtime-73cdffea-063a7289` held release `7.1.1-ze` and no `modules.builtin`, so the L2TP proof could not run | `~/.cache/ze/runtime-kernel/` | Rebuilt with `make ze-kernel KERNEL_ARCH=amd64`. The proof's refusal was fail-closed and correct, so no code fix was owed |
+| 14 | ISSUE | Audit row said the `x/net` pin was removed from "the 5 gokrazy builddir go.mods"; `git show 8dc8f389d` shows SIX | Implementation Audit, Requirements from Task | Corrected to 6 and the six named |
+| 15 | ISSUE | Pre-Commit AC-1 evidence said `git grep -c 20260218074004` reports one file with 8 hits; it now reports two files (spec 10, `plan/learned/1329` 1) | Pre-Commit Verification | Re-measured and corrected |
+| 16 | ISSUE | `make ze-doc-test` was recorded as "NOT run at closure" | Documentation Updates | RUN. It failed only on generated-index staleness whose delta is entirely foreign to this spec; regenerated, and all three discovery checks now exit 0 |
+| 17 | NOTE | `review_gate.py check --spec <full path>` reports a false BLOCKED | `scripts/dev/review_gate.py` `artifact_path` | Recorded in the Review Gate table above. Not a defect in this spec's scope: the commit gate derives the stem correctly |
+
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE outstanding. Findings 5 and 9 are recorded rather than fixed: 5 is a measured cost with a named remedy, 9 is a live deferral whose destination spec exists
 - [ ] All NOTEs recorded above
@@ -482,20 +527,21 @@ from implementation.
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | No tracked file carries the old version string | `git grep -c 20260218074004` reports one file, `plan/spec-gokrazy-init-bump.md`, 8 hits, all prose |
+| AC-1 | No tracked file carries the old version string | re-measured 2026-08-05: `git grep -c 20260218074004` reports TWO files, `plan/spec-gokrazy-init-bump.md` (10 hits) and `plan/learned/1329-gokrazy-init-bump.md` (1 hit), all prose. The earlier "one file, 8 hits" predated the learned summary landing. No manifest, no source file |
 | AC-2 | No `x/net` pin survives in a builddir manifest | `git grep golang.org/x/net -- 'gokrazy/ze/builddir/*go.mod'` returns nothing |
 | AC-3 | One tracked modcache version tree, working tree clean | `git ls-files gokrazy/modcache/` = 60 files; `ls` shows one `gokrazy@` directory; `git status --porcelain gokrazy/` is empty |
 | AC-4 | The kernel-lockdown anchors point at the new path | `grep -c 20260703061218 plan/spec-kernel-lockdown-hardening.md` = 2, and `grep -c 20260218074004` = 0 |
-| AC-5 | The scanned manifest carries the fix | `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/go.mod` requires `golang.org/x/net v0.56.0`. The image itself is NOT re-verified: `tmp/gokrazy/ze.img` is transient and gone |
-| AC-6 | UNRUN | no evidence exists, and none is claimed. Homed at `plan/spec-finish-appliance-qemu-evidence.md` |
+| AC-5 | The scanned manifest carries the fix, and the image still builds | `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/go.mod` requires `golang.org/x/net v0.56.0`. The image IS re-verified as of 2026-08-05: `make ze-vpp-hugepages-qemu-test` built one and booted it |
+| AC-6 | Appliance boots on the new init and carries an L2TP session | run 2026-08-05 on this host. `make ze-vpp-hugepages-qemu-test` → `VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64`. `sudo python3 scripts/evidence/effective-gokrazy-l2tp-ppp.py` → exit 0, `OK: gokrazy Ze appliance completed real L2TP PPP/IPCP with Ze ppp0 and LAC ppp0, dataplane ping, route inject, and clean teardown` |
 | AC-7 | Guardrail present | `grep -c "package-ecosystem: gomod" .github/dependabot.yml` = 1; the runbook is 502 lines with a 7-step bump procedure; `ai/INDEX.md` carries a dependabot/modcache pointer row |
+| AC-6 third element | `ze-qemu-integration-test` ze regression | RUN 2026-08-05. Most packages green (`bgp/reactor`, `l2tp`, `isis`, `iface/*`, `dhcpserver`, `fib/kernel`, `firewall/nft`, `ospf/transport`, `vrrp/transport` and others). FOUR packages red, and none is reachable from this spec's diff: `internal/component/ike/dataplane` (`TestXFRMReadbackShowsInstalledSA`, in `xfrm_readback_integration_linux_test.go`, an UNTRACKED file that does not exist at HEAD), `internal/plugins/ospf` (`TestXFRMTransportPolicyUpperProto`, `TestIPsecInstallerXFRMEndToEnd`, whose producer `xfrm_linux.go` is modified in the working tree), `internal/component/doctor` (`TestDoctorGnmiDefaultEndpointIsProbed`, `TestCheckListeners_*`, alongside a modified `checks_storage.go`), and `cmd/ze/hub` (a 120s timeout with a goroutine dump, load-sensitive). All four belong to the IPsec-dataplane and doctor work in flight in this same tree, not to the gokrazy bump. Evidence this spec cannot have caused them: `grep -rl "gokrazy.mk\|E2FS"` over those four package trees returns nothing, so a Makefile guard and a docs page have no path to them |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `make ze-gokrazy` (rebuilt image, new init) | `make ze-vpp-hugepages-qemu-test` | NOT verified. Read at closure: `test/appliance/serial-login.ci`, which the spec originally named here, asserts the offline argv[0] gate and boots nothing. The row was corrected rather than left to look satisfied |
-| gokrazy image boot on the new init | `ze-deployment-gokrazy-l2tp-ppp-test` | NOT verified. Requires root, `/dev/ppp`, PPPoL2TP. This is AC-6 |
-| `make ze-gokrazy` e2fsprogs guard | (no `.ci`; a Makefile guard) | Verified: `make -n ze-gokrazy` renders the guard, and its shell logic was exercised for empty `E2FS` (both tools reported missing), a directory holding only `mkfs.ext4` (` debugfs` reported), and `/usr/sbin` (nothing missing) |
+| `make ze-gokrazy` (rebuilt image, new init) | `make ze-vpp-hugepages-qemu-test` | VERIFIED 2026-08-05: `VPP-HUGEPAGES-QEMU: PASS cmdline has hugepages=64, hugepages-total=64`. The assertion is an SSH capture of `show host kernel \| json` and `show host memory \| json` from inside the booted appliance, so it discriminates: a kernel that ignored the reservation returns 0 and the script FAILs. (`test/appliance/serial-login.ci`, which the spec originally named here, asserts the offline argv[0] gate and boots nothing) |
+| gokrazy image boot on the new init | `ze-deployment-gokrazy-l2tp-ppp-test` | VERIFIED 2026-08-05: exit 0, `OK: gokrazy Ze appliance completed real L2TP PPP/IPCP with Ze ppp0 and LAC ppp0, dataplane ping, route inject, and clean teardown`. Needed one repair first: the durable runtime-kernel cache entry held release `7.1.1-ze` with no `modules.builtin` while `internal/appliance/kernel.version` pins `7.1.4`, so the proof refused (exit 1, fail-closed). `make ze-kernel KERNEL_ARCH=amd64` rebuilt it and the proof then passed |
+| `make ze-gokrazy` e2fsprogs guard | (no `.ci`; a Makefile guard) | Verified TWICE. (a) Logic, re-exercised 2026-08-05 across four inputs: empty `E2FS` → `REJECT missing: mkfs.ext4 debugfs`; a directory holding only `mkfs.ext4` → `REJECT missing: debugfs`; a nonexistent directory → `REJECT missing: mkfs.ext4 debugfs`; `/usr/sbin` → PASS. It fails closed in every negative case. (b) End-to-end for real: `scripts/evidence/effective-gokrazy-l2tp-ppp.py` shells out to `make ze-gokrazy` (`:896`, `:914`), and the passing run's log shows `/usr/sbin/mkfs.ext4 -q -F ...` writing the image. So the autodetect resolved `/usr/sbin`, the two-tool guard admitted it, the image built, and it booted far enough to carry an L2TP session — which also proves the `debugfs` credential injection wrote `/perm`, since ze authenticated over SSH |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -503,7 +549,7 @@ from implementation.
 | A-1 | confirmed | the committed init `go.mod` requires `golang.org/x/net v0.56.0` |
 | A-2 | confirmed | the re-vendored source is a clean upstream replace; no local patch markers |
 | A-3 | confirmed | one tracked and one on-disk modcache version directory; `git status gokrazy/` clean |
-| A-4 | **broken as stated, and unresolved** | the assumption was that the 4-month init delta does not break appliance boot. Nothing has tested it. It is NOT confirmed, and the spec closes saying so: the test that would resolve it is AC-6, homed at `plan/spec-finish-appliance-qemu-evidence.md` |
+| A-4 | **confirmed 2026-08-05** | the assumption was that the 4-month init delta does not break appliance boot or the appliance API ze uses. AC-6 tested it and it holds: the appliance built on the bumped init boots, gokrazy init supervises ze, ze answers `show host kernel` / `show host memory` over SSH, and a full L2TP PPP/IPCP session with dataplane ping, route inject and clean teardown completes against a real xl2tpd LAC. The earlier "broken as stated, and unresolved" was a statement about missing evidence, not about the assumption |
 | A-5 | confirmed | no builddir manifest pins `x/net`, and the upstream require carries `v0.56.0` |
 
 ### Documentation Verified

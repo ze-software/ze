@@ -31,10 +31,12 @@ A runbook came with it, so the next alert of this class costs less.
 - Probed for BOTH `mkfs.ext4` and `debugfs` over probing the first alone. The
   build formats `/perm` with one and injects credentials with the other, so a
   one-tool probe can select a directory that dies later.
-- Closed the spec with AC-6 (QEMU appliance boot plus full L2TP proof) UNRUN
-  over holding the spec open. The run needs root, `/dev/ppp` and PPPoL2TP.
-  `plan/spec-finish-appliance-qemu-evidence.md` already names it as a work item
-  and exists to execute it on a qualifying host.
+- RAN AC-6 (QEMU appliance boot plus full L2TP proof) at closure rather than
+  deferring it. An earlier draft of this summary said the spec would close with
+  AC-6 unrun because the run needs root, `/dev/ppp` and PPPoL2TP. That reason
+  was re-measured on 2026-08-05 and every clause of it was false by then, so the
+  deferral was withdrawn and the proofs were executed. `ai/rules/platform-linux.md`
+  does not accept "needs hardware" as a skip, and the hardware was present.
 
 ## Consequences
 
@@ -51,11 +53,15 @@ A runbook came with it, so the next alert of this class costs less.
   repo forks one probe shell. Deferred expansion would confine that cost to the
   gokrazy targets. Measured as a NOTE at closure, not fixed.
 - The image build (AC-5) is the proof that the bump compiles. The appliance boot
-  is a separate proof owned by a separate spec. A green `make ze-gokrazy` is not
-  evidence that the new init supervises services.
-- AC-6 is unrun at closure. The evidence run lives at
-  `plan/spec-finish-appliance-qemu-evidence.md`, which also holds the same run
-  for `iface-absent-link-graceful` AC-3. One run satisfies both rows.
+  is a separate proof. A green `make ze-gokrazy` is not evidence that the new
+  init supervises services, which is why AC-6 exists and why it had to be run.
+- AC-6 passed at closure, so the bump is proven end to end: the appliance built
+  on the new init boots, gokrazy init supervises ze, ze answers its CLI over
+  SSH, and a full L2TP PPP/IPCP session against a real xl2tpd LAC completes with
+  dataplane ping, route inject and clean teardown.
+  `plan/spec-finish-appliance-qemu-evidence.md` stays open for its OTHER row
+  (`iface-absent-link-graceful` AC-3); the assumption that one run satisfies
+  both is now testable rather than assumed.
 
 ## Gotchas
 
@@ -95,6 +101,34 @@ A runbook came with it, so the next alert of this class costs less.
   `plan/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md`; removing
   the redirection alone does not fix it, because a successful run also prints a
   version banner there.
+
+- **A deferral whose reason is "this host lacks X" expires. Re-measure it before
+  you close on it.** This one was written on 2026-07-10 and read "no qemu, no
+  xl2tpd/pppd, non-root, no `/dev/ppp`, no PPPoL2TP". By 2026-08-05 every clause
+  was false and the whole proof ran in under an hour. Nothing in the repo
+  notices a host gaining a package, so the stale reason survives every audit
+  that reads the spec instead of the machine. `make ze-deployment-preflight`
+  answers this in one command and is the cheapest thing to run before believing
+  an environmental deferral.
+- The durable runtime-kernel cache can hold an entry whose KEY names the pinned
+  version while its CONTENTS are a different release. Here
+  `7.1.4-runtime-amd64-runtime-<hash>` carried `lib/modules/7.1.1-ze` and no
+  `modules.builtin`. `effective-gokrazy-l2tp-ppp.py` catches it, refuses with
+  exit 1 rather than booting an appliance whose ze would crash-loop on its
+  fail-closed module probe, and names the fix. Do not read that refusal as a
+  missing prerequisite: it is a stale cache, and
+  `make ze-kernel KERNEL_ARCH=amd64` clears it.
+- That proof runs under `sudo`, and `sudo` resets `HOME`, so it probes ROOT's
+  kernel cache while the kernel you built lives in yours. Pass
+  `sudo -E env HOME=<you> XDG_CACHE_HOME=<your cache>` or the run reports a cold
+  cache that is not cold.
+- `review_gate.py check` wants the spec STEM, not the spec PATH.
+  `artifact_path` does `spec.removeprefix("spec-")`, which does not strip a
+  leading `plan/`, so `--spec plan/spec-<name>.md` looks under
+  `tmp/review/plan/` and reports BLOCKED while the real artifact sits in
+  `tmp/review/`. `commit_helper.py` derives the stem itself, so the commit gate
+  is right and a hand-run check with a path is what lies. Pass
+  `--spec <name>`.
 
 ## Files
 

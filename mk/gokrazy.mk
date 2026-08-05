@@ -48,9 +48,17 @@ GOKRAZY_PERM_4K    := 241660
 GOKRAZY_PERM_SKIP  := 282624
 # e2fsprogs sbin dir holding mkfs.ext4 + debugfs. Linux ships them in /usr/sbin
 # (or /sbin); macOS keg-only homebrew keeps them under the Cellar. Autodetect the
-# first location that actually has mkfs.ext4; override with `make ... E2FS=/path`.
+# first location that has BOTH tools; override with `make ... E2FS=/path`.
+# Both, not just mkfs.ext4: the image build formats /perm with mkfs.ext4 and then
+# injects credentials with debugfs, so a directory carrying only the first passes
+# a one-tool probe and dies later. `make ... E2FS=` (explicitly empty) does not
+# resume autodetect. Measured: ifndef tests whether the variable expands to
+# something NON-EMPTY, so an empty override still enters this block and the probe
+# RUNS; its result is then discarded, because a command-line assignment beats the
+# makefile's `:=`. E2FS stays empty and the guard below rejects it. Pass a path,
+# or leave E2FS unset.
 ifndef E2FS
-E2FS               := $(shell for d in /usr/sbin /sbin /usr/local/sbin $$(ls -d /opt/homebrew/Cellar/e2fsprogs/*/sbin 2>/dev/null); do [ -x "$$d/mkfs.ext4" ] && { echo "$$d"; break; }; done)
+E2FS               := $(shell for d in /usr/sbin /sbin /usr/local/sbin $$(ls -d /opt/homebrew/Cellar/e2fsprogs/*/sbin 2>/dev/null); do [ -x "$$d/mkfs.ext4" ] && [ -x "$$d/debugfs" ] && { echo "$$d"; break; }; done)
 endif
 GOKRAZY_QEMU_ACCEL ?= tcg
 GOKRAZY_QEMU_AARCH64_BIOS ?= /opt/homebrew/share/qemu/edk2-aarch64-code.fd
@@ -86,7 +94,8 @@ GOKRAZY_CERT_DIR := tmp/gokrazy/certs/$(CERTNAME)
 GOKRAZY_TEMPLATE ?= gokrazy/ze/ze.conf
 
 ze-gokrazy: ze bin/gok
-	@test -f $(E2FS)/mkfs.ext4 || { echo "error: e2fsprogs not found (brew install e2fsprogs)"; exit 1; }
+	@miss=""; for t in mkfs.ext4 debugfs; do { [ -n "$(E2FS)" ] && [ -x "$(E2FS)/$$t" ]; } || miss="$$miss $$t"; done; \
+		[ -z "$$miss" ] || { echo "error: e2fsprogs tool(s) not found:$$miss (searched '$(E2FS)'). Install e2fsprogs (Debian/Ubuntu: apt install e2fsprogs; Fedora: dnf install e2fsprogs; macOS: brew install e2fsprogs), or pass the sbin directory that holds BOTH mkfs.ext4 and debugfs: make ze-gokrazy E2FS=/path/to/sbin"; exit 1; }
 	@mkdir -p tmp/gokrazy/init
 	@if [ -n "$(ZEFS)" ]; then \
 		echo "--- Using external database: $(ZEFS) ---"; \

@@ -30,8 +30,20 @@ to be executed on a root host".
 ### Work items (re-homed 2026-07-16 from `plan/deferrals.md`)
 
 - **Full QEMU gokrazy L2TP appliance proof (from spec-gokrazy-init-bump AC-6, 2026-07-10)** -
-  build + boot + xl2tpd/pppd session. The bump itself is verified via the image build; this
-  is the boot-and-run proof.
+  **DISCHARGED 2026-08-05.** It ran at the source spec's closure on the dev host, which by
+  then carried `qemu-system-x86_64`, `xl2tpd`, `pppd`, `/dev/ppp`, `l2tp_ppp` and kvm-group
+  access: `make ze-vpp-hugepages-qemu-test` -> `VPP-HUGEPAGES-QEMU: PASS cmdline has
+  hugepages=64, hugepages-total=64`, and `scripts/evidence/effective-gokrazy-l2tp-ppp.py`
+  -> exit 0, `OK: gokrazy Ze appliance completed real L2TP PPP/IPCP with Ze ppp0 and LAC
+  ppp0, dataplane ping, route inject, and clean teardown`. The row in
+  `plan/deferrals/gokrazy-init-bump.md` is `done`. This spec stays OPEN for its OTHER row
+  (iface-absent-link-graceful AC-3); A-2 above assumed one run satisfies both, and that
+  assumption is now testable rather than assumed.
+  -> Trap found while discharging it: the durable runtime-kernel cache entry can be keyed
+  `<pinned-version>-...` while holding a DIFFERENT release with no `modules.builtin`. The
+  proof fails closed with exit 1 and names the fix (`make ze-kernel KERNEL_ARCH=amd64`).
+  Under `sudo` it probes ROOT's cache, so pass `XDG_CACHE_HOME` at the cache holding the
+  kernel.
   -> Constraint (added 2026-08-03 at the source spec's closure, knowledge
   `plan/learned/1329-gokrazy-init-bump.md`): the boot proof is
   `make ze-vpp-hugepages-qemu-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
