@@ -1,7 +1,11 @@
 package crashlog
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -271,5 +275,50 @@ func TestHandlePanic(t *testing.T) {
 	}
 	if !strings.Contains(content, "=== Stack Trace ===") {
 		t.Error("crash file missing stack trace")
+	}
+}
+
+// TestFatalEnvKeyReachesStderrAfterInit verifies that a fatal env diagnostic
+// still reaches the operator once Init installed the crash-capture redirect.
+//
+// Init replaces fd 2 with a pipe that a reader goroutine drains, and that
+// goroutine dies with the process. A caller that writes to stderr and calls
+// os.Exit therefore reports nothing unless env writes to the saved descriptor.
+//
+// VALIDATES: after Init, env.Get on an unregistered key names the key on the
+// real stderr and exits 2.
+// PREVENTS: a silent exit 2. `ze start` aborted on the unregistered key
+// ze.web.certificate and printed nothing, which held the website deploy red
+// for a day (2026-08-05).
+func TestFatalEnvKeyReachesStderrAfterInit(t *testing.T) {
+	const key = "ze.test.never.registered"
+
+	if os.Getenv("ZE_TEST_CRASHLOG_FATAL_CHILD") == "1" {
+		Init()
+		_ = env.Get(key)
+		os.Exit(8) // unreachable: Get exits 2 on an unregistered key
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestFatalEnvKeyReachesStderrAfterInit") //nolint:gosec // the test binary itself
+	cmd.Env = append(os.Environ(),
+		"ZE_TEST_CRASHLOG_FATAL_CHILD=1",
+		"ZE_CRASH_DIR="+t.TempDir(),
+	)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("child exit = %v, want ExitError; stderr: %s", err, stderr.String())
+	}
+	if exitErr.ExitCode() != 2 {
+		t.Errorf("child exit code = %d, want 2", exitErr.ExitCode())
+	}
+	want := "FATAL: env.Get called with unregistered key: " + key
+	if !strings.Contains(stderr.String(), want) {
+		t.Errorf("child stderr = %q, want it to contain %q", stderr.String(), want)
 	}
 }

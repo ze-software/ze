@@ -46,6 +46,11 @@ func Init() {
 		if err := redirectStderr(syslogAddr, crashDir); err != nil {
 			writeMsg(origStderr, "warning: crash capture: "+err.Error()+"\n")
 		}
+
+		// redirectStderr replaced os.Stderr with the pipe. A caller that writes
+		// a fatal diagnostic and exits gets no reader, so point env at the
+		// descriptor saved above, which is still the real stderr.
+		env.SetFatalOutput(origStderr)
 	})
 }
 

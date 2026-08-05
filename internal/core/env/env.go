@@ -19,6 +19,7 @@
 package env
 
 import (
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -128,14 +129,47 @@ func SetBool(key string, value bool) error {
 	return Set(key, strconv.FormatBool(value))
 }
 
+// fatalOut receives the fatal diagnostic that precedes os.Exit.
+//
+// It is NOT os.Stderr at the moment of the write. crashlog redirects stderr
+// into a pipe that a reader goroutine drains, and that goroutine dies with the
+// process: a message written to the pipe and followed by os.Exit is never read,
+// so the operator sees an exit code and nothing else. crashlog calls
+// SetFatalOutput with the descriptor it saved before the redirect, which stays
+// the real stderr. Full case: plan/learned -- ze start aborted on an
+// unregistered key and reported no reason (2026-08-05).
+var (
+	fatalOut   io.Writer = os.Stderr
+	fatalOutMu sync.RWMutex
+)
+
+// SetFatalOutput directs the fatal diagnostic to w. crashlog calls it with the
+// saved original stderr when it installs the crash-capture redirect.
+func SetFatalOutput(w io.Writer) {
+	if w == nil {
+		return
+	}
+	fatalOutMu.Lock()
+	fatalOut = w
+	fatalOutMu.Unlock()
+}
+
+// writeFatal writes msg to the fatal output. The caller exits after it.
+func writeFatal(msg string) {
+	fatalOutMu.RLock()
+	w := fatalOut
+	fatalOutMu.RUnlock()
+	io.WriteString(w, msg) //nolint:errcheck // pre-exit diagnostic
+}
+
 // mustBeRegistered aborts if key is not in the registry.
 // This catches typos and ensures all env vars are documented.
 func mustBeRegistered(key string) {
 	if !IsRegistered(key) {
 		// Unregistered env var is a programming error.
-		// Use os.Stderr + os.Exit since this package cannot import slogutil (circular).
+		// Use writeFatal + os.Exit since this package cannot import slogutil (circular).
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("FATAL: env.Get called with unregistered key: ").Str(key).Byte('\n').Slice()) //nolint:errcheck // pre-exit
+		writeFatal(tb.Str("FATAL: env.Get called with unregistered key: ").Str(key).Byte('\n').Slice())
 		os.Exit(2)
 	}
 }
