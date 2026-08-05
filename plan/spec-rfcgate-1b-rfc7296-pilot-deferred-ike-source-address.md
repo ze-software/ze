@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -22,6 +22,10 @@
      and closure must resolve its rows, so name the file from the start. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+**Status set to `blocked` on 2026-08-05**, from `skeleton`. Reason: blocked: open owner question OR-WP8-1, both routes change listener lifecycle. It was
+reachable from `/ze-status` as actionable until now, which is what a triage of every
+`*-deferred-*` spec found.
 
 ## Task
 

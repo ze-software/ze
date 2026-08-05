@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Scope | docs |
 | Depends | - |
 | Phase | - |
@@ -10,6 +10,10 @@
 | Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+**Status set to `blocked` on 2026-08-05**, from `skeleton`. Reason: blocked: this spec is a JUDGEMENT for Thomas, not work. Its own Task says nobody may answer it on his behalf. It was
+reachable from `/ze-status` as actionable until now, which is what a triage of every
+`*-deferred-*` spec found.
 
 ## Task
 

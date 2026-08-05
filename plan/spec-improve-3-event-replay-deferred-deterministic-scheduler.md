@@ -2,10 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Depends | `plan/spec-improve-3-event-replay.md` (capture/replay must land first) |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-05 |
+
+**Status set to `blocked` on 2026-08-05**, from `skeleton`. The `Depends` row above
+already named the blocker, but `Status` is what `/ze-status` reads, so the spec
+still presented as startable. Its own Task says it cannot begin before capture and
+replay exist. A triage of every `*-deferred-*` spec found it.
 
 ## Post-Compaction Recovery
 

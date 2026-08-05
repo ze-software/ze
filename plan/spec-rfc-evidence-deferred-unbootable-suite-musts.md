@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -10,6 +10,10 @@
 | Updated | 2026-08-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+**Status set to `blocked` on 2026-08-05**, from `skeleton`. Reason: blocked: its own Task says the first deliverable is a decision, and the decision is the owner's. It was
+reachable from `/ze-status` as actionable until now, which is what a triage of every
+`*-deferred-*` spec found.
 
 ## Task
 

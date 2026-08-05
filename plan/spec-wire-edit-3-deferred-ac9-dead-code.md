@@ -13,6 +13,34 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+**This spec is the single owner of the EBGP wire cache deletion, as of
+2026-08-05.** `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`
+described the same deletion, listed the same four symbols, and cited the same
+AC-9 of `plan/learned/1319-wire-edit-3-aspath-fold.md`. Two specs for one change
+means two closures, two reviews and a race over the same files, so the duplicate
+was removed rather than kept in step. This file survived because it carries the
+nuance the other omitted: the two slot fields DO have non-test readers in
+`recent_cache.go`, and a delete that misses them does not compile.
+
+The duplicate also recorded one thing worth keeping. It gave the reason the work
+was deferred rather than done at closure: the deletion touches the read-pool
+buffer lifetime in `recent_cache.go`, which is the area a prior fix had to repair
+(child 3's own R-2 and R-3). It wants an implementation phase with the
+poison-read soak, not a closure-time edit.
+
+**Do not start this while `internal/component/bgp/reactor/received_update.go` and
+`internal/perf/allocgate.go` carry uncommitted edits.** On 2026-08-05 a concurrent
+session held comment-only changes in both, and one of those comments names THIS
+spec as the owner of the deletion. Deleting the symbols underneath that session
+would discard its uncommitted work (`ai/rules/never-destroy-work.md`). Check
+`git status` on both files first; the edits are small and land soon.
+
+**`internal/perf/allocgate.go` is part of the delete, and it is easy to miss.**
+`AllocCeilings` registers `BenchmarkEBGPWireCacheHitParallel` with a ceiling of 0.
+That benchmark exercises the cache being deleted, so the entry and the benchmark
+go with it. The concurrent session's uncommitted comment already says the entry
+"stays until the cache is deleted".
+
 The AS-path fold that landed in `ddf04953a` and `e2037e598` moved eBGP AS-path
 prepending onto the edit-set path. The per-`ReceivedUpdate` EBGP wire cache it
 replaced was left in the tree. `plan/learned/1319-wire-edit-3-aspath-fold.md` recorded
