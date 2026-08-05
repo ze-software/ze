@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -50,6 +51,12 @@ func init() {
 		os.Exit(1)
 	}
 }
+
+// maxDurationCheckInterval is how often the plugin re-checks whether a live
+// announce has outlived max-mitigation-duration. One second is finer than any
+// cap the YANG admits (the minimum meaningful value is 1) and costs one wakeup
+// per second holding no lock unless an announce is live.
+const maxDurationCheckInterval = time.Second
 
 // sdkDispatcher is the production routeDispatcher: it sends rendered update-text
 // commands to the BGP engine via the plugin SDK's UpdateRoute over the RPC path.
@@ -99,12 +106,17 @@ func runEngine(conn net.Conn) int {
 		unsubDetect        func()
 		unsubCharacterized func()
 		unsubCleared       func()
+		unsubOngoing       func()
 	)
 
 	subscribe := func(bus ze.EventBus, r *responder) {
 		unsubDetect = ddosevent.Detected.Subscribe(bus, r.onDetected)
 		unsubCharacterized = ddosevent.Characterized.Subscribe(bus, r.onCharacterized)
 		unsubCleared = ddosevent.Cleared.Subscribe(bus, r.onCleared)
+		// The leak probe's only driver. Without it probe.Tick never runs outside
+		// tests, and onCleared ignores the detector's clear while mitigating, so
+		// nothing withdraws an announce at all.
+		unsubOngoing = ddosevent.Ongoing.Subscribe(bus, r.onOngoing)
 	}
 
 	unsubscribe := func() {
@@ -117,7 +129,33 @@ func runEngine(conn net.Conn) int {
 		if unsubCleared != nil {
 			unsubCleared()
 		}
+		if unsubOngoing != nil {
+			unsubOngoing()
+		}
 	}
+
+	// One long-lived worker for the whole plugin, not one per announce: it reads
+	// whichever responder is live through activeResponder, so a config apply that
+	// replaces the responder needs no restart here, and there is no goroutine per
+	// event (ai/rules/goroutine-lifecycle.md). It selects on ctx, which
+	// sdk.SignalContext cancels at shutdown.
+	//
+	// enforceMaxDuration is a no-op unless an announce is live and the operator
+	// set a cap, so this ticks cheaply through the common idle case.
+	go func() {
+		t := time.NewTicker(maxDurationCheckInterval)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if r := activeResponder.Load(); r != nil {
+					r.enforceMaxDuration()
+				}
+			}
+		}
+	}()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseSections(sections)

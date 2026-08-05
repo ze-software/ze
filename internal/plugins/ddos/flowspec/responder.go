@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -113,6 +114,12 @@ type responder struct {
 	target ddosevent.VectorTuple
 	match  flowspecMatch
 	probe  *probe
+	// announcedAt is when the live announce went out, and now is the clock that
+	// reads it. enforceMaxDuration compares the two against
+	// cfg.MaxMitigationDuration. now is a field so a test can move time without
+	// sleeping; production leaves it nil and gets time.Now.
+	announcedAt time.Time
+	now         func() time.Time
 	// published mirrors {active, target, probing} for readers that must not wait
 	// on mu. mu is held across the announce and the withdraw so concurrent
 	// mitigations stay ordered, and each of those is a dispatcher round trip:
@@ -137,7 +144,7 @@ type announceStatus struct {
 }
 
 func newResponder(cfg *Config, dispatcher routeDispatcher) *responder {
-	r := &responder{cfg: cfg, dispatcher: dispatcher}
+	r := &responder{cfg: cfg, dispatcher: dispatcher, now: time.Now}
 	// Publish the idle snapshot before the responder is reachable, so status()
 	// never has to interpret a nil pointer as "no announcement".
 	r.setAnnouncement(false, ddosevent.VectorTuple{}, nil)
@@ -259,6 +266,7 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 	}
 	p := newProbe(r.cfg.HoldDown, r.cfg.ProbeInterval, r.cfg.ProbeWindow, r.cfg.ProbeRate, r.cfg.BackoffCap)
 	p.Start()
+	r.announcedAt = r.clock()
 	r.setAnnouncement(true, target, p)
 	logger().Info("ddos-flowspec: announced",
 		"target", target.DstPrefix, "action", action, "reason", reason)
@@ -287,6 +295,64 @@ func (r *responder) probeTick(observedBps float64) {
 		logger().Info("ddos-flowspec: probe saturated, re-tightening", "target", r.target.DstPrefix)
 	case probeActionNone, probeActionProbe:
 	}
+}
+
+// clock reads the responder's time source. Production leaves now nil at
+// construction only in a zero-value responder; newResponder sets time.Now.
+func (r *responder) clock() time.Time {
+	if r.now == nil {
+		return time.Now()
+	}
+	return r.now()
+}
+
+// onOngoing feeds the leak probe its input.
+//
+// This is the probe's ONLY production driver. Without it probe.Tick was never
+// called outside tests, and because onCleared deliberately ignores the
+// detector's clear while mitigating ("leak-probe decides"), nothing withdrew a
+// flowspec announce at all: the rule stayed on the wire until an operator
+// removed it by hand.
+//
+// AttackOngoing is the right source rather than a synthetic ticker. It carries
+// CurrentBps measured behind the filter, which is exactly what probeStateProbing
+// compares against probe-rate, and the detector already emits it on its own
+// cadence for every plugin that wants it (ddos/flowtriq and ddos/observe
+// subscribe today). Driving the probe from a bare timer would have to invent an
+// observed rate, and inventing 0 lifts mitigation during an active attack.
+func (r *responder) onOngoing(e *ddosevent.AttackOngoing) {
+	r.probeTick(e.CurrentBps)
+}
+
+// enforceMaxDuration withdraws an announce that has outlived
+// max-mitigation-duration.
+//
+// The YANG for both ddos plugins promises this and defaults it to 3600, so
+// every operator was told a live rule lifts after an hour. Neither plugin read
+// the leaf. A validated config leaf that does nothing is a promise the box does
+// not keep.
+//
+// Zero means no cap, as the YANG description states. It is checked explicitly
+// rather than falling out of the arithmetic, because a zero read as a deadline
+// would expire every announce on its first tick.
+//
+// It is a wall-clock cap on purpose, not a probe-tick count: the cap must fire
+// when the attack goes quiet and AttackOngoing STOPS arriving, which is the case
+// the probe cannot see.
+func (r *responder) enforceMaxDuration() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.active || r.cfg.MaxMitigationDuration <= 0 {
+		return
+	}
+	limit := time.Duration(r.cfg.MaxMitigationDuration) * time.Second
+	if r.clock().Sub(r.announcedAt) < limit {
+		return
+	}
+	logger().Info("ddos-flowspec: max-mitigation-duration reached, withdrawing",
+		"target", r.target.DstPrefix, "seconds", r.cfg.MaxMitigationDuration)
+	r.withdraw()
 }
 
 func (r *responder) withdraw() {

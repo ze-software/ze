@@ -480,3 +480,124 @@ func TestLocalVictimWithdrawsBlackholeFallback(t *testing.T) {
 		t.Errorf("the reclassification must dispatch a withdraw; dispatched: %v", disp.cmds)
 	}
 }
+
+// TestOngoingDrivesTheLeakProbe wires the probe to its input.
+//
+// VALIDATES: an AttackOngoing sample advances the probe, and a sample below
+// probe-rate eventually withdraws the announce.
+// PREVENTS: the state this replaces. onCleared ignores the detector's clear
+// "while mitigating (leak-probe decides)", and the probe had no production
+// driver at all, so nothing withdrew a flowspec announce once it was out. The
+// rule stayed on the wire until an operator removed it.
+func TestOngoingDrivesTheLeakProbe(t *testing.T) {
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", Action: "rate-limit", RateLimitBytes: 9600,
+		HoldDown: 1, ProbeInterval: 1, ProbeWindow: 1, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+
+	target := ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17}
+	r.onCharacterized(&ddosevent.AttackCharacterized{Target: target, Direction: ddosevent.DirectionRemote})
+	if !r.active {
+		t.Fatal("setup: the announce must be out before the probe can lift it")
+	}
+
+	// Samples below probe-rate: the attack has stopped behind the filter.
+	for i := 0; i < 8 && r.active; i++ {
+		r.onOngoing(&ddosevent.AttackOngoing{Target: target, CurrentBps: 0})
+	}
+
+	if r.active {
+		t.Error("a quiet probe window must withdraw the announce")
+	}
+}
+
+// TestOngoingAtProbeRateKeepsTheAnnounce is the discriminator for the test
+// above: the probe must not lift while traffic is still saturating.
+//
+// VALIDATES: a sample at or above probe-rate re-tightens instead of clearing.
+// PREVENTS: driving the probe with a fabricated zero. Feeding it a constant 0
+// would pass the previous test with no traffic source wired at all, and would
+// lift mitigation during an active attack.
+func TestOngoingAtProbeRateKeepsTheAnnounce(t *testing.T) {
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", Action: "rate-limit", RateLimitBytes: 9600,
+		HoldDown: 1, ProbeInterval: 1, ProbeWindow: 1, ProbeRate: 1000, BackoffCap: 3600,
+	}, disp)
+
+	target := ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17}
+	r.onCharacterized(&ddosevent.AttackCharacterized{Target: target, Direction: ddosevent.DirectionRemote})
+
+	for range 20 {
+		r.onOngoing(&ddosevent.AttackOngoing{Target: target, CurrentBps: 5000})
+	}
+
+	if !r.active {
+		t.Error("the announce must survive while traffic still saturates probe-rate")
+	}
+}
+
+// TestMaxMitigationDurationWithdraws enforces the cap the YANG has always
+// promised.
+//
+// VALIDATES: an announce older than max-mitigation-duration is withdrawn.
+// PREVENTS: the documented default lying. Both ddos plugins parse, default to
+// 3600 and range-validate this leaf, and neither ever read it, so every operator
+// was promised a one-hour cap that did not exist.
+func TestMaxMitigationDurationWithdraws(t *testing.T) {
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", Action: "rate-limit", RateLimitBytes: 9600,
+		MaxMitigationDuration: 60,
+		HoldDown:              300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+
+	base := time.Now()
+	r.now = func() time.Time { return base }
+
+	target := ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17}
+	r.onCharacterized(&ddosevent.AttackCharacterized{Target: target, Direction: ddosevent.DirectionRemote})
+	if !r.active {
+		t.Fatal("setup: the announce must be out before the cap can lift it")
+	}
+
+	r.now = func() time.Time { return base.Add(59 * time.Second) }
+	r.enforceMaxDuration()
+	if !r.active {
+		t.Error("the cap must not fire before max-mitigation-duration elapses")
+	}
+
+	r.now = func() time.Time { return base.Add(61 * time.Second) }
+	r.enforceMaxDuration()
+	if r.active {
+		t.Error("an announce older than max-mitigation-duration must be withdrawn")
+	}
+}
+
+// TestMaxMitigationDurationZeroIsNoCap pins the documented escape.
+//
+// VALIDATES: "0 = no cap", as both YANG descriptions state.
+// PREVENTS: a zero being read as "expire immediately", which would withdraw
+// every announce on the first tick.
+func TestMaxMitigationDurationZeroIsNoCap(t *testing.T) {
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", Action: "rate-limit", RateLimitBytes: 9600,
+		MaxMitigationDuration: 0,
+		HoldDown:              300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+
+	base := time.Now()
+	r.now = func() time.Time { return base }
+
+	target := ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17}
+	r.onCharacterized(&ddosevent.AttackCharacterized{Target: target, Direction: ddosevent.DirectionRemote})
+
+	r.now = func() time.Time { return base.Add(72 * time.Hour) }
+	r.enforceMaxDuration()
+
+	if !r.active {
+		t.Error("0 means no cap: the announce must survive any elapsed time")
+	}
+}
