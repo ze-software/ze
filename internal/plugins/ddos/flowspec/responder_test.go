@@ -428,3 +428,55 @@ func TestSuppressMitigationWithdrawsBlackholeFallback(t *testing.T) {
 		t.Errorf("the exemption must dispatch a withdraw; dispatched: %v", disp.cmds)
 	}
 }
+
+// TestLocalVictimWithdrawsBlackholeFallback covers the second instance of the
+// same leak, which a targeted patch to the SuppressMitigation branch alone would
+// have left standing.
+//
+// Detect classifies direction from the raw target prefix; characterization
+// re-classifies from the NARROWED victim (detect/characterize.go). A /24 that
+// looked remote can narrow to a box-owned /32, so direction flips Remote to
+// Local between the two events, after the blackhole fallback is already out.
+//
+// VALIDATES: an upstream announce is withdrawn once the victim turns out to be
+// local, because on-host mitigation owns it from then on.
+// PREVENTS: a flowspec rule surviving upstream for a destination this box is
+// mitigating itself. The detector states the contract: "the characterized event
+// is authoritative -- responders withdraw any drop the fast AttackDetected
+// installed".
+func TestLocalVictimWithdrawsBlackholeFallback(t *testing.T) {
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", BlackholeFallback: true,
+		HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+
+	target := ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17}
+
+	r.onDetected(&ddosevent.AttackDetected{
+		Target:    target,
+		Direction: ddosevent.DirectionRemote,
+		Severity:  ddosevent.SeverityCritical,
+	})
+	if !r.active {
+		t.Fatal("setup: the blackhole fallback must be installed before the reclassification")
+	}
+
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target:    target,
+		Direction: ddosevent.DirectionLocal,
+	})
+
+	if r.active {
+		t.Error("a locally-mitigated victim must not keep an upstream announce")
+	}
+	var withdrew bool
+	for _, c := range disp.cmds {
+		if strings.Contains(c, "del") {
+			withdrew = true
+		}
+	}
+	if !withdrew {
+		t.Errorf("the reclassification must dispatch a withdraw; dispatched: %v", disp.cmds)
+	}
+}

@@ -220,6 +220,16 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 		return
 	}
 	if e.Direction == ddosevent.DirectionLocal {
+		// Same reason as the exemption above, reached a different way. Detect
+		// classifies direction from the raw target prefix; characterization
+		// re-classifies from the NARROWED victim (detect/characterize.go), so a
+		// /24 that looked remote can narrow to a box-owned /32 and flip Remote
+		// to Local after the blackhole fallback is already announced. On-host
+		// mitigation owns it from here, and the upstream rule must not outlive
+		// the classification that justified it.
+		if r.active {
+			r.withdraw()
+		}
 		logger().Info("ddos-flowspec: local victim, leaving to on-host mitigation", "target", e.Target.DstPrefix)
 		return
 	}
