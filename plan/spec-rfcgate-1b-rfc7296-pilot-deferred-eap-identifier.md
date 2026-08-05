@@ -7,12 +7,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Deferral shard | - |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -41,6 +41,58 @@ the defect predates that work and survives it unchanged (`ai/rules/rule-preceden
 the closing-order clause). It is a different RFC from the pilot's subject, and the
 obligation is UNEXTRACTED: `rfc/short/rfc3748.md` carries `4.2-1` (retransmission),
 `4.2-2` (format) and `4.2-3` (implicit success), none of which is this sentence.
+
+## STATUS 2026-08-05: the RFC obligation is MET. One owner decision remains.
+
+**Steps 1, 2, 3, 5 and 6 are done and committed (`ee305d5bc`). Step 4 is an owner
+decision and is the only thing holding this spec open.**
+
+The sender-side violation is fixed. `Session.failure` now takes the packet it
+answers and stamps that Identifier, and the `result.Done` arm of
+`Session.handleMethod` assigns `response.Identifier` instead of incrementing
+(`internal/component/ike/eap/eap.go`). All five `failure` call sites were audited
+in the same sweep and every one had the answered Response in scope, so no producer
+was left behind. A Request still increments, because it opens a new exchange, and
+`TestRequestIdentifierStillIncrements` pins that boundary: freezing the Identifier
+everywhere would break retransmission matching and a Failure-only assertion would
+not notice.
+
+Extracted as `RFC3748-4.2-4` in `rfc/short/rfc3748.md`. The three existing
+Section 4.2 ordinals were NOT renumbered, as step 2 required; `4.2-3` was already
+taken by the implicit-success SHOULD, so the new row took the next free one.
+Tagged single-polarity positive, with the reason recorded in the row: the
+obligation binds the SENDER, so a negative case would need a receiver that
+discards a mismatched terminal packet, which is step 4 below and not something
+Section 4.2 asks of a sender.
+
+Five tests, in `internal/component/ike/eap/rfc3748_identifier_test.go`. Both
+halves mutation-verified at package scope with no `-run` filter. **The first round
+had four tests and was not enough**: reverting the Success arm alone passed the
+entire package, because every test drove a Failure. `doneMethod` and
+`TestSuccessIdentifierMatchesResponse` exist because of that survivor. One mutant
+per CLAIM, and "both terminal packets" is two claims.
+
+`make ze-rfc-check` green: 2950 gated MUST-level requirements, 3264 tags resolved.
+Step 6 needed no edit. `rfc3748` was already enrolled, so `check_new_summaries`
+does not fire, and the gate's own status checks passed, which is what would have
+caught a `docs/features/rfc-status.md` disagreement.
+
+### The one open item: step 4, and it is Thomas's
+
+**Should `PeerSession.Process` REJECT a terminal packet whose Identifier does not
+match the Request it answers?**
+
+It does not today. It switches on `request.Code` alone
+(`internal/component/ike/eap/peer.go`), which is exactly why ze talking to ze
+never noticed the sender-side bug for as long as it lived.
+
+This is NOT a conformance question. RFC 3748 Section 4.2 binds the sender, and ze
+is now conformant as a sender. A receive-side check is defensive hardening, and it
+has a real cost: a strict peer refuses to complete against any implementation
+carrying the bug ze just fixed, and ze cannot know how many of those exist. That
+trade is the owner's to make, which is what the original step 4 says.
+
+Do not close this spec by answering step 4 unilaterally in either direction.
 
 **The work.**
 
