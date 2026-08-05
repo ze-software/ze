@@ -4949,3 +4949,49 @@ func stripGoComment(line string) string {
 	}
 	return line
 }
+
+// VALIDATES: the flush reload reads the inode atomicWrite wrote, even after the
+// store's name is taken away
+// PREVENTS: "zefs: flush reload: zefs: mmap open: <path>: no such file or
+// directory". A reload that reopens by name races anything that unlinks or
+// replaces the name after the rename. `ze init` failed this way in the
+// terminal demo containers (2026-08-05).
+
+func TestFlushReloadUsesWrittenDescriptor(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.zefs")
+
+	s, err := Create(path)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := s.WriteFile("bgp/peers.conf", []byte("asn 65001\n"), 0); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	payload := s.encode()
+	written, err := s.atomicWrite(payload)
+	if err != nil {
+		t.Fatalf("atomicWrite: %v", err)
+	}
+
+	// Another writer takes the name away between the rename and the reload.
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+
+	if _, _, err := loadBacking(path); err == nil {
+		t.Error("loadBacking by name: got nil error, want the removed name to fail")
+	}
+
+	data, fd, err := loadBackingFile(written)
+	if err != nil {
+		t.Fatalf("loadBackingFile: %v", err)
+	}
+	if !bytes.Equal(data, payload) {
+		t.Errorf("reloaded %d bytes, want the %d written", len(data), len(payload))
+	}
+	if err := unloadBacking(data, fd); err != nil {
+		t.Errorf("unloadBacking: %v", err)
+	}
+}

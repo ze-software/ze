@@ -330,7 +330,23 @@ func (s *BlobStore) load() error {
 	if err != nil {
 		return err
 	}
+	return s.install(data, fd)
+}
 
+// loadWritten memory-maps the descriptor atomicWrite returned, and decodes the
+// tree from it. It takes ownership of written: the mapping keeps the inode
+// alive, so the reload cannot fail on a name another process moved or removed
+// in the meantime.
+func (s *BlobStore) loadWritten(written *os.File) error {
+	data, fd, err := loadBackingFile(written)
+	if err != nil {
+		return err
+	}
+	return s.install(data, fd)
+}
+
+// install replaces the backing buffer with data and decodes the tree from it.
+func (s *BlobStore) install(data []byte, fd *os.File) error {
 	if err := s.unload(); err != nil {
 		// Best effort: release newly loaded backing if old unload fails
 		unloadErr := unloadBacking(data, fd)
@@ -513,7 +529,11 @@ func (s *BlobStore) flush() error {
 		// how test/ospf/ospf-ldp-sync-restore.ci died in the 2026-07-29 verify.
 		// os.Rename installs a NEW inode, so existing mappings stay valid.
 		if len(preSnapshot) > 0 {
-			_ = s.atomicWrite(preSnapshot) //nolint:errcheck // best-effort restore before the flushFull fallback
+			// best-effort restore before the flushFull fallback, which reloads
+			// the store itself, so the returned handle has no use here
+			if restored, restoreErr := s.atomicWrite(preSnapshot); restoreErr == nil {
+				restored.Close() //nolint:errcheck // best-effort restore path
+			}
 		}
 	}
 	return s.flushFull()
@@ -528,7 +548,8 @@ func (s *BlobStore) flushFull() error {
 		return fmt.Errorf("zefs: flush unload: %w", err)
 	}
 
-	if err := s.atomicWrite(encoded); err != nil {
+	written, err := s.atomicWrite(encoded)
+	if err != nil {
 		if len(oldEncoded) > 0 {
 			s.recoverFromEncoded(oldEncoded)
 		} else {
@@ -537,7 +558,7 @@ func (s *BlobStore) flushFull() error {
 		return err
 	}
 
-	if err := s.load(); err != nil {
+	if err := s.loadWritten(written); err != nil {
 		s.recoverFromEncoded(encoded)
 		return fmt.Errorf("zefs: flush reload: %w", err)
 	}
@@ -632,11 +653,20 @@ func (s *BlobStore) resetDirty() {
 // atomicWrite writes data to s.path via a temp file and rename.
 // os.Rename is atomic on POSIX when source and target share a filesystem.
 // Fsync the temp file and parent directory to ensure durability on power loss.
-func (s *BlobStore) atomicWrite(data []byte) error {
+// atomicWrite installs data at s.path through a temp file and a rename, and
+// returns a read handle on the inode it wrote. The caller closes that handle,
+// or hands it to loadBackingFile which takes ownership.
+//
+// The handle is opened BEFORE the rename, and that is what makes the reload
+// safe. A reload that reopens s.path by name races anything that unlinks or
+// replaces the name. It then reports the file it just wrote as missing:
+// `zefs: flush reload: mmap open: ... no such file or directory`.
+// A descriptor names the inode, so it survives that.
+func (s *BlobStore) atomicWrite(data []byte) (handle *os.File, retErr error) {
 	dir := filepath.Dir(s.path)
 	tmp, err := os.CreateTemp(dir, ".zefs-*.tmp")
 	if err != nil {
-		return fmt.Errorf("zefs: flush create temp: %w", err)
+		return nil, fmt.Errorf("zefs: flush create temp: %w", err)
 	}
 	tmpName := tmp.Name()
 	committed := false
@@ -647,26 +677,35 @@ func (s *BlobStore) atomicWrite(data []byte) error {
 	}()
 	if _, err := tmp.Write(data); err != nil {
 		if closeErr := tmp.Close(); closeErr != nil {
-			return fmt.Errorf("zefs: flush write: %w (close: %w)", err, closeErr)
+			return nil, fmt.Errorf("zefs: flush write: %w (close: %w)", err, closeErr)
 		}
-		return fmt.Errorf("zefs: flush write: %w", err)
+		return nil, fmt.Errorf("zefs: flush write: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		tmp.Close() //nolint:errcheck // already failing on sync path
-		return fmt.Errorf("zefs: flush fsync temp: %w", err)
+		return nil, fmt.Errorf("zefs: flush fsync temp: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("zefs: flush close temp: %w", err)
+		return nil, fmt.Errorf("zefs: flush close temp: %w", err)
 	}
+	handle, err = os.Open(tmpName) // #nosec G304 -- the temp file this call created
+	if err != nil {
+		return nil, fmt.Errorf("zefs: flush reopen temp: %w", err)
+	}
+	defer func() {
+		if retErr != nil {
+			handle.Close() //nolint:errcheck // cleanup on a failed commit
+		}
+	}()
 	if err := os.Rename(tmpName, s.path); err != nil {
-		return fmt.Errorf("zefs: flush rename: %w", err)
+		return nil, fmt.Errorf("zefs: flush rename: %w", err)
 	}
 	committed = true
 	if dirFd, err := os.Open(dir); err == nil { //nolint:gosec // dir is derived from s.path, not user input
 		dirFd.Sync()  //nolint:errcheck // best-effort directory fsync for rename durability
 		dirFd.Close() //nolint:errcheck // best-effort close after fsync
 	}
-	return nil
+	return handle, nil
 }
 
 // recoverFromEncoded rebuilds the tree from an encoded copy after a failed

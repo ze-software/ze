@@ -20,6 +20,13 @@ func loadBacking(path string) (data []byte, fd *os.File, retErr error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("zefs: mmap open: %w", err)
 	}
+	return loadBackingFile(f)
+}
+
+// loadBackingFile memory-maps an already-open file. It takes the descriptor
+// rather than the name so a reload maps the inode the caller wrote, not
+// whatever the name resolves to now. On error it closes f.
+func loadBackingFile(f *os.File) (data []byte, fd *os.File, retErr error) {
 	defer func() {
 		if retErr != nil {
 			if closeErr := f.Close(); closeErr != nil {
