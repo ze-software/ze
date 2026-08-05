@@ -785,3 +785,129 @@ func TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp(t *testing.T) {
 	assert.Empty(t, logged.String(), "an empty Remove is not a contract violation: nothing is logged")
 	assert.NotContains(t, reg.vec.seen, "community", "an empty Remove must not count as a refusal")
 }
+
+// removalOps wraps buf as a single AttrModRemove operation on COMMUNITY.
+func removalOps(buf []byte) []filterapi.AttrOp {
+	return []filterapi.AttrOp{
+		{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: buf},
+	}
+}
+
+// repeatedCommunities builds n community values starting at base, each distinct.
+func repeatedCommunities(base uint32, n int) []byte {
+	values := make([]uint32, n)
+	for i := range values {
+		values[i] = base + uint32(i)
+	}
+	return buildCommunityValues(values...)
+}
+
+// TestRemovalSetIndexesOnlyAboveThreshold pins the representation newRemovalSet
+// picks, on both sides of the boundary and on each operand independently.
+//
+// VALIDATES: the peer-reachable quadratic on the route-server forward path is
+// answered from a map once BOTH operands are large.
+// PREVENTS: the guard becoming decorative. Deleting the index branch, or
+// thresholding on the removal count alone instead of on the minimum, changes the
+// representation and fails here. An assertion on the retained values alone would
+// not: the two representations agree on every answer, which is the whole point,
+// so only the representation itself can witness the fix.
+func TestRemovalSetIndexesOnlyAboveThreshold(t *testing.T) {
+	const size = 4
+	big := removalIndexThreshold + 1
+
+	tests := []struct {
+		name       string
+		sourceVals int
+		removeVals int
+		wantIndex  bool
+	}{
+		{"both at the threshold", removalIndexThreshold, removalIndexThreshold, false},
+		{"both one above", big, big, true},
+		{"source one above, removals at it", big, removalIndexThreshold, false},
+		{"removals one above, source at it", removalIndexThreshold, big, false},
+		{"large removals against a two-value attribute", 2, 16383, false},
+		{"large source against a two-value removal", 16383, 2, false},
+		{"the measured attack shape", 16383, 16383, true},
+		{"no removal operations at all", big, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ops []filterapi.AttrOp
+			if tt.removeVals > 0 {
+				ops = removalOps(repeatedCommunities(0x0100_0000, tt.removeVals))
+			}
+			set := newRemovalSet(ops, size, tt.sourceVals)
+			assert.Equal(t, tt.wantIndex, set.indexed(),
+				"min(%d source, %d removal) values against a threshold of %d",
+				tt.sourceVals, tt.removeVals, removalIndexThreshold)
+		})
+	}
+}
+
+// TestRemovalSetAnswersAgreeAcrossRepresentations proves the optimization is not
+// a behavior change: the map and the scan return the same answer for every
+// value, including values absent from the set.
+//
+// VALIDATES: indexing preserves membership semantics exactly.
+// PREVENTS: an index built from the wrong operand, or one that skips a malformed
+// buffer differently from removedByAny.
+func TestRemovalSetAnswersAgreeAcrossRepresentations(t *testing.T) {
+	const size = 4
+	removals := repeatedCommunities(0x0100_0000, removalIndexThreshold+1)
+
+	indexed := newRemovalSet(removalOps(removals), size, removalIndexThreshold+1)
+	require.True(t, indexed.indexed(), "the large case must index, or this test compares one thing to itself")
+	scanned := newRemovalSet(removalOps(removals), size, 1)
+	require.False(t, scanned.indexed(), "the small case must scan")
+
+	for i := 0; i+size <= len(removals); i += size {
+		want := removals[i : i+size]
+		assert.True(t, indexed.has(want), "indexed set must contain value %d", i/size)
+		assert.Equal(t, scanned.has(want), indexed.has(want), "representations disagree on value %d", i/size)
+	}
+
+	for _, absent := range []uint32{0x0200_0000, 0x0000_0001, 0xFFFF_FFFF} {
+		v := buildCommunityValues(absent)
+		assert.False(t, indexed.has(v), "indexed set must not contain %#08x", absent)
+		assert.Equal(t, scanned.has(v), indexed.has(v), "representations disagree on absent %#08x", absent)
+	}
+}
+
+// TestRemovalSetDeduplicatesIndexEntries pins the property that made an earlier
+// candidate fix worse than the defect: a duplicate-heavy removal buffer must not
+// cost one map entry per duplicate.
+//
+// VALIDATES: memory stays bounded by DISTINCT values, not by buffer length.
+// PREVENTS: the 16.5x regression and up-to-a-megabyte growth the reviewers
+// measured against a set built without deduplication.
+func TestRemovalSetDeduplicatesIndexEntries(t *testing.T) {
+	const size = 4
+	const count = 4096
+
+	values := make([]uint32, count)
+	for i := range values {
+		values[i] = 0x0100_0001 // every entry identical
+	}
+	set := newRemovalSet(removalOps(buildCommunityValues(values...)), size, count)
+
+	require.True(t, set.indexed(), "4096 values must index")
+	assert.Len(t, set.index, 1, "%d identical values must collapse to one entry", count)
+	assert.True(t, set.has(buildCommunityValues(0x0100_0001)), "the one distinct value is still removed")
+}
+
+// TestRemovalSetIgnoresMalformedBufferForThreshold proves a refused operation
+// contributes nothing to the representation decision.
+//
+// VALIDATES: a buffer that is not a whole number of values is excluded from the
+// count, matching removedByAny which skips it when answering.
+// PREVENTS: a malformed buffer pushing the handler onto the indexed path and
+// then contributing no entries, which would allocate a map nothing reads.
+func TestRemovalSetIgnoresMalformedBufferForThreshold(t *testing.T) {
+	const size = 4
+	malformed := make([]byte, (removalIndexThreshold+1)*size+1) // one trailing byte
+
+	set := newRemovalSet(removalOps(malformed), size, 16383)
+	assert.False(t, set.indexed(), "a refused buffer contributes no values to the threshold")
+}

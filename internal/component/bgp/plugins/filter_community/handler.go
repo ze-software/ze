@@ -143,9 +143,14 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 
 	// Keep every source value no Remove operation names. Nothing is copied here:
 	// each retained run is a fragment over the bytes already on the wire.
+	//
+	// The membership structure is chosen ONCE, above the loop, and not once per
+	// value. That placement is the fix for a peer-reachable quadratic; see
+	// newRemovalSet.
 	if valueSize > 0 {
+		set := newRemovalSet(ops, valueSize, len(val)/valueSize)
 		for i := 0; i+valueSize <= len(val); i += valueSize {
-			if !removedByAny(ops, valueSize, val[i:i+valueSize]) {
+			if !set.has(val[i : i+valueSize]) {
 				p.Keep(i, valueSize)
 			}
 		}
@@ -203,6 +208,104 @@ func wholeValues(buf []byte, valueSize int) bool {
 // removedByAny reports whether want appears in any well-formed Remove operation.
 // An operation whose buffer is not a whole number of values is skipped: it
 // cannot be interpreted as wire values at all, so no removal from it is safe.
+// removalIndexThreshold is the value count above which membership is answered
+// from a map instead of a scan, measured on min(source values, removal values).
+//
+// The arithmetic it comes from: a linear answer costs n*m byte comparisons, an
+// indexed one costs m insertions plus n lookups, and a map operation is roughly
+// twenty times a bytes.Equal over four to twelve bytes. Indexing therefore pays
+// once n*m > 20*(n+m), which for n == m is n > 40. Thirty-two is the power of
+// two below that, so the crossover is crossed slightly early and the common
+// shapes -- one configured strip value, or a route carrying three control
+// communities -- stay on the scan and allocate nothing.
+const removalIndexThreshold = 32
+
+// removalSet answers "does a Remove operation name this value" for the
+// retained-run loop, from whichever representation is cheaper.
+//
+// THE PLACEMENT IS THE POINT. It is built once per attribute, above the loop
+// over source values. Answering from ops directly, per value, is quadratic in
+// two operands a PEER controls, which was a remote denial of service on the
+// route-server forward path rather than a micro-optimisation:
+// wireu.StripControlCommunities derives the removal buffer from the forwarded
+// route's OWN COMMUNITY attribute, so one route tagged with 16383 control
+// communities sets len(val) and len(set) together. That shape measured 874 to
+// 889 ms of CPU PER DESTINATION PEER, multiplied by the fan-out. The cost cap
+// used to be an unrelated arity guard, `len(toRemove) != valueSize`, and
+// removing that defect removed the cap with it.
+//
+// The index also collapses duplicates as it is built, so a peer that repeats
+// one control community 16383 times costs the map one entry rather than 16383.
+// That was the failure of an earlier candidate fix, which built a set per
+// destination with no deduplication and traded 326x better on the worst shape
+// for 16.5x worse and up to a megabyte on a duplicate-heavy one.
+type removalSet struct {
+	ops       []filterapi.AttrOp
+	valueSize int
+	index     map[string]struct{} // nil means answer by scanning ops
+}
+
+// newRemovalSet picks the representation. It reads valueCount rather than
+// deriving it, because the caller has already divided.
+func newRemovalSet(ops []filterapi.AttrOp, valueSize, valueCount int) removalSet {
+	set := removalSet{ops: ops, valueSize: valueSize}
+	if valueSize <= 0 {
+		return set
+	}
+	removals := 0
+	for i := range ops {
+		if ops[i].Action != filterapi.AttrModRemove {
+			continue
+		}
+		// Malformed buffers are refused above and contribute no values, so they
+		// must not count toward the threshold either.
+		if !wholeValues(ops[i].Buf, valueSize) {
+			continue
+		}
+		removals += len(ops[i].Buf) / valueSize
+	}
+	// min, not max: the scan costs n*m, so either operand being small keeps it
+	// cheap. Thresholding on the removal count alone would index a large set
+	// against a two-value attribute and pay for a map nothing reads.
+	if min(valueCount, removals) <= removalIndexThreshold {
+		return set
+	}
+	set.index = make(map[string]struct{}, removals)
+	for i := range ops {
+		if ops[i].Action != filterapi.AttrModRemove {
+			continue
+		}
+		if !wholeValues(ops[i].Buf, valueSize) {
+			continue
+		}
+		buf := ops[i].Buf
+		for off := 0; off+valueSize <= len(buf); off += valueSize {
+			set.index[string(buf[off:off+valueSize])] = struct{}{}
+		}
+	}
+	return set
+}
+
+// has reports whether any Remove operation names want.
+func (s removalSet) has(want []byte) bool {
+	if s.index != nil {
+		// The compiler does not allocate for a []byte converted to string
+		// solely to index a map.
+		_, ok := s.index[string(want)]
+		return ok
+	}
+	return removedByAny(s.ops, s.valueSize, want)
+}
+
+// indexed reports whether this set answers from a map.
+//
+// It exists for the regression guard. The defense against the quadratic is the
+// REPRESENTATION, so a test asserts the representation and stays deterministic.
+// A test that timed the loop instead would pass on a quiet host and fail on a
+// loaded one, and a test that only checked the retained values would stay green
+// with the index deleted, which is how the previous guard came to be decorative.
+func (s removalSet) indexed() bool { return s.index != nil }
+
 func removedByAny(ops []filterapi.AttrOp, valueSize int, want []byte) bool {
 	for i := range ops {
 		if ops[i].Action != filterapi.AttrModRemove {
@@ -222,9 +325,17 @@ func removedByAny(ops []filterapi.AttrOp, valueSize int, want []byte) bool {
 // in set. set is assumed to be a whole number of values; removedByAny checks that
 // before calling.
 //
-// A linear scan rather than a map: the sets here hold a handful of values (the
-// control communities on one route, or one configured strip value), so building a
-// map per attribute would cost more than it saves on a per-UPDATE forwarding path.
+// A linear scan, used only when newRemovalSet has decided the set is small
+// enough for one. The caller is the branch that matters, not this function.
+//
+// This comment used to state that the sets here "hold a handful of values (the
+// control communities on one route, or one configured strip value)" and drew the
+// conclusion that a map never pays. The premise is false on the route-server
+// path, where wireu.StripControlCommunities builds the removal buffer from the
+// forwarded route's own COMMUNITY attribute, so a peer sizes it. The conclusion
+// was a remote denial of service, and the comment is recorded here rather than
+// deleted because it is what kept the defect open: a belief stated as a fact
+// reads exactly like a measurement (ai/rules/evidence.md).
 func containsValue(set []byte, valueSize int, want []byte) bool {
 	for i := 0; i+valueSize <= len(set); i += valueSize {
 		if bytes.Equal(set[i:i+valueSize], want) {

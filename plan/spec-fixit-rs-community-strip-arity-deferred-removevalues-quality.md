@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | done |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Deferral shard | - |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -345,3 +345,169 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+All three items this spec owns are closed. Two were already resolved by work that
+landed elsewhere and were verified against source today; RF-1 was implemented today.
+
+- **RF-1, the peer-reachable quadratic.** `newRemovalSet` and `removalSet`
+  (`internal/component/bgp/plugins/filter_community/handler.go`) choose the
+  membership representation ONCE per attribute, above the loop over source values,
+  and answer from a map above `removalIndexThreshold`. The threshold reads
+  `min(source values, removal values)`. The map collapses duplicates as it is built.
+- **RF-2, three stale `file:line` citations.** Moot: `removeValues` and its doc
+  comment no longer exist, and no line citation remains in the file.
+- **RF-3, a vacuous test.** Already fixed. The assertions name KEY=VALUE pairs and
+  carry a comment recording why the bare `Contains(out, "3")` matched the slog
+  timestamp.
+
+### Bugs Found/Fixed
+
+- **The defect had survived the rewrite that was expected to remove it.** The row
+  named `removeValues`, which no longer exists, so the row read as stale. The
+  per-value call had moved into `removedByAny` and stayed inside the loop.
+- **A comment asserted the safety property that was false.** `containsValue` said
+  the removal sets "hold a handful of values (the control communities on one route,
+  or one configured strip value)". `StripControlCommunities` derives the buffer from
+  the peer's own attribute, so a peer sizes it. The comment is quoted in place rather
+  than deleted, because it is what kept the defect open.
+
+### Documentation Updates
+
+None. No `docs/` file carries a source anchor to the handler:
+`grep -rn "filter_community" docs/` returns no match. The change adds no config,
+CLI or wire surface.
+
+### Deviations from Plan
+
+- The deferral row's remedy asked for deduplication at the producer
+  (`StripControlCommunities`). Not done, and not needed: the index collapses
+  duplicates for free, which is the property whose absence made the reverted
+  candidate worse than the defect. Producer deduplication would now only save
+  repeated map insertions, and it would allocate in the common tiny case.
+- The row's remedy also asked to hoist the set out of the per-destination loop.
+  Done within the handler, not across the reactor boundary: the structure is built
+  once per attribute rather than once per UPDATE. The fan-out multiplier on an
+  O(n + m) build is not the defect.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The three rows looked stale, because `removeValues` no longer exists and two of the three items were genuinely already fixed | RF-1 was live. The call had moved, not gone | Read the loop that CALLS the helper rather than searching for the helper's name | Fixed RF-1. Recorded the trap in `plan/learned/1351` |
+| approach | An owner direction of 2026-07-28 said not to ship a cost trade because the handler was being replaced wholesale | The replacing spec closed on 2026-08-02 without touching this code, so the direction's premise was gone | This spec's own Task section says so in writing | Treated the work as owed |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RF-1, remove the peer-controlled quadratic | Done | `newRemovalSet` (`internal/component/bgp/plugins/filter_community/handler.go`) | O(n + m) per destination, was O(n * m) |
+| RF-2, stale citations in the doc comment | Done | n/a | The function and its comment no longer exist |
+| RF-3, replace the vacuous assertion | Done | `internal/component/bgp/plugins/filter_community/handler_test.go` | Asserts KEY=VALUE pairs |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 (derived): a peer cannot drive the retained-run loop quadratic | Done | `TestRemovalSetIndexesOnlyAboveThreshold` | Includes the measured 16383 by 16383 attack shape |
+| AC-2 (derived): indexing changes no answer | Done | `TestRemovalSetAnswersAgreeAcrossRepresentations` | Both representations agreed on every present and absent value |
+| AC-3 (derived): a duplicate-heavy buffer stays bounded | Done | `TestRemovalSetDeduplicatesIndexEntries` | 4096 identical values collapse to one entry |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| A test that discriminates on the refusal message | Done | `internal/component/bgp/plugins/filter_community/handler_test.go` | Pre-existing, verified today |
+| A guard against the quadratic | Done | `internal/component/bgp/plugins/filter_community/handler_test.go` | Four tests, both claims mutation-verified |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/plugins/filter_community/handler.go` | Done | The set, the threshold, the corrected comment |
+| `internal/component/bgp/plugins/filter_community/handler_test.go` | Done | Four new tests |
+
+### Audit Summary
+- **Total items:** 10
+- **Done:** 10
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (both recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A peer cannot spend the router's CPU quadratically on the route-server forward path | unit test plus mutation | `TestRemovalSetIndexesOnlyAboveThreshold` covers the measured 16383 by 16383 shape. Forcing the scan fails it at `both one above` and `the measured attack shape`; thresholding on the removal count alone fails it at `large removals against a two-value attribute` |
+| The change is not a behavior change | unit test | `TestRemovalSetAnswersAgreeAcrossRepresentations`: both representations return the same answer for every present value and three absent ones |
+| The route-server strip still works end to end | functional | `make ze-plugin-test`, 597 of 597, zero failures, including `bgp-rs-community-strip-multi` and `bgp-rs-community-strip-multi-fastpath` |
+| The guard cannot go decorative or flake | design plus mutation | The assertion is on the representation `newRemovalSet` picked, which is deterministic. Both mutants were killed at named subtests |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| RF-1, `removeValues` scans the removal set once per retained value | done | Implemented today. `plan/deferrals/fixit-rs-community-strip-arity.md` carries the evidence |
+| RF-2, three stale `file:line` citations | done | Moot, verified at source today |
+| RF-3, the vacuous refusal-message test | done | Already fixed, verified at source today |
+
+The shard `plan/deferrals/fixit-rs-community-strip-arity.md` now holds no live row,
+but its source spec `plan/spec-fixit-rs-community-strip-arity.md` is still open, so
+the shard is NOT removed by this closure. That spec's closure removes it.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-rs-community-strip-arity-deferred-removevalues-quality-c4c78ddb-c47b-4f1a-a85d-5911d7c65455.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | peer-reachable cost, allocation behavior, membership semantics, guard vacuity, comment accuracy |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER and no ISSUE survived the pass | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/filter_community/handler.go` | yes | `grep -n "func newRemovalSet"` resolves |
+| `internal/component/bgp/plugins/filter_community/handler_test.go` | yes | Carries the four new tests |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | No peer-driven quadratic | `make ze-test-pkg PKG=./internal/component/bgp/plugins/filter_community` green; both mutants killed |
+| AC-2 | Answers unchanged | `TestRemovalSetAnswersAgreeAcrossRepresentations` passes |
+| AC-3 | Duplicates bounded | `TestRemovalSetDeduplicatesIndexEntries` asserts one entry for 4096 identical values |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A route-server forward carrying control communities | `test/plugin/bgp-rs-community-strip-multi.ci` and `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` | yes, both PASS in a full `make ze-plugin-test` run of 597 tests with zero failures |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1: the removal set is operator-configured, so it is small | broken | `StripControlCommunities` (`internal/component/bgp/wireu/community.go`) builds it from the forwarded route's own COMMUNITY attribute. This is the assumption the old `containsValue` comment stated, and it is the defect |
+| A-2: the rewrite that deleted `removeValues` also removed the quadratic | broken | The per-value call moved into `removedByAny` and stayed inside the loop |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No doc describes the community filter handler internals | `grep -rn "filter_community" docs/` returns no match | yes |
+| No RFC status row changes | The change alters cost, not wire behavior. RFC 7947 places no normative requirement on stripping control communities, as `StripControlCommunities` records | yes |
+
+## Core Insight
+
+**The defect was the placement of a decision, not the speed of an operation.**
+Choosing how to answer a membership question inside the loop that asks it is
+quadratic however fast each answer is. Moving the choice above the loop is the
+entire fix, and it is why the guard asserts which representation was chosen rather
+than how long the loop took: the representation is the mechanism, and the two
+representations agree on every answer by construction.
