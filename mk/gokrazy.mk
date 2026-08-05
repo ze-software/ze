@@ -153,6 +153,29 @@ ze-gokrazy: ze bin/gok
 	@dd if=$(GOKRAZY_IMG) of=tmp/gokrazy/perm.img bs=4096 skip=$(GOKRAZY_PERM_SKIP) count=$(GOKRAZY_PERM_4K) 2>/dev/null
 	@$(E2FS)/debugfs -w -R "mkdir ze" tmp/gokrazy/perm.img 2>/dev/null
 	@$(E2FS)/debugfs -w -R "write tmp/gokrazy/init/database.zefs ze/database.zefs" tmp/gokrazy/perm.img 2>/dev/null
+	@# Read the database back and compare it byte for byte. This is not belt and
+	@# braces: debugfs EXITS 0 WHEN THE COMMAND FAILS and reports the failure only
+	@# on stderr, which the two redirections above discard. Measured on e2fsprogs
+	@# 1.47.0: a `write` into a directory that does not exist returns 0 with no
+	@# output. Without this check an image whose /perm database was never written
+	@# builds green and fails at boot, with nothing in the build output naming the
+	@# cause.
+	@#
+	@# Dropping the `2>/dev/null` instead does not work: debugfs prints a version
+	@# banner to stderr on every successful run, so the recipe would get noisier
+	@# and still not fail.
+	@#
+	@# The comparison is on CONTENT rather than on `stat` output, so it does not
+	@# depend on debugfs's field formatting and it catches a truncated write as
+	@# well as an absent one.
+	@$(E2FS)/debugfs -R "dump ze/database.zefs tmp/gokrazy/perm-readback.zefs" tmp/gokrazy/perm.img >/dev/null 2>&1; \
+		cmp -s tmp/gokrazy/init/database.zefs tmp/gokrazy/perm-readback.zefs || { \
+			echo "error: /perm credential injection failed: ze/database.zefs in the image does not match tmp/gokrazy/init/database.zefs."; \
+			echo "       debugfs exits 0 on failure, so the write above cannot report this itself."; \
+			echo "       The image would boot without its database. Refusing to publish it."; \
+			rm -f tmp/gokrazy/perm-readback.zefs; \
+			exit 1; }
+	@rm -f tmp/gokrazy/perm-readback.zefs
 	@dd if=tmp/gokrazy/perm.img of=$(GOKRAZY_IMG) bs=4096 seek=$(GOKRAZY_PERM_SKIP) conv=notrunc 2>/dev/null
 	@rm -f tmp/gokrazy/perm.img
 	@echo ""

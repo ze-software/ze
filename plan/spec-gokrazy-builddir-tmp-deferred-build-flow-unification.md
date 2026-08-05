@@ -62,6 +62,36 @@ does not depend on this path. The e2fsprogs guard was hardened in the same
 closure to require `debugfs` as well as `mkfs.ext4`, so the tool can no longer be
 missing outright; the silent failure of a tool that IS present is what remains.
 
+#### FIXED 2026-08-05
+
+`mk/gokrazy.mk` now reads the database back out of the image and compares it
+byte for byte against the source, failing the build on any mismatch. Content
+comparison rather than `stat` output, so it does not depend on debugfs field
+formatting and it catches a truncated write as well as an absent one.
+
+Both directions were measured on the e2fsprogs the spec names, 1.47.0, against a
+real ext4 image rather than reasoned about:
+
+```
+# write into a directory that does not exist, the failure the redirect hides
+$ debugfs -w -R "write src.bin ze/database.zefs" perm.img 2>/dev/null
+debugfs exit=0            <- exits 0 although nothing was written
+$ debugfs -R "dump ze/database.zefs readback.bin" perm.img >/dev/null 2>&1
+$ cmp -s src.bin readback.bin
+MISMATCH                  <- the assertion catches it
+
+# the correct sequence
+$ debugfs -w -R "mkdir ze" perm.img 2>/dev/null
+$ debugfs -w -R "write src.bin ze/database.zefs" perm.img 2>/dev/null
+$ debugfs -R "dump ze/database.zefs readback.bin" perm.img >/dev/null 2>&1
+$ cmp -s src.bin readback.bin
+OK                        <- the assertion does not false-positive
+```
+
+The convergence question this spec exists for is untouched. Whether
+`make ze-gokrazy` becomes a thin wrapper over `ze appliance build` is still open,
+and if it does, this assertion goes with the shell seeding it guards.
+
 Two further items deferred out of the same source spec (recorded in its
 `plan/deferrals/gokrazy-builddir-tmp.md` shard, which the closure commit
 removes; this spec is their home):
