@@ -81,7 +81,7 @@ and gated fresh, so they never lie about the current code.
 
 | Task | Read first | Then use |
 |---|---|---|
-| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it yourself (`bash tmp/commit-<SESSION>.sh`); if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
+| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it with `bash` and the path its `script=` line prints. if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
 | Duplicate learned numbers after a merge or rebase | `ai/rules/git-safety.md` (learned-next does not span branches) | `make ze-learned-numbers-check` to detect, `make ze-learned-numbers-fix` to resolve; then `make ze-discovery-index` |
 
 ### Modifying Existing Code
@@ -194,7 +194,7 @@ artifact type. Check them whenever your work touches the described concern.
 
 | Tool | Location | Purpose |
 |------|----------|---------|
-| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable commit scripts that Claude runs itself (`bash tmp/commit-<SESSION>.sh`). Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
+| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable commit scripts that Claude runs itself, one script per prepared commit at the path the `script=` line prints. Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
 | `session-scratch.sh` | `scripts/dev/` | Print (and create) this session's private scratch dir `tmp/s/<session-id>/`. Use for ad-hoc command output instead of fixed names at the `tmp/` root, which collide between concurrent sessions. Removed at session end by `.claude/hooks/session-end-scratch.sh` (24h backstop in `session-start.sh`), which also sweeps this session's suffixed binaries `bin/*-<session-id>`. See `ai/rules/commands.md`. |
 | `make ze-path` | `mk/session.mk` | Print THIS session's `ze` binary path. Under an AI session every canonical binary is built as `bin/<name>-<session-id>` (`ZE_BIN_SUFFIX`), so a sibling session's `make ze` cannot overwrite the binary you are testing against; off-session the name is the plain `bin/ze` it always was. **Never hardcode `bin/ze`** in a command, script, or doc -- use `$(make ze-path)`. Test binaries instead go to a private `bin/` subdir under `$(ZE_SCRATCH_DIR)` (`tmp/s/<id>/`), because `.ci` tests exec them by bare name. See `ai/rules/commands.md` "Your Binaries Are Session-Suffixed". |
 | `learned_numbers.py` | `scripts/dev/` | Keep `plan/learned/NNN-*.md` numbering sound: no two summaries share a number, and each H1 number matches its filename. `learned-next` allocates max(existing prefixes)+1 against the local tree only, so parallel branches collide and only a merge or rebase reveals it. `--check` (gate: `make ze-learned-numbers-check`, folded into `make ze-doc-test` and `ze-regen-check`); `--fix` (`make ze-learned-numbers-fix`) keeps the most-referenced summary at the contested number, renumbers the rest above the highest, and rewrites references. Run after any merge/rebase touching `plan/learned/`. |

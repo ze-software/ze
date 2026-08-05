@@ -37,13 +37,17 @@ func TestCommitHelperCreatesMessageAndScript(t *testing.T) {
 	}
 	mustContain(t, out, "session=1234abcd")
 	mustContain(t, out, "message=tmp/commit-msg-1234abcd-a.txt")
-	mustContain(t, out, "script=tmp/commit-1234abcd.sh")
+	// The script path is unique per PREPARED COMMIT and carries a random suffix.
+	// The `script=` line is the only way to learn it. Never rebuild it from the
+	// session id (`ai/rules/git-safety.md`, step 2).
+	scriptRel := scriptPathFromOutput(t, out)
+	mustContain(t, scriptRel, "tmp/commit-1234abcd-a-")
 
 	message := readFixture(t, root, "tmp/commit-msg-1234abcd-a.txt")
 	if message != "tools: add commit helper\n\nGenerate the message file separately from the user-run script.\n" {
 		t.Fatalf("unexpected message:\n%s", message)
 	}
-	scriptPath := filepath.Join(root, "tmp", "commit-1234abcd.sh")
+	scriptPath := filepath.Join(root, filepath.FromSlash(scriptRel))
 	script := readPath(t, scriptPath)
 	mustContain(t, script, "#!/bin/bash")
 	mustContain(t, script, "set -euo pipefail")
@@ -136,20 +140,25 @@ func TestCommitHelperReusesSessionAndAppends(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("first create failed with %d\nstdout:\n%s\nstderr:\n%s", code, out, stderr)
 	}
+	scriptRel := scriptPathFromOutput(t, out)
+	// --append names the script it extends. The path comes from the first
+	// create's `script=` line, never from the session-id convention.
 	out, stderr, code = runCommitHelper(t, root,
 		"--repo", root,
 		"create",
 		"--subject", "tools: second",
 		"--file", "second.txt",
 		"--append",
+		"--script", scriptRel,
 	)
 	if code != 0 {
 		t.Fatalf("append failed with %d\nstdout:\n%s\nstderr:\n%s", code, out, stderr)
 	}
 	mustContain(t, out, "session=deadbeef")
 	mustContain(t, out, "message=tmp/commit-msg-deadbeef-b.txt")
+	mustContain(t, out, "script="+scriptRel)
 
-	script := readFixture(t, root, "tmp/commit-deadbeef.sh")
+	script := readFixture(t, root, scriptRel)
 	mustContain(t, script, "git commit -F tmp/commit-msg-deadbeef-a.txt")
 	mustContain(t, script, "git commit -F tmp/commit-msg-deadbeef-b.txt")
 }
@@ -437,6 +446,19 @@ func runFixtureCommandAllowError(t *testing.T, dir, name string, args ...string)
 	}
 	t.Fatalf("%s %s failed to start: %v", name, strings.Join(args, " "), err)
 	return "", "", 1
+}
+
+// scriptPathFromOutput reads the authoritative script path out of a create's
+// own `script=` line. Tests read it the way callers must (ai/rules/git-safety.md).
+func scriptPathFromOutput(t *testing.T, out string) string {
+	t.Helper()
+	for line := range strings.SplitSeq(out, "\n") {
+		if rel, ok := strings.CutPrefix(strings.TrimSpace(line), "script="); ok {
+			return rel
+		}
+	}
+	t.Fatalf("no script= line in helper output:\n%s", out)
+	return ""
 }
 
 func readFixture(t *testing.T, root, rel string) string {

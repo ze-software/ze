@@ -1997,5 +1997,236 @@ class TestLessonIsContentDriven(unittest.TestCase):
             self.assertIn("--lesson-required", str(caught.exception))
 
 
+class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):
+    """A prepared commit owns its own script path.
+
+    VALIDATES: `ai/rules/git-safety.md` "Commit Rules" -- the `script=` line is
+    the authoritative path and callers never rebuild it. Keying the script on the
+    Claude session was enough while a session was one agent. One session now runs
+    many subagents, they all resolve to one fingerprint, and they shared
+    `tmp/commit-<SESSION>.sh`: measured 2026-08-05, one session produced 53
+    message files against 18 scripts, and a `--replace` from one agent left
+    another's 20-file commit reachable only through its surviving message file.
+    PREVENTS: a second `create` overwriting the first's prepared script, and a
+    caller reaching a foreign script by reconstructing the path convention.
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        for name in ("one.txt", "two.txt"):
+            (root / name).write_text(name + "\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        return root
+
+    def _create(self, root: Path, *extra: str):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                [
+                    "--repo",
+                    str(root),
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--lesson-not-needed",
+                    "fixture for the per-commit script path",
+                    *extra,
+                ]
+            )
+        return rc, out.getvalue(), err.getvalue()
+
+    def _script_line(self, stdout: str) -> str:
+        for line in stdout.splitlines():
+            if line.startswith("script="):
+                return line[len("script=") :]
+        self.fail(f"no script= line in:\n{stdout}")
+
+    def test_two_creates_get_two_scripts_and_neither_is_destroyed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out_a, err = self._create(
+                root, "--subject", "first", "--file", "one.txt"
+            )
+            self.assertEqual(rc, 0, err)
+            first = self._script_line(out_a)
+            rc, out_b, err = self._create(
+                root, "--subject", "second", "--file", "two.txt"
+            )
+            self.assertEqual(rc, 0, err)
+            second = self._script_line(out_b)
+
+            self.assertNotEqual(first, second)
+            # Both survive, and each still commits ITS OWN file set.
+            text_a = (root / first).read_text()
+            text_b = (root / second).read_text()
+            self.assertIn("one.txt", text_a)
+            self.assertNotIn("two.txt", text_a)
+            self.assertIn("two.txt", text_b)
+            self.assertNotIn("one.txt", text_b)
+            # And the message file each names is the one it was written with.
+            self.assertIn("git commit -F tmp/commit-msg-abcd1234-a.txt", text_a)
+            self.assertIn("git commit -F tmp/commit-msg-abcd1234-b.txt", text_b)
+
+    def test_the_path_is_not_reconstructible_by_convention(self):
+        """The name carries a random component, so a guess cannot hit it.
+
+        Guessing is what bit the session this change came from: a path copied on
+        the belief it was one's own belonged to another agent.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root, "--subject", "first", "--tag", "a", "--file", "one.txt"
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            self.assertNotIn(
+                script, ("tmp/commit-abcd1234.sh", "tmp/commit-abcd1234-a.sh")
+            )
+            self.assertRegex(script, r"^tmp/commit-abcd1234-a-[0-9a-f]{6}\.sh$")
+
+    def test_append_still_adds_a_second_block_to_the_named_script(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(root, "--subject", "first", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            rc, out2, err = self._create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--append",
+                "--script",
+                script,
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertEqual(self._script_line(out2), script)
+            text = (root / script).read_text()
+            self.assertIn("git commit -F tmp/commit-msg-abcd1234-a.txt", text)
+            self.assertIn("git commit -F tmp/commit-msg-abcd1234-b.txt", text)
+            self.assertEqual(text.count("#!/bin/bash"), 1)
+
+    def test_append_without_script_resolves_only_when_unambiguous(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(root, "--subject", "first", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            # One script exists: the legacy bare --append keeps working.
+            rc, out2, err = self._create(
+                root, "--subject", "second", "--file", "two.txt", "--append"
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertEqual(self._script_line(out2), script)
+            # A sibling agent prepares its own: now the guess is refused, named.
+            rc, out3, err = self._create(
+                root, "--subject", "third", "--file", "one.txt"
+            )
+            self.assertEqual(rc, 0, err)
+            other = self._script_line(out3)
+            rc, _, err = self._create(
+                root, "--subject", "fourth", "--file", "two.txt", "--append"
+            )
+            self.assertEqual(rc, 2, err)
+            self.assertIn("--append is ambiguous", err)
+            self.assertIn(script, err)
+            self.assertIn(other, err)
+
+    def test_replace_refuses_a_script_prepared_for_another_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root, "--subject", "theirs", "--file", "two.txt"
+            )
+            self.assertEqual(rc, 0, err)
+            theirs = self._script_line(out)
+            before = (root / theirs).read_text()
+            rc, _, err = self._create(
+                root,
+                "--subject",
+                "mine",
+                "--file",
+                "one.txt",
+                "--replace",
+                "--script",
+                theirs,
+            )
+            self.assertEqual(rc, 2, err)
+            self.assertIn("--replace refused", err)
+            self.assertIn("two.txt", err)
+            self.assertEqual((root / theirs).read_text(), before)
+
+    def test_replace_still_amends_my_own_script(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(root, "--subject", "mine", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            mine = self._script_line(out)
+            rc, out2, err = self._create(
+                root,
+                "--subject",
+                "mine, with the file I forgot",
+                "--file",
+                "one.txt",
+                "--file",
+                "two.txt",
+                "--replace",
+                "--script",
+                mine,
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertEqual(self._script_line(out2), mine)
+            text = (root / mine).read_text()
+            self.assertIn("two.txt", text)
+            self.assertEqual(text.count("#!/bin/bash"), 1)
+
+    def test_the_staging_guard_names_the_owning_script(self):
+        """The guard that saved the 20-file commit must say which script aborted.
+
+        Not weakened: the grep and the abort are unchanged, one line is added.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(root, "--subject", "first", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            text = (root / script).read_text()
+            self.assertIn("ABORT: index has staged files not in this commit", text)
+            self.assertIn("this script: " + script, text)
+
+    def test_tags_are_reserved_atomically(self):
+        """Two allocations inside one `create` window must not agree.
+
+        The message file is written at the END of `create`, seconds after the tag
+        is chosen, so an allocator that only globs the tags on disk hands the
+        same letter to both agents and the second message file overwrites the
+        first. That message file was the only copy of a 20-file commit.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "tmp").mkdir(exist_ok=True)
+            first = ch.next_tag(root, "abcd1234")
+            second = ch.next_tag(root, "abcd1234")
+            self.assertNotEqual(first, second)
+            self.assertTrue((root / ch.message_rel_path("abcd1234", first)).exists())
+
+    def test_a_refused_create_gives_its_tag_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, _, err = self._create(root, "--subject", "bad", "--file", "absent.txt")
+            self.assertEqual(rc, 2, err)
+            self.assertEqual(list((root / "tmp").glob("commit-msg-*.txt")), [])
+            rc, out, err = self._create(root, "--subject", "good", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            self.assertIn("message=tmp/commit-msg-abcd1234-a.txt", out)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,18 +9,11 @@ Rationale: `ai/rationale/git-safety.md`
 
 ## Commit Rules
 
-**FORBIDDEN as direct AI tool calls:** `git commit`, `git add`, `git rm`,
-`git restore --staged`, `git stash`. Sessions share staging -- a bare
-`git add` from one tool call is visible to every other session's
-`git commit` and files cross-commit. So never issue these verbs as
-separate tool calls. Instead package add + delete + commit into a single
-script (so staging never sits open between calls, nothing left dangling),
-then run that script yourself: `bash tmp/commit-<SESSION>.sh`. Committing
-is allowed; committing outside a script is not.
+See: `ai/INSTRUCTIONS.md`, "git commit, git add, git rm: FORBIDDEN as bare Bash tool calls" -- the five banned verbs, the single add + delete + commit script, and "committing outside a script is not" reach every session from there, so this rule does not restate them.
 
 **A shared single-file plan log cross-commits even with a correct, explicit
-`--file` list.** The rule above fixes staging *timing*; it cannot fix staging
-*granularity*. `git add <file>` stages the WHOLE file, including hunks
+`--file` list.** The ban on the bare staging verbs fixes staging *timing*; it
+cannot fix staging *granularity*. `git add <file>` stages the WHOLE file, including hunks
 another session left uncommitted in it. The fix is to SHARD the log so each
 session writes only files it owns and git merges disjoint creations without
 conflict. **Both cross-spec logs are now sharded.** Deferrals live one file
@@ -69,22 +62,23 @@ that nobody in that window ran.
 If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
-1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a script path).
-2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same script.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
+1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
+2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. **READ THE `script=` LINE THE HELPER PRINTS. It is the authoritative path, and the only one. NEVER construct the path yourself.** Every prepared commit gets its own script. Its name carries the commit's tag and a random suffix, so no guess can reach it. Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit.
+   `--append` adds a later commit block to a script you already prepared. Pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. Lesson learned check: the helper asks whether the commit ADDS content to an agent-workflow, rule, tooling, verification, or discovery surface, or only relocates it. Content earns a summary: include `plan/learned/NNN-<name>.md` in `--file`. A move, a rename, or a reformat does not, and passes untouched. When the change adds content but taught nothing reusable, say so with `--lesson-not-needed "<reason>"`; `--lesson-required` is the operator demanding one regardless (`ai/rules/planning.md`, "Writing Learned Summaries").
    Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes)+1 and creates the file immediately, so concurrent sessions **sharing one working tree** cannot allocate the same number. Never hand-pick a number.
    **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
-5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
+5. If the helper cannot express the commit shape, hand-write the same script pattern and `chmod +x` it. Give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Run the finished script yourself: `bash tmp/commit-<SESSION>.sh`. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Run the finished script yourself with `bash` and the path from the helper's `script=` line. Copy that line; never type the path from memory. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
 8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
 direct AI tool invocations, not on what the script does when it runs.
-Run the finished script yourself with `bash tmp/commit-<SESSION>.sh`;
-because the tool call is `bash <script>`, not a bare `git commit`, it
+Run the finished script yourself with `bash` and the printed path.
+The tool call is `bash <script>`, not a bare `git commit`, so it
 passes the hook that blocks the raw verbs. `git restore --staged <file>`
 is allowed inside a commit script only; all other `git restore` variants
 remain forbidden.
@@ -154,11 +148,6 @@ git commit -F tmp/commit-msg-<SESSION>-a.txt
 (testing, spec, docs, learned summary), then report. User decides.
 Banned phrases: "ready to commit?", "shall I commit?", "we could
 commit now", "want me to commit?".
-
-**Never bypass hooks.** No `--no-verify`, no `--no-gpg-sign`. On GPG
-failure (`gpg failed to sign` / `cannot open /dev/tty`), ask the user
-to run `! echo test | gpg --clearsign` to unlock the agent, then
-re-run the script.
 
 ## Commit Granularity
 
@@ -600,11 +589,6 @@ gates, run the full pass once, and commit.
 Unless Thomas Owner Override is active, never commit with lint issues and never
 commit without test evidence when code changed.
 
-## Forbidden Without Permission
-
-`git reset`, `git revert`, `git checkout -- <file>`, `git restore`,
-`git stash drop`, `git push --force`.
-
 ## Branch Changes Are Forbidden
 
 Stay on the branch you started on. Never change branches, create
@@ -662,10 +646,11 @@ itself; the script only resolves conflicts within a rebase the user started.
 ## GPG Signing
 
 Never `--no-gpg-sign` / `-c commit.gpgsign=false`.
-Never `--no-verify`.
+Never `--no-verify`. Never disable a hook to make a commit pass.
 
-On `gpg failed to sign` / `cannot open /dev/tty`, ask user to unlock
-the agent, then retry.
+On `gpg failed to sign` / `cannot open /dev/tty`, ask the user to run
+`! echo test | gpg --clearsign` to unlock the agent, then re-run the
+commit script.
 
 ## Codeberg CLI
 

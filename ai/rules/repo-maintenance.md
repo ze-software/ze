@@ -352,7 +352,7 @@ Make targets and a commit-time gate, not Claude hooks. HEAD is the baseline and 
 
 ### Commit-time gates (`scripts/dev/commit_helper.py`)
 
-These are NOT Claude hooks. They run when `commit_helper.py create` generates the commit script, which is the only sanctioned commit path (`bash tmp/commit-<SID>.sh`). The helper already knows the exact add/remove set of the commit, so the gates inspect that instead of the staging area. BLOCK gates raise (exit 2, no script written); WARN gates print to stderr and let the script be written.
+These are NOT Claude hooks. They run when `commit_helper.py create` generates the commit script, which is the only sanctioned commit path (run the script at the path its `script=` line prints). The helper already knows the exact add/remove set of the commit, so the gates inspect that instead of the staging area. BLOCK gates raise (exit 2, no script written); WARN gates print to stderr and let the script be written.
 
 | Gate | Enforces | Severity | What it does |
 |---|---|---|---|
@@ -411,7 +411,7 @@ auto-py-format (ruff format + check).
 
 #### Commits
 
-A Bash `git commit` is blocked outright by destructive-git. Commit via `scripts/dev/commit_helper.py create` + `bash tmp/commit-<SID>.sh`; the creation-time gates (verify-status, discovery-index, deferral-unassigned, deferral-in-diff, spec-audit block; wiring-at-commit, doc-drift warn) run then. See "Commit-time gates" above.
+A Bash `git commit` is blocked outright by destructive-git. Commit via `scripts/dev/commit_helper.py create`, then `bash` on the path its `script=` line prints; the creation-time gates (verify-status, discovery-index, deferral-unassigned, deferral-in-diff, spec-audit block; wiring-at-commit, doc-drift warn) run then. See "Commit-time gates" above.
 
 ## Ze Project Knowledge
 

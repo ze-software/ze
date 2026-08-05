@@ -35,6 +35,12 @@ TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 LEARNED_RE = re.compile(r"^plan/learned/[0-9]{3,}-.+\.md$")
 COMMIT_MESSAGE_WIDTH = 72
 
+# Provenance markers written into every generated script. The first identifies
+# the script itself, the second records which files each commit block stages, so
+# --replace can refuse a script prepared for an unrelated commit.
+SCRIPT_MARKER = "# ze-commit-script:"
+BLOCK_MARKER = "# ze-commit-block:"
+
 
 LESSON_WORTHY_PREFIXES = (
     "ai/rules/",
@@ -184,9 +190,12 @@ def claude_session_fingerprint() -> str:
     """Identify the Claude session that owns this process.
 
     Concurrent Claude sessions share tmp/; when they also shared one
-    tmp/commit-session-id they shared one tmp/commit-<SESSION>.sh, and a --replace
-    from one session silently overwrote the other's prepared script (observed
-    2026-06-10). Delegates to the ONE shared session-id resolver
+    tmp/commit-session-id they shared one script path, and a --replace from one
+    session silently overwrote the other's prepared script (observed 2026-06-10).
+    The session is no longer the whole answer -- one session runs many subagents
+    and they all resolve here, so the SCRIPT path adds a per-commit tag and a
+    nonce (`script_rel_path`). The session still names the message and script
+    namespace. Delegates to the ONE shared session-id resolver
     (.claude/hooks/lib/session_id.py), so this file keys its session script on the
     exact id the hooks use -- no fourth spelling to drift. The resolver already
     guarantees the id is a safe filename component.
@@ -197,8 +206,8 @@ def claude_session_fingerprint() -> str:
 def session_id(repo: Path, requested: str | None) -> str:
     tmp_dir = repo / "tmp"
     tmp_dir.mkdir(exist_ok=True)
-    # Per-Claude-session file: concurrent sessions must never resolve to
-    # the same tmp/commit-<SESSION>.sh script path.
+    # Per-Claude-session file: concurrent sessions must never share one
+    # message/script namespace.
     session_file = tmp_dir / f"commit-session-id-{claude_session_fingerprint()}"
     if requested:
         session = requested.lower()
@@ -215,17 +224,59 @@ def session_id(repo: Path, requested: str | None) -> str:
     return session
 
 
+def message_rel_path(session: str, tag: str) -> str:
+    return f"tmp/commit-msg-{session}-{tag}.txt"
+
+
+def _reserve(path: Path) -> bool:
+    """Create path empty, exclusively. False when another process won the race."""
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        return False
+    os.close(fd)
+    return True
+
+
 def next_tag(repo: Path, session: str) -> str:
-    used = {
-        path.name[len(f"commit-msg-{session}-") : -len(".txt")]
-        for path in (repo / "tmp").glob(f"commit-msg-{session}-*.txt")
-        if path.name.endswith(".txt")
-    }
+    """Allocate the next free message tag and RESERVE it in the same step.
+
+    Allocation used to be a glob of the tags already on disk, while the message
+    file that proves a tag taken is written at the END of `create` -- after
+    verify-status and the discovery-index materialization, seconds later. Two
+    agents of ONE Claude session (they share the session fingerprint, so they
+    share this namespace) both read the same free letter inside that window and
+    the second message file overwrote the first. The reservation is an O_EXCL
+    create of the empty message file, the idiom `learned_next` already uses, so
+    the winner is decided by the filesystem rather than by timing.
+
+    The reservation is released by `create` when the run fails or is a dry run
+    (`release_tag_reservation`), so a refused commit does not burn a letter.
+    """
+    (repo / "tmp").mkdir(exist_ok=True)
     for code in range(ord("a"), ord("z") + 1):
         tag = chr(code)
-        if tag not in used:
+        if _reserve(repo / message_rel_path(session, tag)):
             return tag
-    return f"n{len(used) + 1}"
+    for _ in range(64):
+        tag = "n" + secrets.token_hex(2)
+        if _reserve(repo / message_rel_path(session, tag)):
+            return tag
+    raise UsageError(
+        "no free message tag for session " + session + "; clear old "
+        "tmp/commit-msg-* files"
+    )
+
+
+def release_tag_reservation(path: Path | None) -> None:
+    """Drop an unused tag reservation (the empty file `next_tag` created)."""
+    if path is None:
+        return
+    try:
+        if path.stat().st_size == 0:
+            path.unlink()
+    except OSError:
+        pass
 
 
 def normalize_tag(tag: str | None, repo: Path, session: str) -> str:
@@ -619,7 +670,7 @@ def render_git_add(paths: tuple[str, ...]) -> str:
     return "\n".join(lines)
 
 
-def render_staging_guard(paths: tuple[str, ...]) -> str:
+def render_staging_guard(paths: tuple[str, ...], script_rel: str = "") -> str:
     """Guard for the generated commit script: abort if the shared git index holds
     staged paths this commit did not stage.
 
@@ -627,10 +678,15 @@ def render_staging_guard(paths: tuple[str, ...]) -> str:
     sibling's leftover `git add` (e.g. a commit that failed at gpg signing) would
     otherwise be swept into THIS commit. The guard runs after this commit's own
     add/rm, so any remaining staged-but-unexpected path is foreign -> abort.
+
+    The abort names the OWNING script, because the report a reader needs at that
+    moment is which prepared commit they just ran, not only which files were
+    unexpected.
     """
     if not paths:
         return ""
     expected = " ".join("-e " + shlex.quote(p) for p in sorted(set(paths)))
+    owner = [] if not script_rel else ['  echo "  this script: ' + script_rel + '" >&2']
     return "\n".join(
         [
             "# Concurrency guard: refuse to sweep a concurrent session's staged files",
@@ -640,6 +696,7 @@ def render_staging_guard(paths: tuple[str, ...]) -> str:
             f"_ze_foreign=$(git -c core.quotePath=false diff --cached --name-only | grep -vxF {expected} || true)",
             'if [ -n "$_ze_foreign" ]; then',
             '  echo "ABORT: index has staged files not in this commit (concurrent session?):" >&2',
+            *owner,
             '  echo "$_ze_foreign" >&2',
             "  exit 1",
             "fi",
@@ -647,9 +704,13 @@ def render_staging_guard(paths: tuple[str, ...]) -> str:
     )
 
 
-def render_block(block: CommitBlock) -> str:
+def render_block(block: CommitBlock, script_rel: str = "") -> str:
     lines = [
         f"# Commit {block.tag}: {block.subject}",
+        # Provenance: which files this block commits, machine-readable. --replace
+        # reads it back to refuse a script prepared for an unrelated file set.
+        f"{BLOCK_MARKER} tag={block.tag} paths="
+        + quote_paths(block.add_paths + block.remove_paths),
         f"# {block.lesson_comment}",
     ]
     if block.review_check:
@@ -659,11 +720,137 @@ def render_block(block: CommitBlock) -> str:
         lines.append(render_git_add(block.add_paths))
     if block.remove_paths:
         lines.append("git rm -- " + quote_paths(block.remove_paths))
-    guard = render_staging_guard(block.add_paths + block.remove_paths)
+    guard = render_staging_guard(block.add_paths + block.remove_paths, script_rel)
     if guard:
         lines.append(guard)
     lines.append("git commit -F " + shlex.quote(block.message_path))
     return "\n".join(lines) + "\n"
+
+
+def script_rel_path(session: str, tag: str) -> str:
+    """Path of a NEWLY prepared commit script. Unique per PREPARED COMMIT.
+
+    Both halves of the suffix carry weight. <tag> is the per-commit tag the
+    message file already uses, now reserved atomically (`next_tag`), so two
+    agents preparing at once cannot land on one path. <nonce> makes the name
+    unguessable, so no caller can reach another agent's script by rebuilding the
+    convention: the helper's own `script=` line is the only way to learn a path.
+
+    Keying on the Claude session alone (2026-06-10) was enough while a session
+    was one agent. It stopped being enough once one session ran many subagents:
+    they share the fingerprint, so they shared `tmp/commit-<SESSION>.sh`, and a
+    --replace from one silently overwrote another's prepared script (measured
+    2026-08-05: 53 message files against 18 scripts in ONE session).
+    """
+    return f"tmp/commit-{session}-{tag}-{secrets.token_hex(3)}.sh"
+
+
+def looks_like_commit_script(text: str) -> bool:
+    """True for a script this helper generated (new form or pre-2026-08-05 form)."""
+    return "git commit -F " in text
+
+
+def script_declared_paths(text: str) -> set[str]:
+    """The paths a generated script's commit blocks declare they will commit."""
+    declared: set[str] = set()
+    for line in text.splitlines():
+        if not line.startswith(BLOCK_MARKER):
+            continue
+        _, _, rest = line.partition("paths=")
+        if rest.strip():
+            declared.update(shlex.split(rest))
+    return declared
+
+
+def session_scripts(repo: Path, session: str) -> list[Path]:
+    """Every prepared script of this session, new-form and legacy, sorted."""
+    tmp_dir = repo / "tmp"
+    found = set(tmp_dir.glob(f"commit-{session}-*.sh")) | set(
+        tmp_dir.glob(f"commit-{session}.sh")
+    )
+    return sorted(
+        p
+        for p in found
+        if p.is_file()
+        and looks_like_commit_script(p.read_text(encoding="utf-8", errors="replace"))
+    )
+
+
+def resolve_target_script(
+    repo: Path, session: str, script_arg: str | None, append: bool, replace: bool
+) -> Path | None:
+    """The existing script this create must write into, or None for a fresh one.
+
+    `--script` is the authoritative form: it names a path the caller read from an
+    earlier `script=` line. `--append` without it stays supported for the single
+    agent case and resolves ONLY when the session has exactly one script; with
+    several it refuses and lists them, because picking one would be the guess
+    this change exists to remove.
+    """
+    if script_arg:
+        rel = rel_path(repo, script_arg)
+        target = repo / rel
+        if not target.is_file():
+            raise UsageError(f"--script does not exist: {rel}")
+        text = target.read_text(encoding="utf-8", errors="replace")
+        if not looks_like_commit_script(text):
+            raise UsageError(f"--script is not a generated commit script: {rel}")
+        if not append and not replace:
+            raise UsageError(f"{rel} exists; pass --append or --replace")
+        return target
+    if not append:
+        return None
+    candidates = session_scripts(repo, session)
+    if not candidates:
+        raise UsageError(
+            "--append: this session has no prepared script to append to.\n"
+            "  Drop --append to prepare a new one, or pass --script <path> from "
+            "the\n  `script=` line of the create that made it."
+        )
+    if len(candidates) > 1:
+        listed = "\n".join("    " + p.relative_to(repo).as_posix() for p in candidates)
+        raise UsageError(
+            "--append is ambiguous: this session has "
+            + str(len(candidates))
+            + " prepared scripts.\n"
+            "  Pass --script <path> from the `script=` line of the create you are\n"
+            "  extending. Never reconstruct the path by convention:\n" + listed
+        )
+    print(
+        "note: --append resolved to "
+        + candidates[0].relative_to(repo).as_posix()
+        + "; pass --script <path> to name it explicitly",
+        file=sys.stderr,
+    )
+    return candidates[0]
+
+
+def refuse_foreign_replace(repo: Path, script: Path, block: CommitBlock) -> None:
+    """Refuse a --replace over a script prepared for an unrelated file set.
+
+    --replace means "replace MY script". A script whose declared paths do not
+    overlap this commit's at all is another prepared commit, so replacing it
+    destroys work that was never run. Failing closed costs nothing: dropping
+    --script yields a fresh unique path.
+    """
+    text = script.read_text(encoding="utf-8", errors="replace")
+    declared = script_declared_paths(text)
+    if not declared:
+        return
+    mine = set(block.add_paths) | set(block.remove_paths)
+    if declared & mine:
+        return
+    sample = ", ".join(sorted(declared)[:4]) + (", ..." if len(declared) > 4 else "")
+    raise UsageError(
+        "--replace refused: "
+        + script.relative_to(repo).as_posix()
+        + " was prepared for a different\n"
+        "  commit and has not been run. It commits: "
+        + sample
+        + "\n  This commit shares none of those files, so replacing it would "
+        "destroy\n  another prepared commit. Drop --script to get a fresh script "
+        "path."
+    )
 
 
 def write_outputs(
@@ -674,17 +861,38 @@ def write_outputs(
     append: bool,
     replace: bool,
     dry_run: bool,
+    script_arg: str | None = None,
 ) -> Path:
-    script = repo / "tmp" / f"commit-{session}.sh"
-    message_file = repo / block.message_path
-    if script.exists() and not append and not replace:
-        raise UsageError(
-            f"{script.relative_to(repo)} exists; pass --append or --replace"
-        )
     if append and replace:
         raise UsageError("--append and --replace are mutually exclusive")
-    header = '#!/bin/bash\nset -euo pipefail\ncd "$(git rev-parse --show-toplevel)"\n\n'
-    block_text = render_block(block)
+    message_file = repo / block.message_path
+    target = resolve_target_script(repo, session, script_arg, append, replace)
+    if target is None:
+        # Bounded: a fresh path that keeps coming back taken means the name is
+        # no longer unique per prepared commit, and looping forever would hide
+        # that behind a hang.
+        for _ in range(64):
+            script = repo / script_rel_path(session, block.tag)
+            if not script.exists():
+                break
+        else:
+            raise UsageError(
+                "cannot allocate an unused script path for tag "
+                + block.tag
+                + "; tmp/ already holds every name script_rel_path produced"
+            )
+    else:
+        script = target
+        if replace:
+            refuse_foreign_replace(repo, script, block)
+    script_rel = script.relative_to(repo).as_posix()
+    header = (
+        "#!/bin/bash\nset -euo pipefail\n"
+        'cd "$(git rev-parse --show-toplevel)"\n\n'
+        f"{SCRIPT_MARKER} {script_rel} session={session}\n\n"
+    )
+    append_here = append and script.exists()
+    block_text = render_block(block, script_rel)
     if dry_run:
         print(f"session={session}")
         print(f"message={block.message_path}")
@@ -692,14 +900,14 @@ def write_outputs(
         print("--- message ---")
         print(message, end="")
         print("--- script ---")
-        if append and script.exists():
+        if append_here:
             print(script.read_text(encoding="utf-8"), end="")
         else:
             print(header, end="")
         print(block_text, end="")
         return script
     message_file.write_text(message, encoding="utf-8")
-    if append and script.exists():
+    if append_here:
         existing = script.read_text(encoding="utf-8")
         with script.open("a", encoding="utf-8") as fh:
             if existing and not existing.endswith("\n"):
@@ -2235,9 +2443,27 @@ def review_gate_problems(
 
 
 def create(args: argparse.Namespace) -> int:
+    """Prepare one commit: a message file, and a block in a script.
+
+    Owns the tag RESERVATION `next_tag` takes. A run that is refused by a gate,
+    or that only dry-runs, must give the tag back: otherwise every refusal burns
+    a letter and the tags stop tracking prepared commits.
+    """
     repo = repo_root(args.repo)
     session = session_id(repo, args.session)
     tag = normalize_tag(args.tag, repo, session)
+    reservation = None if args.tag else repo / message_rel_path(session, tag)
+    try:
+        code = _create(args, repo, session, tag)
+    except BaseException:
+        release_tag_reservation(reservation)
+        raise
+    if args.dry_run:
+        release_tag_reservation(reservation)
+    return code
+
+
+def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int:
     add_paths = unique_paths([rel_path(repo, raw) for raw in args.file])
     remove_paths = unique_paths([rel_path(repo, raw) for raw in args.remove])
     if not add_paths and not remove_paths:
@@ -2311,7 +2537,9 @@ def create(args: argparse.Namespace) -> int:
                 "  broken. They are NOT eligible for --unverified or a\n"
                 "  plan/known-failures/ known-red.\n"
                 + (
-                    "  " + TRACKED_BUILD_GATE + " is red: HEAD ITSELF does not compile,\n"
+                    "  "
+                    + TRACKED_BUILD_GATE
+                    + " is red: HEAD ITSELF does not compile,\n"
                     "  usually because a commit took a consumer and left its producer\n"
                     "  uncommitted. That red is cleared BY a commit, not before one. If THIS\n"
                     '  commit lands the missing producer, pass --broken-head-fix "<reason>"\n'
@@ -2320,7 +2548,9 @@ def create(args: argparse.Namespace) -> int:
                     if TRACKED_BUILD_GATE in gate_reds
                     else ""
                 )
-                + "  Fix it at the source (run `make " + gate_reds[0] + "` to see the\n"
+                + "  Fix it at the source (run `make "
+                + gate_reds[0]
+                + "` to see the\n"
                 "  failure). "
                 + (
                     "For every gate EXCEPT tracked-build, to CLEAR this\n"
@@ -2350,10 +2580,7 @@ def create(args: argparse.Namespace) -> int:
         # and `verify_status` goes stale for flaky test reds and for age as well.
         # Letting a reason written about HEAD wave those through would make it a
         # self-service --unverified. The fixing commit passes both flags.
-        if (
-            not args.unverified
-            and not (args.structural_red_ok or "").strip()
-        ):
+        if not args.unverified and not (args.structural_red_ok or "").strip():
             raise UsageError(
                 "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
                 "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
@@ -2404,7 +2631,7 @@ def create(args: argparse.Namespace) -> int:
             + ("" if not rc_code else " " + quote_paths(rc_code))
         )
     msg = message_text(args.subject, args.body)
-    msg_path = f"tmp/commit-msg-{session}-{tag}.txt"
+    msg_path = message_rel_path(session, tag)
     comment = lesson_comment(
         add_paths,
         remove_paths,
@@ -2422,7 +2649,14 @@ def create(args: argparse.Namespace) -> int:
         review_check,
     )
     script = write_outputs(
-        repo, session, block, msg, args.append, args.replace, args.dry_run
+        repo,
+        session,
+        block,
+        msg,
+        args.append,
+        args.replace,
+        args.dry_run,
+        getattr(args, "script", None),
     )
     if not args.dry_run:
         print(f"session={session}")
@@ -2541,7 +2775,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     create_cmd = sub.add_parser(
         "create",
-        help="write one commit message file and one block in tmp/commit-SESSION.sh",
+        help="write one commit message file and one commit script; the printed "
+        "`script=` line is the only authoritative path",
     )
     create_cmd.add_argument(
         "--session", help="set the reusable session id, mainly for tests"
@@ -2571,14 +2806,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="tracked file to remove with git rm, repeat for each file",
     )
     create_cmd.add_argument(
+        "--script",
+        help="existing script to write into, taken from the `script=` line an "
+        "earlier create printed. Required with --append when this session has "
+        "more than one prepared script, and the only way to target a script for "
+        "--replace. Never reconstruct this path by convention: it carries a "
+        "random suffix so a guess cannot hit another agent's prepared commit",
+    )
+    create_cmd.add_argument(
         "--append",
         action="store_true",
-        help="append this commit block to an existing script",
+        help="append this commit block to an existing script (see --script)",
     )
     create_cmd.add_argument(
         "--replace",
         action="store_true",
-        help="replace any existing script for this session",
+        help="replace the script named by --script. Refused when that script was "
+        "prepared for an unrelated file set. Without --script every create "
+        "already gets its own new script, so nothing needs replacing",
     )
     create_cmd.add_argument(
         "--lesson-required",

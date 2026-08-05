@@ -40,15 +40,16 @@ scripts/dev/commit_helper.py create \
   --file file3_test.go
 ```
 
-5. **Run and report:** Run the generated script yourself
-   (`bash tmp/commit-<SESSION>.sh`), then show the resulting commit SHA(s),
+5. **Run and report:** Run the generated script yourself, with `bash` and the
+   path from the helper's `script=` line (never a path you built from the
+   session id), then show the resulting commit SHA(s),
    the included files, commit subject/body summary, generated message file
    path, generated script path, and that verification was skipped because
    `/ze-commit` is intentionally unchecked.
 
 ## Rules
 
-- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script (`bash tmp/commit-<SESSION>.sh`).
+- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script by the path its `script=` line printed.
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
 - Do not run `make ze-verify`, `make ze-verify-changed`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
 - Never include spec files unless the user explicitly asks.

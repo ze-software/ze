@@ -13,8 +13,12 @@
   or `git stash` as a direct Bash tool call. Sessions share staging;
   cross-commits result. Commit only via a script that bundles add + delete
   + commit in one go, then run that script yourself
-  (`bash tmp/commit-<SESSION>.sh`). Committing is allowed; committing
-  outside a script is not.
+  with `bash` and the path the helper prints. Committing is allowed.
+  Committing outside a script is not.
+- **The helper's `script=` line is the only authoritative script path. Copy it;
+  never construct the path from the session id.** Every prepared commit gets its
+  own script, and its name carries a random suffix so no guess can reach another
+  agent's.
 - Use `scripts/dev/commit_helper.py` for commit scripts by default. It creates
   the session ID, message file, executable script, ignored-path checks, and
   learned-summary gate. Full rules live in `ai/rules/git-safety.md` under

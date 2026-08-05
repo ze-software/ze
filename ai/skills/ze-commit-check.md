@@ -52,15 +52,16 @@ scripts/dev/commit_helper.py create \
   --file file3_test.go
 ```
 
-7. **Run and report:** Run the generated script yourself
-   (`bash tmp/commit-<SESSION>.sh`), then show the resulting commit SHA(s),
+7. **Run and report:** Run the generated script yourself, with `bash` and the
+   path from the helper's `script=` line (never a path you built from the
+   session id), then show the resulting commit SHA(s),
    the included files, verification evidence or skip reason, commit
    subject/body summary, generated message file path, and generated script
    path.
 
 ## Rules
 
-- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script (`bash tmp/commit-<SESSION>.sh`).
+- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script by the path its `script=` line printed.
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
 - Always run `scripts/dev/verify-status.sh check` before any verify target. A FRESH PASS is authoritative and forbids rerunning `make ze-verify` or `make ze-verify-changed`.
 - If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.

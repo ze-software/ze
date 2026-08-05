@@ -164,7 +164,7 @@ still missing, go back: this skill does not implement.
       - **Lesson flags follow step 6a's answer, and commit A never passes `--lesson-required`.** That flag is the operator demanding a summary; passing it on every closure is what made the summary unconditional. When a summary was written, `--file` on it is the whole story. When none was, pass `--lesson-not-needed "<why this spec taught nothing reusable>"` and say what the work was, not that a spec closed.
       - Commit B removes a spec and adds nothing, so the helper asks it for nothing. Pass `--lesson-not-needed "spec closure only; lesson is in Commit A"` only when commit A actually carried a summary.
       - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and learned-summary checks.
-   f. Run the generated script yourself (`bash tmp/commit-<SESSION>.sh`), then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
+   f. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 
    **Why one script, two commits, no follow-up:** the user will not ask for a second step.
    They will not remember that the spec needs closing. They will not prompt you for the
