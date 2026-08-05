@@ -46,7 +46,7 @@ func shippedTags(t *testing.T) string {
 	}
 	seen := map[string]bool{}
 	tags := []string{"ze_core"}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -118,6 +118,56 @@ func TestDocDriftDerivesFunctionalSuites(t *testing.T) {
 // VALIDATES: scripts/docvalid/doc_drift.go rejects stale parser allocation claims.
 // PREVENTS: reintroducing the old strings.Fields text-parser documentation after
 // the parser moved to textparse.NewScanner.
+// VALIDATES: scripts/docvalid/doc_drift.go treats "N+ interop scenarios" as a FLOOR.
+// PREVENTS: the churn of editing docs/DESIGN.md and reddening the gate every time a
+// scenario is added. That line was corrected twice in one day for no reader's benefit.
+// The floor still catches the case that matters -- the page claiming more than exists.
+func TestDocDriftInteropFloorClaim(t *testing.T) {
+	scenarios := []string{"01-a", "02-b", "03-c"} // the real count for this fixture
+
+	// A bare fixture DESIGN.md trips dozens of unrelated checks (missing plugin
+	// tables and so on), so the exit code says nothing about the interop claim.
+	// Assert on the interop MESSAGE instead: present means rejected, absent means
+	// accepted. Keying on the exit code here would have passed for every case.
+	const marker = "interop scenarios, actual is"
+
+	for _, tc := range []struct {
+		name   string
+		claim  string
+		reject bool
+		want   string
+	}{
+		{name: "floor below actual is accepted", claim: "2+ interop scenarios run here."},
+		{name: "floor equal to actual is accepted", claim: "3+ interop scenarios run here."},
+		{name: "exact bare number is accepted", claim: "3 interop scenarios run here."},
+		{name: "floor above actual is rejected", claim: "9+ interop scenarios run here.", reject: true, want: "claims at least 9 interop scenarios, actual is 3"},
+		{name: "bare number still checked exactly", claim: "2 interop scenarios run here.", reject: true, want: "claims 2 interop scenarios, actual is 3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			for _, s := range scenarios {
+				writeTempDoc(t, root, "test/interop/scenarios/"+s+"/check.py", "def check():\n    pass\n")
+			}
+			writeTempDoc(t, root, "docs/DESIGN.md", "# Design\n\n"+tc.claim+"\n")
+
+			ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+			defer cancel()
+			cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/doc_drift.go", "--root", root)...)
+			cmd.Dir = repoRoot(t)
+			out, _ := cmd.CombinedOutput()
+
+			got := strings.Contains(string(out), marker)
+			if got != tc.reject {
+				t.Fatalf("claim %q against %d scenarios: interop complaint present=%v, want %v:\n%s",
+					tc.claim, len(scenarios), got, tc.reject, out)
+			}
+			if tc.want != "" && !strings.Contains(string(out), tc.want) {
+				t.Fatalf("doc_drift.go did not report %q:\n%s", tc.want, out)
+			}
+		})
+	}
+}
+
 func TestDocDriftRejectsStaleTextParserFieldsClaim(t *testing.T) {
 	root := t.TempDir()
 	writeTempDoc(t, root, "docs/architecture/api/text-parser.md", "# Text Parser Architecture\n\nAll functions allocate via `strings.Fields()`.\n")

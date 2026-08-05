@@ -11,6 +11,7 @@
 //	expect=output:json=<dotted.path>=<value>[:timeout=<dur>]
 //	expect=event:namespace=<ns>:name=<name>[:timeout=<dur>]
 //	expect=stream:contains=<text>[:timeout=<dur>]
+//	expect=command-error:contains=<text>
 //	expect=stream:matches=<regexp>[:timeout=<dur>]
 //
 // The expect=output predicate re-dispatches the most recent command until the
@@ -65,11 +66,12 @@ type EngineStepKind uint8
 
 // Engine step kinds, in .ci-author terms.
 const (
-	EngineStepCommand      EngineStepKind = iota + 1 // command=<text>
-	EngineStepStream                                 // stream=<text>
-	EngineStepExpectOutput                           // expect=output:contains=
-	EngineStepExpectEvent                            // expect=event:namespace=:name=
-	EngineStepExpectStream                           // expect=stream:contains=
+	EngineStepCommand            EngineStepKind = iota + 1 // command=<text>
+	EngineStepStream                                       // stream=<text>
+	EngineStepExpectOutput                                 // expect=output:contains=
+	EngineStepExpectEvent                                  // expect=event:namespace=:name=
+	EngineStepExpectStream                                 // expect=stream:contains=
+	EngineStepExpectCommandError                           // expect=command-error:contains=
 )
 
 // EngineStep is one parsed engine-step directive, in file order. JSON tags
@@ -190,6 +192,36 @@ func parseEngineExpectEvent(r *Record, kv map[string]string) error {
 //	matches=<regexp>             regexp, compiled here so a bad regexp fails at parse (R-3)
 //	absent=<needle>              substring must be absent (expect=output only)
 //	json=<dotted.path>=<value>   JSON path stringifies to value (expect=output only)
+//
+// parseEngineExpectCommandError handles expect=command-error:contains=<text>.
+//
+// It asserts that the PRECEDING command= failed, and that its message contains
+// the needle. Without it no .ci could assert an operational error at all: the
+// SDK turns a StatusError response into a Go error, so the command step aborts
+// the run before any expect= is reached.
+//
+// That gap made a whole class of behavior untestable end to end, and it is the
+// class where being wrong is most expensive: a command that must REFUSE (an
+// unreadable dataplane, a reserved SPI, a missing capability) is exactly the
+// command whose failure mode is answering confidently instead.
+//
+// There is no timeout. An error is the result of one dispatch, so re-dispatching
+// until it appears would be waiting for a state change that no expect= can cause.
+func parseEngineExpectCommandError(r *Record, rest string) error {
+	needle, ok := strings.CutPrefix(rest, "contains=")
+	if !ok {
+		return fmt.Errorf("expect=command-error requires contains=")
+	}
+	if needle == "" {
+		return fmt.Errorf("expect=command-error requires a non-empty contains=")
+	}
+	r.EngineSteps = append(r.EngineSteps, EngineStep{
+		Kind: EngineStepExpectCommandError,
+		Text: needle,
+	})
+	return nil
+}
+
 func parseEngineExpectContains(r *Record, expType, rest string) error {
 	timeoutStr := ""
 	if idx := strings.LastIndex(rest, ":timeout="); idx >= 0 {
@@ -338,12 +370,34 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 	lastCommand := ""
 	lastOutput := ""
 	lastData := "" // raw data field alone, for json= path walks (A-3 constraint)
+
+	// pendingErr holds a command= failure until the very next step decides what
+	// it means: an expect=command-error consumes it, anything else raises it.
+	var pendingErr error
+	pendingErrStep := 0
+	pendingErrCmd := ""
+
 	for i, step := range steps {
+		if pendingErr != nil && step.Kind != EngineStepExpectCommandError {
+			return fmt.Errorf("engine step %d (%s): %w", pendingErrStep, pendingErrCmd, pendingErr)
+		}
 		switch step.Kind {
 		case EngineStepCommand, EngineStepStream:
 			status, data, err := dispatch(ctx, step.Text)
 			if err != nil {
-				return fmt.Errorf("engine step %d (%s): %w", i+1, step.Text, err)
+				// The error is HELD, not raised, so the next step can be an
+				// expect=command-error that consumes it. It is not swallowed:
+				// pendingErr below fails the run at the next step of any other
+				// kind, and at the end of the file. A command that fails and is
+				// never checked still fails the test, which is the behavior
+				// every existing .ci relies on.
+				pendingErr = err
+				pendingErrStep = i + 1
+				pendingErrCmd = step.Text
+				lastCommand = ""
+				lastOutput = ""
+				lastData = ""
+				continue
 			}
 			lastCommand = step.Text
 			lastData = data
@@ -408,6 +462,18 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 					i+1, ns, name, step.Timeout)
 			}
 
+		case EngineStepExpectCommandError:
+			if pendingErr == nil {
+				return fmt.Errorf("engine step %d: expect=command-error, but the preceding command succeeded", i+1)
+			}
+			msg := pendingErr.Error()
+			if !strings.Contains(msg, step.Text) {
+				return fmt.Errorf("engine step %d: expect=command-error contains=%q, got %.400q", i+1, step.Text, msg)
+			}
+			pendingErr = nil
+			pendingErrStep = 0
+			pendingErrCmd = ""
+
 		case EngineStepExpectStream:
 			// expect=stream supports contains= (default) and matches= only;
 			// absent=/json= are rejected at parse (output-only, AC-8).
@@ -431,6 +497,12 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 					i+1, step.Text, step.Timeout)
 			}
 		}
+	}
+
+	// A command that failed as the LAST step has no following step to raise it,
+	// so the run would end green on a command that errored. Raise it here.
+	if pendingErr != nil {
+		return fmt.Errorf("engine step %d (%s): %w", pendingErrStep, pendingErrCmd, pendingErr)
 	}
 	return nil
 }
@@ -481,7 +553,10 @@ func engineOutputTimeoutErr(stepNum int, step EngineStep, lastCommand, lastOutpu
 // return ("", false) -- treated as "not satisfied yet" while polling.
 func engineJSONPathValue(data, path string) (string, bool) {
 	var v any
-	if err := json.Unmarshal([]byte(data), &v); err != nil {
+	// The error is bound before the test rather than inline: gocritic's
+	// uncheckedInlineErr reads the inline form here as unchecked.
+	err := json.Unmarshal([]byte(data), &v)
+	if err != nil {
 		return "", false
 	}
 	for seg := range strings.SplitSeq(path, ".") {

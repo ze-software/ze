@@ -34,7 +34,6 @@ var errRewriteAsPathNoAsnsTo = errors.New("rewrite AS_PATH: no ASNs to prepend")
 // Returns the number of bytes written to dst, or an error.
 func RewriteASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool) (int, error) {
 	// Stack-allocated single-element array avoids heap allocation on the hot path.
-	// The EBGPWire cache amortizes this, but the fast path is free.
 	asns := [1]uint32{localASN}
 	return rewriteASPathPrepend(dst, payload, asns[:], srcASN4, dstASN4)
 }

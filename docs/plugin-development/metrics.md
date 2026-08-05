@@ -203,11 +203,24 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_iface_owned_devices` | GaugeVec | owner | iface (owned-device registry) |
+| `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
+| `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
 <!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
+<!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
 <!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
 <!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
+
+The two `iface-ra` counters carry one `interface` label each.
+`ze_iface_ra_sent_total` counts every Router Advertisement put on the wire.
+`ze_iface_ra_solicited_total` counts the subset that answered a Router
+Solicitation, and each of those increments both counters, so the first one stays
+the total. A rise in the solicited counter with a flat send rate means that
+hosts join the link.
+
+<!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
 
 `ze_plugin_write_watchdog_total` increments when a plugin RPC write on a
 transport that does not support `SetWriteDeadline` (SSH channels, `io.Pipe`)

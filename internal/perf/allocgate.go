@@ -31,7 +31,10 @@ var AllocCeilings = map[string]int{
 	"BenchmarkBufMuxGetReturn": 0,
 	// forward-pool non-blocking TryDispatch -- zero-alloc steady state. Measured 0.
 	"BenchmarkFwdPoolTryDispatch": 0,
-	// EBGPWire RS fan-out cache hit -- single atomic pointer load. Measured 0.
+	// EBGPWire cache hit -- single atomic pointer load. Measured 0. The method
+	// has no production caller since the AS-path fold (e2037e598). The entry
+	// stays until the cache is deleted. A change to it cannot regress
+	// unnoticed in the meantime.
 	"BenchmarkEBGPWireCacheHitParallel": 0,
 	// rs-fastpath ForwardUpdatesDirect per-UPDATE path. Measured 5, +1 headroom.
 	"BenchmarkForwardDirect": 6,

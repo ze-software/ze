@@ -18,7 +18,7 @@ Architecture: `docs/architecture/web-interface.md`, `docs/architecture/web-compo
 | Interface | Location | Auth | Purpose |
 |-----------|----------|------|---------|
 | **Config UI** | `internal/component/web/` | Yes (login) | YANG-driven config editor |
-| **Looking Glass** | `internal/component/lg/` | No | Public read-only BGP view |
+| **Looking Glass** | `internal/component/lg/` | Optional (`token`) | Public read-only BGP view |
 | **Chaos Dashboard** | `internal/chaos/web/` | No | Test simulator UI |
 
 All three use the same pattern: Go HTTP handlers + Go templates + HTMX.
@@ -223,7 +223,7 @@ All routes go through the auth dispatcher which calls `ParseURL()` to route by p
 | Read-only handler | `internal/component/web/handler_l2tp.go` | Read-only operational view |
 | Renderer | `internal/component/web/render.go` | Template loading + fieldFor() |
 | Fragment data | `internal/component/web/fragment.go` | FragmentData, FieldMeta structs |
-| Looking Glass | `internal/component/lg/handler_ui.go` | Public, no auth, read-only |
+| Looking Glass | `internal/component/lg/handler_ui.go` | Public, read-only, optional bearer token (`auth.go`) |
 | Chaos dashboard | `internal/chaos/web/render.go` | No YANG, direct HTML, SSE stream |
 
 ## Checklist

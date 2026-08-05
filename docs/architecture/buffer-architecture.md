@@ -440,6 +440,11 @@ published via `atomic.Pointer`. Cache-hit reads are a single atomic load
 are fire-once (written at most once, never mutated). Eviction
 (`evictLocked`, `Delete`) loads each slot atomically and returns its handle.
 
+`EBGPWire` has no production caller since the AS-path fold moved eBGP
+prepending onto the edit-set path (`e2037e598`). Both slots stay nil in a
+running daemon, so the two eviction branches release nothing. The cache is
+scheduled for deletion by `plan/spec-wire-edit-3-deferred-ac9-dead-code.md`.
+
 ## Related Documentation
 
 - `docs/architecture/encoding-context.md` - Context-dependent encoding

@@ -426,11 +426,30 @@ func checkDesignMD(root string, pluginNames, familyNames []string, ciTotal int, 
 			}
 		}
 
-		if m := extractCount(line, `(\d+) interop scenario`); m > 0 {
-			if m != interopCount {
+		// A FLOOR claim ("100+ interop scenarios") is satisfied by any real count
+		// at or above it; an exact claim ("106 interop scenarios") still has to
+		// match. Prose pinning a number that grows on its own schedule costs a
+		// doc edit and a red gate every time somebody adds a scenario -- this one
+		// line was corrected twice in a single day, for no reader's benefit. The
+		// floor keeps the guarantee that matters, which is that the page never
+		// overclaims, and drops the churn. A bare number is still accepted and
+		// still checked exactly, for counts an author does want pinned.
+		if m, isFloor := extractFloorCount(line, `(\d+)(\+?) interop scenario`); m > 0 {
+			var tb textbuf.Buffer
+			switch {
+			case isFloor && interopCount < m:
 				issues = append(issues, issue{
 					File: "docs/DESIGN.md", Line: lineNum,
-					Message: fmt.Sprintf("claims %d interop scenarios, actual is %d", m, interopCount),
+					Message: tb.Str("claims at least ").Int(int64(m)).
+						Str(" interop scenarios, actual is ").Int(int64(interopCount)).String(),
+				})
+			case !isFloor && m != interopCount:
+				issues = append(issues, issue{
+					File: "docs/DESIGN.md", Line: lineNum,
+					Message: tb.Str("claims ").Int(int64(m)).
+						Str(" interop scenarios, actual is ").Int(int64(interopCount)).
+						Str(" (write ").Int(int64(m)).
+						Str("+ for a floor that needs no edit when a scenario is added)").String(),
 				})
 			}
 		}
@@ -838,6 +857,21 @@ func extractCount(line, pattern string) int {
 
 func extractApprox(line, pattern string) int {
 	return extractCount(line, pattern)
+}
+
+// extractFloorCount reads a count that may be written as a floor ("100+").
+//
+// The pattern must expose two groups: the digits, and an optional literal `+`.
+// isFloor reports whether the `+` was present, so the caller can require
+// actual >= claimed instead of equality. Returns 0 when the line does not match,
+// which the callers already treat as "no claim on this line".
+func extractFloorCount(line, pattern string) (n int, isFloor bool) {
+	m := regexp.MustCompile(pattern).FindStringSubmatch(line)
+	if len(m) < 3 {
+		return 0, false
+	}
+	n, _ = strconv.Atoi(strings.ReplaceAll(m[1], ",", ""))
+	return n, m[2] == "+"
 }
 
 func withinThreshold(claimed, actual int, threshold float64) bool {

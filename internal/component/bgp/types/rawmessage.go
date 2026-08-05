@@ -31,9 +31,11 @@ type RawMessage struct {
 	// UPDATE to eligible RS peers. bgp-rs checks this to skip ForwardCached.
 	ReactorForwarded bool
 
-	// FastPathSkipped lists destination peers that the reactor fast path
-	// skipped (e.g. because they have ExportFilters). bgp-rs forwards to
-	// only these peers via ForwardCached when ReactorForwarded is true.
+	// FastPathSkipped lists destination peers the reactor fast path did not
+	// decide for: they carry ExportFilters it cannot apply, or an egress
+	// filter panicked for them. bgp-rs forwards to only these peers via
+	// ForwardCached when ReactorForwarded is true. A peer the fast path
+	// SUPPRESSED by policy is not listed -- that decision is final.
 	FastPathSkipped []netip.AddrPort
 }
 

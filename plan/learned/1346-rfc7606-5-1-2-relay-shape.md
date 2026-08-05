@@ -78,8 +78,6 @@ touching this spec's code. The tree moved underneath a document nobody re-read.
 
 ## Files
 
-- `plan/spec-rfc7606-5-1-2-relay-shape.md` -- Runs 6 and 7, the artifact
-  reference, Deferrals Resolved, and every stale table corrected
 - `plan/deferrals/fixit-otc-src-role-meta-fallback.md` -- Status to `done`
 - `test/plugin/relay-withdraw-reflector.ci` -- new, the verify-tier witness for
   the RFC 4456 producer

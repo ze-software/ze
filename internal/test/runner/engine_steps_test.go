@@ -622,3 +622,131 @@ func TestRunEngineStepsExpectOutputBeforeCommand(t *testing.T) {
 		t.Fatal("expect=output before any command= must fail")
 	}
 }
+
+// --- expect=command-error -------------------------------------------------
+//
+// The directive exists because the plugin SDK turns a StatusError response into
+// a Go error, so a command that must REFUSE aborted the run before any expect=
+// could see it. That made the whole refusal class untestable end to end, which is
+// the class where being wrong is most expensive.
+
+func TestParseEngineExpectCommandError(t *testing.T) {
+	r := parseCIRecord(t, "command=show vpn ipsec dataplane sa\nexpect=command-error:contains=cannot enumerate\n")
+	if len(r.EngineSteps) != 2 {
+		t.Fatalf("EngineSteps = %d, want 2", len(r.EngineSteps))
+	}
+	step := r.EngineSteps[1]
+	if step.Kind != EngineStepExpectCommandError {
+		t.Errorf("Kind = %d, want EngineStepExpectCommandError", step.Kind)
+	}
+	if step.Text != "cannot enumerate" {
+		t.Errorf("Text = %q, want the needle", step.Text)
+	}
+}
+
+// The needle may itself hold ':' -- an error message routinely does.
+func TestParseEngineExpectCommandErrorKeepsColons(t *testing.T) {
+	r := parseCIRecord(t, "command=x\nexpect=command-error:contains=xfrm: state list: permission denied\n")
+	if got := r.EngineSteps[1].Text; got != "xfrm: state list: permission denied" {
+		t.Errorf("Text = %q, want the colons preserved", got)
+	}
+}
+
+func TestParseEngineExpectCommandErrorRejectsEmpty(t *testing.T) {
+	for _, line := range []string{
+		"expect=command-error:contains=",
+		"expect=command-error:matches=nope",
+	} {
+		et := &EncodingTests{}
+		r := newRecord("engine-steps-test")
+		if err := et.parseLine(r, "t.ci", line); err == nil {
+			t.Errorf("parseLine(%q) = nil, want an error", line)
+		}
+	}
+}
+
+func TestRunEngineStepsCommandErrorConsumed(t *testing.T) {
+	f := &fakeDispatch{responses: map[string][]string{
+		"show vpn ipsec dataplane sa": {"ERR the active dataplane backend cannot enumerate the SAD"},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "show vpn ipsec dataplane sa"},
+		{Kind: EngineStepExpectCommandError, Text: "cannot enumerate the SAD"},
+	}
+	if err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps); err != nil {
+		t.Fatalf("RunEngineSteps = %v, want the expected error to be consumed", err)
+	}
+}
+
+func TestRunEngineStepsCommandErrorWrongMessage(t *testing.T) {
+	f := &fakeDispatch{responses: map[string][]string{
+		"cmd": {"ERR something else entirely"},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "cmd"},
+		{Kind: EngineStepExpectCommandError, Text: "cannot enumerate"},
+	}
+	err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps)
+	if err == nil || !strings.Contains(err.Error(), "cannot enumerate") {
+		t.Fatalf("RunEngineSteps = %v, want a failure naming the expected needle", err)
+	}
+}
+
+// A command that SUCCEEDS must not satisfy expect=command-error. Without this the
+// directive would pass for the very regression it guards: a refusal quietly
+// becoming a successful empty answer.
+func TestRunEngineStepsCommandErrorRequiresAFailure(t *testing.T) {
+	f := &fakeDispatch{responses: map[string][]string{
+		"cmd": {`done {"sas":[]}`},
+	}}
+	steps := []EngineStep{
+		{Kind: EngineStepCommand, Text: "cmd"},
+		{Kind: EngineStepExpectCommandError, Text: "cannot enumerate"},
+	}
+	err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps)
+	if err == nil || !strings.Contains(err.Error(), "preceding command succeeded") {
+		t.Fatalf("RunEngineSteps = %v, want a failure saying the command succeeded", err)
+	}
+}
+
+// An UNCONSUMED command failure still fails the run. Every .ci written before
+// this directive existed relies on that, so the held error must not become a
+// swallowed one.
+func TestRunEngineStepsUnconsumedCommandErrorStillFails(t *testing.T) {
+	f := &fakeDispatch{responses: map[string][]string{
+		"cmd": {"ERR boom"},
+	}}
+	t.Run("followed by another step", func(t *testing.T) {
+		steps := []EngineStep{
+			{Kind: EngineStepCommand, Text: "cmd"},
+			{Kind: EngineStepExpectOutput, Text: "anything", Timeout: time.Second},
+		}
+		err := RunEngineSteps(t.Context(), f.dispatch, NewEngineEventBuffer(), steps)
+		if err == nil || !strings.Contains(err.Error(), "boom") {
+			t.Fatalf("RunEngineSteps = %v, want the command error raised", err)
+		}
+	})
+	t.Run("as the last step", func(t *testing.T) {
+		f2 := &fakeDispatch{responses: map[string][]string{"cmd": {"ERR boom"}}}
+		steps := []EngineStep{{Kind: EngineStepCommand, Text: "cmd"}}
+		err := RunEngineSteps(t.Context(), f2.dispatch, NewEngineEventBuffer(), steps)
+		if err == nil || !strings.Contains(err.Error(), "boom") {
+			t.Fatalf("RunEngineSteps = %v, want the trailing command error raised", err)
+		}
+	})
+}
+
+func TestEngineStepsCommandErrorRoundTrip(t *testing.T) {
+	steps := []EngineStep{{Kind: EngineStepExpectCommandError, Text: "cannot enumerate"}}
+	data, err := marshalEngineSteps(steps)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	back, err := UnmarshalEngineSteps(data)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(back) != 1 || back[0].Kind != EngineStepExpectCommandError || back[0].Text != "cannot enumerate" {
+		t.Fatalf("round trip = %+v, want the step preserved", back)
+	}
+}

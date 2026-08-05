@@ -81,6 +81,11 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | **IPv6 Extended** | EUI-64 address generation | missing | medium |
 | | DAD configuration (messages, accept) | missing | medium |
 | | Custom interface identifiers | missing | lower |
+| **Router Advertisement** | RA sender per unit (RFC 4861) | have | |
+| | Prefix Information options for SLAAC | have | |
+| | RDNSS resolver option (RFC 8106) | have | |
+| | Router Solicitation answers with rate limit | have | |
+| | Route Information option (RFC 4191) | missing | lower |
 | **Traffic Mirroring** | Ingress/egress via tc mirred | have | |
 | | Idempotent setup/cleanup | have | |
 | | Traffic redirect (vs mirror) | missing | lower |
@@ -470,6 +475,186 @@ material is the original whitepaper
 genetlink spec
 (https://www.kernel.org/doc/html/latest/userspace-api/netlink/specs/wireguard.html),
 and `wg(8)`.
+
+## IPv6 Router Advertisements
+
+Ze sends IPv6 Router Advertisements on a LAN unit, which is the job radvd does on
+other systems. Hosts on the link build addresses by stateless address
+autoconfiguration (SLAAC), learn a default router, and learn DNS resolvers. The
+`iface-ra` plugin owns the socket, the timers, and the answers to Router
+Solicitations (RFC 4861).
+
+The `router-advertisement` container sits inside the per-unit `ipv6` container.
+It carries `ze:os "linux"` and `ze:backend "netlink"`. The schema walker prunes
+it on another platform, and a tree with `backend vpp` rejects it at config verify
+with `feature not supported by backend "vpp"`.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+<!-- source: internal/component/config/backend_gate.go -- ze:backend commit-time feature gate -->
+<!-- source: internal/plugins/iface/ra/register.go -- iface-ra registration -->
+
+### Send and accept are separate
+
+An advertising interface tells hosts to send it their off-link traffic. Set
+`ipv6 forwarding true` on that unit, or the kernel drops that traffic and every
+host on the link loses connectivity. Leave `accept-ra` at 0 unless the same
+interface also learns from another router.
+
+Config verify cannot catch this, because forwarding can arrive from a sysctl
+profile after verify runs. Ze reports the state instead. The
+`doctor-iface-ra-forwarding` check emits one warning for each advertising
+interface whose `net.ipv6.conf.<device>.forwarding` is 0.
+
+<!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
+
+### Container leaves
+
+| Leaf | Type | Range | Unit | Default | Meaning |
+|------|------|-------|------|---------|---------|
+| `enabled` | boolean | | | `false` | Send advertisements on this unit. RFC 4861 Section 6.2.1 requires the default `false`, so a node never becomes a router by accident |
+| `maximum-interval` | uint16 | 4..1800 | seconds | 600 | Longest wait between unsolicited advertisements (MaxRtrAdvInterval) |
+| `minimum-interval` | uint16 | 3..1350 | seconds | 200 | Shortest wait between unsolicited advertisements (MinRtrAdvInterval) |
+| `router-lifetime` | uint16 | 0..9000 | seconds | 1800 | How long hosts keep Ze in their default router list (AdvDefaultLifetime) |
+| `hop-limit` | uint8 | 0..255 | | 64 | Value hosts put in the Hop Limit field of their outgoing packets. 0 states no value |
+| `managed` | boolean | | | `false` | The M flag: hosts get their addresses from DHCPv6 |
+| `other-config` | boolean | | | `false` | The O flag: hosts get other configuration, such as DNS, from DHCPv6 |
+| `reachable-time` | uint32 | 0..3600000 | milliseconds | 0 | How long a host treats a neighbor as reachable after a confirmation. 0 states no value |
+| `retransmit-timer` | uint32 | | milliseconds | 0 | Time between retransmitted Neighbor Solicitations on this link. 0 states no value |
+
+Ze picks each unsolicited interval at random between `minimum-interval` and
+`maximum-interval`, which keeps two routers on one link from synchronizing
+(RFC 4861 Section 6.2.4). The first three advertisements after a start wait
+16 seconds at most, so a new router is found quickly.
+
+<!-- source: internal/plugins/iface/ra/ifacera.go -- unsolicitedInterval, maxInitialAdvertisements -->
+
+### Prefix list
+
+Each `prefix` entry becomes one Prefix Information option (RFC 4861
+Section 4.6.2). The list key is the prefix in CIDR notation. SLAAC needs a
+64-bit prefix (RFC 4862 Section 5.5.3).
+
+| Leaf | Type | Unit | Default | Meaning |
+|------|------|------|---------|---------|
+| `on-link` | boolean | | `true` | The L flag: hosts treat addresses in this prefix as on-link |
+| `autonomous` | boolean | | `true` | The A flag: hosts build addresses from this prefix by SLAAC |
+| `valid-lifetime` | uint32 | seconds | 2592000 | How long the prefix stays valid. 30 days. 4294967295 never expires |
+| `preferred-lifetime` | uint32 | seconds | 604800 | How long addresses from the prefix stay preferred. 7 days |
+
+<!-- source: internal/component/iface/config_ra.go -- raParsePrefixEntry, raDefaultValidLifetime, raDefaultPreferredLifetime -->
+
+### Resolvers (RDNSS)
+
+The `rdnss` container points a link at a resolver without a DHCPv6 server
+(RFC 8106 Section 5.1). `server` is a leaf-list of up to 8 IPv6 addresses, and
+all of them share one `lifetime`.
+
+`lifetime` has no default, and the two zero-like cases stay apart because of
+that.
+
+| You write | Ze advertises | Hosts do |
+|-----------|---------------|----------|
+| No `lifetime` leaf | 3 x `maximum-interval` | Use the resolvers, and refresh them on each advertisement |
+| `lifetime 0` | 0 | Stop using these resolvers |
+| `lifetime 4294967295` | 4294967295 | Use the resolvers, and never expire them |
+
+<!-- source: internal/component/iface/config_ra.go -- raUnitConfig.RDNSSLifetime, EffectiveRDNSSLifetime -->
+
+### Validation
+
+The YANG ranges bound each leaf on its own. Config verify applies the cross-leaf
+rules of RFC 4861 that no single range can express, and every one of them
+rejects the commit.
+
+| Rule | Rejected input | Message |
+|------|----------------|---------|
+| `minimum-interval` is at most 0.75 x `maximum-interval` | `minimum-interval 500` with `maximum-interval 600` | `above three quarters of maximum-interval` |
+| `router-lifetime` is 0, or at least `maximum-interval` | `router-lifetime 300` with `maximum-interval 600` | `below maximum-interval, and not 0` |
+| `preferred-lifetime` is at most `valid-lifetime` | `valid-lifetime 3600` alone | `preferred-lifetime 604800 is above valid-lifetime 3600` |
+| The prefix carries no host bits | `prefix 2001:db8:1::1/64` | `host bits set below the prefix length, write 2001:db8:1::/64` |
+| The prefix is not link-local | `prefix fe80::/64` | `the link-local prefix is not advertised` |
+
+Two of these rows are traps worth reading twice.
+
+`router-lifetime 0` is valid input, and it means that Ze advertises its prefixes
+and its resolvers while it is not a default router (RFC 4861 Section 4.2). The
+"at least `maximum-interval`" rule applies to every other value.
+
+`preferred-lifetime` defaults to 604800, so lowering only `valid-lifetime` below
+that number is rejected. Set both leaves together.
+
+Ze rejects a prefix with host bits rather than masking them, because a masked
+prefix advertises something the operator did not write.
+
+<!-- source: internal/component/iface/config_ra.go -- raValidate, raParsePrefixEntry -->
+
+### Example
+
+A LAN unit that advertises one prefix, two resolvers, and itself as the default
+router:
+
+```
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv6 {
+                address [ 2001:db8:1::1/64 ];
+                forwarding true;
+                router-advertisement {
+                    enabled true;
+                    maximum-interval 900;
+                    minimum-interval 300;
+                    router-lifetime 1800;
+                    hop-limit 64;
+                    prefix 2001:db8:1::/64 {
+                        on-link true;
+                        autonomous true;
+                        valid-lifetime 86400;
+                        preferred-lifetime 43200;
+                    }
+                    rdnss {
+                        server [ 2001:db8:1::53 2001:db8:1::54 ];
+                        lifetime 3600;
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+<!-- source: test/parse/iface-router-advertisement.ci -- accepted router-advertisement unit -->
+
+### Send loop
+
+One goroutine owns the socket and every timer of one sender. It joins `ff02::2`
+to receive Router Solicitations, and it sends to `ff02::1`. Every advertisement
+leaves with Hop Limit 255, which RFC 4861 Section 6.1.2 makes a receiver check.
+
+A solicitation draws an answer after a random wait of 500 milliseconds at most.
+Consecutive multicast advertisements stay 3 seconds apart, so a flood of
+solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
+A sender that stops sends up to three advertisements with a Router Lifetime of
+0. Each host then drops Ze from its default router list at once.
+
+Nothing leaves a link that is down. The next link-up event restarts the initial
+burst.
+
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
+<!-- source: internal/plugins/iface/ra/ifacera.go -- solicitedDelay, solicitedSendTime, minDelayBetweenRAs -->
+
+### Counters
+
+| Metric | Type | Labels | Counts |
+|--------|------|--------|--------|
+| `ze_iface_ra_sent_total` | CounterVec | `interface` | Every advertisement put on the wire, unsolicited and solicited together |
+| `ze_iface_ra_solicited_total` | CounterVec | `interface` | The advertisements that answered a Router Solicitation |
+
+A solicited advertisement increments both counters, so `ze_iface_ra_sent_total`
+stays the total.
+
+<!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
 
 ## Plugin-Owned Devices (Macvlan)
 

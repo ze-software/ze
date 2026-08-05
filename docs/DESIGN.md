@@ -362,6 +362,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `cos` | 802.1p class-of-service profile definitions |
 | `interface` | Interface management via netlink or VPP backend |
 | `iface-dhcp` | DHCP client for interface address assignment |
+| `iface-ra` | IPv6 Router Advertisement sender for a LAN interface unit (RFC 4861) |
 | `routing-table` | Named routing table registry for kernel table IDs |
 | `l2tp-auth-local` | L2TP local user authentication |
 | `l2tp-auth-radius` | L2TP RADIUS authentication/accounting |
@@ -794,7 +795,7 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-105 interop scenarios run across multiple implementations, written in Python with
+100+ interop scenarios run across multiple implementations, written in Python with
 automated container orchestration. Interop correctness is measured by real peers,
 not unit tests alone.
 

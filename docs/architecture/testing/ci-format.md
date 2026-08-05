@@ -1013,12 +1013,43 @@ stream=<monitor command text>
 expect=output:<predicate>[:timeout=<dur>]
 expect=event:namespace=<ns>:name=<name>[:timeout=<dur>]
 expect=stream:<predicate>[:timeout=<dur>]
+expect=command-error:contains=<text>
 ```
 
 `command=`/`stream=` keep their full raw text (colons included). `expect=output`
 re-dispatches the most recent `command=` until its predicate holds or the
 timeout expires; `expect=stream` matches delivered `stream=` events;
 `expect=event` matches a delivered event by exclusive subscription.
+
+### expect=command-error
+
+`expect=command-error:contains=<text>` asserts that the PRECEDING `command=`
+FAILED, and that its message contains the text.
+
+Use it for a command that must refuse. The plugin SDK turns a `StatusError`
+response into a Go error, so without this directive the command step aborts the
+run before any `expect=` is reached, and no `.ci` can assert an operational
+error at all. That left one class untestable end to end, and it is the class
+where a wrong answer costs most: a command that must refuse is exactly the one
+whose failure mode is answering confidently instead. `test/ipsec/ipsec-show-dataplane.ci`
+uses it to prove that a dataplane which cannot be read SAYS so rather than
+rendering an empty table.
+
+It takes `contains=` only, and no timeout. An error is the result of one
+dispatch, so re-dispatching until one appears would wait for a state change no
+`expect=` can cause.
+
+A command failure that NO `expect=command-error` consumes still fails the run,
+whether the next step is of another kind or the command is the last step in the
+file. Every `.ci` written before this directive existed relies on that.
+
+<!-- source: internal/test/runner/engine_steps.go -- parseEngineExpectCommandError, RunEngineSteps -->
+
+**It must not be vacuous.** A `command=` that SUCCEEDS does not satisfy
+`expect=command-error`: the step fails with "the preceding command succeeded".
+Without that rule the directive would pass for the very regression it guards, a
+refusal quietly becoming a successful empty answer
+(`TestRunEngineStepsCommandErrorRequiresAFailure`).
 
 ### expect=output / expect=stream predicates
 

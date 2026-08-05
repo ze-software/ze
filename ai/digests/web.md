@@ -54,7 +54,7 @@ unmarshal it back into a `map[string]any` for template rendering.
    `mutationWrap` also requires `RequireSameOrigin`
    (`cmd/ze/hub/service_web.go`). `--insecure-web` swaps in
    `InsecureMiddleware` (`internal/component/web/auth.go`, no check at all).
-   `LoginHandlerWithAudit` (`auth.go`) creates the session; HTMX logins get
+   `LoginHandlerWithAudit` (`internal/component/web/auth.go`) creates the session; HTMX logins get
    `HX-Redirect`. LG has **no** auth middleware by design
    (`internal/component/lg/server.go`); only `securityHeaders`
    (`internal/component/lg/server.go`) wraps its mux.

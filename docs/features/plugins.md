@@ -71,6 +71,7 @@ Three filter categories:
 | Plugin | Description |
 |--------|-------------|
 | interface | OS network interface monitoring and management via netlink or VPP. Publishes interface and address events to the bus. |
+| iface-ra | IPv6 Router Advertisement sender (RFC 4861) for a LAN interface unit: prefixes for SLAAC, the M and O flags, and RDNSS resolvers (RFC 8106). Linux and netlink only. |
 | static | Config-driven static route programming with ECMP. |
 | connected | Redistributes directly connected interface prefixes. |
 | kernel | Redistributes externally-installed kernel routes. |
@@ -84,6 +85,7 @@ Three filter categories:
 | bgp-nlri-srpolicy | SR-Policy NLRI (SAFI 73) with Tunnel Encapsulation attribute. |
 
 <!-- source: internal/component/iface/register.go -- interface -->
+<!-- source: internal/plugins/iface/ra/register.go -- iface-ra -->
 
 ### Plugin Health Metrics
 

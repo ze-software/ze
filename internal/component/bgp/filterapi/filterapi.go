@@ -137,6 +137,14 @@ const maxGenerators = 255
 // leaves room for a second family without changing the structure.
 const genInline = 8
 
+// opsInline is the number of operations held without a heap allocation. The
+// measured common case is four per modified UPDATE (opsArr's doc records the
+// three allocations a nil slice cost at that size), so eight absorbs it with
+// headroom while keeping ModAccumulator small enough to hoist above the
+// destination loop. A destination exceeding it falls back to append, which is
+// correct and merely allocates.
+const opsInline = 8
+
 // ModAccumulator collects per-peer route modifications from egress filters.
 // NOT safe for concurrent use. Each peer iteration gets a fresh instance.
 type ModAccumulator struct {
@@ -146,6 +154,18 @@ type ModAccumulator struct {
 	withdrawnRewrite []byte // replacement for the withdrawn NLRI section
 	inline           [modAccumulatorInlineBytes]byte
 	inlineOff        int
+
+	// opsArr backs ops until a destination exceeds opsInline operations, so the
+	// common modify records every operation without a heap allocation. Growing
+	// a nil slice cost one allocation per doubling -- three per modified UPDATE
+	// at four operations, multiplied by the export fan-out, which made the
+	// append the single largest allocation source on the filter-delta path
+	// (spec-perf-next-2-filter-delta-alloc, Phase B).
+	//
+	// Reset re-slices ops to zero length and does NOT re-zero this array, for
+	// the reason Reset's doc gives: the entries are unreachable at length zero
+	// and zeroing would make Reset scale with capacity.
+	opsArr [opsInline]AttrOp
 
 	// gens holds the value generators recorded for this destination, addressed by
 	// AttrOp.GenIdx. It is kept OUT of AttrOp so that struct stays 32 bytes; see
@@ -250,6 +270,9 @@ func (a *ModAccumulator) Reset() {
 // forwarded UPDATE; the check belongs at the handler that already knows its own
 // value width.
 func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
+	if a.ops == nil {
+		a.ops = a.opsArr[:0]
+	}
 	a.ops = append(a.ops, AttrOp{Code: code, Action: action, Buf: buf})
 }
 

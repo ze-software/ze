@@ -33,14 +33,14 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        # DEFECT (found by this sweep, NOT fixed here): `show interface rate
-        # <name>` cannot be dispatched. `show interface` carries an implicit
-        # selector ArgDef, so matchCommandTokens swallows "rate" as the selector
-        # and the handler's arg switch falls through to its usage text
-        # (internal/component/iface/cmd/show_interface.go). The no-argument form
-        # works. Asserting only what is true today; the selector fix is
-        # dispatcher-wide and needs its own review. This file dispatched the
-        # noun-first `interface rate` until now, so neither assertion had run.
+        # `show interface rate` now has its own wire method, ze-show:interface-rate,
+        # so the dispatcher hands handleShowInterfaceRateCmd the tokens after the
+        # key rather than eating "rate" as part of it
+        # (internal/component/iface/cmd/show_interface.go). While the four
+        # subcommands shared ze-show:interface they were alias paths of it, and
+        # this reached showInterfaceAll instead: with no iface backend in this
+        # config that surfaced as "no backend loaded", which is what the assertion
+        # below used to require. The rate tracker is what is absent now.
         resp = dispatch(api, 'show interface rate')
         status = resp.get('status')
         if status is None:
@@ -48,7 +48,7 @@ def main():
         data = result_text_data(resp)
         if 'unknown command' in str(data):
             runtime_fail(f'interface-rate: command does not resolve: {data}')
-        if 'no backend loaded' not in str(data):
+        if 'rate tracker not running' not in str(data):
             runtime_fail(f'unexpected error message: {data}')
         print(f'OK: show interface rate resolves: {data}', file=sys.stderr)
     finally:

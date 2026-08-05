@@ -5,14 +5,27 @@
 | Status | in-progress |
 | Depends | spec-perf-next-0-umbrella.md |
 | Phase | 5/5 |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-05 |
 
-Awaiting closure (recorded 2026-07-22 during plan review): implemented and in
-the tree -- `ebgpWireSlot` + lock-free `atomic.Pointer` slots at
-`internal/component/bgp/reactor/received_update.go,89,93,203-209`, with
-the concurrent cache-hit test in `received_update_test.go`. The work is
-documented in `plan/learned/900-perf-next-round-3.md`; only the two-commit
-closure remains.
+The feature code landed in commit `b5ad2cabe` on 2026-06-15. It carries
+`ebgpWireSlot` plus the two `atomic.Pointer` slots in `received_update.go`, the
+eviction change in `recent_cache.go`, the tests, the benchmark, and the
+`docs/architecture/buffer-architecture.md` section. Closure (2026-08-05)
+re-measured every number in this spec rather than trusting it. See the Mistake
+Log for what changed.
+
+**The optimized path is no longer reachable in production, and this spec closes
+saying so.** The AS-path fold (`ddf04953a`, `e2037e598`, both 2026-08-01) moved
+eBGP prepending onto the edit-set path. It left `EBGPWire` with zero non-test
+callers, so both slots stay nil in a running daemon.
+
+The lock-free change is still correct and still measured. The traffic it was
+written for now takes another route. Deleting the cache is homed at
+`plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and
+`plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`. Both
+state that the deletion touches read-pool buffer lifetime and wants its own
+implementation phase. This closure does not do that deletion. It corrects every
+comment and doc line that still called the path live.
 
 ## Post-Compaction Recovery
 
@@ -274,17 +287,20 @@ run needed beyond the existing suite. Justification: synchronization-only change
 | Rule: stale-comments | EBGPWire doc comment updated (currently says "Thread-safe via ebgpMu") |
 
 ### Deliverables Checklist (/implement stage 10)
-| Deliverable | Verification method |
-|-------------|---------------------|
-| Lock-free hit path | read EBGPWire; confirm no Lock() before the hit return |
-| Before/after benchmark numbers in spec | grep this file for BenchmarkEBGPWireCacheHitParallel results |
-| Race gate | `make ze-race-reactor` output pasted |
+| Deliverable | Verification method | Result (2026-08-05) |
+|-------------|---------------------|---------------------|
+| Lock-free hit path | read EBGPWire; confirm no Lock() before the hit return | Done. `slot.Load()` and its return precede `u.ebgpMu.Lock()` in `EBGPWire` |
+| Before/after benchmark numbers in spec | grep this file for BenchmarkEBGPWireCacheHitParallel results | Done, re-measured; run pasted under Goal Validation with the host named |
+| Race gate | `make ze-race-reactor` output pasted | Done: `ok github.com/ze-software/ze/internal/component/bgp/reactor 221.454s`, exit 0 |
 
 ### Security Review Checklist (/implement stage 11)
-| Check | What to look for |
-|-------|-----------------|
-| Input validation | Unchanged; RewriteASPath error paths still reject malformed payloads |
-| Resource exhaustion | Pool-exhaustion path still returns errEbgpWireBufferExhaustedPoolAt without publishing |
+| Check | What to look for | Result (2026-08-05) |
+|-------|-----------------|---------------------|
+| Input validation | Unchanged; RewriteASPath error paths still reject malformed payloads | Pass. `EBGPWire` wraps and returns the `RewriteASPath` error and publishes nothing; TestReceivedUpdate_EBGPWireErrorDoesNotPublish feeds a truncated payload and asserts a nil slot |
+| Resource exhaustion | Pool-exhaustion path still returns errEbgpWireBufferExhaustedPoolAt without publishing | Pass. `dst.Buf == nil` returns before the store, so an exhausted pool cannot publish a slot over a zero handle |
+| Buffer lifetime (generic) | Double-return or use-after-return of a pool handle | Pass. The independent review enumerated every slot reader: the writer in `EBGPWire` and the two release sites in `evictLocked` and `Delete`, both under `c.mu`, both deleting the entry in the same call. Mutants M1 and M2 confirm the tests catch a missing return |
+| Race / TOCTOU (generic) | Torn publication, double generation | Pass. `make ze-race-reactor` (-race -count=20) exit 0. Generation is single-flight under `ebgpMu` with a re-check after the lock |
+| Untrusted input, injection, crypto, privilege, path traversal (generic) | Any new surface | Not applicable. The change reads and writes no external input, adds no parsing, no filesystem or network call, and no privilege decision |
 
 ### Failure Routing
 | Failure | Route To |
@@ -298,14 +314,18 @@ run needed beyond the existing suite. Justification: synchronization-only change
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| A-1 held: production goroutines call EBGPWire concurrently | It held when the code landed on 2026-06-15. It stopped holding seven weeks later. The AS-path fold (`e2037e598`, 2026-08-01) removed the last non-test caller, so the optimized path is dead in a running daemon | Closure grepped for callers instead of re-reading the spec's caller trace | The spec's headline number ("~15M lock ops/sec removed") is not achievable by this change any more. Deleting the cache is homed at two existing specs. This closure corrected the comments, the doc section and the alloc-gate entry that still described the path as live |
+| The recorded before/after benchmark (128 ns/op -> 0.36 ns/op) could be re-run | It was honestly measured (`docs/architecture/perf-round-3.md` names the host: 16 goroutines, Apple M4 Max) and still could not be re-run. The before number came from a working tree that `b5ad2cabe` overwrote, the benchmark file landed in that same commit, and the number was taken on a different machine from the one that would check it | Closure re-ran the benchmark: the after path reproduced, the before path had no producer at all | The speedup rested on a number no gate and no reader could reproduce. Fixed by adding `BenchmarkEBGPWireCacheHitParallelMutexBaseline`, which keeps the pre-change hit path measurable, and by pasting a run with its host named |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Recover the before number from git history alone | Reading the old source proves the shape, never the cost, and restoring it into the working tree to time it would edit committed code other sessions build against | A permanent comparator benchmark that reproduces the old hit path in a `_test.go` file, so the baseline is re-runnable without touching production code |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
+| A performance spec records a before number whose producer is deleted by the same commit that records it | Second occurrence in the perf-next family (`spec-perf-next-3-rib-show-alloc.md` claims a >=50% allocation cut against a baseline that was never measured) | A perf spec's baseline must have a producer that survives the change: a committed comparator benchmark, or a stored `benchstat` file. `ai/rules/interop-and-goal-validation.md` already demands a pasted benchmark result; it does not yet demand the baseline stay re-runnable | Carried into `plan/learned/` with this spec; raise for `ai/rules/performance.md` if a third instance appears |
 
 ## Design Insights
 - The atomic.Pointer[struct] pattern for bundling a pointer + handle pair is cleaner than separate atomics. Go's memory model guarantees that when a reader observes the stored pointer, the struct's fields are fully visible.
@@ -337,13 +357,17 @@ protocol-enforcing code is added. Keep existing references intact.
 - Updated `evictLocked` and `Delete` in recent_cache.go to load slots atomically
 
 ### Bugs Found/Fixed
-- None
+- Closure fixed four prose defects the independent review found: the `EBGPWire` doc comment's false SourceCtxID claim, and three sites plus a doc section that still called the path a live RS fan-out hot path (see Review Gate).
+- Closure cleared a `make ze-doc-test` red it did not cause but depended on: two learned summaries cited `plan/spec-rfc7606-5-1-2-relay-shape.md`, which its own closure commit (`632dcade1`) removed, putting `scripts/dev/learned_staleness.py` two references over its shrink-only ceiling. The two dead lines were deleted, per `plan/learned/METHODOLOGY.md`.
 
 ### Documentation Updates
-- `docs/architecture/buffer-architecture.md`: added "EBGP Variant Cache" section describing the lock-free publication/eviction contract
+- `docs/architecture/buffer-architecture.md`: "EBGP Variant Cache" section describing the lock-free publication and eviction contract, plus the reachability note added at closure
+- `docs/architecture/perf-round-3.md`: re-measured numbers beside the 2026-07 ones, the `b.RunParallel` caveat, and the reachability note
 
 ### Deviations from Plan
-- None
+- `BenchmarkEBGPWireCacheHitParallelMutexBaseline` was added at closure. The plan assumed the before number recorded during Phase 1 would stand; it could not be re-run, so the comparator now produces it on demand.
+- Phase 3's `make ze-perf-bench PERF_DUT=ze` was not run. It measures end-to-end daemon throughput, and the change under test is unreachable from the daemon (see the header), so the run could only report noise. The microbenchmark is the evidence.
+- A-1 is recorded broken rather than confirmed. See Mistake Log.
 
 ## Implementation Audit
 
@@ -359,7 +383,7 @@ protocol-enforcing code is added. Keep existing references intact.
 |-------|--------|-----------------|-------|
 | AC-1 | done | TestReceivedUpdate_EBGPWireCachedASN4 | same pointer on second call |
 | AC-2 | done | TestReceivedUpdate_EBGPWireConcurrent + `make ze-race-reactor` | 10 goroutines, mixed variants, -race -count=20 |
-| AC-3 | done | BenchmarkEBGPWireCacheHitParallel | 128 ns/op -> 0.36 ns/op, 0 allocs |
+| AC-3 | done | BenchmarkEBGPWireCacheHitParallel vs BenchmarkEBGPWireCacheHitParallelMutexBaseline | re-measured 2026-08-05: 73.6 ns/op -> 0.26 ns/op, 0 allocs/op on both (see Goal Validation) |
 | AC-4 | done | TestReceivedUpdate_EBGPWireErrorDoesNotPublish | slot nil after error, buffer returned |
 | AC-5 | done | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers | 0/1/2 variants, pool stats verified |
 | AC-6 | done | `go test ./internal/component/bgp/reactor/` | all 82 BGP packages pass |
@@ -373,7 +397,8 @@ protocol-enforcing code is added. Keep existing references intact.
 | TestReceivedUpdate_EBGPWireConcurrent (existing) | pass | received_update_test.go | unchanged |
 | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers (new) | pass | received_update_test.go | 3 subtests |
 | TestReceivedUpdate_EBGPWireErrorDoesNotPublish (new) | pass | received_update_test.go | truncated payload |
-| BenchmarkEBGPWireCacheHitParallel (new) | pass | received_update_bench_test.go | before=128ns, after=0.36ns |
+| BenchmarkEBGPWireCacheHitParallel (new) | pass | received_update_bench_test.go | after path; 0 allocs/op, ceiling registered in `internal/perf/allocgate.go` (`AllocCeilings`) |
+| BenchmarkEBGPWireCacheHitParallelMutexBaseline (new, closure) | pass | received_update_bench_baseline_test.go | before path, kept so the baseline stays re-runnable |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -382,11 +407,15 @@ protocol-enforcing code is added. Keep existing references intact.
 | recent_cache.go | modified | evictLocked + Delete use atomic loads |
 | received_update_test.go | modified | 2 new tests, updated assertions |
 | received_update_bench_test.go | created | parallel cache-hit benchmark |
-| docs/architecture/buffer-architecture.md | modified | EBGP variant cache section |
+| received_update_bench_baseline_test.go | created (closure) | mutex-shaped comparator; keeps the before number re-runnable |
+| docs/architecture/buffer-architecture.md | modified | EBGP variant cache section, plus the reachability note |
+| docs/architecture/perf-round-3.md | modified (closure) | re-measured numbers, RunParallel caveat, reachability note |
+| internal/perf/allocgate.go | modified (closure) | ceiling comment |
+| internal/component/bgp/wireu/aspath_rewrite.go | modified (closure) | stale cache comment removed |
 
 ### Audit Summary
-- **Total items:** 13
-- **Done:** 13
+- **Total items:** 17
+- **Done:** 17
 - **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 0
@@ -394,21 +423,80 @@ protocol-enforcing code is added. Keep existing references intact.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Cache-hit path is lock-free and cheaper | benchmark | BenchmarkEBGPWireCacheHitParallel: before=128ns/op, after=0.36ns/op (~350x), 0 allocs |
-| No safety regression | race test | `make ze-race-reactor` passes; `go test -race -count=20` on EBGPWireConcurrent passes |
+| Cache-hit path is lock-free and cheaper | benchmark | 73.6 ns/op -> 0.26 ns/op, 0 allocs/op on both. Output pasted below. Measured over `EBGPWire`, which no production caller reaches since `e2037e598`; the win is real for the method and unreachable for the daemon |
+| "~15M lock ops/sec removed at 100K UPDATE/s route-server fan-out" (Task) | NOT achieved | The RS fan-out no longer calls `EBGPWire` at all (`grep -rn '\.EBGPWire(' --include=*.go .` returns only `_test.go` hits). The lock ops were removed by the AS-path fold deleting the call, not by this spec. Recorded rather than claimed |
+| Generation stays single-flight | code + test | `EBGPWire` generates under `ebgpMu` with a re-check after the lock (received_update.go); TestReceivedUpdate_EBGPWireConcurrent passes under `-race -count=20` |
+| Buffer ownership unchanged | mutation-killed test | M1 (drop the ASN2 return in `evictLocked`) fails TestReceivedUpdate_EBGPWireEvictionReturnsBuffers/both_variants; M2 (drop `ReturnReadBuffer` on the error path in `EBGPWire`) fails TestReceivedUpdate_EBGPWireErrorDoesNotPublish. Both restored |
+| No safety regression | race gate | `make ze-race-reactor` (-race -count=20) exit 0: `ok ... reactor 221.454s` |
+
+### Benchmark (re-measured 2026-08-05)
+
+Host: linux/amd64, AMD EPYC 7351 16-Core, GOMAXPROCS=32.
+Command: `go test -tags ze_core -run '^$' -bench BenchmarkEBGPWireCacheHitParallel -benchmem -benchtime=2s -count=5 ./internal/component/bgp/reactor/`
+
+```
+BenchmarkEBGPWireCacheHitParallel-32                 1000000000    0.2771 ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallel-32                 1000000000    0.2622 ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallel-32                 1000000000    0.2719 ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallel-32                 1000000000    0.2627 ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallel-32                 1000000000    0.2285 ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallelMutexBaseline-32      32208591   73.60   ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallelMutexBaseline-32      32032927   73.93   ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallelMutexBaseline-32      31244032   73.27   ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallelMutexBaseline-32      32311959   73.67   ns/op    0 B/op    0 allocs/op
+BenchmarkEBGPWireCacheHitParallelMutexBaseline-32      32276869   73.73   ns/op    0 B/op    0 allocs/op
+```
+
+The baseline benchmark calls `ebgpWireMutexHit`, which reproduces the pre-change
+hit path from `b5ad2cabe^` exactly: `ebgpMu.Lock()`, deferred unlock, read the
+cached variant, return. Only the field read differs, and the mutex is what the
+benchmark measures. Both benchmarks share one fixture and one parallel shape.
+
+Mutant M3 proves the comparator measures the lock and nothing else: with
+`ebgpMu.Lock()` / `defer Unlock()` deleted from `ebgpWireMutexHit`, the same
+benchmark reports 0.109 ns/op. The whole 73.5 ns gap is the mutex.
+
+`b.RunParallel` divides wall time by total operations, so both figures scale
+with GOMAXPROCS. Compare the two benchmarks on one host; never compare a
+recorded ns/op across machines. The 2026-07 numbers in
+`docs/architecture/perf-round-3.md` (128 -> 0.36 ns/op) were taken on an Apple
+M4 Max with 16 goroutines and are not comparable to the run above.
 
 ## Review Gate
+
+Independent `/ze-review` subagents, 2026-08-05. Artifact recorded with
+`scripts/dev/review_gate.py`.
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | `EBGPWire` has zero non-test callers since `e2037e598`; the optimized path is dead in production | `internal/component/bgp/reactor/received_update.go` `EBGPWire` | Verified independently (grep returns only `_test.go` hits). Already homed at `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`, both skeleton, both stating the deletion needs its own implementation phase against read-pool buffer lifetime. Downgraded to a recorded fact for THIS spec: the deletion is separable work with a home, and folding it into a closing commit is what `ai/rules/rule-precedence.md` bans. Spec header, Goal Validation, A-1 and Mistake Log now state it |
+| 2 | ISSUE | Doc comment claims the returned wire "shares the original SourceCtxID"; false since `9668abc9b` introduced `fwdContextIDWithASN4` | `received_update.go` `EBGPWire` doc comment | Fixed: comment now describes `fwdContextIDWithASN4` and says when the ids coincide |
+| 3 | ISSUE | Four sites still describe the cache as a live RS fan-out hot path | `received_update_bench_test.go` header; `internal/perf/allocgate.go` `AllocCeilings`; `internal/component/bgp/wireu/aspath_rewrite.go` `RewriteASPath`; `docs/architecture/buffer-architecture.md` | Fixed: all four now state the method has no production caller and name the owning deletion spec |
+| 4 | NOTE | Both cache-hit benchmarks prime with `EBGPWire` and never return the handle | `received_update_bench_test.go`, `received_update_bench_baseline_test.go` | Fixed: each benchmark returns its primed handle in a deferred cleanup |
+| 5 | NOTE | Eviction returns the handle but leaves the slot pointer populated | `recent_cache.go` `evictLocked`, `Delete` | Recorded, not fixed. The entry is removed from the cache in the same call, so no consumer can reach it; this mirrors the pre-existing `poolBuf` contract. `slot.Store(nil)` belongs with the deletion spec, not in a closing commit |
+| 6 | NOTE | Baseline comparator returned a production error to mean "not primed" | `received_update_bench_baseline_test.go` `ebgpWireMutexHit` | Fixed: dedicated `errBenchSlotNotPrimed` |
+| 7 | NOTE | The `test-relax:` token in `received_update_test.go` `TestReceivedUpdate_EBGPWireErrorDoesNotPublish` is honest but misapplied: the test is new in the diff, so nothing was relaxed | `received_update_test.go` | Recorded. The token is harmless and removing it would edit a passing test for cosmetics |
+
+The reviewer also confirmed, against source: publication ordering is safe (the
+store is the last statement and `wu` is fully built); the two-site
+buffer-ownership claim is TRUE and admits no double-return or leak;
+single-flight holds with both miss-path exits clean; no mutex-era comment
+survives.
 
 ### Fixes applied
-- [filled during review]
+- `received_update.go` -- `EBGPWire` doc comment: correct ctx-id claim, state that no production caller reaches it
+- `internal/perf/allocgate.go` -- ceiling comment says the entry guards a path with no production caller
+- `internal/component/bgp/wireu/aspath_rewrite.go` -- dropped the "EBGPWire cache amortizes this" clause
+- `received_update_bench_test.go` -- header corrected; deferred handle return added
+- `received_update_bench_baseline_test.go` -- `errBenchSlotNotPrimed`; deferred handle return
+- `docs/architecture/buffer-architecture.md` -- EBGP Variant Cache section states the reachability and names the deletion spec
+- `docs/architecture/perf-round-3.md` -- the round's own record: re-measured numbers beside the original, the `b.RunParallel` caveat, and the reachability note. Found by grepping `docs/` for anchors onto the changed files, which is what the Documentation Update Checklist row 16 asks for
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | pending | Run 2 over the fixed diff | - | - |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -419,19 +507,38 @@ protocol-enforcing code is added. Keep existing references intact.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/bgp/reactor/received_update.go | yes | `ls -la` 2026-08-05, 8819 bytes |
+| internal/component/bgp/reactor/recent_cache.go | yes | `ls -la` 2026-08-05, 30628 bytes |
+| internal/component/bgp/reactor/received_update_test.go | yes | `ls -la` 2026-08-05, 18521 bytes |
+| internal/component/bgp/reactor/received_update_bench_test.go | yes | `ls -la` 2026-08-05, 1446 bytes |
+| internal/component/bgp/reactor/received_update_bench_baseline_test.go | yes | `ls -la` 2026-08-05, 2115 bytes (added at closure) |
+| docs/architecture/buffer-architecture.md | yes | section "EBGP Variant Cache (ReceivedUpdate)" with a source anchor on `ebgpWireSlot` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Same pointer, no mutex on the hit | `EBGPWire` returns `s.wire` from `slot.Load()` before any `ebgpMu.Lock()` (received_update.go); TestReceivedUpdate_EBGPWireCachedASN4 PASS |
+| AC-2 | Concurrent mixed variants safe | TestReceivedUpdate_EBGPWireConcurrent PASS; `make ze-race-reactor` exit 0, `ok ... reactor 221.454s` |
+| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `mk/alloc-gate.mk` |
+| AC-4 | Error leaves the slot nil, buffer returned | TestReceivedUpdate_EBGPWireErrorDoesNotPublish PASS; mutant M2 (drop `ReturnReadBuffer` on the error path) FAILS it |
+| AC-5 | Eviction returns exactly the published handles | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers PASS with subtests no_variants / one_variant_(ASN4) / both_variants; mutant M1 (drop the ASN2 return in `evictLocked`) FAILS both_variants |
+| AC-6 | Suite green | `make ze-race-reactor` exit 0 over `./internal/component/bgp/reactor/...`; `make ze-lint-changed` 0 issues; `make ze-tracked-build-check` OK across 6 build flavors |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| RS fast path -> `reactorForwardRS` -> EBGPWire hit | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireConcurrent, run under `-race -count=20` by `make ze-race-reactor` |
+| `forwardUpdateCore` -> EBGPWire miss (generation under `ebgpMu`) | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireLazyASN4 / LazyASN2 |
+| Cache eviction after final ack -> `evictLocked` returns both variant buffers | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers, mutation-killed by M1 |
+
+The change is synchronization shape only: the wire bytes `RewriteASPath` produces
+are unchanged, so no `.ci` or interop scenario can discriminate it. The
+discriminating evidence is the mutation kills above plus the race gate.
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | confirmed | forward_rs.go, reactor_api_forward.go, forward_pool.go runWorker; TestReceivedUpdate_EBGPWireConcurrent exists |
+| A-1 | broken (was true when implemented, false at closure) | `grep -rn '\.EBGPWire(' --include=*.go .` on 2026-08-05 returns 14 hits, every one in a `_test.go` file. The RS fast path and `forwardUpdateCore` stopped calling it at `e2037e598`. Only tests call it concurrently now; TestReceivedUpdate_EBGPWireConcurrent still exercises the shape |
 | A-2 | confirmed | isGapEvictable gated on 5min stall timer (recent_cache.go); active readers never trigger; pre-existing safety property unchanged |
 | A-3 | confirmed | Callers assign returned wire to peerWire for TCP write (forward_rs.go); no mutation |
 | A-4 | confirmed | Both call sites guard with canUseUpdateCache/cachedLocal (reactor_api_forward.go, forward_rs.go) |
@@ -439,8 +546,20 @@ protocol-enforcing code is added. Keep existing references intact.
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| buffer-architecture.md EBGP section | docs/architecture/buffer-architecture.md source anchor | yes |
-| No source anchor stale | grep docs/ for received_update.go/recent_cache.go anchors; claims remain valid | yes |
+| buffer-architecture.md EBGP section | source anchor names `ebgpWireSlot`, `ebgpSlotASN4`, `ebgpSlotASN2`, `EBGPWire`; all four exist in received_update.go. Section now also states the path has no production caller | yes |
+| No source anchor stale | the only `docs/` anchor onto received_update.go / recent_cache.go is the one above; re-read and corrected | yes |
+| Categories 1-11 (user-facing / config / CLI / API / wire) | no user-visible surface changed; wire bytes are `RewriteASPath` output, unchanged | no update needed |
+| `make ze-doc-test` | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | yes |
+
+## Deferrals Resolved
+
+This spec has no deferral shard: no `plan/deferrals/spec-perf-next-1-*` or
+`*ebgp-wire*` file exists, and nothing was deferred out of it. The one live
+follow-on, deleting the now-unreachable cache, was homed before this closure at
+`plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and
+`plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md` by the
+closure of `plan/learned/1319-wire-edit-3-aspath-fold.md`. This spec adds no row
+to either and removes no shard.
 
 ## Checklist
 

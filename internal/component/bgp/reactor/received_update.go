@@ -165,8 +165,15 @@ func getReadBuf(extendedMessage bool) BufHandle {
 //   - srcASN4: whether the source UPDATE uses 4-byte ASN encoding
 //   - dstASN4: whether the destination peer expects 4-byte ASN encoding
 //
-// The returned WireUpdate shares the original SourceCtxID for zero-copy
-// compatibility checks with other peers using the same encoding context.
+// The returned WireUpdate carries fwdContextIDWithASN4(SourceCtxID, dstASN4):
+// the source NLRI framing with the AS width rewritten to what the destination
+// wants. It equals the original SourceCtxID only when the source context
+// already encodes at that width.
+//
+// No production caller reaches this method today. The AS-path fold (e2037e598)
+// moved eBGP prepending onto the edit-set path, so both slots stay nil in a
+// running daemon and only tests populate them. Deleting the cache is the work
+// of plan/spec-wire-edit-3-deferred-ac9-dead-code.md.
 func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wireu.WireUpdate, error) {
 	slot := u.ebgpSlot(dstASN4)
 

@@ -28,6 +28,7 @@ Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
 - `config-bgp-peer`: peer settings or capability failure
 - `config-listener-conflict`: two listeners on same address/port
 - `config-mcp-invalid`: MCP auth/TLS consistency failure
+- `config-gnmi-invalid`: gNMI listens non-loopback with no token
 
 ## Config Sections
 

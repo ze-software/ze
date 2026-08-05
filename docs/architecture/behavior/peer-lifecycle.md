@@ -28,8 +28,9 @@ reflects operator-visible peer status, not protocol detail.
 | `PeerStateConnecting` | Peer is actively dialing, backing off, or otherwise trying to reach the remote. Maps to FSM `Connect`, `OpenSent`, `OpenConfirm`, or "between sessions during backoff". |
 | `PeerStateActive` | Peer is passive and waiting to accept an incoming TCP connection. Maps to FSM `Active`. |
 | `PeerStateEstablished` | FSM has transitioned into `StateEstablished` and the per-session callback ran. |
+| `PeerStateIdleHold` | Peer is deliberately down and is trying nothing. A prefix limit stopped the session and the family that overflowed asks for no reconnect. Only an operator recreating the peer brings it back. Shown as `idle-hold`. |
 
-<!-- source: internal/component/bgp/reactor/peer.go — PeerState enum (PeerStateStopped, PeerStateConnecting, PeerStateActive, PeerStateEstablished) -->
+<!-- source: internal/component/bgp/reactor/peer.go — PeerState enum (PeerStateStopped, PeerStateConnecting, PeerStateActive, PeerStateEstablished, PeerStateIdleHold) -->
 
 The peer state transitions are driven from `peer_run.go`:
 
@@ -41,6 +42,8 @@ The peer state transitions are driven from `peer_run.go`:
   leaves `StateEstablished` for any reason.
 - Set to `PeerStateConnecting` before entering the backoff window after
   a session error.
+- Set to `PeerStateIdleHold` in `holdDownAfterPrefixTeardown` when a prefix
+  limit stopped the session and the offending family asks for no reconnect.
 - Set to `PeerStateStopped` in `cleanup()` on context cancellation.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — setState calls -->
@@ -79,8 +82,14 @@ for {
         delay = reconnectMin
         continue   # immediate reconnect
 
-    if err == ErrPrefixLimitExceeded and PrefixIdleTimeout > 0:
-        wait idleBase * 2^(teardownCount-1), capped at 1 hour
+    if err is a prefix teardown:
+        mode = PrefixReconnectFor(the family that overflowed)
+        if mode == never:                # the default
+            hold down, refuse inbound, return when the peer stops
+        if mode == timer:
+            wait idleBase * 2^(teardownCount-1), capped at 1 hour
+        if mode == backoff:
+            fall through to the normal wait below
 
     if any other err:
         wait `delay`, wake early on inbound notify
@@ -100,7 +109,7 @@ for {
 |----------|---------|--------|
 | `DefaultReconnectMin` | 5 seconds | `peer.go` |
 | `DefaultReconnectMax` | 60 seconds | `peer.go` |
-| `reconnectMin` override | `settings.ConnectRetry` if non-zero, else `DefaultReconnectMin` | `peer.go` `NewPeer` |
+| `reconnectMin` override | None. `NewPeer` sets `DefaultReconnectMin` and no config leaf changes it. `settings.ConnectRetry` is the connect TIMEOUT, not the backoff floor: wiring it in made floor(120s) exceed ceiling(60s) and stranded peers `connecting` for two minutes (spec-fixit-redistribute-establishment-stall). | `peer.go` `NewPeer` |
 | `reconnectMax` override | `DefaultReconnectMax` (no setting yet) | `peer.go` |
 
 <!-- source: internal/component/bgp/reactor/peer.go — DefaultReconnectMin, DefaultReconnectMax, NewPeer, SetReconnect -->
@@ -219,7 +228,9 @@ take additional locks safely.
 | Normal session error | Exponential, starting at `reconnectMin` (default 5s), doubling each attempt, capped at `reconnectMax` (default 60s). |
 | `ErrTeardown` (API-initiated stop) | Reset `delay` to `reconnectMin`, continue loop immediately. No wait. |
 | Successful session exit (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. |
-| `ErrPrefixLimitExceeded` with `PrefixIdleTimeout > 0` | Separate backoff: `PrefixIdleTimeout * 2^(teardownCount-1)`, capped at 1 hour. `prefixTeardownCount` capped at 60 to prevent `time.Duration` overflow. Per RFC 4486. |
+| Prefix teardown, family mode `never` (the default) | No delay, because there is no next attempt. The peer enters `PeerStateIdleHold`, raises a `prefix-hold` warning, refuses inbound connections and waits for the peer context to end. Only an operator recreating the peer brings it back. |
+| Prefix teardown, family mode `timer` (`idle-timeout > 0`) | Separate backoff: `PrefixIdleTimeout * 2^(teardownCount-1)`, capped at 1 hour. `prefixTeardownCount` capped at 60 to prevent `time.Duration` overflow. Per RFC 4486. |
+| Prefix teardown, family mode `backoff` | The normal exponential backoff of the first row. This is the explicit opt-in, and it was the accidental behavior of every zero `idle-timeout` until 2026-08-03. |
 | Inbound connection arrives during backoff | Reset `delay` to `reconnectMin` and continue immediately. `inboundNotify` is a buffered channel (size 1) signaled by `SetInboundConnection`. |
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — run backoff arms -->

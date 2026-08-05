@@ -24,6 +24,14 @@ var universalKernelRequirements = []string{
 // redundant with gokrazy/kernel/runtime.require so the verified path has a floor
 // independent of the editable manifest: modules support plus the L2TP/PPP/PPPoE
 // set the ze-qemu evidence tests boot on.
+//
+// The ESP entries carry the IPsec dataplane. gokrazy/kernel/kernel.config sets
+// CONFIG_XFRM_USER, which gives the kernel the netlink interface ze installs
+// through; without CONFIG_INET_ESP the same kernel accepts the install and drops
+// every ESP packet. The image ships two ze binaries and gokrazy randomd and
+// heartbeat, so there is no iproute2 and no busybox to diagnose that with: the
+// build is the only place to catch it. CONFIG_XFRM_STATISTICS sources the SAD byte
+// counters `show vpn ipsec sa` reports.
 var runtimeKernelRequirements = []string{
 	"CONFIG_MODULES",
 	"CONFIG_PPP",
@@ -31,6 +39,9 @@ var runtimeKernelRequirements = []string{
 	"CONFIG_L2TP",
 	"CONFIG_PPPOL2TP",
 	"CONFIG_L2TP_V3",
+	"CONFIG_INET_ESP",
+	"CONFIG_INET6_ESP",
+	"CONFIG_XFRM_STATISTICS",
 }
 
 func enforceKernelRequirements(profile kernelProfileResolution, configPath string, floor []string) error {

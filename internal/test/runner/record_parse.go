@@ -262,6 +262,9 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	if rest, ok := strings.CutPrefix(line, "expect=stream:"); ok {
 		return parseEngineExpectContains(r, engineActionStream, rest)
 	}
+	if rest, ok := strings.CutPrefix(line, "expect=command-error:"); ok {
+		return parseEngineExpectCommandError(r, rest)
+	}
 
 	// Parse action=type:key=value:key=value:...
 	// First segment is action=type, remaining segments are key=value pairs

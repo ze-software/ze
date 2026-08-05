@@ -32,11 +32,23 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		return nil
 	}
 	storePath := filepath.Join(configDir, "database.zefs")
+	var tb textbuf.Buffer
 	if _, err := os.Stat(storePath); err != nil {
-		return nil
+		// Absence is not corruption: the host has not run ze init yet.
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		// Any other error means the check could not run. An empty result is the
+		// HEALTHY verdict, so returning it here would report a store that was
+		// never opened (ai/rules/evidence.md).
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-store-integrity",
+			Severity: diagnostic.SeverityError,
+			Message:  tb.Str("store unreadable at ").Str(storePath).Str(": ").Err(err).String(),
+			Path:     storePath,
+		}}
 	}
 
-	var tb textbuf.Buffer
 	report, err := zefs.Check(storePath)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
@@ -71,10 +83,30 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 	}
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(configDir, &stat); err != nil {
-		return nil
+		// Absence is not a fault: the host has not run ze init yet. Every OTHER
+		// error means the free space was never measured, and an empty result is
+		// the HEALTHY verdict (ai/rules/evidence.md).
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		var tb textbuf.Buffer
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-disk-space",
+			Severity: diagnostic.SeverityError,
+			Message:  tb.Str("config partition unreadable at ").Str(configDir).Str(": ").Err(err).String(),
+			Path:     configDir,
+		}}
 	}
+	// A filesystem reporting zero total blocks cannot answer the question. Report
+	// it rather than divide by zero OR pass it off as healthy.
 	if stat.Blocks == 0 {
-		return nil
+		var tb textbuf.Buffer
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-disk-space",
+			Severity: diagnostic.SeverityError,
+			Message:  tb.Str("config partition reports zero total blocks at ").Str(configDir).String(),
+			Path:     configDir,
+		}}
 	}
 	pctFree := (stat.Bavail * 100) / stat.Blocks
 	if pctFree < 5 {

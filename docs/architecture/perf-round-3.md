@@ -43,10 +43,29 @@ memory model guarantees that an atomic load observing the stored pointer
 sees the fully initialized struct.
 
 ```
-BenchmarkEBGPWireCacheHitParallel (16 goroutines, Apple M4 Max):
+BenchmarkEBGPWireCacheHitParallel (16 goroutines, Apple M4 Max, 2026-07):
   Before:  ~128 ns/op    0 allocs/op
   After:   ~0.36 ns/op   0 allocs/op
+
+Re-measured 2026-08-05, linux/amd64 EPYC 7351, GOMAXPROCS=32, -benchtime=2s:
+  BenchmarkEBGPWireCacheHitParallelMutexBaseline    73.6 ns/op   0 allocs/op
+  BenchmarkEBGPWireCacheHitParallel                 0.26 ns/op   0 allocs/op
 ```
+
+`b.RunParallel` divides wall time by total operations. Both figures therefore
+scale with GOMAXPROCS. Compare the two benchmarks on one host. Never compare a
+recorded ns/op across machines.
+
+`BenchmarkEBGPWireCacheHitParallelMutexBaseline` reproduces the pre-change
+mutex hit path. The before number stays re-runnable now that the old code
+is gone.
+
+**Since 2026-08-01 this path is unreachable.** The AS-path fold (`e2037e598`)
+moved eBGP prepending onto the edit-set path. It left `EBGPWire` with no
+non-test caller, so both slots stay nil in a running daemon. The optimization
+above is correct and measured. The traffic it was written for takes another
+route. Deleting the cache is the work of
+`plan/spec-wire-edit-3-deferred-ac9-dead-code.md`.
 
 Files: `received_update.go`, `recent_cache.go`.
 

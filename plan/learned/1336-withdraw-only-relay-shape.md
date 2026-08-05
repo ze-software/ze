@@ -82,7 +82,6 @@ assertion under test discriminates.** Read WHICH assertion failed.
 - `test/plugin/role-otc-rs-withdraw-eor.ci`
 - `test/interop/scenarios/51-role-otc-withdraw-frr`
 - `test/interop/scenarios/52-relay-withdraw-shape-frr`
-- `plan/spec-rfc7606-5-1-2-relay-shape.md`
 - `plan/deferrals/fixit-otc-src-role-meta-fallback.md`
 
 ## Where the same defect still lives

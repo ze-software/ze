@@ -10,12 +10,16 @@ import (
 )
 
 // BenchmarkEBGPWireCacheHitParallel measures the cost of cache-hit reads of
-// EBGPWire under parallel goroutine load. This is the hot path in RS fan-out:
-// one UPDATE forwarded to N eBGP peers, each calling EBGPWire on the same
-// ReceivedUpdate.
+// EBGPWire under parallel goroutine load: many goroutines calling EBGPWire on
+// one ReceivedUpdate.
 //
 // Before the lock-free change: every hit takes ebgpMu (mutex lock/unlock pair).
 // After: hit path is a single atomic pointer load.
+// BenchmarkEBGPWireCacheHitParallelMutexBaseline is the before comparator.
+//
+// EBGPWire has no production caller since the AS-path fold (e2037e598), so this
+// measures a path a running daemon does not take. It stays until the cache is
+// deleted (plan/spec-wire-edit-3-deferred-ac9-dead-code.md).
 func BenchmarkEBGPWireCacheHitParallel(b *testing.B) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -34,6 +38,14 @@ func BenchmarkEBGPWireCacheHitParallel(b *testing.B) {
 	if _, err := update.EBGPWire(65000, true, true); err != nil {
 		b.Fatalf("prime EBGPWire: %v", err)
 	}
+	// Nothing evicts this fixture, so the benchmark owns the primed handle and
+	// returns it itself. Left borrowed, it shifts the shared bufMuxStd counter
+	// that the pool-accounting tests in this package read.
+	defer func() {
+		if s := update.ebgpSlotASN4.Load(); s != nil {
+			ReturnReadBuffer(s.handle)
+		}
+	}()
 
 	b.ResetTimer()
 	b.ReportAllocs()

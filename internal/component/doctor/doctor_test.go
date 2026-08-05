@@ -1189,6 +1189,70 @@ func TestCheckStoreIntegrity_NoStoreIsSilent(t *testing.T) {
 	assert.Empty(t, checkStoreIntegrity(), "missing store must report nothing")
 }
 
+// notADirConfigDir pins ze.config.dir BELOW a regular file and returns that path.
+//
+// Both syscalls under test then fail ENOTDIR. That is a genuine "cannot check",
+// and it is not os.ErrNotExist: Go maps ErrNotExist to ENOENT alone
+// (syscall.Errno.Is). The absence branch therefore cannot swallow it.
+//
+// The path must be a CHILD of the file, never the file itself. statfs(2)
+// resolves the filesystem that CONTAINS its argument, so it succeeds on a
+// regular file. The first version of this helper pinned the file, and
+// checkDiskSpace measured the real tmpfs and reported healthy. Only a
+// non-directory component mid-path fails for os.Stat and syscall.Statfs alike.
+//
+// A chmod-0 parent was the other option. It stays readable for root, so the
+// assertions would go vacuous exactly where they matter most.
+func notADirConfigDir(t *testing.T) string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "not-a-directory")
+	require.NoError(t, os.WriteFile(file, []byte("regular file"), 0o600))
+	p := filepath.Join(file, "config")
+	pinConfigDir(t, p)
+	return p
+}
+
+// VALIDATES: a stat error that is NOT "file absent" produces a diagnostic naming
+// the path, rather than the healthy verdict an empty result means.
+// PREVENTS: the fail-open branch where ANY os.Stat error returned nil, so a store
+// ze doctor could not read (unreadable config dir, ENOTDIR, EACCES, I/O error) was
+// reported as healthy. Absence is not corruption, which the test above pins, but
+// "I could not look" is not health either: a guard that cannot deny must say so
+// (ai/rules/evidence.md).
+func TestCheckStoreIntegrity_UnreadableStoreIsReported(t *testing.T) {
+	notADir := notADirConfigDir(t)
+
+	diags := checkStoreIntegrity()
+
+	require.Len(t, diags, 1, "an unreadable store must be reported, not treated as healthy")
+	assert.Equal(t, "doctor-store-integrity", diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityError, diags[0].Severity)
+	assert.Contains(t, diags[0].Message, notADir, "the message must name the path that could not be read")
+}
+
+// VALIDATES: checkDiskSpace stays silent when the config dir does not exist.
+// PREVENTS: ze doctor reporting spurious disk errors on a host that has not run
+// ze init -- the same "absence is not a fault" rule checkStoreIntegrity follows.
+func TestCheckDiskSpace_MissingDirIsSilent(t *testing.T) {
+	pinConfigDir(t, filepath.Join(t.TempDir(), "does-not-exist"))
+
+	assert.Empty(t, checkDiskSpace(), "absent config dir must report nothing")
+}
+
+// VALIDATES: a Statfs error that is NOT "file absent" produces a diagnostic.
+// PREVENTS: the sibling fail-open of checkStoreIntegrity's -- every syscall.Statfs
+// failure returned nil, so ze doctor reported free space it never measured
+// (ai/rules/evidence.md, ai/rules/architecture.md sibling audit).
+func TestCheckDiskSpace_UnreadableDirIsReported(t *testing.T) {
+	notADir := notADirConfigDir(t)
+
+	diags := checkDiskSpace()
+
+	require.Len(t, diags, 1, "an unreadable config dir must be reported, not treated as healthy")
+	assert.Equal(t, "doctor-disk-space", diags[0].Code)
+	assert.Contains(t, diags[0].Message, notADir, "the message must name the path that could not be measured")
+}
+
 func TestDoctorCoverageCodesRegistered(t *testing.T) {
 	// VALIDATES: AC-17 every new doctor coverage diagnostic code is registered for ze explain.
 	// PREVENTS: ze doctor emitting codes that ze explain cannot describe.

@@ -228,6 +228,41 @@ This accepts either a valid non-zero IPv4 address or the literal "self".
 
 <!-- source: internal/component/config/yang/validator_registry.go -- CheckAllValidatorsRegistered -->
 
+### Claim Completeness Gate
+
+Validation says a config value is well formed. It does not say the value reaches
+anything. Delivery is claimed per path: `Server.reloadConfig` selects the plugins
+whose `WantsConfigRoots` match the changed paths, and `Hub.RouteCommand` resolves
+a path to a subsystem through `SchemaRegistry.FindHandler`. A path matched by
+neither is stored and delivered nowhere, with one Info log line.
+
+`TestConfigSchemaRootsClaimed` closes that hole at build time. It resolves the
+full config schema through the YANG loader, unions the claims from the plugin
+registry and the schema registry, and fails when a config subtree is covered by
+neither. `TestConfigRootsPhantomClaims` runs the inverse: a declared config root
+that names no schema node never matches, so the plugin that declared it is never
+selected. Both inventories are read live, so neither can drift from a list.
+
+A subtree that a component reads straight from the config tree, rather than
+through the plugin RPC, is recorded in `allowlist.json` with a reason and the
+consuming symbol. Five paths are recorded today: `plugin`, `pppoe`, `storage`,
+`system`, and `telemetry`. An entry without a reason and an owner is a failure,
+and so is an entry whose path is now claimed.
+
+At run time `ze doctor` judges one config on one build and reports
+`doctor-config-root-unclaimed` for a configured subtree this binary delivers to
+nobody. That covers what the build-time gate cannot see: a plugin compiled out,
+or one that failed to load.
+
+`make ze-yang-leaf-mentions` is the advisory companion. It reports YANG leaves
+whose kebab name appears in no string literal of the owning package, which is a
+candidate for "delivered but never read". The signal is a heuristic, so it exits
+0 and sits in no verify stage.
+
+<!-- source: internal/component/config/claims/claims.go -- Audit -->
+<!-- source: internal/component/plugin/all/config_claims_test.go -- TestConfigSchemaRootsClaimed -->
+<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
+
 ---
 
 ## 5. CLI Completion

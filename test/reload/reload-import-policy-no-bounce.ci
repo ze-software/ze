@@ -1,0 +1,175 @@
+# Test: Config reload changes a peer's import policy WITHOUT restarting the session
+# Initial config: peer1 imports bgp-filter-prefix:ALLOW
+# After SIGHUP:   peer1 imports bgp-filter-prefix:DENY -- nothing else differs
+# Expected: one TCP connection for the whole run, and ze reports the change as an
+#           in-place settings swap rather than a peer restart.
+#
+# VALIDATES: the D-1b swap-or-restart split -- "no restart unless unavoidable"
+#            (docs/research/bird-bgp-reference.md).
+# PREVENTS: the bounce that shipped with the fail-closed reload diff. Once
+#           peerSettingsEqual (reactor_api.go) started reporting every changed
+#           field, reconcilePeersJournaled applied ANY change by removing and
+#           re-adding the peer, so editing an import policy flapped an established
+#           session.
+#
+# DISCRIMINATION: the stderr assertion is POSITIVE -- the swap path names itself.
+# Reverting the narrowing makes reconcile take the restart branch, which logs
+# "peer restart required" and never logs "peer settings swapped in place", so both
+# stderr rules flip. The single tcp_connections slot backs it at the wire level:
+# a restart dials a second connection the peer does not offer.
+
+# The in-place swap is logged at debug: BIRD prints nothing at all for a
+# successful soft reconfigure, so the quiet path stays quiet at the default level.
+option=env:var=ze.log.bgp.reactor:value=debug
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: rewrite config with a different import chain and SIGHUP.
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Initial ze bgp configuration: import chain references prefix-list ALLOW
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	policy {
+		prefix-list ALLOW {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		prefix-list DENY {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action reject
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import [ bgp-filter-prefix:ALLOW ]
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config: the import chain is the ONLY difference (ALLOW -> DENY)
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	policy {
+		prefix-list ALLOW {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		prefix-list DENY {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action reject
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import [ bgp-filter-prefix:DENY ]
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=20s
+
+# The reload took the swap branch and named the peer it swapped.
+expect=stderr:pattern=peer settings swapped in place
+# ... and never took the restart branch, which is the branch that bounces.
+reject=stderr:pattern=peer restart required

@@ -29,6 +29,7 @@ Environment:
     PPROF_CPU_SECONDS - CPU profile window in seconds (default: 30)
     PPROF_DIR       - profile output dir (default: tmp/perf-run/pprof/<routes>/)
     GCTRACE         - set GODEBUG=gctrace=1 on the ze container and archive its stderr
+    PERF_CONFIGS_DIR - overlay directory of DUT config files (default: none)
 """
 
 import argparse
@@ -47,6 +48,26 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 INTEROP_DIR = os.path.join(PROJECT_ROOT, "test", "interop")
 CONFIGS_DIR = os.path.join(SCRIPT_DIR, "configs")
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
+
+# PERF_CONFIGS_DIR names an OVERLAY directory, never a replacement: a file it
+# holds wins, every other DUT config still comes from configs/. The default
+# configs/ze.conf carries no policy filter, so the stock run never enters the
+# filter-delta modify path (filter_delta.go textDeltaToModOps). An overlay lets
+# a profiling run swap in a filter-enabled ze.conf WITHOUT moving the tracked
+# throughput baseline in test/perf/history/, which compares every DUT on one
+# identical workload. A filter in configs/ze.conf would give ze more work than
+# FRR, BIRD and GoBGP do and make that comparison dishonest.
+PERF_CONFIGS_OVERLAY = os.environ.get("PERF_CONFIGS_DIR") or ""
+
+
+def config_path(filename):
+    """Return the path to a DUT config, preferring the overlay when it has one."""
+    if PERF_CONFIGS_OVERLAY:
+        candidate = os.path.join(PERF_CONFIGS_OVERLAY, filename)
+        if os.path.isfile(candidate):
+            return candidate
+    return os.path.join(CONFIGS_DIR, filename)
+
 
 # ZE_PERF_BIN lets the caller name the host binary. Under an AI session every
 # canonical binary is built session-suffixed (mk/session.mk ZE_BIN_SUFFIX), so
@@ -541,26 +562,32 @@ def start_dut(dut):
     cname = container_name(name)
 
     volume_map = {
-        "ze": ["-v", f"{CONFIGS_DIR}/ze.conf:/etc/ze/bgp.conf:ro"],
+        "ze": ["-v", f"{config_path('ze.conf')}:/etc/ze/bgp.conf:ro"],
         "frr": [
             "-v",
-            f"{CONFIGS_DIR}/frr.conf:/etc/frr/frr.conf:ro",
+            f"{config_path('frr.conf')}:/etc/frr/frr.conf:ro",
             "-v",
             f"{INTEROP_DIR}/daemons:/etc/frr/daemons:ro",
             "-v",
             f"{INTEROP_DIR}/vtysh.conf:/etc/frr/vtysh.conf:ro",
         ],
-        "bird": ["-v", f"{CONFIGS_DIR}/bird.conf:/etc/bird/bird.conf:ro"],
-        "gobgp": ["-v", f"{CONFIGS_DIR}/gobgp.toml:/etc/gobgp/gobgp.toml:ro"],
-        "rustbgpd": ["-v", f"{CONFIGS_DIR}/rustbgpd.toml:/etc/rustbgpd/config.toml:ro"],
-        "rustybgp": ["-v", f"{CONFIGS_DIR}/rustybgp.toml:/etc/rustybgp/config.toml:ro"],
+        "bird": ["-v", f"{config_path('bird.conf')}:/etc/bird/bird.conf:ro"],
+        "gobgp": ["-v", f"{config_path('gobgp.toml')}:/etc/gobgp/gobgp.toml:ro"],
+        "rustbgpd": [
+            "-v",
+            f"{config_path('rustbgpd.toml')}:/etc/rustbgpd/config.toml:ro",
+        ],
+        "rustybgp": [
+            "-v",
+            f"{config_path('rustybgp.toml')}:/etc/rustybgp/config.toml:ro",
+        ],
         "freertr": [
             "-v",
-            f"{CONFIGS_DIR}/freertr-hw.txt:/etc/freertr/freertr-hw.txt:ro",
+            f"{config_path('freertr-hw.txt')}:/etc/freertr/freertr-hw.txt:ro",
             "-v",
-            f"{CONFIGS_DIR}/freertr-sw.txt:/etc/freertr/freertr-sw.txt:ro",
+            f"{config_path('freertr-sw.txt')}:/etc/freertr/freertr-sw.txt:ro",
         ],
-        "openbgpd": ["-v", f"{CONFIGS_DIR}/openbgpd.conf:/etc/bgpd.conf:ro"],
+        "openbgpd": ["-v", f"{config_path('openbgpd.conf')}:/etc/bgpd.conf:ro"],
     }
 
     caps = ["--cap-add", "NET_ADMIN"]

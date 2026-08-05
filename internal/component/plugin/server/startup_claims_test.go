@@ -2,16 +2,21 @@ package server
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // registerClaimingPlugin registers a throwaway plugin that claims role, and
@@ -64,6 +69,94 @@ func TestAdvertiseClaimsCoversUnstartedClaimant(t *testing.T) {
 
 	assert.Equal(t, []string{role}, s.advertiseClaims("test-stander-down"),
 		"the claim must be advertised before the claimant has handshaked")
+}
+
+// TestDeliverConfigCarriesClaimToPlugin closes the one link of the ordering
+// guarantee that nothing else owned.
+//
+// VALIDATES: the engine's own Stage-2 delivery puts the claimed roles on the
+// configure message. That is what makes peer-up replay ownership resolved
+// before the first session can establish: Stage 2 is inside the sequential
+// startup handshake, so it completes before the plugin sends Stage-5 ready
+// (TestSharedStartupDriverSinkDispatch pins that stage order), the phase
+// completes only when every plugin has, and signalStartupComplete then calls
+// SignalPluginStartupComplete -> StartPeers in straight-line code. There is no
+// window.
+//
+// The racing alternative is absent here rather than out-run: no ProcessManager
+// is registered, so sendPostStartupToAll -- the detached, deliberately un-awaited
+// fan-out that used to carry this decision -- sends nothing at all. The claim
+// arrives anyway, which is the property. Nothing here depends on that callback
+// winning a race, because it never runs.
+//
+// PREVENTS: dropping the claims argument at the SendConfigure call site in
+// deliverConfigRPC, or moving the decision back onto the post-startup fan-out.
+// Either leaves bgp-adj-rib-in self-replaying alongside bgp-rs and announces a
+// route twice to the first peer (test/plugin/rfc7606-relay-one-field,
+// test/plugin/llgr-readvertise-multipeer). Every other test in the chain --
+// advertiseClaims below, TestRPCConfigureCarriesClaims (plugin/ipc), the SDK's
+// claims_test.go, bgp-adj-rib-in's TestReplayOwnerDedupe -- stays green through
+// that edit: each owns one link and none owned the join.
+//
+// test-relax: an earlier draft of this same test (uncommitted, this session)
+// also asserted a sequence number recorded at the configure callback was lower
+// than one recorded in a mock reactor's SignalPluginStartupComplete. That
+// assertion could not fail: the test itself calls deliverConfigRPC before
+// signalStartupComplete, so it pinned the test's own call order, not the
+// product's (ai/rules/interop-and-goal-validation.md, vacuity traps). The
+// ordering it was reaching for is owned by TestSharedStartupDriverSinkDispatch
+// (DeliverConfig precedes OnReady) plus straight-line code, as stated above.
+func TestDeliverConfigCarriesClaimToPlugin(t *testing.T) {
+	const role = "test-exclusive-role"
+	registerClaimingPlugin(t, "test-claimant", role)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	engineConn, pluginMux := newDriverPipe(t)
+
+	s := &Server{
+		config:   &ServerConfig{},
+		registry: plugin.NewPluginRegistry(),
+		ctx:      ctx,
+		loadedPlugins: map[string]bool{
+			"test-claimant":     true,
+			"test-stander-down": true,
+		},
+	}
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-stander-down"})
+	proc.SetRegistration(&plugin.PluginRegistration{})
+	proc.SetConn(engineConn)
+
+	// Plugin side: answer the Stage-2 configure callback, reporting what it carried.
+	seen := make(chan []string, 1)
+	go func() {
+		var req *rpc.Request
+		select {
+		case req = <-pluginMux.Requests():
+		case <-ctx.Done():
+			return
+		}
+		var input rpc.ConfigureInput
+		if err := json.Unmarshal(req.Params, &input); err != nil {
+			return
+		}
+		seen <- input.Claims
+		_ = pluginMux.SendOK(ctx, req.ID) //nolint:errcheck // test plugin side
+	}()
+
+	require.NoError(t, s.deliverConfigRPC(ctx, proc))
+
+	select {
+	case got := <-seen:
+		// The engine's own delivery carries the claim -- not a later message,
+		// and not a payload this test fabricated.
+		assert.Equal(t, []string{role}, got,
+			"deliverConfigRPC must put the claimed roles on the Stage-2 configure callback")
+	case <-ctx.Done():
+		t.Fatal("plugin never received the Stage-2 configure callback")
+	}
 }
 
 // TestAdvertiseClaimsExcludesSelf pins that a claim never stands its own

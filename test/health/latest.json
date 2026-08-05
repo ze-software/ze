@@ -3,23 +3,23 @@
     {
       "action": "Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.",
       "annotations": {
-        "gap": 535,
+        "gap": 528,
         "not-applicable": 841,
         "single-polarity": 370
       },
-      "detail": "38.6% carry both polarities. Of the remaining 1746: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
+      "detail": "40.8% carry both polarities. Of the remaining 1739: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by a positive+negative test pair",
       "proof_density": {
-        "denominator": 2842,
-        "numerator": 1096,
-        "percent": 38.6
+        "denominator": 2937,
+        "numerator": 1198,
+        "percent": 40.8
       },
       "question": "Q2",
       "rfcs_total": 167,
       "rfcs_without_any_proof": 36,
       "status": "ok",
-      "value": "1096 / 2842",
+      "value": "1198 / 2937",
       "worst": [
         {
           "gated": 38,
@@ -119,7 +119,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 20983,
+        "denominator": 21491,
         "numerator": 135,
         "percent": 0.6
       },
@@ -127,7 +127,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "135 / 20983 (floor 135)",
+      "value": "135 / 21491 (floor 135)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -218,19 +218,19 @@
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
-        "bench_funcs": 123,
-        "ci_files": 1507,
+        "bench_funcs": 130,
+        "ci_files": 1530,
         "et_files": 164,
-        "fuzz_funcs": 76,
-        "test_files": 2802,
-        "test_funcs": 21013
+        "fuzz_funcs": 78,
+        "test_files": 2901,
+        "test_funcs": 21521
       },
-      "detail": "2802 Go test files, 76 fuzz targets, 123 benchmarks, 1507 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2901 Go test files, 78 fuzz targets, 130 benchmarks, 1530 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "21013 test functions"
+      "value": "21521 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -308,13 +308,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2802,
-        "numerator": 934,
-        "percent": 33.3
+        "denominator": 2901,
+        "numerator": 977,
+        "percent": 33.7
       },
       "question": "Q2",
       "status": "ok",
-      "value": "934 / 2802",
+      "value": "977 / 2901",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -388,10 +388,10 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 490,
+          "packages": 491,
           "with_ci": 30,
-          "with_fuzz": 30,
-          "with_rfc_tag": 91
+          "with_fuzz": 31,
+          "with_rfc_tag": 92
         }
       },
       "detail": "A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.",

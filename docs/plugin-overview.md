@@ -189,6 +189,7 @@ plugin list. The groups below mirror the current registrations in
 | `traffic` | Traffic control (TC qdisc/class) |
 | `interface` | Interface management via netlink or VPP |
 | `iface-dhcp` | DHCP client for interface address assignment |
+| `iface-ra` | IPv6 Router Advertisement sender for a LAN interface unit (RFC 4861) |
 | `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |
 | `dhcpserver` | DHCP server for LAN/PXE clients |
 | `imageserver` | HTTP image server for provisioning |

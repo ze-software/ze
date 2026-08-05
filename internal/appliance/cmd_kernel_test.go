@@ -124,7 +124,7 @@ func writeRuntimeKernelRegistry(t *testing.T) {
 	files := map[string]string{
 		filepath.Join(dir, "kernel.config"):         "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
 		filepath.Join(dir, "kernel.require"):        "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
-		filepath.Join(dir, "runtime.config"):        "CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n",
+		filepath.Join(dir, "runtime.config"):        "CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\nCONFIG_INET_ESP=y\nCONFIG_INET6_ESP=y\nCONFIG_XFRM_STATISTICS=y\n",
 		filepath.Join(dir, "runtime.require"):       "CONFIG_MODULES\nCONFIG_VETH\n",
 		filepath.Join(kernelBuilderDir, "build.py"): "#!/usr/bin/env python3\n",
 	}
@@ -136,7 +136,10 @@ func writeRuntimeKernelRegistry(t *testing.T) {
 }
 
 const fakeRuntimeConfig = "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n" +
-	"CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n"
+	"CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n" +
+	// The IPsec dataplane floor (runtimeKernelRequirements, kernelreq.go). The real
+	// fragment sets these in gokrazy/kernel/runtime.config.
+	"CONFIG_INET_ESP=y\nCONFIG_INET6_ESP=y\nCONFIG_XFRM_STATISTICS=y\n"
 
 func fakeRuntimeBuild(spec kernelBuildSpec) error {
 	if err := os.MkdirAll(filepath.Join(spec.outDir, "lib", "modules", "7.1.1-ze"), 0o755); err != nil {

@@ -36,7 +36,12 @@ fi
 ARGS=(--session "${SID:-unknown}")
 [ -n "$TRANSCRIPT" ] && ARGS+=(--transcript "$TRANSCRIPT")
 
-OUT=$(python3 scripts/dev/rule_coverage.py "${ARGS[@]}" 2>&1)
+# --quiet: one line, and only when the missed set CHANGED since this session's
+# last turn. This hook fires on EVERY Stop, and the full list is ~30 rule names.
+# Reprinting it unchanged every turn spends the reader's context to say what the
+# turn before already said, and the accumulated evidence the experiment actually
+# consumes goes to tmp/rule-coverage/report.ndjson regardless of what is shown.
+OUT=$(python3 scripts/dev/rule_coverage.py --quiet "${ARGS[@]}" 2>&1)
 RC=$?
 
 # Any exit code the detector could not produce on purpose (a python crash, a
@@ -50,5 +55,10 @@ fi
 
 [ -n "$OUT" ] && echo "$OUT" >&2
 
-# 1 only when something was missed. Never 2.
-exit "$RC"
+# Always 0. The detector still RETURNS 1 on a miss -- its own tests pin that, and
+# a direct caller can still read it -- but a non-zero exit here is rendered by the
+# harness as "Stop hook error: Failed with non-blocking status code", which reads
+# as a failure every turn. This hook measures; it never judges. A measurement
+# that announces itself as an error trains the reader to ignore the Stop hooks,
+# and the one gate that DOES judge (block-premature-stop.sh) is among them.
+exit 0
