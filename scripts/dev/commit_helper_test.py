@@ -2228,5 +2228,803 @@ class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):
             self.assertIn("message=tmp/commit-msg-abcd1234-a.txt", out)
 
 
+class _ScriptFixture:
+    """A repo, a `create` driver, and a git shim that records argv.
+
+    Shared by the push tests and the caller-text-injection tests: both ask what a
+    GENERATED SCRIPT does when bash runs it, and neither may make a network call.
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        for name in ("one.txt", "two.txt"):
+            (root / name).write_text(name + "\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        (root / "one.txt").write_text("one changed\n")
+        (root / "two.txt").write_text("two changed\n")
+        return root
+
+    def _run_create(self, root: Path, *extra: str):
+        """Drive `create` with exactly the flags given, capturing both streams."""
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                ["--repo", str(root), "create", "--session", "abcd1234", *extra]
+            )
+        return rc, out.getvalue(), err.getvalue()
+
+    def _create(self, root: Path, *extra: str):
+        return self._run_create(
+            root, "--lesson-not-needed", "fixture for the push authorisation", *extra
+        )
+
+    def _script_line(self, stdout: str) -> str:
+        for line in stdout.splitlines():
+            if line.startswith("script="):
+                return line[len("script=") :]
+        self.fail(f"no script= line in:\n{stdout}")
+
+    PUSH_LINE = "git " + "push"
+
+    def _push_lines(self, text: str) -> list[int]:
+        return [
+            index
+            for index, line in enumerate(text.splitlines())
+            if line.strip() == self.PUSH_LINE
+        ]
+
+    def _run_script(self, root: Path, script: str) -> tuple[int, list[str]]:
+        """Run a generated script with a git shim, return (exit code, git argv log).
+
+        The shim records every git invocation and refuses to make a real network
+        call: the question these tests ask is WHETHER the push was reached, and a
+        recorded argv answers it without a remote.
+        """
+        shim_dir = root / "shim"
+        shim_dir.mkdir(exist_ok=True)
+        log = root / "git-calls.log"
+        real_git = shutil.which("git")
+        self.assertIsNotNone(real_git, "git is required for this test")
+        shim = shim_dir / "git"
+        shim.write_text(
+            "#!/bin/bash\n"
+            'printf "%s\\n" "$*" >> "$GIT_CALL_LOG"\n'
+            'if [ "$1" = "' + self.PUSH_LINE.split()[1] + '" ]; then exit 0; fi\n'
+            "exec " + real_git + ' "$@"\n'
+        )
+        shim.chmod(0o755)
+        env = dict(os.environ)
+        env["PATH"] = str(shim_dir) + os.pathsep + env["PATH"]
+        env["GIT_CALL_LOG"] = str(log)
+        proc = subprocess.run(
+            ["bash", str(root / script)],
+            cwd=str(root),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        calls = log.read_text().splitlines() if log.exists() else []
+        return proc.returncode, calls
+
+
+class TestPushIsAnOwnerInstruction(_ScriptFixture, unittest.TestCase):
+    """`--push` publishes a prepared commit, and only on the owner's order.
+
+    VALIDATES: `ai/rules/git-safety.md` -- the ban on a bare push exists because
+    concurrent sessions share one index, and the generated script is what made
+    staging atomic. A push INSIDE that script inherits the same atomicity: it is
+    reached only when every commit block above it succeeded.
+    PREVENTS: a push that fires after a failed commit (publishing a tree nobody
+    prepared), a push nobody authorised, and an --append that lands a commit
+    BELOW the push meant to publish it.
+    """
+
+    def test_without_the_flag_no_push_reaches_the_script(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(root, "--subject", "first", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            text = (root / self._script_line(out)).read_text()
+            self.assertEqual(self._push_lines(text), [])
+            self.assertNotIn(ch.PUSH_MARKER, text)
+            self.assertNotIn("push=AUTHORISED", out)
+
+    def test_the_flag_puts_exactly_one_push_at_the_very_end(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            text = (root / self._script_line(out)).read_text()
+            lines = [line for line in text.splitlines() if line.strip()]
+            self.assertEqual(len(self._push_lines(text)), 1)
+            self.assertEqual(lines[-1].strip(), self.PUSH_LINE)
+            # ... and after the commit it publishes, never before it.
+            body = text.splitlines()
+            commit_at = max(
+                i for i, line in enumerate(body) if line.startswith("git commit -F ")
+            )
+            self.assertGreater(self._push_lines(text)[0], commit_at)
+
+    def test_the_authorisation_is_recorded_in_the_script_and_on_stdout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            text = (root / self._script_line(out)).read_text()
+            self.assertIn(ch.PUSH_MARKER + " Thomas ordered the push, 2026-08-05", text)
+            self.assertIn("push=AUTHORISED (Thomas ordered the push, 2026-08-05)", out)
+
+    def test_a_multiline_authorisation_cannot_escape_its_comment(self):
+        """A newline in the reason would end the comment and run what follows."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered it\nrm -rf /tmp/nothing-here",
+            )
+            self.assertEqual(rc, 0, err)
+            text = (root / self._script_line(out)).read_text()
+            self.assertNotIn("\nrm -rf", text)
+            self.assertIn(
+                ch.PUSH_MARKER + " Thomas ordered it rm -rf /tmp/nothing-here", text
+            )
+
+    def test_an_authorisation_too_short_to_name_anyone_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, _, err = self._create(
+                root, "--subject", "first", "--file", "one.txt", "--push", "ok"
+            )
+            self.assertEqual(rc, 2, err)
+            self.assertIn("--push authorisation is too short", err)
+            self.assertEqual(list((root / "tmp").glob("commit-*.sh")), [])
+
+    def test_append_after_a_push_keeps_it_last_and_single(self):
+        """The sharp edge: block two must land INSIDE the push, not below it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            rc, out2, err = self._create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--append",
+                "--script",
+                script,
+            )
+            self.assertEqual(rc, 0, err)
+            text = (root / script).read_text()
+            self.assertEqual(len(self._push_lines(text)), 1)
+            self.assertEqual(text.count(ch.PUSH_MARKER), 1)
+            commits = [
+                index
+                for index, line in enumerate(text.splitlines())
+                if line.startswith("git commit -F ")
+            ]
+            self.assertEqual(len(commits), 2)
+            self.assertGreater(self._push_lines(text)[0], commits[-1])
+            # The authorisation the owner gave survives the append, and the
+            # caller is told the script they now hold will publish both commits.
+            self.assertIn("push=AUTHORISED (Thomas ordered the push, 2026-08-05)", out2)
+
+    def test_a_repeated_push_on_the_append_re_authorises_it_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            rc, _, err = self._create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--append",
+                "--script",
+                script,
+                "--push",
+                "Thomas re-ordered it for both commits, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            text = (root / script).read_text()
+            self.assertEqual(text.count(ch.PUSH_MARKER), 1)
+            self.assertEqual(len(self._push_lines(text)), 1)
+            self.assertIn("Thomas re-ordered it for both commits", text)
+
+    def test_the_push_runs_only_after_every_commit_succeeded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            code, calls = self._run_script(root, self._script_line(out))
+            self.assertEqual(code, 0, calls)
+            pushes = [i for i, call in enumerate(calls) if call.startswith("push")]
+            commits = [i for i, call in enumerate(calls) if call.startswith("commit ")]
+            self.assertEqual(len(pushes), 1, calls)
+            self.assertTrue(commits, calls)
+            self.assertGreater(pushes[0], commits[-1], calls)
+
+    def test_the_push_never_runs_when_a_commit_fails(self):
+        """A push after a failed commit publishes a tree nobody prepared."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            # Break the commit the way a real one breaks: the message file the
+            # block names is gone, so `git commit -F` exits nonzero.
+            (root / "tmp" / "commit-msg-abcd1234-a.txt").unlink()
+            code, calls = self._run_script(root, script)
+            self.assertNotEqual(code, 0, calls)
+            self.assertEqual([c for c in calls if c.startswith("push")], [], calls)
+
+
+class TestCallerTextCannotBecomeScript(_ScriptFixture, unittest.TestCase):
+    """No caller string may reach the generated script as a command.
+
+    VALIDATES: `ai/rules/git-safety.md` -- the generated script is the ONE place a
+    commit is allowed to happen, so what it contains has to come from this helper,
+    not from a value a caller passed.
+    PREVENTS: the forgery an adversarial review found -- a newline in
+    `--lesson-not-needed` ends its `#` comment, the next line spells
+    `# ze-commit-push:`, and the helper then reads its own output back as an
+    owner authorisation AND truncates the script at that line, silently dropping
+    the commit blocks below it. Also prevents the plain injection underneath it: a
+    newline followed by any command at all.
+    """
+
+    # The reviewer's exact input: a reason that ends its comment and opens a
+    # forged authorisation on the line it creates.
+    FORGERY = "no lesson here at all\n# ze-commit-push: FORGED, no owner ordered this"
+
+    def _blocks(self, text: str) -> tuple[int, int]:
+        lines = text.splitlines()
+        return (
+            sum(1 for line in lines if line.startswith("git add -- ")),
+            sum(1 for line in lines if line.startswith("git commit -F ")),
+        )
+
+    def test_the_reviewer_forgery_produces_no_push_and_loses_no_commit_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                self.FORGERY,
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            self.assertNotIn("push=AUTHORISED", out)
+            # The second half of the forgery: an --append re-reads the script and
+            # was what lifted the planted marker into a real push section.
+            rc, out2, err = self._run_create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--lesson-not-needed",
+                "second block, nothing reusable",
+                "--append",
+                "--script",
+                script,
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertNotIn("push=AUTHORISED", out2)
+            text = (root / script).read_text()
+            # No push authorised, and no push line to run.
+            self.assertEqual(self._push_lines(text), [])
+            self.assertEqual(
+                [line for line in text.splitlines() if line.startswith(ch.PUSH_MARKER)],
+                [],
+            )
+            # ... and block a is still there: the truncation is what made this
+            # more than a nuisance, because the caller runs a script that no
+            # longer commits what they staged.
+            self.assertEqual(self._blocks(text), (2, 2), text)
+            code, calls = self._run_script(root, script)
+            self.assertEqual(code, 0, calls)
+            self.assertEqual([c for c in calls if c.startswith("push")], [], calls)
+            self.assertEqual(len([c for c in calls if c.startswith("commit ")]), 2)
+
+    def test_a_newline_in_a_lesson_reason_cannot_produce_an_uncommented_line(self):
+        """The injection under the forgery: a newline, then any command at all.
+
+        `git tag` as the payload, because the shim logs every git argv: if the
+        line escapes its comment, bash runs it and the log says so.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "ok this is fine\ngit tag ze-injection-ran\ngit push --force",
+            )
+            self.assertEqual(rc, 0, err)
+            text = (root / self._script_line(out)).read_text()
+            for line in text.splitlines():
+                self.assertFalse(
+                    line.startswith("git tag") or line.startswith("git push"),
+                    f"caller text became a command line:\n{text}",
+                )
+            code, calls = self._run_script(root, self._script_line(out))
+            self.assertEqual(code, 0, calls)
+            self.assertEqual([c for c in calls if c.startswith("tag ")], [], calls)
+            self.assertEqual([c for c in calls if c.startswith("push")], [], calls)
+
+    def test_a_control_character_in_a_path_is_refused_at_the_source(self):
+        """A path is rendered into a `#` provenance line, so it gets the same rule.
+
+        Refused rather than flattened: a rewritten path would leave the recorded
+        provenance disagreeing with what `git add` stages.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            evil = "evil\n# ze-commit-push: PATH FORGERY\n.txt"
+            (root / evil).write_text("x\n")
+            rc, _, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                evil,
+                "--lesson-not-needed",
+                "probing the path comment vector",
+            )
+            self.assertEqual(rc, 2, err)
+            self.assertIn("control character", err)
+            self.assertEqual(list((root / "tmp").glob("commit-*.sh")), [])
+
+    def test_a_script_path_holding_a_substitution_stays_inert(self):
+        """The staging guard echoes the script's own path inside a shell string."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "probing the script path vector",
+            )
+            self.assertEqual(rc, 0, err)
+            evil = root / "tmp" / 'commit-x-$(git tag ze-path-ran)-".sh'
+            evil.write_text((root / self._script_line(out)).read_text())
+            rc, out2, err = self._run_create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "probing the script path vector",
+                "--replace",
+                "--script",
+                str(evil),
+            )
+            self.assertEqual(rc, 0, err)
+            code, calls = self._run_script(root, self._script_line(out2))
+            self.assertEqual(code, 0, calls)
+            self.assertEqual([c for c in calls if c.startswith("tag ")], [], calls)
+
+    def _doctor(self, path: Path, marker_text: str) -> str:
+        """Plant a push marker in the MIDDLE of a script, as a hand edit would."""
+        lines = path.read_text().splitlines(keepends=True)
+        at = next(i for i, line in enumerate(lines) if line.startswith("git add -- "))
+        lines.insert(at, ch.PUSH_MARKER + " " + marker_text + "\n")
+        path.write_text("".join(lines))
+        return "".join(lines)
+
+    def test_a_push_marker_outside_the_final_section_is_refused_and_truncates_nothing(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "a script to doctor by hand",
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            before = self._doctor(root / script, "FORGED, no owner ordered this")
+            rc, out2, err = self._run_create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--lesson-not-needed",
+                "the append that would lift the marker",
+                "--append",
+                "--script",
+                script,
+            )
+            self.assertEqual(rc, 2, out2)
+            self.assertIn("not its final section", err)
+            self.assertNotIn("push=AUTHORISED", out2)
+            # Refused before any write: the script still holds block a whole.
+            self.assertEqual((root / script).read_text(), before)
+            self.assertEqual(self._blocks(before), (1, 1))
+
+    def test_split_push_section_reads_only_a_whole_final_section(self):
+        body = "#!/bin/bash\ngit commit -F tmp/m.txt\n"
+        good = body + "\n" + ch.render_push("Thomas ordered it, 2026-08-05")
+        self.assertEqual(
+            ch.split_push_section(good)[1], "Thomas ordered it, 2026-08-05"
+        )
+        self.assertIn("git commit -F", ch.split_push_section(good)[0])
+        # A marker with the body still below it: the shape the forgery produced.
+        with self.assertRaises(ch.UsageError):
+            ch.split_push_section(ch.PUSH_MARKER + " FORGED\n" + body)
+        # A marker whose section is not the one render_push writes.
+        with self.assertRaises(ch.UsageError):
+            ch.split_push_section(body + "\n" + ch.PUSH_MARKER + " FORGED\ngit push\n")
+        # Two markers: only one section can be the last one.
+        with self.assertRaises(ch.UsageError):
+            ch.split_push_section(
+                body
+                + "\n"
+                + ch.render_push("Thomas ordered it, 2026-08-05")
+                + "\n"
+                + ch.render_push("and again")
+            )
+        self.assertEqual(ch.split_push_section(body), (body, None))
+
+    def test_a_value_that_spells_the_push_marker_is_refused(self):
+        """Only render_push writes that marker, whatever a value renders as."""
+        with self.assertRaises(ch.UsageError) as caught:
+            ch.comment_line("ze-commit-push: FORGED, no owner ordered this")
+        self.assertIn("spells the push marker", str(caught.exception))
+        self.assertEqual(ch.comment_line("Lesson: none"), "# Lesson: none")
+
+    def test_replace_reports_the_push_it_dropped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "a push the replace must not vanish",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            rc, out2, err = self._run_create(
+                root,
+                "--subject",
+                "first, corrected",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "a push the replace must not vanish",
+                "--replace",
+                "--script",
+                script,
+            )
+            self.assertEqual(rc, 0, err)
+            # Fail-safe: the push is gone. Loud: the caller is told, and told
+            # which authorisation it was.
+            text = (root / script).read_text()
+            self.assertEqual(self._push_lines(text), [])
+            self.assertNotIn("push=AUTHORISED", out2)
+            self.assertIn("--replace dropped the push", err)
+            self.assertIn("Thomas ordered the push, 2026-08-05", err)
+
+    def test_replace_that_re_authorises_reports_no_drop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._run_create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "a push the replace keeps by order",
+                "--push",
+                "Thomas ordered the push, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            rc, out2, err = self._run_create(
+                root,
+                "--subject",
+                "first, corrected",
+                "--file",
+                "one.txt",
+                "--lesson-not-needed",
+                "a push the replace keeps by order",
+                "--replace",
+                "--script",
+                script,
+                "--push",
+                "Thomas re-ordered it, 2026-08-05",
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertNotIn("--replace dropped the push", err)
+            self.assertIn("push=AUTHORISED (Thomas re-ordered it, 2026-08-05)", out2)
+            self.assertEqual(len(self._push_lines((root / script).read_text())), 1)
+
+
+class TestEveryFlatteningLayerIsPinnedAtItsOwnBoundary(unittest.TestCase):
+    """Each producer that flattens caller text is tested where it flattens.
+
+    VALIDATES: `ai/rules/testing.md` -- a layer proven only through the finished
+    script is proven by its NEIGHBOURS. Four such layers were reachable through
+    a sibling: reverting `lesson_comment`'s flattening, either `render_block`
+    comment call, or `push_authorisation`'s flattening left the whole suite
+    green, because whichever one survived caught the injection.
+    PREVENTS: a later "this flattening is redundant" refactor removing one of
+    them and staying green until an input arrives that the surviving layer does
+    not see.
+    """
+
+    # Two payloads in one string, because the two ways a line can escape a `#`
+    # comment need different assertions: a bare command is not a comment at all,
+    # a forged marker IS a comment and only its spelling gives it away.
+    ESCAPE = "\ngit tag ze-layer-escaped\n# ze-commit-push: FORGED, nobody ordered it"
+
+    def _block(self, **over) -> ch.CommitBlock:
+        fields = {
+            "tag": "a",
+            "subject": "a subject",
+            "add_paths": (),
+            "remove_paths": (),
+            "message_path": "tmp/commit-msg-abcd1234-a.txt",
+            "lesson_comment": "Lesson: not required by helper heuristic",
+        }
+        fields.update(over)
+        return ch.CommitBlock(**fields)
+
+    def _assert_every_line_is_inert(self, text: str) -> None:
+        """No line but a `#` comment or this block's own git command."""
+        for line in text.splitlines():
+            if not line.strip():
+                continue
+            self.assertFalse(
+                line.startswith(ch.PUSH_MARKER),
+                f"caller text became a push authorisation:\n{text}",
+            )
+            if line.startswith("#"):
+                continue
+            self.assertTrue(
+                line.startswith("git commit -F "),
+                f"caller text became a command line:\n{text}",
+            )
+
+    def test_comment_safe_is_one_line_by_the_splitter_that_reads_it(self):
+        """The invariant: flattening the result again changes nothing.
+
+        U+0085, U+2028 and U+2029 split under `str.splitlines` and sit outside
+        the C0/DEL range, so a character-class neutraliser missed all three
+        while every reader of a generated script split on them.
+        """
+        for raw in (
+            "a\nb",
+            "a\r\nb",
+            "a\x0bb",
+            "a\x1eb",
+            "a\x7fb",
+            "a\x85b",
+            "a\u2028b",
+            "a\u2029b",
+            "\u2028Thomas ordered it, 2026-08-05\u2029",
+            "plain text with no break",
+            "",
+        ):
+            flat = ch.comment_safe(raw)
+            self.assertEqual(
+                flat.splitlines(),
+                [flat] if flat else [],
+                f"comment_safe left a line boundary in {raw!r}: {flat!r}",
+            )
+
+    def test_lesson_comment_returns_one_line(self):
+        for reason in (
+            "no lesson here at all" + self.ESCAPE,
+            "no lesson here at all\u2028git tag ze-layer-escaped",
+        ):
+            line = ch.lesson_comment((), (), False, reason, None)
+            self.assertEqual(line.splitlines(), [line], f"from {reason!r}")
+            self.assertIn("Lesson: not needed - ", line)
+
+    def test_render_block_never_lets_a_subject_open_a_line(self):
+        text = ch.render_block(self._block(subject="a subject" + self.ESCAPE))
+        self._assert_every_line_is_inert(text)
+
+    def test_render_block_never_lets_a_lesson_line_open_a_line(self):
+        text = ch.render_block(
+            self._block(lesson_comment="Lesson: not needed - x" + self.ESCAPE)
+        )
+        self._assert_every_line_is_inert(text)
+
+    def test_rel_path_refuses_the_separators_the_character_class_misses(self):
+        """The sibling guard asks the same splitter.
+
+        A path is REFUSED rather than flattened, because a flattened one would
+        leave the provenance comment disagreeing with what `git add` stages.
+        That reasoning covers U+2028 exactly as it covers a newline, so the
+        refusal has to see it.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for raw in ("a\x85b.txt", "a\u2028b.txt", "a\u2029b.txt", "a\nb.txt"):
+                with self.assertRaises(ch.UsageError, msg=repr(raw)) as caught:
+                    ch.rel_path(root, raw)
+                self.assertIn("control character", str(caught.exception))
+            self.assertEqual(ch.rel_path(root, "docs/one.txt"), "docs/one.txt")
+
+    def test_push_authorisation_returns_one_line(self):
+        for reason in (
+            "Thomas ordered it, 2026-08-05" + self.ESCAPE,
+            "Thomas ordered it,\u20282026-08-05",
+        ):
+            flat = ch.push_authorisation(reason)
+            self.assertEqual(flat.splitlines(), [flat], f"from {reason!r}")
+        self.assertIsNone(ch.push_authorisation(None))
+
+
+class TestAPushAuthorisationSurvivesTheAppendThatReadsItBack(
+    _ScriptFixture, unittest.TestCase
+):
+    """A prepared commit is never discarded over a character bash cannot see.
+
+    VALIDATES: `ai/rules/git-safety.md` -- the generated script is the only
+    route to a commit, so refusing to read one back costs the caller the whole
+    prepared commit.
+    PREVENTS: the self-inflicted refusal U+2028 produced. It forged nothing:
+    bash reads it as one more byte of a comment, and `split_push_section`'s
+    shape check refused it. The damage was the refusal itself, reported to the
+    caller as a hand edit they never made.
+    """
+
+    AUTHORISATION = "Thomas ordered it,\u20282026-08-05"
+
+    def test_a_line_separator_in_the_authorisation_still_appends(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "first",
+                "--file",
+                "one.txt",
+                "--push",
+                self.AUTHORISATION,
+            )
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            rc, out2, err = self._create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--append",
+                "--script",
+                script,
+            )
+            # The refusal this pins: before the fix the append exited 2 with
+            # "not its final section", over a marker line this helper wrote.
+            self.assertEqual(rc, 0, err)
+            text = (root / script).read_text()
+            # One push, still last, and the recorded authorisation is the flat
+            # form of what the owner passed.
+            self.assertEqual(len(self._push_lines(text)), 1)
+            self.assertEqual(
+                [line for line in text.splitlines() if line.startswith(ch.PUSH_MARKER)],
+                ["# ze-commit-push: Thomas ordered it, 2026-08-05"],
+            )
+            self.assertIn("push=AUTHORISED (Thomas ordered it, 2026-08-05)", out2)
+            code, calls = self._run_script(root, script)
+            self.assertEqual(code, 0, calls)
+            self.assertEqual(len([c for c in calls if c.startswith("commit ")]), 2)
+            self.assertEqual(len([c for c in calls if c.startswith("push")]), 1)
+
+    def test_a_script_that_is_not_utf8_is_a_usage_error_naming_it(self):
+        """The append path re-reads the script; a bad byte is a refusal, not a
+        traceback."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, out, err = self._create(root, "--subject", "first", "--file", "one.txt")
+            self.assertEqual(rc, 0, err)
+            script = self._script_line(out)
+            path = root / script
+            path.write_bytes(path.read_bytes() + b"# \xff\xfe not utf-8\n")
+            rc, out2, err = self._create(
+                root,
+                "--subject",
+                "second",
+                "--file",
+                "two.txt",
+                "--append",
+                "--script",
+                script,
+            )
+            self.assertEqual(rc, 2, out2)
+            self.assertIn("not UTF-8", err)
+            self.assertIn(script, err)
+
+
 if __name__ == "__main__":
     unittest.main()

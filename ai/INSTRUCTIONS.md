@@ -4,9 +4,13 @@
 
 **These rules override everything. No exceptions. No rationalization. No "the task requires it."**
 
-## git push is FORBIDDEN -- no exceptions
-- NEVER run `git push`. Not to main, not to any branch, not from any worktree.
-- There is no scenario where pushing is acceptable. The user pushes manually.
+## git push is FORBIDDEN as a bare Bash call
+- NEVER type `git push`. The hook refuses it, on every branch, in every tree.
+- Push ONLY via `scripts/dev/commit_helper.py create --push`, and ONLY when the
+  owner ordered that push. Never add `--push` on your own initiative.
+- Why: sessions share the index, so a loose add/commit/push carries another
+  session's work. The script bundles all three into one atomic run.
+- A throwaway script carrying a push, deleted after, is NOT that path: banned.
 
 ## git commit, git add, git rm: FORBIDDEN as bare Bash tool calls
 - NEVER invoke `git commit`, `git add`, `git rm`, `git restore --staged`,

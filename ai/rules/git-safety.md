@@ -63,7 +63,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
-2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit.
+2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
    `--append` adds a later commit block to a script you already prepared. Pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
@@ -72,7 +72,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
    **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
 5. If the helper cannot express the commit shape, hand-write the same script pattern and `chmod +x` it. Give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
+7. Run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
 8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
@@ -148,6 +148,38 @@ git commit -F tmp/commit-msg-<SESSION>-a.txt
 (testing, spec, docs, learned summary), then report. User decides.
 Banned phrases: "ready to commit?", "shall I commit?", "we could
 commit now", "want me to commit?".
+
+## Pushing (2026-08-05, owner amendment)
+
+- **A bare `git push` from a Bash call stays forbidden; the hook enforces it.**
+- **Push only by passing `--push` to `scripts/dev/commit_helper.py create` (step 2); it runs from the script you run at step 7.**
+- **The owner orders a push; you never decide one. `--push` on your own initiative is a push without authority.**
+- **`git push --force` and `-f` stay forbidden; `--push` is no route to them.**
+
+### Why the amendment, and what to do when a push goes wrong
+
+Thomas wrote the absolute push ban and amended it on 2026-08-05: a push is
+allowed, from the commit script only, and only when he has ordered that push.
+His reason for the original ban is what makes the exception safe. It stopped a
+partial `git add` landing while several agents shared one index, and one script
+bundling add, remove, commit and push leaves no such window open.
+
+The hook's refusal of the bare command is deliberate, not an oversight: it is
+what forces every push through the script, where the mechanism stays visible to
+the next reader. Writing a throwaway script that carries a push and deleting it
+afterwards is banned for the same reason. It reaches the same remote by the same
+hand and leaves no record of why the push happened, and `ai/INSTRUCTIONS.md`
+carries that ban into every session. A remote history that needs rewriting is
+the owner's decision, made at his own terminal, which is why `--force` and `-f`
+have no `--push` path (`ai/INSTRUCTIONS.md`, "Destructive git commands are
+FORBIDDEN").
+
+| Situation | Do |
+|-----------|-----|
+| The script's commit step failed | Nothing is pushed and nothing should be: `set -euo pipefail` stops the script before the push. Fix the cause (staged index, GPG), then re-run the script |
+| The commits are made and no push was ordered | Stop and report the SHA(s). A push nobody asked for is a push without authority, whatever the branch looks like |
+| You are a worktree agent | Never push. Work on your branch and stop there (`ai/INSTRUCTIONS.md`, "Worktree agents must not touch main") |
+| The owner orders a push after your script already ran | Say so and let him push, or carry `--push` on the next commit you prepare. Do not type the command to close the gap |
 
 ## Commit Granularity
 

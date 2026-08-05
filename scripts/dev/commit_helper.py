@@ -40,6 +40,81 @@ COMMIT_MESSAGE_WIDTH = 72
 # --replace can refuse a script prepared for an unrelated commit.
 SCRIPT_MARKER = "# ze-commit-script:"
 BLOCK_MARKER = "# ze-commit-block:"
+# Marks the optional push section, which is always the LAST thing in a script.
+# `--append` finds it by this marker, lifts it, and re-emits it after the new
+# block, so a second commit can never be added BELOW the push that was meant to
+# publish it.
+PUSH_MARKER = "# ze-commit-push:"
+
+# Anything a shell would read as a line terminator, plus the rest of the C0/DEL
+# range. A `#` comment is NOT a safe sink for caller text: a newline inside a
+# value ENDS the comment, and everything after it becomes a script line. That is
+# enough to fabricate a `# ze-commit-push:` marker -- an authorisation nobody
+# gave -- or a bare command, so no caller value may be interpolated into a
+# comment raw.
+CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def comment_safe(text: str) -> str:
+    """A caller value reduced to one line, so it cannot leave a `#` comment.
+
+    INVARIANT: the result is unchanged by flattening it again --
+    `r.splitlines() == ([r] if r else [])` for every input. Everything that
+    reads a generated script back splits it into lines, so "one line" has to
+    mean what the SPLITTER means by it, not what a hand-kept character list
+    says.
+
+    Two steps, and the second is why the list cannot drift. Every control
+    character becomes a space, one for one, and the ends are trimmed. Replacing
+    rather than collapsing keeps the value faithful: a path holding two spaces
+    still reads as two spaces in the provenance line a `--replace` parses back
+    (`script_declared_paths`). Then whatever `str.splitlines` STILL calls a line
+    boundary -- U+0085, U+2028, U+2029, none of them in the C0/DEL range -- is
+    joined on a single space by the same function that will later split the
+    script. A widened character class would have to be kept in sync with
+    `splitlines` by hand; deriving the flattening from `splitlines` cannot fall
+    behind it.
+
+    The gap this closes was a self-inflicted refusal, not a forgery: bash reads
+    U+2028 as one more byte of a comment, so nothing escaped, but a `--push`
+    reason holding one rendered a marker line that `split_push_section` then
+    read back short and refused as "not its final section", telling the caller
+    to discard a perfectly good prepared commit.
+    """
+    flat = " ".join(CONTROL_CHARS_RE.sub(" ", text).splitlines())
+    return flat.strip()
+
+
+def marker_line(marker: str, payload: str) -> str:
+    """A `#` marker line whose payload can never end the comment.
+
+    THE only way a caller-supplied string is written into the generated script as
+    a comment. Newline safety used to be a per-flag concern -- `push_authorisation`
+    flattened its own value and nothing else did -- so the lesson reason, the
+    subject and the staged paths each rendered raw, and a newline in any of them
+    forged a push marker (see split_push_section).
+
+    Flattening alone still lets a value SPELL the push marker at the start of its
+    own line, which `split_push_section` would then have to adjudicate. Refuse it
+    here instead: only `render_push` may write that marker.
+    """
+    line = (marker + " " + comment_safe(payload)).rstrip()
+    if marker != PUSH_MARKER and line.startswith(PUSH_MARKER):
+        raise UsageError(
+            "refusing a value that spells the push marker: "
+            + repr(line)
+            + "\n  "
+            + PUSH_MARKER
+            + " records an owner's order to publish, and only --push\n"
+            "  writes it. A value that renders as that line would read as an\n"
+            "  authorisation nobody gave. Reword it."
+        )
+    return line
+
+
+def comment_line(text: str) -> str:
+    """One plain `#` comment carrying `text`, whatever `text` contains."""
+    return marker_line("#", text)
 
 
 LESSON_WORTHY_PREFIXES = (
@@ -112,6 +187,29 @@ def repo_root(start: str | None) -> Path:
 def rel_path(repo: Path, raw: str) -> str:
     if not raw:
         raise UsageError("empty path is not allowed")
+    # Refused, not flattened. A path reaches the script twice: quoted inside
+    # `git add`, where shlex.quote makes a newline harmless, and RAW inside the
+    # `# ze-commit-block:` provenance comment, where the same newline ends the
+    # comment and the remainder becomes a script line (a forged push marker, or a
+    # command). Rewriting the path to make the comment safe would leave the
+    # recorded provenance disagreeing with what `git add` actually stages, which
+    # is what `--replace` reads back. No legitimate path in this repository holds
+    # a control character.
+    #
+    # The second clause asks the SPLITTER, for the reason comment_safe does: a
+    # path holding U+0085, U+2028 or U+2029 clears the character class and still
+    # breaks a line for every reader of the script. Flattened into the provenance
+    # comment, it would leave that comment disagreeing with what `git add`
+    # stages, and a later `--replace` would read the disagreement as somebody
+    # else's prepared commit and refuse it.
+    if CONTROL_CHARS_RE.search(raw) or raw.splitlines() != [raw]:
+        raise UsageError(
+            "path contains a line break or control character and cannot be "
+            "committed: "
+            + repr(raw)
+            + "\n  A newline, tab, or escape in a path would break out of the "
+            "provenance\n  comment the generated script records for it."
+        )
     path = Path(raw)
     if path.is_absolute():
         try:
@@ -583,7 +681,10 @@ def lesson_comment(
     learned = learned_paths(add_paths)
     reason = ""
     if lesson_not_needed is not None:
-        reason = lesson_not_needed.strip()
+        # Flattened HERE, not only at render time, so the reason this gate
+        # measures is the one line the script will carry -- and so the record a
+        # later reader checks cannot hold a second line the gate never saw.
+        reason = comment_safe(lesson_not_needed)
         if len(reason) < 12:
             raise UsageError(
                 "--lesson-not-needed reason is too short: "
@@ -686,7 +787,13 @@ def render_staging_guard(paths: tuple[str, ...], script_rel: str = "") -> str:
     if not paths:
         return ""
     expected = " ".join("-e " + shlex.quote(p) for p in sorted(set(paths)))
-    owner = [] if not script_rel else ['  echo "  this script: ' + script_rel + '" >&2']
+    # shlex.quote, because this is a live `echo`, not a comment: a script path
+    # holding a quote or a `$(...)` would otherwise close the string and run.
+    owner = (
+        []
+        if not script_rel
+        else ["  echo " + shlex.quote("  this script: " + script_rel) + " >&2"]
+    )
     return "\n".join(
         [
             "# Concurrency guard: refuse to sweep a concurrent session's staged files",
@@ -705,13 +812,20 @@ def render_staging_guard(paths: tuple[str, ...], script_rel: str = "") -> str:
 
 
 def render_block(block: CommitBlock, script_rel: str = "") -> str:
+    # Every line here carries caller text -- the subject, the staged paths, the
+    # lesson reason -- so every line goes through marker_line/comment_line. None
+    # of the three may be interpolated raw: a newline in any of them ends its
+    # comment and turns the remainder into shell (see marker_line).
     lines = [
-        f"# Commit {block.tag}: {block.subject}",
+        comment_line(f"Commit {block.tag}: {block.subject}"),
         # Provenance: which files this block commits, machine-readable. --replace
         # reads it back to refuse a script prepared for an unrelated file set.
-        f"{BLOCK_MARKER} tag={block.tag} paths="
-        + quote_paths(block.add_paths + block.remove_paths),
-        f"# {block.lesson_comment}",
+        marker_line(
+            BLOCK_MARKER,
+            f"tag={block.tag} paths="
+            + quote_paths(block.add_paths + block.remove_paths),
+        ),
+        comment_line(block.lesson_comment),
     ]
     if block.review_check:
         lines.append("# critical-review gate re-check (ai/rules/planning.md)")
@@ -725,6 +839,131 @@ def render_block(block: CommitBlock, script_rel: str = "") -> str:
         lines.append(guard)
     lines.append("git commit -F " + shlex.quote(block.message_path))
     return "\n".join(lines) + "\n"
+
+
+MIN_PUSH_AUTHORISATION = 12
+
+
+def push_authorisation(reason: str | None) -> str | None:
+    """Normalize a `--push` authorisation to one comment-safe line, or None.
+
+    What is MECHANICAL here is small and worth stating exactly: the script
+    records a string of at least MIN_PUSH_AUTHORISATION characters, on one line,
+    and `push=AUTHORISED (<that string>)` is echoed so the caller reads it before
+    running the script. Nothing verifies that the string names a real person:
+    `--push "aaaaaaaaaaaa"` passes. Naming WHO ordered the push and WHEN is a
+    convention backed by a recorded string, and the only mechanical gate on
+    pushing is the ban on the bare command (`ai/rules/git-safety.md`).
+
+    Comment safety is not convention. The value is written into a `#` comment, a
+    newline inside it would end that comment and turn what follows into shell, so
+    it goes through `comment_safe` like every other caller value the script
+    carries.
+    """
+    if reason is None:
+        return None
+    flat = comment_safe(reason)
+    if len(flat) < MIN_PUSH_AUTHORISATION:
+        raise UsageError(
+            "--push authorisation is too short: "
+            f'"{flat}" is {len(flat)} characters, '
+            f"{MIN_PUSH_AUTHORISATION} is the minimum.\n"
+            "  Pushing is an owner instruction, never an agent's choice, and the\n"
+            "  reason is the record of who gave it. Name them and when, e.g.\n"
+            '  --push "Thomas ordered the push, 2026-08-05".'
+        )
+    return flat
+
+
+def render_push(authorisation: str) -> str:
+    """The push section: the authorisation, then one `git push`.
+
+    It carries no guard of its own and needs none. The generated header is
+    `set -euo pipefail`, so the first failing command ends the script: a failed
+    `git add`, a failed `git commit`, or the concurrency guard's own `exit 1`.
+    This line is therefore reached only when EVERY commit block above it
+    succeeded, which is the whole point of putting the push in the script rather
+    than running it beside one.
+    """
+    return (
+        "\n".join(
+            [
+                marker_line(PUSH_MARKER, authorisation),
+                "# Push authorised by the owner (ai/rules/git-safety.md). Reached",
+                "# only if every commit above succeeded -- `set -e` aborts before",
+                "# here on the first failure.",
+                "git push",
+            ]
+        )
+        + "\n"
+    )
+
+
+def split_push_section(text: str) -> tuple[str, str | None]:
+    """Split a generated script into (body without its push, its authorisation).
+
+    The second element is None when the script has no push section, and the
+    recorded authorisation string when it has one. Used by `--append`: the body
+    takes the new block, then the push is re-emitted at the end.
+
+    A marker is an authorisation ONLY as the script's final section: the text
+    from it to the end of the script must be exactly what `render_push` writes,
+    trailing newlines aside. That admits one marker and no line below the push.
+    Anything else is refused rather than read.
+
+    Scanning for the first marker line and truncating there was the second half
+    of the forgery: a `# ze-commit-push:` planted anywhere in the script -- inside
+    a lesson comment, inside a path -- was read as the owner's authorisation AND
+    silently cut every commit block below it out of the script. Position is what
+    distinguishes a section this helper wrote from a line some caller's text
+    happened to spell.
+    """
+    lines = text.splitlines(keepends=True)
+    found = [index for index, line in enumerate(lines) if line.startswith(PUSH_MARKER)]
+    if not found:
+        return text, None
+    index = found[0]
+    authorisation = comment_safe(lines[index][len(PUSH_MARKER) :])
+    tail = "".join(lines[index:])
+    if len(found) > 1 or tail.rstrip("\n") != render_push(authorisation).rstrip("\n"):
+        raise UsageError(
+            "refusing a script whose push marker is not its final section: "
+            + repr(lines[index].strip())
+            + "\n  A "
+            + PUSH_MARKER
+            + " line is an owner authorisation only when it is the LAST section\n"
+            "  of the script and nothing but the push follows it. This one is not,\n"
+            "  so it was written by something other than this helper -- a value that\n"
+            "  escaped its comment, or a hand edit.\n"
+            "  Reading it would fabricate an authorisation nobody gave and drop the\n"
+            "  commit blocks below it. Delete the script and prepare a fresh one\n"
+            "  (drop --script to get a new path)."
+        )
+    body = "".join(lines[:index]).rstrip("\n")
+    return (body + "\n" if body else ""), authorisation
+
+
+def read_script_text(script: Path) -> str:
+    """An existing script's text, or a UsageError naming the file.
+
+    The append path re-reads a script it is about to rewrite. A file that is not
+    UTF-8 is not one this helper wrote, so the read fails either way; what
+    changes here is that the caller gets the path and the next step instead of a
+    UnicodeDecodeError traceback. `errors="replace"` is deliberately NOT used:
+    substituting U+FFFD would let a doctored script through the round-trip
+    checks with its bad bytes silently rewritten.
+    """
+    try:
+        return script.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise UsageError(
+            "cannot read the script to append to, it is not UTF-8: "
+            + script.as_posix()
+            + f"\n  ({exc.reason} at byte {exc.start})\n"
+            "  A script this helper wrote is UTF-8, so this one was corrupted or\n"
+            "  hand-edited. Delete it and prepare a fresh one (drop --script to "
+            "get a new path)."
+        ) from exc
 
 
 def script_rel_path(session: str, tag: str) -> str:
@@ -853,6 +1092,28 @@ def refuse_foreign_replace(repo: Path, script: Path, block: CommitBlock) -> None
     )
 
 
+def replaced_push_authorisation(script: Path) -> str | None:
+    """The push authorisation a `--replace` is about to discard, or None.
+
+    `--replace` rewrites the script from its header down, so a push the owner
+    authorised for the commit it USED to prepare does not carry over. Dropping it
+    is the fail-safe direction and stays. Dropping it in silence is not: the
+    caller holds a path they were told would publish, and the next thing they
+    read about it must not be a script that quietly no longer does.
+
+    A script this helper cannot parse (a forged or hand-edited push section)
+    reports None rather than raising: `--replace` discards that content whole, so
+    there is nothing to warn about and nothing to refuse.
+    """
+    try:
+        _, authorisation = split_push_section(
+            script.read_text(encoding="utf-8", errors="replace")
+        )
+    except UsageError:
+        return None
+    return authorisation
+
+
 def write_outputs(
     repo: Path,
     session: str,
@@ -862,7 +1123,8 @@ def write_outputs(
     replace: bool,
     dry_run: bool,
     script_arg: str | None = None,
-) -> Path:
+    push_reason: str | None = None,
+) -> tuple[Path, str | None]:
     if append and replace:
         raise UsageError("--append and --replace are mutually exclusive")
     message_file = repo / block.message_path
@@ -885,14 +1147,48 @@ def write_outputs(
         script = target
         if replace:
             refuse_foreign_replace(repo, script, block)
+            dropped = replaced_push_authorisation(script)
+            if dropped is not None and push_reason is None:
+                print(
+                    "note: --replace dropped the push this script carried: "
+                    + dropped
+                    + "\n  A replaced script is written from its header down, so an "
+                    "authorisation\n  given for the commit it used to prepare does not "
+                    'carry over. Pass\n  --push "<who ordered it, when>" again if the '
+                    "owner ordered this one\n  published.",
+                    file=sys.stderr,
+                )
     script_rel = script.relative_to(repo).as_posix()
     header = (
         "#!/bin/bash\nset -euo pipefail\n"
         'cd "$(git rev-parse --show-toplevel)"\n\n'
-        f"{SCRIPT_MARKER} {script_rel} session={session}\n\n"
+        # script_rel comes from --script, so it is caller text like any other.
+        + marker_line(SCRIPT_MARKER, f"{script_rel} session={session}")
+        + "\n\n"
     )
     append_here = append and script.exists()
     block_text = render_block(block, script_rel)
+    # The push belongs to the SCRIPT, not to a block: one push, always last, no
+    # matter how many blocks were appended. An --append lifts the push the script
+    # already carries and re-emits it after the new block, so the appended commit
+    # ends up INSIDE the push rather than below it. Repeating --push on the append
+    # re-authorises it and the newer reason wins; omitting --push keeps the
+    # authorisation the script already recorded, because dropping a push the owner
+    # ordered would be as surprising as adding one they did not.
+    existing_body, existing_push = (
+        split_push_section(read_script_text(script)) if append_here else ("", None)
+    )
+    authorisation = push_reason if push_reason is not None else existing_push
+    push_text = render_push(authorisation) if authorisation is not None else ""
+    if append_here:
+        body = existing_body
+        if body and not body.endswith("\n"):
+            body += "\n"
+        text = body + "\n" + block_text
+    else:
+        text = header + block_text
+    if push_text:
+        text += "\n" + push_text
     if dry_run:
         print(f"session={session}")
         print(f"message={block.message_path}")
@@ -900,24 +1196,12 @@ def write_outputs(
         print("--- message ---")
         print(message, end="")
         print("--- script ---")
-        if append_here:
-            print(script.read_text(encoding="utf-8"), end="")
-        else:
-            print(header, end="")
-        print(block_text, end="")
-        return script
+        print(text, end="")
+        return script, authorisation
     message_file.write_text(message, encoding="utf-8")
-    if append_here:
-        existing = script.read_text(encoding="utf-8")
-        with script.open("a", encoding="utf-8") as fh:
-            if existing and not existing.endswith("\n"):
-                fh.write("\n")
-            fh.write("\n")
-            fh.write(block_text)
-    else:
-        script.write_text(header + block_text, encoding="utf-8")
+    script.write_text(text, encoding="utf-8")
     script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    return script
+    return script, authorisation
 
 
 def verify_status(repo: Path) -> tuple[str, str]:
@@ -2472,6 +2756,9 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         validate_add_path(repo, path)
     for path in remove_paths:
         validate_remove_path(repo, path)
+    # Refuse an unusable authorisation before any expensive gate runs: the reason
+    # is the only record of who ordered the push.
+    push_reason = push_authorisation(args.push)
     # Verify gate: a commit script must not be prepared over a non-green verify
     # unless the caller explicitly acknowledges why (owner override, or a
     # known-red logged in plan/known-failures/). This turns "verify before
@@ -2648,7 +2935,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         comment,
         review_check,
     )
-    script = write_outputs(
+    script, authorisation = write_outputs(
         repo,
         session,
         block,
@@ -2657,6 +2944,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         args.replace,
         args.dry_run,
         getattr(args, "script", None),
+        push_reason,
     )
     if not args.dry_run:
         print(f"session={session}")
@@ -2669,6 +2957,11 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             print(f"verify={vstate.upper()} ({detail})")
         if args.review_override and spec_closure_stem(add_paths, remove_paths, repo):
             print(f"review=OVERRIDDEN ({args.review_override})")
+        # Printed whenever the SCRIPT will push, including when this create only
+        # appended a block to a script an earlier --push authorised: what the
+        # caller needs to know is what the script they are about to run does.
+        if authorisation is not None:
+            print(f"push=AUTHORISED ({authorisation})")
     if verdicts is None:
         # --stale-index-ok skipped the gate above, so nothing has been materialized
         # yet. The HEAD warning is independent of that override and still applies.
@@ -2868,6 +3161,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="reason to allow a spec-closure commit when the independent "
         "critical-review gate (ai/rules/planning.md) is missing/stale "
         "(owner override; a review not performed is never a clean tree)",
+    )
+    create_cmd.add_argument(
+        "--push",
+        metavar="AUTHORISATION",
+        help="OWNER INSTRUCTION ONLY: append a push to the end of the script, so "
+        "the commits it prepares are published only when every one of them "
+        "succeeded. Never a default and never inferred: pass it when the "
+        "owner has ordered the push, and give WHO ordered it and WHEN as the "
+        "value, which is recorded in the script and echoed as `push=AUTHORISED`. "
+        "One push per script: an --append moves it after the new block",
     )
     create_cmd.add_argument(
         "--dry-run",
