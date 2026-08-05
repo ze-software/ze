@@ -182,7 +182,7 @@ func (s *Session) Begin() *Packet {
 // final packet has already been returned.
 func (s *Session) Process(response *Packet) *Packet {
 	if response.Code != CodeResponse {
-		return s.failure()
+		return s.failure(response)
 	}
 
 	switch s.state {
@@ -230,9 +230,9 @@ var _ = (*Session)(nil) // compile check
 func (s *Session) handleIdentity(response *Packet) *Packet {
 	if response.Type != TypeIdentity {
 		if response.Type == TypeNAK {
-			return s.failure()
+			return s.failure(response)
 		}
-		return s.failure()
+		return s.failure(response)
 	}
 
 	s.identity = string(response.TypeData)
@@ -243,18 +243,23 @@ func (s *Session) handleIdentity(response *Packet) *Packet {
 
 func (s *Session) handleMethod(response *Packet) *Packet {
 	if response.Type == TypeNAK {
-		return s.failure()
+		return s.failure(response)
 	}
 
 	result := s.method.Process(response)
 	if result.Err != nil {
 		s.state = stateFailure
-		return s.failure()
+		return s.failure(response)
 	}
 	if result.Done {
 		s.state = stateSuccess
 		s.msk = result.MSK
-		s.identifier++
+		// RFC 3748 Section 4.2: "The Identifier field MUST match the Identifier
+		// field of the Response packet that it is sent in response to." Success
+		// ends the exchange rather than opening one, so it answers the Response's
+		// Identifier and does not advance the counter. Same rule, and same former
+		// off-by-one, as failure below.
+		s.identifier = response.Identifier
 		return &Packet{
 			Code:       CodeSuccess,
 			Identifier: s.identifier,
@@ -267,11 +272,27 @@ func (s *Session) handleMethod(response *Packet) *Packet {
 	return result.Response
 }
 
-func (s *Session) failure() *Packet {
+// failure ends the exchange, answering the packet the caller was given.
+//
+// RFC 3748 Section 4.2: "The Identifier field MUST match the Identifier field of
+// the Response packet that it is sent in response to." A Failure does not open a
+// new exchange, so it does not advance s.identifier: it addresses the one it is
+// ending. Incrementing first, which this did until 2026-08-05, made every
+// EAP-Failure carry the answered Identifier plus one, and a peer enforcing
+// Section 4.2 discards it.
+//
+// answered may be nil only if a future caller has no packet in hand. There is no
+// such caller today, and the fallback keeps the old numbering rather than
+// stamping a zero that would look like a valid Identifier.
+func (s *Session) failure(answered *Packet) *Packet {
 	s.state = stateFailure
-	s.identifier++
+	id := s.identifier + 1
+	if answered != nil {
+		id = answered.Identifier
+	}
+	s.identifier = id
 	return &Packet{
 		Code:       CodeFailure,
-		Identifier: s.identifier,
+		Identifier: id,
 	}
 }
