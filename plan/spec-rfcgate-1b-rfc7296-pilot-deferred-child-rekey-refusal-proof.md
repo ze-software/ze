@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Scope | protocol |
 | Depends | `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` (interop half only) |
 | Phase | - |
 | Deferral shard | - |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-05 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -51,6 +51,38 @@ that narrows `ESPGroup` after establishment.
 **A second gate applies to carrier 2 only.** No automated caller runs the IPsec interop
 tree, so `make ze-rfc-check` refuses a tagged test placed there. That is
 `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`.
+
+## Re-verified 2026-08-05, and blocked on a design choice
+
+The blocker above holds. Checked at source rather than carried from the text:
+`peer.ESPGroup` is a NAMED reference resolved from config
+(`internal/component/ike/ipsec/config.go`), and the refusal path matches against
+the group the responder already narrowed at IKE_AUTH. So no static configuration
+reaches the state the proof needs, exactly as recorded.
+
+**What blocks it is a choice, not more measurement.** The spec names the two
+routes and they are not equivalent:
+
+| Route | What it is |
+|-------|-----------|
+| Change `esp-group` on a live SA | A PRODUCT capability. An operator could then renegotiate a running tunnel onto a different suite, which is useful and is a real feature with its own config, reload and interop surface |
+| A seam that narrows `ESPGroup` after establishment | A TEST affordance. Smaller, but it puts a hook in the IKE responder path whose only caller is a test, which `ai/rules/testing.md` treats as a cost to justify rather than a free move |
+
+Picking between them is a design decision about the IKE surface, not something a
+measurement settles, so this stays blocked rather than being guessed at.
+
+**Carrier 2 is blocked twice over.** Even with the seam, no automated caller runs
+the IPsec interop tree, so `make ze-rfc-check` refuses a tagged test placed
+there. That is `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`, and it must
+land first or carrier 2 cannot be tagged at all.
+
+**Nothing is unproven meanwhile.** `TestErrRefusedChildRekeyIsAnswered` drives
+the real handler and reads the real datagram off a real UDP socket, so the
+BEHAVIOUR is proven. What is missing is end-to-end evidence, which is a strength
+of proof question rather than an open defect.
+
+Status moved from `skeleton` to `blocked` so `/ze-status` stops offering it
+as startable.
 
 **The goal.** Land both carriers, tagged, with the mutation that reddens each one recorded.
 
