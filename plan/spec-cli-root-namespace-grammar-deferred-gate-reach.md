@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | blocked |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/cli-root-namespace-grammar.md` |
-| Updated | 2026-08-03 |
+| Updated | 2026-08-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -19,6 +19,35 @@ extending the gate to local metas"). Their source spec closed and its file is
 gone, so nothing on disk was ever going to become that spec. A prose destination
 is a deletion with a polite name (`ai/rules/planning.md`). This file is
 their home.
+
+## Re-verified 2026-08-05, and blocked on the Surface 1 question
+
+Both surfaces are still uncovered. Measured, not carried from the text above.
+
+**Surface 2 is uncovered completely.** The grammar package has no knowledge of
+local metas at all: nothing under `internal/component/command/grammar/` mentions
+them, and `scripts/checks/cli_grammar.go` collects only roots, through
+`registeredRootNames`. That helper walks `cmd/ze` and `internal` with the Go AST
+and takes the first string-literal argument of every `RegisterRoot` and
+`(Must)RegisterRootHandler` call. Mirroring it for `(Must)RegisterLocalMeta` is
+mechanical; deciding WHICH rules bind a multi-token local path is not, and a wrong
+choice reds the build for every one of the 33 registrations at once.
+
+**Surface 1 is unchanged, and the code now states the behavior as intentional.**
+`CheckRootNamespace` (`internal/component/command/grammar/checker.go`) loops on
+`b > 0`, so a leading hyphen gives an empty left segment and skips the loop
+entirely. Its doc comment now says so in as many words: "A leading '-' (a
+flag-shaped root such as `--plugins`) has an empty left segment and is never
+flagged." That is a description of what the code does, not a ruling that it should
+(`ai/rules/evidence.md`: a comment is its author's belief, not a decision record).
+
+**Status set to `blocked`.** This spec's own Task says the two Surface 1 questions
+run in order and "the second question is only reachable after the first", and the
+first is whether a root-level flag is legitimate CLI grammar at all given R3
+(`no --flag`). That is Thomas's to answer. Surface 2's rule-selection design is
+reachable independently, but landing it alone would leave the spec open anyway,
+and its rule set is easier to choose once Surface 1 says whether flag-shaped roots
+are legal.
 
 **The one subject.** The CLI grammar gate has three declaration surfaces and
 proves only two of them. `ai/rules/cli.md` lists the feeders: the static
