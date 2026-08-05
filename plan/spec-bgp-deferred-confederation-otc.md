@@ -2,10 +2,73 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-05 |
+
+## OWNER RULING 2026-08-05: implement confederation support
+
+**Thomas answered the question this spec was waiting on. Ze IMPLEMENTS AS
+Confederation support. The `{not-applicable}` classification is not the answer,
+and the narrower config-validation option was not taken.**
+
+He chose the full feature over two cheaper answers put beside it: keeping
+`{not-applicable}` with corrected evidence, and refusing the ambiguous
+role-plus-local-as-override combination at config validation.
+
+Status moved `skeleton` to `ready`. The design question that blocked it is
+answered, so the next phase is DESIGN, not another round of provenance checking.
+
+**What the ruling commits ze to**, from the option as put:
+
+| Piece | Where |
+|-------|-------|
+| `bgp/confederation/identifier` and `bgp/confederation/member-as` config | `internal/component/bgp/yang/ze-bgp-conf.yang`, plus the config loader |
+| `ASConfedSequence` and `ASConfedSet` ORIGINATION | Nothing constructs them today. `FilterConfedSegments` (`internal/core/bgp/attribute/as4.go`) only strips them on receive |
+| The confederation egress boundary: strip member-AS segments, stamp OTC with the confederation identifier | `internal/component/bgp/reactor/`, and `OTCEgressFilter` (`internal/component/bgp/plugins/role/otc.go`), which today stamps `dest.LocalAS` unconditionally |
+| RFC 9234 Section 5 conformance on top, both MUSTs proven by tagged tests | `rfc/short/rfc9234.md` rows RFC9234-5-7 and RFC9234-5-8 |
+| An interop scenario, because this is wire-visible protocol behavior | `test/interop/scenarios/` (`ai/rules/interop-and-goal-validation.md`) |
+
+**Do not treat the two `{not-applicable}` rows as settled.** They stay only while
+the feature is absent. Once confederation config exists the condition IS
+reachable, both MUSTs bind, and each needs an `RFC requirement:` tagged test.
+Re-classifying them is part of this spec's closure, not a separate decision.
+
+**RFC 9234 Section 5 also says Role negotiation and OTC procedures are NOT
+RECOMMENDED between autonomous systems in an AS Confederation** (row
+RFC9234-5-13). The design must say what ze does when an operator configures both,
+because the ruling makes that combination reachable for the first time.
+
+## What was re-derived, 2026-08-05
+
+The two Section 5 rows were recorded `{not-applicable}`. Under the owner directive
+of 2026-07-27 every classification pointing away from full compliance is VOID and
+must be re-derived from the RFC text rather than cited, so it was.
+
+The core of the old reasoning holds: no ze config can express confederation
+membership, so "egress from the AS Confederation" never occurs. Two defects in the
+record were found, and they are why this reached Thomas rather than being
+confirmed quietly:
+
+- **The evidence citation is stale.** Both reasons cite the egress stamp at a line
+  number in `otc.go` that no longer holds it. The stamp is in `OTCEgressFilter`.
+- **The premise is incomplete.** Both reasons argue that no per-peer AS exists
+  which could act as a member-AS. `PeerSettings` carries `LocalAS` AND
+  `GlobalLocalAS`, and `buildDynamicGroupSettings`
+  (`internal/component/bgp/config/peers.go`) sets the per-peer one from a
+  `local-as` override. `OTCEgressFilter` stamps `dest.LocalAS`, the per-peer
+  effective value. So an operator using the override already makes ze advertise
+  different OTC values on different sessions. That is structurally what Section 5
+  exists to prevent, even though ze is not formally in a confederation.
+
+**The prerequisite bug this spec recorded is FIXED, verified at source
+2026-08-05.** The old text said `extractLocalASN` read a `local-as` key that the
+config tree does not carry, so `getLocalASN` returned 0 and the `localASN > 0`
+guard skipped the stamp in production. `extractLocalASN` no longer exists;
+`OTCEgressFilter` reads `dest.LocalAS`, which the reactor fills from
+`peer.settings.LocalAS`, the same field it builds AS_PATH from. The stamp is live,
+and it fails closed with a log line when the value is 0.
 
 ## Post-Compaction Recovery
 
