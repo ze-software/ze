@@ -114,10 +114,30 @@ removes; this spec is their home):
   v1.5.0`), which it reported naming both sides; the file was restored
   byte-identical. 11 unit tests, one of which pins that the real tree passes, so
   the gate cannot be green only on fixtures.
-- **Rename the `builddir` directory.** The build no longer runs there (every
-  build copies it into a prepared instance under project `tmp/`), so the name
-  misdescribes its role as a pinned module manifest. Mechanical rename, no
-  behavior change; kept out of the source spec to keep its diff reviewable.
+- ~~**Rename the `builddir` directory.**~~ **CANCELLED 2026-08-05: the premise
+  is false.** The row called it a "mechanical rename, no behavior change". It is
+  neither. The name is HARDCODED in the gokrazy tool ze vendors:
+
+  ```go
+  // vendor/github.com/gokrazy/tools/packer/gotool.go, BuildDir
+  buildDir := filepath.Join("builddir", importPath)
+  ```
+
+  `BuildDir` takes only an import path. The literal has no parameter, no config
+  key and no environment override; the surrounding comment describes granularity
+  choices WITHIN the builddir tree, never its name. Renaming the directory makes
+  the packer look for `builddir/<importPath>`, find nothing, and fail every image
+  build.
+
+  Doing it anyway would mean patching vendored upstream code, which trades a
+  cosmetic naming complaint for a permanent merge burden on every gokrazy bump.
+  That is a worse repository than the one the row was trying to improve.
+
+  The observation behind the row still stands and is worth keeping: the build no
+  longer runs in `builddir` (every build copies it into a prepared instance under
+  project `tmp/`), so the name does misdescribe its role as a pinned module
+  manifest. That is upstream's name to change, not ze's. The header comment of
+  `mk/gokrazy.mk` already tells a reader where builds actually run.
 
 ## Required Reading
 
