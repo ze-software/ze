@@ -64,6 +64,11 @@ var pythonTestRoots = []string{
 	// installed: `python3 test_engine.py` exited with ImportError, and no root
 	// covered the directory anyway.
 	"test/interop/speaker",
+	// The website demo harness renders and validates every recording on
+	// docs.ze.software. Its scripts own a state tree that two runs used to
+	// destroy for each other. demos/terminal/test_render.py sat unrun for the
+	// same reason test/interop/speaker did: no root covered the directory.
+	"demos/terminal",
 }
 
 // pythonTestGlobs are the file-name shapes that count as a Python test.

@@ -340,6 +340,8 @@ Pre-401 history: `plan/learned/DESIGN-HISTORY.md`, "Testing infrastructure" (ret
 - [1120](plan/learned/1120-payload-predicate-waits.md) -- Which predicate waits replaced sleeps, and why the ratchet baseline drifted
 - [1171](plan/learned/1171-fixit-reject-fence-observability-deferred-external-plugin-signals.md) -- How a stderr fence waits on a refusing plugin, and why an observer cannot
 - [1101](plan/learned/1101-followup-test-infra.md) -- Which test infrastructure landed, and where the LLGR egress rail is not wired
+- [1344](plan/learned/1344-demo-state-tree-needs-one-owner.md) -- Why two terminal-demo runs destroyed each other's state, and why the failure printed nothing
+- [1346](plan/learned/1346-rfc7606-5-1-2-relay-shape.md) -- Why a `.ci` or `inject.msg` frame you only want to wait on races, and what a closure must re-measure rather than re-read
 
 ## Build/Deployment
 

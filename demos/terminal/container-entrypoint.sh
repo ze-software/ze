@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -u
 
+# The demo lock comes FIRST, before this script writes anything. HOME is on the
+# mounted repository and every demo container shares it, so the setup below
+# truncates and rewrites files that a running demo reads: `.bashrc` carries the
+# prompt and the PATH of the shell vhs drives. A lock taken after the setup
+# would leave that window open (demos/terminal/demo-lock.sh).
+#
+# The lock is SOURCED, so the demo runs in this shell. A wrapper script would
+# be a non-interactive bash, and that drops the exported PS1 below: vhs then
+# paints its own prompt and every `Wait+Screen /\$ /` in a tape times out.
+source /src/demos/terminal/demo-lock.sh
+demo_lock_acquire || exit $?
+
 export HOME=/src/tmp/terminal-demos/home
 export XDG_CONFIG_HOME="${HOME}/.config"
 export XDG_DATA_HOME="${HOME}/.local/share"

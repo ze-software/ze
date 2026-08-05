@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -12,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -28,12 +31,18 @@ SHARED_SOURCE_PATHS = (
     DEMO_ROOT / "cards.sh",
     DEMO_ROOT / "Dockerfile",
     DEMO_ROOT / "container-entrypoint.sh",
+    DEMO_ROOT / "demo-lock.sh",
     DEMO_ROOT / "validate-common.sh",
     DEMO_ROOT / "pty-session.py",
     DEMO_ROOT / "render.py",
 )
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SLEEP_RE = re.compile(r"^Sleep (\d+(?:\.\d+)?)(ms|s|m)$")
+LOCK_PATH = ROOT / "tmp" / "terminal-demos" / "demo-run.lock"
+# Longer than the shell's 1800, because this side holds the lock for a whole
+# `--all` render rather than for one demo.
+LOCK_WAIT_SECONDS = 7200
+LOCK_DEPTH = 0
 RENDER_SPEEDUP = 5
 RENDER_TYPING_SPEED_MS = 25
 OUTPUT_WIDTH = 1680
@@ -161,6 +170,65 @@ def source_digest(demo: dict[str, Any]) -> str:
     return digest.hexdigest()
 
 
+@contextlib.contextmanager
+def demo_lock() -> Any:
+    """Hold the demo state tree for the work of the caller.
+
+    That is one demo for a validation, and a whole `--all` render for
+    `render_selected`, which is why the wait above is generous.
+
+    A demo run owns tmp/terminal-demos/state/<demo-id>, and this process owns
+    the render tape, the artifacts and the artifact manifest. Two runs at once
+    delete and rewrite each other's files, so the lock covers the container AND
+    the host steps around it: the tape this process writes and removes, the
+    ffmpeg passes that rewrite the capture, and the manifest.
+
+    demos/terminal/demo-lock.sh takes the same lock inside the container. The
+    container is told the lock is already held (ZE_DEMO_LOCK_HELD), because a
+    second acquisition from another process would wait for this one forever.
+    """
+    global LOCK_DEPTH
+
+    if LOCK_DEPTH:
+        # Already held by this process. `render_selected` holds it around the
+        # `run_demo` calls that take it again, and flock(2) would block on a
+        # second descriptor over the same file until the wait ran out.
+        LOCK_DEPTH += 1
+        try:
+            yield
+        finally:
+            LOCK_DEPTH -= 1
+        return
+
+    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + LOCK_WAIT_SECONDS
+    # Read-only, because the container runs as root and leaves the lock file
+    # owned by root on the shared mount. flock(2) takes any open descriptor,
+    # so the host does not need write access to a file it did not create.
+    handle = os.fdopen(os.open(LOCK_PATH, os.O_RDONLY | os.O_CREAT, 0o644), "rb")
+    with handle:
+        while not _took_lock(handle):
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"another demo run held {LOCK_PATH} for {LOCK_WAIT_SECONDS} seconds"
+                )
+            time.sleep(0.5)
+        LOCK_DEPTH = 1
+        try:
+            yield
+        finally:
+            LOCK_DEPTH = 0
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def _took_lock(handle: Any) -> bool:
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return False
+    return True
+
+
 def container_command(
     renderer: dict[str, Any], entry: pathlib.PurePosixPath, privileged: bool
 ) -> list[str]:
@@ -184,6 +252,8 @@ def container_command(
         f"HOST_UID={uid}",
         "--env",
         f"HOST_GID={gid}",
+        "--env",
+        "ZE_DEMO_LOCK_HELD=1",
         "--volume",
         f"{ROOT}:/src",
         "--volume",
@@ -207,9 +277,8 @@ def run_validation(manifest: dict[str, Any], demo: dict[str, Any]) -> None:
         manifest["renderer"], validator, demo.get("privileged", False)
     )
     print(f"validating {demo_id}...")
-    subprocess.run(command, cwd=ROOT, check=True)
-
-
+    with demo_lock():
+        subprocess.run(command, cwd=ROOT, check=True)
 
 
 def accelerated_terminal_tape(demo: dict[str, Any]) -> pathlib.Path:
@@ -336,13 +405,25 @@ def resize_poster(poster: pathlib.Path) -> None:
 def run_demo(
     manifest: dict[str, Any], demo: dict[str, Any], release: str
 ) -> dict[str, Any]:
+    """Render one demo while it owns the demo state tree.
+
+    The lock covers the render tape and the artifact rewrites as well as the
+    container: `_render_demo` writes tmp/terminal-demos/render-tapes/<id>.tape,
+    removes it afterwards, and rewrites the capture with ffmpeg. A second run
+    of the same demo would remove the tape this one is about to read.
+    """
+    with demo_lock():
+        return _render_demo(manifest, demo, release)
+
+
+def _render_demo(
+    manifest: dict[str, Any], demo: dict[str, Any], release: str
+) -> dict[str, Any]:
     demo_id = demo["id"]
     renderer = manifest["renderer"]
     source_path = DEMO_ROOT / demo["source"]
     speedup = capture_speedup(demo)
-    render_source = (
-        render_tape(demo) if demo["kind"] == "terminal" else source_path
-    )
+    render_source = render_tape(demo) if demo["kind"] == "terminal" else source_path
     source = pathlib.PurePosixPath("/src") / render_source.relative_to(ROOT)
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -453,6 +534,28 @@ def verify_assets(
     print("Ze demo artifacts verified: " + ", ".join(selected))
 
 
+def render_selected(
+    manifest: dict[str, Any],
+    indexed: dict[str, dict[str, Any]],
+    selected: list[str],
+    release: str,
+) -> None:
+    """Render the selected demos and publish one artifact manifest.
+
+    The lock covers the whole read-modify-write of that manifest, not only the
+    renders inside it. Two runs that each read it before either writes both
+    publish their own view, and the second write drops the first run's entries.
+    """
+    with demo_lock():
+        generated = load_artifact_manifest(manifest)
+        generated["renderer"] = manifest["renderer"]
+        entries = generated["demos"]
+        for demo_id in selected:
+            entries[demo_id] = run_demo(manifest, indexed[demo_id], release)
+        write_artifact_manifest(generated)
+        verify_assets(manifest, indexed, selected, release)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group(required=True)
@@ -486,7 +589,8 @@ def main() -> int:
     if args.check and args.validate:
         raise ValueError("--check and --validate cannot be combined")
     if args.check:
-        verify_assets(manifest, indexed, selected, args.release)
+        with demo_lock():
+            verify_assets(manifest, indexed, selected, args.release)
         return 0
     if not BINARY_PATH.is_file():
         raise ValueError(f"missing demo binary: {BINARY_PATH.relative_to(ROOT)}")
@@ -498,13 +602,7 @@ def main() -> int:
     if not args.release:
         raise ValueError("--release is required when rendering")
 
-    generated = load_artifact_manifest(manifest)
-    generated["renderer"] = manifest["renderer"]
-    entries = generated["demos"]
-    for demo_id in selected:
-        entries[demo_id] = run_demo(manifest, indexed[demo_id], args.release)
-    write_artifact_manifest(generated)
-    verify_assets(manifest, indexed, selected, args.release)
+    render_selected(manifest, indexed, selected, args.release)
     return 0
 
 
