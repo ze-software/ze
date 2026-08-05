@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -27,10 +28,64 @@ var (
 	errTemplateEditingWildcardNotYetSupported   = errors.New("template editing (wildcard *) not yet supported in tree mode")
 )
 
+// dispatchQueue makes the config commands of one CLI session run one at a
+// time, in the order the operator entered them.
+//
+// Bubble Tea starts a new goroutine for every tea.Cmd and never waits for it
+// (Program.handleCommands). Model has a value receiver, so every copy shares
+// one *Editor, one *Completer, one *ConfigValidator and one *History. Update
+// runs serially. The commands it returns do not.
+//
+// An operator who pastes a block over SSH therefore had two mutating
+// goroutines on one editor and its backing files. Bubble Tea enables no
+// bracketed paste, so each pasted newline arrives as its own KeyPressMsg. Each
+// one dispatches before the previous command answered.
+//
+// Ordering is the point, not only exclusion. A plain mutex lets "commit" win
+// the race against the "set" typed before it. The config written then misses
+// that edit, and nothing on screen says so. Refusing the second command while
+// the first is in flight is a different product again. It drops half of what
+// the operator pasted.
+type dispatchQueue struct {
+	mu   sync.Mutex
+	prev chan struct{} // closed when the turn before the next one ends
+}
+
+// newDispatchQueue returns an empty queue whose first reserved turn starts
+// immediately.
+func newDispatchQueue() *dispatchQueue {
+	first := make(chan struct{})
+	close(first)
+	return &dispatchQueue{prev: first}
+}
+
+// reserve claims the next turn. It returns the channel that closes when the
+// turn before this one ended, and the function that ends this turn.
+//
+// Call reserve from Update, never from inside the tea.Cmd closure. Update is
+// the only place Bubble Tea runs serially, so the caller's order is the
+// operator's order. The caller MUST call done exactly once. A turn that never
+// ends blocks every command after it.
+func (q *dispatchQueue) reserve() (wait <-chan struct{}, done func()) {
+	mine := make(chan struct{})
+	q.mu.Lock()
+	prev := q.prev
+	q.prev = mine
+	q.mu.Unlock()
+	return prev, sync.OnceFunc(func() { close(mine) })
+}
+
 // executeCommand dispatches a command for execution.
 // Returns a tea.Cmd that produces a commandResultMsg for the Update handler.
+//
+// The turn is reserved here, on the Update goroutine, so pasted commands keep
+// their order. The closure waits for the previous command before it touches
+// the shared editor. See dispatchQueue.
 func (m Model) executeCommand(input string) tea.Cmd {
+	wait, done := m.dispatch.reserve()
 	return func() tea.Msg {
+		<-wait
+		defer done()
 		result, err := m.dispatchCommand(input)
 		return commandResultMsg{result: result, err: err}
 	}

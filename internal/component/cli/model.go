@@ -87,6 +87,11 @@ type Model struct {
 	contextPath []string // Current edit context (e.g., ["neighbor", "192.168.1.1"])
 	isTemplate  bool     // true when editing with wildcard (*)
 
+	// dispatch orders this session's config commands. A pointer, so the Model
+	// copies Update makes share one queue -- as they share editor and
+	// completer. See dispatchQueue in model_commands.go.
+	dispatch *dispatchQueue
+
 	// Completion state
 	completions       []Completion
 	selected          int    // Selected index in dropdown (-1 for ghost mode)
@@ -364,6 +369,7 @@ func NewModel(ed *Editor) (Model, error) {
 
 	return Model{
 		editor:             ed,
+		dispatch:           newDispatchQueue(),
 		completer:          comp,
 		validator:          val,
 		textInput:          ti,
@@ -404,6 +410,7 @@ func NewCommandModel() Model {
 	return Model{
 		textInput:     ti,
 		viewport:      vp,
+		dispatch:      newDispatchQueue(),
 		selected:      -1,
 		history:       NewHistory(nil, ""),
 		mode:          ModeOperational,

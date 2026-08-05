@@ -28,7 +28,7 @@ import (
 // (not a registered live view, intentionally not migrated).
 var knownModelFields = map[string]bool{
 	"editor": true, "completer": true, "validator": true, "textInput": true,
-	"viewport": true, "contextPath": true, "isTemplate": true,
+	"viewport": true, "contextPath": true, "isTemplate": true, "dispatch": true,
 	"completions": true, "selected": true, "ghostText": true, "showDropdown": true,
 	"completionHint": true, "completionHintDim": true, "searchCache": true,
 	"validationErrors": true, "validationWarnings": true, "validationID": true,
