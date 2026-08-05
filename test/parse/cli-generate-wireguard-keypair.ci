@@ -1,0 +1,51 @@
+# Test: `ze generate wireguard keypair` is dispatched and takes no arguments
+# Exercises: registry local command "generate wireguard keypair" -> RunWgKeypair
+#            (internal/plugins/diag/diag.go, registered in register.go)
+# VALIDATES: the three-word command resolves through the local-command registry in
+#            the real ze binary, its argument guard rejects a stray token, and the
+#            refusal names the command and prints the usage.
+# PREVENTS:  a command that resolves nowhere, and a guard that lets an argument
+#            through to `wg genkey`.
+#
+# The SUCCESS path -- `wg genkey`, its output piped into `wg pubkey` on stdin, two
+# printed keys -- is NOT here, and cannot be: driving it needs a fake `wg` on PATH,
+# and the parse suite can host neither half. runOneCommand
+# (internal/test/runner/parsing.go) builds a helper script's environment with
+# childEnv, which does not put ze on PATH, and setupWorkDir writes every tmpfs file
+# 0644, so a `mode=755` fixture is never executable. A draft that tried both was
+# measured failing on each. That coverage lives in
+# TestRunWgKeypair_PipesGenkeyIntoPubkey (internal/plugins/diag/diag_test.go),
+# which shims `wg` and asserts `wg pubkey` receives exactly what `wg genkey`
+# printed. Both runner limits are homed at
+# plan/spec-fixit-ci-peer-block-silent-directives.md.
+
+stdin=config:terminator=EOF_CONF
+# Minimal valid config; the command below never reads it.
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+# A stray token must be refused BEFORE RunWgKeypair reaches `wg genkey`. That is
+# what the stderr text discriminates: drop the guard and the message becomes a wg
+# failure here, or on a host that has wg, a printed keypair on stdout.
+cmd=foreground:seq=1:exec=ze generate wireguard keypair extra-arg:exit=1
+expect=exit:code=1
+expect=stderr:contains=generate wireguard keypair: no arguments accepted
+expect=stderr:contains=Usage: ze generate wireguard keypair
+reject=stdout:contains=private:

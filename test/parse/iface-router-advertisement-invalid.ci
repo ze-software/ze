@@ -1,0 +1,118 @@
+# Test: the cross-field router-advertisement rules reject a bad unit, and each
+#       error names the leaf that is wrong
+# VALIDATES: the four checks no single-leaf YANG range can express, each one
+#            reached through `ze config validate`, the operator path.
+#              seq=1  minimum-interval 500 against maximum-interval 600. RFC
+#                     4861 Section 6.2.1 caps MinRtrAdvInterval at 0.75 x
+#                     MaxRtrAdvInterval, and 500 is above 450.
+#              seq=2  router-lifetime 900 against maximum-interval 1800. RFC
+#                     4861 Section 6.2.1 makes AdvDefaultLifetime either zero
+#                     or at least MaxRtrAdvInterval.
+#              seq=3  preferred-lifetime 86400 above valid-lifetime 3600 in one
+#                     prefix entry. RFC 4861 Section 4.6.2 forbids it, so a
+#                     host never prefers an address that stopped being valid.
+#              seq=4  the link-local prefix fe80::/64. RFC 4861 Section 4.6.2
+#                     says a router does not advertise it.
+#            Each leaf value is inside its own YANG range, so the schema
+#            accepts all four and only iface.raValidate and raParsePrefixEntry
+#            can refuse them.
+# PREVENTS: a commit that reaches the wire before it fails. Without these
+#           checks Ze accepts the config and then sends advertisements a host
+#           either ignores or acts on wrongly, and the operator sees no error
+#           at commit time. The per-scenario exit=1 stops a later scenario
+#           passing on an earlier scenario's exit code.
+# PLATFORM: the ipv6 container carries ze:os "linux", so the schema walker
+#           prunes it on other platforms. This test is linux-only.
+option=skip-os:value=darwin
+
+stdin=interval:terminator=EOF_INTERVAL
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+					maximum-interval 600;
+					minimum-interval 500;
+				}
+			}
+		}
+	}
+}
+EOF_INTERVAL
+
+stdin=lifetime:terminator=EOF_LIFETIME
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+					maximum-interval 1800;
+					router-lifetime 900;
+				}
+			}
+		}
+	}
+}
+EOF_LIFETIME
+
+stdin=prefix-lifetime:terminator=EOF_PREFIX_LIFETIME
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+					prefix 2001:db8:1::/64 {
+						valid-lifetime 3600;
+						preferred-lifetime 86400;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_PREFIX_LIFETIME
+
+stdin=link-local:terminator=EOF_LINK_LOCAL
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+					prefix fe80::/64 {
+					}
+				}
+			}
+		}
+	}
+}
+EOF_LINK_LOCAL
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=interval:exit=1
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=router-advertisement minimum-interval 500: above three quarters of maximum-interval 600
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=lifetime:exit=1
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=router-advertisement router-lifetime 900: below maximum-interval 1800, and not 0
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=prefix-lifetime:exit=1
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=router-advertisement prefix "2001:db8:1::/64"
+expect=stdout:contains=preferred-lifetime 86400 is above valid-lifetime 3600
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=link-local:exit=1
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=router-advertisement prefix "fe80::/64"
+expect=stdout:contains=the link-local prefix is not advertised

@@ -1,0 +1,39 @@
+# Test: unit with ipv6 { router-advertisement { enabled true } } is rejected
+#       under backend vpp
+# VALIDATES: the commit-time feature gate rejects a unit that sends Router
+#            Advertisements when the active backend is vpp. The container
+#            carries ze:backend "netlink" in ze-iface-conf.yang, because the
+#            sender runs on a raw ICMPv6 socket over the kernel interface and
+#            reads the link-local source address the kernel owns. VPP holds
+#            the interface instead, so none of that exists on the vpp path.
+# PREVENTS: a silent-wrong path where the verifier accepts
+#           router-advertisement under backend vpp. Hosts on the link then
+#           wait for advertisements that no backend ever sends, and the
+#           operator sees a valid config with no route being announced.
+# PLATFORM: the ipv6 container carries ze:os "linux", so the schema walker
+#           prunes it on other platforms. This test is linux-only, like the
+#           sibling iface-vpp-rejects-dhcp.ci.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	ethernet eth0 {
+		mac {
+			address 02:00:00:00:00:99;
+		}
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
+expect=exit:code=1
+expect=stdout:contains=/interface/ethernet/eth0/unit/0/ipv6/router-advertisement
+expect=stdout:contains="vpp"
+expect=stdout:contains=netlink

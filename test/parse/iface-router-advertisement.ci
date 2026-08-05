@@ -1,0 +1,204 @@
+# Test: a full ipv6 { router-advertisement } unit is accepted, and every leaf
+#       reaches the parsed tree with the value the operator wrote
+# VALIDATES: the router-advertisement container of ze-iface-conf.yang parses
+#            under the netlink backend, and the cross-leaf checks in
+#            internal/component/iface/config_ra.go accept a conformant
+#            configuration. seq=1 and seq=2 cover the flags, the four timers,
+#            two prefix entries (one with all four leaves set, one bare so the
+#            list-entry defaults apply) and an rdnss block with two servers.
+#            seq=3 and seq=4 cover the two zero values an operator sets on
+#            purpose: router-lifetime 0 says Ze is not a default router while
+#            its prefixes still apply (RFC 4861 Section 6.2.1), and rdnss
+#            lifetime 0 tells hosts to stop using the resolvers (RFC 8106
+#            Section 5.1). Both are legal input.
+# PREVENTS: two failures. First, a bound written as "greater than zero" in
+#           raValidate, which would reject the two legal zeros above and leave
+#           an operator no way to retire a default route or a resolver.
+#           Second, a leaf that validates but is dropped on the way to the
+#           tree, which a validate-only test cannot see. The config dump
+#           readback asserts the stored values, not the exit code alone.
+# PLATFORM: the ipv6 container carries ze:os "linux", so the schema walker
+#           prunes it on other platforms. This test is linux-only.
+option=skip-os:value=darwin
+
+stdin=full:terminator=EOF_FULL
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac {
+			address 02:00:00:00:00:99;
+		}
+		unit 0 {
+			ipv6 {
+				address [ 2001:db8:1::1/64 ];
+				forwarding true;
+				router-advertisement {
+					enabled true;
+					maximum-interval 900;
+					minimum-interval 300;
+					router-lifetime 1800;
+					hop-limit 64;
+					managed true;
+					other-config true;
+					reachable-time 30000;
+					retransmit-timer 1000;
+					prefix 2001:db8:1::/64 {
+						on-link true;
+						autonomous true;
+						valid-lifetime 86400;
+						preferred-lifetime 43200;
+					}
+					prefix 2001:db8:2::/64 {
+					}
+					rdnss {
+						server [ 2001:db8:1::53 2001:db8:1::54 ];
+						lifetime 3600;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_FULL
+
+# The same unit with the minimal bgp block that config dump needs to resolve
+# the tree. config validate does not need it, so seq=1 keeps the operator
+# shape and this block serves only the readback.
+stdin=full-dump:terminator=EOF_FULL_DUMP
+bgp {
+	router-id 192.0.2.1;
+}
+
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac {
+			address 02:00:00:00:00:99;
+		}
+		unit 0 {
+			ipv6 {
+				address [ 2001:db8:1::1/64 ];
+				forwarding true;
+				router-advertisement {
+					enabled true;
+					maximum-interval 900;
+					minimum-interval 300;
+					router-lifetime 1800;
+					hop-limit 64;
+					managed true;
+					other-config true;
+					reachable-time 30000;
+					retransmit-timer 1000;
+					prefix 2001:db8:1::/64 {
+						on-link true;
+						autonomous true;
+						valid-lifetime 86400;
+						preferred-lifetime 43200;
+					}
+					prefix 2001:db8:2::/64 {
+					}
+					rdnss {
+						server [ 2001:db8:1::53 2001:db8:1::54 ];
+						lifetime 3600;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_FULL_DUMP
+
+# router-lifetime 0 with maximum-interval 600, and rdnss lifetime 0. Zero is
+# exempt from the "at least maximum-interval" rule of RFC 4861 Section 6.2.1.
+stdin=zero:terminator=EOF_ZERO
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+					maximum-interval 600;
+					minimum-interval 200;
+					router-lifetime 0;
+					prefix 2001:db8:3::/64 {
+					}
+					rdnss {
+						server [ 2001:db8:3::53 ];
+						lifetime 0;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_ZERO
+
+stdin=zero-dump:terminator=EOF_ZERO_DUMP
+bgp {
+	router-id 192.0.2.1;
+}
+
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				router-advertisement {
+					enabled true;
+					maximum-interval 600;
+					minimum-interval 200;
+					router-lifetime 0;
+					prefix 2001:db8:3::/64 {
+					}
+					rdnss {
+						server [ 2001:db8:3::53 ];
+						lifetime 0;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_ZERO_DUMP
+
+# The full unit validates.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=full:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# Readback of the full unit: the three flags, the four timers, both prefix
+# entries with their own leaves, and both resolvers.
+cmd=foreground:seq=2:exec=ze config dump --json -:stdin=full-dump:exit=0
+expect=exit:code=0
+expect=stdout:regex="enabled": "true"
+expect=stdout:regex="managed": "true"
+expect=stdout:regex="other-config": "true"
+expect=stdout:regex="maximum-interval": "900"
+expect=stdout:regex="minimum-interval": "300"
+expect=stdout:regex="router-lifetime": "1800"
+expect=stdout:regex="hop-limit": "64"
+expect=stdout:regex="reachable-time": "30000"
+expect=stdout:regex="retransmit-timer": "1000"
+expect=stdout:regex="2001:db8:1::/64"
+expect=stdout:regex="on-link": "true"
+expect=stdout:regex="autonomous": "true"
+expect=stdout:regex="valid-lifetime": "86400"
+expect=stdout:regex="preferred-lifetime": "43200"
+expect=stdout:regex="2001:db8:2::/64"
+expect=stdout:regex="2001:db8:1::53"
+expect=stdout:regex="2001:db8:1::54"
+expect=stdout:regex="lifetime": "3600"
+
+# router-lifetime 0 and rdnss lifetime 0 validate.
+cmd=foreground:seq=3:exec=ze config validate -:stdin=zero:exit=0
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# Readback of the two zeros. The quote before "lifetime" holds the second
+# regex off the "router-lifetime" and "valid-lifetime" leaves.
+cmd=foreground:seq=4:exec=ze config dump --json -:stdin=zero-dump:exit=0
+expect=exit:code=0
+expect=stdout:regex="router-lifetime": "0"
+expect=stdout:regex="lifetime": "0"
+expect=stdout:regex="2001:db8:3::53"
