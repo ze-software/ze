@@ -17,8 +17,19 @@ option=bind:value=0.0.0.0
 # route (the observed 27-byte WITHDRAW) instead of forwarding it.
 option=conn_map:value=remote-ip
 
-# Source peer (conn=1): ORIGIN=IGP, AS_PATH=[64496 64512 64497], NEXT_HOP=1.1.1.1, LOCAL_PREF=100, NLRI=10.0.0.0/24
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FBF00000FC000000FBF14003040101010140050400000064180A0000
+# Source peer (conn=1): ORIGIN=IGP, AS_PATH=[64496 64512 64497], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+#
+# No LOCAL_PREF. source-peer is EXTERNAL, and RFC 4271 Section 5.1.5 forbids
+# LOCAL_PREF on an EBGP session ("MUST NOT include LOCAL_PREF in UPDATE messages
+# sent to external peers", rfc/short/rfc4271.md:381,702). This frame carried one
+# until 2026-08-05. ze handled it correctly, discarding it per RFC 7606 Section
+# 7.5 and marking it in place, but that made an RFC-7606 concern ride a test
+# whose subject is AS_PATH rewriting. Thomas ruled on 2026-07-16 to take the
+# input-side precedent for all three tests that fed an invalid LOCAL_PREF, as the
+# interim answer until attribute handling is re-engineered. The two siblings were
+# already converted; this is the third. The frame is now byte-identical to
+# remove-private-as-replace-peer.ci:40.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C4001010040020E02030000FBF00000FC000000FBF140030401010101180A0000
 
 # Receiver peer (conn=2): private 64512 is gone and local AS 65000 is prepended.
 # Expected AS_PATH=AS_SEQUENCE[65000 64496 64497].
@@ -39,24 +50,27 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010
 # // test-relax: the conn=2 EOR rule is removed, not weakened -- RFC 4724 owes no
 # ordering vs post-initial-update routes; the forwarded-route assertion is unchanged.
 #
-# LOCAL_PREF: this expectation carried 40050400000064 (LOCAL_PREF=100) until the peer
-# assertion first actually ran (aaefef8ce); it was hand-authored and never executed, and
-# it demanded an RFC violation. LOCAL_PREF arrives from source-peer, an EXTERNAL neighbor,
-# so RFC 7606 Section 7.5 requires ze to discard it, and RFC 4271 Section 5.1.5 forbids
-# sending it to receiver-peer, also external ("MUST NOT include LOCAL_PREF in UPDATE
-# messages sent to external peers", rfc/short/rfc4271.md:381,702). ze discards it in place
-# and leaves an ATTR_TOMBSTONE marker per draft-mangin-idr-attr-tombstone-00
-# (message/attr_discard.go applyInPlace, on the books since 2026-03-09, predating
-# this test): flags 0x80|(0x40&0x50)=0xC0, code 0xFC=252 (attribute.AttrTombstone, the
-# single unified code point), value [orig-code 5][reason 1 = DiscardReasonEBGPInvalid]
-# then zero-filled -> C0FC0405010000. Same 7 bytes as the LOCAL_PREF it overwrites, so
-# the 62-byte length is unchanged. This egress path does not run the Section 5.3
-# eBGP Transitive-clear (rewriteASPathPrepend), so the flags byte stays 0xC0.
+# LOCAL_PREF: there is none, on either side, and that is the point.
+#
+# This expectation once carried 40050400000064 (LOCAL_PREF=100), which demanded an RFC
+# violation: RFC 4271 Section 5.1.5 forbids sending LOCAL_PREF to receiver-peer, an
+# external neighbor. When the peer assertion first actually ran (aaefef8ce) the frame
+# became C0FC0405010000 instead, the ATTR_TOMBSTONE marker ze leaves in place after
+# discarding the invalid attribute per RFC 7606 Section 7.5
+# (message/attr_discard.go applyInPlace). Both forms are correct ze behavior. Neither
+# belongs in THIS test, whose subject is the export policy on AS_PATH.
+#
+# Per Thomas's 2026-07-16 ruling the invalid LOCAL_PREF is gone from the source frame
+# above, so nothing is discarded and no marker is produced. The attribute set is
+# ORIGIN, AS_PATH and NEXT_HOP: 28 bytes against the previous 35, and a 55-byte
+# message against 62. The load-bearing assertion is unchanged, byte for byte:
+# AS_SEQUENCE [65000 64496 64497], private 64512 stripped and local AS 65000 prepended.
+# Tombstone marker behavior is covered where it is the subject, not here.
 # // test-relax: the conn=2 EOR rule is removed (RFC 4724 4.1 owes no ordering vs a
 # post-initial-update forward; see the ORDERING note above). The forwarded-route
 # assertion at conn=2:seq=2 -- this test's subject -- is unchanged.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FDE80000FBF00000FBF140030401010101C0FC0405010000180A0000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C4001010040020E02030000FDE80000FBF00000FBF140030401010101180A0000
 EOF_PEER
 
 tmpfs=remove-private-as-export.run:mode=755:terminator=EOF_RUN
