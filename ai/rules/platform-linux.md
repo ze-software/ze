@@ -497,6 +497,6 @@ and `proxy.golang.org/<mod>/@v/list` return an empty version list for every one,
 | `github.com/packetcap/go-pcap` | pseudo-version | none published |
 | `golang.zx2c4.com/wireguard/wgctrl` | pseudo-version | none published |
 | `github.com/gokrazy/tools` | pseudo-version | none published |
-| `github.com/gokrazy/updater` | pseudo-version | none (hard fork; see `scripts/dev/reapply-updater-fixes.py`) |
+| `github.com/gokrazy/updater` | pseudo-version | none published |
 
 **Keep the pseudo-versions. Re-check for a first tag when bumping any of these, and move the pin to a tag the day upstream cuts one.** Until then a pseudo-version is the only available form and is legal. The note exists so a future reviewer does not "fix" a non-problem or assume the pins were never examined.

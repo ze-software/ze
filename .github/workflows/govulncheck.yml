@@ -9,9 +9,10 @@ name: govulncheck
 # default): the scan needs a network fetch of the vuln DB, and a transient fetch
 # failure or a newly published advisory must NOT wedge the fast merge gate. So it
 # is deliberately absent from `stagesForMode` (scripts/status/verify_run.go) and
-# never runs under `make ze-verify` / verify.yml. The always-run, deterministic
-# supply-chain guard that DOES gate merges is the vendored-updater fix-marker test
-# (internal/appliance/updater_hardening_markers_test.go), part of the unit suite.
+# never runs under `make ze-verify` / verify.yml. No always-run supply-chain guard
+# gates merges. The vendored-updater fix-marker test held that role until
+# 2026-08-05, when the local fork of `github.com/gokrazy/updater` was retired and
+# the vendored code returned to upstream. This scheduled scan is the only SCA.
 #
 # It shares one source of truth for the invocation with the on-demand path: the
 # `ze-vulncheck` make target. No push/pull_request trigger -- the dev loop stays
