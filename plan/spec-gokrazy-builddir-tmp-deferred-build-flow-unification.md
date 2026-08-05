@@ -96,10 +96,24 @@ Two further items deferred out of the same source spec (recorded in its
 `plan/deferrals/gokrazy-builddir-tmp.md` shard, which the closure commit
 removes; this spec is their home):
 
-- **Gate the tracked builddir `go.sum` files against the root module.** Nothing
-  checks them today, so they can drift without any gate firing. The source
-  spec's A-6 validation confirmed no consumer reads them outside the build,
-  which also means nothing would notice drift.
+- ~~**Gate the tracked builddir `go.sum` files against the root module.**~~
+  **DONE 2026-08-05.** `scripts/dev/gokrazy_gosum_check.py`, run by
+  `make ze-gokrazy-gosum-check` and a prerequisite of `make ze-gokrazy`, so the
+  image cannot be built over a drift.
+
+  It fires on ONE condition, the only one that cannot be legitimate: the same
+  `(module, version)` hashing two ways between the root `go.sum` and a builddir
+  file. Deliberately NOT flagged, because both are normal for independent
+  modules: a module present only in a builddir file (the packed programs are
+  third-party and have their own dependencies), and version SKEW where the two
+  pin different versions.
+
+  Measured on the tree: 7 builddir files, 93 entries shared with the root, 0
+  conflicts. The gate was proven to fire by injecting a real conflict into
+  `gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.sum` (`github.com/beevik/ntp
+  v1.5.0`), which it reported naming both sides; the file was restored
+  byte-identical. 11 unit tests, one of which pins that the real tree passes, so
+  the gate cannot be green only on fixtures.
 - **Rename the `builddir` directory.** The build no longer runs there (every
   build copies it into a prepared instance under project `tmp/`), so the name
   misdescribes its role as a pinned module manifest. Mechanical rename, no

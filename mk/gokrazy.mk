@@ -35,7 +35,7 @@
 # (internal/appliance/instance). No build step writes to a tracked path, so a
 # custom-kernel build needs nothing reverted afterwards.
 
-.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean ze-host bin/gok
+.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-gokrazy-gosum-check ze-kernel ze-kernel-clean ze-host bin/gok
 
 GOKRAZY_INSTANCE   := ze
 GOKRAZY_DIR        := gokrazy
@@ -93,7 +93,13 @@ GOKRAZY_ZEFS     := tmp/gokrazy/init/database.zefs
 GOKRAZY_CERT_DIR := tmp/gokrazy/certs/$(CERTNAME)
 GOKRAZY_TEMPLATE ?= gokrazy/ze/ze.conf
 
-ze-gokrazy: ze bin/gok
+# Refuse to build an image whose packed modules disagree with the root module
+# about what a given version contains. The tracked gokrazy/ze/builddir/**/go.sum
+# files are read by no other build, so a drift there surfaces nowhere else.
+ze-gokrazy-gosum-check:
+	@python3 scripts/dev/gokrazy_gosum_check.py
+
+ze-gokrazy: ze bin/gok ze-gokrazy-gosum-check
 	@miss=""; for t in mkfs.ext4 debugfs; do { [ -n "$(E2FS)" ] && [ -x "$(E2FS)/$$t" ]; } || miss="$$miss $$t"; done; \
 		[ -z "$$miss" ] || { echo "error: e2fsprogs tool(s) not found:$$miss (searched '$(E2FS)'). Install e2fsprogs (Debian/Ubuntu: apt install e2fsprogs; Fedora: dnf install e2fsprogs; macOS: brew install e2fsprogs), or pass the sbin directory that holds BOTH mkfs.ext4 and debugfs: make ze-gokrazy E2FS=/path/to/sbin"; exit 1; }
 	@mkdir -p tmp/gokrazy/init
