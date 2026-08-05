@@ -49,6 +49,61 @@ for the traffic policy. `learned/1110` records the parent's central decision: "D
 single enforcement point; the event carries the decision." A responder that reads policy rules
 directly overturns that decision and must not be introduced here.
 
+## Analysis 2026-08-05: the mechanism is easy, the SEMANTIC is the decision
+
+Everything the spec says about the plumbing holds, and the firewall side is even
+easier than it records. `Accept` "terminates evaluation" (`firewall.Accept`,
+`internal/component/firewall/model.go`) and a chain's `Terms` is an ORDERED
+slice, so "drop this attack but let this source through" needs no negated match:
+it is an Accept term carrying `MatchSourceAddress`, placed before the existing
+drop term in the same chain. `applyMitigation`
+(`internal/plugins/ddos/local/responder.go`) builds that chain with a single
+`Terms: []firewall.Term{term}` today, so this is a one-element-to-two change at
+the call site rather than a rewrite of `buildDropTerm`.
+
+**But the current behavior is not an oversight, and the spec does not say so.**
+`PolicyRule.matches` sends a source rule through `allSourcesIn`
+(`internal/plugins/ddos/detect/policy.go`), whose doc states the intent: a source
+rule "requires that EVERY known source falls within the prefix (one hostile
+out-of-prefix source keeps the attack live)". All-or-nothing is deliberate and
+fail-safe. Today a source-allow rule either exempts the whole incident, because
+every source is inside it, or does not fire at all. There is no partial state to
+get wrong.
+
+**What this feature would introduce, and it is not recorded anywhere.** An Accept
+term keyed on source address is honoured by the kernel on the packet's CLAIMED
+source. A DDoS source address is exactly the field an attacker controls and the
+one most often forged, and `characterize.go` already reasons about the
+"distributed/spoofed annotation" when entropy spreads across sources. So a
+per-source carve-out hands any attacker who can guess an allowlisted prefix a
+complete bypass of the mitigation, by spoofing into it. Nothing in
+`internal/plugins/ddos/` performs or requires a uRPF or anti-spoof check: a grep
+for spoof or urpf across the tree returns one comment and no enforcement.
+
+That is the real cost of the feature, and it is a security trade rather than an
+implementation detail. It does not appear in this spec, in the parent, or in
+`plan/learned/1110-ddos-direction-allowlist.md`.
+
+**Two further facts that bear on the design.**
+
+`TopSources` is the only source data on the wire (`ddosevent.AttackDetected` and
+`AttackCharacterized`, `internal/core/ddosevent/event.go`) and it is TOP sources,
+not exempt ones, and bare addresses rather than prefixes. So it cannot be reused
+as-is: an Accept term must carry the RULE's prefix, which only the detector knows.
+
+The architectural constraint the spec names is real and holds. `learned/1110`
+records "Detector is the single enforcement point; the event carries the
+decision", so the exempt prefixes must travel ON the event and the responder must
+never read policy rules. That means a new field, which is a detector-to-responder
+contract change.
+
+**Recommendation, for the owner.** Do not implement this as specified without
+answering the spoofing question first. Either the carve-out is gated on an
+anti-spoof precondition that ze does not currently have, or it is accepted as an
+operator-visible risk and documented as such at the config surface. Choosing
+silently would put a forgeable bypass into the mitigation path, which is the one
+place it is worth the most to an attacker.
+
 **Provenance.** Deferred from `spec-ddos-direction-allowlist` (Known Limitations) on
 2026-07-12: deliberately out of scope for v1, which exempts at the victim/incident level.
 The source spec was closed in `0814dc93f`.
