@@ -205,6 +205,17 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 		return
 	}
 	if e.SuppressMitigation {
+		// The detector's traffic policy exempts this attack from the mitigation
+		// ACTION (record-only). If the blackhole fallback already fired on
+		// AttackDetected, withdraw it: the characterized decision is
+		// authoritative, and an exempted destination must not stay blackholed
+		// upstream because a faster, blinder path got there first.
+		//
+		// local.applyMitigation has always done this. Flowspec returned instead,
+		// so the two responders disagreed and only the upstream one leaked.
+		if r.active {
+			r.withdraw()
+		}
 		logger().Info("ddos-flowspec: policy exempts mitigation, not announcing", "target", e.Target.DstPrefix)
 		return
 	}

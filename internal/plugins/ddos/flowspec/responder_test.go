@@ -2,6 +2,7 @@ package flowspec
 
 import (
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -374,5 +375,56 @@ func TestBuildFlowspecUpdateText(t *testing.T) {
 				t.Errorf("\n got %q\nwant %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestSuppressMitigationWithdrawsBlackholeFallback pins the withdraw the
+// flowspec responder owed and did not make.
+//
+// VALIDATES: a blackhole fallback installed by the AttackDetected fast path is
+// withdrawn when the later characterized decision exempts the attack from
+// mitigation. The characterized decision is authoritative.
+// PREVENTS: an upstream blackhole surviving a policy exemption indefinitely. The
+// two responders disagreed: local.applyMitigation has always withdrawn here
+// ("If the fast path already installed a drop, withdraw it"), flowspec returned
+// and left the announce standing, so an allowlisted destination stayed
+// blackholed upstream while the operator's policy said not to touch it.
+func TestSuppressMitigationWithdrawsBlackholeFallback(t *testing.T) {
+	disp := &fakeDispatcher{}
+	r := newResponder(&Config{
+		ResponseLevel: "enforce", BlackholeFallback: true,
+		HoldDown: 300, ProbeInterval: 60, ProbeWindow: 10, ProbeRate: 1000000, BackoffCap: 3600,
+	}, disp)
+
+	target := ddosevent.VectorTuple{DstPrefix: netip.MustParsePrefix("10.0.0.1/32"), Proto: 17}
+
+	// Fast path: a critical detection installs the blackhole fallback.
+	r.onDetected(&ddosevent.AttackDetected{
+		Target:    target,
+		Direction: ddosevent.DirectionRemote,
+		Severity:  ddosevent.SeverityCritical,
+	})
+	if !r.active {
+		t.Fatal("setup: the blackhole fallback must be installed before the exemption arrives")
+	}
+
+	// Characterization then exempts the attack from the mitigation action.
+	r.onCharacterized(&ddosevent.AttackCharacterized{
+		Target:             target,
+		Direction:          ddosevent.DirectionRemote,
+		SuppressMitigation: true,
+	})
+
+	if r.active {
+		t.Error("an exempted attack must not keep its blackhole fallback announced")
+	}
+	var withdrew bool
+	for _, c := range disp.cmds {
+		if strings.Contains(c, "del") {
+			withdrew = true
+		}
+	}
+	if !withdrew {
+		t.Errorf("the exemption must dispatch a withdraw; dispatched: %v", disp.cmds)
 	}
 }
