@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-05 |
 
 ## Post-Compaction Recovery
 
@@ -225,3 +225,84 @@ and fix or remove it as part of this work.
 ### Quality Gates (SHOULD pass)
 - [ ] Implementation Audit complete
 - [ ] Learned summary written at closure
+
+---
+
+## CLOSED 2026-08-05: the premise is false. Config verify already rejects unknown keys.
+
+**This spec is closed as no longer relevant, not implemented.** Its Task says an
+operator who misspells a leaf "gets a clean verify and a setting that never takes
+effect". That is not what happens. Both formats `ze config validate` accepts
+reject a misspelled leaf with a precise, line-numbered error.
+
+Measured against `bin/ze`, not read from source. Block format, `ruoter-id` for
+`router-id` inside `session`:
+
+```
+$ ze config validate typo.conf
+configuration invalid: typo.conf
+
+Errors:
+  line 9: line 9: unknown field in session: ruoter-id (line 9)
+```
+
+Set format, the same typo:
+
+```
+$ ze config validate typo.set
+configuration invalid: typo.set
+
+Errors:
+  line 4: parse config: config contains fields unknown to this build (a feature
+  compiled out of this binary, or a legacy field this schema no longer defines);
+  refusing to load a config that would silently drop them: line 4: unknown
+  field: ruoter-id (needs migration)
+```
+
+Both exit 1.
+
+### Why the premise died
+
+`runValidation` (`internal/component/config/cli/cmd_validate.go`) branches on
+format and BOTH branches now fail closed before validation is ever reached:
+
+| Branch | Producer | Behavior |
+|--------|----------|----------|
+| Block | `Parser.Parse` (`internal/component/config/parser.go`) | Errors with "unknown field in %s: %s". `runValidation` returns on the parse error, so `ValidateTreeAllModules` is never called |
+| Set, set-meta | `ParseTreeForValidation` to `parseTreeWithYANG` (`internal/component/config/loader.go`) | Collects each unknown field as a warning, then refuses: "refusing to load a config that would silently drop them" |
+
+The set-format guard is the decisive one and it was added for a different reason.
+Its comment names the fail-open it closes: a build with a feature compiled out
+would boot a committed set-meta config minus its gated blocks, and "tacacs/radius
+authentication silently degrading to local auth was the concrete fail-open this
+closes (feature-gate-12 review)". Fixing that closed this spec's gap as a side
+effect, which is why nobody recorded it here.
+
+### What is still true, and why it does not reopen this
+
+The permissive skip this spec named IS still in the code. `walkTree`
+(`internal/component/config/yang/validator.go`) still continues past a key the
+schema does not know, and `validateContainerEntry` still has the same policy with
+no `else`. Both are now UNREACHABLE with an unknown key from the validate path,
+because the parse layer above them rejects it first.
+
+That makes them dead policy rather than a live defect, and dead policy is not this
+spec's subject. Do not reopen this file for them.
+
+### The one thing worth carrying forward
+
+Point 3 of the original work list asked what to do with the dead
+`validateContainerEntry` site, and the improve-7 Design Insights flagged the
+`config.NewReader` block-dispatch machinery as a dead-code candidate that "must be
+surfaced to the user, never deleted unilaterally"
+(`ai/rules/never-destroy-work.md`).
+
+Re-checked 2026-08-05 and still true: `config.NewReader` has zero non-test
+callers. That is a deletion question for Thomas, it is unchanged by this closure,
+and it is NOT gated on anything here. It is recorded in this closure commit so it
+survives the spec being removed.
+
+Points 1, 2 and 4 are void: they asked which policy to adopt, how to make it work
+across modules, and what the blast radius of adopting it would be. The policy is
+already adopted, one layer up, where no multi-module union is needed because the
+parser knows the whole schema at once.
