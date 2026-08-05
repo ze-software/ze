@@ -23,6 +23,8 @@
             href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
             rel="stylesheet"
         />
+        <link rel="canonical" href="https://ze-software.net/blog/ai-slop-is-the-wrong-test/" />
+        <meta property="og:url" content="https://ze-software.net/blog/ai-slop-is-the-wrong-test/" />
         <link rel="stylesheet" href="../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -49,7 +51,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Article</span>
                     <h1 id="post-title">AI slop is the wrong test</h1>
-                    <p><time datetime="2026-08-05">2026-08-05</time></p>
+                    <p><time datetime="2026-08-03">2026-08-03</time></p>
                 </div>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
@@ -59,17 +61,18 @@
 <p>That makes some people uncomfortable. I understand why.</p>
 <p>Calling it "AI slop" is easy. It is also too vague to be useful. Slop is code accepted because it was generated, merged because it compiled, or trusted because the demo worked once. AI makes that failure mode cheap. It can produce more bad code in an afternoon than a bad programmer could type in a week.</p>
 <p>Manual code can be slop too. AI just removes the production cost.</p>
+<p><em>This article was drafted with OpenAI Codex. The ideas, experience and conclusions are mine.</em></p>
 <h2>I have heard this argument before</h2>
-<p>In 1983, Ed Post published <a href="https://www.pbm.com/~lindahl/real.programmers.html">Real Programmers Don't Use Pascal</a>, a satire of the culture which treated FORTRAN and assembly as real programming and everything else as soft. It was funny because the attitude existed.</p>
+<p>In 1983, Ed Post published <a href="https://www.pbm.com/~lindahl/real.programmers.html" target="_blank" rel="noopener">Real Programmers Don't Use Pascal</a>, a satire of the culture which treated FORTRAN and assembly as real programming and everything else as soft. It was funny because the attitude existed.</p>
 <p>The serious version of the argument was stronger than people now remember. Hand-written assembly was faster. It gave direct control over the machine. It avoided weak compilers, poor optimisers and unpredictable output. If you were writing the inner loop of a graphics engine or a codec, a good assembly programmer could beat the compiler.</p>
 <p>For a while, that was simply true.</p>
 <p>Then compilers improved and software got larger. The economics changed. The question became less about whether a human could beat the compiler in one loop, and more about whether a team could still understand, port and change the whole program.</p>
-<p>The history of id Software shows the transition well. The released <a href="https://github.com/id-Software/Quake">Quake source</a> still contains hand-written x86 assembly in the rendering path, and Michael Abrash's <a href="https://www.jagregory.com/abrash-black-book/">Graphics Programming Black Book</a> is still worth reading. By <a href="https://github.com/id-Software/DOOM-3">Doom 3</a>, the engine was a large C++ codebase with isolated SIMD paths and the GPU doing the rasterisation work.</p>
-<p>Assembly did not disappear. <a href="https://github.com/FFmpeg/FFmpeg/tree/master/libavcodec/x86">FFmpeg still carries pages of x86 SIMD assembly</a>, because there are places where it still pays, but nobody sane writes a control plane in assembly anymore.</p>
+<p>The history of id Software shows the transition well. The released <a href="https://github.com/id-Software/Quake" target="_blank" rel="noopener">Quake source</a> still contains hand-written x86 assembly in the rendering path, and Michael Abrash's <a href="https://www.jagregory.com/abrash-black-book/" target="_blank" rel="noopener">Graphics Programming Black Book</a> is still worth reading. By <a href="https://github.com/id-Software/DOOM-3" target="_blank" rel="noopener">Doom 3</a>, the engine was a large C++ codebase with isolated SIMD paths and the GPU doing the rasterisation work.</p>
+<p>Assembly did not disappear. <a href="https://github.com/FFmpeg/FFmpeg/tree/master/libavcodec/x86" target="_blank" rel="noopener">FFmpeg still carries pages of x86 SIMD assembly</a>, because there are places where it still pays, but nobody sane writes a control plane in assembly anymore.</p>
 <p>It found its place.</p>
 <h2>Generated code has the same problem</h2>
-<p>Many objections to AI-written code are fair. Models hallucinate APIs. They miss context. They produce code which looks plausible and fails at the edge. Security is a real concern: Veracode's 2025 GenAI Code Security Report says <a href="https://www.veracode.com/blog/genai-code-security-report/">45% of generated samples failed security tests</a>.</p>
-<p>Productivity is also less obvious than the marketing suggests. METR's early-2025 study found that experienced open-source developers working in familiar repositories were <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/">19% slower with AI tools</a>, while believing they had been faster. METR then <a href="https://metr.org/blog/2026-02-24-uplift-update/">updated the picture in 2026</a>, saying the early result no longer reflected current tools and that follow-up measurement had become difficult because many developers did not want to work without AI.</p>
+<p>Many objections to AI-written code are fair. Models hallucinate APIs. They miss context. They produce code which looks plausible and fails at the edge. Security is a real concern: Veracode's 2025 GenAI Code Security Report says <a href="https://www.veracode.com/blog/genai-code-security-report/" target="_blank" rel="noopener">45% of generated samples failed security tests</a>.</p>
+<p>Productivity is also less obvious than the marketing suggests. METR's early-2025 study found that experienced open-source developers working in familiar repositories were <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/" target="_blank" rel="noopener">19% slower with AI tools</a>, while believing they had been faster. METR then <a href="https://metr.org/blog/2026-02-24-uplift-update/" target="_blank" rel="noopener">updated the picture in 2026</a>, saying the early result no longer reflected current tools and that follow-up measurement had become difficult because many developers did not want to work without AI.</p>
 <p>That is a useful warning in both directions. The tools can waste time. The tools also move fast enough that confident claims expire quickly.</p>
 <p>I agree with the warning. I disagree with the conclusion some people attach to it.</p>
 <h2>Ze assumes the generator is untrusted</h2>

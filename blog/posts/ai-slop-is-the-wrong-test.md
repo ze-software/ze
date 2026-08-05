@@ -1,6 +1,6 @@
 ---
 title: AI slop is the wrong test
-date: 2026-08-05
+date: 2026-08-03
 description: Ze is an AI-written NOS. The useful question is whether the code is constrained, reviewed, tested and measured.
 ---
 
@@ -13,6 +13,8 @@ That makes some people uncomfortable. I understand why.
 Calling it "AI slop" is easy. It is also too vague to be useful. Slop is code accepted because it was generated, merged because it compiled, or trusted because the demo worked once. AI makes that failure mode cheap. It can produce more bad code in an afternoon than a bad programmer could type in a week.
 
 Manual code can be slop too. AI just removes the production cost.
+
+*This article was drafted with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
 ## I have heard this argument before
 
