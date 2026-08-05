@@ -25,7 +25,12 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 # Make interop module importable from check.py scripts.
 sys.path.insert(0, SCRIPT_DIR)
 
-from interop import Scenario, log_fail, log_pass
+from interop import (  # noqa: E402  (the sys.path insert above must run first)
+    Scenario,
+    log_fail,
+    log_pass,
+    observer_failure_note,
+)
 
 
 def build_images(frr_image, no_build=False):
@@ -192,6 +197,16 @@ def main():
                 scenario.teardown()
                 break
             log_fail("FAIL: %s" % e)
+            # A process plugin that calls runtime_fail (test/scripts/ze_api.py)
+            # stops ze, and every wait the scenario was running then reads as a
+            # route that never arrived. This is the one site that sees EVERY
+            # scenario failure, so it is where the plugin's own message is
+            # recovered: the containers are still up here, teardown runs in the
+            # `finally` below. It never raises -- a second exception here would
+            # replace the failure being reported.
+            note = observer_failure_note()
+            if note:
+                log_fail("the cause is a process plugin: %s" % note)
             failed += 1
             failed_names.append(scenario_name)
         finally:

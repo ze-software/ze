@@ -258,13 +258,24 @@ def docker_exec_quiet(container, cmd):
         return ""
 
 
-def docker_run(name, image, ip, volumes=None, caps=None, extra_args=None, cmd=None):
-    """Start a container."""
+def docker_run(
+    name, image, ip, volumes=None, caps=None, extra_args=None, cmd=None, env=None
+):
+    """Start a container.
+
+    `env` is a dict of environment variables passed with `-e`. It exists so a
+    process plugin inside the container can DERIVE a barrier from the harness
+    budget rather than repeating a constant: a plugin whose own timeout is
+    shorter than `SESSION_TIMEOUT` shuts ze down while the check is still
+    waiting, and the red then surfaces two hops from its cause.
+    """
     args = ["docker", "run", "-d", "--name", name, "--network", NETWORK, "--ip", ip]
     for cap in caps or []:
         args.extend(["--cap-add", cap])
     for vol in volumes or []:
         args.extend(["-v", vol])
+    for key, value in (env or {}).items():
+        args.extend(["-e", "%s=%s" % (key, value)])
     for arg in extra_args or []:
         args.append(arg)
     args.append(image)
@@ -288,8 +299,20 @@ def docker_rm(name):
     )
 
 
-def docker_logs(container, lines=30):
-    """Get last N lines of container logs."""
+def docker_logs(container, lines=30, strict=False):
+    """Get last N lines of container logs.
+
+    Two contracts, selected by `strict`, because two kinds of caller read this.
+
+    The default is the DISPLAY contract: a docker failure comes back as a
+    string, so a diagnostic dump on an already-failing path never raises a
+    second time over the first fault.
+
+    `strict=True` is the DECISION contract: a caller that reads the log to
+    decide something gets a RuntimeError instead. "" and "(docker logs timed
+    out)" are facts about docker, and a decision that consumes them as facts
+    about the CONTAINER answers on no evidence (ai/rules/evidence.md).
+    """
     try:
         result = subprocess.run(
             ["docker", "logs", container, "--tail", str(lines)],
@@ -297,9 +320,83 @@ def docker_logs(container, lines=30):
             text=True,
             timeout=15,
         )
-        return result.stdout + result.stderr
     except subprocess.TimeoutExpired:
+        if strict:
+            raise RuntimeError(
+                "docker logs %s timed out after 15s: the log was never read" % container
+            )
         return "(docker logs timed out)"
+    if strict and result.returncode != 0:
+        raise RuntimeError(
+            "docker logs %s failed (exit %d): %s"
+            % (container, result.returncode, result.stderr.strip() or "no stderr")
+        )
+    return result.stdout + result.stderr
+
+
+# --- Observer failures -------------------------------------------------------
+
+# The sentinel `runtime_fail` (test/scripts/ze_api.py) writes to a process
+# plugin's stderr, which ze relays to its own. The `.ci` runner rejects it
+# implicitly in `validateLogging` (internal/test/runner/runner_validate.go). This
+# lab has no such reject, so a plugin that signals failure here only shows up as
+# whatever the check happens to miss next -- a route that never arrived, or a
+# container that stopped being healthy. Both name the symptom, never the cause.
+OBSERVER_FAIL = "ZE-OBSERVER-FAIL"
+
+
+def observer_fail_line(container=None, lines=2000):
+    """Return the first ZE-OBSERVER-FAIL line ze relayed, or None.
+
+    None means ONE thing: the log was read and holds no sentinel. A log that
+    could not be read raises instead, and keeping those two apart is the whole
+    value of this helper. `docker_logs` answers a docker failure with "" and a
+    timeout with "(docker logs timed out)"; neither holds the sentinel, so a
+    scan over either one reports a healthy plugin on no evidence, which is the
+    fail-open shape `ai/rules/evidence.md` bans.
+
+    `lines` is a TRUNCATION BOUND: this reads `docker logs --tail 2000`, never
+    the whole log. The tail is the right end to read, because `runtime_fail`
+    (test/scripts/ze_api.py) requests shutdown immediately after writing the
+    sentinel, so ze stops within a few lines of it. A scenario whose ze writes
+    more than 2000 lines between the sentinel and the stop needs a larger bound.
+    """
+    for line in docker_logs(container or ZE_CONTAINER, lines, strict=True).splitlines():
+        if OBSERVER_FAIL in line:
+            return line.strip()
+    return None
+
+
+def raise_if_observer_failed(when, container=None):
+    """Raise with the PLUGIN's own message when it signalled failure.
+
+    Raises on an unreadable log too, with the docker error rather than the
+    plugin's message: "I could not look" is not "the plugin is fine".
+    """
+    line = observer_fail_line(container)
+    if line is None:
+        return
+    log_fail("a process plugin signalled failure (%s)" % when)
+    raise AssertionError("process plugin failed: %s" % line)
+
+
+def observer_failure_note(container=None):
+    """Describe a process-plugin failure for a caller that must not raise.
+
+    Returns the plugin's own sentinel line, or a sentence naming why the log
+    could not be read, or None when the log was read and carries no sentinel.
+    `run.py`'s handler already holds the scenario's failure and cannot afford a
+    second exception on top of it, so the unreadable case comes back as text
+    here rather than as a raise. The fail-closed property is kept: the caller
+    still learns that nothing was checked.
+    """
+    try:
+        return observer_fail_line(container)
+    except RuntimeError as exc:
+        return (
+            "could not read ze's log, so a process-plugin failure cannot be "
+            "ruled out: %s" % exc
+        )
 
 
 # --- FRR helpers -------------------------------------------------------------
@@ -1235,6 +1332,20 @@ def wait_containers_healthy(timeout=30):
             return
         time.sleep(1)
 
+    # This site catches ONE case: the plugin already stopped ze by the time the
+    # loop gave up, so "containers not healthy" would name the symptom 30
+    # seconds after the cause. It is not the general net, and the round 4 review
+    # measured why: on `11-addpath-frr` the plugin failed 6s in, this loop had
+    # already returned green, and the run still spent 90s reporting the wrong
+    # cause. Whether this site fires is a race between the peer daemon becoming
+    # responsive and the plugin failing. The site that fires on EVERY scenario
+    # failure is `run.py`'s handler, which calls `observer_failure_note` after
+    # the scenario raises. The log dump below covers every other way ze can die
+    # during setup.
+    raise_if_observer_failed("while waiting for the containers")
+    if not _check_container_running(ZE_CONTAINER):
+        print("--- ze log ---")
+        print(docker_logs(ZE_CONTAINER, 60))
     log_fail("containers did not become healthy within %ds" % timeout)
     raise RuntimeError("containers not healthy")
 
@@ -1348,6 +1459,9 @@ class Scenario:
             volumes=volumes,
             caps=["NET_ADMIN"],
             extra_args=_IPV6_SYSCTLS,
+            # A process plugin reads this to size its own barriers against the
+            # harness budget instead of hardcoding 90 (docker_run, `env`).
+            env={"SESSION_TIMEOUT": str(SESSION_TIMEOUT)},
             # `start <config>`, not the bare `<config>`. The bare launch form was removed
             # from the CLI (`ze - ` for stdin, `ze start <config>` for a file); the image's
             # ENTRYPOINT is `tini -- ze`, so cmd=["/etc/ze/bgp.conf"] became

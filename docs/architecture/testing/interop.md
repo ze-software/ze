@@ -125,7 +125,38 @@ daemon's native CLI (`vtysh`, `birdc`, `gobgp`, `ze`) via `docker exec`. Start w
 existing scenario (e.g., `01-ebgp-ipv4-frr/check.py`) as a template.
 
 All session waiters poll with a configurable timeout (default 90s, override via `SESSION_TIMEOUT` env var).
+The harness passes that value into the Ze container as `SESSION_TIMEOUT`, so a process
+plugin can size its own barriers against the harness budget instead of repeating a
+constant (`docker_run(..., env=)`).
 <!-- source: test/interop/interop.py -- wait_session, wait_route, check_route -->
+
+### A process plugin that fails
+
+A scenario can drive Ze from a process plugin (`test/scripts/ze_api.py`). When such a
+plugin calls `runtime_fail`, it writes the `ZE-OBSERVER-FAIL` sentinel to its stderr
+and stops Ze. The `.ci` runner rejects that sentinel in `validateLogging`; this lab
+has no such reject, so the plugin's failure would otherwise reach `check.py` as a
+route that never arrived, or as `containers not healthy` 30 seconds later.
+
+`raise_if_observer_failed(when)` reads the sentinel from the LAST 2000 lines of Ze's
+log and raises with the plugin's own message. The tail is the right end to read:
+`runtime_fail` requests shutdown immediately after writing the sentinel, so Ze stops
+within a few lines of it. A scenario whose Ze writes more than 2000 lines after the
+sentinel must raise the `lines` bound.
+
+An unreadable log raises as well, with the docker error rather than the plugin's
+message. "I could not look" is not "the plugin is fine".
+
+Three call sites, and only the last one fires on every failure:
+
+| Site | Fires when |
+|------|-----------|
+| `run.py`, the scenario's `except BaseException` handler | ALWAYS, on any scenario failure. Uses `observer_failure_note`, which returns text instead of raising, because a second exception there would replace the failure being reported |
+| `wait_containers_healthy` | only when the plugin already stopped Ze before the health loop gave up. A race, measured as such on `11-addpath-frr` |
+| `check.py`, before the first wait and again when a wait fails | when the scenario knows which of its own waits the plugin can outrun |
+<!-- source: test/interop/interop.py -- observer_fail_line, raise_if_observer_failed, observer_failure_note -->
+<!-- source: test/interop/run.py -- main -->
+<!-- source: test/interop/scenarios/55-wire-edit-api-origin-bird/check.py -- worked example -->
 
 ### Scenario Inventory
 
