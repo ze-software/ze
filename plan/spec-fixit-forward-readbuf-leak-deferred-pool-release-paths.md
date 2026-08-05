@@ -36,6 +36,48 @@ per-destination groups, and `adoptFwdHandle`. Read the two functions and answer 
 questions. Is the mod buffer still taken before that `continue`? Is it still
 unreturned after it?
 
+### Item 1 RE-CONFIRMED 2026-08-05. The hypothesis holds on both rails.
+
+The spec made re-confirmation its first task, because the surrounding code was
+rewritten by the fan-out dedup work. Both its questions answer YES.
+
+**Is the mod buffer still taken before the `continue`?** Yes. In
+`forwardUpdateCore` (`internal/component/bgp/reactor/reactor_api_forward.go`) the
+modification path sets `modBufIdx` and `modPoolRef`, and the very next statement
+builds the item holding them:
+
+```go
+item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr,
+    peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+```
+
+**Is it still unreturned after it?** Yes. Further down:
+
+```go
+body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
+if !ok {
+    continue
+}
+```
+
+`continue` drops `item` on the floor. Nothing between the two returns the buffer,
+and the item never reaches the pool that would have released it.
+
+`forwardRSUpdate` (`internal/component/bgp/reactor/forward_rs.go`) is the same
+code shape, statement for statement, with the body cache expressed as slots
+rather than a map. It leaks identically.
+
+**Not fixed here, deliberately.** The two-line fix is to release before the
+`continue`, and `fwdPool.releaseItem` already holds exactly that logic, so it
+should be reused rather than re-implemented. What is missing is the test.
+`forward_readbuf_leak_test.go` already drives `forwardUpdateCore` directly and is
+the right home, but a case must trigger attribute modification (to acquire the
+mod buffer) AND a `buildFwdBody` failure in the same pass. Neither lever is hard
+alone; together they need a fixture that this session did not have the room to
+build correctly, and a fix landed without one asserts nothing.
+
+Item 2 was fixed and committed separately, with its own coverage limit recorded.
+
 **Item 2: `DispatchOverflow` on a stopped pool.** Verified live on 2026-08-03.
 `fwdPool.DispatchOverflow` (`internal/component/bgp/reactor/forward_pool.go`) takes
 the stopped branch under `RLock`, calls `item.done()`, and returns false. It never
