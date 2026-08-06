@@ -21,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**135 / 21491 (floor 135)** (ok)
+**135 / 21953 (floor 135)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -63,7 +63,7 @@ These execute code and pass unconditionally. Breaking the code under test would 
 
 ### time.sleep() calls in .ci tests
 
-**80 (floor 80)** (ok)
+**79 (floor 79)** (ok)
 
 A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
 
@@ -83,9 +83,9 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### RFC MUST requirements proven by a positive+negative test pair
 
-**1198 / 2937** (ok)
+**1210 / 2950** (ok)
 
-40.8% carry both polarities. Of the remaining 1739: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
+41.0% carry both polarities. Of the remaining 1740: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
 
 *Action if this degrades:* Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.
 
@@ -104,15 +104,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**21521 test functions** (ok)
+**21983 test functions** (ok)
 
-2901 Go test files, 78 fuzz targets, 130 benchmarks, 1530 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2975 Go test files, 78 fuzz targets, 134 benchmarks, 1576 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**977 / 2901** (ok)
+**1011 / 2975** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -126,10 +126,10 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/core/stats | 0 | 5 | 0.0 |
 | internal/plugins/completion | 0 | 5 | 0.0 |
 | internal/test/mock | 0 | 7 | 0.0 |
-| internal/component/doctor | 1 | 14 | 7.1 |
+| internal/component/doctor | 1 | 17 | 5.9 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
 | internal/component/sysrib | 1 | 11 | 9.1 |
-| cmd/ze | 2 | 20 | 10.0 |
+| internal/component/lg | 1 | 10 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -142,7 +142,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 491 | 31 | 92 | 30 |
+| 2026 | 495 | 31 | 94 | 30 |
 
 ## Integrity
 
