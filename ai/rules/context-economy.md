@@ -47,7 +47,7 @@ The store grows with every session, so the RATIOS are what the directives rest o
 - **Positions are 1-based and the column is the START of the identifier, never the start of the line.** A `func` declaration puts its name at column 6.
 - **Every invocation starts a fresh server and loads the workspace, so budget seconds, not milliseconds.** Measured warm in this repository: `symbols` 3.3s, `workspace_symbol` 3.7s, `references` 4.1s, `definition` 6.5s. A 60s timeout is generous; do not paste a multi-minute one.
 - **Batch them like any other Bash call.** Several independent `gopls` questions belong in ONE message, as with any independent calls.
-- **`gopls mcp` serves the same workspace as an MCP server over stdio, and `.mcp.json` at the repo root registers it.** MCP servers are bound at SESSION START, so a session that was already running when that file changed does not carry them. The CLI above needs no restart and is the path that always works.
+- **The `gopls mcp` server is REMOVED and `.mcp.json` no longer registers it (2026-08-06).** Headless `gopls mcp` watches every directory under the workspace root and holds one open file descriptor per file, because fsnotify uses kqueue on macOS. It reached 245,764 descriptors here and exhausted the system file table, which made unrelated processes fail with `ENFILE`. It honors no directory filter: `skipDir` in `golang.org/x/tools/gopls/internal/filewatcher/fsnotify_watcher.go` skips only names that start with `.` or `_`, and `testdata`. Use the LSP tool or the CLI above.
 
 ```
 $ gopls symbols internal/component/bgp/config/resolve.go
