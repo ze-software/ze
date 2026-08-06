@@ -152,7 +152,10 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 | Config | `environment { web { enabled true; server main { ip 0.0.0.0; port 3443; } } }` |
 | Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui-mode=finder` (rollback to legacy Finder) |
 
-Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
+Configured and web-only startup call `startWebServer` in
+`cmd/ze/hub/service_web.go`. Web-only mode starts the server without a BGP
+config for initial setup.
+<!-- source: cmd/ze/hub/service_web.go -- startWebServer -->
 
 ## Workbench UI (default)
 
@@ -178,7 +181,6 @@ The RouterOS-style operator workbench is the default UI. Set `ze.web.ui-mode=fin
 
 See `spec-web-2-operator-workbench.md` (Argument Wire Format, Resolved-Value Validation, Day-One BGP Related Tools) for the full descriptor grammar and the BGP YANG annotations that ship with the experiment.
 
-<!-- source: cmd/ze/hub/main.go -- startWebServer, RunWebOnly -->
 
 ## Looking Glass
 
@@ -239,6 +241,7 @@ The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`
 | Config | `environment { looking-glass { enabled true; server main { ip 0.0.0.0; port 8443; } } }` |
 | Env vars | `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false` (TLS is on by default), `ze.looking-glass.token=<token>` |
 
-Started by `startLGServer()` in `cmd/ze/hub/main.go` alongside the web server, after engine startup.
+The hub builds the looking-glass service with `buildLGService` and starts its
+server with `serveLG` in `cmd/ze/hub/service_lg.go`.
 
-<!-- source: cmd/ze/hub/main.go -- startLGServer, serveLG -->
+<!-- source: cmd/ze/hub/service_lg.go -- buildLGService, serveLG -->

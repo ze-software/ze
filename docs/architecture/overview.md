@@ -24,10 +24,10 @@ Key characteristics:
 
 - Backwards compatibility with itself (no releases yet)
 
-OSPF and IS-IS have in-tree implementations under `internal/plugins/ospf` and
-`internal/plugins/isis` (adjacency, areas/circuits, authentication, BFD client);
-they are no longer a non-goal.
-<!-- source: internal/plugins/ospf, internal/plugins/isis -- IGP plugin trees (OSPF 245, IS-IS 94 non-test .go files, 2026-07-08) -->
+OSPF and IS-IS are self-contained plugins under `internal/plugins/ospf` and
+`internal/plugins/isis`. Each plugin owns its protocol engine and lifecycle.
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
+<!-- source: internal/plugins/isis/register.go -- runISISEngine -->
 
 
 ---
@@ -98,13 +98,15 @@ they are no longer a non-goal.
 | Other binaries | Build tags: `ze_perf`, `ze_analyze` | Benchmarks, MRT/RIB analysis. ze-test, ze-chaos, ze-perf, and ze-analyze are build-tag variants of cmd/ze. |
 | Components | `internal/component/` | Engine, BGP, config, CLI, command dispatcher, API, web, gNMI, MCP, interface, firewall, traffic, IPsec/IKE, L2TP, PPPoE, LDP, RSVP-TE, telemetry, storage, and related services |
 | BGP subsystem | `internal/component/bgp/` | FSM, reactor, wire parsing, attributes, capabilities, NLRI, BGP plugins, and command handlers |
-| Generic plugins | `internal/plugins/` | FIB, static routes, sysrib, sysctl, BFD, connected/kernel redistribution, policy routing, DHCP/TFTP/image services, VPP/firewall/traffic backends, L2TP helpers |
+| Plugin owners | `internal/plugins/` | Self-contained feature owners. Command-only plugins provide command schemas and handlers. Full-subsystem plugins also own protocol or service runtimes, configuration, and state. |
 | Core utilities | `internal/core/` | Shared value types and services such as family, metrics, health, report bus, sysctl, routewatch, rib, paths, source IDs, and logging |
 | Public packages | `pkg/` | Plugin SDK/RPC, Ze interfaces, and ZeFS storage |
 | Functional tests | `test/` | `.ci` and `.et` tests plus interop and integration assets |
 | Documentation | `docs/` | User, architecture, feature, plugin, migration, contributing, and research docs |
 | Plans and history | `plan/` | Specs, learned summaries, deferrals, and design history |
 | RFC references | `rfc/` | Full RFCs and short summaries |
+<!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
 
 ---
 

@@ -9,7 +9,7 @@ Ze implements the IS-IS PDU and TLV wire codec per
 [RFC 5303](../../../rfc/short/rfc5303.md) (P2P three-way, TLV 240), and
 [RFC 5304](../../../rfc/short/rfc5304.md) (authentication TLV 10 structure).
 
-The `spec-isis-2-wire` slice (see `plan/learned/NNN-isis-2-wire.md`) delivers the
+The `spec-isis-2-wire` slice (see `plan/learned/928-isis-2-wire.md`) delivers the
 serialization layer only: the common header, all nine PDU types, the core TLVs,
 the ISO 8473 Fletcher checksum, and opaque unknown-TLV passthrough. It contains
 no runtime, sockets, timers, LSDB, or FSM; those live in later children

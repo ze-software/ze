@@ -9,7 +9,7 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-07-08
+Last updated: 2026-08-06
 
 ## Overview
 
@@ -43,9 +43,12 @@ Last updated: 2026-07-08
 | VPN FlowSpec | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | Yes | No | Decode | No | No | Yes |
 | SR Policy | Yes | No | No | No | No | Yes | No | No | No | No | Partial |
-| IPv4/IPv6 MUP | Yes | No | No | No | No | No | No | No | No | No | Yes |
+| IPv4/IPv6 MUP | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | IPv4/IPv6 MVPN | Decode | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4 RTC (RFC 4684) | Decode | No | No | No | No | No | No | Yes | No | No | Yes |
+
+<!-- source: https://github.com/osrg/gobgp/blob/v4.7.0/pkg/packet/bgp/bgp.go -- RF_MUP_IPv4, RF_MUP_IPv6 -->
+<!-- source: https://github.com/osrg/gobgp/blob/v4.7.0/pkg/packet/bgp/mup.go -- MUPNLRI.decodeFromBytes, MUPNLRI.Serialize -->
 
 ## Core Protocol
 
@@ -61,13 +64,15 @@ Last updated: 2026-07-08
 | Notification GR (RFC 8538) | No | No | No | No | Yes | Yes | No | No | No | Yes | No |
 | Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Rx only | Yes | Yes |
 | Paths-Limit (draft-abraitis) | Yes | No | No | Yes | No | No | No | Yes | No | No | No |
-| Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
+| Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Extended Nexthop (RFC 8950) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
 | Confederation (RFC 5065) | No | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes |
 | Admin Shutdown (RFC 8203) | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Partial |
 | BGP Roles (RFC 9234) | Yes | Yes | Yes | No | Yes | No | Yes | No | No | No | Partial |
 | Prefix Limit (RFC 4486) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
+
+<!-- source: https://github.com/osrg/gobgp/blob/v4.7.0/pkg/packet/bgp/bgp.go -- CapExtendedMessage, BGPMessage.Serialize -->
 
 ## Cross-Protocol Redistribute
 

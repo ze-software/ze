@@ -47,7 +47,7 @@ All EVPN NLRIs share this structure:
 +---------------------------+
 |   Route Type = 1          |  1 octet
 +---------------------------+
-|   Length = 25             |  1 octet (17 without label, +3 per label)
+|   Length = 22 + 3*n     |  1 octet (zero or more labels)
 +---------------------------+
 |   RD (8 octets)           |  Route Distinguisher
 +---------------------------+
@@ -55,9 +55,11 @@ All EVPN NLRIs share this structure:
 +---------------------------+
 |   Ethernet Tag (4 octets) |
 +---------------------------+
-|   MPLS Label (3 octets)   |  Optional, per RFC 7432
+|   MPLS Labels           |  3 octets each, zero or more
 +---------------------------+
 ```
+The payload length is $22 + 3n$ bytes. The total NLRI length, including the
+route type and length octets, is $24 + 3n$ bytes.
 
 ### ExaBGP Offsets
 
@@ -66,7 +68,7 @@ All EVPN NLRIs share this structure:
 # RD: 2-10, ESI: 10-20, ETag: 20-24, Label: 24+
 ```
 
-<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType1 (Ethernet Auto-Discovery) -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType1.WriteTo, EVPNType1.Len -->
 
 ---
 

@@ -41,8 +41,9 @@ Query the API:
 curl http://localhost:8081/api/v1/commands
 curl -X POST http://localhost:8081/api/v1/execute \
     -H "Content-Type: application/json" \
-    -d '{"command":"bgp summary"}'
+    -d '{"command":"show bgp summary"}'
 ```
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
 Open interactive docs: <http://localhost:8081/api/v1/docs>
 
@@ -88,10 +89,11 @@ but write commands, REST config sessions, and gRPC config sessions return 403.
 POST `/api/v1/execute` body:
 ```json
 {
-  "command": "show bgp rib routes",
+  "command": "show bgp rib",
   "params": {"family": "ipv4/unicast"}
 }
 ```
+<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- module ze-rib-cmd -->
 
 Response:
 ```json
@@ -103,20 +105,22 @@ Response:
 
 ### Convenience routes
 
-These map to the generic Execute endpoint internally. The data returned is
-identical to calling `execute` directly.
+Most convenience routes map to the generic Execute endpoint internally. The
+refresh row gives the required generic Execute command instead.
 
 | Method | Path | Maps to |
 |--------|------|---------|
-| `GET` | `/api/v1/peers` | `bgp summary` |
-| `GET` | `/api/v1/peers/{name}` | `peer {name} detail` |
+| `GET` | `/api/v1/peers` | `show bgp summary` |
+| `GET` | `/api/v1/peers/{name}` | `show bgp peer {name} detail` |
 | `DELETE` | `/api/v1/peers/{name}` | `request peer {name} teardown` |
-| `POST` | `/api/v1/peers/{name}/refresh` | `request peer {name} refresh` |
+| `POST` | `/api/v1/peers/{name}/refresh` | Use `/api/v1/execute` with `request peer {name} refresh {family}` |
 | `GET` | `/api/v1/rib/{family}` | `show bgp rib family {family}` |
 | `GET` | `/api/v1/rib/{family}/best` | `show bgp rib best family {family}` |
 | `GET` | `/api/v1/system/version` | `show version` |
 | `GET` | `/api/v1/system/status` | `show status` |
 | `POST` | `/api/v1/system/reload` | `request reload` |
+<!-- source: internal/component/api/rest/server.go -- RESTServer.handlePeerRefresh -->
+<!-- source: internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang -- module ze-refresh-cmd; internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefreshMarker -->
 
 ### Config editing
 
@@ -206,7 +210,7 @@ the `authorization` metadata key:
 
 ```python
 metadata = [('authorization', 'Bearer alice:password123')]
-stub.Execute(CommandRequest(command='bgp summary'), metadata=metadata)
+stub.Execute(CommandRequest(command='show bgp summary'), metadata=metadata)
 ```
 
 ### gRPC reflection
@@ -217,10 +221,11 @@ plaintext loopback listener:
 ```
 grpcurl -plaintext localhost:50051 list
 grpcurl -plaintext localhost:50051 describe ze.api.v1.ZeService
-grpcurl -plaintext -d '{"command":"bgp summary"}' \
+grpcurl -plaintext -d '{"command":"show bgp summary"}' \
     -H "authorization: Bearer alice:password123" \
     localhost:50051 ze.api.v1.ZeService/Execute
 ```
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
 ### TLS
 

@@ -1,14 +1,14 @@
 # Environment Variables
 
-Ze reads environment variables for daemon-wide knobs (pprof, PID file,
-privilege drop) and BGP protocol tuning. Every variable has a matching
-YANG path under the `environment { }` config block; the OS env var
-wins when both are set.
+Ze reads environment variables for daemon-wide settings and BGP protocol
+tuning. Config-backed keys have matching paths under `environment { }`.
+Bootstrap, safety, and test keys can be environment-only.
+<!-- source: internal/component/config/environment.go -- env var registrations; internal/core/paths/paths.go -- ze.config.dir registration -->
 
 See [environment.md](../architecture/config/environment.md) for the
 authoritative list.
 
-## Priority
+## Priority for Config-Backed Keys
 
 1. OS environment variable (shell, systemd `EnvironmentFile`, container runtime)
 2. Config file `environment { ... }` block

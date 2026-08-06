@@ -1,7 +1,7 @@
 # L2TPv2 Wire Format
 
 Ze implements L2TPv2 per [RFC 2661](../../../rfc/short/rfc2661.md).
-Phase 1 (see `plan/learned/NNN-l2tp-1-wire.md`) delivers the wire layer: header parsing
+Phase 1 (see `plan/learned/594-l2tp-1-wire.md`) delivers the wire layer: header parsing
 and serialization, AVP iteration and serialization, challenge/response
 computation, and hidden-AVP encryption. All code lives in
 `internal/component/l2tp/`.

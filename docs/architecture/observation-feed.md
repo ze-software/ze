@@ -49,12 +49,12 @@ a preallocated slice with zero per-publish allocation.
 ## Publishers
 
 <!-- source: internal/plugins/trafficusage/monitor.go -- publishLocked -->
-<!-- source: internal/plugins/flowexport/exporter.go -- ExportFlows -->
+<!-- source: internal/plugins/flowexport/exporter.go -- exporter.exportFlows -->
 
 | Collector | Publish point | Observation kind |
 |-----------|--------------|------------------|
 | trafficusage eBPF | `monitor.go:publishLocked` | `SourceIP` / `RxBytes` |
-| flowexport conntrack | `exporter.go:ExportFlows` | `Flow` / `FlowBytes` |
+| flowexport conntrack | `exporter.exportFlows` | `Flow` / `FlowBytes` |
 
 ## Metrics
 

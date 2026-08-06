@@ -34,7 +34,7 @@ reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the
 
 ```
 # Plugin sends declare-registration (Stage 1)
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both"}]}
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
 # Engine responds OK
 #1 ok
@@ -67,19 +67,40 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `families` | `[]FamilyDecl` | Address families the plugin handles (name + mode) |
+| `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
 | `wants-config` | `[]string` | Config roots the plugin wants to receive |
-| `schema` | `SchemaDecl` | YANG schema (module, namespace, yang-text, handlers) |
+| `config-operations` | `[]ConfigOperationDecl` | Config operation callbacks the plugin supports |
+| `verify-budget` | `int` | Estimated verify time in seconds (`0` means trivial) |
+| `apply-budget` | `int` | Estimated apply time in seconds (`0` means trivial) |
+| `schema` | `*SchemaDecl` | YANG schema (module, namespace, yang-text, handlers) |
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
+| `filters` | `[]FilterDecl` | Named route filters the plugin provides |
+| `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
+| `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
+| `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
+
+
+Each `FamilyDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Canonical `afi/safi` name |
+| `mode` | `string` | `encode`, `decode`, or `both` |
+| `afi` | `uint16` | RFC 4760 Address Family Identifier |
+| `safi` | `uint8` | RFC 4760 Subsequent Address Family Identifier |
+
+Set `afi` and `safi` for a custom family. A built-in family can omit both numeric fields.
 
 **Wire example:**
 
 ```
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both"}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
 #1 ok
 ```
 
@@ -191,41 +212,62 @@ the event loop.
 ## Runtime Callbacks (Engine to Plugin)
 
 After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches
-these through a generic callback registry (`map[string]callbackHandler`) -- both
-the pipe and bridge event loops use the same map-based lookup, with no
-transport-specific handler code.
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
+each wire method to its registered handler.
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackBye through callbackPostStartup -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent through OnAllPluginsReady -->
+<!-- source: pkg/plugin/rpc/types.go -- callback input and output types -->
 
-| Method | Input | Description |
-|--------|-------|-------------|
-| `ze-plugin-callback:deliver-event` | `{"event":"<json>"}` | Single event delivery |
-| `ze-plugin-callback:deliver-batch` | `{"events":[...]}` | Batched event delivery |
-| `ze-plugin-callback:execute-command` | `ExecuteCommandInput` | Command execution request |
-| `ze-plugin-callback:config-verify` | `ConfigVerifyInput` | Config verification (reload) |
-| `ze-plugin-callback:config-apply` | `ConfigApplyInput` | Config apply (reload) |
-| `ze-plugin-callback:validate-open` | `ValidateOpenInput` | OPEN message validation |
-| `ze-plugin-callback:encode-nlri` | `EncodeNLRIInput` | NLRI encoding request |
-| `ze-plugin-callback:decode-nlri` | `DecodeNLRIInput` | NLRI decoding request |
-| `ze-plugin-callback:decode-capability` | `DecodeCapabilityInput` | Capability decoding request |
-| `ze-plugin-callback:bye` | `ByeInput` | Shutdown notification |
+| Method | SDK handler | Input | Output | Purpose |
+|--------|-------------|-------|--------|---------|
+| `ze-plugin-callback:deliver-event` | `OnEvent` | `DeliverEventInput` | None | Deliver one event |
+| `ze-plugin-callback:deliver-batch` | `OnEvent` | `{"events":[]}` | None | Deliver an event batch |
+| `ze-plugin-callback:execute-command` | `OnExecuteCommand` | `ExecuteCommandInput` | `ExecuteCommandOutput` | Run a command |
+| `ze-plugin-callback:encode-nlri` | `OnEncodeNLRI` | `EncodeNLRIInput` | `EncodeNLRIOutput` | Encode NLRI |
+| `ze-plugin-callback:decode-nlri` | `OnDecodeNLRI` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI |
+| `ze-plugin-callback:decode-capability` | `OnDecodeCapability` | `DecodeCapabilityInput` | `{"json":...}` | Decode a capability |
+| `ze-plugin-callback:config-verify` | `OnConfigVerify` | `ConfigVerifyInput` | `ConfigVerifyOutput` | Verify candidate config |
+| `ze-plugin-callback:config-apply` | `OnConfigApply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply a config diff |
+| `ze-plugin-callback:config-rollback` | `OnConfigRollback` | `{"transaction-id":"..."}` | None | Roll back a config transaction |
+| `ze-plugin-callback:config-operation-decompose` | `OnConfigOperationDecompose` | `ConfigOperationDecomposeInput` | `ConfigOperationDecomposeOutput` | Decompose a config transaction |
+| `ze-plugin-callback:config-operation-verify` | `OnConfigOperationVerify` | `ConfigOperationVerifyInput` | `ConfigOperationVerifyOutput` | Verify a config operation |
+| `ze-plugin-callback:config-operation-apply` | `OnConfigOperationApply` | `ConfigOperationApplyInput` | `ConfigOperationApplyOutput` | Apply a config operation |
+| `ze-plugin-callback:config-operation-rollback` | `OnConfigOperationRollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Roll back config operations |
+| `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit operation journals |
+| `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
+| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update |
+| `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
+| `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
+| `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
+| No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |
+| `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of shutdown |
 
 ## Runtime RPCs (Plugin to Engine)
 
-Plugins can call the engine during runtime via these RPCs:
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
+Plugins call the engine during runtime through these SDK methods:
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
+<!-- source: pkg/plugin/rpc/types.go -- plugin-to-engine runtime RPC input and output types -->
+<!-- source: pkg/plugin/rpc/bridge.go -- BatchValidateResult -->
 
-| Method | Input | Output | Description |
-|--------|-------|--------|-------------|
-| `ze-plugin-engine:update-route` | `UpdateRouteInput` | `UpdateRouteOutput` | Inject route to peers |
-| `ze-plugin-engine:dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command dispatch |
-| `ze-plugin-engine:emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
-| `ze-plugin-engine:subscribe-events` | `SubscribeEventsInput` | - | Subscribe to events |
-| `ze-plugin-engine:unsubscribe-events` | - | - | Unsubscribe from events |
-| `ze-plugin-engine:decode-nlri` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI via registry |
-| `ze-plugin-engine:encode-nlri` | `EncodeNLRIInput` | `EncodeNLRIOutput` | Encode NLRI via registry |
-| `ze-plugin-engine:decode-mp-reach` | `DecodeMPReachInput` | `DecodeMPReachOutput` | Decode MP_REACH_NLRI |
-| `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
-| `ze-plugin-engine:decode-update` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode full UPDATE message |
+| Method | SDK method | Input | Output | Purpose |
+|--------|------------|-------|--------|---------|
+| `ze-plugin-engine:update-route` | `UpdateRoute`, `UpdateRouteWithMeta`, `UpdateRouteSel`, `UpdateRouteSelWithMeta` | `UpdateRouteInput` | `UpdateRouteOutput` | Send a route update |
+| `ze-plugin-engine:forward-cached` | `ForwardCached` | `ForwardCachedInput` | None | Forward cached UPDATEs |
+| `ze-plugin-engine:release-cached` | `ReleaseCached` | `ReleaseCachedInput` | None | Release cached UPDATEs |
+| `ze-plugin-engine:relay-stored-route` | `RelayStoredRoute` | `RelayStoredRouteInput` | None | Relay stored routes |
+| `ze-plugin-engine:route-install` | `RouteInstall` | `RouteInstallInput` | `RouteInstallOutput` | Install routes in the Loc-RIB |
+| `ze-plugin-engine:route-remove` | `RouteRemove` | `RouteRemoveInput` | `RouteRemoveOutput` | Remove routes from the Loc-RIB |
+| `ze-plugin-engine:inject-wire-route` | `InjectWireRoute` | `InjectWireRouteInput` | None | Inject a raw BGP UPDATE |
+| `ze-plugin-engine:batch-validate` | `BatchValidate` | `BatchValidateInput` | `BatchValidateResult` | Submit route validation decisions |
+| `ze-plugin-engine:dispatch-command` | `DispatchCommand` | `DispatchCommandInput` | `DispatchCommandOutput` | Dispatch a command string |
+| `ze-plugin-engine:dispatch-command-args` | `DispatchCommandArgs` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Dispatch a command and pre-tokenized arguments |
+| `ze-plugin-engine:emit-event` | `EmitEvent` | `EmitEventInput` | `EmitEventOutput` | Emit an event |
+| `ze-plugin-engine:subscribe-events` | `SubscribeEvents` | `SubscribeEventsInput` | None | Subscribe to events |
+| `ze-plugin-engine:unsubscribe-events` | `UnsubscribeEvents` | None | None | Unsubscribe from events |
+| `ze-plugin-engine:decode-nlri` | `DecodeNLRI` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI through the registry |
+| `ze-plugin-engine:encode-nlri` | `EncodeNLRI` | `EncodeNLRIInput` | `EncodeNLRIOutput` | Encode NLRI through the registry |
+| `ze-plugin-engine:decode-mp-reach` | `DecodeMPReach` | `DecodeMPReachInput` | `DecodeMPReachOutput` | Decode MP_REACH_NLRI |
+| `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
+| `ze-plugin-engine:decode-update` | `DecodeUpdate` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode a BGP UPDATE |
 
 ## Message Flow Example
 

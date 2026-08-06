@@ -27,15 +27,22 @@ Register a handler with `OnExecuteCommand` before calling `Run`. The handler rec
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     switch command {
     case "my-plugin status":
-        return "done", `{"status":"running","uptime":3600}`, nil
+        return "done", map[string]any{
+            "status": "running",
+            "uptime": 3600,
+        }, nil
     case "my-plugin check":
         if len(args) < 1 {
-            return "error", "usage: my-plugin check <target>", nil
+            return "error", map[string]string{
+                "error": "usage: my-plugin check <target>",
+            }, nil
         }
         result := performCheck(args[0])
         return "done", result, nil
     default:
-        return "error", "unknown command: " + command, nil
+        return "error", map[string]string{
+            "error": "unknown command: " + command,
+        }, nil
     }
 })
 ```
@@ -55,7 +62,7 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 ### Success Response (plugin to engine)
 
 ```
-#17 ok {"status":"done","data":"{\"status\":\"running\"}"}
+#17 ok {"status":"done","data":{"status":"running","uptime":3600}}
 ```
 
 ### Error Response (plugin to engine)
@@ -67,24 +74,27 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 ## Return Values
 
 The `OnExecuteCommand` handler returns three values: `(status string, data any, err error)`.
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleExecuteCommand -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand, executeCommandOutput -->
 
 ### Success with Data
 
 ```go
-return "done", `{"count":42,"items":["a","b"]}`, nil
+return "done", map[string]any{
+    "count": 42,
+    "items": []string{"a", "b"},
+}, nil
 ```
 
-The SDK wraps this into an `ExecuteCommandOutput` and sends:
+The SDK marshals this value into `ExecuteCommandOutput.Data` and sends:
 ```
-#17 ok {"status":"done","data":"{\"count\":42,\"items\":[\"a\",\"b\"]}"}
+#17 ok {"status":"done","data":{"count":42,"items":["a","b"]}}
 ```
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 
 ### Success without Data
 
 ```go
-return "done", "", nil
+return "done", nil, nil
 ```
 
 Response:
@@ -98,9 +108,9 @@ Response:
 If the handler returns a non-nil error, the SDK sends an error response:
 
 ```go
-return "", "", fmt.Errorf("operation failed: database timeout")
-```
+return "", nil, fmt.Errorf("operation failed: database timeout")
 
+```
 Response:
 ```
 #17 error {"message":"operation failed: database timeout"}
@@ -141,13 +151,15 @@ Arguments arrive in the `args` parameter of the handler:
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     if command == "my-plugin get" {
         if len(args) < 1 {
-            return "error", "usage: my-plugin get <key>", nil
+            return "error", map[string]string{
+                "error": "usage: my-plugin get <key>",
+            }, nil
         }
         key := args[0]
         value := getValue(key)
-        return "done", value, nil
+        return "done", map[string]any{"key": key, "value": value}, nil
     }
-    return "error", "unknown command", nil
+    return "error", map[string]string{"error": "unknown command"}, nil
 })
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
@@ -176,7 +188,7 @@ Return structured JSON data for API consumers:
 ```go
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
     if command == "monitor metrics" {
-        data, _ := json.Marshal(struct {
+        data := struct {
             Checks    int     `json:"checks"`
             Failures  int     `json:"failures"`
             LatencyMs float64 `json:"latency-ms"`
@@ -186,10 +198,10 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (str
             Failures:  state.failures,
             LatencyMs: state.latency,
             LastCheck: state.lastCheck.Format(time.RFC3339),
-        })
-        return "done", string(data), nil
+        }
+        return "done", data, nil
     }
-    return "error", "unknown command", nil
+    return "error", map[string]string{"error": "unknown command"}, nil
 })
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
@@ -226,14 +238,13 @@ sdk.CommandDecl{Name: "my-plugin help", Description: "Show available commands"},
 
 // In handler:
 if command == "my-plugin help" {
-    data, _ := json.Marshal(map[string]any{
+    return "done", map[string]any{
         "commands": []string{
             "my-plugin status - Show current status",
             "my-plugin check <target> - Trigger immediate check",
             "my-plugin metrics - Show performance metrics",
         },
-    })
-    return "done", string(data), nil
+    }, nil
 }
 ```
 <!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl -->

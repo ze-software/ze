@@ -269,9 +269,12 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | Area | Doc |
 |------|-----|
 | **Core Design** | `docs/architecture/core-design.md` **(START HERE)** |
+| Architecture index | `docs/architecture/README.md` |
 | **System Architecture** | `docs/architecture/system-architecture.md` |
+| Design references | `docs/architecture/design-refs-map.md` |
 | **Overview** | `docs/architecture/overview.md` |
 | **Hub Architecture** | `docs/architecture/hub-architecture.md` |
+| MCP overview | `docs/architecture/mcp/overview.md` |
 | Buffer-first | `docs/architecture/buffer-architecture.md` |
 | Message buffers | `docs/architecture/message-buffer-design.md` |
 | Wire formats | `docs/architecture/wire/messages.md` |
@@ -289,14 +292,25 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | UPDATE building | `docs/architecture/update-building.md` |
 | UPDATE cache | `docs/architecture/update-cache.md` |
 | UPDATE density | `docs/architecture/update-density-analysis.md` |
+| Performance round 3 | `docs/architecture/perf-round-3.md` |
 | Memory pools | `docs/architecture/pool-architecture.md` |
 | Pool review | `docs/architecture/pool-architecture-review.md` |
+| Memory lifetimes | `docs/architecture/memory/lifetime-contracts.md` |
 | Zero-copy | `docs/architecture/encoding-context.md` |
 | RIB transition | `docs/architecture/rib-transition.md` |
 | RIB storage | `docs/architecture/plugin/rib-storage-design.md` |
+| Plugin relationships | `docs/architecture/plugin/plugin-relationships.md` |
 | Route types | `docs/architecture/route-types.md` |
+| MRT | `docs/architecture/mrt.md` |
 | Route selection | `docs/architecture/route-selection.md` |
 | FSM | `docs/architecture/behavior/fsm.md` |
+| FSM Active | `docs/architecture/behavior/fsm-active.md` |
+| FSM Connect | `docs/architecture/behavior/fsm-connect.md` |
+| FSM Established | `docs/architecture/behavior/fsm-established.md` |
+| FSM Idle | `docs/architecture/behavior/fsm-idle.md` |
+| FSM OpenConfirm | `docs/architecture/behavior/fsm-open-confirm.md` |
+| FSM OpenSent | `docs/architecture/behavior/fsm-open-sent.md` |
+| Peer lifecycle | `docs/architecture/behavior/peer-lifecycle.md` |
 | Signals | `docs/architecture/behavior/signals.md` |
 | API | `docs/architecture/api/architecture.md` |
 | API Capabilities | `docs/architecture/api/capability-contract.md` |
@@ -310,6 +324,8 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | Text parser | `docs/architecture/api/text-parser.md` |
 | Text coverage | `docs/architecture/api/text-coverage.md` |
 | Config syntax | `docs/architecture/config/syntax.md` |
+| Deprecated config options | `docs/architecture/config/deprecated-options.md` |
+| Config transactions | `docs/architecture/config/transaction-protocol.md` |
 | Config environment | `docs/architecture/config/environment.md` |
 | Environment block | `docs/architecture/config/environment-block.md` |
 | Config tokenizer | `docs/architecture/config/tokenizer.md` |
@@ -317,8 +333,10 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | ExaBGP syntax | `docs/architecture/config/exabgp-syntax.md` |
 | VyOS research | `docs/architecture/config/vyos-research.md` |
 | Plugin modes | `docs/architecture/cli/plugin-modes.md` |
+| CLI color system | `docs/architecture/cli/color-system.md` |
 | Plugin testing | `docs/architecture/debugging/plugin-testing.md` |
 | Edge: ASN4 | `docs/architecture/edge-cases/as4.md` |
+| Edge: Confederation AS_PATH loop | `docs/architecture/edge-cases/confederation-aspath-loop.md` |
 | Edge: ADD-PATH | `docs/architecture/edge-cases/addpath.md` |
 | Edge: Extended msg | `docs/architecture/edge-cases/extended-message.md` |
 | Route metadata | `docs/architecture/meta/README.md` |
@@ -327,8 +345,11 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | Congestion industry | `docs/architecture/congestion-industry.md` |
 | Subsystem wiring | `docs/architecture/subsystem-wiring.md` |
 | Plugin mgr wiring | `docs/architecture/plugin-manager-wiring.md` |
+| Command ownership | `docs/architecture/command-ownership.md` |
 | Hub API commands | `docs/architecture/hub-api-commands.md` |
 | RFC MAY decisions | `docs/architecture/rfc-may-decisions.md` |
+| Architecture decisions | `docs/architecture/decisions/README.md` |
+| Decision: pull-model metrics | `docs/architecture/decisions/001-pull-model-metrics.md` |
 | ZeFS format | `docs/architecture/zefs-format.md` |
 | Fleet config | `docs/architecture/fleet-config.md` |
 | Web interface | `docs/architecture/web-interface.md` |
@@ -336,6 +357,8 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | Chaos dashboard | `docs/architecture/chaos-web-dashboard.md` |
 | CI format | `docs/architecture/testing/ci-format.md` |
 | Interop testing | `docs/architecture/testing/interop.md` |
+| QEMU integration | `docs/architecture/testing/qemu-integration.md` |
+| Test runner | `docs/architecture/testing/runner-architecture.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
 | ExaBGP compat | `docs/exabgp/exabgp-differences.md` |
 

@@ -204,7 +204,7 @@ Because that zero is not a measurement, the server MUST also emit
 The producer already draws this distinction and the server MUST preserve it:
 `fetchRibRouteCounts` omits the count keys when the `bgp-rib` plugin is not
 loaded, recording that they are "never faked to 0".
-<!-- source: internal/component/cmd/peer/summary.go -- fetchRibRouteCounts -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts -->
 
 For a BMP-monitored peer the server MUST report `routes_counts_available` as
 `false`: no source is consulted for those four members at all.
@@ -217,7 +217,7 @@ Adj-RIB-In size, because Ze drops rejected routes before storage and keeps no
 separate pre-policy count. A client MUST NOT infer a policy drop from the
 difference, which is always zero. BIRD reports received greater than or equal to
 imported, so this is a real behavioral difference and not a naming one.
-<!-- source: internal/component/cmd/peer/summary.go -- mergeRibRouteCounts -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- mergeRibRouteCounts -->
 
 `routes_filtered` MUST be expected to be `0`. Ze retains no filtered routes: the
 reject gate drops the route rather than storing it, so nothing can produce the

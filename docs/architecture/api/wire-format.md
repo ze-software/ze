@@ -31,28 +31,36 @@ Implementation: `pkg/plugin/rpc/framing.go`, `pkg/plugin/rpc/message.go`
 
 ## Method Naming
 
-Methods use `module:rpc-name` format. The module name comes from the YANG module that
-defines the RPC. The RPC name uses kebab-case.
+YANG RPC methods use `module:rpc-name` format. `WireModule` derives the method
+prefix from the declaring module. RPC names use kebab-case.
 
-| Wire Method | YANG Module |
-|-------------|-------------|
-| `ze-bgp:peer-list` | ze-bgp-api |
-| `ze-bgp:subscribe` | ze-bgp-api |
-| `ze-system:daemon-status` | ze-system-api |
-| `ze-system:version-software` | ze-system-api |
-| `ze-system:command-list` | ze-system-api |
-| `ze-rib:show-in` | ze-rib-api |
-| `ze-plugin-api:session-ready` | ze-plugin-api |
+| Wire Method | Declaration | Kind |
+|-------------|-------------|------|
+| `ze-bgp:peer-list` | `ze-bgp-api` | YANG RPC |
+| `ze-bgp:subscribe` | `ze-cli-subscribe-cmd` | Command-dispatch method for `request subscribe` |
+| `ze-system:daemon-status` | `ze-system-api` | YANG RPC |
+| `ze-system:version-software` | `ze-system-api` | YANG RPC |
+| `ze-system:command-list` | `ze-system-api` | YANG RPC |
+| `ze-rib:show` | `ze-rib-api` | YANG RPC |
+| `ze-plugin:session-ready` | `ze-plugin-api` | YANG RPC |
+| `ze-plugin-engine:subscribe-events` | `ze-plugin-engine` | Plugin SDK RPC |
 
-Max method name length: 256 characters.
+`WireModule` removes the `-api` suffix from a YANG RPC module. A `ze:command`
+declaration can set a different wire method for command dispatch.
 <!-- source: internal/component/config/yang/rpc.go -- WireModule -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer-list -->
+<!-- source: internal/component/cmd/subscribe/yang/ze-cli-subscribe-cmd.yang -- request subscribe -->
+<!-- source: internal/core/ipc/yang/ze-system-api.yang -- daemon-status, version-software, command-list -->
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib-api.yang -- show -->
+<!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- session-ready -->
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- subscribe-events -->
 
 ## Request
 
 ```
 #42 ze-bgp:peer-list {"selector":"10.0.0.1"}
 #43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
-#44 ze-bgp:subscribe {"events":["update"]}
+#44 ze-bgp:subscribe {"args":["bgp","event","update"]}
 ```
 
 | Component | Description |
@@ -112,10 +120,12 @@ RPC definitions live in YANG API modules, separate from config modules:
 
 | Module | File | Contains |
 |--------|------|----------|
-| ze-bgp-api | `internal/component/bgp/yang/ze-bgp-api.yang` | BGP RPCs + notifications |
+| ze-bgp-api | `internal/component/bgp/yang/ze-bgp-api.yang` | BGP RPCs and notifications |
 | ze-system-api | `internal/core/ipc/yang/ze-system-api.yang` | System RPCs |
-| ze-rib-api | `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` | RIB RPCs + notifications |
+| ze-rib-api | `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` | RIB RPCs and notifications |
 | ze-plugin-api | `internal/core/ipc/yang/ze-plugin-api.yang` | Plugin lifecycle RPCs |
+| ze-plugin-engine | `internal/core/ipc/yang/ze-plugin-engine.yang` | Plugin-to-engine SDK RPCs |
+| ze-cli-subscribe-cmd | `internal/component/cmd/subscribe/yang/ze-cli-subscribe-cmd.yang` | Event subscription command paths |
 
 Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/component/config/yang/modules/ze-types.yang`).
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- BGP RPCs -->
@@ -124,7 +134,7 @@ Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/component/c
 
 ## JSON Conventions
 
-All JSON follows Ze conventions (see `rules/json-format.md`):
+All JSON follows Ze [JSON format conventions](../../../ai/rules/cli.md#json-format):
 
 - Keys use kebab-case (`"peer-count"`, not `"peerCount"`).
 - Error identities use kebab-case (`"peer-not-found"`).

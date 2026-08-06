@@ -2,18 +2,15 @@
 
 How `ze-test` discovers, schedules, executes, and reports functional tests.
 
-This document covers the **execution architecture** (the engines that run tests
-concurrently and render results) and the **web `.wb` test format**. For the
+This document covers the **execution architecture** (the scheduler and suite
+wrappers) and the **web `.wb` test format**. For the
 `.ci` and `.et` file formats see [`ci-format.md`](ci-format.md); for the suite
 inventory and how to invoke suites see [`../../functional-tests.md`](../../functional-tests.md).
 
-> **Status:** describes the system as it is **today**. A planned consolidation
-> is tracked separately — see [Direction](#direction-planned).
 
 ## Layers
 
-Every functional suite moves through the same five stages, regardless of which
-engine schedules it:
+Every functional suite moves through the same five stages:
 
 | Stage | What happens |
 |-------|--------------|
@@ -23,29 +20,32 @@ engine schedules it:
 | Execute | Per-test work: spawn `ze`, drive a browser, or drive the editor model |
 | Report | Live status, per-test PASS/FAIL line, summary, timing baseline, failure index |
 
-Discovery, selection, and reporting are shared. **Scheduling and execution are
-where the system currently forks into three separate engines.**
+Discovery and execution vary by suite. Most suites use the shared scheduler.
+The `.ci` `Runner` wrapper adds build and process orchestration.
 
-## The three execution engines
+## Scheduler and suite wrappers
 
 `ze-test` subcommands register themselves in a dispatch table.
-<!-- source: internal/test/cli/register.go -- subcommands registry, Register() -->
-Each subcommand routes to one of three engines that independently re-implement
-the same goroutine-pool + semaphore + live-display orchestration.
+<!-- source: internal/test/cli/register.go -- init, registerCIRoot -->
+<!-- source: internal/test/cli/dispatch.go -- registerRoot, registerCIRoot -->
+`NewParallelRunner` constructs `parallelRunner` for direct use or use through
+the `.ci` `Runner` wrapper. The predecessor ExaBGP suite uses the bespoke
+scheduler in `runExaBGPSelected`.
 
-| Engine | Source | Scheduling | Concurrency | Drives Display / timing / failure-groups |
-|--------|--------|------------|-------------|------------------------------------------|
-| `Runner.Run` | `internal/test/runner/runner.go` | own goroutine pool + semaphore | `RunOptions.Parallel` (0 → all selected) | yes |
-| `ParallelRunner[T]` | `internal/test/runner/parallel.go` | own goroutine pool + semaphore (generic over test type `T`) | fixed `DefaultParallelConcurrent = 20` | yes |
-<!-- source: internal/test/runner/runner.go -- Runner.Run, the .ci scheduling + process-orchestration engine -->
-<!-- source: internal/test/runner/parallel.go -- ParallelRunner[T] generic scheduler, DefaultParallelConcurrent -->
+| Layer | Source | Role | Concurrency |
+|-------|--------|------|-------------|
+| `parallelRunner[T]` | `internal/test/runner/parallel.go` | Schedules tests, updates status, records timing, and reports failures | `SetConcurrency`, with `DefaultParallelConcurrent = 20` when zero |
+| `.ci` `Runner` | `internal/test/runner/runner.go` | Builds binaries and uses `runTest` for process orchestration, then delegates scheduling | `RunOptions.Parallel`, with zero expanded to all selected tests |
+<!-- source: internal/test/runner/parallel.go -- parallelRunner.Run, DefaultParallelConcurrent -->
+<!-- source: internal/test/runner/runner.go -- Runner.Run -->
 
-### Which suites use which engine
+### Suite scheduler examples
 
-| Engine | Suites | Per-test execution |
-|--------|--------|--------------------|
-| `Runner.Run` | encode, plugin, reload, chaos (via `runEncodingOrAPI`); and the `.ci` suites ui, managed, policy, firewall, l2tp, l2tp-wire, install, static, traffic, flow-export, vpp (via `runCISubcommand`) | `Runner.runTest` — spawns `ze`/`ze-peer`, applies expectations |
-| `ParallelRunner[T]` | bgp decode, bgp parse, editor (`.et`), web (`.wb`) | per-suite `Run` func: `DecodingTest`, `ParsingTest`, `EditorTest`, `zeTestWebTest` |
+| Wrapper or scheduler | Example suites | Per-test execution |
+|---------|--------|--------------------|
+| `.ci` `Runner` | encode, plugin, reload, chaos, ui, managed, policy, firewall, l2tp, l2tp-wire, install, static, traffic, flow-export, vpp | `Runner.runTest` spawns `ze` or `ze-peer` and applies expectations |
+| Direct `parallelRunner[T]` use | bgp decode, bgp parse, editor (`.et`), web (`.wb`) | Suite-specific functions run `DecodingTest`, `ParsingTest`, `EditorTest`, or `zeTestWebTest` |
+| Bespoke scheduler | ExaBGP predecessor suite | `runExaBGPSelected` schedules parallel and serial batches |
 
 <!-- source: internal/test/cli/cmd_bgp.go -- runEncodingOrAPI selects Runner for encode/plugin/reload/chaos -->
 <!-- source: internal/test/cli/ci_runner.go -- runCISubcommand wires the non-bgp .ci suites to Runner -->
@@ -53,10 +53,11 @@ the same goroutine-pool + semaphore + live-display orchestration.
 <!-- source: internal/test/runner/parsing.go -- ParsingTest scheduled via NewParallelRunner -->
 <!-- source: internal/test/cli/cmd_editor.go -- EditorTest scheduled via NewParallelRunner -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestWebTest scheduled via NewParallelRunner, per-test daemon + session -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- runExaBGPSelected -->
 
 ### Shared reporting
 
-Both engines render through the same components:
+The scheduler and suite wrappers render through the same components:
 
 - **Live status and per-test result lines** — `Display` (header, in-place status, `TestFinished`, `Summary`). <!-- source: internal/test/runner/display.go -- Display, TestFinished, Summary -->
 - **Color/glyph formatting** — `Colors`, TTY-aware via `slogutil.UseColor`. <!-- source: internal/test/runner/color.go -- Colors, NewColors -->
@@ -66,23 +67,24 @@ Both engines render through the same components:
 - **External-probe test knob** — `ze.doctor`-style reachability checks probe real network destinations with multi-second timeouts; functional tests set `ze.test.doctor.probe-timeout` (the runner injects `250ms`) so probes to deliberately-unreachable fixtures fail fast instead of dominating wall-clock. The override only shortens a probe, never lengthens it, so production keeps its per-check defaults. <!-- source: internal/component/doctor/checks_reach.go -- reachProbeTimeout, doctorProbeTimeoutEnv --> <!-- source: internal/test/runner/runner_exec.go -- proc.Env probe-timeout injection -->
 - **Failure routing** — under `ZE_VERIFY_MODE=1`, failed suites emit a compact `VERIFY FAILURE INDEX` with one `VERIFY FAILURE GROUP: {json}` token per group. Contended runs label the index header and attach host load context to each group. A `near_timeout` failure kind classifies tests that consumed >80% of their timeout without the context deadline firing. <!-- source: internal/test/runner/failure_group.go -- GroupFunctionalFailures, PrintFailureGroups --> <!-- source: internal/test/runner/parallel.go -- verifyModeEnabled, ZE_VERIFY_MODE --> <!-- source: internal/test/runner/hostload.go -- IsNearTimeout, FailTypeNearTimeout -->
 
-### Engine unification
+### `.ci` Runner wrapper
 
-`Runner.Run` delegates scheduling to `ParallelRunner[*Record]`. The `.ci`-specific
-concerns (Build, process orchestration, `PrintAllFailures`) stay in `Runner`;
-scheduling, timing, failure-group output, and summary display are the single
-`ParallelRunner` engine. <!-- source: internal/test/runner/runner.go -- Run -->
+`Runner.Run` delegates scheduling to `parallelRunner[*Record]`. The `.ci`
+wrapper keeps builds, process orchestration, and `PrintAllFailures`.
+`parallelRunner` owns scheduling, timing, failure-group output, and summary
+display.
+<!-- source: internal/test/runner/runner.go -- Runner.Run -->
 
-- **Status-update cadence:** configurable via `SetStatusInterval`. `.ci` sets 500ms;
-  other consumers default to `StatusUpdateInterval` (200ms).
-  <!-- source: internal/test/runner/parallel.go -- SetStatusInterval, StatusUpdateInterval -->
-- **Failure detail:** `ParallelRunner` prints verify-mode groups; `.ci` adds
-  `PrintAllFailures` via the `onReport` hook.
-  <!-- source: internal/test/runner/parallel.go -- Run failure reporting -->
-  <!-- source: internal/test/runner/runner.go -- Run onReport -->
-- **Stress mode:** `Runner.RunWithCount` resets record state between iterations and
-  suppresses per-iteration summary via `SetNoSummary`.
-  <!-- source: internal/test/runner/runner.go -- RunWithCount -->
+- **Status-update cadence:** `.ci` calls `setStatusInterval` with 500 ms.
+  Other consumers use `StatusUpdateInterval` (200 ms).
+  <!-- source: internal/test/runner/parallel.go -- setStatusInterval, StatusUpdateInterval -->
+- **Failure detail:** `parallelRunner` prints verify-mode groups. `.ci` adds
+  `PrintAllFailures` through the `onReport` hook.
+  <!-- source: internal/test/runner/parallel.go -- parallelRunner.Run -->
+  <!-- source: internal/test/runner/runner.go -- Runner.Run -->
+- **Stress mode:** `Runner.RunWithCount` resets record state between iterations
+  and calls `setNoSummary` to suppress each iteration summary.
+  <!-- source: internal/test/runner/runner.go -- Runner.RunWithCount -->
 
 ## Web test format (`.wb`)
 
@@ -172,8 +174,8 @@ output on failure (and on all tests under `-v`).
 
 ## Per-step trace output
 
-All three runners record `trace.StepResult` slices during execution and emit
-dual-format trace output via `internal/test/trace`:
+The `.ci`, editor, and web execution paths record `trace.StepResult` slices.
+They emit two trace formats through `internal/test/trace`:
 
 - **Human:** colored `checkmark`/`cross` glyphs, one line per step, with kind, assert, and failure detail.
 - **Machine:** `VERIFY STEP: {json}` token per step, matching the `VERIFY FAILURE GROUP` convention from `failure_group.go`.
@@ -182,8 +184,8 @@ Trace is emitted automatically on failure (default tier). Under `-v`, passing te
 also show their step trace. The `.ci` runner emits trace in failure reports when
 `rec.StepTrace` is non-empty.
 
-The trace package (`internal/test/trace`) is a leaf with no runner imports, avoiding
-cycles between the three runner packages that all import it.
+The trace package (`internal/test/trace`) is a leaf with no runner imports.
+This structure prevents import cycles between trace producers.
 <!-- source: internal/test/trace/trace.go -- StepResult, PrintTrace -->
 <!-- source: internal/test/runner/report.go -- step trace in failure reports -->
 <!-- source: internal/test/cli/cmd_web.go -- web trace on fail + verbose -->
@@ -191,10 +193,10 @@ cycles between the three runner packages that all import it.
 
 ### History
 
-This was a three-spec sequence, now complete:
+This sequence is complete:
 
-1. `plan/learned/868-test-web-parallel.md` -- web migrated from bespoke loop to `ParallelRunner`, per-test daemon + session isolation.
-2. `plan/learned/908-test-trace-mode.md` -- per-step trace output across all three runners.
+1. `plan/learned/868-test-web-parallel.md` -- web migrated from a bespoke loop to construction with `NewParallelRunner`, per-test daemon + session isolation.
+2. `plan/learned/908-test-trace-mode.md` -- per-step trace output across all execution paths.
 
 The `verify-debugging-protocol` dependency (`plan/learned/843-verify-debugging-protocol.md`)
 landed the failure-group and verify-mode foundation that trace mode builds on.

@@ -1854,10 +1854,11 @@ The web config editor checks the user's profile before `set`, `add`,
 they mutate a draft.
 
 REST and gRPC without a token or per-user authenticator use the `api`
-identity as read-only. Reads such as `show version` and `bgp summary` work;
+identity as read-only. Reads such as `show version` and `show bgp summary` work;
 write commands and config sessions return 403. Configure
 `environment.api-server.token` or per-user credentials when API clients need
 write access.
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
 Config commits, discards, daemon reloads, and failed logins are recorded in
 the local audit log. See [audit.md](audit.md) for storage and query details.

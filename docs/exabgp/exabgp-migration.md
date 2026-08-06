@@ -125,9 +125,10 @@ ze config validate old.conf
 # Preview changes
 ze config migrate --dry-run old.conf
 
-# Migrate in place
-ze config migrate --in-place old.conf
+# Write the migrated config to a new file
+ze config migrate -o new.conf old.conf
 ```
+<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate -->
 
 ### Running ExaBGP Plugins
 

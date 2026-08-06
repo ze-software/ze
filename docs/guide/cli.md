@@ -10,8 +10,8 @@ Ze provides an interactive CLI and single-command execution for runtime queries 
 
 ```bash
 ze cli                              # Interactive CLI with tab completion
-ze cli -c "show bgp peer list"   # Execute single command and exit
-ze show peer upstream1 detail         # Read-only query (safe for scripts)
+ze cli -c "show bgp peer list"              # Execute single command and exit
+ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
 ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 ```
 
@@ -37,7 +37,7 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 | `show bgp summary` | BGP summary table |
 
 **Peer selector:** `*` (all), exact IP, glob patterns (`192.168.*.*`), exclusion (`!addr`), or peer name.
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
 ## Route Commands
 
@@ -45,11 +45,11 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 |---------|-------------|
 | `peer <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
 | `peer <sel> update hex <hex>` | Hex-format UPDATE |
-| `show bgp rib received [peer] [family]` | Show Adj-RIB-In |
-| `show bgp rib sent [peer] [family]` | Show Adj-RIB-Out |
+| `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
+| `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
 | `clear bgp rib in [peer]` | Clear Adj-RIB-In |
 | `clear bgp rib out [peer]` | Clear Adj-RIB-Out |
-<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/cmd/update/ -- update RPCs -->
+<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
 
 See [Route Injection guide](route-injection.md) for UPDATE syntax details.
 
@@ -57,16 +57,20 @@ See [Route Injection guide](route-injection.md) for UPDATE syntax details.
 
 | Command | Description |
 |---------|-------------|
-| `cache list` | List cached messages |
-| `cache forward <id> <peer>` | Forward cached message to peer |
-| `cache release <id>` | Release message from cache |
+| `show cache` | List cached messages |
+| `request cache retain <id>` | Prevent cache eviction |
+| `request cache release <id>` | Release a cached message |
+| `request cache expire <id>` | Remove a cached message immediately |
+| `request cache forward <id> <peer>` | Forward a cached message to a peer |
+<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ## Event Subscription
 
 | Command | Description |
 |---------|-------------|
-| `bgp monitor` | Stream live events (see [Monitoring guide](monitoring.md)) |
-| `bgp monitor peer <addr> event <type> direction <dir>` | Filtered stream |
+| `monitor bgp` | Show the live peer dashboard (see [Monitoring guide](monitoring.md)) |
+| `monitor event peer <addr> include <type> direction <dir>` | Stream filtered events |
+<!-- source: internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
 
 ## Commit Workflow
 
@@ -95,11 +99,13 @@ Named update windows for atomic route changes:
 | Command | Description |
 |---------|-------------|
 | `request shutdown` | Graceful shutdown |
-| `route-refresh <family>` | Send route refresh request |
+| `request peer <selector> refresh <family>` | Send a route refresh request |
 | `help` | List all commands |
-| `command-list` | All commands with descriptions |
-| `command-help <name>` | Detailed help for a command |
-<!-- source: internal/plugins/meta/cmd/help.go -- help/discovery RPCs; internal/component/bgp/plugins/cmd/cache/ -- cache RPCs -->
+| `show command list` | All commands with descriptions |
+| `show command help <name>` | Detailed help for a command |
+| `show event list` | List available event types |
+<!-- source: internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang -- module ze-refresh-cmd; internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefreshMarker -->
+<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
 
 ## Signals
 

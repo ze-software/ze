@@ -306,7 +306,8 @@ For external plugins, the process is expected to exit cleanly after receiving by
 
 ### Engine to Plugin (Callbacks)
 
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- dispatchCallback -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callback method constants, getCallback -->
+<!-- source: pkg/plugin/rpc/types.go -- callback input and output types -->
 
 | Method | Input | Response | Description |
 |--------|-------|----------|-------------|
@@ -315,10 +316,17 @@ For external plugins, the process is expected to exit cleanly after receiving by
 | `execute-command` | `ExecuteCommandInput` | `ExecuteCommandOutput` | Command execution |
 | `config-verify` | `ConfigVerifyInput` | `ConfigVerifyOutput` | Validate candidate config |
 | `config-apply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply config changes |
-| `validate-open` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate OPEN message |
+| `config-rollback` | `{"transaction-id":"..."}` | `ok` | Undo changes for a config transaction |
+| `config-operation-decompose` | `ConfigOperationDecomposeInput` | `ConfigOperationDecomposeOutput` | Decompose a config diff into operations |
+| `config-operation-verify` | `ConfigOperationVerifyInput` | `ConfigOperationVerifyOutput` | Validate one config operation |
+| `config-operation-apply` | `ConfigOperationApplyInput` | `ConfigOperationApplyOutput` | Apply one config operation |
+| `config-operation-rollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Undo applied config operations |
+| `config-operation-commit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit a config operation transaction |
+| `post-startup` | None | `ok` | Report that all plugin startup phases are complete |
+| `validate-open` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `encode-nlri` | `EncodeNLRIInput` | `{"hex":"..."}` | Encode NLRI |
 | `decode-nlri` | `DecodeNLRIInput` | `{"json":<raw JSON>}` | Decode NLRI |
-| `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode capability |
+| `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode a capability |
 | `bye` | `ByeInput` | `ok` | Shutdown signal |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
@@ -358,13 +366,19 @@ Includes filter name so the plugin can dispatch to the correct handler.
 
 ### Plugin to Engine
 
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin engine RPC methods -->
+<!-- source: pkg/plugin/rpc/types.go -- Method* constants and engine RPC payload types -->
 
 | Method | Input | Output | Description |
 |--------|-------|--------|-------------|
 | `update-route` | `UpdateRouteInput` | `UpdateRouteOutput` | Inject route to peers |
+| `forward-cached` | `ForwardCachedInput` | - | Forward cached UPDATEs to destination peers |
+| `release-cached` | `ReleaseCachedInput` | - | Release cached UPDATEs and do not forward them |
+| `relay-stored-route` | `RelayStoredRouteInput` | - | Relay stored wire routes to one established peer |
 | `route-install` | `RouteInstallInput` | `RouteInstallOutput` | Insert a batch of computed routes into the engine Loc-RIB (forked route-installing plugin) |
 | `route-remove` | `RouteRemoveInput` | `RouteRemoveOutput` | Withdraw a batch of routes from the engine Loc-RIB (forked route-installing plugin) |
+| `inject-wire-route` | `InjectWireRouteInput` | - | Inject a raw BGP UPDATE body into the RIB |
+| `batch-validate` | `BatchValidateInput` | `BatchValidateResult` | Apply a batch of RPKI validation decisions |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |

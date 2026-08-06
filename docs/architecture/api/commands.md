@@ -7,7 +7,7 @@
 
 ## Overview
 
-Ze uses target-first syntax with JSON or text encoding.
+Ze uses verb-first command paths with JSON or text encoding.
 
 ### Transport Request Metadata
 
@@ -23,14 +23,13 @@ identity is injected only by trusted transport wiring.
 
 | Aspect | ExaBGP | Ze |
 |--------|--------|-------|
-| Syntax styles | v4 (action-first) and v6 (target-first) | Target-first only |
+| Syntax styles | v4 (action-first) and v6 (target-first) | Verb-first only |
 | Encoder | json or text (v4), json only (v6) | json or text |
 | Peer selectors | `*`, IP, filters (`[local-as ...]`) | `*`, IP, negated (`!IP`) |
 | Multi-session filters | Supported (draft) | Not supported |
 | Forward command | Not available | `request cache forward <id> <selector>` for route reflection |
 
-See [cli.md](cli.md#exabgp-differences) for output format differences.
-<!-- source: internal/component/plugin/server/command.go -- Dispatcher -->
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, IsReadOnlyPath -->
 
 ---
 

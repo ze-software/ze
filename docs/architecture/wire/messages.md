@@ -6,7 +6,7 @@
 |---------|-------------|
 | **Header** | 19 bytes: 16-byte marker (0xFF), 2-byte length, 1-byte type |
 | **Types** | 1=OPEN, 2=UPDATE, 3=NOTIFICATION, 4=KEEPALIVE, 5=ROUTE-REFRESH |
-| **Max Size** | 4096 bytes standard, 65535 with Extended Message (RFC 8654) |
+| **Max Size** | 4,096 bytes standard. Extended Message permits 65,535 bytes except for OPEN. KEEPALIVE remains 19 bytes. |
 | **Key Types** | `Message` interface, `MessageType`, `ParseHeader()` |
 | **Pattern** | All messages share header; type-specific body follows |
 
@@ -61,15 +61,16 @@ All BGP messages share a common 19-byte header:
 
 ### Message Length Constraints
 
-| Message Type | Minimum | Maximum (standard) | Maximum (extended) |
+| Message Type | Minimum | Maximum (Standard) | Maximum (Extended) |
 |--------------|---------|--------------------|--------------------|
-| OPEN | 29 | 4096 | 65535 |
-| UPDATE | 23 | 4096 | 65535 |
-| NOTIFICATION | 21 | 4096 | 65535 |
+| OPEN | 29 | 4,096 | 4,096 |
+| UPDATE | 23 | 4,096 | 65,535 |
+| NOTIFICATION | 21 | 4,096 | 65,535 |
 | KEEPALIVE | 19 | 19 | 19 |
 | ROUTE-REFRESH | 23 | 23 | 23 |
 
-<!-- source: internal/component/bgp/message/header.go -- MinOpenLen, MinUpdateLen, MinNotificationLen, KeepaliveLen, MinRouteRefreshLen -->
+<!-- source: internal/component/bgp/message/header.go -- Header.ValidateLengthWithMax, MaxMsgLen, ExtMsgLen, Min*Len -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- Session.validateRouteRefreshLength -->
 
 ---
 

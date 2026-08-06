@@ -1193,14 +1193,14 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 
-### show summary
+### show bgp summary
 
 ```
-ze show summary                  # Every configured peer
-ze show summary ipv4             # Expanded to ipv4/unicast
-ze show summary ipv6             # Expanded to ipv6/unicast
-ze show summary l2vpn            # Expanded to l2vpn/evpn
-ze show summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
+ze show bgp summary                  # Every configured peer
+ze show bgp summary ipv4             # Expanded to ipv4/unicast
+ze show bgp summary ipv6             # Expanded to ipv6/unicast
+ze show bgp summary l2vpn            # Expanded to l2vpn/evpn
+ze show bgp summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
 ```
 
 The family argument is validated against the families any peer has
@@ -1208,7 +1208,7 @@ actually negotiated; unknown or un-negotiated families reject with the
 sorted set of currently-negotiated families so the operator sees
 exactly what is reachable on the running daemon.
 
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
 
 ### ping / traceroute
 
@@ -1867,8 +1867,8 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `show bgp peer <sel> history` | read-only | FSM transition history |
-| `show summary` | read-only | BGP summary table (all peers) |
-| `show summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show bgp summary` | read-only | BGP summary table (all peers) |
+| `show bgp summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
@@ -2036,14 +2036,14 @@ a keyword.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `cache list` | read-only | List cached message IDs |
-| `cache retain <id>` | write | Pin in cache (prevent eviction) |
-| `cache release <id>` | write | Release from cache |
-| `cache expire <id>` | write | Remove immediately |
-| `cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
+| `show cache` | read-only | List cached message IDs |
+| `request cache retain <id>` | write | Pin in cache (prevent eviction) |
+| `request cache release <id>` | write | Release from cache |
+| `request cache expire <id>` | write | Remove immediately |
+| `request cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
 
-Batch operations: `cache forward <id1>,<id2> <selector>`.
-<!-- source: internal/component/bgp/plugins/cmd/cache/ -- cache command RPCs -->
+Batch operations: `request cache forward <id1>,<id2> <selector>`.
+<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 
 ### Static Routes
 
@@ -2162,17 +2162,20 @@ malformed AVPs; stderr carries the reason.
 ### Event Monitoring
 
 ```
-monitor event [peer <sel>] [event <types>] [direction <dir>]
+monitor event [include|exclude <types>] [peer <sel>] [direction <dir>]
 ```
 
 | Filter | Values |
 |--------|--------|
 | `peer` | IP address, `*` |
-| `event` | update, open, notification, keepalive, refresh, state, negotiated (comma-separated) |
+| `include` | Comma-separated event types to include: update, open, notification, keepalive, refresh, state, negotiated |
+| `exclude` | Comma-separated event types to exclude: update, open, notification, keepalive, refresh, state, negotiated |
 | `direction` | sent, received |
 
+The `include` and `exclude` filters are mutually exclusive.
+
 Streaming command: use in interactive `ze cli` or via SSH. `monitor bgp` (no `event`) is a separate command: the live peer dashboard, documented in the [Monitoring guide](monitoring.md).
-<!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
+<!-- source: internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
 
 ### Netlink Monitoring
 
@@ -2250,10 +2253,10 @@ active after enabling debug or applying a profile.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `help` | read-only | List available subcommands |
-| `command-list` | read-only | List all commands with descriptions |
-| `command-help <name>` | read-only | Detailed help for a command |
-| `event-list` | read-only | List available event types |
-<!-- source: internal/plugins/meta/cmd/help.go -- help/discovery RPCs -->
+| `show command list` | read-only | List all commands with descriptions |
+| `show command help <name>` | read-only | Detailed help for a command |
+| `show event list` | read-only | List available event types |
+<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
 
 ---
 

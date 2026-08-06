@@ -25,23 +25,30 @@ NLRI (Network Layer Reachability Information) represents route prefixes in BGP U
 
 ### AFI/SAFI Registry
 
-ExaBGP supports 42 AFI/SAFI combinations. Ze supports ~19 families (17 plugin-registered + IPv4/IPv6 unicast built-in). Key ones:
+Ze uses the canonical `afi/safi` names from the family registry:
 
 | AFI | SAFI | Family | Wire Location |
 |-----|------|--------|---------------|
-| 1 (IPv4) | 1 (unicast) | inet | UPDATE NLRI field |
-| 1 (IPv4) | 2 (multicast) | inet-multicast | MP_REACH_NLRI |
-| 1 (IPv4) | 4 (nlri_mpls) | inet-labeled | MP_REACH_NLRI |
-| 1 (IPv4) | 128 (mpls_vpn) | vpnv4 | MP_REACH_NLRI |
-| 1 (IPv4) | 133 (flow_ip) | flowspec4 | MP_REACH_NLRI |
-| 2 (IPv6) | 1 (unicast) | inet6 | MP_REACH_NLRI |
-| 2 (IPv6) | 128 (mpls_vpn) | vpnv6 | MP_REACH_NLRI |
-| 1 (IPv4) | 73 (sr-policy) | sr-policy4 | MP_REACH_NLRI |
-| 2 (IPv6) | 73 (sr-policy) | sr-policy6 | MP_REACH_NLRI |
-| 25 (L2VPN) | 70 (evpn) | evpn | MP_REACH_NLRI |
-| 16388 (BGP-LS) | 71 (bgp_ls) | bgp-ls | MP_REACH_NLRI |
+| 1 (ipv4) | 1 (unicast) | `ipv4/unicast` | UPDATE NLRI field |
+| 1 (ipv4) | 2 (multicast) | `ipv4/multicast` | MP_REACH_NLRI |
+| 1 (ipv4) | 4 (mpls-label) | `ipv4/mpls-label` | MP_REACH_NLRI |
+| 1 (ipv4) | 128 (mpls-vpn) | `ipv4/mpls-vpn` | MP_REACH_NLRI |
+| 1 (ipv4) | 133 (flow) | `ipv4/flow` | MP_REACH_NLRI |
+| 2 (ipv6) | 1 (unicast) | `ipv6/unicast` | MP_REACH_NLRI |
+| 2 (ipv6) | 128 (mpls-vpn) | `ipv6/mpls-vpn` | MP_REACH_NLRI |
+| 1 (ipv4) | 73 (sr-policy) | `ipv4/sr-policy` | MP_REACH_NLRI |
+| 2 (ipv6) | 73 (sr-policy) | `ipv6/sr-policy` | MP_REACH_NLRI |
+| 25 (l2vpn) | 70 (evpn) | `l2vpn/evpn` | MP_REACH_NLRI |
+| 16388 (bgp-ls) | 71 (bgp-ls) | `bgp-ls/bgp-ls` | MP_REACH_NLRI |
 
-<!-- source: internal/core/bgp/nlri/nlri.go -- AFI, SAFI, Family constants -->
+<!-- source: internal/core/family/family.go -- AFI, SAFI, Family -->
+<!-- source: internal/core/family/registry.go -- RegisterFamily, base family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled-unicast family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR Policy family registrations -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family registrations -->
 
 ---
 

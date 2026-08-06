@@ -6,14 +6,11 @@
 
 ## Overview
 
-Ze uses a line-delimited protocol for communication between the engine and external processes (plugins, CLI clients). The protocol supports:
-
-- Fire-and-forget commands (no response)
-- Request-response with correlation IDs
-- Streaming responses with partial results
-- Event subscription model
-- Bidirectional communication over TLS (external) or net.Pipe (internal)
+Ze uses correlated, bidirectional RPC between the engine and plugins. Every
+request carries a `uint64` ID and receives an `ok` or `error` response. The same
+connection carries engine callbacks and plugin-to-engine requests.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.readLoop -->
 
 ---
 
@@ -31,46 +28,37 @@ A **subsystem** is a protocol component that follows the ZE API for plugin commu
 
 ### Event Subscription
 
-Plugins subscribe to events via API commands (not config). This allows:
-- Plugin declares what it needs (self-describing)
-- Dynamic subscribe/unsubscribe at runtime
-- Config file only specifies which plugins to run
+Plugins subscribe dynamically through `ze-plugin-engine:subscribe-events` or send
+startup subscriptions in `ze-plugin-engine:ready`.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.SubscribeEvents -->
+<!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
+<!-- source: pkg/plugin/rpc/types.go -- ReadyInput -->
 
 ### Plugin-Provided Commands
 
-Some commands are registered by plugins via `declare cmd` during startup:
-- Plugin-specific commands (e.g., `rib adjacent *` from RIB plugin)
+Plugins register command paths in `ze-plugin-engine:declare-registration`.
+The engine command dispatcher invokes the registered callback.
 
 Engine provides reactor methods; plugins register commands that use them.
 
 ### Message Cache
 
-The engine maintains a message cache for efficient forwarding. Commands:
-- `bgp cache retain/release/expire <id>` - cache control (engine builtins)
-- `bgp cache forward <id> <sel>` - forward cached UPDATE to peers
-- `bgp cache forward <id1>,<id2>,...,<idN> <sel>` - batch forward (comma-separated IDs)
-- `bgp cache release <id1>,<id2>,...,<idN>` - batch release
-- `bgp cache list` - list cached message IDs
+The engine exposes separate SDK RPCs for cached and stored UPDATEs:
+
+- `ze-plugin-engine:forward-cached` forwards cached UPDATE IDs.
+- `ze-plugin-engine:release-cached` releases cached UPDATE IDs.
+- `ze-plugin-engine:relay-stored-route` relays routes that a plugin stores.
+<!-- source: pkg/plugin/rpc/types.go -- MethodForwardCached, MethodReleaseCached, MethodRelayStoredRoute -->
 
 ---
 
-## Transport Layer
+## Plugin Transports
 
-### Unix Socket (CLI clients)
-
-```
-Path: configured via `api { socket "/path/to/socket"; }`
-Mode: stream, line-delimited
-Direction: bidirectional
-```
-
-### Subprocess Pipes (plugins)
-
-```
-stdin:  Engine → Plugin (events, config, requests)
-stdout: Plugin → Engine (commands, responses)
-Mode: line-delimited text
-```
+`rpc.Conn` supports one socket for both directions, separate read and write
+connections, or standard input and standard output. All transports use the same
+plugin RPC frames.
+<!-- source: pkg/plugin/rpc/conn.go -- Conn, NewConn -->
 
 ---
 
@@ -78,44 +66,47 @@ Mode: line-delimited text
 
 ### Message Framing
 
-All messages are UTF-8 encoded, newline-delimited:
+All plugin RPC messages are UTF-8, newline-delimited lines:
 
 ```
-<message>\n
+#<id> <verb> [<json>]\n
 ```
 
-Each line is a complete message. No multi-line messages.
-<!-- source: pkg/plugin/rpc/framing.go -- newline-delimited framing -->
+Each line is a complete message. The `#` prefix and decimal `uint64` ID are
+required. The optional payload is compact JSON.
+<!-- source: pkg/plugin/rpc/framing.go -- FrameReader, FrameWriter -->
+<!-- source: pkg/plugin/rpc/message.go -- ParseLine -->
 
-### Command Format (Plugin/CLI → Engine)
+### RPC Request (Either Direction)
 
-```abnf
-command     = [serial] verb *argument
-serial      = "#" 1*DIGIT SP
-verb        = 1*ALPHA
-argument    = token / quoted-string
-token       = 1*(%x21-7E)  ; printable non-space
-quoted-string = DQUOTE *(%x20-21 / %x23-7E) DQUOTE
+```
+#42 ze-plugin-engine:subscribe-events {"events":["update"]}
+#43 ze-plugin-callback:deliver-batch {"events":[{"type":"bgp"}]}
 ```
 
-### Response Format (Engine → Plugin/CLI)
+For a request, the verb is a method name. A plugin-to-engine method uses the
+`ze-plugin-engine:` prefix. An engine callback uses the
+`ze-plugin-callback:` prefix.
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest -->
 
-JSON with `type` field indicating the payload key:
+### RPC Response (Either Direction)
 
-```json
-{"type":"response","response":{"serial":"1","status":"done","data":{...}}}
+```
+#42 ok
+#43 error {"code":"invalid-event","message":"unknown event"}
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Always | `"response"` - indicates payload is in `response` key |
-| `response` | object | Always | Response payload |
-| `response.serial` | string | If request had serial | Correlation ID |
-| `response.status` | string | Always | `"done"`, `"error"`, `"warning"`, or `"ack"` |
-| `response.partial` | bool | If streaming | `true` for intermediate chunks |
-| `response.data` | any | Optional | Payload (result or error message) |
-<!-- source: internal/component/plugin/types.go -- Response struct -->
-<!-- source: internal/core/ipc/message.go -- MapResponse -->
+| Component | Requirement |
+|-----------|-------------|
+| `#<id>` | Echoes the request ID |
+| `ok` | The only success response verb |
+| `error` | The only error response verb |
+| `<json>` | Optional result or error payload |
+
+`done`, `warning`, `ack`, and partial response frames are not plugin RPC
+response verbs. They can occur only inside a command-dispatch result payload.
+<!-- source: pkg/plugin/rpc/message.go -- AppendResult, AppendError -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.readLoop, interpretResponse -->
 
 ### Event Format (Engine → Plugin)
 
@@ -204,75 +195,33 @@ Events are only sent to plugins that have subscribed.
 
 ---
 
-## Serial Protocol
+## Correlation and Command Dispatch
 
-### Request-Response Correlation
+Every plugin RPC request has a `#<uint64>` correlation ID. The peer returns one
+response with the same ID. The protocol has no serial-free request or streaming
+response form.
+<!-- source: pkg/plugin/rpc/message.go -- ParseLine, AppendRequest, AppendResult, AppendError -->
 
-Commands with `#N` prefix expect a response:
-
-```
-#1 bgp peer * update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
-```
-
-Response echoes serial:
-
-```json
-{"type":"response","response":{"serial":"1","status":"done"}}
-```
-
-### Fire-and-Forget
-
-Commands without serial receive no response:
+The command dispatcher is a payload protocol inside plugin RPC. For example:
 
 ```
-bgp peer * update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+#1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
+#1 ok {"status":"done","data":{"peers":[]}}
 ```
 
-### Streaming Responses
-
-For long-running commands, intermediate results use `partial: true`:
-
-```
-Plugin → Engine:
-#1 rib show in
-
-Engine → Plugin:
-{"type":"response","response":{"serial":"1","status":"ack","partial":true,"data":{"chunk":1,"routes":[...]}}}
-{"type":"response","response":{"serial":"1","status":"ack","partial":true,"data":{"chunk":2,"routes":[...]}}}
-{"type":"response","response":{"serial":"1","status":"done","data":{"total":150}}}
-```
-
-Plugin responses use `@serial+` prefix:
-
-```
-Engine → Plugin:
-{"type":"request","request":{"serial":"abc","command":"myapp status","args":[]}}
-
-Plugin → Engine:
-@abc+ {"chunk": 1, "data": [...]}
-@abc+ {"chunk": 2, "data": [...]}
-@abc done {"total": 100}
-```
-
-**Note:** Requests from engine to plugin follow the same wrapper pattern as responses and events. The top-level `type` indicates which key contains the payload.
+The outer `ok` is the plugin RPC response verb. The inner `status` and `data`
+members belong to `DispatchCommandOutput`. They do not change RPC framing.
+<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
+<!-- source: internal/core/ipc/message.go -- MapResponse -->
 
 ---
 
-## Status Codes
+## Command-Dispatch Namespaces
 
-| Status | Meaning | Response Contains |
-|--------|---------|-------------------|
-| `done` | Success, command complete | Optional `data` with result |
-| `error` | Failure | `data` contains error message (string) |
-| `warning` | Partial success | `data` contains warning details |
-| `ack` | Streaming chunk | `partial: true`, `data` contains chunk |
-<!-- source: internal/component/plugin/types.go -- Response.Status -->
-
----
-
-## Command Namespaces
-
-Commands are organized by namespace. Each subsystem owns its introspection.
+The names in this section are command dispatcher paths. A plugin sends a path
+inside `ze-plugin-engine:dispatch-command`. These paths are not plugin RPC
+methods or response verbs.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommand -->
 
 ### Plugin Namespace
 

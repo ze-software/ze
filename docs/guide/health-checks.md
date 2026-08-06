@@ -74,7 +74,10 @@ when any component is `down`.
 | `ipsec` | IPsec SA state |
 | `pki` | Certificate expiry |
 | `l2tp` | L2TP subsystem availability |
+| `flow-export` | Exporter state and collector send errors |
+| `report-bus` | Report bus registration |
 
+<!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 Each check completes within 1 second. Components report `healthy`, `degraded`,
 or `down`. The overall status is the worst of all components.
 

@@ -13,7 +13,7 @@
 | **Location** | API program (Go: `internal/component/bgp/attrpool/`, Python/Rust: implement equivalent) |
 | **Key Pattern** | Double-buffer with hybrid handles: `Handle = bufferBit(1) \| poolIdx(5) \| flags(2) \| slot(24)` |
 | **Core Types** | `Handle`, `Pool`, `Scheduler` |
-| **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.Release()`, `Pool.MigrateBatch()` |
+| **Key Functions** | `Pool.Intern(data) (Handle, error)`, `Pool.Get()`, `Pool.Release()`, `Pool.MigrateBatch()` |
 | **Input** | Base64-decoded wire bytes from engine events |
 
 **When to read full doc:** Implementing RIB in Go, memory optimization, compaction.
@@ -31,7 +31,7 @@ Memory-efficient attribute and NLRI deduplication for API programs.
 1. **Memory efficiency**: Deduplicate identical attributes/NLRIs across all peers
 2. **Non-blocking**: Incremental compaction, no stop-the-world pauses
 3. **Scalable**: Handle millions of routes with bounded memory
-4. **Simple API**: `Intern()`, `Get()`, `Release()` - easy to use
+4. **Simple API**: `Intern(data) (Handle, error)`, `Get()`, `Release()` - easy to use
 5. **Polyglot friendly**: Design can be implemented in any language
 
 ---
@@ -70,8 +70,8 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 │        │ raw []byte                                                         │
 │        ▼                                                                    │
 │   ┌─────────────────────────────────────────────────────────────────┐      │
-│   │  Pool.Intern(attrBytes) → Handle                                 │      │
-│   │  Pool.Intern(nlriBytes) → Handle                                 │      │
+│   │  Pool.Intern(attrBytes) → (Handle, error)                        │      │
+│   │  Pool.Intern(nlriBytes) → (Handle, error)                        │      │
 │   │                                                                  │      │
 │   │  Deduplication happens here:                                     │      │
 │   │    - Identical attributes → same handle (no new allocation)     │      │
@@ -100,15 +100,22 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 ### API Program Usage
 
 ```go
-func (s *Server) handleUpdate(event *Event) {
+func (s *Server) handleUpdate(event *Event) error {
     // Read raw UPDATE sections from StructuredEvent.RawMessage or from
     // configured raw JSON fields on external process bindings.
     attrBytes := event.RawAttributes
     nlriBytes := event.RawNLRI
 
     // Store in pool (deduplication)
-    attrHandle := s.pool.Intern(attrBytes)
-    nlriHandle := s.pool.Intern(nlriBytes)
+    attrHandle, err := s.pool.Intern(attrBytes)
+    if err != nil {
+        return err
+    }
+    nlriHandle, err := s.pool.Intern(nlriBytes)
+    if err != nil {
+        _ = s.pool.Release(attrHandle)
+        return err
+    }
 
     // Create route with handles
     route := &Route{
@@ -120,7 +127,9 @@ func (s *Server) handleUpdate(event *Event) {
 
     // Tell engine to retain msg-id
     s.send("bgp cache retain %d", event.MsgID)
+    return nil
 }
+
 ```
 
 ---
@@ -487,15 +496,11 @@ The buffer bit alternates each compaction cycle. During compaction, **both handl
 ### Intern (Deduplicate and Store)
 
 ```go
-// Intern stores data with deduplication. Returns handle to retrieve data.
-// Panics on error. Use InternWithError for error returns.
-func (p *Pool) Intern(data []byte) Handle
-
-// InternWithError returns error instead of panic.
-// Returns ErrPoolShutdown, ErrDataTooLarge, or ErrPoolFull.
-func (p *Pool) InternWithError(data []byte) (Handle, error)
+// Intern stores data with deduplication.
+// Returns ErrPoolShutdown, ErrDataTooLarge, or ErrPoolFull on failure.
+func (p *Pool) Intern(data []byte) (Handle, error)
 ```
-<!-- source: internal/component/bgp/attrpool/pool.go -- Intern, InternWithError -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- Intern -->
 
 Behavior:
 1. Check dedup index for existing entry
@@ -844,8 +849,7 @@ func NewWithIdx(idx uint8, initialCapacity int) (*Pool, error)         // defaul
 func NewWithShards(idx uint8, initialCapacity, shards int) (*Pool, error) // shards: power of two, 1..16
 
 // Core operations
-func (p *Pool) Intern(data []byte) Handle
-func (p *Pool) InternWithError(data []byte) (Handle, error)
+func (p *Pool) Intern(data []byte) (Handle, error)
 func (p *Pool) Get(h Handle) ([]byte, error)
 func (p *Pool) Length(h Handle) (int, error)
 func (p *Pool) AddRef(h Handle) error

@@ -46,25 +46,30 @@ All capabilities share a common TLV (Type-Length-Value) format:
 
 ## Capability Codes
 
-| Code | Hex | Name | RFC | Length |
-|------|-----|------|-----|--------|
-| 1 | 0x01 | Multiprotocol Extensions | RFC 2858 | 4 per family |
-| 2 | 0x02 | Route Refresh | RFC 2918 | 0 |
-| 3 | 0x03 | Outbound Route Filtering | RFC 5291 | Variable |
-| 4 | 0x04 | Multiple Routes to Destination | RFC 3107 | 0 |
-| 5 | 0x05 | Extended Next Hop Encoding | RFC 5549 | 6 per entry |
-| 6 | 0x06 | Extended Message | RFC 8654 | 0 |
-| 64 | 0x40 | Graceful Restart | RFC 4724 | 2 + 4*n |
-| 65 | 0x41 | 4-Byte AS Number | RFC 6793 | 4 |
-| 69 | 0x45 | ADD-PATH | RFC 7911 | 4 per family |
-| 70 | 0x46 | Enhanced Route Refresh | RFC 7313 | 0 |
-| 73 | 0x49 | FQDN | draft-walton-bgp-hostname | Variable |
-| 75 | 0x4B | Software Version | draft-abraitis-bgp-version | Variable |
-| 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit | 5 per family |
-| 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 |
-| 131 | 0x83 | Multisession (Cisco) | Vendor | Variable |
+| Code | Hex | Name | RFC | Length | Ze handling |
+|------|-----|------|-----|--------|-------------|
+| 1 | 0x01 | Multiprotocol Extensions | RFC 4760 | 4 per family | Core parser |
+| 2 | 0x02 | Route Refresh | RFC 2918 | 0 | Core parser |
+| 3 | 0x03 | Outbound Route Filtering | RFC 5291 | Variable | Preserved as unknown |
+| 4 | 0x04 | Multiple Routes to Destination | RFC 3107 | 0 | Preserved as unknown |
+| 5 | 0x05 | Extended Next Hop Encoding | RFC 8950 | 6 per entry | Core parser |
+| 6 | 0x06 | Extended Message | RFC 8654 | 0 | Core parser |
+| 9 | 0x09 | Role | RFC 9234 | 1 | Role plugin |
+| 64 | 0x40 | Graceful Restart | RFC 4724 | 2 + 4*n | Core parser |
+| 65 | 0x41 | 4-Byte AS Number | RFC 6793 | 4 | Core parser |
+| 69 | 0x45 | ADD-PATH | RFC 7911 | 4 per family | Core parser |
+| 70 | 0x46 | Enhanced Route Refresh | RFC 7313 | 0 | Core parser |
+| 73 | 0x49 | FQDN | RFC 8516 | Variable | Core parser |
+| 75 | 0x4B | Software Version | draft-abraitis-bgp-version | Variable | Preserved as unknown |
+| 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit | 5 per family | Core parser |
+| 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 | Preserved as unknown |
+| 131 | 0x83 | Multisession (Cisco) | Vendor | Variable | Preserved as unknown |
 
-<!-- source: internal/core/bgp/capability/capability.go -- Code type, Code* constants -->
+The core parser preserves every unrecognized capability as `Unknown`. The BGP
+Role plugin handles code 9 through its capability declaration and OPEN callback.
+<!-- source: internal/core/bgp/capability/capability.go -- Code constants, parseCapability, Unknown -->
+<!-- source: internal/component/bgp/plugins/role/config.go -- extractRoleCapabilities -->
+<!-- source: internal/component/bgp/plugins/role/validate.go -- extractRolesFromCaps -->
 
 ---
 

@@ -39,10 +39,10 @@ correctness for speed of implementation.
 <!-- source: internal/core/bgp/context/registry.go -- ContextID for zero-copy decisions -->
 
 **Broad protocol coverage.** 23 address families (IPv4/IPv6 unicast, multicast, VPN,
-FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC, SR-Policy), 13 capabilities
-(Multiprotocol Extensions, ASN4, ADD-PATH, Extended Message, Extended Next Hop,
-Graceful Restart, Long-Lived Graceful Restart, Route Refresh, Enhanced Route Refresh,
-BGP Role, Hostname, Software Version, Link-Local Next Hop), 97 registered plugins,
+FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC, SR-Policy), 14 capabilities
+(Multiprotocol Extensions, ASN4, ADD-PATH, PATHS-LIMIT, Extended Message,
+Extended Next Hop, Graceful Restart, Long-Lived Graceful Restart, Route Refresh,
+Enhanced Route Refresh, BGP Role, Hostname, Software Version, Link-Local Next Hop), 97 registered plugins,
 and BGP path attribute support including AIGP. RFC 8203 Administrative Shutdown
 Communication provides graceful teardown with human-readable messages. Encode,
 decode, and round-trip paths share the same wire representation.
@@ -62,10 +62,12 @@ fault injection.
 
 ## Non-Goals
 
-**Full routing suite.** OSPF has config, raw IPv4 transport, Interface State
-Machine wiring, Neighbor State Machine database-exchange scaffolding, and LSDB flooding/aging, while OSPF SPF and route installation are still being built. LDP, RSVP-TE, MPLS
-FIB programming, BFD, static routes, connected routes, kernel route redistribution,
-and FIB backends exist, but Ze is still pre-release and the feature inventory is the authority for support status.
+**Full routing suite.** OSPF computes SPF routes and installs them through the shared
+Loc-RIB. LDP, RSVP-TE, MPLS FIB programming, BFD, static routes, connected routes,
+kernel route redistribution, and FIB backends exist. Ze is still pre-release, and
+the feature inventory is the authority for support status.
+<!-- source: internal/plugins/ospf/spf/computer.go -- Computer.Run -->
+<!-- source: internal/plugins/ospf/spf/install.go -- Installer.Apply -->
 
 **Backwards compatibility with itself.** Ze has never been released. No users, no compat
 code, no shims, no fallbacks. If something needs to change, it changes.
@@ -585,6 +587,7 @@ and registering it.
 | Route Refresh | 2 | RFC 2918 | Implemented |
 | Enhanced Route Refresh | 70 | RFC 7313 | Implemented |
 | ADD-PATH | 69 | RFC 7911 | Implemented |
+| PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Implemented |
 | Extended Message | 6 | RFC 8654 | Implemented |
 | Extended Next Hop | 5 | RFC 8950 | Implemented |
 | Graceful Restart | 64 | RFC 4724 | Implemented |

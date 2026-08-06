@@ -1,9 +1,13 @@
 # BFD — Bidirectional Forwarding Detection
 
-**Status:** implemented and wired. The plugin runs as an internal plugin with
-UDP transport, RFC 5880 FSM, detection timers, echo mode (RFC 5880 §6.8.9),
-and multi-hop support (RFC 5883). Static route next-hop tracking via the BFD
-Service is live. Session keying includes local address for multi-hop uniqueness.
+**Status:** implemented and wired. The internal plugin includes UDP transport,
+GTSM, RFC 5880 FSM, detection timers, keyed MD5 and SHA1 authentication,
+echo mode, and multi-hop support. Static routes and BGP peers can use the BFD
+service for next-hop and session tracking.
+<!-- source: internal/component/bfd/bfd.go -- RunBFDPlugin -->
+<!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, applySocketOptionsV6 -->
+<!-- source: internal/component/bfd/session/auth.go -- SetAuth, Sign, Verify -->
+<!-- source: internal/component/bfd/engine/echo.go -- echoTickLocked, handleEchoInbound -->
 
 ## Source
 
@@ -164,27 +168,13 @@ through; `FuzzParseControl` and `FuzzParseAuth` cover this.
 <!-- source: internal/component/bfd/session/fsm.go -- applyTransitionLocked -->
 <!-- source: internal/component/bfd/packet/fuzz_test.go -- fuzz harnesses -->
 
-## What is not done
+## Remaining gaps
 
-These items are intentionally absent from the skeleton commit and will land
-as follow-ups when wiring begins:
+The remaining implementation and verification gaps are:
 
 | Gap | Required for | Notes |
 |-----|--------------|-------|
-| `RunBFDPlugin` real implementation | making the plugin reachable from a running ze | Pattern: `internal/component/sysrib/sysrib.go` |
-| `make generate` to add to `internal/component/plugin/all/all.go` | plugin auto-load on engine startup | The `register.go` warning comment exists to prevent accidental wiring |
-| GTSM TTL extraction (`IP_RECVTTL`/`IPV6_RECVHOPLIMIT`) | RFC 5881 §5 single-hop spoofing defence | Transport sets `Inbound.TTL = 0`; engine must enforce TTL=255 once available |
-| Outbound TTL=255 | Peer's GTSM check passing | `IP_TTL` setsockopt |
-| `SO_BINDTODEVICE` for single-hop | Preventing kernel from picking the wrong interface | Required when multiple interfaces share an IP range |
-| Per-VRF socket setup | Multi-VRF deployments | The `VRF` field is currently a label, not a kernel primitive |
-| Jitter on TX | RFC 5880 §6.8.7 (0–25% per packet, anti-self-synchronisation) | One-line addition in `engine/loop.go` `tick` |
-| Authentication | RFC 5880 §6.7 (deferrable) | Parser exists; verifier and key management are TODO |
-| Echo mode | RFC 5880 §6.4 + RFC 5881 §5 (single-hop optional) | UDP 3785 socket, RTT tracking |
 | Demand mode | RFC 5880 §6.6 (rarely deployed) | Skipped intentionally |
-| BGP plugin opt-in (`bgp peer { bfd { ... } }`) | Real BFD use from BGP | Shape proposed in `docs/guide/bfd.md` |
-| `show bfd sessions` CLI | Operator visibility | YANG-driven CLI command |
-| `test/plugin/bfd/*.ci` functional tests | Integration completeness per `rules/integration-completeness.md` | Required before claiming "wired" |
-| Interop with FRR `bfdd` | Wire-compat verification | Highest-value test |
 
 ## Stage 2 complete (production transport hardening)
 
@@ -222,15 +212,6 @@ three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
 | YANG API | `internal/component/bfd/yang/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
 | YANG cmd tree | `internal/component/cmd/bfd/yang/ze-bfd-cmd.yang` | augments `clishowcmd:show` with `bfd { sessions, session, profile }` |
 
-### Next sessions: pick from these specs
-
-| Spec | Scope |
-|------|-------|
-| `plan/spec-bfd-5-authentication.md` | Keyed SHA1/MD5 verifier, sequence-number persistence. |
-| `plan/spec-bfd-6-echo-mode.md` | RFC 5881 §5 echo mode on UDP 3785. |
-
-IPv6 dual-bind is deferred separately as `spec-bfd-2b-ipv6-transport` in
-`plan/deferrals/` (sharded per source). The current transport binds IPv4 only.
 
 ### Things that are intentionally done the way they are
 

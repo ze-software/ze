@@ -494,15 +494,22 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 
 > **Wire-Level Split (Implemented)**
 >
-> Forward path uses `SplitUpdate()` for oversized UPDATEs when forwarding
-> to non-Extended Message peers. See `plan/learned/DESIGN-HISTORY.md`, "BGP
-> engine: wire encoding and RIB" (retired summary 078).
+> The send path uses `Splitter.Split` for oversized UPDATEs. Same-context
+> forwarding uses `wireu.SplitWireUpdate`. Cross-context forwarding re-encodes
+> the UPDATE and uses `Splitter.SplitCompliant` to separate mixed NLRI-bearing
+> fields. See `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and
+> RIB" (retired summary 078).
 
 **Files involved:**
-- `internal/component/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
+- `internal/component/bgp/message/update_split.go` - `Splitter.Split()` and `Splitter.SplitCompliant()`
+- `internal/component/bgp/wireu/split.go` - `SplitWireUpdate()` for same-context forwarding
 - `internal/component/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for family-aware NLRI parsing
-- `internal/component/bgp/reactor/peer.go` - `sendUpdateWithSplit()` integration
-<!-- source: internal/component/bgp/message/update_split.go -- SplitUpdate -->
+- `internal/component/bgp/reactor/peer_send.go` - `sendUpdateWithSplit()` integration through `Splitter.Split`
+- `internal/component/bgp/reactor/forward_body.go` - `buildFwdBody()` selects the forwarding split path and `fwdSplitParsedUpdate()` applies `Splitter.SplitCompliant`
+<!-- source: internal/component/bgp/message/update_split.go -- Splitter.Split, Splitter.SplitCompliant -->
+<!-- source: internal/component/bgp/wireu/split.go -- SplitWireUpdate -->
+<!-- source: internal/component/bgp/reactor/peer_send.go -- sendUpdateWithSplit -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdSplitParsedUpdate -->
 <!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- ChunkMPNLRI -->
 
 **NLRI formats handled by ChunkMPNLRI:**
