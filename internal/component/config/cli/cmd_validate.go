@@ -336,11 +336,19 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
-	// MCP semantic validation.
+	// MCP semantic validation. The else branch is not optional bookkeeping:
+	// ExtractMCPConfig returns ok=false for an mcp block whose server entries do
+	// not all name a port, so Validate above is skipped and the operator would be
+	// told the config is valid while MCP starts no listener at all. Same branch,
+	// same reason, in config.ValidateSemantics for the `ze doctor` surface.
 	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
 		if verr := mcpCfg.Validate(); verr != nil {
 			result.addError("config-mcp-invalid", verr.Error())
 		}
+	} else if names := config.MCPServersMissingPort(tree); len(names) > 0 {
+		var tb textbuf.Buffer
+		result.addError("config-mcp-invalid",
+			tb.Str("environment.mcp: server ").Join(names, ", ").Str(config.MCPMissingPortAdvice).String())
 	}
 
 	// gNMI semantic validation: a non-loopback listener with no token accepts

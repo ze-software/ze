@@ -171,6 +171,14 @@ func init() {
 	config.RegisterListenerDefault("service-as112-ipv4-anycast-listener", anycastV4DirectDelegationAddr, "53")
 	config.RegisterListenerDefault("service-as112-ipv6-anycast-listener", anycastV6DirectDelegationAddr, "53")
 
+	// as112 serves DNS through dnsserver.Manager, whose bind
+	// (internal/core/dnsserver/manager.go) takes BOTH a udp PacketConn and a tcp
+	// Listener for every endpoint. The zt:listener shape says TCP alone, so
+	// without this ze doctor probed TCP/53 and passed while UDP/53 -- the
+	// transport nearly every resolver uses -- was held by something else.
+	config.RegisterListenerProtocols("service-as112-ipv4-anycast-listener", config.ProtocolUDP, config.ProtocolTCP)
+	config.RegisterListenerProtocols("service-as112-ipv6-anycast-listener", config.ProtocolUDP, config.ProtocolTCP)
+
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-show:as112",
 		Handler:    handleShowAS112,

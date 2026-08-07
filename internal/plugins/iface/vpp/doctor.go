@@ -2,17 +2,21 @@
 // the plugin that owns the runtime dependency.
 // Overview: register.go -- init() registers these checks.
 //
-// The vpp interface backend adds two runtime dependencies that ze doctor
-// surfaces so a misconfiguration is caught before apply rather than as a raw
-// VPP API error:
+// The vpp interface backend adds runtime dependencies that ze doctor surfaces,
+// so a misconfiguration is caught before apply rather than as a raw VPP API
+// error:
 //
 //   - wireguard: a wireguard interface under backend vpp needs the VPP
 //     wireguard plugin. The plugin loads only when vpp.plugins.wireguard is
 //     enabled (plugin default { disable }); doctor warns when the interface is
 //     configured but the toggle is off.
-//   - lcp netns: LCP TAPs land in vpp.lcp.netns; BGP can only bind on a shadow
-//     interface when it runs in that namespace. doctor warns when BGP is
-//     enabled and the netns is not a root-reachable namespace (see A-4).
+//   - lcp netns: LCP TAPs land in vpp.lcp.netns, and VPP resolves that leaf as a
+//     namespace NAME under /var/run/netns/. doctor warns when the leaf names a
+//     namespace ze does not run in (BGP cannot bind there, see A-4) and when that
+//     namespace is absent from this host (LCP pair creation then fails at apply).
+//     One of ze's own host markers is a single warning instead: it is wrong for
+//     one reason, the remedy is the empty leaf, and the host probe is skipped
+//     because the namespace being there would not make the markers work.
 //   - lcp plugin: enabling vpp.lcp makes startup.conf load linux_cp_plugin.so
 //     (component/vpp/startupconf.go). A VPP built without it accepts the config
 //     and then fails the whole apply at the binapi layer with a raw VPP error,
@@ -22,7 +26,11 @@ package ifacevpp
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -114,22 +122,30 @@ func wireguardPluginEnabled(tree *config.Tree) bool {
 	return v == "true"
 }
 
-// checkVPPLCPNetns warns when BGP is enabled and LCP is configured with a netns
-// that is not root-reachable, because BGP (running in ze's own netns) cannot
-// bind on an LCP-shadowed interface that lives in a separate namespace (A-4).
+// checkVPPLCPNetns warns when the LCP TAPs will not land where ze can use them.
+// A non-empty vpp.lcp.netns takes one of two routes:
+//
+//   - a MARKER ("host", "root") gets ONE diagnostic. The operator wrote a name
+//     believing it meant the host namespace; VPP has no such name, and the one
+//     remedy is the empty leaf. Whether /var/run/netns/<marker> happens to exist
+//     changes nothing about that answer, so the host probe is not consulted:
+//     present, the TAPs land there and ze still cannot bind; absent, LCP pair
+//     creation fails. A second diagnostic telling the operator to CREATE the
+//     namespace would entrench the belief the first one corrects.
+//   - any other NAME gets up to two, because they are separate facts with
+//     separate consequences: what the CONFIG proves on every platform (the leaf
+//     names a namespace ze does not run in, so BGP cannot bind on an
+//     LCP-shadowed interface, A-4), and what the HOST proves where named
+//     namespaces exist (the namespace VPP will open is absent, so LCP pair
+//     creation fails at apply). A host that has the namespace still has the
+//     BGP-bind problem, which is why the second does not replace the first.
 func checkVPPLCPNetns(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {
 		return nil
 	}
-	if tree.GetContainer("bgp") == nil {
-		return nil
-	}
 	lcp := tree.GetContainerPath("vpp/lcp")
-	if lcp == nil {
-		return nil
-	}
-	if enabled, ok := lcp.Get("enabled"); ok && enabled == "false" {
+	if lcp == nil || !lcpEnabled(tree) {
 		return nil
 	}
 	// Default netns is "dataplane" when the leaf is omitted (YANG default).
@@ -137,44 +153,181 @@ func checkVPPLCPNetns(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	if v, ok := lcp.Get("netns"); ok {
 		netns = v
 	}
-	if lcpNetnsIsRootReachable(netns) {
+	// An EMPTY leaf is the one value that leaves the TAPs where ze runs, and it
+	// is the only value this check passes in silence. lcp_set_default_ns clears
+	// the global default for it (third_party/vpp-linux-cp/src/lcp.c), so
+	// lcp_itf_pair_create falls back to no namespace at all and creates the TAP
+	// in VPP's own namespace (third_party/vpp-linux-cp/src/lcp_interface.c).
+	// Every other value, ze's own markers included, is a namespace NAME.
+	if netns == "" {
 		return nil
 	}
-	// Remediation: there is no config-only fix. No value of vpp.lcp.netns puts
-	// the TAPs where a root-netns ze can bind, because VPP resolves the leaf as
-	// a namespace NAME under /var/run/netns/ (linux-cp lcp_set_default_ns,
-	// third_party/vpp-linux-cp/src/lcp.c:73-74) -- host and root
-	// are not the host namespace -- and ze has no netns-aware listener
-	// (RealListenerFactory.Listen, internal/core/network/network.go:167). Naming
-	// a value here is what the previous message did, and following it fails LCP
-	// pair creation. The long form lives in the registered code's description
-	// (internal/core/diagnostic/codes.go), which ze explain prints.
+	if lcpNetnsIsRootMarker(netns) {
+		return []diagnostic.Diagnostic{lcpNetnsMarkerDiagnostic(netns)}
+	}
+	var diags []diagnostic.Diagnostic
+	if d, ok := lcpNetnsConfigDiagnostic(tree, netns); ok {
+		diags = append(diags, d)
+	}
+	if d, ok := lcpNetnsHostDiagnostic(netns); ok {
+		diags = append(diags, d)
+	}
+	return diags
+}
+
+// lcpNetnsMarkerDiagnostic reports a vpp.lcp.netns that carries one of ze's own
+// host markers. It is emitted whether or not BGP is configured: the value is
+// wrong even where nothing binds, because LCP pair creation is what fails.
+//
+// The remediation names the EMPTY leaf first. It is the only value that puts the
+// TAPs in the namespace ze runs in, and no marker does that.
+func lcpNetnsMarkerDiagnostic(netns string) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
-	msg := tb.Str("bgp is enabled and vpp.lcp.netns=").Quoted(netns).
-		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. No vpp.lcp.netns value fixes this: VPP resolves the leaf as a namespace name under /var/run/netns/, so host and root are not the host namespace. Run ze in the ").Quoted(netns).
+	msg := tb.Str("vpp.lcp.netns=").Quoted(netns).
+		Str(" is not the host network namespace. VPP resolves the leaf as a namespace name under ").Str(lcpNetnsPathPrefix).
+		Str(", so the LCP TAPs land in ").Str(lcpNetnsPathPrefix).Str(netns).
+		Str(" and ze cannot bind on them from its own namespace. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, where ze runs; the other remedy is to run ze in the ").Quoted(netns).
 		Str(" namespace so BGP binds where the TAPs are, or see ze explain doctor-vpp-lcp-netns").String()
-	return []diagnostic.Diagnostic{{
+	return diagnostic.Diagnostic{
 		Code:     "doctor-vpp-lcp-netns",
 		Severity: diagnostic.SeverityWarning,
 		Message:  msg,
-	}}
+	}
 }
 
-// lcpNetnsIsRootReachable reports whether an LCP netns name is one ze TREATS as
-// the host (root) network namespace, where its BGP listener runs by default.
+// lcpNetnsConfigDiagnostic reports what the config alone proves about a
+// vpp.lcp.netns that names an ordinary namespace. It reads no host state, so it
+// speaks on every platform, and it is gated on BGP because there the only harm
+// is the bind (A-4). Markers never reach it (lcpNetnsMarkerDiagnostic).
+func lcpNetnsConfigDiagnostic(tree *config.Tree, netns string) (diagnostic.Diagnostic, bool) {
+	if tree.GetContainer("bgp") == nil {
+		return diagnostic.Diagnostic{}, false
+	}
+	// Remediation: no NAME puts the TAPs where a root-netns ze can bind, because
+	// VPP resolves the leaf as a namespace name under /var/run/netns/ (linux-cp
+	// lcp_set_default_ns, third_party/vpp-linux-cp/src/lcp.c) and ze has no
+	// netns-aware listener (RealListenerFactory.Listen,
+	// internal/core/network/network.go). The empty leaf is not a name, and it is
+	// the one value that does: lcp_itf_pair_create then creates the TAP in VPP's
+	// own namespace. Naming another value here is what the previous message did,
+	// and following it fails LCP pair creation. The long form lives in the
+	// registered code's description (internal/core/diagnostic/codes.go), which ze
+	// explain prints.
+	var tb textbuf.Buffer
+	msg := tb.Str("bgp is enabled and vpp.lcp.netns=").Quoted(netns).
+		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. VPP resolves the leaf as a namespace name under /var/run/netns/, so no name puts the TAPs where a root-netns ze binds. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
+		Str(" namespace so BGP binds where the TAPs are; see ze explain doctor-vpp-lcp-netns").String()
+	return diagnostic.Diagnostic{
+		Code:     "doctor-vpp-lcp-netns",
+		Severity: diagnostic.SeverityWarning,
+		Message:  msg,
+	}, true
+}
+
+// lcpNetnsHostDiagnostic reports what THIS host proves about a non-empty
+// vpp.lcp.netns: whether the namespace VPP will open is there. It says nothing
+// where the host keeps no named namespaces (lcpNetnsDir empty), because absence
+// of the directory is not evidence about the target machine.
 //
-// This is a statement about ze's own marker set ("", host, root), not about VPP.
-// VPP has no special namespace names: lcp_set_default_ns formats the leaf into the
-// path /var/run/netns/<name> and opens it
-// (third_party/vpp-linux-cp/src/lcp.c:73-74), and lcp_itf_pair_create resolves an
-// EMPTY per-pair netns to that GLOBAL default
-// (third_party/vpp-linux-cp/src/lcp_interface.c:850-855), which ze always writes
-// from this same leaf when LCP is enabled (internal/component/vpp/startupconf.go:106).
+// A probe that cannot answer gets its own diagnostic rather than being folded
+// into "the namespace is absent": a stat error is not evidence of absence, and
+// the two ask different things of the operator.
+func lcpNetnsHostDiagnostic(netns string) (diagnostic.Diagnostic, bool) {
+	if lcpNetnsDir == "" {
+		return diagnostic.Diagnostic{}, false
+	}
+	resolves, err := lcpNetnsResolves(netns)
+	var tb textbuf.Buffer
+	switch {
+	case err != nil:
+		msg := tb.Str("vpp.lcp.netns=").Quoted(netns).Str(" could not be checked against ").Str(lcpNetnsPathPrefix).Str(": ").Err(err).
+			Str(". VPP opens that path for the LCP TAPs, so a missing namespace fails LCP pair creation at apply. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
+			Str(" namespace so BGP binds where the TAPs are; see ze explain doctor-vpp-lcp-netns").String()
+		return diagnostic.Diagnostic{
+			Code:     "doctor-vpp-lcp-netns",
+			Severity: diagnostic.SeverityWarning,
+			Message:  msg,
+		}, true
+	case !resolves:
+		msg := tb.Str("vpp.lcp.netns=").Quoted(netns).Str(" names a network namespace that is absent from ").Str(lcpNetnsPathPrefix).
+			Str(" on this host. VPP opens that path for the LCP TAPs, so LCP pair creation fails at apply with a raw VPP error. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or create the namespace with ip netns add ").Str(netns).
+			Str(" and run ze in the ").Quoted(netns).
+			Str(" namespace so BGP binds where the TAPs are").String()
+		return diagnostic.Diagnostic{
+			Code:     "doctor-vpp-lcp-netns",
+			Severity: diagnostic.SeverityWarning,
+			Message:  msg,
+		}, true
+	}
+	return diagnostic.Diagnostic{}, false
+}
+
+// lcpNetnsPathPrefix is where VPP's linux-cp resolves vpp.lcp.netns:
+// lcp_set_default_ns formats the leaf into /var/run/netns/<name> and opens it
+// (third_party/vpp-linux-cp/src/lcp.c), and lcp_itf_pair_create hands a per-pair
+// name to the same convention through tap_create_if
+// (third_party/vpp-linux-cp/src/lcp_interface.c). VPP hardcodes the path, so ze
+// states it as a fact about VPP rather than as a location ze chooses.
+const lcpNetnsPathPrefix = "/var/run/netns/"
+
+// lcpNetnsDir is the directory the doctor check PROBES for a named network
+// namespace. It is lcpNetnsPathPrefix on Linux and EMPTY elsewhere, where
+// nothing keeps named namespaces and the absence of the directory says nothing
+// about the machine that will run VPP.
+//
+// A var rather than a const so the unit tests can point the probe at a temporary
+// directory and drive both outcomes on any platform. Every test that calls
+// checkVPPLCPNetns must set it: left alone on Linux it reads the real
+// /var/run/netns, and the result would depend on which namespaces the host
+// happens to have.
+var lcpNetnsDir = defaultLCPNetnsDir()
+
+// goosLinux is the runtime.GOOS value VPP runs under. Both host-reading checks
+// in this file gate on it, because neither a VPP API socket nor a named network
+// namespace exists anywhere else.
+const goosLinux = "linux"
+
+// defaultLCPNetnsDir returns the namespace directory to probe on this platform.
+func defaultLCPNetnsDir() string {
+	if runtime.GOOS != goosLinux {
+		return ""
+	}
+	return lcpNetnsPathPrefix
+}
+
+// lcpNetnsResolves reports whether name is a named network namespace present on
+// this host. A non-nil error means the probe could not answer, which is not the
+// same as absence and is never reported as absence.
+func lcpNetnsResolves(name string) (bool, error) {
+	if _, err := os.Stat(filepath.Join(lcpNetnsDir, name)); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// lcpNetnsIsRootMarker reports whether an LCP netns name is one ze TREATS as the
+// host (root) network namespace, where its BGP listener runs by default.
+//
+// This is a statement about ze's own marker set ("", host, root), not about VPP,
+// and the name says marker for that reason: VPP has no special namespace names.
+// lcp_set_default_ns formats the leaf into the path /var/run/netns/<name> and
+// opens it (third_party/vpp-linux-cp/src/lcp.c), and lcp_itf_pair_create resolves
+// an EMPTY per-pair netns to that GLOBAL default
+// (third_party/vpp-linux-cp/src/lcp_interface.c), which ze always writes from
+// this same leaf when LCP is enabled (internal/component/vpp/startupconf.go).
 // So netns=host makes VPP open /var/run/netns/host rather than stay in its own
 // namespace, and these markers are not the escape hatch they look like. Verified
 // in VPP's C sources, not in the generated binapi stub, which documents only that
 // the field exists; recorded as A-13 in plan/spec-bgp-netns.md.
-func lcpNetnsIsRootReachable(netns string) bool {
+//
+// Two callers, two questions. lcpPairNetns (lcp.go) asks this one, "is this one
+// of ze's markers", to decide whether to send an empty per-pair netns field.
+// checkVPPLCPNetns asks whether the TAPs will be usable, which a marker never
+// makes true, so it warns on a marker instead of passing it.
+func lcpNetnsIsRootMarker(netns string) bool {
 	switch netns {
 	case "", "host", "root":
 		return true
@@ -229,7 +382,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	// VPP is Linux-only, so on any other host there is nothing to probe and no
 	// connection is opened. Checked AFTER the config gate so the skip reason is
 	// "wrong platform", not "config absent".
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != goosLinux {
 		return nil
 	}
 

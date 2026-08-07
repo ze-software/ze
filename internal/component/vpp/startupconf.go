@@ -103,7 +103,27 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 			if s.LCP.AutoSubint {
 				b.flag("lcp-auto-subint")
 			}
-			b.kv("default netns", s.LCP.Netns)
+			// An EMPTY netns is the value that leaves the TAPs in VPP's own
+			// namespace, and it is expressed by OMITTING the directive rather
+			// than by writing it empty.
+			//
+			// Verified in the vendored source: lcp_main is zero-initialized, so
+			// with no directive lcp_get_default_ns returns NULL
+			// (third_party/vpp-linux-cp/src/lcp.c) and lcp_itf_pair_create then
+			// opens no namespace at all
+			// (third_party/vpp-linux-cp/src/lcp_interface.c). Omitting the line
+			// is therefore exactly what an empty leaf asks for.
+			//
+			// Writing it with an empty value is at best redundant and, by
+			// inference, a startup failure: lcp_itf_pair_config matches
+			// `default netns %v` and an unmatched arm falls through to
+			// `clib_error_return (0, "interfaces not found")`. Whether %v can
+			// consume an empty value is a vppinfra question, and vppinfra is NOT
+			// vendored here -- check unformat in VPP's own src/vppinfra/unformat.c
+			// before relying on that half.
+			if s.LCP.Netns != "" {
+				b.kv("default netns", s.LCP.Netns)
+			}
 		})
 
 		b.section("linux-nl", func() {

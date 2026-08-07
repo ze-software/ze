@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1642,77 +1643,369 @@ func TestDoctorImprovementsCodesRegistered_Extended(t *testing.T) {
 	}
 }
 
+// doctorDependencyCovered maps a runtime dependency ze doctor checks to the
+// diagnostic code that reports it. TestDoctorProbesEveryCoveredListener reads the
+// schema-listener rows and proves each one names a probe that really runs, so a
+// row here cannot outlive the registration that produces its endpoint.
+var doctorDependencyCovered = map[string]string{
+	"listener/web":             "doctor-listen-unavailable",
+	"listener/gnmi":            "doctor-listen-unavailable",
+	"listener/looking-glass":   "doctor-listen-unavailable",
+	"listener/api-server-rest": "doctor-listen-unavailable",
+	"listener/api-server-grpc": "doctor-listen-unavailable",
+	"listener/ssh":             "doctor-listen-unavailable",
+	"listener/bgp":             "doctor-bgp-listen",
+	"listener/bfd":             "doctor-bfd-port",
+	"listener/ipsec":           "doctor-ipsec-listen",
+	"listener/tftp":            "doctor-tftp-listen",
+	"listener/image-server":    "doctor-image-listen",
+	"listener/ntp":             "doctor-ntp-listen",
+	// The Prometheus exporter endpoint under the name the schema-FALLBACK path
+	// gives it (extractTelemetryListeners, reached only when the YANG schema
+	// carries no ze:listener service). The schema path probes the same endpoint
+	// as listener/prometheus, so the two rows are one dependency seen from the
+	// two collection paths, not two listeners.
+	"listener/telemetry":      "doctor-listen-unavailable",
+	"external/tacacs":         "doctor-tacacs-unreachable",
+	"external/radius":         "doctor-radius-unreachable",
+	"external/radius-admin":   "doctor-radius-admin-unreachable",
+	"external/rpki":           "doctor-rpki-unreachable",
+	"external/bmp":            "doctor-bmp-unreachable",
+	"external/ntp-server":     "doctor-ntp-server-unreachable",
+	"external/update-check":   "doctor-update-check-unreachable",
+	"external/archive-http":   "doctor-archive-unreachable",
+	"external/dns":            "doctor-dns-resolver",
+	"writable/ntp-persist":    "doctor-write-destination",
+	"writable/bfd-persist":    "doctor-write-destination",
+	"writable/dns-resolv":     "doctor-write-destination",
+	"writable/archive-file":   "doctor-write-destination",
+	"writable/self-update":    "doctor-write-destination",
+	"module/l2tp":             "doctor-l2tp-module",
+	"module/pppoe":            "doctor-pppoe-module",
+	"module/ipsec":            "doctor-module-missing",
+	"module/mpls":             "doctor-mpls-unavailable",
+	"module/nftables":         "doctor-firewall-nftables",
+	"module/vfio":             "doctor-vpp-dpdk",
+	"socket/vpp":              "doctor-vpp-unreachable",
+	"binary/plugin":           "doctor-plugin-missing",
+	"binary/vpp":              "doctor-vpp-version",
+	"cert/tls":                "doctor-tls-missing",
+	"cert/pki":                "doctor-pki-cert",
+	"cert/ssh":                "doctor-ssh-hostkey-missing",
+	"privilege/ntp":           "doctor-ntp-clock-privilege",
+	"sysfs/dpdk":              "doctor-vpp-dpdk",
+	"procfs/telemetry":        "doctor-telemetry-procfs",
+	"procfs/sysctl":           "doctor-sysctl-procfs",
+	"procfs/conntrack":        "doctor-conntrack-procfs",
+	"netlink/policyroute":     "doctor-policyroute-netlink",
+	"config/bgp-md5":          "doctor-bgp-md5",
+	"coherence/clock-sync":    "doctor-clock-no-sync",
+	"coherence/machine-id":    "doctor-machine-id-missing",
+	"coherence/platform-path": "doctor-config-platform-mismatch",
+	"coherence/random-seed":   "doctor-random-seed",
+	"config/references":       "doctor-config-reference",
+	"config/semantic":         "config-mcp-invalid",
+
+	// prometheus is the telemetry exporter's own ze:listener service, and it
+	// carries a registered default (internal/component/config/listener_defaults.go),
+	// so the schema path probes it as well as the Go extractor that produces
+	// listener/telemetry.
+	"listener/prometheus": "doctor-listen-unavailable",
+
+	// l2tp starts one listener per server entry and applies its own
+	// DefaultListenPort to an entry that omits the port
+	// (internal/component/l2tp/config.go, ParseParameters), which
+	// RegisterListenerEntryDefault mirrors, so every config that starts an L2TP
+	// listener yields an endpoint to probe.
+	"listener/l2tp": "doctor-listen-unavailable",
+
+	// geodns binds 127.0.0.1:5300 AND ::1:5300 for an empty listener list
+	// (parseListeners, internal/plugins/geodns/config.go), so its plugin
+	// registers both as listener defaults and checkListeners probes each. Its own
+	// check, checkGeoDNSListenCapability, adds the privileged-port case that the
+	// bind probe cannot distinguish from a busy port; it is silent at or above
+	// 1024, which is why the row below and not that check is the coverage.
+	"listener/service-geodns-listener": "doctor-listen-unavailable",
+
+	// as112 registers its own listener defaults in
+	// internal/plugins/as112/register.go, so CollectListenersWithDefaults
+	// yields an endpoint for both families and checkListeners probes them.
+	"listener/service-as112-ipv4-anycast-listener": "doctor-listen-unavailable",
+	"listener/service-as112-ipv6-anycast-listener": "doctor-listen-unavailable",
+}
+
+// doctorDependencyExcluded names a ze:listener service ze doctor emits NO
+// diagnostic for when the operator relies on the service's default endpoint. The
+// reason is read off the service's OWN config extraction, because that is what
+// decides whether a default endpoint exists at all: a service that binds nothing
+// on an empty list, or that hands the kernel an ephemeral port, has no endpoint
+// for doctor to probe and is not a coverage gap.
+//
+// It is not "the doctor cannot probe this service": every one of these is probed
+// from a config that names both ip and port (config.CollectListeners).
+var doctorDependencyExcluded = map[string]string{
+	"listener/wireguard": "buildWireguardConfig (internal/plugins/iface/netlink/wireguard_linux.go) sends no ListenPort unless the interface names one, so the kernel picks the port and there is no endpoint to probe",
+	"listener/plugin-hub": "extractHubServerConfig (internal/component/config/loader_extract.go) reads ip and port verbatim and fills in no default, " +
+		"so an entry without a port carries none, and an empty server list starts no hub server",
+	"listener/bmp": "(*BMPPlugin).startReceiver (internal/component/bgp/plugins/bmp/bmp.go) joins ip and port verbatim, so an entry without a port binds an ephemeral one, " +
+		"and it iterates cfg.Servers so an empty list starts nothing at all",
+	"listener/mcp": "extractMCPBlock (internal/component/config/loader_extract.go) passes an EMPTY default port, and ExtractMCPConfig returns ok=false unless EVERY " +
+		"server names one, so no config that relies on a default starts an mcp listener; the YANG refine of 8080 never reaches the daemon",
+}
+
+// listenerProbeNetworks records the transports each schema-declared listener
+// service BINDS, read off the code that binds them. It is deliberately
+// independent of config.RegisterListenerProtocols: an expectation derived from
+// the thing under test asserts nothing, and this class of defect is exactly a
+// registration that says TCP for a service that binds UDP.
+//
+// Every service the probe assertion exercises needs a row, so adding a
+// ze:listener service means reading its binder rather than accepting whatever
+// the list shape implies.
+var listenerProbeNetworks = map[string][]string{
+	// Go http.Server / grpc.Serve over a net.Listener: TCP.
+	"web":             {"tcp"},
+	"gnmi":            {"tcp"},
+	"looking-glass":   {"tcp"},
+	"api-server-rest": {"tcp"},
+	"api-server-grpc": {"tcp"},
+	"prometheus":      {"tcp"},
+	"ssh":             {"tcp"},
+	// (*UDPListener).Start (internal/component/l2tp/listener.go) binds with
+	// ListenPacket and asserts *net.UDPConn. UDP only.
+	"l2tp": {"udp"},
+	// dnsserver.Manager.bind (internal/core/dnsserver/manager.go) takes a udp
+	// PacketConn AND a tcp Listener for every endpoint, and fails the endpoint if
+	// either fails. Both must be probed.
+	"service-geodns-listener":             {"udp", "tcp"},
+	"service-as112-ipv4-anycast-listener": {"udp", "tcp"},
+	"service-as112-ipv6-anycast-listener": {"udp", "tcp"},
+}
+
+// goExtractorListeners names the listener/ inventory rows that come from a
+// hand-written extractor in checks_listener.go rather than from a ze:listener in
+// the schema. No registry produces them, so this is the one place they are
+// listed, and it is what lets the schema own every other row: a listener/ row in
+// neither this set nor the schema is a row nothing exercises.
+//
+// TestGoExtractorListenersStillProduceProbes binds these seven names to the
+// extractors, so the set cannot outlive them. Without that, deleting
+// extractBFDListeners would leave listener/bfd in the inventory and in this map,
+// skipped by both loops and claiming coverage that no longer exists.
+var goExtractorListeners = map[string]bool{
+	"listener/bgp":          true, // extractBGPListeners
+	"listener/bfd":          true, // extractBFDListeners
+	"listener/ipsec":        true, // extractIPsecListeners
+	"listener/tftp":         true, // extractTFTPListeners
+	"listener/image-server": true, // extractImageListeners
+	"listener/ntp":          true, // extractNTPListeners
+	"listener/telemetry":    true, // extractTelemetryListeners
+}
+
+// goExtractorListenerTree turns on every service the Go extractors in
+// checks_listener.go read, in one config. They live under separate containers, so
+// one tree drives all of them and no service masks another.
+func goExtractorListenerTree() *config.Tree {
+	tree := config.NewTree()
+
+	bgpC := tree.GetOrCreateContainer("bgp")
+	peer := config.NewTree()
+	local := config.NewTree()
+	local.Set("ip", "127.0.0.1")
+	peer.GetOrCreateContainer("connection").SetContainer("local", local)
+	bgpC.AddListEntry("peer", "p1", peer)
+
+	tree.GetOrCreateContainer("bfd").Set("enabled", "true")
+	tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec").Set("enabled", "true")
+
+	svc := tree.GetOrCreateContainer("service")
+	svc.GetOrCreateContainer("tftp-server").Set("enabled", "true")
+	svc.GetOrCreateContainer("image-server").Set("enabled", "true")
+	tree.GetOrCreateContainer("environment").GetOrCreateContainer("ntp").Set("enabled", "true")
+
+	// Read by extractTelemetryListeners and extractSSHListeners, which run only
+	// on the schema-FALLBACK path (collectHardcodedListeners). The same
+	// containers feed the schema path under different service names, so one tree
+	// drives both.
+	tree.GetOrCreateContainer("telemetry").GetOrCreateContainer("prometheus").Set("enabled", "true")
+	tree.GetOrCreateContainer("environment").GetOrCreateContainer("ssh").Set("enabled", "true")
+
+	return tree
+}
+
+// TestGoExtractorListenersStillProduceProbes binds every goExtractorListeners
+// name to the extractor that produces it.
+//
+// The schema owns every other listener row, so those cannot go stale. These seven
+// are hand-written on both sides -- an extractor in checks_listener.go and a name
+// here -- and nothing connected them: deleting extractBFDListeners left
+// listener/bfd sitting in the inventory and in the skip set, claiming a probe
+// that no longer ran, and both inventory loops stepped over it.
+//
+// VALIDATES: each name in goExtractorListeners is produced by a live extractor.
+// PREVENTS: an inventory row outliving the code that produces its endpoint, in
+// the one corner the schema cannot police.
+func TestGoExtractorListenersStillProduceProbes(t *testing.T) {
+	tree := goExtractorListenerTree()
+	services := map[string]bool{}
+	// Both paths, because they do not produce the same set.
+	// collectHardcodedListeners is the schema-FALLBACK, and it owns
+	// extractTelemetryListeners and extractSSHListeners; the schema path reaches
+	// the same two containers under the service names the YANG derives
+	// ("prometheus", "ssh"). A row bound to one path is not bound by the other.
+	all := append(collectAllListeners(tree), collectHardcodedListeners(tree)...)
+	for _, l := range all {
+		// Endpoint names carry a list key for some services ("bgp" does not, but
+		// a schema listener would); take the leading word.
+		services[strings.Fields(l.service)[0]] = true
+	}
+	for dep := range goExtractorListeners {
+		name := strings.TrimPrefix(dep, "listener/")
+		assert.Truef(t, services[name],
+			"inventory row %q names no listener any extractor in checks_listener.go produces; either its extractor is gone or the config that drives it changed", dep)
+	}
+}
+
+// listenerEntryWithoutPortTree builds the config shape that sits between "all
+// defaults" and "fully spelled out": the service is on, and its one list entry
+// names an ip and omits the port.
+//
+// The path comes from the SCHEMA (ListenerService.Containers and ListName), not
+// from a table here. A hand-written path table is a second copy of what the
+// schema already states, and it goes stale the first time a YANG list moves.
+func listenerEntryWithoutPortTree(svc config.ListenerService) *config.Tree {
+	tree := config.NewTree()
+	container := tree
+	for _, name := range svc.Containers {
+		container = container.GetOrCreateContainer(name)
+	}
+	// Every listener service whose schema declares an enabled leaf is gated on
+	// it; setting it on a service without one is inert (CollectListeners reads
+	// the leaf only when ListenerService.HasEnabledLeaf).
+	container.Set("enabled", "true")
+	entry := config.NewTree()
+	entry.Set("ip", "127.0.0.1")
+	container.AddListEntry(svc.ListName, "probe", entry)
+	return tree
+}
+
 func TestDoctorDependencyInventory(t *testing.T) {
-	covered := map[string]string{
-		"listener/web":             "doctor-listen-unavailable",
-		"listener/mcp":             "doctor-listen-unavailable",
-		"listener/looking-glass":   "doctor-listen-unavailable",
-		"listener/api-server-rest": "doctor-listen-unavailable",
-		"listener/api-server-grpc": "doctor-listen-unavailable",
-		"listener/ssh":             "doctor-listen-unavailable",
-		"listener/bgp":             "doctor-bgp-listen",
-		"listener/bfd":             "doctor-bfd-port",
-		"listener/ipsec":           "doctor-ipsec-listen",
-		"listener/tftp":            "doctor-tftp-listen",
-		"listener/image-server":    "doctor-image-listen",
-		"listener/ntp":             "doctor-ntp-listen",
-		"listener/telemetry":       "doctor-listen-unavailable",
-		"external/tacacs":          "doctor-tacacs-unreachable",
-		"external/radius":          "doctor-radius-unreachable",
-		"external/radius-admin":    "doctor-radius-admin-unreachable",
-		"external/rpki":            "doctor-rpki-unreachable",
-		"external/bmp":             "doctor-bmp-unreachable",
-		"external/ntp-server":      "doctor-ntp-server-unreachable",
-		"external/update-check":    "doctor-update-check-unreachable",
-		"external/archive-http":    "doctor-archive-unreachable",
-		"external/dns":             "doctor-dns-resolver",
-		"writable/ntp-persist":     "doctor-write-destination",
-		"writable/bfd-persist":     "doctor-write-destination",
-		"writable/dns-resolv":      "doctor-write-destination",
-		"writable/archive-file":    "doctor-write-destination",
-		"writable/self-update":     "doctor-write-destination",
-		"module/l2tp":              "doctor-l2tp-module",
-		"module/pppoe":             "doctor-pppoe-module",
-		"module/ipsec":             "doctor-module-missing",
-		"module/mpls":              "doctor-mpls-unavailable",
-		"module/nftables":          "doctor-firewall-nftables",
-		"module/vfio":              "doctor-vpp-dpdk",
-		"socket/vpp":               "doctor-vpp-unreachable",
-		"binary/plugin":            "doctor-plugin-missing",
-		"binary/vpp":               "doctor-vpp-version",
-		"cert/tls":                 "doctor-tls-missing",
-		"cert/pki":                 "doctor-pki-cert",
-		"cert/ssh":                 "doctor-ssh-hostkey-missing",
-		"privilege/ntp":            "doctor-ntp-clock-privilege",
-		"sysfs/dpdk":               "doctor-vpp-dpdk",
-		"procfs/telemetry":         "doctor-telemetry-procfs",
-		"procfs/sysctl":            "doctor-sysctl-procfs",
-		"procfs/conntrack":         "doctor-conntrack-procfs",
-		"netlink/policyroute":      "doctor-policyroute-netlink",
-		"config/bgp-md5":           "doctor-bgp-md5",
-		"coherence/clock-sync":     "doctor-clock-no-sync",
-		"coherence/machine-id":     "doctor-machine-id-missing",
-		"coherence/platform-path":  "doctor-config-platform-mismatch",
-		"coherence/random-seed":    "doctor-random-seed",
-		"config/references":        "doctor-config-reference",
-		"config/semantic":          "config-mcp-invalid",
-	}
-
-	excluded := map[string]string{
-		"listener/wireguard":  "YANG refine defaults not propagated to schema",
-		"listener/plugin-hub": "YANG refine defaults not propagated to schema",
-		"listener/prometheus": "covered by telemetry listener check",
-	}
-
-	for dep, code := range covered {
+	for dep, code := range doctorDependencyCovered {
 		meta := diagnostic.Lookup(code)
 		assert.NotNilf(t, meta, "dependency %s maps to unregistered code %s", dep, code)
 	}
 
-	const expectedTotal = 55
-	total := len(covered) + len(excluded)
+	// The listener half of the inventory is DERIVED from the schema, not counted.
+	// checkListeners probes one endpoint per ze:listener service
+	// (collectSchemaListeners -> config.DiscoverListenerServices), so a service the
+	// YANG gains and nobody lists is a dependency ze checks and this inventory
+	// hides. expectedTotal below cannot see that: it folds the same two maps it
+	// is compared against, so it only reacts to an edit of those maps. It stays
+	// as the conscious-handling ratchet for the rows no registry produces --
+	// external, writable, module, and the protocol listeners that come from the
+	// Go extractors in checks_listener.go rather than from the schema.
+	schema, err := config.YANGSchema()
+	require.NoError(t, err, "doctor probes schema-discovered listeners, so the schema must load")
+	schemaListeners := map[string]bool{}
+	for _, svc := range config.DiscoverListenerServices(schema) {
+		dep := "listener/" + svc.Name
+		schemaListeners[dep] = true
+		_, isCovered := doctorDependencyCovered[dep]
+		_, isExcluded := doctorDependencyExcluded[dep]
+		assert.Truef(t, isCovered || isExcluded,
+			"ze:listener service %q is probed by ze doctor but absent from the dependency inventory; add %q to covered or excluded", svc.Name, dep)
+	}
+
+	// And the other direction: a listener/ row whose service the schema does not
+	// declare is a row nothing exercises. It happens when a plugin's YANG stops
+	// being linked into this binary, which would silently retire every assertion
+	// below that names it while the row went on claiming coverage.
+	for _, m := range []map[string]string{doctorDependencyCovered, doctorDependencyExcluded} {
+		for dep := range m {
+			if !strings.HasPrefix(dep, "listener/") || goExtractorListeners[dep] {
+				continue
+			}
+			assert.Truef(t, schemaListeners[dep],
+				"inventory row %q names no ze:listener the schema declares and no extractor in goExtractorListeners; either its YANG is not linked here or the row is stale", dep)
+		}
+	}
+
+	const expectedTotal = 61
+	total := len(doctorDependencyCovered) + len(doctorDependencyExcluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)
+}
+
+// TestDoctorProbesEveryCoveredListener closes the direction the inventory's name
+// check cannot see. That loop proves every schema-declared service is CLASSIFIED;
+// it says nothing about whether a service classified `covered` is still probed.
+// Deleting one RegisterListenerDefault line
+// (internal/component/config/listener_defaults.go) stops ze doctor probing that
+// service entirely and left the inventory green.
+//
+// The tree it drives is also the shape ISSUE-5 named: an entry that gives an ip
+// and omits the port, which the daemon binds at the service's default port and
+// which parseListenerEntry drops.
+//
+// VALIDATES: every `doctor-listen-unavailable` listener row names a probe that
+// collectSchemaListeners actually produces.
+// PREVENTS: a covered row outliving the registration that produces its endpoint,
+// and the ip-only entry falling through both default fills.
+func TestDoctorProbesEveryCoveredListener(t *testing.T) {
+	schema, err := config.YANGSchema()
+	require.NoError(t, err, "doctor probes schema-discovered listeners, so the schema must load")
+
+	checked := 0
+	for _, svc := range config.DiscoverListenerServices(schema) {
+		name := svc.Name
+		code, isCovered := doctorDependencyCovered["listener/"+name]
+		// Only the schema-listener path runs through here. An excluded service has
+		// no default endpoint to probe, and a covered service reported by some
+		// other code would be proven by whatever produces that code, not by
+		// collectSchemaListeners. No service is in the second case today: every
+		// covered schema listener maps to doctor-listen-unavailable.
+		if !isCovered || code != "doctor-listen-unavailable" {
+			continue
+		}
+		// The config path is DERIVED from the schema, so it cannot go stale. It
+		// must still name a container: a ze:listener list at the tree root has no
+		// service block to enable and nothing below could configure it.
+		require.NotEmptyf(t, svc.Containers,
+			"ze:listener service %q sits at the config root, so there is no container to enable it in", name)
+
+		wantNetworks, hasNetworks := listenerProbeNetworks[name]
+		require.Truef(t, hasNetworks,
+			"ze:listener service %q is covered but listenerProbeNetworks does not say which transport it binds; read its binder and add a row", name)
+
+		listeners := collectSchemaListeners(listenerEntryWithoutPortTree(svc))
+		require.NotEmptyf(t, listeners,
+			"ze doctor probes nothing at all for %q with an ip-only entry; the inventory says %s reports it, so either its listener default is gone (internal/component/config/listener_defaults.go) or the entry fill in CollectListenersWithDefaults is", name, code)
+		// The entry's ip identifies its own probe. A sibling service under the
+		// same container (as112 declares one list per family) contributes its
+		// default endpoint to the same call, and that endpoint is not evidence
+		// about this service.
+		var gotNetworks []string
+		for _, l := range listeners {
+			if l.host != "127.0.0.1" {
+				continue
+			}
+			assert.NotEqualf(t, "0", l.port, "probe for %q has no port; the registered default did not reach the endpoint", name)
+			gotNetworks = append(gotNetworks, l.network)
+		}
+		assert.NotEmptyf(t, gotNetworks,
+			"the ip-only entry for %q produced no probe at the ip it names; the entry fill in CollectListenersWithDefaults did not run for it", name)
+		// The TRANSPORT is the half a presence check cannot see. probeListener
+		// calls ListenPacket only for "udp", so a UDP service probed as TCP binds
+		// a socket nothing contends for: the probe passes whatever holds the port
+		// the daemon actually needs, and the coverage claimed does not exist.
+		sort.Strings(gotNetworks)
+		want := append([]string(nil), wantNetworks...)
+		sort.Strings(want)
+		assert.Equalf(t, want, gotNetworks,
+			"ze doctor probes %v for %q but it binds %v; a probe on the wrong transport cannot detect the conflict it exists to detect", gotNetworks, name, wantNetworks)
+		checked++
+	}
+	assert.NotZero(t, checked, "no covered schema listener was exercised; the inventory or the schema stopped naming any")
 }
 
 func TestRunDoctorChecksIncludesPluginRegistryChecks(t *testing.T) {

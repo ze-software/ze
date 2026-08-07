@@ -34,10 +34,15 @@ func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 		for _, s := range servers {
 			ip := "0.0.0.0"
 			port := "2222"
-			if v, ok := s.Value.Get("ip"); ok {
+			// A present-but-EMPTY leaf keeps the default, matching
+			// extractServerList (internal/component/config/loader_extract.go).
+			// Without the emptiness test an empty port produced "<ip>:", which
+			// the kernel binds on an ephemeral port while ze doctor probes 2222:
+			// the daemon and its readiness check disagreed about the endpoint.
+			if v, ok := s.Value.Get("ip"); ok && v != "" {
 				ip = v
 			}
-			if v, ok := s.Value.Get("port"); ok {
+			if v, ok := s.Value.Get("port"); ok && v != "" {
 				port = v
 			}
 			cfg.ListenAddrs = append(cfg.ListenAddrs, ip+":"+port)

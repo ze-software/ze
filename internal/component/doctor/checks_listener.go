@@ -50,8 +50,7 @@ func collectSchemaListeners(tree *config.Tree) []serviceListener {
 	if err != nil {
 		return collectHardcodedListeners(tree)
 	}
-	services := config.DiscoverListenerServices(schema)
-	if len(services) == 0 {
+	if len(config.DiscoverListenerServices(schema)) == 0 {
 		return collectHardcodedListeners(tree)
 	}
 	registerListenerDefaultsOnce.Do(config.RegisterBuiltinListenerDefaults)
@@ -168,10 +167,14 @@ func extractTelemetryListeners(tree *config.Tree) []serviceListener {
 	return listeners
 }
 
-func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
-	var tb textbuf.Buffer
-	var diags []diagnostic.Diagnostic
-
+// collectAllListeners returns every endpoint ze doctor probes for a config: the
+// schema-discovered ze:listener services, plus the protocol listeners that have
+// no schema entry and come from the extractors below.
+//
+// Separated from checkListeners so the set can be inspected without binding
+// sockets. The dependency inventory (doctor_test.go) reads it to prove each row
+// it claims is produced by live code.
+func collectAllListeners(tree *config.Tree) []serviceListener {
 	listeners := collectSchemaListeners(tree)
 	listeners = append(listeners, extractBGPListeners(tree)...)
 	listeners = append(listeners, extractBFDListeners(tree)...)
@@ -179,8 +182,14 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	listeners = append(listeners, extractTFTPListeners(tree)...)
 	listeners = append(listeners, extractImageListeners(tree)...)
 	listeners = append(listeners, extractNTPListeners(tree)...)
+	return dedupeListeners(listeners)
+}
 
-	for _, l := range dedupeListeners(listeners) {
+func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
+	var diags []diagnostic.Diagnostic
+
+	for _, l := range collectAllListeners(tree) {
 		if err := listenerProbe(l); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     l.code,

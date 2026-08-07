@@ -22,7 +22,6 @@ import (
 )
 
 var (
-	errVppLcpNetnsMustNotBe           = errors.New("vpp lcp: netns must not be empty")
 	errVppConfigSectionMissingVppRoot = errors.New("vpp: config section missing 'vpp' root")
 	errVppMemoryBuffersMustBe0        = errors.New("vpp: memory buffers must be > 0")
 )
@@ -128,10 +127,21 @@ func validateSocketPath(field, path string) error {
 }
 
 // validateNetns checks that a network namespace name is reasonable.
+//
+// An EMPTY name is VALID and is the one value that leaves the LCP TAPs in the
+// namespace ze runs in. lcp_set_default_ns NULLs VPP's global default namespace
+// for it and closes the fd (third_party/vpp-linux-cp/src/lcp.c), and
+// lcp_itf_pair_create then resolves an empty per-pair netns to that NULL and
+// creates the TAP without entering any namespace
+// (third_party/vpp-linux-cp/src/lcp_interface.c). Every other value is a
+// namespace NAME under /var/run/netns/, which ze's BGP listener cannot bind in.
+//
+// Rejecting it made two guards contradict each other: checkVPPLCPNetns
+// (internal/plugins/iface/vpp/doctor.go) tells the operator to leave the leaf
+// empty, and this function then refused the commit, so the advice ze prints could
+// not be followed. The leaf being OMITTED still means "dataplane": ParseConfig
+// above seeds that, matching the YANG default.
 func validateNetns(name string) error {
-	if name == "" {
-		return errVppLcpNetnsMustNotBe
-	}
 	if strings.ContainsAny(name, "/\\") {
 		return fmt.Errorf("vpp lcp: netns must not contain path separators, got %q", name)
 	}

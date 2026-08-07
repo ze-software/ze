@@ -2,10 +2,30 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - (shares one file, `internal/plugins/iface/vpp/doctor.go`, with `plan/spec-bgp-netns.md`; neither blocks the other) |
 | Phase | 1/1 (doctor check; research done) |
-| Updated | 2026-07-17 |
+| Updated | 2026-08-07 |
+
+**2026-08-07: the R-5 detection gap homed here is IMPLEMENTED.**
+`plan/deferrals/fixit-vpp-lcp-netns-remediation.md` R-5 recorded that
+`doctor-vpp-lcp-netns` stayed silent for `vpp.lcp.netns host` and `root`, which VPP
+resolves as namespace NAMES under `/var/run/netns/`. `checkVPPLCPNetns`
+(`internal/plugins/iface/vpp/doctor.go`) now asks two separate questions about a
+non-empty leaf: `lcpNetnsConfigDiagnostic` warns that a host marker is not the host
+namespace, and `lcpNetnsHostDiagnostic` warns when the named namespace is absent from
+this host. An empty leaf is the only value that passes in silence, because
+`lcp_set_default_ns` clears VPP's global default for it alone. `lcpPairNetns`
+(`lcp.go`) is unchanged: it keeps its own question through
+`lcpNetnsIsRootMarker`, the renamed `lcpNetnsIsRootReachable`.
+
+-> Decision NOT taken, and open for Thomas: R-5 also asked whether ze should REJECT a
+netns that cannot work rather than warn. The check warns. Warning is strictly more
+conformant than the silence it replaces and needed no ruling; rejecting is a wider
+behavior change and was left alone.
+
+-> Constraint: this note records ONE homed deferral landing. It does not judge the
+spec's own acceptance criteria, and it does not close the spec.
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 the live citation below is updated in-body): `internal/core/diagnostic/codes.go`

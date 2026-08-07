@@ -171,3 +171,38 @@ func TestResolveSSHStorage(t *testing.T) {
 		assert.False(t, storage.IsBlobStorage(got), "should stay filesystem when no config dir")
 	})
 }
+
+// TestExtractSSHConfigEmptyLeafKeepsDefault verifies a present-but-EMPTY ip or
+// port leaf falls back to the default, as extractServerList
+// (internal/component/config/loader_extract.go) does for every other service.
+//
+// Without the emptiness test the port branch produced "127.0.0.1:", which the
+// kernel binds on an ephemeral port while ze doctor probes 2222: the daemon and
+// its readiness check disagreed about which endpoint exists.
+//
+// The tree is built directly rather than parsed, and that is deliberate: the file
+// parser rejects `port ""` with "invalid uint16" before ExtractSSHConfig is
+// reached, so no config FILE can drive this today. ExtractSSHConfig takes a
+// *config.Tree, not a file, and the guard is what makes its contract hold for
+// every tree rather than for the one shape today's parser happens to allow.
+// VALIDATES: an empty leaf is "unset", not "bind whatever the kernel picks".
+// PREVENTS: ssh listening on a port no operator asked for and no check probes.
+func TestExtractSSHConfigEmptyLeafKeepsDefault(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	ssh := config.NewTree()
+	ssh.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("ip", "")
+	srv.Set("port", "")
+	ssh.AddListEntry("server", "main", srv)
+	env.SetContainer("ssh", ssh)
+	tree.SetContainer("environment", env)
+
+	cfg := infra.ExtractSSHConfig(tree)
+	require.True(t, cfg.HasConfig, "the ssh container is present, so extraction must report it")
+	require.Len(t, cfg.ListenAddrs, 1)
+	assert.Equal(t, "0.0.0.0:2222", cfg.ListenAddrs[0],
+		"an empty leaf must keep the default; a bare host:port with no port binds an ephemeral one")
+	assert.Equal(t, "0.0.0.0:2222", cfg.Listen, "Listen is the first address and must agree with it")
+}

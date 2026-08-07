@@ -1,0 +1,30 @@
+# Test: a DISABLED mcp block with a portless server entry still validates
+# VALIDATES: the missing-port guard is gated on `enabled`. ExtractMCPConfig
+# returns ok=false for three different configs -- no mcp block, a block that is
+# switched off, and a block whose servers do not all name a port -- and only the
+# third is a mistake. MCPServersMissingPort answers that one alone.
+# PREVENTS: the regression the guard nearly shipped with. Without the enabled
+# gate, this config exits 1 and `ze doctor` errors, telling the operator to add a
+# port to a service they deliberately turned off. It exits 0 today and must keep
+# doing so.
+#
+# `enabled` is OMITTED rather than written false: the YANG default is false, so
+# the omitted leaf is the shape an operator actually leaves behind, and it is the
+# one a naive tree walk is most likely to mis-read.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+}
+environment {
+	mcp {
+		server alt {
+			ip 127.0.0.1;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -362,12 +362,79 @@ func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
 	if !present || !enabled {
 		return MCPListenConfig{}, false
 	}
-	// A port leaf is mandatory. If the user left it blank and the YANG default
-	// is also empty, the block is unusable.
-	if len(cfg.Servers) == 0 || cfg.Servers[0].Port == "" {
+	// A port leaf is mandatory on EVERY server. extractServerList seeds each
+	// entry with an empty default port (mcp has no fallback), so an entry that
+	// names none leaves Port "" and ServerEndpoint.Listen joins it to "<ip>:",
+	// which the kernel binds on a port it chooses. Testing only Servers[0] let a
+	// list whose FIRST entry named a port carry a second that did not, and the
+	// daemon bound that one where no operator asked and no doctor check probes.
+	// MCPServersMissingPort reports the same shape, because an unusable block
+	// that says nothing is indistinguishable from one that works.
+	if len(cfg.Servers) == 0 {
 		return MCPListenConfig{}, false
 	}
+	for _, s := range cfg.Servers {
+		if s.Port == "" {
+			return MCPListenConfig{}, false
+		}
+	}
 	return cfg, true
+}
+
+// MCPMissingPortAdvice is the tail of the missing-port message, shared by the two
+// operator surfaces that report it (ValidateSemantics for `ze doctor`, and
+// cmd_validate.go for `ze config validate`) so they cannot drift.
+//
+// It names the schema divergence rather than denying it. ze-mcp-conf.yang really
+// does declare `refine port { default 8080; }`, so "mcp has no default port" is
+// false about the document the operator reads, and the operator who FOLLOWED that
+// refine is precisely the one being rejected. The refine is inert twice over: the
+// Ze YANG compiler drops refine defaults, and extractMCPBlock passes an empty
+// default port regardless. Closing that divergence would start an MCP listener
+// where none starts today, which is an owner decision, so it is recorded in
+// plan/deferrals/mcp-port-default-divergence.md and the message tells the truth
+// in the meantime.
+const MCPMissingPortAdvice = " names no port, so MCP starts no listener at all. " +
+	"The YANG default of 8080 is NOT applied to environment.mcp, unlike environment.web and environment.gnmi, " +
+	"so every mcp server entry must name its port explicitly"
+
+// MCPServersMissingPort returns the names of the environment.mcp server entries
+// the operator WROTE that name no port, in config order.
+//
+// ExtractMCPConfig returns ok=false for THREE different configs -- no mcp block,
+// a block that is not enabled, and a block whose servers do not all name a port
+// -- and only the third is a mistake. This answers the third alone, so a caller
+// on the else branch of that ok cannot attribute a switched-off service to a
+// missing port. A disabled block is a deliberate operator choice and must
+// validate exactly as it did before this check existed.
+//
+// It reads the tree rather than MCPListenConfig.Servers so a synthesized entry
+// cannot be mistaken for an authored one: an empty server list is the "mcp is on
+// but unconfigured" shape, which is also not this mistake.
+//
+// It exists so ValidateSemantics and `ze config validate` can speak about the
+// config ExtractMCPConfig silently refuses. Nothing else can: every
+// MCPListenConfig.Validate call sits behind that same ok gate.
+func MCPServersMissingPort(tree *Tree) []string {
+	_, enabled, present := extractMCPBlock(tree)
+	if !present || !enabled {
+		return nil
+	}
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return nil
+	}
+	mcp := envBlock.GetContainer("mcp")
+	if mcp == nil {
+		return nil
+	}
+	var missing []string
+	for _, entry := range mcp.GetListOrdered("server") {
+		if port, _ := entry.Value.Get("port"); port == "" {
+			missing = append(missing, entry.Key)
+		}
+	}
+	return missing
 }
 
 // extractMCPBlock parses environment.mcp in full and reports both whether the

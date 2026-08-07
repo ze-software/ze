@@ -7,6 +7,50 @@ import (
 	"testing"
 )
 
+// TestGenerateStartupConfEmptyNetnsOmitsDirective verifies an empty vpp.lcp.netns
+// produces NO `default netns` line.
+//
+// What is VERIFIED in the vendored source: with no directive,
+// lcp_main.default_namespace stays NULL (lcp_main is zero-initialized,
+// third_party/vpp-linux-cp/src/lcp.c) and lcp_itf_pair_create opens no namespace
+// at all (third_party/vpp-linux-cp/src/lcp_interface.c). So omitting the line IS
+// the empty-namespace behavior, and that is what this test pins.
+//
+// What is INFERRED: that writing `default netns` with an empty value would fail
+// VPP startup, because lcp_itf_pair_config matches `default netns %v` and an
+// unmatched arm returns "interfaces not found". Whether %v consumes an empty
+// value lives in vppinfra, which is not vendored here.
+//
+// VALIDATES: the empty leaf, which every doctor-vpp-lcp-netns surface recommends,
+// yields a startup.conf VPP can parse.
+// PREVENTS: `default netns ` with no value breaking VPP startup for the operator
+// who followed ze doctor.
+func TestGenerateStartupConfEmptyNetnsOmitsDirective(t *testing.T) {
+	s := &VPPSettings{
+		Enabled:   true,
+		APISocket: "/run/vpp/api.sock",
+		Memory:    MemorySettings{MainHeap: "1G", HugepageSize: "2M", Buffers: 128000},
+		Stats:     StatsSettings{SegmentSize: "512M", SocketPath: "/run/vpp/stats.sock"},
+		LCP:       LCPSettings{Enabled: true, Sync: true, AutoSubint: true, Netns: ""},
+	}
+
+	var buf bytes.Buffer
+	if err := GenerateStartupConf(&buf, s); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "default netns") {
+		t.Errorf("an empty netns emitted a default netns directive VPP cannot parse:\n%s", out)
+	}
+	// The rest of the linux-cp stanza is unaffected: only the one directive goes.
+	if !strings.Contains(out, "linux-cp {") {
+		t.Errorf("linux-cp section missing:\n%s", out)
+	}
+	if !strings.Contains(out, "lcp-sync") {
+		t.Errorf("lcp-sync missing:\n%s", out)
+	}
+}
+
 func TestGenerateStartupConf(t *testing.T) {
 	// VALIDATES: AC-1 -- startup.conf generated with correct sections
 	// PREVENTS: startup.conf generation regression

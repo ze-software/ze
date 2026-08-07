@@ -1,0 +1,35 @@
+# Test: ze doctor --json reports an mcp server entry that names no port
+# VALIDATES: the SECOND operator surface. `ze config validate` and `ze doctor`
+# reach the missing-port report through different code -- cmd_validate.go builds
+# its own result, config.ValidateSemantics feeds the doctor bridge -- and each
+# sits behind its own copy of the same ExtractMCPConfig ok gate. Fixing one and
+# leaving the other is how a guard ends up half-wired, so both are gated.
+# PREVENTS: doctor passing a config whose mcp listener never starts.
+#
+# Sibling: test/parse/mcp-listener-missing-port.ci covers `ze config validate`,
+# and test/parse/mcp-listener-missing-port-disabled.ci covers the switched-off
+# block that must NOT be reported.
+#
+# One command on purpose: expect=stdout:contains= matches the file's ACCUMULATED
+# stdout, so a second command's output can satisfy the first's assertions.
+
+tmpfs=mcp-missing-port.conf:terminator=EOF_CONF
+environment {
+    mcp {
+        enabled true
+        server primary {
+            ip 127.0.0.1
+            port 8080
+        }
+        server alt {
+            ip 127.0.0.1
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json mcp-missing-port.conf
+expect=exit:code=1
+expect=stdout:contains=config-mcp-invalid
+expect=stdout:contains=server alt
+expect=stdout:contains=names no port

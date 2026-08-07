@@ -460,9 +460,13 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "empty netns",
-			modify:  func(s *VPPSettings) { s.LCP.Netns = "" },
-			wantErr: true,
+			// An empty netns is the ONE value that leaves the LCP TAPs in the
+			// namespace ze runs in (lcp_set_default_ns NULLs the global default,
+			// third_party/vpp-linux-cp/src/lcp.c). This row asserted the
+			// opposite until 2026-08-07, which made the validator refuse the
+			// exact config `ze doctor` tells the operator to write.
+			name:   "empty netns is accepted: it is the remedy doctor prints",
+			modify: func(s *VPPSettings) { s.LCP.Netns = "" },
 		},
 		{
 			name:    "invalid pci address",
@@ -506,6 +510,40 @@ func TestValidate(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+// TestEmptyNetnsSurvivesParseAndValidate drives the operator's route end to end:
+// they read `ze doctor`, write `netns ""`, and commit. ParseConfig must keep the
+// empty string (not fall back to the "dataplane" seed, which applies only to an
+// OMITTED leaf) and Validate must accept it.
+//
+// A table row alone would not prove this. The seed lives in ParseConfig and the
+// refusal lived in validateNetns, so only the pair proves the config an operator
+// can actually type reaches the daemon.
+// VALIDATES: the remedy every doctor-vpp-lcp-netns surface names is expressible.
+// PREVENTS: two guards contradicting each other -- doctor telling the operator to
+// empty the leaf and config validation rejecting the result.
+func TestEmptyNetnsSurvivesParseAndValidate(t *testing.T) {
+	cfg, err := ParseSettings([]byte(`{"enabled":"true","lcp":{"enabled":"true","netns":""}}`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if cfg.LCP.Netns != "" {
+		t.Errorf("netns = %q, want the empty string the operator wrote", cfg.LCP.Netns)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("an empty netns is the remedy ze doctor prints, and Validate refused it: %v", err)
+	}
+
+	// The omitted leaf keeps meaning "dataplane" (the YANG default), so the
+	// change above does not silently move every existing config.
+	omitted, err := ParseSettings([]byte(`{"enabled":"true","lcp":{"enabled":"true"}}`))
+	if err != nil {
+		t.Fatalf("parse omitted: %v", err)
+	}
+	if omitted.LCP.Netns != "dataplane" {
+		t.Errorf("omitted netns = %q, want dataplane", omitted.LCP.Netns)
 	}
 }
 

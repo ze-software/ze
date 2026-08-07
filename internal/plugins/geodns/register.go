@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -62,6 +63,26 @@ func init() {
 			Check:        checkGeoDNSTLSCert,
 		},
 	}
+
+	// parseListeners (config.go) returns 127.0.0.1:5300 AND ::1:5300 for an empty
+	// listener list, so an enabled geodns with no listener block binds both. The
+	// YANG refine that says the same never reaches the schema, so
+	// config.CollectListenersWithDefaults saw nothing and ze doctor probed
+	// neither. geodns-listen-capability does not close that: it skips any port at
+	// or above 1024, so it is silent on the unprivileged default.
+	//
+	// Registered from the plugin's own package rather than the shared
+	// listener_defaults.go, for the same self-containment reason as as112. The
+	// name is the schema-path-derived one config.DiscoverListenerServices builds,
+	// not a name chosen here.
+	config.RegisterListenerDefaultIPs("service-geodns-listener", []string{"127.0.0.1", "::1"}, "5300")
+
+	// DNS binds BOTH transports on every endpoint: dnsserver.Manager.bind
+	// (internal/core/dnsserver/manager.go) calls ListenPacket for udp and Listen
+	// for tcp, and fails the endpoint if either fails. Without this the
+	// zt:listener shape makes ze doctor probe TCP only, which passes while UDP
+	// 5300 is held by something else.
+	config.RegisterListenerProtocols("service-geodns-listener", config.ProtocolUDP, config.ProtocolTCP)
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-show:geodns",

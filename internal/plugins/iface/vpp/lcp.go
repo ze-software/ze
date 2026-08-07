@@ -5,12 +5,15 @@
 // interface, so kernel networking (the ze BGP listener, ssh, ...) can bind on a
 // VPP-owned NIC. The pair is programmed with lcp_itf_pair_add_del.
 //
-// netns: the TAP lands in the namespace given by vpp.lcp.netns. ze maps its
-// root-reachable markers (host/root/empty) to the empty per-pair netns and passes
+// netns: the TAP lands in the namespace given by vpp.lcp.netns. ze maps its host
+// markers (host/root/empty) to the empty per-pair netns and passes
 // any other value through, but that mapping does NOT place the TAP in VPP's own
 // namespace -- see lcpPairNetns below for what VPP actually does with the value.
 // The doctor check (doctor.go: doctor-vpp-lcp-netns) warns that BGP cannot bind
-// across the namespace boundary (A-4).
+// across the namespace boundary (A-4) and that the named namespace is absent from
+// the host. A marker gets one warning of its own, and every one of those messages
+// names the same remedy: leave vpp.lcp.netns EMPTY, which is what stops VPP
+// opening a namespace at all.
 //
 // host name: Linux caps interface names at IFNAMSIZ-1 = 15 bytes, so the host
 // TAP name is validated <= 15 and rejected on collision rather than silently
@@ -103,21 +106,22 @@ func (b *vppBackendImpl) lcpItfPair(add bool, idx interface_types.InterfaceIndex
 }
 
 // lcpPairNetns maps a configured lcp netns to the per-pair netns field of
-// lcp_itf_pair_add_del: ze's root-reachable markers (host/root/empty) become "",
-// any other name is passed through.
+// lcp_itf_pair_add_del: ze's host markers (host/root/empty) become "", any other
+// name is passed through.
 //
 // CAUTION: "" does NOT mean "VPP's own namespace". lcp_itf_pair_create resolves an
 // empty per-pair netns to the GLOBAL default
-// (third_party/vpp-linux-cp/src/lcp_interface.c:850-855), and ze always
+// (third_party/vpp-linux-cp/src/lcp_interface.c), and ze always
 // writes that default from the same vpp.lcp.netns leaf
-// (internal/component/vpp/startupconf.go:106), which lcp_set_default_ns opens as
-// /var/run/netns/<name> (third_party/vpp-linux-cp/src/lcp.c:73-74). So the markers
+// (internal/component/vpp/startupconf.go), which lcp_set_default_ns opens as
+// /var/run/netns/<name> (third_party/vpp-linux-cp/src/lcp.c). So the markers
 // do not put the TAP where ze
 // runs: netns=host asks VPP for a namespace literally called host. The mapping is
-// left as-is here (A-13 in plan/spec-bgp-netns.md, which owns the fix); either way
-// doctor-vpp-lcp-netns warns that BGP cannot bind across the namespace boundary.
+// left as-is here (A-13 in plan/spec-bgp-netns.md, which owns the fix); doctor
+// now warns on a marker instead of passing it in silence (doctor.go,
+// lcpNetnsMarkerDiagnostic).
 func lcpPairNetns(configured string) string {
-	if lcpNetnsIsRootReachable(configured) {
+	if lcpNetnsIsRootMarker(configured) {
 		return ""
 	}
 	return configured

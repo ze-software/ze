@@ -13,9 +13,14 @@
 # leaf entirely. A check that only fired on an explicitly-set netns would look
 # correct in review and never reach the operator it exists for.
 #
-# No option=needs-linux: unlike the sibling lcp-plugin check this one opens no
-# probe and has no runtime.GOOS gate (doctor.go checkVPPLCPNetns reads the
-# config tree only), so it must fire on every platform.
+# No option=needs-linux: the config leg of the check (doctor.go
+# lcpNetnsConfigDiagnostic) reads the config tree only and speaks on every
+# platform, which is what the three assertions below gate. The check DOES have a
+# platform gate and DOES open a probe -- lcpNetnsDir is /var/run/netns/ on Linux
+# and empty elsewhere, so the host leg adds a second diagnostic there when the
+# namespace is absent. Nothing here asserts on that leg, so the file passes on
+# both, and the unit tests in internal/plugins/iface/vpp/register_test.go drive
+# the host leg with a temporary directory instead.
 #
 # The netns leaf is deliberately OMITTED: "dataplane" is the YANG default and
 # doctor.go re-applies it, so this covers the default-configuration path.

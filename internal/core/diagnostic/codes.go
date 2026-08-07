@@ -320,8 +320,8 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:        "doctor-vpp-lcp-netns",
-		Title:       "LCP netns unreachable by BGP",
-		Description: "The VPP Linux Control Plane TAPs are created in a network namespace (vpp.lcp.netns) that ze's BGP listener does not run in, so BGP cannot bind on an LCP-shadowed interface. No value of the leaf avoids this: VPP resolves vpp.lcp.netns as a namespace name under /var/run/netns/, and ze also passes it as VPP's global default netns, so host and root name namespaces that normally do not exist and LCP pair creation fails. The only remedy today is to run ze in the same namespace as the TAPs; netns-aware BGP binding is specced but not implemented.",
+		Title:       "LCP netns will not carry the TAPs ze needs",
+		Description: "vpp.lcp.netns carries a value, so VPP resolves it as a network namespace NAME and opens /var/run/netns/<name> for the Linux Control Plane TAPs. ze also passes the same leaf as VPP's global default netns. Three outcomes follow, and this code reports whichever applies. The TAPs land outside the namespace ze runs in, so BGP cannot bind on an LCP-shadowed interface: ze has no netns-aware listener, and netns-aware BGP binding is specced but not implemented. ze's own markers host and root are not exempt, because to VPP they are ordinary names: netns=host asks for a namespace literally called host. And when the namespace is absent from this host, LCP pair creation fails at apply with a raw VPP error; a probe that cannot answer is reported as a probe failure and never as absence. Remedy: leave vpp.lcp.netns empty, which clears VPP's global default and leaves the TAPs in VPP's own namespace where ze runs, or run ze in the namespace the leaf names so BGP binds where the TAPs are.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-lcp-netns"},
 	},
 	{
