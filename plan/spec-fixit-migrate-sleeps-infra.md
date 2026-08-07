@@ -101,15 +101,16 @@ Scope confirmed by user (2026-07-14): "write a spec for the ones you deferred/ke
 also convert them." Genuinely-intentional sleeps (deliberate timers that ARE the test) stay,
 documented.
 
-**Added 2026-08-03 (bookkeeping audit): `test/web/commit-flow.wb`.** Homed here from
-`plan/spec-fixit-chaos-reconnect-load-sensitive.md`, which recorded it and could not own it
-(row in `plan/deferrals/fixit-chaos-reconnect-load-sensitive.md`). The test carries
-`option=timeout:value=45s` and two blind `action=wait:ms=1000` steps, verified at HEAD. It
-took 36.8 seconds under a full run against 14.1 seconds standalone on 2026-07-30, a slowdown
-of 2.6 times it does not survive. It is the same defect this spec exists to remove: a wait on
-elapsed time where a wait on state belongs. The ratchet in `test/.ci-sleep-baseline` counts
-`test/**/*.ci` only, so a `.wb` conversion moves no number, and the predecessor spec already
-converted `rbac-web`, so the web suite is not new ground here.
+**Added 2026-08-03 (bookkeeping audit): `test/web/commit-flow.wb`. CONVERTED 2026-08-07,
+see the session note in the Implementation Summary.** Homed here from the chaos-reconnect
+spec, which recorded it and could not own it. That spec is closed and gone; its row survives
+in `plan/deferrals/fixit-chaos-reconnect-load-sensitive.md`, which now carries the closing
+evidence. The test carried `option=timeout:value=45s` and two blind `action=wait:ms=1000`
+steps. It took 36.8 seconds under a full run against 14.1 seconds standalone on 2026-07-30, a
+slowdown of 2.6 times it did not survive. It was the same defect this spec exists to remove: a
+wait on elapsed time where a wait on state belongs. The ratchet in `test/.ci-sleep-baseline`
+counts `test/**/*.ci` only, so a `.wb` conversion moves no number, and the predecessor spec
+already converted `rbac-web`, so the web suite was not new ground here.
 
 ## Revised Approach (plan of record, 2026-07-14)
 
@@ -482,6 +483,46 @@ alone deliberately rather than done under the wrong spec.
 
 **Still open here:** P2 (runner stderr-wait), P4 (fib), P6/P7 (already reported
 done above), P8, P9, and the `test/plugin` remainder.
+
+### Session 2026-08-07 -- `test/web/commit-flow.wb` converted
+
+The deferral row homed here on 2026-08-03 is closed
+(`plan/deferrals/fixit-chaos-reconnect-load-sensitive.md`). Both
+`action=wait:ms=1000` steps are gone and `option=timeout` is 30s.
+
+**The second wait hid a vacuous assertion, and that is the finding.** Discard
+answers with an HX-Redirect (`handleConfigDiscard`,
+`internal/component/web/handler_config_commit.go`), so the browser leaves the
+page. The pending change then leaves its DOM whether the server discarded it or
+not, and `expect=html:not-contains=` was true on the page it landed on. Stubbing
+`EditorManager.Discard` (`internal/component/web/editor.go`) to `return nil` left
+the old test PASSING. The migrated test polls the server's own readback and FAILS
+against the same stub. This is R-3 (a subtly vacuous negative) caught in the web
+suite rather than in the reject bucket.
+
+**New primitive: `action=wait-until:path=<p>:contains=<text>`**
+(`Browser.WaitUntil`, `internal/component/web/testing/runner.go`). It re-opens a
+path until the served HTML carries the text, bounded by the `expectDeadline`
+already used by every browser retry. It is the `.wb` counterpart of
+`ze_api.wait_for_output` from P3: a readback poll for a standalone driver with no
+push signal. The first wait needed no primitive at all, because a positive
+`expect=` already polls the DOM (`retryPositive`,
+`internal/component/web/testing/expect.go`).
+
+**Two defects found while verifying, neither blocking this conversion, both
+unhomed:**
+- `option=timeout` is INERT in `.wb`. `WBTestCase.Timeout` is written by
+  `parseWBOption` and read by nothing (`gopls references`: two hits, both inside
+  `parser.go`), and `zeTestRunWebTest` applies no wall-clock bound. A `.wb` test's
+  only real bounds are `agentTimeout` (30s per browser command) and
+  `expectDeadline` (15s per retried assertion). Wire it with
+  `ParallelTimeoutHeadroom`, or delete the option: the doc now states the truth
+  either way.
+- Concurrent `ze-test web` PROCESSES share browser sessions. The session name is
+  `test.Nick` (`zeTestRunWebTest`), which is derived from the file path, so two
+  runs of the same test in one checkout drive one browser page and stomp each
+  other. This makes `scripts/dev/stress-repro.py` unusable against the web suite,
+  and it is a live hazard for two agents in a shared checkout.
 ### Bugs Found/Fixed
 ### Documentation Updates
 ### Deviations from Plan

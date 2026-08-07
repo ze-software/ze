@@ -113,10 +113,14 @@ Unknown directives or kinds fail parsing immediately.
 
 | Option | Effect |
 |--------|--------|
-| `option=timeout:value=<dur>` | Per-test timeout (default `30s`) |
+| `option=timeout:value=<dur>` | Parsed into `WBTestCase.Timeout` and read by nothing. A `.wb` test has NO wall-clock bound of its own: the real bounds are `agentTimeout` (30s per `agent-browser` command) and `expectDeadline` (15s per retried assertion or `wait-until`) |
 | `option=skip:reason=<text>` | Skip the test; `reason` is surfaced in runner output |
+| `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
+| `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
+| `option=auth:user=<u>:password=<p>:role=<r>` | Repeatable. Seeds the user and starts the server with authentication instead of `--insecure-web` |
 
-<!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip -->
+<!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth -->
+<!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest runs RunWBFileWithSession with no per-test deadline -->
 
 ### Actions
 
@@ -128,9 +132,41 @@ Unknown directives or kinds fail parsing immediately.
 | `hover` | `id` or `text` | Hover element |
 | `press` | `key` (+ optional `id`/`text`) | Press a key, optionally focused on an element |
 | `wait` | `ms` (or none) | Wait `ms` milliseconds, or for in-flight network to settle |
+| `wait-until` | `path` + `contains` | Re-open `path` until the page it serves contains the text. Stops polling at `expectDeadline`. **Leaves the browser on `path`** |
+| `login` | `user` + `password` | Drive the login form and submit |
 | `screenshot` | `file` | Save a screenshot |
 
-<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/screenshot -->
+<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/login/screenshot -->
+
+`wait:ms=` is a blind wait and asserts on elapsed time, which is what
+`ai/rules/completion.md` bans: it passes on a quiet host and fails on a busy one.
+Reach for the wait that names the state instead.
+
+| The step waits for | Use |
+|--------------------|-----|
+| A render the browser drives (an htmx swap, a JS update) | Nothing. A positive `expect=` polls the DOM until it lands |
+| A mutation to reach the SERVER | `action=wait-until:path=<readback>:contains=<text>` |
+| In-flight requests to drain, with no assertion after | `action=wait` |
+
+A positive `expect=` cannot stand in for `wait-until`: it re-reads the DOM the page
+already holds, so a readback the browser never fetched again reports the state that
+was true before the action. `action=wait` cannot either, because its idle predicate
+is true both before a request begins and after it ends.
+
+Two properties of `wait-until` bite if you assume otherwise.
+
+**It leaves the browser on the path it polled.** Every expectation after it judges
+the readback, not the page the test was driving. That is what makes
+`commit-flow.wb` work: its closing `not-contains` must read `/config/diff`, because
+the page discard redirects to never held the pending change anyway. When you want
+the previous page back, `action=open` there yourself.
+
+**`expectDeadline` stops the POLLING, and is not a wall-clock cap.** The deadline is
+checked between rounds, so the round in flight when it expires runs to completion,
+and each round issues browser commands capped only by `agentTimeout`. Nothing bounds
+a `.wb` test above that: `option=timeout` is inert (see Options).
+<!-- source: internal/component/web/testing/runner.go -- WaitUntil, WaitLoad, inflightIdleExpr -->
+<!-- source: internal/component/web/testing/expect.go -- retryPositive, retryCommand, expectDeadline -->
 
 ### Expectations
 
@@ -138,11 +174,16 @@ Unknown directives or kinds fail parsing immediately.
 |-------------|------|-------------|
 | `element` | `id` / `not-id` | element with that id is present / absent in the DOM |
 | `element` | `text` / `not-text` | text is present / absent in the accessibility snapshot (case-insensitive) |
+| `html` | `contains` / `not-contains` | the page HTML contains / does not contain the substring |
 | `breadcrumb` | `contains` / `not-contains` (CSV) | each segment is present / absent |
 | `url` | `contains` | the page snapshot contains the substring |
 | `title` | `contains` | the page text contains the substring (case-insensitive) |
 
-<!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/url/title; id/not-id/text/not-text/contains/not-contains -->
+A POSITIVE expectation polls until it holds or `expectDeadline` expires, so it is a
+state wait as well as an assertion. A NEGATIVE one judges absence on one answer,
+because retrying an absence can only ever turn a real failure into a pass. So an
+absence proves something only when the step before it made the state current.
+<!-- source: internal/component/web/testing/expect.go -- checkExpectation: element/breadcrumb/html/url/title; retryPositive vs retryFetch -->
 
 ### Browser integration (agent-browser)
 

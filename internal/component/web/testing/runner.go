@@ -19,7 +19,10 @@ import (
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
-var errPressActionRequiresKeyParameter = errors.New("press action requires key= parameter")
+var (
+	errPressActionRequiresKeyParameter  = errors.New("press action requires key= parameter")
+	errWaitUntilRequiresPathAndContains = errors.New("wait-until action requires path= and contains= parameters")
+)
 
 // WBTestResult holds the outcome of a single .wb test.
 type WBTestResult struct {
@@ -117,6 +120,53 @@ func (b *Browser) WaitMs(ms string) error {
 	}
 	time.Sleep(d)
 	return nil
+}
+
+// WaitUntil re-opens path until the page it serves contains want. It is the
+// state-based counterpart of WaitMs: the test waits for the server to REPORT the
+// condition instead of guessing how long the server needs to reach it.
+//
+// Neither existing wait covers this. WaitLoad settles on the browser's own
+// in-flight counter, whose predicate (inflightIdleExpr) is true both before a
+// request begins and after it ends, so it cannot prove a click's mutation reached
+// the server. A retried expectation cannot either: it re-reads the DOM the page
+// already holds, and a readback the browser never fetched again can only ever
+// report the state that was true before the click. Re-opening the page each round
+// is what makes the answer current.
+//
+// IT LEAVES THE BROWSER ON path. Every expectation after it therefore asserts
+// against the readback, not against the page the test was driving. That is
+// deliberate and it is load-bearing in commit-flow.wb, whose following
+// `not-contains` must judge the readback: returning to the previous page would
+// put that absence back on a page where it is true either way, which is the
+// vacuity the wait exists to remove. It is still a trap for the next author, so
+// either assert on the readback here or `action=open` back to where you were.
+//
+// It stops polling at the same expectDeadline every other browser retry uses
+// (expect.go), and fails naming the path and the wanted text. That deadline is
+// NOT a wall-clock cap on the step: retryCommand checks it between rounds, never
+// inside one, so the round in flight when it expires still runs to completion. A
+// round issues an `open`, one or more `eval` polls (WaitLoad) and a `get html`,
+// each capped only by agentTimeout, so a stalled round overshoots. Nothing bounds
+// the test above this either: option=timeout parses into WBTestCase.Timeout and
+// is read by nothing, and zeTestRunWebTest applies no deadline of its own.
+func (b *Browser) WaitUntil(path, want string) error {
+	if path == "" || want == "" {
+		return errWaitUntilRequiresPathAndContains
+	}
+	return retryCommand(func() error {
+		if err := b.Open(path); err != nil {
+			return err
+		}
+		html, err := b.GetHTML()
+		if err != nil {
+			return fmt.Errorf("html: %w", err)
+		}
+		if !strings.Contains(html, want) {
+			return fmt.Errorf("%s does not contain %q", path, want)
+		}
+		return nil
+	})
 }
 
 // SetViewport resizes the browser viewport (agent-browser set viewport <w> <h>)
@@ -618,6 +668,8 @@ func executeAction(b *Browser, a *WBAction) error {
 			return b.WaitMs(ms)
 		}
 		return b.WaitLoad()
+	case "wait-until":
+		return b.WaitUntil(a.Values["path"], a.Values["contains"])
 	case "press":
 		key := a.Values["key"]
 		if key == "" {

@@ -1,7 +1,10 @@
 package webtesting
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -110,6 +113,109 @@ func TestLoginActionDrivesLoginForm(t *testing.T) {
 			t.Errorf("login commands missing %q; got:\n%s", want, joined)
 		}
 	}
+}
+
+// TestParseWaitUntilDirective verifies the state-based wait parses into an action
+// carrying both of its keys.
+//
+// VALIDATES: action=wait-until:path=..:contains=.. becomes a wait-until action
+// step with path and contains.
+// PREVENTS: the directive parsing as a bare kind with its keys dropped, which
+// would make WaitUntil return its missing-parameter error at run time instead of
+// waiting on anything.
+func TestParseWaitUntilDirective(t *testing.T) {
+	tc, err := ParseWBFile("action=wait-until:path=/config/diff:contains=Review changes (0)")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(tc.Actions) != 1 || tc.Actions[0].Kind != "wait-until" {
+		t.Fatalf("actions = %+v, want one wait-until action", tc.Actions)
+	}
+	if got := tc.Actions[0].Values["path"]; got != "/config/diff" {
+		t.Errorf("path = %q, want /config/diff", got)
+	}
+	if got := tc.Actions[0].Values["contains"]; got != "Review changes (0)" {
+		t.Errorf("contains = %q, want %q", got, "Review changes (0)")
+	}
+}
+
+// TestWaitUntilRefetchesUntilTheServerReportsTheState is the reason the directive
+// exists: the state it waits for lives on the SERVER, so each round must fetch the
+// page again. A wait that sampled the DOM once could only ever report the state
+// that was true before the action it follows.
+//
+// VALIDATES: WaitUntil re-opens the path until the served HTML contains the wanted
+// text, then returns nil.
+// PREVENTS: a single-sample wait passing on a stale readback, and a wait that
+// re-reads the same loaded page forever.
+func TestWaitUntilRefetchesUntilTheServerReportsTheState(t *testing.T) {
+	logPath := installFlippingAgentBrowser(t, 3)
+	b := NewBrowser("https://127.0.0.1:1234")
+
+	if err := b.WaitUntil("/config/diff", "ready"); err != nil {
+		t.Fatalf("WaitUntil: %v", err)
+	}
+
+	opens := 0
+	for _, c := range readAgentLog(t, logPath) {
+		if strings.HasPrefix(c, "open ") {
+			opens++
+		}
+	}
+	if opens != 3 {
+		t.Errorf("opened %d times, want 3 (one per poll until the server flipped)", opens)
+	}
+}
+
+// TestWaitUntilRejectsMissingParameters keeps a mistyped directive loud. Both keys
+// are required, and the run-time error names them; the deadline for a condition
+// that never holds is retryCommand's, covered by TestRetryPositiveReturnsLastError.
+//
+// VALIDATES: an empty path or an empty contains fails immediately.
+// PREVENTS: a wait-until with a dropped key silently waiting on nothing and
+// passing.
+func TestWaitUntilRejectsMissingParameters(t *testing.T) {
+	installFlippingAgentBrowser(t, 1)
+	b := NewBrowser("https://127.0.0.1:1234")
+
+	if err := b.WaitUntil("", "ready"); err == nil {
+		t.Error("WaitUntil with no path returned nil, want an error")
+	}
+	if err := b.WaitUntil("/config/diff", ""); err == nil {
+		t.Error("WaitUntil with no contains returned nil, want an error")
+	}
+}
+
+// installFlippingAgentBrowser installs a fake agent-browser that serves
+// "<html>pending</html>" until the flip-th `open`, then "<html>ready</html>". It
+// models the only thing WaitUntil is for: a server state that changes between two
+// fetches of the same path.
+func installFlippingAgentBrowser(t *testing.T, flip int) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "agent-browser.log")
+	opensPath := filepath.Join(dir, "opens")
+	scriptPath := filepath.Join(dir, "agent-browser")
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
+		"case \"$1\" in\n" +
+		"  eval) echo true ;;\n" +
+		"  open) echo x >> \"" + opensPath + "\" ;;\n" +
+		"  get)\n" +
+		"    n=$(wc -l < \"" + opensPath + "\")\n" +
+		"    if [ \"$n\" -ge " + strconv.Itoa(flip) + " ]; then echo '<html>ready</html>'; else echo '<html>pending</html>'; fi ;;\n" +
+		"esac\n"
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake agent-browser: %v", err)
+	}
+	if err := os.WriteFile(opensPath, nil, 0o600); err != nil {
+		t.Fatalf("write opens counter: %v", err)
+	}
+
+	t.Setenv("AGENT_BROWSER_TEST_LOG", logPath)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return logPath
 }
 
 // TestRunWBTestCaseAppliesViewportAndLocaleFirst verifies the runner applies the

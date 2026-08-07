@@ -2,7 +2,7 @@
 # VALIDATES: a settings form save creates a pending change visible through commit UI
 # PREVENTS: forms posting to fake admin URLs with no way to commit or discard
 
-option=timeout:value=45s
+option=timeout:value=30s
 
 action=open:path=/show/system/identity/
 expect=element:id=workbench-shell
@@ -14,10 +14,16 @@ action=click:id=workbench-form-save
 action=wait
 expect=element:text=Review & Commit
 
+# Review swaps the open diff modal in over the page. Both assertions are positive,
+# so each polls the DOM until that swap lands.
 action=click:id=commit-review-btn
-action=wait:ms=1000
+expect=html:contains=diff-modal open
 expect=html:contains=system host web-host-1
 
+# Discard answers with an HX-Redirect, so the browser leaves this page. The
+# pending change then leaves its DOM whether the server discarded it or not, and
+# an absence assertion on the page it lands on is true either way. Read the
+# server's own pending-change count instead, and wait for it to reach zero.
 action=click:id=commit-discard-btn
-action=wait:ms=1000
+action=wait-until:path=/config/diff:contains=Review changes (0)
 expect=html:not-contains=system host web-host-1
