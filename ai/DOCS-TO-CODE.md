@@ -2709,6 +2709,10 @@ Total: 306 design docs, 3256 files
 | `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
 | `internal/core/redact/redact.go` | credential-token redaction for logs |
 
+## `plan/learned/1225-rfc7606-relay-shape.md`
+
+- `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
+
 ## `plan/learned/1226-test-health-dashboard.md`
 
 - `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
@@ -4480,10 +4484,6 @@ Total: 306 design docs, 3256 files
 | `internal/component/web/register.go` | doctor check registration for the web component |
 | `internal/component/web/server_tls_test.go` | web TLS chain + rotation tests |
 | `internal/core/dnsserver/secure_pki_test.go` | DoT/DoH PKI certificate reference tests |
-
-## `plan/spec-rfc7606-5-1-2-relay-shape.md`
-
-- `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
 
 ## `plan/spec-unify-filters.md`
 
