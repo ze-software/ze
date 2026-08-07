@@ -443,9 +443,539 @@ That also shows the recovery catches a sentinel from `sys.excepthook`
 is pre-existing and homed at `plan/spec-interop-suite-red.md`, where its root cause
 is now recorded.
 
+**Round 5 scope, written before the round ran (2026-08-07):** round 5's fixes and
+the sibling call sites of every function they changed. Two lenses, one pass.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/interop.py` | `docker_logs` (the new `strict=` contract), `observer_fail_line` (fail-closed, truncation bound), `raise_if_observer_failed`, the new `observer_failure_note`, and the corrected `wait_containers_healthy` comment |
+| `test/interop/run.py` | the `observer_failure_note` import and its call in the per-scenario `except BaseException` handler |
+| `55-wire-edit-api-origin-bird/check.py` | `FLOOR_MARGIN`, `_connect_delay`, `_check_session_budget`, its call site in `_check`, and the round 5 NOTE recordings (the `wait_route(BATCH_PREFIX)` rail proof, the `docker_logs` bound in `_check_session_never_bounced`) |
+| `55-wire-edit-api-origin-bird/announce-api-origin.py` | the citations converted to symbols, and the two NOTEs recorded there (the backstop window, the single-shot read) |
+| `docs/architecture/testing/interop.md` | the new "A process plugin that fails" section, its three-call-site table and the stated bound |
+| Sibling call sites | every `docker_logs` caller in `test/interop/` (the default contract must be unchanged for them) and all three `raise_if_observer_failed` call sites |
+
+The eight always-in-scope classes apply at any round. A newly added guard that
+fails open is one of them, and rounds 3 and 4 each found one, so it is the first
+lens rather than a checklist row.
+
+**Lenses, named before the first agent was spawned:** guard correctness and
+fail-closed behavior; shared-harness blast radius over the other 100+ scenarios.
+
 | Round | Lens | Severity | Finding | Resolution |
 |-------|------|----------|---------|------------|
-| 5 | (NOT RUN -- weekly usage budget exhausted 2026-08-05) | | Round 5's fixes are unreviewed. The gate is OPEN | Resume here |
+| 5 | both | **ISSUE** | The failure handler asserts a cause it did not establish. `observer_failure_note` (`test/interop/interop.py`) has two return shapes, the plugin's sentinel line and a "could not read" sentence, and `main` (`test/interop/run.py`) printed BOTH behind the fixed prefix `the cause is a process plugin:`. Every scenario whose failure precedes ze's container prints a line whose prefix its own text denies, so one bad prerequisite makes a suite emit over 100 false attributions. Found independently by both lenses, and reproduced end to end by each | Fixed: `observer_failure_note` returns the FINISHED line and `run.py` prints it verbatim, so the composition site is gone rather than reworded. The sentinel case names the plugin; the unreadable case says a plugin failure cannot be ruled out. All three branches measured against live docker, and the original failing case re-run through `run.py` |
+| 5 | guard correctness | **ISSUE** | The round 5 NOTE in `announce-api-origin.py` claims four paths reach `sendingInitialRoutes.Store(0)` without raising `eor-sent`, "all four in `(*Peer).sendInitialRoutes`". FIVE sites clear the flag. The fifth is in `(*Peer).runOnce` (`internal/component/bgp/reactor/peer_run.go`), whose deferred function clears it at session end, outside the function the comment names. Round 3's ISSUE shape again: an exhaustiveness claim the code does not carry | Fixed: the comment counts five, names the queued-teardown branch and the fifth site, and states why none yields a silent green. Verified by the main thread rather than relayed: four sites in `peer_initial_sync.go`, one in `peer_run.go`, and the enclosing function of each was read |
+| 5 | guard correctness | NOTE | `_check_session_never_bounced` (`check.py`) makes a DECISION on `docker_logs`'s DISPLAY contract. An unreadable BIRD log counts 0 and reports "the peer did not hold one session", which it did not establish. Fails closed, so only the named cause is wrong | Fixed: reads with `strict=True`, the contract round 5 added for exactly this caller |
+| 5 | guard correctness | NOTE | `observer_failure_note` catches `RuntimeError` only. `subprocess.run` can raise `OSError`, which escapes into `run.py`'s handler, aborts the scenario loop and loses the summary, against the "It never raises" claim | Fixed: catches `OSError` beside `RuntimeError`, at both consumer sites |
+| 5 | guard correctness | NOTE | "its failure direction is a false RED ... never the reverse" overstates. The single-shot read is not atomic with the `flush()` that follows, so an establishment landing in that gap reads green. The 28s barrier is what makes it unreachable, not the stated impossibility | Fixed: the comment states the gap and names the barrier as what puts it out of reach |
+| 5 | guard correctness | - | **Verified clean, measured not argued.** The `_check_session_budget` floor is the RIGHT floor: at `SESSION_TIMEOUT=40`, exactly `delay + FLOOR_MARGIN`, the scenario PASSED with `wait_session` consuming 30.84s, and setup put 0.5s between BIRD's protocol start and the wait. `SESSION_TIMEOUT=20` and `39` red through `run.py` naming the floor. `_connect_delay` fails closed on an unstated delay and on a missing file, and the PASS line printed from the RENDERED dir proves `_render_scenario_dir` puts `bird.conf` next to `check.py`. `runtime_fail` does request shutdown immediately after the sentinel, so the 2000-line tail claim holds. `ClearStats`'s one non-test caller is `(*Peer).cleanup`, as stated | - |
+| 5 | blast radius | NOTE | `wait_containers_healthy` can exit on a docker-read `RuntimeError`, skipping its own `containers not healthy` message and the ze-log dump. The health-timeout fact is lost | Fixed: the call is wrapped, an unreadable log is printed as a fact, and the health timeout below still raises with its own message |
+| 5 | blast radius | NOTE | The doc's call-site table claims `run.py`'s site fires "ALWAYS, on any scenario failure". The interrupt branch counts the scenario as failed and breaks before reaching it | Fixed: the row states the Ctrl-C exception, and the section records that the two cases are worded differently |
+| 5 | blast radius | NOTE | The handler owns an up-to-15s `docker logs` window in which a Ctrl-C escapes before `failed += 1` runs, so an interrupted scenario drops out of the totals. Before round 5 that window was about zero | Fixed: the two counter lines moved AHEAD of the note call. Re-measured through `run.py`: the failing probe reports `0 passed, 1 failed` |
+| 5 | blast radius | - | **Verified clean.** The `docker_logs` default contract is unchanged for every existing caller: `strict` is a new third parameter defaulting False, and `observer_fail_line` is its only caller (confirmed independently by the main thread). Scenarios with no process plugin stay silent and cost one extra `docker logs`; `05-routes-from-frr`, red at HEAD, printed no note | - |
+
+**Round 6 scope, written before the round ran (2026-08-07):** only the fixes round
+5 produced, and the sibling call sites of each. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/interop.py` | `observer_failure_note`'s new return contract (it now words the claim), its `OSError` catch, and the wrapped `raise_if_observer_failed` inside `wait_containers_healthy` |
+| `test/interop/run.py` | the counter lines moved ahead of the note call, and `log_fail(note)` printing the finished line |
+| `55-wire-edit-api-origin-bird/check.py` | the `strict=True` read in `_check_session_never_bounced` and its docstring |
+| `55-wire-edit-api-origin-bird/announce-api-origin.py` | the corrected five-site enumeration and the corrected single-shot claim, both checked against the reactor source |
+| `docs/architecture/testing/interop.md` | the corrected call-site row and the new wording paragraph |
+| Sibling call sites | every consumer of `observer_failure_note` and of `raise_if_observer_failed` |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** the changed helper contract
+and its consumers; the accuracy of every corrected claim against the producing
+function.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 6 | helper contract | **ISSUE** | Round 5's counter move is INERT on the one path it names, and its comment asserted the effect anyway. A Ctrl-C inside the note window raises INSIDE the `except BaseException` block, so it escapes `main` (`test/interop/run.py`) past the summary: the scenario drops out of the totals whether it was counted before the call or after, because no totals print at all | Fixed at the cause rather than by deleting the claim: the note call is wrapped, an interrupt is reported as `INTERRUPTED` and ends the LOOP, so the summary still prints. Measured both ways by the main thread. HEAD's code: `KeyboardInterrupt escaped main(): no summary, nothing counted`. Fixed code: `✗ INTERRUPTED` then `FAIL 0 passed, 1 failed`, exit 1 |
+| 6 | helper contract | NOTE | `_check`'s `except Exception` path can now REPLACE the scenario's own assertion. Round 5 made the read strict, so an unreadable ze log raises `RuntimeError` from `raise_if_observer_failed` and the bare `raise` below never runs: the runner prints the docker error instead of `BIRD route not found` | Fixed: the call is wrapped there too, the unreadable log is printed as a fact, and the original assertion still stands |
+| 6 | helper contract | - | **Verified clean, measured not argued.** `observer_failure_note` has exactly ONE consumer, which prints it verbatim; no prefix, heading or string test anywhere in `test/`, `docs/`, `scripts/` or `mk/`, so the round 5 defect was removed and not relocated. `None` stays distinguishable, since both text branches are non-empty. Exceptions: `TimeoutExpired` is converted inside `docker_logs`, docker failures come back as `RuntimeError`, a missing or unusable binary is `OSError`, and `UnicodeDecodeError` is unreachable because this host's json-file log driver rewrites invalid bytes (measured). `wait_containers_healthy` was driven live in BOTH cases: the sentinel still propagates as `AssertionError`, and an absent container still reaches `containers not healthy`. No double counting; the interrupt branch's double teardown is pre-existing and idempotent | - |
+| 6 | claim accuracy | **ISSUE** | Site 4's new characterization is FALSE and it replaced the true one. `ClaimInitialSyncEOR` returning false for every family cannot reach that site with `eor-sent` never raised: claim-false requires a prior claim that was not released, and the only other claimant, `(*reactorAPIAdapter).AnnounceEOR` (`internal/component/bgp/reactor/reactor_api_forward.go`), increments `IncrEORSent` on success and releases on failure. So claim-false implies `eor-sent >= 1`, and `wait_peer_eor_sent` returns True on its first poll instead of spinning out. The genuine no-EOR route to that site is the initial-sync EOR loop's send-failure `break`, which round 5 moved to the teardown branch and dropped here | Fixed: the block now names the send-failure `break` for that site, states the claim-false implication explicitly, and records that the round 5 revision had it backwards. Verified by the main thread at `ClaimInitialSyncEOR`, `AnnounceEOR` and both EOR loops |
+| 6 | claim accuracy | **ISSUE** | The corrected single-shot claim overstates the gap. An establishment landing between the row read and the `flush()` does NOT reach the batch rail: `Peer.ShouldQueue` stays true while `sendingInitialRoutes` is non-zero, and the FSM callback sets that flag directly after `setState(PeerStateEstablished)`. The batch rail needs establishment PLUS the whole initial sync draining inside the gap. The correction also merged two different windows, the in-daemon one and the test-side one | Fixed: the comment states what the gap actually requires, and separates the in-daemon window from the test-side one as different mechanisms |
+| 6 | claim accuracy | **ISSUE** | Site 5's stated reason is not carried by its producer. `(*Peer).runOnce`'s deferred function clears the flag but never sets state; state leaves Established only through the FSM callback's `from == fsm.StateEstablished` branch, and two exits skip it while still running the defer. "The reading above denies" also reads BACKWARDS: a non-established state makes this guard PASS, which is the correct outcome | Fixed: the reason is dropped for one that the producer does carry. The block now rests the no-silent-green argument on `wait_peer_eor_sent` polling for `eor-sent >= 1`, which was read at source |
+| 6 | claim accuracy | NOTE | The new `check.py` paragraph calls `UP_TRACE` a "sentinel", a word the same file already uses for `ZE-OBSERVER-FAIL`, and says the default contract answers a docker failure with `""`. It returns `stdout + stderr`, so it is normally docker's own error text | Fixed: "trace line", and both default-contract answers stated exactly |
+| 6 | claim accuracy | - | **Verified accurate.** The FIVE-site count and placement are exact, and no other non-test site exists. "Runs over no family at all" is genuinely reachable, since negotiation intersects advertised Multiprotocol capabilities with no implicit ipv4-unicast (`Negotiate`, `internal/core/bgp/capability/negotiated.go`). The doc's corrected row is true of `main`, and `check.py`'s `strict=True` DECISION-contract claim matches `docker_logs` | - |
+| 6 | out of scope | homed | `wait_peer_eor_sent`'s docstring (`test/scripts/ze_api.py`) says `IncrEORSent` "is called only from `sendInitialRoutes`". It has FOUR non-test callers. The barrier's meaning survives, so it is not a fail-open guard, but the attribution a reader derives from it does not | Homed at `plan/spec-fixit-test-harness-fail-open-guards.md`, in its Provenance section. The goal does not depend on it, so it is not fixed here (`ai/rules/planning.md`, Bounding the loop) |
+
+**Round 7 scope, written before the round ran (2026-08-07):** only the fixes round
+6 produced, and the sibling call sites of each. Two lenses, matching the two kinds
+of defect round 6 found.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/run.py` | the `KeyboardInterrupt` catch around the note call, the `break` it takes, and the rewritten counter comment |
+| `55-wire-edit-api-origin-bird/check.py` | the wrapped `raise_if_observer_failed` in `_check`'s `except Exception` path, and the corrected `_check_session_never_bounced` docstring |
+| `55-wire-edit-api-origin-bird/announce-api-origin.py` | the rewritten five-site block and the rewritten single-shot block, every claim re-checked at the producing function |
+| `docs/architecture/testing/interop.md` | the corrected call-site row |
+| Sibling call sites | the other two `raise_if_observer_failed` call sites, and the interrupt branch `run.py` already had |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** control flow and exception
+paths through the two newly wrapped calls; claim accuracy of the rewritten
+comments, re-derived at the producer rather than checked against round 6's report.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 7 | control flow | **ISSUE** | Neither round 6 fix carries a committed regression test. Both were proven only by probes under `tmp/`, which is git-ignored. Reorder the counters or drop either `except` and nothing in the repo goes red, so round 6's own defect returns silently. `TestInteropRunnerFailsClosedWithoutDocker` (`test/interop/run_test.go`) already shows the pattern: Go drives `run.py` as a subprocess, because `test/interop` is not one of the Python test roots | Fixed: two committed drivers under `test/interop/testdata/` and four Go tests. Each was shown to FAIL against HEAD's harness before being accepted (`ai/rules/interop-and-goal-validation.md`): the interrupt case gives `ESCAPED=KeyboardInterrupt`, the teardown case `ESCAPED=TimeoutExpired`, and the check-path case `RAISED=RuntimeError` in place of the interop assertion. All four run in about 0.2s and start no container |
+| 7 | control flow | **ISSUE** | The summary is still lost one line below the round 6 fix. `docker_rm` and the network removal (`test/interop/interop.py`) call `subprocess.run(..., timeout=30)` with no catch, and `Scenario.teardown` runs from `run.py`'s `finally`: a `TimeoutExpired` escapes that `finally`, escapes `main`, and the run prints NO summary, discarding every tally the suite had accumulated. It hits a passing scenario mid-suite as readily as a failing one. Round 6's defect shape surviving on the line the new comment leans on | Fixed: both calls report the timeout and continue, so teardown cannot take the summary with it. Pinned by `TestInteropRunnerReportsWhenTeardownFails` |
+| 7 | control flow | NOTE | The two `INTERRUPTED` paths are structurally asymmetric: the pre-existing branch calls `scenario.teardown()` explicitly AND falls into the `finally`, so teardown runs twice; the new branch relies on the `finally` alone | Not fixed, deliberately. It is pre-existing, measured idempotent, and costs 0.22s. Folding an unrelated cleanup into a closing commit costs the commit its focus (`ai/rules/rule-precedence.md`) |
+| 7 | control flow | - | **Verified clean, driven not argued.** The `check.py` wrap admits exactly the right exception in all four states: a sentinel still replaces the assertion, and both unreadable forms print the fact while the bare `raise` re-raises the ORIGINAL `AssertionError`. Neither wrap can swallow a reported failure: `check.py`'s block always ends in `raise`, `wait_containers_healthy` always ends in its own `RuntimeError`, and the `run.py` catch admits only `KeyboardInterrupt`. The unwrapped pre-wait call is correctly unwrapped, since there is no prior assertion to preserve | - |
+| 7 | claim accuracy | **ISSUE** | "Both EOR loops call `ReleaseInitialSyncEOR` and skip `IncrEORSent` on the failing path" is half false. The pre-teardown loop calls NEITHER `ClaimInitialSyncEOR` nor `ReleaseInitialSyncEOR`; only the initial-sync loop claims. A maintainer reading this concludes the teardown path takes part in the RFC 4724 Section 2 one-marker-per-family protocol, and it does not | Fixed: the claim is split, and the pre-teardown loop's non-participation is stated. Verified by the main thread at both loops |
+| 7 | claim accuracy | NOTE | "sets that flag directly after `setState(PeerStateEstablished)`" is loose: a bindings loop and several resets sit between the two stores. "Must establish AND drain its whole initial sync" also omits the alternative the same comment names, a read landing in the in-daemon window | Fixed: the gap now states both routes to the batch rail, and the window is no longer described as a couple of statements |
+| 7 | claim accuracy | NOTE | An adjacent line, unchanged since round 4, names `(*Peer).run` as the caller of `setState(PeerStateEstablished)` and `Store(1)`. The producer is the FSM callback registered in `(*Peer).runOnce`, and the round 6 rewrite put the correct symbol two paragraphs below, so the file named two producers for one pair of statements | Fixed: the stale symbol is corrected, so the file names one producer |
+| 7 | claim accuracy | - | **Verified accurate, re-derived from Go source rather than from round 6's report.** The five-site count and placement are exact and no other non-test site exists. Each of the five is reachable with `eor-sent` never raised, by the mechanism named for it. `ClaimInitialSyncEOR` false implies `eor-sent >= 1` is exact: `IncrEORSent` does have two non-claiming callers, and neither breaks the implication, because they add ways for the counter to be non-zero and none for a claim to stay taken with no increment. The no-silent-green argument holds at `wait_peer_eor_sent`. The in-daemon window and the test-side gap are genuinely disjoint. `check.py`'s docstring and the doc's call-site row are both exact | - |
+
+**Round 8 scope, written before the round ran (2026-08-07):** only the fixes round
+7 produced, and the sibling call sites of each. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/interop.py` | the `TimeoutExpired` catch in `docker_rm`, the same catch on the network removal in `Scenario.teardown`, and their comments |
+| `test/interop/testdata/runner_probe.py` | both modes, the shared `subprocess.run` stub they install, and the restore that keeps the atexit hook real |
+| `test/interop/testdata/check_except_probe.py` | both modes, and whether driving `_check` directly still exercises the wrap under test |
+| `test/interop/run_test.go`, `test/interop/scenario55_check_test.go` | the four new tests: what each pins, whether any can pass with its fix removed, and whether any depends on Docker or host state |
+| `55-wire-edit-api-origin-bird/announce-api-origin.py` | the three corrected claims |
+| Sibling call sites | every `docker_rm` caller, and `global_cleanup`, which carries the same unguarded shape at exit |
+
+The eight always-in-scope classes apply at any round. A vacuous test is one of
+them, and this round is the first to add tests, so it is the first lens.
+
+**Lenses, named before the first agent was spawned:** test quality and vacuity,
+driven by removing each fix and confirming its test reds; the teardown change's
+blast radius over every scenario, plus the three corrected claims.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 8 | test vacuity | **BLOCKER** | `TestScenario55ReportsThePluginWhenItSignalled` does not discriminate the regression its own PREVENTS names. Its only assertion matched `process plugin failed` anywhere in the output, and the SWALLOWED path prints those words too, inside `--- ze log could not be read: process plugin failed: ... ---`. Widening the wrap to `except Exception`, which is the exact defect the test claims to catch, left it GREEN | Fixed: the assertion is anchored on `RAISED=`, which the probe prints only for the exception that actually escaped. Re-measured by the main thread against a widened copy: the OLD assertion passes on the broken code, the NEW one fails |
+| 8 | test vacuity | **ISSUE** | Half the wrap is unpinned. Dropping `OSError` from `except (RuntimeError, OSError)` left both tests green, because the probe raised only `RuntimeError`. `docker_logs` converts only `TimeoutExpired`, so a missing or unusable docker binary really does reach that wrap as an `OSError` | Fixed: a third probe mode raises `FileNotFoundError`, and the test drives both shapes as subtests. Re-measured: narrowing the wrap to `RuntimeError` reds the new subtest |
+| 8 | test vacuity | **ISSUE** | Both scenario 55 tests inherit the caller's `SESSION_TIMEOUT`. Below this scenario's floor `_check_session_budget` denies ahead of the handler under test, so an operator with the knob exported reds them on a correct tree. Round 5's own evidence runs used `SESSION_TIMEOUT=20` and `39` | Fixed: `probeEnv` pins the value rather than inheriting it |
+| 8 | test vacuity | **ISSUE** | `runProbe` let the real `atexit` hook run: 11 live `docker rm -f` and `docker network rm` per probe on any host with Docker. Container names carry `ZE_INTEROP_SUFFIX`, so a unit test with that variable exported force-removes a CONCURRENT interop run's lab | Fixed: `probeEnv` empties PATH, so `global_cleanup`'s own `shutil.which("docker")` guard returns early and it issues nothing. The sibling test empties PATH for the same reason. Measured side effect: each probe test went from 0.19s to 0.05s |
+| 8 | test vacuity | NOTE | `scripts/dev/audit-test-relaxation.py` reported `[WEAKENED] run_test.go -- adding t.Skip (1 -> 2)`. Nothing was weakened: a second helper duplicated the interpreter lookup | Fixed by removing the duplication rather than by documenting it. All three call sites share `pythonOrSkip`, so the file holds one skip and the audit is clean |
+| 8 | test vacuity | NOTE | Nothing committed pins the contract the wrap depends on: `docker_logs(..., strict=True)` raising rather than returning `""`. The probes replace `raise_if_observer_failed` wholesale | Recorded, not fixed. It is a round 5 change, outside round 8's scope, and the goal does not depend on it (`ai/rules/planning.md`, Bounding the loop) |
+| 8 | test vacuity | - | **Verified clean, every break driven on copies.** The other three tests all RED against their own defect: dropping the `KeyboardInterrupt` catch gives `ESCAPED=KeyboardInterrupt`, dropping either `TimeoutExpired` catch gives `ESCAPED=TimeoutExpired`, dropping the `_check` wrap gives `RAISED=RuntimeError`. `assertSummaryPrinted` is not satisfiable by a broken runner: round 5's counter placement takes the "no scenario matching" branch and prints no summary at all. Colour codes do not split the summary literal, the scenario filter makes the count independent of the 115 scenario directories, and the `subprocess.run` restore covers every exit path | - |
+| 8 | blast radius | **ISSUE** | The round 7 swallow also fires on a PRE-CLEAN, not only on cleanup. `Scenario.setup`'s first statement is `self.teardown()`, so a removal that timed out there now printed and CONTINUED. A container this scenario starts collides by name and `docker_run` raises, but a stale peer it does NOT start is invisible: `_create_network` accepts a network that already exists, and the check can read green or red off another scenario's daemon at the same address. A removed guard, and the docstring sentence "Every caller is on a cleanup path" is what made it look safe | Fixed: `docker_rm` and `teardown` take the same two-contract shape as `docker_logs`. `setup` calls `teardown(strict=True)` and denies; `run.py`'s `finally` keeps the cleanup contract and cannot lose the summary. Pinned by `TestInteropRunnerDeniesWhenThePreCleanFails`, and both contracts are visible in one probe run |
+| 8 | blast radius | NOTE | `global_cleanup` carries the same unguarded shape and was NOT changed. That is right rather than a gap: it runs after the summary and after `sys.exit`, and a raising `atexit` callback leaves the exit status untouched (measured) | Left as is, deliberately |
+| 8 | blast radius | NOTE | Two imprecisions in the read-to-flush paragraph: "takes one of two things" is not exhaustive, since the panic-recovery `defer` is a third route, and "several resets" is two | Fixed by DELETING the enumeration. The paragraph now states the property instead: `ShouldQueue` returns true unless the peer is Established, so every route needs Established, and the 28s barrier bars it outright. Three revisions enumerated routes and each list was wrong |
+| 8 | blast radius | - | **Verified accurate, derived from Go source.** Only the initial-sync EOR loop claims and releases; the pre-teardown loop does neither. The FSM callback registered in `(*Peer).runOnce` sets state and flag in one `to == fsm.StateEstablished` branch. Exactly one non-test producer of each store, and the plugin file no longer names a second | - |
+
+**Round 9 scope, written before the round ran (2026-08-07):** only the fixes round
+8 produced, and the sibling call sites of each. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/interop.py` | `docker_rm`'s `strict` parameter, `Scenario.teardown`'s `strict` parameter and its network removal, and `Scenario.setup`'s `teardown(strict=True)` call |
+| `test/interop/testdata/runner_probe.py` | the `setup-timeout` mode and the `docker run` refusal added to the stub |
+| `test/interop/testdata/check_except_probe.py` | the `unreadable-oserror` mode and the mode validation |
+| `test/interop/run_test.go` | `pythonOrSkip`, `probeEnv`, the `cmd.Env` on `runProbe`, and the new pre-clean test |
+| `test/interop/scenario55_check_test.go` | the `RAISED=` anchor, the subtest loop, and the pinned `SESSION_TIMEOUT` |
+| `55-wire-edit-api-origin-bird/announce-api-origin.py` | the de-enumerated read-to-flush paragraph |
+| Sibling call sites | every `docker_rm` and `teardown` caller, and every test in the package that `probeEnv` now governs |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** the strict and cleanup
+contract split, over every caller of both; the tests again, with the new
+assertions and the new environment scrub driven for vacuity.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 9 | contract split | **BLOCKER** | The pre-clean guard denies on ONE failure mode. `docker_rm` and the network removal inspect `TimeoutExpired` and never read `result.returncode`, so under `strict=True` every failure docker ANSWERS with returns normally and `setup` proceeds into the state the guard exists to prevent. `docker_logs`, the model the docstring names, does both halves. Reachable: removal already in progress, a device-busy driver error, a daemon restarted mid-suite, and `docker network rm` reporting active endpoints whenever a container survived | Fixed: both removals read the exit code. Docker's own behavior was measured first, on 29.7.1: `docker rm -f <missing>` exits 0 with no output, so any non-zero exit there is a real failure, while `docker network rm <missing>` exits 1 "not found", so that one discriminates on the message and denies on anything else |
+| 9 | contract split | NOTE | Three sibling harnesses carry the same shape untouched: `test/{ipsec,l2tp,pppoe}-interop/lab.py` each define their own `docker_rm` with no strict contract, and each `setup` pre-cleans through it | Homed at `plan/spec-fixit-test-harness-fail-open-guards.md`, which already owns this class. Not caused here and the goal does not depend on them |
+| 9 | contract split | - | **Verified clean.** The call-site set is closed and correctly assigned: `docker_rm` has exactly ten callers, all inside `Scenario.teardown`, all forwarding `strict`; `teardown` has exactly three, `setup` (strict) plus `run.py`'s interrupt branch and its `finally` (both cleanup). A strict raise from `setup` is caught, counted and reported, with both contracts visible in one probe run. The rewritten read-to-flush paragraph is accurate, derived from Go: `ShouldQueue` returns true unconditionally when the peer is not Established, and both batch-rail gates in `reactor_api_batch.go` are `if !peer.ShouldQueue()`, so Established is necessary and the paragraph's "whatever else it needs" correctly declines to claim sufficiency | - |
+| 9 | test vacuity | **ISSUE** | `would race this scenario` has TWO producers, so half the pre-clean guard is unpinned. Deleting `docker_rm`'s strict raise left the test GREEN, because the network removal printed the same anchor; deleting the network half left it green because `docker_rm` runs first. Only breaking BOTH reds it. Round 8's shape again: an anchor the broken path still prints | Fixed: the probe breaks exactly ONE removal per mode, and each subtest matches only its own half's wording |
+| 9 | test vacuity | **ISSUE** | The same shared-anchor shape on the cleanup test's `timed out` assertion: swallowing either half left it green off the other half's output | Fixed the same way, with one subtest per half |
+| 9 | test vacuity | NOTE | `TestInteropRunnerFailsClosedWithoutDocker` built its own environment rather than going through the new shared helper, so it inherited `ZE_INTEROP_SUFFIX`. Harmless, but it was the one env-building site outside the helper | Fixed: it uses `probeEnv` too |
+| 9 | test vacuity | - | **Verified clean.** The `RAISED=` anchor is sufficient, printed only for the exception that escaped `_check`. `could not be read` has one producer on the probe path. `assertSummaryPrinted` fails closed: `EXIT=1` alone is producible by two other exit branches, but neither prints the summary literal. `probeEnv` does what it claims: `global_cleanup` is the only `atexit` registration and returns on `shutil.which("docker") is None`, and `shutil.which` is the file's only non-`subprocess.run` docker entry point. `pythonOrSkip` did not change the pre-existing test | - |
+
+**Discrimination re-measured per HALF after the fix**, since two rounds running
+found an anchor that a broken path still printed. Each break was applied to a
+copy of `interop.py` and every mode run against it. The result is a clean
+diagonal: each break is caught by exactly the mode that owns it, and by no other.
+
+| Break | Caught by | Blind |
+|-------|-----------|-------|
+| the container strict raise, both shapes | `setup-container-timeout`, `setup-container-error` | the four others |
+| the container strict raise, EXIT CODE only | `setup-container-error` alone | the five others |
+| the network strict raise, both shapes | `setup-network-timeout`, `setup-network-error` | the four others |
+| the container cleanup report | `teardown-container-timeout` alone | the five others |
+| the network cleanup report | `teardown-network-timeout` alone | the five others |
+
+**Round 10 scope, written before the round ran (2026-08-07):** only the fixes
+round 9 produced. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/interop.py` | the exit-code check added to `docker_rm` under `strict`, the exit-code check plus "not found" discrimination added to the network removal, and the `return` added to each timeout branch so the two checks cannot both fire |
+| `test/interop/testdata/runner_probe.py` | the rewritten mode grammar, `_breaking_stub`, `_Result`, `_configure`, and the refusal of a `teardown-*-error` mode |
+| `test/interop/run_test.go` | the two table-driven tests, their per-half anchors, and `TestInteropRunnerFailsClosedWithoutDocker` now using `probeEnv` |
+| Sibling call sites | the cleanup contract, which must still never raise now that both removals read a returncode |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** the exit-code contract over
+both removals and both contracts; the mode grammar and the per-half anchors,
+driven for vacuity a third time.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 10 | exit-code contract | **ISSUE** | The CLEANUP contract can still raise. Both removals catch only `TimeoutExpired`, and `subprocess.run` reports a missing or unusable docker binary as `OSError`. Measured: `teardown()` under `strict=False` propagates `FileNotFoundError`, which escapes `run.py`'s `finally` and takes the summary, which is the property round 7 added. The same file already knows this shape, since `observer_failure_note` catches `OSError` for exactly this reason | Fixed: both removals handle all THREE shapes, and each denies under strict and reports under cleanup. Reproduced by the main thread before fixing, and pinned by new `*-oserror` probe modes |
+| 10 | exit-code contract | **ISSUE** | The `"not found"` exemption is an unanchored substring and fails open on a measured input: a misconfigured `DOCKER_CONTEXT` answers exit 1 `context ... not found` having removed nothing, so the exemption exempts it and the pre-clean proceeds past a surviving network | Fixed: the exemption matches the whole phrase including this network's name, `network <NAME> not found`. Both directions are now pinned, by a mode that answers the ordinary absent network and one that answers a different failure containing the same words |
+| 10 | exit-code contract | **ISSUE** | The `return` added to the network timeout branch skips the trailing `shutil.rmtree(self.rendered_dir)` and the two resets, so the rendered copy leaks for the run | Fixed: the network removal moved to `_remove_network`, and the rendered-dir cleanup sits in a `finally`, so it runs whatever the removal does |
+| 10 | exit-code contract | NOTE | `(result.stderr or "")` was half-applied: the next statement dereferenced `result.stderr` unguarded, so a `None` would give `AttributeError` rather than the intended `RuntimeError`. Unreachable with `capture_output=True, text=True`, and it still denies | Fixed anyway: the value is normalized once and reused |
+| 10 | exit-code contract | - | **Verified clean, measured.** Both docstring facts hold on this host: `docker rm -f <missing>` exits 0 with no output, `docker network rm <missing>` exits 1 `network X not found`, and `has active endpoints` carries no "not found" so it denies. The cleanup contract cannot raise on any result shape, since `strict` is the first conjunct in both conditions. The container-timeout cleanup path completes the remaining removals. The caller set is still closed | - |
+| 10 | mode grammar | **ISSUE** | The `failure` axis carried two of docker's three answer classes: no mode produced the ORDINARY answer, non-zero plus "not found", so the exemption clause was unpinned. Deleting it left every mode green while `setup` would deny every interop run whose network is absent, which is the normal first run | Already fixed mid-round, before this report arrived, by the `absent` mode and `TestInteropRunnerPreCleanExemptsOnlyTheAbsentNetwork`. Confirmed by the matrix below: deleting the exemption reds `setup-network-absent` and nothing else |
+| 10 | mode grammar | NOTE | `docker network rm` is a command name, not a diagnosis, and it was the one anchor whose uniqueness rested on an unstated invariant (that the teardown mode's setup is a no-op). Its container sibling anchors on a phrase unique to one producer | Fixed: both network cleanup reports now say "network may be left behind", so the anchor has one producer and needs no invariant |
+| 10 | mode grammar | NOTE | Two Review Gate rows still cited `TestInteropRunnerReportsWhenTeardownTimesOut` and `TestInteropRunnerDeniesWhenThePreCleanTimesOut`, both renamed when the tests became table-driven | Fixed: the rows name the current symbols |
+| 10 | mode grammar | - | **Verified clean, derived independently.** The reviewer built its own break matrix rather than reading the main thread's, agreed with it, and extended it. `_breaking_stub`'s two dispatches are disjoint, the `docker run` refusal cannot mask the thing under test, no accepted mode is dead, and the `teardown-*-error` refusal is correct rather than weak: both returncode checks are gated on `strict`, so such a mode would assert nothing | - |
+
+**Every BRANCH pinned, measured after the fixes.** Eleven single-branch breaks,
+each applied to a copy of `interop.py`, every mode run against each. The
+diagonal is exact: no branch is vacuous, and no mode is blind to its own branch.
+
+| Break | Modes that go RED |
+|-------|-------------------|
+| container timeout raise | `setup-container-timeout` |
+| container OSError raise | `setup-container-oserror` |
+| container exit-code raise | `setup-container-error` |
+| container cleanup report, timeout | `teardown-container-timeout` |
+| container cleanup report, OSError | `teardown-container-oserror` |
+| network timeout raise | `setup-network-timeout` |
+| network OSError raise | `setup-network-oserror` |
+| network exit-code raise | `setup-network-error`, `setup-network-notfound` |
+| network cleanup report, timeout | `teardown-network-timeout` |
+| network cleanup report, OSError | `teardown-network-oserror` |
+| the "not found" exemption | `setup-network-absent` |
+
+**Round 11 scope, written before the round ran (2026-08-07):** only the fixes
+round 10 produced. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/interop.py` | the `OSError` branch on both removals, the anchored `absent` phrase, `_remove_network` as a new method, the `finally` that clears the rendered dir, and the reworded network cleanup reports |
+| `test/interop/testdata/runner_probe.py` | the `oserror`, `absent` and `notfound` failure shapes, and the two new refusals in `_configure` |
+| `test/interop/run_test.go` | the per-shape assertions, the reworded teardown anchors, and `TestInteropRunnerPreCleanExemptsOnlyTheAbsentNetwork` |
+| Sibling call sites | `Scenario.setup` and `run.py`, which now reach `teardown` through a method that can raise from a `finally` block |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** the extracted
+`_remove_network` and the `finally` around it, over every caller and every exit
+path; the new failure shapes and anchors, driven for vacuity a fourth time.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 11 | teardown | **ISSUE** | The `finally` added in round 10 is unpinned: no mode drives `teardown` on a returning removal with `rendered_dir` set, since `RealTeardownScenario.setup` was a no-op, so reverting it leaves every test green | Fixed, and the measurement corrected the diagnosis. The EXTRACTION is what removes the leak: while the removal sat inline, its early `return` exited `teardown` and skipped the cleanup; a `return` inside `_remove_network` exits only that method. So the PROPERTY is pinned rather than the mechanism. The probe now renders a copy as a real setup does, and the test asserts the copy is gone. Driven against the true pre-fix shape, the inline one: both network teardown modes RED with the copy still on disk, and the container mode correctly blind because it never had that shape |
+| 11 | teardown | NOTE | `docker_rm`'s docstring still summarized two branches after a third was added, and did not say that the exit-code shape is deliberately silent under cleanup | Fixed |
+| 11 | teardown | NOTE | `_remove_network` reads no instance state and is a second copy of `docker_rm`'s three-branch shape. One helper carrying the two contracts once would do | Not fixed, deliberately. It is altitude, not correctness, and a refactor at closing time buys a fresh review surface for no behavior change (`ai/rules/rule-precedence.md`) |
+| 11 | teardown | NOTE | Both cleanup reports said "may be left behind", the hedge `ai/rules/writing.md` habit 2 bans; STE uses CAN for a possibility | Fixed to "can be left behind", and the test anchors follow. The full break matrix was re-run afterwards and the diagonal is unchanged |
+| 11 | teardown | - | **Verified clean, driven.** Clearing on the raising path is correct and inert, since `setup` pre-cleans before it renders, so `rendered_dir` is None on every strict path (all modes measured). The `finally` cannot mask a pending exception: driven with a read-only parent, a missing path and a plain file, the strict `RuntimeError` propagates unchanged. The caller set is still closed at three. The cleanup contract never raises across eight exception and result shapes on both removals. Both docker facts re-measured on this host | - |
+| 11 | anchors | - | **Every one of the eleven branches is pinned by exactly one mode, and no anchor is vacuous.** Derived independently, on copies, and it agrees with the main thread's matrix and extends it by five breaks | - |
+| 11 | anchors | **ISSUE** | The teardown test's comment credits the `finally` for what the CLEARING pins. Replacing the `try/finally` with a plain sequential call leaves all modes green | Fixed: the comment states what actually reds, and why the leak came from the removal being inline |
+| 11 | anchors | **ISSUE** | The pre-clean test's comment inverts which assertion pins the branch. On the setup paths `shape` has TWO reachable producers, because `run.py`'s `finally` tears down again and the cleanup report prints the same words, so `want` is the only assertion that reds. Dropping `want` as redundant would make three subtests vacuous | Fixed: the comment names `want` as the pin and `shape` as a readability check, and says which table each earns its place on |
+| 11 | anchors | NOTE | `setup-network-error` is dominated by `setup-network-notfound`: no single-branch break reds it alone. Its unique contribution is asserting the denial names the exit code | Kept. It costs 0.05s and pins the message content |
+| 11 | anchors | NOTE | The `teardown-*-error` refusal is right, but its stated reason understates: the cleanup contract's exit-code behavior IS pinned, incidentally, because `run.py`'s `finally` tears down again against the same broken stub | Fixed: the comment records the incidental coverage and what would silently remove it |
+| 11 | anchors | - | **Verified clean.** `absent-network-passes` is not a vacuous absence assertion: deleting the exemption reds it on BOTH halves, and the only site that can emit "docker run" is unreachable until the pre-clean passes. All twelve accepted modes are driven by a test; none is dead. A refused or mistyped mode fails CLOSED, exiting 2 into `t.Fatalf` | - |
+| 11 | main thread | - | **A stale-green hazard checked and ruled out.** The Go test cache keys on Go sources, and the behavior under test lives in a Python driver a subprocess reads. Measured directly: primed the cache, broke an anchor in the probe, re-ran with no Go file touched. It re-ran and FAILED, so the driver is part of the cache key and a green run cannot be stale | - |
+
+**Round 12 scope, written before the round ran (2026-08-07):** only the fixes
+round 11 produced. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/testdata/runner_probe.py` | `RecordingScenario`, `RealTeardownScenario` now rendering a scenario copy, the `_INSTANCES` reporting in the `finally`, and the expanded refusal comment |
+| `test/interop/interop.py` | the reworded cleanup reports, the corrected `teardown` comment, and the corrected `docker_rm` docstring |
+| `test/interop/run_test.go` | the two corrected comments, the reworded anchors, and the `RENDERED_LEFT=none` assertion |
+| Sibling call sites | `_render_scenario_dir` and `tmp/interop-rendered/`, which the probe now writes to on every teardown mode |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** the probe's new host-side
+side effects, over every mode and every leftover it can create; the accuracy of
+every corrected comment, re-derived rather than checked against round 11.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 12 | side effects | **ISSUE** | `RENDERED_LEFT=none` pins an ATTRIBUTE, not the disk, and the disk check could never fire where it mattered. `teardown` calls `shutil.rmtree(..., ignore_errors=True)` and then clears the attribute unconditionally, so a removal that failed QUIETLY still reports `none`. `RENDERED_ON_DISK` was gated on the attribute being set, which is the one branch where it adds nothing, so it printed in none of the modes. The same class as the last four rounds: an anchor a broken path still prints | Fixed: the probe remembers the path it rendered and reports `RENDERED_ON_DISK` unconditionally from the filesystem, and the test asserts that. Demonstrated by the main thread on the case the attribute could not see: with an unwritable parent the attribute says "none" while the copy is still on disk |
+| 12 | side effects | NOTE | `probeEnv` pinned `SESSION_TIMEOUT` and `ZE_INTEROP_SUFFIX` but inherited the two documented subnet knobs. A malformed `ZE_INTEROP_SUBNET_INDEX` makes `_create_network` raise before the pre-clean's verdict is observable, reddening `absent-network-passes` on a correct tree | Fixed: `probeEnv` strips `ZE_INTEROP_SUBNET_*` too |
+| 12 | side effects | NOTE | `go test ./test/interop` now creates and leaves an EMPTY `tmp/interop-rendered/`, on any host, including one that never ran a real lab. Nothing reaps the render root | Left as is. The path is gitignored and the directory is empty; a reaper would be new machinery for no observable gain |
+| 12 | side effects | NOTE | The round 12 scope row understated the render surface: five modes render, not four. `setup-network-absent` gets past the pre-clean into the real `Scenario.setup`, which renders | Recorded here rather than rewritten, since the scope was fixed before the round ran and editing it afterwards is the thing writing it down first prevents |
+| 12 | side effects | - | **Verified clean, measured.** A collision with a real interop run is IMPOSSIBLE rather than unlikely: `probeEnv` strips `ZE_INTEROP_SUFFIX`, nothing in the repo sets it, so `_SUFFIX` falls back to the pid in both the probe and a live `run.py`, and two live processes cannot share one. The render costs 0.6 ms for the smallest and the largest scenario alike, and every mode still runs in 0.05s. `_INSTANCES` holds exactly one Scenario per probe process, and the `finally` reads only an attribute and `os.path.isdir`, neither of which can raise over a propagating exception. All modes leave the render root empty | - |
+| 12 | claim accuracy | **ISSUE** | The pre-clean test's comment states a universal, "`want` is the only assertion that reds", which is measurably false on its two `-error` rows and contradicted by `docker_rm`'s docstring in the same diff. The cleanup contract reads no exit code, so it stays SILENT on a non-zero exit: "exit 1" has one producer there and both assertions red | Fixed: the claim is scoped to the four timeout and oserror rows, and the `-error` rows' difference is stated with its reason |
+| 12 | claim accuracy | - | **Every other corrected claim is exact, each re-derived by running the break rather than by reading round 11's report.** That the assertion pins the clearing and not the `finally`; that a plain call leaves every mode green; that the leak came from the removal being inline; that deleting the clearing reds all four teardown modes; that `shape` discriminates on the teardown table; that the extraction removes the leak; that `setup` cannot reach a raise with a copy rendered; that the cleanup contract reports a timeout and an unusable binary but not a non-zero exit; and that `run.py`'s `finally` gives every `setup-*-error` mode the cleanup path for free. The retired "may be left behind" wording survives nowhere in code, comments or tests | - |
+
+**Round 13 scope, written before the round ran (2026-08-07):** only the fixes
+round 12 produced. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/testdata/runner_probe.py` | `RecordingScenario.probe_rendered`, the `try/finally` capture in its `setup`, the assignment in `RealTeardownScenario.setup`, and the unconditional `RENDERED_ON_DISK` reporting |
+| `test/interop/run_test.go` | the `RENDERED_ON_DISK=False` assertion, the `ZE_INTEROP_SUBNET_` strip in `probeEnv`, and the rescoped `want`/`shape` comment |
+| Sibling call sites | every mode the `probe_rendered` capture now runs under, including the five that render |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** whether the filesystem
+assertion is itself pinned and cannot be satisfied by a broken path; the
+accuracy of the rescoped comment and the capture's behavior on every mode.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 13 | filesystem assertion | **ISSUE** | `RENDERED_ON_DISK=False` has a SECOND producer: a path that was never a directory. Nothing asserted the copy EXISTED before teardown, so a render that quietly produced nothing kept all four teardown rows green. `_render_scenario_dir` can return an uncreated target without raising, since `os.walk` is silent on a missing source | Fixed: the probe records the precondition at capture time and the tests assert BOTH halves. Re-measured against a deliberately no-op render: all four teardown modes now RED on `RENDERED_EXISTED=False`, where they were previously blind |
+| 13 | filesystem assertion | - | **Round 12's fix confirmed real, on three independent breaks.** Deleting the rendered-copy clearing reds all four modes. Reverting the network removal to the INLINE shape reds both network modes, with the container rows correctly blind because their stub lets the network removal succeed. Making `shutil.rmtree` fail quietly, which is the exact case the previous attribute-based anchor missed, reds all four | - |
+| 13 | filesystem assertion | NOTE | The `ZE_INTEROP_SUBNET_` strip is correct and complete, but the reason given for it was wrong: the pre-clean's verdict IS still observable with a malformed knob, and the only assertion it reds is the one checking the run reached the container start | Fixed: the comment states the measured reason. Also confirmed the strip masks nothing, since no assertion reads the subnet and every docker call is stubbed |
+| 13 | filesystem assertion | NOTE | `setup-network-absent` renders, fails, and its teardown clears, but nothing asserted it | Fixed: that mode now pins the clearing on the setup-failed-after-render path, which no other mode reaches |
+| 13 | capture and comment | - | **Zero BLOCKER and zero ISSUE. The first lens in this gate to come back clean.** Every claim checked is exact: that `want` pins the four timeout and oserror rows and is the only assertion that reds; that the `-error` rows differ because the cleanup contract stays silent on a non-zero exit; that `shape` pins one producer on the teardown table; that teardown clears `rendered_dir` whether or not the removal succeeded; and that the capture behaves as documented on all thirteen modes. Staleness clean: nothing still names the superseded anchor as the pin | - |
+| 13 | capture and comment | NOTE | Three precision gaps: the stated reason for `want` omitted a second producer (the pre-clean's own fall-through), the `-error` citation named only the container producer, and `RecordingScenario`'s docstring documented one of its two recorded attributes | All three fixed. Each strengthens rather than changes the conclusion, and none could produce a false green |
+
+**Round 14 scope, written before the round ran (2026-08-07):** only the fixes
+round 13 produced. Two lenses.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/testdata/runner_probe.py` | `probe_existed`, the extracted `_capture`, its two call sites, the `RENDERED_EXISTED` reporting, and the corrected `RecordingScenario` docstring |
+| `test/interop/run_test.go` | the `RENDERED_EXISTED=True` assertions on both tables, the corrected subnet-strip comment, and the corrected `want`/`shape` comment |
+| Sibling call sites | every mode `_capture` runs under, and `setup-network-absent`, which is now asserted on a path no other mode reaches |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** whether the precondition
+assertion is itself pinned and whether `_capture` can report a state it did not
+observe; the accuracy of the three corrected comments, re-derived.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 14 | precondition | - | **CLEAN. Zero BLOCKER, zero ISSUE, zero NOTE.** Seven breaks attempted and every one is caught: an uncreated render path reds all five modes on the precondition; deleting the clearing and a quietly failing `rmtree` both red all five on the filesystem read; capturing BEFORE the render fails closed; removing the `finally` capture reds `absent-network-passes` alone, which proves that assertion is not dominated by the teardown table; a FILE at the render target reds on the precondition; and a SYMLINK there reds on the filesystem read, because `rmtree(ignore_errors=True)` will not remove one. An EMPTY render leaves the teardown rows green but reds `absent-network-passes` on its container-start assertion, so it is covered rather than a hole | - |
+| 14 | precondition | - | **Verified at the producer.** A stale `rendered_dir` across scenarios is unreachable: `run.py` builds one `Scenario` per matched name against an exact filter, so every probe run prints exactly one triple and the two `Contains` calls cannot be satisfied by different instances. The capture moment is right, since the only `rmtree` on `rendered_dir` is in `teardown` and `setup` calls that only as its first statement, before the render | - |
+| 14 | comments | - | **Zero BLOCKER, zero ISSUE. All three round 13 corrections are exactly true as measured**, including both mechanisms in the hardest one: under the break the pre-clean itself falls through to the cleanup report AND `run.py`'s `finally` prints it again, giving 20 occurrences on the container row and 2 on the network row | - |
+| 14 | comments | NOTE | Four precision gaps in the main thread's own justifications: the subnet comment claimed any malformed knob raises (only `ZE_INTEROP_SUBNET_INDEX` is validated, `_PREFIX` is validated nowhere and reds nothing); it named one redded assertion where three red; "the other modes deny earlier" covered five of nine, since four never reach `_create_network` at all; and the probe's reporting comment still described a two-print pair after a third was inserted between them | All four fixed. Verified independently at the producer: `_candidate_subnet_prefixes` raises on a bad index, and `Scenario.setup` reaches `_create_network` before it renders |
+
+**Round 15 scope, written before the round ran (2026-08-07):** the four comment
+corrections the main thread made DURING round 14, and nothing else.
+
+This round exists for a reason worth recording, because it is a rule about
+evidence rather than about the code. `scripts/dev/review_gate.py` pins the
+SHA-256 of every file the reviewers examined, and any post-review edit
+invalidates the artifact. Round 14's NOTE fixes landed after its reviewers had
+started reading, so recording an artifact against the current hashes would claim
+a review of content nobody reviewed. The tree is frozen for this round: no edit
+is made while it runs, so the artifact records exactly what was read.
+
+| In scope | What it covers |
+|----------|----------------|
+| `test/interop/run_test.go` | the rewritten subnet-strip comment in `probeEnv` |
+| `test/interop/testdata/runner_probe.py` | the rewritten three-print reporting comment in `main`'s `finally` |
+| Everything else in the diff | unchanged since round 14 read it, and reviewed there |
+
+The eight always-in-scope classes apply at any round.
+
+**Lenses, named before the first agent was spawned:** the accuracy of the two
+rewritten comments against their producers; a whole-diff sweep for the eight
+always-in-scope classes, which is the last chance to catch one that every
+narrowing round since round 1 could have stepped past.
+
+| Round | Lens | Severity | Finding | Resolution |
+|-------|------|----------|---------|------------|
+| 15 | comment accuracy | NOTE | `TestInteropRunnerPreCleanExemptsOnlyTheAbsentNetwork`'s comment says a malformed `ZE_INTEROP_SUBNET_INDEX` reds "all three of its assertions". It reds TWO of three: the first block is a NEGATIVE assertion and stays green, because the pre-clean legitimately passes on the exempted absent network. The comment's own stated reason names two mechanisms, so the count contradicts its own justification | **Left unfixed, deliberately.** Fixing it would change the hashes this round's reviewers read, costing another frozen round for a count that cannot drive a wrong action. A NOTE never re-opens a round. The correct count is recorded here and in the artifact, so the record is accurate where the comment is not, and it is the first edit owed by whoever next touches that file |
+| 15 | comment accuracy | - | Nine of ten claims exact, each derived from the producer rather than from an earlier round's report. Both docker facts re-measured on this host, both shapes of the index failure driven, and the three-print reporting confirmed one flip at a time: a quiet removal failure moves `RENDERED_ON_DISK` alone, a no-op render moves `RENDERED_EXISTED` alone | - |
+| 15 | always-in-scope sweep | - | **ZERO across all eight classes. The gate closes.** The only pass since round 1 to see the whole diff and the acceptance criteria, which is where a narrowing loop can step past a defect. Unwired symbol: every added symbol reached in a real run, and all 13 probe modes driven by a test. Vacuous test: 13 subtests green uncached with `-race`, anchors per-half and per-producer. AC with no test: AC-1, AC-2 and AC-4 each fired green live, and AC-3's evidence is the recorded mutation runs the rule requires. User-facing behavior: not applicable, the daemon is untouched, which re-confirms A-3. Linux-only: not applicable, no build tags in the diff. Removed guard: every deletion is a widening. Guard failing open: each denies on miss, error and empty. RFC and interop: scenario PASS against live BIRD 2.15.1, and no assertion is satisfiable without delivery | - |
+| 15 | always-in-scope sweep | - | The two load-bearing docker facts were re-derived from the live green run rather than trusted from the docstrings: the pre-clean removed ten absent containers WITHOUT denying, and let the absent network through the anchored exemption | - |
+
+## Review Gate: CLOSED, 2026-08-07
+
+Fifteen rounds, two independent lenses each, every round scoped in writing before
+it ran. Rounds 1 to 4 on 2026-08-05; rounds 5 to 15 on 2026-08-07.
+
+Artifact: `tmp/review/wire-edit-4-api-origin-deferred-bird-interop-<session>.md`,
+verdict `clean`, 11 files pinned by SHA-256.
+
+**Two BLOCKERs across the gate, both in the review scaffolding rather than the
+feature.** Round 8: a test that did not discriminate the regression its own
+comment named, because the swallowed path printed the words it matched. Round 9:
+a pre-clean guard that read only the timeout and never the exit code, so every
+failure docker ANSWERS with passed through.
+
+**One class recurred six rounds running: an assertion satisfiable by a broken
+path.** It was answered by measuring every branch rather than spot-checking.
+Eleven single-branch breaks, each on a copy, every mode run against each, giving
+an exact diagonal, re-run after every later change. That matrix is what closed
+the class, and it is the transferable result of this gate.
+
+**What did NOT change across fifteen rounds: the feature.** `git diff internal/`
+carries nothing from this spec, and the scenario has passed all ten assertions
+since round 5. Every round from 5 onward reviewed harness and test code added in
+response to the previous round's finding. That is the loop behaving as designed,
+each fix earning a fresh pass, and it is worth knowing when reading the round
+count: this gate measures the cost of getting the EVIDENCE right, not the cost of
+the interop proof, which was correct early and stayed correct.
+
+## Implementation Summary
+
+### What Was Implemented
+- `test/interop/scenarios/55-wire-edit-api-origin-bird/`, four files, driving BOTH
+  announce rails against live BIRD 2.15.1 with one prefix per rail.
+- Shared-harness capabilities the scenario needed: `docker_run(env=)` so a plugin
+  can derive a barrier from `SESSION_TIMEOUT`, and `observer_fail_line` /
+  `raise_if_observer_failed` / `observer_failure_note` so a process plugin's own
+  failure message reaches the operator instead of surfacing as a missing route.
+- Shared-harness fail-closed work the review gate demanded: `docker_logs(strict=)`,
+  the two-contract `docker_rm` / `Scenario.teardown` / `_remove_network`, and the
+  interrupt and timeout guards in `run.py` that stop a run losing its summary.
+- Six committed regression tests plus two probe drivers under `test/interop/testdata/`.
+
+### Bugs Found/Fixed
+- The runner lost its entire summary on three paths (interrupt inside the note
+  read, teardown timeout, unusable docker binary). Covered by
+  `TestInteropRunnerReportsWhenInterruptedMidNote` and
+  `TestInteropRunnerReportsWhenTeardownFails`.
+- The pre-clean swallowed removal failures, so a scenario could run beside a
+  leftover daemon. Covered by `TestInteropRunnerDeniesWhenThePreCleanFails`.
+- `run.py` asserted a cause it had not established for every failure preceding
+  Ze's container. Covered by the wording moving into `observer_failure_note`.
+- The failure path replaced a real interop assertion with a docker error. Covered
+  by `TestScenario55KeepsItsFailureWhenTheZeLogIsUnreadable`.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`: the `SESSION_TIMEOUT` pass-through and a
+  new "A process plugin that fails" section with its three call sites.
+- `make ze-doc-test` is RED and NOT ours: 319 dead references against a baseline of
+  318, none referencing any file in this commit.
+
+### Deviations from Plan
+- The scenario announces TWO prefixes, one per rail, where the spec planned one.
+  A-6 is why: the rail is decided by `Peer.ShouldQueue`, so a one-prefix scenario
+  silently covers one rail and the other's mutation reads as inert.
+- Attribute ORDER is not claimed here. It is not observable from a BIRD route dump,
+  so the claim would be unfalsifiable. Homed at `plan/spec-interop-wire-capture.md`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: the `Builder.SetWire` / `RawWire` reasoning was taken to govern this rail | `SetWire` genuinely has no non-test caller, but the text rail sets `Wire` and never `Attrs`, so that branch is unreachable here | Round 1 review gate, reading the producer chain end to end | A-5 marked broken; AC-3's mutation site restored |
+| assumption | A-6: the scenario was believed to reach `buildBatchAnnounceUpdate`, so one mutation would falsify the whole check | The announce landed before establishment and took the QUEUE rail through `buildRIBRouteUpdate`, which passes a literal nil base | Round 2, by instrumenting each `emit` call site | Second prefix added behind the EOR barrier; both rails now measured in one run |
+| approach | Each round's fix was written from the previous reviewer's report | Three consecutive corrections were themselves wrong, because confirming the previous reviewer is not an independent reading | Rounds 6, 7 and 9 | Later rounds instructed to derive every claim from the Go source and never from the gate's own record |
+| escalation | Six rounds each found an assertion satisfiable by a broken path | Falsifying against HEAD proves a test detects the ORIGINAL bug, not the fix being undone later | Rounds 8 to 13 | Eleven-break diagonal over every branch; recorded in `plan/learned/1355-wire-edit-4-api-origin-deferred-bird-interop.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An interop scenario in which BIRD accepts an API-originated route | Done | `test/interop/scenarios/55-wire-edit-api-origin-bird/` | PASS, ten assertions, live BIRD 2.15.1 |
+| Discharge the interop row owed by `plan/learned/1320-wire-edit-4-api-origin.md` for BOTH rails | Done | same, one prefix per rail | Rail configured, not raced, and asserted before each announce |
+| Attribute ORDER against a live peer | Changed | `plan/spec-interop-wire-capture.md` | Not observable from a route dump; Thomas ruled on the split 2026-08-05 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `_check_communities` on both prefixes | Each type read from its own `BGP.<attr>:` line, in its own punctuation |
+| AC-2 | Done | `_check_session_never_bounced` | Exactly one `State changed to up`; falsified by a forced `birdc restart` giving count=2 |
+| AC-3 | Done | two recorded mutation runs, one per rail | Each reds its own rail's prefix and leaves the other green; image digests recorded |
+| AC-4 | Done | `bird.wait_route` on both prefixes | Prefixes no other scenario announces |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Interop scenario | Done | `55-wire-edit-api-origin-bird/check.py` | ten assertions |
+| Harness regression tests | Done | `test/interop/run_test.go`, `test/interop/scenario55_check_test.go` | 13 subtests, added at the review gate's demand |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `55-wire-edit-api-origin-bird/{ze.conf,bird.conf,check.py,announce-api-origin.py}` | Done | all four exist and are exercised |
+| `docs/functional-tests.md` | Changed | struck at round 1: the checklist row is "new test tools or patterns", and this uses the existing pattern |
+
+### Audit Summary
+- **Total items:** 12
+- **Done:** 10
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (attribute ORDER homed elsewhere; `docs/functional-tests.md` struck with reason)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| BIRD accepts an API-originated route and installs the caller's attributes | interop test | `NO_BUILD=1 python3 test/interop/run.py 55-wire-edit-api-origin-bird` PASS, ten assertions, live BIRD 2.15.1. `_route_dump` raises on an empty dump and `_attr_line` on a missing attribute line, so no assertion is satisfiable without delivery |
+| The interop row owed for BOTH announce rails is discharged | interop test | One prefix per rail in one run: `10.55.0.0/24` through `buildRIBRouteUpdate`, `10.55.1.0/24` through `buildBatchAnnounceUpdate`. Rail configured by `connect false` plus `connect delay time 30`, a measured 28.4s barrier, and asserted before each announce |
+| The check DISCRIMINATES | interop test, mutation runs | Nil `base` on entry to `(*announceAttrs).emit` reds the BATCH prefix only; keeping plan entries with code < 8 reds the QUEUE prefix only. Each run names its image digest |
+| The daemon is unchanged | negative test | `git diff internal/ cmd/ pkg/` empty, re-confirmed by the round 15 whole-diff sweep. This is A-3 |
+| Attribute ORDER against a live peer | not claimed | Unfalsifiable from a route dump: BIRD reprints canonically. Proven at byte level by `test/plugin/wire-edit-api-origin-order.ci`; live-peer half homed at `plan/spec-interop-wire-capture.md` |
+| The evidence itself is trustworthy | review artifact | Fifteen rounds, artifact verdict clean, 11 files hash-pinned. Six rounds found assertions satisfiable by a broken path; answered by an eleven-break diagonal over every branch |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Live-peer proof of attribute ORDER | deferred | `plan/spec-interop-wire-capture.md`, which exists on disk |
+| Shared `ze-interop` image tag races concurrent runs | deferred | `plan/spec-interop-image-tag-race.md`, which exists on disk |
+| Five interop scenarios red at HEAD, plus `Ze.rib_count` fail-open | deferred | `plan/spec-interop-suite-red.md`, which exists on disk |
+| `wait_peer_eor_sent`'s docstring names one of four `IncrEORSent` callers | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md`, Provenance section |
+| Three sibling harnesses carry the same pre-clean defect | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md` |
+
+The shard still holds live rows, so it OUTLIVES this spec and is not removed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `55-wire-edit-api-origin-bird/check.py` | Yes | 374+ lines, read in full at every round |
+| `55-wire-edit-api-origin-bird/announce-api-origin.py` | Yes | drives both rails |
+| `55-wire-edit-api-origin-bird/ze.conf`, `bird.conf` | Yes | carry `connect false` and `connect delay time 30` |
+| `test/interop/testdata/runner_probe.py`, `check_except_probe.py` | Yes | 13 accepted modes between them |
+| `test/interop/run_test.go`, `scenario55_check_test.go` | Yes | 13 subtests green |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | both community types on both prefixes | scenario run: four green community assertions, two per prefix |
+| AC-2 | exactly one establishment | scenario run: "BIRD held ONE session across both announces" |
+| AC-3 | the check discriminates per rail | two mutation runs recorded in `check.py`'s DISCRIMINATION block with image digests |
+| AC-4 | both prefixes installed and unique to this scenario | scenario run: both `wait_route` calls green |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| API announce before establishment -> `buildRIBRouteUpdate` -> `emit` | `55-wire-edit-api-origin-bird/check.py` | Yes: queue-rail prefix installed, and the rail asserted by the plugin before the announce |
+| API announce on a drained peer -> `buildBatchAnnounceUpdate` -> `emit` | same file | Yes: batch-rail prefix installed behind the `quiesce` barrier, which is itself asserted |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | BIRD 2.15.1 probe, 2026-08-05 |
+| A-2 | confirmed | the two punctuations, re-confirmed on every run |
+| A-3 | confirmed | `git diff internal/` empty, re-confirmed at round 15 |
+| A-4 | confirmed, batch rail only | instrumented run: `base-bytes=26 base-codes=[8 32]` |
+| A-5 | broken | the text rail sets `Wire`, never `Attrs`; that branch is unreachable here |
+| A-6 | broken, then resolved | rail decided by `Peer.ShouldQueue`; second prefix added, both rails measured |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `SESSION_TIMEOUT` reaches the Ze container | `docker_run(..., env=)` in `Scenario.setup` | Yes |
+| The three observer-failure call sites and when each fires | `run.py` `main`, `wait_containers_healthy`, `check.py` x2 | Yes, corrected at rounds 11 and 12 after two wrong versions |
+| `docs/functional-tests.md` needed no update | checklist row 10 is "new test tools or patterns"; this uses the existing pattern | Yes, struck at round 1 with the reason |
+
+## Core Insight
+
+Falsifying a test against HEAD proves it detects the ORIGINAL bug. It does not
+prove it detects the FIX being undone later, and only the second property makes it
+a regression test. The gap is invisible because both look like "the test went red".
+
+The check that closes it is a per-branch diagonal: break exactly one branch, run
+every mode, and require each break to be caught by the mode that owns it and by no
+other. A break that reds nothing is a vacuous test; a break that reds several
+modes is an anchor with several producers.
 
 ## Key Design Decisions
 

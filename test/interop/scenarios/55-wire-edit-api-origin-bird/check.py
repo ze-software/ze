@@ -275,6 +275,14 @@ def _check_session_never_bounced():
     lines over a scenario run, so the tail holds every one of them. A scenario
     that made BIRD chatty would have to raise the bound.
 
+    Read with `strict=True`, which is the DECISION contract: this counts lines
+    to decide. The default contract answers a docker failure with docker's own
+    error text and a timeout with "(docker logs timed out)". Neither holds the
+    trace line, so the count is 0, which this would report as "the peer did not
+    hold one session": a red naming a cause it did not establish. The direction
+    is a red either way, so an unreadable log cannot turn the run green, but the
+    cause would be wrong (round 6 review).
+
     Exactly one, not at-least-one: zero means the trace is not being written and
     the assertion would be vacuous.
 
@@ -283,7 +291,7 @@ def _check_session_never_bounced():
     and the old `session_established` assertion still passed. That run is what
     makes this a replacement rather than a rewording.
     """
-    logs = docker_logs(BIRD_CONTAINER, 2000)
+    logs = docker_logs(BIRD_CONTAINER, 2000, strict=True)
     count = logs.count(UP_TRACE)
     if count != 1:
         log_fail("BIRD logged %d `%s` lines, expected exactly 1" % (count, UP_TRACE))
@@ -347,7 +355,16 @@ def _check():
         # are running, and every one of them reads as a missing route. Re-raise
         # with the plugin's message when the plugin is the cause; otherwise let
         # the original assertion stand.
-        raise_if_observer_failed("while checking BIRD's table")
+        #
+        # There is a THIRD outcome, and it must not reach the runner: the read
+        # is strict, so an unreadable ze log raises here and the bare `raise`
+        # below never runs, replacing the assertion that actually failed with a
+        # docker error (round 6 review). An unreadable log is reported as a
+        # fact, and the original failure still stands.
+        try:
+            raise_if_observer_failed("while checking BIRD's table")
+        except (RuntimeError, OSError) as exc:
+            print("--- ze log could not be read: %s ---" % exc)
         raise
 
     _check_session_never_bounced()

@@ -275,3 +275,26 @@ retired or re-levelled, so `make ze-rfc-check` is unaffected.
 
 The independent review of `spec-rfcgate-2-deferred-rs-replay-evidence`,
 2026-08-02, items 3 and 4 of its "left for someone else" list.
+
+### Homed here 2026-08-07: a third harness claim that names the wrong producer
+
+Found while verifying round 6 of
+`plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`, outside that round's
+scope, so it is homed rather than fixed there.
+
+`wait_peer_eor_sent` (`test/scripts/ze_api.py`) is the barrier every EOR-asserting
+functional test holds, and its docstring says the `eor-sent` counter "is
+incremented by `IncrEORSent` ..., which is called only from `sendInitialRoutes`".
+`IncrEORSent` (`internal/component/bgp/reactor/peer_stats.go`) has FOUR non-test
+callers: two in `(*Peer).sendInitialRoutes`
+(`internal/component/bgp/reactor/peer_initial_sync.go`), one in
+`(*reactorAPIAdapter).AnnounceEOR`
+(`internal/component/bgp/reactor/reactor_api_forward.go`), and one in
+`internal/component/bgp/reactor/reactor_api_batch.go`.
+
+The barrier's own meaning survives, which is why this is not a fail-open guard:
+non-zero still means a marker reached the wire, whichever producer sent it. What
+does not survive is the attribution a reader derives from it. A test author
+reasoning "eor-sent can only come from the initial sync" will mis-derive on any
+peer whose route server or batch path also sends End-of-RIB. The same docstring
+also carries a line-number citation, which `ai/rules/writing.md` no longer allows.

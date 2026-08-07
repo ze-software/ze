@@ -289,14 +289,72 @@ def docker_run(
         raise RuntimeError("docker run %s failed: %s" % (name, result.stderr.strip()))
 
 
-def docker_rm(name):
-    """Remove container, ignore if not exists."""
-    subprocess.run(
-        ["docker", "rm", "-f", name],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+def docker_rm(name, strict=False):
+    """Remove container, ignore if not exists.
+
+    Two contracts, selected by `strict`, because the same removal runs at two
+    moments that owe opposite answers. This mirrors `docker_logs`.
+
+    The default is the CLEANUP contract: nothing raises and the run goes on.
+    `Scenario.teardown` runs from `run.py`'s `finally`, so an exception here
+    escapes that `finally`, escapes `main`, and the run ends with NO summary,
+    discarding every tally the suite had accumulated. A timeout and an unusable
+    binary are REPORTED on that path; a non-zero exit is not, because the exit
+    code is read only to decide, and the cleanup contract decides nothing.
+
+    `strict=True` is the PRE-CLEAN contract, and it must raise. `Scenario.setup`
+    removes leftovers BEFORE starting its own containers, and a removal that
+    failed silently there leaves this scenario running beside another one's
+    daemon on the same address. Nothing downstream catches that: a container
+    THIS scenario starts collides by name and `docker_run` raises, but a stale
+    peer it never starts does not, and `_create_network` accepts a network that
+    already exists. Swallowing on that path is a removed guard, not tidiness.
+
+    THREE failure shapes, and all of them leave the container standing, so all
+    of them deny under `strict` and none of them raises under cleanup.
+
+      * the call never answers. `TimeoutExpired`.
+      * docker answers with an error. A non-zero exit: "removal already in
+        progress", a device-busy driver error. `docker rm -f` on a container
+        that does not exist exits 0 with no output (measured on docker 29.7.1),
+        so a non-zero exit here is always a real failure and never the ordinary
+        nothing-to-remove case.
+      * the call cannot run at all. `subprocess.run` reports a missing or
+        unusable docker binary as an `OSError`, which is why
+        `observer_failure_note` catches that type beside `RuntimeError`.
+        `run.py` probes `docker info` once before the suite, so this needs
+        docker to become unusable mid-run, and an uncaught one on the cleanup
+        path escapes the `finally` and takes the summary.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "rm", "-f", name],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        if strict:
+            raise RuntimeError(
+                "docker rm -f %s timed out after 30s: a leftover container "
+                "would race this scenario" % name
+            )
+        print("--- docker rm %s timed out after 30s, container can be left behind ---" % name)
+        return
+    except OSError as exc:
+        if strict:
+            raise RuntimeError(
+                "docker rm -f %s could not run (%s): a leftover container "
+                "would race this scenario" % (name, exc)
+            )
+        print("--- docker rm %s could not run (%s), container can be left behind ---" % (name, exc))
+        return
+    if strict and result.returncode != 0:
+        raise RuntimeError(
+            "docker rm -f %s failed (exit %d): %s -- a leftover container would "
+            "race this scenario"
+            % (name, result.returncode, (result.stderr or "").strip() or "no stderr")
+        )
 
 
 def docker_logs(container, lines=30, strict=False):
@@ -381,22 +439,38 @@ def raise_if_observer_failed(when, container=None):
 
 
 def observer_failure_note(container=None):
-    """Describe a process-plugin failure for a caller that must not raise.
+    """Give a caller that must not raise a COMPLETE line to print, or None.
 
-    Returns the plugin's own sentinel line, or a sentence naming why the log
-    could not be read, or None when the log was read and carries no sentinel.
-    `run.py`'s handler already holds the scenario's failure and cannot afford a
-    second exception on top of it, so the unreadable case comes back as text
-    here rather than as a raise. The fail-closed property is kept: the caller
-    still learns that nothing was checked.
+    Three states reach a caller, and two of them make DIFFERENT claims, so the
+    wording belongs here rather than at the call site:
+
+      * the sentinel is present. The plugin did signal failure, so the line
+        names it as the cause.
+      * the log cannot be read. Nothing is known, so the line says that.
+      * the log was read and holds no sentinel. None.
+
+    One writer, one claim. A caller that received the bare fact and added its
+    own prefix asserted a cause it had not established: `run.py` printed "the
+    cause is a process plugin" in front of a sentence saying the opposite, for
+    every scenario whose failure preceded ze's container (round 5 review).
+
+    Nothing `docker_logs` produces raises out of here. `run.py`'s handler
+    already holds the scenario's failure, and a second exception there would
+    replace the failure being reported. `OSError` is caught beside
+    `RuntimeError` because `subprocess.run` reports a missing or unusable
+    `docker` binary that way, and the strict contract converts only the
+    failures docker itself reports.
     """
     try:
-        return observer_fail_line(container)
-    except RuntimeError as exc:
+        line = observer_fail_line(container)
+    except (RuntimeError, OSError) as exc:
         return (
-            "could not read ze's log, so a process-plugin failure cannot be "
-            "ruled out: %s" % exc
+            "a process-plugin failure cannot be ruled out: ze's log could not "
+            "be read: %s" % exc
         )
+    if line is None:
+        return None
+    return "the cause is a process plugin: %s" % line
 
 
 # --- FRR helpers -------------------------------------------------------------
@@ -1342,7 +1416,13 @@ def wait_containers_healthy(timeout=30):
     # failure is `run.py`'s handler, which calls `observer_failure_note` after
     # the scenario raises. The log dump below covers every other way ze can die
     # during setup.
-    raise_if_observer_failed("while waiting for the containers")
+    try:
+        raise_if_observer_failed("while waiting for the containers")
+    except (RuntimeError, OSError) as exc:
+        # An unreadable log must not REPLACE the failure this function exists
+        # to report. Say what could not be read, then let the health timeout
+        # below raise with its own message (round 5 review).
+        print("--- ze log could not be read: %s ---" % exc)
     if not _check_container_running(ZE_CONTAINER):
         print("--- ze log ---")
         print(docker_logs(ZE_CONTAINER, 60))
@@ -1377,7 +1457,9 @@ class Scenario:
 
     def setup(self):
         """Create network, start containers based on which config files exist."""
-        self.teardown()
+        # PRE-CLEAN, not cleanup: a removal that failed here would leave this
+        # scenario running beside a leftover daemon, so it must deny.
+        self.teardown(strict=True)
 
         _create_network(dual_stack=self._needs_ipv6_wire())
         self.rendered_dir = _render_scenario_dir(self.source_dir, self.name)
@@ -1572,28 +1654,91 @@ class Scenario:
         # Wait for containers to be healthy.
         wait_containers_healthy(30)
 
-    def teardown(self):
-        """Remove containers and network."""
-        docker_rm(ZE_CONTAINER)
-        docker_rm(FRR_CONTAINER)
-        docker_rm(BIRD_CONTAINER)
-        docker_rm(GOBGP_CONTAINER)
-        docker_rm(BMP_CONTAINER)
-        docker_rm(RPKI_CONTAINER)
-        docker_rm(INJECT_CONTAINER)
-        docker_rm(SPEAKER_CONTAINER)
-        docker_rm(SPEAKER2_CONTAINER)
-        docker_rm(KEEPALIVED_CONTAINER)
-        subprocess.run(
-            ["docker", "network", "rm", NETWORK],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if self.rendered_dir:
-            shutil.rmtree(self.rendered_dir, ignore_errors=True)
-            self.rendered_dir = None
-            self.scenario_dir = self.source_dir
+    def teardown(self, strict=False):
+        """Remove containers and network.
+
+        `strict` picks the same two contracts as `docker_rm`, and for the same
+        reason: `setup` calls this to PRE-CLEAN and must not proceed on a
+        removal that failed, while `run.py`'s `finally` must not lose the run's
+        summary to one.
+        """
+        docker_rm(ZE_CONTAINER, strict)
+        docker_rm(FRR_CONTAINER, strict)
+        docker_rm(BIRD_CONTAINER, strict)
+        docker_rm(GOBGP_CONTAINER, strict)
+        docker_rm(BMP_CONTAINER, strict)
+        docker_rm(RPKI_CONTAINER, strict)
+        docker_rm(INJECT_CONTAINER, strict)
+        docker_rm(SPEAKER_CONTAINER, strict)
+        docker_rm(SPEAKER2_CONTAINER, strict)
+        docker_rm(KEEPALIVED_CONTAINER, strict)
+        # The rendered copy is host-side and unrelated to docker, so it is
+        # cleared whatever the network removal does.
+        #
+        # The EXTRACTION is what removes the leak: while the removal sat inline
+        # here, its early `return` exited `teardown` itself and skipped this
+        # block, so a timed-out removal left the copy behind for the whole run.
+        # A `return` inside `_remove_network` now exits only that method. The
+        # `finally` keeps the property if the removal ever raises with a copy
+        # rendered, which `setup` cannot reach today because it pre-cleans
+        # before it renders.
+        try:
+            self._remove_network(strict)
+        finally:
+            if self.rendered_dir:
+                shutil.rmtree(self.rendered_dir, ignore_errors=True)
+                self.rendered_dir = None
+                self.scenario_dir = self.source_dir
+
+    def _remove_network(self, strict):
+        """Remove the lab network, under the same two contracts as `docker_rm`."""
+        try:
+            result = subprocess.run(
+                ["docker", "network", "rm", NETWORK],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            if strict:
+                raise RuntimeError(
+                    "docker network rm %s timed out after 30s: a leftover "
+                    "network would race this scenario" % NETWORK
+                )
+            print(
+                "--- docker network rm %s timed out after 30s, network can be "
+                "left behind ---" % NETWORK
+            )
+            return
+        except OSError as exc:
+            if strict:
+                raise RuntimeError(
+                    "docker network rm %s could not run (%s): a leftover "
+                    "network would race this scenario" % (NETWORK, exc)
+                )
+            print(
+                "--- docker network rm %s could not run (%s), network can be "
+                "left behind ---" % (NETWORK, exc)
+            )
+            return
+        # A network that is not there is the ORDINARY pre-clean case, and docker
+        # reports it as exit 1 `network <name> not found` (measured on docker
+        # 29.7.1), so this one needs the message and not the code alone.
+        #
+        # The exemption is matched on the WHOLE phrase including this network's
+        # name. A bare "not found" is not specific to a missing network: a
+        # misconfigured `DOCKER_CONTEXT` answers `context ... not found` having
+        # removed nothing, and that would exempt itself. Anything the exemption
+        # does not match denies, and "has active endpoints" is the shape that
+        # says a container is still holding the network.
+        absent = "network %s not found" % NETWORK
+        stderr = (result.stderr or "").strip()
+        if strict and result.returncode != 0 and absent not in stderr:
+            raise RuntimeError(
+                "docker network rm %s failed (exit %d): %s -- a leftover "
+                "network would race this scenario"
+                % (NETWORK, result.returncode, stderr or "no stderr")
+            )
 
     def run_check(self):
         """Import and run check.py."""

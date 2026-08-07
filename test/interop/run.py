@@ -197,18 +197,40 @@ def main():
                 scenario.teardown()
                 break
             log_fail("FAIL: %s" % e)
-            # A process plugin that calls runtime_fail (test/scripts/ze_api.py)
-            # stops ze, and every wait the scenario was running then reads as a
-            # route that never arrived. This is the one site that sees EVERY
-            # scenario failure, so it is where the plugin's own message is
-            # recovered: the containers are still up here, teardown runs in the
-            # `finally` below. It never raises -- a second exception here would
-            # replace the failure being reported.
-            note = observer_failure_note()
-            if note:
-                log_fail("the cause is a process plugin: %s" % note)
+            # Counted BEFORE the note is read, and the interrupt inside the note
+            # window is caught below. Both halves are needed and neither works
+            # alone: `observer_failure_note` can spend up to 15 seconds inside
+            # `docker logs`, and a Ctrl-C in that window lands INSIDE this
+            # handler, where it escapes `main` and takes the summary with it.
+            # Counting first is what makes the caught interrupt printable; the
+            # catch is what gets the summary printed at all. Round 5 moved these
+            # two lines and claimed the effect on its own, which round 6
+            # measured as inert: the totals were right and nothing printed them.
             failed += 1
             failed_names.append(scenario_name)
+            # A process plugin that calls runtime_fail (test/scripts/ze_api.py)
+            # stops ze, and every wait the scenario was running then reads as a
+            # route that never arrived. This is the site that sees every
+            # scenario failure other than the interrupt above, so it is where
+            # the plugin's own message is recovered: the containers are still
+            # up here, teardown runs in the `finally` below. It never raises;
+            # a second exception here would replace the failure being reported.
+            #
+            # The note is printed AS IT COMES BACK. It words its own claim,
+            # because the sentinel case and the unreadable case assert
+            # different things, and a prefix added here asserted the wrong one
+            # for every failure that precedes ze's container.
+            try:
+                note = observer_failure_note()
+            except KeyboardInterrupt:
+                # The operator interrupted the docker read. The scenario is
+                # already counted above, so ending the LOOP reports the run;
+                # letting this escape would report nothing at all. Teardown
+                # runs in the `finally` below, as on the branch above.
+                log_fail("INTERRUPTED")
+                break
+            if note:
+                log_fail(note)
         finally:
             scenario.teardown()
 

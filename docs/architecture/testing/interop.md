@@ -147,11 +147,17 @@ sentinel must raise the `lines` bound.
 An unreadable log raises as well, with the docker error rather than the plugin's
 message. "I could not look" is not "the plugin is fine".
 
-Three call sites, and only the last one fires on every failure:
+An unreadable log is NOT a plugin verdict, and the two are worded differently. The
+sentinel case names the plugin as the cause. The unreadable case says a plugin failure
+cannot be ruled out. `observer_failure_note` returns the finished line so one writer
+states the claim: a caller that added its own prefix asserted the plugin as the cause
+for every scenario that failed before Ze's container existed.
+
+Three call sites, and the first covers every failure the other two miss:
 
 | Site | Fires when |
 |------|-----------|
-| `run.py`, the scenario's `except BaseException` handler | ALWAYS, on any scenario failure. Uses `observer_failure_note`, which returns text instead of raising, because a second exception there would replace the failure being reported |
+| `run.py`, the scenario's `except BaseException` handler | on every scenario failure other than a Ctrl-C. An interrupt is counted and ends the loop, whether it arrives before this point or during the read itself, so the run still prints its summary. Uses `observer_failure_note`, which returns text instead of raising, because a second exception there would replace the failure being reported |
 | `wait_containers_healthy` | only when the plugin already stopped Ze before the health loop gave up. A race, measured as such on `11-addpath-frr` |
 | `check.py`, before the first wait and again when a wait fails | when the scenario knows which of its own waits the plugin can outrun |
 <!-- source: test/interop/interop.py -- observer_fail_line, raise_if_observer_failed, observer_failure_note -->

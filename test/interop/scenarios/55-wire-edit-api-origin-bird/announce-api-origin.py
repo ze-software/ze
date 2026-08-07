@@ -128,30 +128,78 @@ row = api._peer_row_or_fail(  # noqa: SLF001  # documented per-peer absence help
 # session. That direction is fail-closed here, since a stale count can only make
 # this guard fire.
 #
-# The converse does not hold, and the comment used to claim it did: four paths
-# reach `sendingInitialRoutes.Store(0)` without raising `eor-sent`, all four in
-# `(*Peer).sendInitialRoutes` -- the panic-recovery `defer`, the `nc == nil`
-# abort, the EOR-send failure `break`, and `ClaimInitialSyncEOR` returning false
-# for every family. None of them yields a silent green: `wait_peer_eor_sent`
-# below then spins out and this plugin fails loudly.
+# The converse does not hold, and two earlier revisions of this comment got the
+# detail wrong in different ways (rounds 5 and 6). FIVE sites clear
+# `sendingInitialRoutes`, and only four are in `(*Peer).sendInitialRoutes`
+# (internal/component/bgp/reactor/peer_initial_sync.go): the panic-recovery
+# `defer`, the `nc == nil` abort, the queued-teardown branch, and the end of the
+# function. The fifth is in `(*Peer).runOnce`
+# (internal/component/bgp/reactor/peer_run.go), whose deferred function clears
+# the flag and resets the EOR claims when the session ends.
+#
+# Each of the five is reachable with `eor-sent` never raised. The panic `defer`
+# and the `nc == nil` abort return ahead of any EOR loop. The queued-teardown
+# branch is reached when the pre-teardown EOR loop breaks on a send failure, or
+# runs over no family at all. The end of the function is reached when the
+# initial-sync EOR loop breaks on a send failure. The fifth runs whenever the
+# session ends, EOR or no EOR. Both loops skip `IncrEORSent` on their failing
+# path, which is what leaves the counter at 0.
+#
+# Only the INITIAL-SYNC loop claims. It calls `ClaimInitialSyncEOR` before the
+# send and `ReleaseInitialSyncEOR` when the send fails. The pre-teardown loop
+# does neither, so it takes no part in the RFC 4724 Section 2 one-marker-per-
+# family protocol, and a round 6 revision of this comment said it did.
+#
+# `ClaimInitialSyncEOR` returning false is NOT one of those paths, and the round
+# 5 revision listed it as one. The only other claimant is
+# `(*reactorAPIAdapter).AnnounceEOR`
+# (internal/component/bgp/reactor/reactor_api_forward.go), which increments
+# `IncrEORSent` when the send succeeds and releases the claim when it fails. A
+# claim that stays taken therefore means a marker reached the wire, so
+# claim-false implies `eor-sent >= 1`, and this guard DENIES on that reading
+# instead of passing on it.
+#
+# None of the five yields a silent green. On every no-EOR path
+# `wait_peer_eor_sent` below spins out and this plugin fails loudly, because
+# that helper polls for `eor-sent >= 1` (test/scripts/ze_api.py).
 #
 # THIS GUARD IS A BACKSTOP, NOT THE MECHANISM. The mechanism is `connect false`
 # (ze.conf) plus `connect delay time` (bird.conf), which makes the queue rail a
 # CONFIGURED barrier of about 28 seconds. The guard cannot be the mechanism,
-# because it has a fail-open window by construction: `(*Peer).run`
-# (internal/component/bgp/reactor/peer_run.go) calls `setState(PeerStateEstablished)`
-# and only then `sendingInitialRoutes.Store(1)`. A row read between those two
-# statements says `state=established` and `eor-sent=0`, which is exactly what
-# this guard passes on, while `ShouldQueue` is already false and the announce
-# would take the BATCH rail. The window is the few statements between them and
+# because it has a fail-open window by construction: the FSM callback registered
+# in `(*Peer).runOnce` (internal/component/bgp/reactor/peer_run.go) calls
+# `setState(PeerStateEstablished)` and only later `sendingInitialRoutes.Store(1)`.
+# A row read between those two statements says `state=established` and
+# `eor-sent=0`, which is exactly what this guard passes on, while `ShouldQueue`
+# is already false and the announce would take the BATCH rail. The window is not
+# two instructions: a bindings loop and several other calls sit between them. It
 # is unreachable behind the 28s barrier, which is why the barrier is the
 # mechanism and this is the check that the barrier held.
 #
 # Single-shot where the sibling helpers poll (`wait_peer_eor_sent` below,
 # `wait_route` in check.py). That is correct here: the guard asserts a state
-# that must hold AT THIS INSTANT, not one to wait for, and its failure direction
-# is a false RED -- a row read a moment too late fails a run that could have
-# been green, never the reverse.
+# that must hold AT THIS INSTANT, not one to wait for, and its usual failure
+# direction is a false RED, since a row read a moment too late fails a run that
+# could have been green.
+#
+# "Never the reverse" is what the round 4 revision claimed, and it is too strong.
+# This read is not atomic with the `flush()` below, so a green reading can go
+# stale in the gap. An establishment alone is not enough to make that matter,
+# which is what the round 5 revision got wrong: `Peer.ShouldQueue`
+# (internal/component/bgp/reactor/peer.go) stays true while
+# `sendingInitialRoutes` is non-zero, and the FSM callback registered in
+# `(*Peer).runOnce` (internal/component/bgp/reactor/peer_run.go) sets that flag
+# in the same `to == fsm.StateEstablished` branch that sets the state.
+#
+# What bars the gap is stated as a PROPERTY rather than as a list of routes,
+# because three revisions of this comment enumerated the routes and each list
+# was wrong. `ShouldQueue` returns true unless the peer is Established, so every
+# route to the batch rail needs Established, whatever else it needs. The 28s
+# barrier bars Established outright, and it bars every route with it.
+#
+# This is a WIDER gap than the fail-open window named above, and a different
+# mechanism. That one is in-daemon, between the state store and the flag store.
+# This one is test-side, between the row read and the flush.
 #
 # Without this guard the scenario reads GREEN on a broken queue rail. Deleting
 # the barriers in ze.conf and bird.conf puts BOTH prefixes on the batch rail,
