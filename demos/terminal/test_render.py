@@ -17,6 +17,28 @@ SPEC = importlib.util.spec_from_file_location("terminal_render", HERE / "render.
 terminal_render = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(terminal_render)
 
+# A process that holds an exclusive lock on argv[1], announces it by creating
+# argv[2], and holds it for argv[3] seconds. Scaffolding for the contention
+# tests below: they need a rival that genuinely owns the lock before the code
+# under test asks for it.
+#
+# This was `flock -F <path> sleep <n>`. `-F` is util-linux's --no-fork, and it
+# is what made kill() reach the sleep rather than orphan it. The flock(1) on a
+# macOS dev machine is the BSD reimplementation (discoteq flock 0.4.0), which
+# has no -F: the holder died on `flock: invalid option -- F`, the lock file was
+# never created, and both tests failed against code that was correct. flock(2)
+# from Python has no flavour to get wrong, and one process needs no --no-fork.
+#
+# The ready marker closes a race the flock(1) holder had: the lock FILE exists
+# from the moment it is opened, which is before the lock is held.
+LOCK_HOLDER_SOURCE = """
+import fcntl, pathlib, sys, time
+handle = pathlib.Path(sys.argv[1]).open("w")
+fcntl.flock(handle, fcntl.LOCK_EX)
+pathlib.Path(sys.argv[2]).touch()
+time.sleep(float(sys.argv[3]))
+"""
+
 
 class SourceDigestTest(unittest.TestCase):
     def test_ignores_page_metadata_but_tracks_render_inputs(self):
@@ -220,6 +242,106 @@ class DemoLockTest(unittest.TestCase):
             time.sleep(0.01)
         self.assertTrue(path.exists(), f"{path} never appeared")
 
+    def hold_lock(self, lock_path, seconds):
+        """Start a rival that owns `lock_path`, and return once it does.
+
+        Returns the holder for the caller to kill. Waiting on the ready marker
+        rather than on the lock file is what makes the wait mean "the lock is
+        held": the file is created before flock(2) is called on it.
+
+        A stale marker would defeat that, so it goes before the holder starts.
+        The caller's `finally` cannot reach a holder this method never returned,
+        so a failed wait kills it here: without that, a timeout leaves a live
+        process sleeping on a lock it still owns.
+        """
+        ready = pathlib.Path(str(lock_path) + ".held")
+        ready.unlink(missing_ok=True)
+        holder = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                LOCK_HOLDER_SOURCE,
+                str(lock_path),
+                str(ready),
+                str(seconds),
+            ]
+        )
+        try:
+            self.wait_for(ready)
+        except BaseException:
+            holder.kill()
+            holder.wait(30)
+            raise
+        return holder
+
+    def test_a_holder_that_never_readies_is_still_killed(self):
+        """`hold_lock` owns the holder until it returns one.
+
+        The caller's `finally` can only kill a holder it was given, so a wait
+        that fails inside `hold_lock` would otherwise leave a live process
+        sleeping on a lock it still owns. `flock -F` had this covered by
+        accident: the old code bound the holder in the caller, so the caller's
+        `finally` ran either way.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            lock_path = pathlib.Path(tmp) / "demo-run.lock"
+            started = []
+            # Bound before the patch: calling subprocess.Popen from inside the
+            # side effect would re-enter the mock and recurse.
+            real_popen = subprocess.Popen
+
+            def capture(*args, **kwargs):
+                started.append(real_popen(*args, **kwargs))
+                return started[-1]
+
+            with (
+                mock.patch.object(subprocess, "Popen", side_effect=capture),
+                mock.patch.object(
+                    type(self), "wait_for", side_effect=AssertionError("no marker")
+                ),
+            ):
+                with self.assertRaises(AssertionError):
+                    self.hold_lock(lock_path, 120)
+
+        self.assertEqual(len(started), 1)
+        # poll() is None only while the process is alive.
+        self.assertIsNotNone(started[0].poll(), "the holder was left running")
+
+    def test_a_stale_marker_does_not_stand_in_for_a_held_lock(self):
+        """The marker means "the lock is held", so a leftover one is a lie.
+
+        A holder killed before its `finally` leaves the marker behind. The next
+        run would then see it immediately, believe a rival owns the lock, and
+        test nothing: exactly the vacuity the marker was added to remove, with
+        the old wait-on-the-lock-file race back in a new costume.
+
+        Popen and `wait_for` are both faked, so what the holder does cannot race
+        the assertion: nothing but `hold_lock` itself can create the marker here.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            lock_path = pathlib.Path(tmp) / "demo-run.lock"
+            ready = pathlib.Path(str(lock_path) + ".held")
+            ready.touch()
+            seen = []
+
+            def record(path):
+                seen.append(path.exists())
+                raise AssertionError("stop before the holder can ready itself")
+
+            with (
+                # spec=, so a future hold_lock that consulted poll() or a
+                # return value cannot pass here on an auto-created attribute.
+                mock.patch.object(
+                    subprocess, "Popen", return_value=mock.Mock(spec=subprocess.Popen)
+                ),
+                mock.patch.object(type(self), "wait_for", side_effect=record),
+            ):
+                with self.assertRaises(AssertionError):
+                    self.hold_lock(lock_path, 1)
+
+        # False: the stale marker was gone before anything could wait on it.
+        self.assertEqual(seen, [False])
+
     @unittest.skipIf(shutil.which("flock") is None, "flock(1) is not installed")
     def test_a_second_run_waits_for_the_first(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -277,12 +399,8 @@ class DemoLockTest(unittest.TestCase):
             # The holder outlives the timeout below, so a run that takes the
             # lock again waits past it and the timeout fails the test. A run
             # that honours the flag returns at once.
-            holder = subprocess.Popen(
-                # -F, so kill() reaches the sleep instead of orphaning it.
-                ["flock", "-F", str(lock_dir / "demo-run.lock"), "sleep", "120"]
-            )
+            holder = self.hold_lock(lock_dir / "demo-run.lock", 120)
             try:
-                self.wait_for(lock_dir / "demo-run.lock")
                 result = subprocess.run(
                     [str(HERE / "demo-lock.sh"), "true"],
                     capture_output=True,
@@ -351,13 +469,11 @@ class DemoLockTest(unittest.TestCase):
 
         self.assertIn("ZE_DEMO_LOCK_HELD=1", command)
 
-    @unittest.skipIf(shutil.which("flock") is None, "flock(1) is not installed")
     def test_the_harness_lock_refuses_a_tree_another_run_holds(self):
         with tempfile.TemporaryDirectory() as tmp:
             lock_path = pathlib.Path(tmp) / "demo-run.lock"
-            holder = subprocess.Popen(["flock", "-F", str(lock_path), "sleep", "30"])
+            holder = self.hold_lock(lock_path, 30)
             try:
-                self.wait_for(lock_path)
                 with mock.patch.multiple(
                     terminal_render, LOCK_PATH=lock_path, LOCK_WAIT_SECONDS=1
                 ):
