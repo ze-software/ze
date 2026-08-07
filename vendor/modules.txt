@@ -46,9 +46,6 @@ github.com/charmbracelet/colorprofile
 # github.com/charmbracelet/keygen v0.5.4
 ## explicit; go 1.24.0
 github.com/charmbracelet/keygen
-# github.com/charmbracelet/ssh v0.0.0-20250826160808-ebfa259c7309
-## explicit; go 1.23.0
-github.com/charmbracelet/ssh
 # github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7
 ## explicit; go 1.25.0
 github.com/charmbracelet/ultraviolet

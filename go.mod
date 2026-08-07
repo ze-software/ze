@@ -9,7 +9,6 @@ require (
 	charm.land/wish/v2 v2.0.3
 	github.com/beevik/ntp v1.5.0
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/ssh v0.0.0-20250826160808-ebfa259c7309
 	github.com/gaissmai/bart v0.29.0
 	github.com/google/nftables v0.3.0
 	github.com/insomniacslk/dhcp v0.0.0-20260326115832-991c7910cf36
@@ -34,6 +33,7 @@ require (
 )
 
 require (
+	charm.land/ssh v0.4.2
 	github.com/cilium/ebpf v0.22.0
 	github.com/gokrazy/tools v0.0.0-20260703063348-3fe400c13246
 	github.com/gokrazy/updater v0.0.0-20260620140544-0a84d8ab3878
@@ -42,7 +42,6 @@ require (
 )
 
 require (
-	charm.land/ssh v0.4.2 // indirect
 	github.com/antihax/optional v1.0.0 // indirect
 	github.com/charmbracelet/x/xpty v0.1.4 // indirect
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0 // indirect
