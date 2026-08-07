@@ -114,8 +114,7 @@ class TestWiring(unittest.TestCase):
         scans = [
             line
             for line in body.splitlines()
-            if "for s in USAGE_SIGNATURES" in line
-            and not line.lstrip().startswith("#")
+            if "for s in USAGE_SIGNATURES" in line and not line.lstrip().startswith("#")
         ]
         self.assertEqual(
             len(scans),
@@ -131,6 +130,31 @@ class TestFeatureGateTags(unittest.TestCase):
         self.assertIn("ze_bgp", tags)
         self.assertEqual(tags, sorted(set(tags)), "tags must be sorted and unique")
         self.assertTrue(all(t.startswith("ze_") for t in tags))
+
+
+class TestRunSlug(unittest.TestCase):
+    """The log name must survive every selector ze-test accepts.
+
+    ai/rules/testing.md tells you to select by NAME rather than by numeric id in
+    anything you keep. A name carries `/`, and the old join put it straight into
+    the log path: the tool died with FileNotFoundError before running anything,
+    on the selector form the rules prefer.
+    """
+
+    def test_a_name_selector_stays_one_filename_component(self):
+        m = load()
+        slug = m.run_slug("web", "test/web/commit-flow.wb")
+        self.assertNotIn("/", slug)
+        self.assertIn("commit-flow.wb", slug)
+
+    def test_a_subsuite_and_numeric_selector_are_unchanged(self):
+        m = load()
+        self.assertEqual(m.run_slug("bgp plugin", "97"), "bgp-plugin-97")
+
+    def test_no_selector_still_names_the_suite(self):
+        m = load()
+        self.assertEqual(m.run_slug("web --draft", ""), "web-draft")
+        self.assertEqual(m.run_slug("web", None), "web")
 
 
 if __name__ == "__main__":

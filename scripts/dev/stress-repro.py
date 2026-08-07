@@ -50,6 +50,7 @@ See ai/tools/stress-repro.md for the full guide and when to reach for this.
 
 import argparse
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -156,6 +157,21 @@ def ensure_binaries(ze_bin, test_bin):
         file=sys.stderr,
     )
     return False
+
+
+def run_slug(suite, sel):
+    """A single filename component naming this run's suite and selector.
+
+    A selector is whatever ze-test accepts, and ai/rules/testing.md tells you to
+    prefer a NAME over a numeric id for anything you keep -- names being stable
+    where positions renumber. Test names in that form carry `/`
+    (test/web/commit-flow.wb), so joining the raw tokens produced a path with
+    directories in it and the tool died on `open()` with FileNotFoundError,
+    refusing exactly the selector the rules ask for.
+    """
+    parts = shlex.split(suite) + shlex.split(sel or "")
+    slug = "-".join(re.sub(r"[^A-Za-z0-9._-]+", "-", p).strip("-") for p in parts if p)
+    return slug.strip("-") or "run"
 
 
 def _as_text(stream):
@@ -320,8 +336,7 @@ def main():
     ts = time.strftime("%Y%m%d-%H%M%S")
     outdir = os.path.join(REPO, "tmp", "stress-repro")
     os.makedirs(outdir, exist_ok=True)
-    slug = "-".join(shlex.split(args.suite) + shlex.split(args.sel))
-    logpath = os.path.join(outdir, f"{slug}-{ts}.log")
+    logpath = os.path.join(outdir, f"{run_slug(args.suite, args.sel)}-{ts}.log")
 
     deadline = time.time() + args.minutes * 60
     print(
