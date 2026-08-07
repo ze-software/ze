@@ -1680,6 +1680,22 @@ class GatedRatchetTest(unittest.TestCase):
                 "no version at HEAD: pretool-renamed-away.py", "\n".join(lines)
             )
 
+    def test_the_names_reach_the_report_with_no_baseline_either(self):
+        """Git answered, no dispatcher is at HEAD: those names ARE the reason.
+
+        `main` derives `baseline=bool(head)`, so an empty mapping takes the
+        no-baseline branch, and that branch dropped the names it was handed.
+        The one report with no ratchet was the one report naming nothing.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            gm = self._gm(tmp, self.BOTH, write_points(tmp))
+            lines, code = rules_points.report_gate_map(
+                gm, baseline=False, no_head_for=["pretool-writeedit.py"]
+            )
+            self.assertEqual(code, 0)
+            self.assertIn("no HEAD baseline", "\n".join(lines))
+            self.assertIn("no version at HEAD: pretool-writeedit.py", "\n".join(lines))
+
     def test_the_ratchet_fires_against_the_real_tree(self):
         """The mutation proof on the real dispatchers and the real points.
 
@@ -1762,6 +1778,65 @@ class GatedRatchetTest(unittest.TestCase):
             _, code = rules_points.report_gate_map(gm, declared_none=found)
             self.assertNotEqual(code, 0, "a check that un-gated itself must fail")
 
+    def test_a_retired_point_may_declare_none(self):
+        """R6: the legitimate transition the rename ratchet refused outright.
+
+        Retire an instruction, declare it in `ai/rules/points/RETIRED.md`, and
+        relabel its check. Eight checks already sit in UNBOUND, so this is the
+        ordinary route out of the corpus rather than an exotic one. The ratchet
+        read only the gate map and the baseline, so it reported the retirement
+        as laundering and left no way through but deleting the check.
+
+        The mutation proof is the first assertion: drop the `retired` argument
+        and the legitimate transition fails again.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            gone = "alpha/directives/first-directive"
+            points = write_points(
+                tmp, {k: v for k, v in GATE_FIXTURE_POINTS.items() if k != gone}
+            )
+            baseline = rules_points.bindings_at_head({"fake-hook.py": self.BOTH})
+            source = self.BOTH.replace(
+                f"# ze point: {gone}", "# ze point: none -- instruction retired"
+            )
+            gm = self._gm(tmp, source, points)
+
+            # Undeclared, the transition is the laundering case and still fails.
+            self.assertEqual(len(rules_points.unbound_regressions(gm, baseline)), 1)
+
+            found = rules_points.unbound_regressions(gm, baseline, {gone})
+            self.assertEqual(found, [], "a declared retirement is not a regression")
+            _, code = rules_points.report_gate_map(gm, declared_none=found)
+            self.assertEqual(code, 0, "the gate map must let a retirement through")
+
+    def test_a_partial_retirement_still_reports_the_live_point(self):
+        """One of two points retired leaves the other one with no gate."""
+        with tempfile.TemporaryDirectory() as tmp:
+            points = write_points(tmp)
+            both = (
+                "# ze point: alpha/directives/first-directive\n"
+                "# ze point: alpha/directives/second-directive\n"
+                "def c_alpha(ctx):\n    return None\n"
+            )
+            baseline = rules_points.bindings_at_head({"fake-hook.py": both})
+            gm = self._gm(
+                tmp,
+                "# ze point: none -- instruction retired\n"
+                "def c_alpha(ctx):\n    return None\n",
+                points,
+            )
+            found = rules_points.unbound_regressions(
+                gm, baseline, {"alpha/directives/first-directive"}
+            )
+            self.assertEqual(len(found), 1, found)
+            self.assertIn("alpha/directives/second-directive", found[0])
+            self.assertNotIn("alpha/directives/first-directive", found[0])
+
+
+# The ledger with its header and no row. Every retirement fixture below is this
+# plus the rows under test, so a row is read exactly as the real file's rows are.
+LEDGER = f"# Retired\n\nProse.\n\n{rules_points.RETIRED_TABLE_HEAD}\n|-------|-----|\n"
+
 
 class CorpusRatchetTest(unittest.TestCase):
     """A point may not leave the corpus without saying so.
@@ -1826,6 +1901,164 @@ class CorpusRatchetTest(unittest.TestCase):
         self.assertGreater(len(counts), 20, "27 rules are committed")
         self.assertNotIn("manifest", counts)
         self.assertGreater(sum(counts.values()), 1000)
+
+    def test_head_point_ids_carry_the_names_not_only_the_count(self):
+        ids = rules_points.head_point_ids(ROOT)
+        if ids is None:
+            self.skipTest("git could not answer; no HEAD baseline on this machine")
+        self.assertGreater(len(ids), 1000)
+        self.assertTrue(all(ref.count("/") == 2 for ref in ids))
+        self.assertFalse([r for r in ids if r.endswith("/manifest")])
+        self.assertEqual(
+            rules_points.head_point_counts(ROOT), dict(rules_points.counts_by_rule(ids))
+        )
+
+    def test_a_fictional_retirement_buys_no_deletion(self):
+        """R4a: delete a real point, declare an id the corpus never carried.
+
+        The hole this closes: the ledger was read for its ROW COUNT and its
+        `<rule>` prefix, so any well-formed row cleared the drop. The reviewer
+        deleted a real point, wrote one row naming
+        `<rule>/nowhere/never-existed`, and SHRUNK went to 0.
+        """
+        head_ids = {"alpha/directives/first", "alpha/directives/second"}
+        now_ids = {"alpha/directives/second"}
+        declared, problems = rules_points.retired_rows_since(
+            LEDGER + "| `alpha/nowhere/never-existed` | filler |\n",
+            LEDGER,
+            head_ids,
+            now_ids,
+        )
+        self.assertEqual(declared, set(), "a fictional id declares nothing")
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("names no point at HEAD", problems[0])
+
+        # The deletion the row tried to cover is still reported, so the run is
+        # red for both reasons rather than green for the wrong one.
+        shrunk = problems + rules_points.corpus_shrink(
+            dict(rules_points.counts_by_rule(head_ids)),
+            rules_points.counts_by_rule(now_ids),
+            rules_points.counts_by_rule(declared),
+        )
+        self.assertEqual(len(shrunk), 2, shrunk)
+        _, code = rules_points.report_gate_map(self._gm(), shrunk=shrunk)
+        self.assertNotEqual(code, 0, "a fake declaration must not clear the ratchet")
+
+    def test_an_honest_retirement_covers_its_own_deletion(self):
+        """The control for R4a: name the point that actually left."""
+        head_ids = {"alpha/directives/first", "alpha/directives/second"}
+        now_ids = {"alpha/directives/second"}
+        declared, problems = rules_points.retired_rows_since(
+            LEDGER + "| `alpha/directives/first` | the instruction was withdrawn |\n",
+            LEDGER,
+            head_ids,
+            now_ids,
+        )
+        self.assertEqual(problems, [])
+        self.assertEqual(declared, {"alpha/directives/first"})
+        self.assertEqual(
+            rules_points.corpus_shrink(
+                dict(rules_points.counts_by_rule(head_ids)),
+                rules_points.counts_by_rule(now_ids),
+                rules_points.counts_by_rule(declared),
+            ),
+            [],
+        )
+
+    def test_a_retirement_of_a_point_still_on_disk_is_refused(self):
+        """A retirement says an instruction left. This one has not.
+
+        Refused rather than tolerated, because the row would do two things it
+        has no right to: cover a drop elsewhere in the same rule, and excuse the
+        point's check from gating an instruction the corpus still carries.
+        """
+        declared, problems = rules_points.retired_rows_since(
+            LEDGER + "| `alpha/directives/second` | filler |\n",
+            LEDGER,
+            {"alpha/directives/first", "alpha/directives/second"},
+            {"alpha/directives/second"},
+        )
+        self.assertEqual(declared, set())
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("still on disk", problems[0])
+
+    def test_one_point_cannot_be_declared_twice(self):
+        """Two rows, one id: one deletion, and the second row is reported."""
+        row = "| `alpha/directives/first` | withdrawn |\n"
+        declared, problems = rules_points.retired_rows_since(
+            LEDGER + row + "| `alpha/directives/first` | withdrawn again |\n",
+            LEDGER,
+            {"alpha/directives/first"},
+            set(),
+        )
+        self.assertEqual(declared, {"alpha/directives/first"})
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("declared twice", problems[0])
+
+    def test_rewording_a_committed_row_mints_no_deletion(self):
+        """Dedup is by ID. The exact-string compare let the `Why` cell buy one."""
+        declared, problems = rules_points.retired_rows_since(
+            LEDGER + "| `alpha/directives/first` | reworded reason |\n",
+            LEDGER + "| `alpha/directives/first` | the original reason |\n",
+            {"alpha/directives/first"},
+            set(),
+        )
+        self.assertEqual(declared, set(), "the row was already committed")
+        self.assertEqual(problems, [])
+
+    def test_a_committed_row_is_never_relitigated(self):
+        """Scope, not allowlist: a row stops counting once HEAD carries it."""
+        row = "| `alpha/directives/first` | withdrawn |\n"
+        declared, problems = rules_points.retired_rows_since(
+            LEDGER + row, LEDGER + row, set(), set()
+        )
+        self.assertEqual((declared, problems), (set(), []))
+
+    def test_the_ledger_is_checked_against_the_real_corpus(self):
+        """The reviewer's mutation, against HEAD's own point names.
+
+        The fixtures above prove the algorithm. This proves the NAMES are real:
+        with an empty `head_ids` every id reads as fictional and nothing here
+        could distinguish the two rows.
+        """
+        head_ids = rules_points.head_point_ids(ROOT)
+        if head_ids is None:
+            self.skipTest("git could not answer; no HEAD baseline on this machine")
+        points_dir = RULES_DIR / "points"
+        now_ids = set(rules_points.points_on_disk(points_dir))
+        ledger = (points_dir / rules_points.RETIRED_FILE).read_text(encoding="utf-8")
+        victim = sorted(head_ids & now_ids)[0]
+        rule = victim.split("/", 1)[0]
+
+        declared, problems = rules_points.retired_rows_since(
+            ledger + f"| `{rule}/nowhere/never-existed` | filler |\n",
+            ledger,
+            head_ids,
+            now_ids - {victim},
+        )
+        self.assertEqual(declared, set())
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("names no point at HEAD", problems[0])
+
+        declared, problems = rules_points.retired_rows_since(
+            ledger + f"| `{victim}` | the instruction was withdrawn |\n",
+            ledger,
+            head_ids,
+            now_ids - {victim},
+        )
+        self.assertEqual(problems, [], "the point that really left is declarable")
+        self.assertEqual(declared, {victim})
+
+    def test_the_committed_tree_declares_no_retirement(self):
+        """The control on the real gate: HEAD's ledger, HEAD's corpus, silent."""
+        head_ids = rules_points.head_point_ids(ROOT)
+        if head_ids is None:
+            self.skipTest("git could not answer; no HEAD baseline on this machine")
+        points_dir = RULES_DIR / "points"
+        _declared, problems = rules_points.retired_since_head(
+            ROOT, points_dir, head_ids, set(rules_points.points_on_disk(points_dir))
+        )
+        self.assertEqual(problems, [], "the committed ledger states nothing false")
 
     def _gm(self):
         with tempfile.TemporaryDirectory() as tmp:

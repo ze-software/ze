@@ -1301,7 +1301,9 @@ def gated_regressions(gm: GateMap, baseline: set[str]) -> list[str]:
     return sorted(ref for ref in baseline if ref in gm.points and ref not in gm.gated)
 
 
-def unbound_regressions(gm: GateMap, baseline: dict[str, set[str]]) -> list[str]:
+def unbound_regressions(
+    gm: GateMap, baseline: dict[str, set[str]], retired: set[str] | None = None
+) -> list[str]:
     """Checks that named a point at HEAD and declare `none -- <why>` now.
 
     The laundering route `gated_regressions` cannot see. Rename a point and its
@@ -1313,14 +1315,29 @@ def unbound_regressions(gm: GateMap, baseline: dict[str, set[str]]) -> list[str]
     Keyed by CHECK, which survives both moves. A ref in the baseline was a real
     point at HEAD by construction: a dangling binding FAILS, so a green HEAD
     carried no binding naming a point that was not there.
+
+    `retired` holds the ids `retired_rows_since` VALIDATED as declared in
+    `ai/rules/points/RETIRED.md` since HEAD, and a ref in it is not a
+    regression. Retiring an instruction, declaring it, and relabelling its check
+    `none` is the ordinary route out of the corpus: eight checks already sit in
+    UNBOUND. Without this the ratchet refused that route with no way through,
+    which is a guard failing in the open direction against legitimate work.
+
+    Fail closed on a PARTIAL declaration: a check that named two points and
+    retires one still lost a gate, so the other point is reported. Only the
+    validated set is consulted, so a fabricated row excuses nothing.
     """
+    retired = set() if retired is None else retired
     now = {b.check for b in gm.gated_bindings}
     declared = {b.check for b in gm.unbound}
-    return sorted(
-        f"{check}: named {', '.join(sorted(refs))} at HEAD, declares `none` now"
-        for check, refs in baseline.items()
-        if check in declared and check not in now
-    )
+    out = []
+    for check, refs in baseline.items():
+        if check not in declared or check in now:
+            continue
+        live = sorted(ref for ref in refs if ref not in retired)
+        if live:
+            out.append(f"{check}: named {', '.join(live)} at HEAD, declares `none` now")
+    return sorted(out)
 
 
 # The retirement ledger. A point that leaves the corpus takes an instruction
@@ -1331,10 +1348,16 @@ def unbound_regressions(gm: GateMap, baseline: dict[str, set[str]]) -> list[str]
 #
 # So a removal is DECLARED, in a file, one line per retired point. The gate
 # compares each rule's point count against HEAD and requires the drop to be
-# covered by lines added since HEAD. Scope, never an allowlist: an entry stops
+# covered by rows added since HEAD. Scope, never an allowlist: an entry stops
 # counting the moment it is committed, so the ledger cannot become a place where
 # a deletion is pre-approved (`ai/rules/rfc-compliance.md` uses the same shape
 # for grandfathering).
+#
+# A row is CHECKED against the corpus rather than believed: it must name a point
+# HEAD carried and disk no longer does. `retired_rows_since` states each refusal
+# and why. A row is also what lets a retired point's check declare `none`
+# (`unbound_regressions`), so an unchecked row would un-gate a live instruction
+# as well as cover a deletion.
 RETIRED_FILE = "RETIRED.md"
 RETIRED_TABLE_HEAD = "| Point | Why |"
 RETIREMENT = re.compile(
@@ -1359,39 +1382,104 @@ def retirement_rows(text: str) -> list[str]:
     return out
 
 
-def retired_since_head(
-    root: Path, points_dir: Path
-) -> tuple[collections.Counter, list[str]]:
-    """Retirements declared since HEAD, per rule, and the malformed rows."""
-    path = points_dir / RETIRED_FILE
-    now = retirement_rows(path.read_text(encoding="utf-8")) if path.is_file() else []
-    head_res = _git(root, ["show", f"HEAD:ai/rules/points/{RETIRED_FILE}"])
-    was = (
-        retirement_rows(head_res.stdout)
-        if head_res is not None and head_res.returncode == 0
-        else []
-    )
-    declared: collections.Counter = collections.Counter()
+def retired_rows_since(
+    now_text: str,
+    was_text: str,
+    head_ids: set[str] | None,
+    now_ids: set[str],
+) -> tuple[set[str], list[str]]:
+    """The ids declared retired since HEAD, and the rows that declare nothing.
+
+    IDS are returned, not a count. The count alone was the hole: `corpus_shrink`
+    asked only how many rows were added since HEAD, so deleting a real point
+    while declaring an id that never existed cleared the ratchet, and editing a
+    committed row's `Why` text minted a second deletion for the same point. A
+    guard whose whole job is to be un-launderable states what it checked
+    (`ai/rules/evidence.md`).
+
+    Four shapes declare nothing, and each one is REFUSED:
+
+    - a row that is not `<rule>/<section>/<slug>` plus a reason;
+    - a row naming an id git HEAD never carried. No instruction left the corpus,
+      because that instruction was never in it. Checked only when git answered:
+      with no HEAD there is no count ratchet to launder either;
+    - a row naming a point that is STILL on disk. A retirement says an
+      instruction left. While the file is there it has not left, and the row
+      would buy a deletion elsewhere in the rule and excuse the point's check
+      from gating it;
+    - a second row for an id this file already declares.
+
+    Two shapes declare nothing and are SKIPPED, because HEAD already carries
+    the declaration and re-judging it would fail somebody else's later run over
+    a committed line: a row unchanged since HEAD, and a row whose id HEAD
+    already declares. The second is what stops a reworded `Why` cell minting a
+    fresh deletion. Both are what keep the ledger a scope rather than an
+    allowlist.
+
+    What this still cannot see is a RENAME inside one rule: the old id was at
+    HEAD, it is gone from disk, and the rule's count did not drop. `RETIRED.md`
+    states that tolerance, and `corpus_shrink` is a count by construction.
+    """
+    where = f"ai/rules/points/{RETIRED_FILE}"
+    unchanged = set(retirement_rows(was_text))
+    at_head = {
+        found.group("id")
+        for found in (RETIREMENT.match(row) for row in unchanged)
+        if found
+    }
+    declared: set[str] = set()
     problems: list[str] = []
-    for row in now:
-        if row in was:
+    for row in retirement_rows(now_text):
+        if row in unchanged:
             continue
         found = RETIREMENT.match(row)
         if not found:
             problems.append(
-                f"ai/rules/points/{RETIRED_FILE}: {row!r} is not "
-                "'<rule>/<section>/<slug> -- <why>'"
+                f"{where}: {row!r} is not '<rule>/<section>/<slug> -- <why>'"
             )
             continue
-        declared[found.group("id").split("/", 1)[0]] += 1
+        ref = found.group("id")
+        if ref in at_head:
+            continue
+        if ref in declared:
+            problems.append(
+                f"{where}: `{ref}` is declared twice; one row retires one point"
+            )
+        elif head_ids is not None and ref not in head_ids:
+            problems.append(
+                f"{where}: `{ref}` names no point at HEAD; a retirement declares "
+                "an instruction that left the corpus, and this id was never in it"
+            )
+        elif ref in now_ids:
+            problems.append(
+                f"{where}: `{ref}` is still on disk; a retirement declares an "
+                "instruction that left, and this one has not"
+            )
+        else:
+            declared.add(ref)
     return declared, problems
 
 
-def head_point_counts(root: Path) -> dict[str, int] | None:
-    """Each rule's point count at git HEAD, or None when git cannot answer.
+def retired_since_head(
+    root: Path, points_dir: Path, head_ids: set[str] | None, now_ids: set[str]
+) -> tuple[set[str], list[str]]:
+    """`retired_rows_since` over the ledger on disk and the ledger at HEAD."""
+    path = points_dir / RETIRED_FILE
+    now_text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    head_res = _git(root, ["show", f"HEAD:ai/rules/points/{RETIRED_FILE}"])
+    was_text = (
+        head_res.stdout if head_res is not None and head_res.returncode == 0 else ""
+    )
+    return retired_rows_since(now_text, was_text, head_ids, now_ids)
 
-    Counted from the file names git holds, at the fixed depth of two, so a
-    manifest is not a point and a file below a section is not one either.
+
+def head_point_ids(root: Path) -> set[str] | None:
+    """Every point id git HEAD carries, or None when git cannot answer.
+
+    Read from the file names git holds, at the fixed depth of two, so a manifest
+    is not a point, `RETIRED.md` is not one, and a file below a section is not
+    one either. The ids are what a retirement row is CHECKED against, so this
+    returns the names and not only how many there were.
     """
     head = _git(root, ["rev-parse", "--verify", "HEAD"])
     if head is None or head.returncode != 0:
@@ -1399,15 +1487,26 @@ def head_point_counts(root: Path) -> dict[str, int] | None:
     listed = _git(root, ["ls-tree", "-r", "--name-only", "HEAD", "ai/rules/points"])
     if listed is None or listed.returncode != 0:
         return None
-    counts: dict[str, int] = {}
+    out: set[str] = set()
     for line in listed.stdout.split("\n"):
         parts = line.strip().split("/")
         if len(parts) != 6 or parts[:3] != ["ai", "rules", "points"]:
             continue
         if not parts[5].endswith(".md"):
             continue
-        counts[parts[3]] = counts.get(parts[3], 0) + 1
-    return counts
+        out.add(f"{parts[3]}/{parts[4]}/{parts[5][: -len('.md')]}")
+    return out
+
+
+def counts_by_rule(refs: set[str]) -> collections.Counter:
+    """How many of these point ids each rule holds."""
+    return collections.Counter(ref.split("/", 1)[0] for ref in refs)
+
+
+def head_point_counts(root: Path) -> dict[str, int] | None:
+    """Each rule's point count at git HEAD, or None when git cannot answer."""
+    ids = head_point_ids(root)
+    return None if ids is None else dict(counts_by_rule(ids))
 
 
 def corpus_shrink(
@@ -1573,7 +1672,9 @@ def report_gate_map(
       its machine, and `gated_regressions` states why that is not a measurement.
     - declared_none FAILS. A check that named a point at HEAD and declares
       `none -- <why>` now has un-gated itself through the one door that never
-      failed, and `unbound_regressions` states the route.
+      failed, and `unbound_regressions` states the route. A point declared
+      retired since HEAD is not in this set: retiring the instruction and
+      relabelling its check is the ordinary route out of the corpus.
     - shrunk FAILS. A rule holding fewer points than HEAD has lost instructions
       that no `ai/rules/points/RETIRED.md` line accounts for. Every other gate
       reads the tree as it IS, so a point deleted with its manifest line leaves
@@ -1681,6 +1782,14 @@ def report_gate_map(
             "",
             "REGRESSED: no HEAD baseline (git could not answer, or no dispatcher "
             "has a version at HEAD); not ratcheted",
+        ]
+        # The names reach the report on this branch too. When git ANSWERED and
+        # no dispatcher is at HEAD, these are exactly the files that took the
+        # baseline away, and dropping them here left the one report that has no
+        # ratchet as the one report that also names nothing.
+        out += [
+            f"  no version at HEAD: {name} (its bindings are not ratcheted)"
+            for name in no_head_for
         ]
 
     out += [
@@ -2052,16 +2161,19 @@ def main(argv: list[str] | None = None) -> int:
         # zero the report would print says nothing (`ai/rules/evidence.md`).
         at_head = bindings_at_head(head) if head else {}
         regressed = gated_regressions(gm, gated_at_head(head)) if head else []
-        declared_none = unbound_regressions(gm, at_head) if head else []
-        head_counts = head_point_counts(root)
-        retired, ledger_problems = retired_since_head(root, points_dir)
+        head_ids = head_point_ids(root)
+        now_ids = set(gm.points)
+        retired, ledger_problems = retired_since_head(
+            root, points_dir, head_ids, now_ids
+        )
+        declared_none = unbound_regressions(gm, at_head, retired) if head else []
         shrunk = ledger_problems + (
             corpus_shrink(
-                head_counts,
-                collections.Counter(ref.split("/", 1)[0] for ref in gm.points),
-                retired,
+                counts_by_rule(head_ids),
+                counts_by_rule(now_ids),
+                counts_by_rule(retired),
             )
-            if head_counts is not None
+            if head_ids is not None
             else []
         )
         lines, code = report_gate_map(
@@ -2091,7 +2203,9 @@ def main(argv: list[str] | None = None) -> int:
                 reason = (
                     f"{len(declared_none)} check(s) named a point at HEAD and declare "
                     "`none` now; repoint the binding at where the point moved to. A "
-                    "renamed point does not stop being enforced"
+                    "renamed point does not stop being enforced. When the instruction "
+                    f"itself left, retire it in ai/rules/points/{RETIRED_FILE} and the "
+                    "check may declare `none`"
                 )
             elif shrunk:
                 reason = (

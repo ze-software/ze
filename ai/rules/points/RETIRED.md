@@ -18,6 +18,22 @@ nothing here needs pruning.
 A rename is not a retirement. Moving a point between sections of the same rule
 leaves the count unchanged, and the point's binding is repointed at the new id.
 
+A row is CHECKED, not believed. `retired_rows_since` validates every id against
+the point names git HEAD actually carried, and refuses four shapes: a malformed
+row, an id HEAD never held, an id whose point is still on disk, and a second row
+for an id this file already declares. Without that check a fictional id cleared
+the ratchet: declaring `rule/nowhere/never-existed` bought a real deletion
+elsewhere in the same rule. A row naming a live point is refused for two
+reasons, since it would both cover a drop the rule did not declare and excuse a
+check from gating an instruction the corpus still carries.
+
+Retiring an instruction also frees its check. `unbound_regressions` fails a
+check that named a point at HEAD and declares `# ze point: none -- <why>` now,
+because that is the cheapest way to launder a rename into a lost gate. A point
+declared here is exempt: the instruction left the corpus on purpose, so the
+check has nothing left to name. Retire only part of what a check named and the
+live points are still reported.
+
 One row per retired point, newest last. The Point cell is the id, backticked.
 The Why cell says what happened to the instruction, not that it was removed.
 
