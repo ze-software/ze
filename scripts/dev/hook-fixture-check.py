@@ -174,6 +174,35 @@ def _writeedit(fp: str, tool: str = "Edit", content: str = "x") -> tuple[int, st
     return proc.returncode, proc.stderr
 
 
+def _multiedit(fp: str, edits: list[dict]) -> tuple[int, str]:
+    """Drive the dispatcher over a MultiEdit payload, edits verbatim."""
+    payload = json.dumps(
+        {"tool_name": "MultiEdit", "tool_input": {"file_path": fp, "edits": edits}}
+    )
+    proc = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "pretool-writeedit.py")],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return proc.returncode, proc.stderr
+
+
+def _case_insensitive(directory: str) -> bool:
+    """Whether `directory`'s filesystem opens one name under two spellings.
+
+    Asked of the filesystem rather than of `sys.platform`: a case-sensitive
+    volume mounted on macOS, and a case-insensitive one on Linux, are both
+    ordinary. The expectation the fixtures assert is a property of the volume
+    the repository sits on.
+    """
+    try:
+        return os.path.samefile(directory, directory.upper())
+    except OSError:
+        return False
+
+
 def run_rendered_rule(results: Results) -> None:
     print("rendered-rule:")
     rules = os.path.join(ROOT, "ai", "rules")
@@ -320,6 +349,78 @@ def run_rendered_rule(results: Results) -> None:
         os.path.join(rules, "points", "performance", "loose-point.md"), tool="Write"
     )
     results.check("point-overwrite-loose-md-allowed", code == 0, repr((code, err)))
+
+    # --- the spelling never decides the verdict; the filesystem does ----------
+    #
+    # `os.path.realpath` resolves symlinks and NOT case, so on a case-insensitive
+    # volume every one of these paths opens the file the check exists to protect
+    # and a string comparison exited 0 on all of them. One fixture per varied
+    # SEGMENT, because a fix applied to one component only is the shape a
+    # refactor produces.
+    #
+    # The expectation follows the filesystem rather than the platform. Where one
+    # spelling opens the file, refusing it is the whole point; where it opens
+    # nothing, refusing it would be a false block on a file that is genuinely
+    # different. Both are asserted by the same rows.
+    insensitive = _case_insensitive(rules)
+    variant_expect = 2 if insensitive else 0
+    how = "case-insensitive" if insensitive else "case-sensitive"
+
+    point_rel = (
+        "ai/rules/points/performance/hot-path-rule/"
+        "apply-the-hot-path-ban-to-these-packages.md"
+    )
+    for label, varied in (
+        ("ai", point_rel.replace("ai/", "AI/", 1)),
+        ("rules", point_rel.replace("rules/", "RULES/", 1)),
+        ("points", point_rel.replace("points/", "Points/", 1)),
+        ("rule-dir", point_rel.replace("performance/", "Performance/", 1)),
+        ("section-dir", point_rel.replace("hot-path-rule/", "Hot-Path-Rule/", 1)),
+        ("slug", point_rel.replace("apply-the-hot", "Apply-The-Hot", 1)),
+    ):
+        code, err = _writeedit(os.path.join(ROOT, varied), tool="Write")
+        results.check(
+            f"point-overwrite-case-variant-{label}",
+            code == variant_expect,
+            f"{how} fs, wanted {variant_expect}: {(code, err)!r}",
+        )
+
+    for label, varied in (
+        ("ai", "AI/rules/performance.md"),
+        ("rules", "ai/RULES/performance.md"),
+    ):
+        code, err = _writeedit(os.path.join(ROOT, varied))
+        results.check(
+            f"rendered-rule-case-variant-{label}",
+            code == variant_expect,
+            f"{how} fs, wanted {variant_expect}: {(code, err)!r}",
+        )
+
+    # The rendered-rule branch routes on the ON-DISK name, so a case variant of
+    # a file directly in ai/rules/ is sent to the generator that owns it rather
+    # than to a points directory that does not exist.
+    code, err = _writeedit(os.path.join(rules, "index.md"))
+    results.check(
+        "rendered-rule-case-variant-names-the-real-generator",
+        code == 2 and ("make ze-rules-index" in err if insensitive else True),
+        repr((code, err)),
+    )
+
+    # MultiEdit with an empty old_string replaces the whole file, which is a
+    # Write wearing another name. The previous docstring asserted MultiEdit
+    # could not drop a body; nothing proved it, and this shape disproved it.
+    code, err = _multiedit(point, [{"old_string": "", "new_string": "gone"}])
+    results.check(
+        "point-overwrite-multiedit-empty-old-string-refused",
+        code == 2 and "already exists" in err,
+        repr((code, err)),
+    )
+    code, err = _multiedit(
+        point, [{"old_string": "the hot path", "new_string": "the hot path"}]
+    )
+    results.check(
+        "point-overwrite-multiedit-targeted-allowed", code == 0, repr((code, err))
+    )
 
     # The two checks must be REACHED by the dispatcher. The fixtures above already
     # go through it; these name the cause directly when one of them goes red.

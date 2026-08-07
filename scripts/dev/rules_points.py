@@ -132,11 +132,18 @@ class Section:
     `heading` is the source line VERBATIM. `slug` is the directory name derived
     from it, and a slug cannot carry capitalisation, punctuation or the marker,
     so the heading is what the manifest records and the renderer emits.
+
+    `tight` records that the heading sits DIRECTLY under the block above it,
+    with no blank line between. The corpus carries one (`planning.md`,
+    `## Work Phases`), and the renderer would otherwise insert the blank line
+    the source never had, so the manifest carries the flag and the rendered
+    bytes stay identical.
     """
 
     slug: str
     heading: str
     start: int  # index of the heading line in the source
+    tight: bool = False
     points: list[Point] = field(default_factory=list)
 
 
@@ -205,10 +212,14 @@ def block_ranges(lines: list[str], start: int) -> list[tuple[int, int]]:
     fence in half. A fence closes only on the marker character it opened with,
     so a nested fence of the other character does not close it.
 
-    Nothing splits a run. That is what makes the renderer's "join with one blank
-    line" correct without a recorded separator (A-1): two blocks are separated by
-    a blank line by construction, and content with no blank line between it is
-    one block rather than two blocks with a zero-width gap.
+    One thing else ends a run: a `##` heading OUTSIDE a fence. A `##` opens a
+    section, and a section is a directory, so a heading that is swallowed into
+    the block above it becomes body text. `planning.md` had one: `## Work
+    Phases` follows a bullet with no blank line above it, so 27 rules carried 281
+    fence-aware `##` headings and only 280 section directories, and every point
+    after that heading carried an id naming a section no reader ever sees. The
+    blank line the source does not have is recorded on the section (`tight`), so
+    the rendered bytes are unchanged.
     """
     ranges = []
     i = start
@@ -228,6 +239,8 @@ def block_ranges(lines: list[str], start: int) -> list[tuple[int, int]]:
                     continue
                 if not line.strip():
                     break
+                if i > block_start and SECTION_HEADING.match(line):
+                    break
                 i += 1
                 continue
             i += 1
@@ -235,6 +248,36 @@ def block_ranges(lines: list[str], start: int) -> list[tuple[int, int]]:
                 marker = None
         ranges.append((block_start, i))
     return ranges
+
+
+def section_headings(lines: list[str]) -> list[str]:
+    """Every `##` heading line that is not inside a fenced block, in order.
+
+    Derived from RENDERED bytes, independently of the split. `block_ranges`
+    decides the same question at split time from the same fence rule, and
+    `render_dir` compares the two answers: a `##` the splitter swallowed into a
+    point body is invisible to every other gate, because the rendered rule is
+    byte-identical either way. Two derivations agreeing is the only evidence
+    available here.
+
+    The corpus needs the fence state: `planning.md` carries `## Executive
+    Summary` inside a fenced report template, which is quoted output rather
+    than a section.
+    """
+    out: list[str] = []
+    marker = None
+    for line in lines:
+        fence = FENCE.match(line)
+        if marker is None:
+            if fence:
+                marker = fence.group(1)[0]
+                continue
+            if SECTION_HEADING.match(line):
+                out.append(line)
+            continue
+        if fence and fence.group(1)[0] == marker and not fence.group(2).strip():
+            marker = None
+    return out
 
 
 def classify(lines: list[str]) -> str:
@@ -372,16 +415,20 @@ def split_rule(text: str, stem: str) -> Split:
     taken: set[str] = set()
     previous_end = header_end
     for start, end in block_ranges(lines, header_end):
+        body = lines[start:end]
+        section_heading = bool(SECTION_HEADING.match(body[0]))
         gap = start - previous_end
-        if gap != 1:
+        # A `##` heading is the one block that may follow its predecessor with no
+        # blank line: `block_ranges` cuts the run there, so the gap is 0 rather
+        # than 1. Every other block still owes exactly one.
+        if gap != 1 and not (gap == 0 and section_heading):
             raise RulePointsError(
                 f"{stem}: line {start + 1} follows {gap} blank lines, not 1; the "
                 "renderer joins blocks with exactly one"
             )
-        body = lines[start:end]
         previous_end = end
 
-        if SECTION_HEADING.match(body[0]):
+        if section_heading:
             if len(body) != 1:
                 raise RulePointsError(
                     f"{stem}: line {start + 1} opens a `##` section and carries "
@@ -396,6 +443,7 @@ def split_rule(text: str, stem: str) -> Split:
                     slug=_unique(slugify(body, "heading"), sections_taken),
                     heading=body[0],
                     start=start,
+                    tight=gap == 0,
                 )
             )
             continue
@@ -439,13 +487,16 @@ def render_text(header: dict[str, str], sections: list[Section]) -> str:
     A section emits its heading line from the MANIFEST, verbatim, then its
     points' bodies. Every block is separated by exactly one blank line, which is
     the property `block_ranges` and `split_rule` between them guarantee (A-1).
+    A `tight` section is the one exception, and it is recorded rather than
+    guessed: its heading had no blank line above it in the source, so emitting
+    one would change the rendered bytes.
     """
     out = [f"# {header['title']}", "", f"**When:** {header['when']}"]
     out.append(f"**Severity:** {header['severity']}")
     if header.get("related"):
         out.append(f"**Related:** {header['related']}")
     for section in sections:
-        out += ["", section.heading]
+        out += [section.heading] if section.tight else ["", section.heading]
         for point in section.points:
             out.append("")
             out.extend(point.body)
@@ -557,9 +608,25 @@ def exception_refs(raw: str) -> list[str]:
 # the heading is recovered byte-exactly however it is capitalised or punctuated.
 # A point line is indented by two spaces, which no slug can start with, so the
 # two shapes cannot be confused and anything matching neither is an error.
-MANIFEST_SECTION = re.compile(r"^(?P<slug>\S+) (?P<heading>##\s+\S.*)$")
+#
+# A leading `^` on a section line records a TIGHT heading: one that sits
+# directly under the block above it with no blank line between. `^` is not a
+# slug character (`SLUG_SAFE`), so it can never be read as part of the
+# directory name.
+MANIFEST_SECTION = re.compile(r"^(?P<tight>\^?)(?P<slug>\S+) (?P<heading>##\s+\S.*)$")
 MANIFEST_POINT = re.compile(r"^ {2}(?P<slug>\S.*)$")
 POINT_INDENT = "  "
+TIGHT_MARK = "^"
+
+
+@dataclass
+class ManifestSection:
+    """One section line of a manifest: the directory, the heading, its points."""
+
+    slug: str
+    heading: str
+    tight: bool
+    points: list[str] = field(default_factory=list)
 
 
 def format_manifest(split: Split) -> str:
@@ -571,20 +638,20 @@ def format_manifest(split: Split) -> str:
     head.append(DELIM)
     body: list[str] = []
     for section in split.sections:
-        body.append(f"{section.slug} {section.heading}")
+        mark = TIGHT_MARK if section.tight else ""
+        body.append(f"{mark}{section.slug} {section.heading}")
         body += [f"{POINT_INDENT}{p.slug}" for p in section.points]
     return "\n".join(head + body) + "\n"
 
 
 def parse_manifest(
     text: str, stem: str
-) -> tuple[dict[str, str], list[tuple[str, str, list[str]]]]:
+) -> tuple[dict[str, str], list[ManifestSection]]:
     """Read a manifest into its header fields and its ordered section tree.
 
-    Each section is `(directory slug, heading line, ordered point slugs)`. A body
-    line that is neither shape is an error rather than a skip: a skipped line is
-    an instruction that stops being rendered with nothing going red, which is the
-    one failure this design exists to prevent (R-4).
+    A body line that is neither shape is an error rather than a skip: a skipped
+    line is an instruction that stops being rendered with nothing going red,
+    which is the one failure this design exists to prevent (R-4).
     """
     fields, body = _frontmatter(text, f"{stem}/manifest.md")
     unknown = sorted(set(fields) - set(HEADER_KEYS))
@@ -594,7 +661,7 @@ def parse_manifest(
         if not fields.get(required):
             raise RulePointsError(f"{stem}/manifest.md: missing '{required}'")
 
-    sections: list[tuple[str, str, list[str]]] = []
+    sections: list[ManifestSection] = []
     for number, line in enumerate(body, 1):
         point = MANIFEST_POINT.match(line)
         if point:
@@ -604,7 +671,7 @@ def parse_manifest(
                     f"{point.group('slug')!r} comes before any section line; every "
                     "point lives in a section directory"
                 )
-            sections[-1][2].append(point.group("slug"))
+            sections[-1].points.append(point.group("slug"))
             continue
         section = MANIFEST_SECTION.match(line)
         if not section:
@@ -612,7 +679,13 @@ def parse_manifest(
                 f"{stem}/manifest.md:{number}: {line!r} is neither a section line "
                 "('<dir-slug> ## Heading') nor an indented point slug"
             )
-        sections.append((section.group("slug"), section.group("heading"), []))
+        sections.append(
+            ManifestSection(
+                slug=section.group("slug"),
+                heading=section.group("heading"),
+                tight=bool(section.group("tight")),
+            )
+        )
 
     if not sections:
         raise RulePointsError(f"{stem}/manifest.md: lists no sections")
@@ -650,10 +723,16 @@ def write_split(split: Split, out_dir: Path) -> None:
         section_dir = rule_dir / section.slug
         section_dir.mkdir(exist_ok=True)
         written = {f"{p.slug}.md" for p in section.points}
+        # Directories are listed beside the files, for the reason the rule-level
+        # call above lists them: the tree is at a fixed depth of two, so a
+        # directory inside a section holds points nothing renders (`render_dir`
+        # refuses the same shape). Without this the section level checked files
+        # only and a nested directory survived a re-split untouched.
         _refuse_stale(
             split.stem,
             section_dir,
-            [p.name for p in section_dir.glob("*.md") if p.name not in written],
+            [p.name for p in section_dir.glob("*.md") if p.name not in written]
+            + [d.name for d in section_dir.iterdir() if d.is_dir()],
         )
         for point in section.points:
             (section_dir / f"{point.slug}.md").write_text(
@@ -680,10 +759,11 @@ def render_dir(rule_dir: Path) -> str:
 
     Fails hard on an unlisted section, an unlisted point, a listed slug with no
     file or directory, a duplicate slug, a point file sitting outside every
-    section directory, and a slug that is not a bare path component. Each of
-    those is a way for the rendered rule to silently lose an instruction, which
-    is the one failure this whole design exists to prevent (R-4). Never render
-    partially.
+    section directory, a point file BELOW its section directory, a directory
+    inside a section directory, a `##` heading that no section line names, and a
+    slug that is not a bare path component. Each of those is a way for the
+    rendered rule to silently lose an instruction, which is the one failure this
+    whole design exists to prevent (R-4). Never render partially.
     """
     stem = rule_dir.name
     manifest_path = rule_dir / "manifest.md"
@@ -699,8 +779,42 @@ def render_dir(rule_dir: Path) -> str:
             "<rule>/<section>/<slug>. Move it into its section"
         )
 
+    # Depth is FIXED at two, and every reader downstream is written to that
+    # shape: `points_on_disk` globs `<rule>/*/*.md` and the loop below globs
+    # `<section>/*.md`. A point one level deeper is therefore read by nothing,
+    # rendered into nothing, and named by no gate, while `ze-rules-render-check`,
+    # `ze-rules-gate-map` and `ze-rules-points-roundtrip` all exit 0. That is
+    # R-4, and `make ze-regen` renders in WRITE mode, so the instruction is gone
+    # from the rendered rule with every gate green.
+    deep = sorted(
+        "/".join(p.relative_to(rule_dir).parts)
+        for p in rule_dir.rglob("*.md")
+        if len(p.relative_to(rule_dir).parts) > 2
+    )
+    if deep:
+        raise RulePointsError(
+            f"{stem}: {deep} sit(s) below its `##` section directory; the tree is "
+            "at a fixed depth of two, so nothing reads a point there and its "
+            "instruction reaches no rendered rule. Move it up to "
+            "<rule>/<section>/<slug>.md and list the slug in the manifest"
+        )
+    nested = sorted(
+        f"{d.name}/{sub.name}"
+        for d in rule_dir.iterdir()
+        if d.is_dir()
+        for sub in d.iterdir()
+        if sub.is_dir()
+    )
+    if nested:
+        raise RulePointsError(
+            f"{stem}: {nested} is/are directories inside a `##` section "
+            "directory; a section holds point FILES only, and a directory there "
+            "is where a point goes to be read by nothing. Remove it"
+        )
+
     seen_sections: set[str] = set()
-    for slug, _heading, _slugs in listed:
+    for section in listed:
+        slug = section.slug
         _safe_slug(stem, slug, "section")
         if slug in seen_sections:
             raise RulePointsError(f"{stem}: duplicate section slug {slug!r}")
@@ -715,7 +829,9 @@ def render_dir(rule_dir: Path) -> str:
         )
 
     sections: list[Section] = []
-    for slug, heading, point_slugs in listed:
+    for listed_section in listed:
+        slug, heading = listed_section.slug, listed_section.heading
+        point_slugs = listed_section.points
         section_dir = rule_dir / slug
         if not section_dir.is_dir():
             raise RulePointsError(
@@ -752,6 +868,7 @@ def render_dir(rule_dir: Path) -> str:
                 slug=slug,
                 heading=heading,
                 start=0,
+                tight=listed_section.tight,
                 points=[
                     parse_point(
                         (section_dir / f"{s}.md").read_text(encoding="utf-8"), s
@@ -760,7 +877,21 @@ def render_dir(rule_dir: Path) -> str:
                 ],
             )
         )
-    return render_text(header, sections)
+
+    text = render_text(header, sections)
+    seen = section_headings(text.split("\n")[:-1])
+    want = [section.heading for section in sections]
+    if seen != want:
+        orphan = [h for h in seen if h not in want] or ["(none)"]
+        raise RulePointsError(
+            f"{stem}: the rendered rule carries {len(seen)} `##` heading(s) and "
+            f"the manifest names {len(want)}; {orphan} sit(s) inside a point BODY. "
+            "A `##` opens a section, and a section is a directory: a heading "
+            "inside a body renders identically and names no directory, so every "
+            "point after it carries an id naming a section no reader ever sees. "
+            "Split the point at the heading and add the section to the manifest"
+        )
+    return text
 
 
 def point_dirs(points_dir: Path) -> list[Path]:
@@ -1085,37 +1216,68 @@ def dispatchers(root: Path) -> tuple[list[Path], list[str]]:
     return paths, problems
 
 
-def head_sources(root: Path, names: list[str]) -> dict[str, str] | None:
-    """Each named dispatcher's text at git HEAD, or None when git cannot answer.
+def _git(root: Path, args: list[str]) -> subprocess.CompletedProcess | None:
+    """Run one git command in `root`, or None when git itself cannot run."""
+    try:
+        return subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return None
 
-    A file absent at HEAD is a dispatcher added by this change and is simply
-    left out: it has no baseline yet, which is not the same as having lost one.
+
+def head_sources(
+    root: Path, names: list[str]
+) -> tuple[dict[str, str] | None, list[str]]:
+    """Each dispatcher's text at git HEAD, and the ones HEAD does not carry.
+
+    Returns `(None, [])` when git cannot answer at all, which is a DIFFERENT
+    answer from an empty mapping and has to stay different. HEAD is probed once
+    with `rev-parse --verify`: without that probe, a tree with no commit, a
+    checkout git cannot read, and a dispatcher renamed since HEAD all produced
+    the same `{}`. The caller then read `head is not None` as "there is a
+    baseline", and the report printed `REGRESSED: 0` from a baseline holding
+    nothing. A ratchet that cannot fire prints the same zero as one that can.
+
+    A file absent at HEAD is NAMED rather than dropped. It is either a
+    dispatcher this change adds, which has no baseline yet, or one that was
+    renamed, which took its whole binding set out of the baseline. Neither is
+    visible in a count of regressions, so the report prints the name.
     """
+    head = _git(root, ["rev-parse", "--verify", "HEAD"])
+    if head is None or head.returncode != 0:
+        return None, []
     out: dict[str, str] = {}
+    absent: list[str] = []
     for name in names:
-        try:
-            res = subprocess.run(
-                ["git", "show", f"HEAD:{HOOK_DIR}/{name}"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except OSError:
-            return None
+        res = _git(root, ["show", f"HEAD:{HOOK_DIR}/{name}"])
+        if res is None:
+            return None, []
         if res.returncode == 0:
             out[name] = res.stdout
+        else:
+            absent.append(name)
+    return out, absent
+
+
+def bindings_at_head(sources: dict[str, str]) -> dict[str, set[str]]:
+    """Each check's point ids at HEAD, for the checks that named one.
+
+    Keyed by CHECK rather than flattened to a ref set, because a rename moves a
+    ref and leaves the check where it was. The ref set alone cannot tell a
+    renamed point from a deleted one, and `unbound_regressions` needs to.
+    """
+    out: dict[str, set[str]] = {}
+    for name, text in sources.items():
+        for binding in parse_bindings(text, name):
+            if binding.ref and binding.ref != EMPTY_REF and binding.check != NO_CHECK:
+                out.setdefault(binding.check, set()).add(binding.ref)
     return out
 
 
 def gated_at_head(sources: dict[str, str]) -> set[str]:
     """The point ids the dispatchers' binding comments named at HEAD."""
-    refs: set[str] = set()
-    for name, text in sources.items():
-        for binding in parse_bindings(text, name):
-            if binding.ref and binding.ref != EMPTY_REF and binding.check != NO_CHECK:
-                refs.add(binding.ref)
-    return refs
+    return {ref for refs in bindings_at_head(sources).values() for ref in refs}
 
 
 def gated_regressions(gm: GateMap, baseline: set[str]) -> list[str]:
@@ -1130,17 +1292,146 @@ def gated_regressions(gm: GateMap, baseline: set[str]) -> list[str]:
     cheapest route from red to green, and it defeats the whole reason the id is
     a path rather than a file name.
 
-    A point that no longer EXISTS is out of scope. Its instruction left the
-    corpus, which is a rule-content diff a reader sees in review, not a gate
-    quietly dropped from under text that stayed.
+    A point that no longer EXISTS is out of scope HERE, and
+    `unbound_regressions` is where the half that matters is caught. Its
+    instruction may have left the corpus, which is a rule-content diff a reader
+    sees in review; or it may have been RENAMED, which leaves the binding
+    dangling and fails on the other side of the join.
     """
     return sorted(ref for ref in baseline if ref in gm.points and ref not in gm.gated)
+
+
+def unbound_regressions(gm: GateMap, baseline: dict[str, set[str]]) -> list[str]:
+    """Checks that named a point at HEAD and declare `none -- <why>` now.
+
+    The laundering route `gated_regressions` cannot see. Rename a point and its
+    binding dangles, which fails; rewrite that dangling binding as
+    `# ze point: none -- <why>` and it lands in UNBOUND, which never fails. The
+    ref is gone from the baseline's point-set view too, because the id it named
+    no longer exists on disk, so nothing is left to compare.
+
+    Keyed by CHECK, which survives both moves. A ref in the baseline was a real
+    point at HEAD by construction: a dangling binding FAILS, so a green HEAD
+    carried no binding naming a point that was not there.
+    """
+    now = {b.check for b in gm.gated_bindings}
+    declared = {b.check for b in gm.unbound}
+    return sorted(
+        f"{check}: named {', '.join(sorted(refs))} at HEAD, declares `none` now"
+        for check, refs in baseline.items()
+        if check in declared and check not in now
+    )
+
+
+# The retirement ledger. A point that leaves the corpus takes an instruction
+# with it, and every other gate reads the tree as it IS: delete the file and its
+# manifest line together and the render check, the round trip, the gate map and
+# the lint all stay green, because the points and the rendered rule agree on the
+# smaller corpus. Only a git diff on the rendered rule shows it.
+#
+# So a removal is DECLARED, in a file, one line per retired point. The gate
+# compares each rule's point count against HEAD and requires the drop to be
+# covered by lines added since HEAD. Scope, never an allowlist: an entry stops
+# counting the moment it is committed, so the ledger cannot become a place where
+# a deletion is pre-approved (`ai/rules/rfc-compliance.md` uses the same shape
+# for grandfathering).
+RETIRED_FILE = "RETIRED.md"
+RETIRED_TABLE_HEAD = "| Point | Why |"
+RETIREMENT = re.compile(
+    r"^\|\s*`(?P<id>[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+)`\s*\|\s*(?P<why>[^|]*\S)\s*\|\s*$"
+)
+
+
+def retirement_rows(text: str) -> list[str]:
+    """The ledger's table rows, its header and separator excluded.
+
+    The rest of the file is prose explaining the mechanism, so a row is
+    recognised by its markdown table shape rather than by position.
+    """
+    out = []
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line.startswith("|") or line == RETIRED_TABLE_HEAD:
+            continue
+        if set(line) <= set("|-: "):
+            continue
+        out.append(line)
+    return out
+
+
+def retired_since_head(
+    root: Path, points_dir: Path
+) -> tuple[collections.Counter, list[str]]:
+    """Retirements declared since HEAD, per rule, and the malformed rows."""
+    path = points_dir / RETIRED_FILE
+    now = retirement_rows(path.read_text(encoding="utf-8")) if path.is_file() else []
+    head_res = _git(root, ["show", f"HEAD:ai/rules/points/{RETIRED_FILE}"])
+    was = (
+        retirement_rows(head_res.stdout)
+        if head_res is not None and head_res.returncode == 0
+        else []
+    )
+    declared: collections.Counter = collections.Counter()
+    problems: list[str] = []
+    for row in now:
+        if row in was:
+            continue
+        found = RETIREMENT.match(row)
+        if not found:
+            problems.append(
+                f"ai/rules/points/{RETIRED_FILE}: {row!r} is not "
+                "'<rule>/<section>/<slug> -- <why>'"
+            )
+            continue
+        declared[found.group("id").split("/", 1)[0]] += 1
+    return declared, problems
+
+
+def head_point_counts(root: Path) -> dict[str, int] | None:
+    """Each rule's point count at git HEAD, or None when git cannot answer.
+
+    Counted from the file names git holds, at the fixed depth of two, so a
+    manifest is not a point and a file below a section is not one either.
+    """
+    head = _git(root, ["rev-parse", "--verify", "HEAD"])
+    if head is None or head.returncode != 0:
+        return None
+    listed = _git(root, ["ls-tree", "-r", "--name-only", "HEAD", "ai/rules/points"])
+    if listed is None or listed.returncode != 0:
+        return None
+    counts: dict[str, int] = {}
+    for line in listed.stdout.split("\n"):
+        parts = line.strip().split("/")
+        if len(parts) != 6 or parts[:3] != ["ai", "rules", "points"]:
+            continue
+        if not parts[5].endswith(".md"):
+            continue
+        counts[parts[3]] = counts.get(parts[3], 0) + 1
+    return counts
+
+
+def corpus_shrink(
+    head_counts: dict[str, int],
+    now_counts: collections.Counter,
+    declared: collections.Counter,
+) -> list[str]:
+    """Rules holding fewer points than HEAD, beyond what the ledger declares."""
+    out = []
+    for rule in sorted(head_counts):
+        was, now = head_counts[rule], now_counts.get(rule, 0)
+        lost = was - now - declared.get(rule, 0)
+        if lost > 0:
+            out.append(
+                f"{rule}: {was} point(s) at HEAD, {now} now, "
+                f"{declared.get(rule, 0)} declared retired; {lost} vanished"
+            )
+    return out
 
 
 def rationale_problems(
     points: dict[str, Point], root: Path
 ) -> tuple[dict[str, str], list[tuple[str, str]]]:
-    """The declared rationale links, and the ones naming no file.
+    """The declared rationale links, and the ones naming no RECORD.
 
     A rationale is a repo-relative path, so it is resolved against the
     repository root and never against the point's own directory. A path outside
@@ -1148,6 +1439,12 @@ def rationale_problems(
     than resolved: the only records this field may name are inside the repo
     (`plan/learned/`, `ai/rationale/`), and a resolver that reaches outside
     would let a link pass a gate nobody can re-check.
+
+    An EMPTY file is missing too. The field claims a record explains the
+    instruction, and `touch ai/rationale/whatever.md` satisfied a check that
+    asked only whether a path resolved. That is a claim with a file behind it
+    rather than a record, and this gate exists to refuse claims
+    (`ai/rules/evidence.md`).
     """
     declared: dict[str, str] = {}
     missing: list[tuple[str, str]] = []
@@ -1158,9 +1455,17 @@ def rationale_problems(
         declared[ref] = point.rationale
         target = (root / point.rationale).resolve()
         inside = target == root or root in target.parents
-        if not inside or not target.is_file():
+        if not inside or not target.is_file() or not _has_content(target):
             missing.append((ref, point.rationale))
     return declared, missing
+
+
+def _has_content(path: Path) -> bool:
+    """Whether a file holds anything but whitespace. Unreadable counts as not."""
+    try:
+        return bool(path.read_bytes().strip())
+    except OSError:
+        return False
 
 
 def exception_problems(
@@ -1251,6 +1556,9 @@ def report_gate_map(
     quiet: bool = False,
     regressed: list[str] | None = None,
     baseline: bool = True,
+    no_head_for: list[str] | None = None,
+    declared_none: list[str] | None = None,
+    shrunk: list[str] | None = None,
 ) -> tuple[list[str], int]:
     """The four sets as report lines, plus the exit code.
 
@@ -1263,6 +1571,13 @@ def report_gate_map(
       gate. That is the whole reason the binding names a path rather than a file.
     - regressed FAILS. A point gated at HEAD and gated by nothing now has lost
       its machine, and `gated_regressions` states why that is not a measurement.
+    - declared_none FAILS. A check that named a point at HEAD and declares
+      `none -- <why>` now has un-gated itself through the one door that never
+      failed, and `unbound_regressions` states the route.
+    - shrunk FAILS. A rule holding fewer points than HEAD has lost instructions
+      that no `ai/rules/points/RETIRED.md` line accounts for. Every other gate
+      reads the tree as it IS, so a point deleted with its manifest line leaves
+      them all agreeing on the smaller corpus.
     - missing rationale FAILS (AC-16). A `rationale:` naming a path that is not
       on disk is the same defect class as a dangling binding, one direction out:
       the explanation moved out from under the instruction. Both are one line to
@@ -1283,6 +1598,9 @@ def report_gate_map(
       join read nothing and must say so (`ai/rules/evidence.md`).
     """
     regressed = list(regressed or [])
+    no_head_for = list(no_head_for or [])
+    declared_none = list(declared_none or [])
+    shrunk = list(shrunk or [])
     if not gm.points:
         return [
             (
@@ -1339,8 +1657,31 @@ def report_gate_map(
             f"REGRESSED: {len(regressed)} point(s) gated at HEAD, gated by nothing now",
         ]
         out += [f"  {ref}" for ref in regressed]
+        # A dispatcher HEAD does not carry took its whole binding set out of the
+        # baseline. That is invisible in the count above, so it is named here:
+        # a rename reads exactly like a file nobody has committed yet.
+        out += [
+            f"  no version at HEAD: {name} (its bindings are not ratcheted)"
+            for name in no_head_for
+        ]
+        out += [
+            "",
+            f"DECLARED NONE: {len(declared_none)} check(s) named a point at HEAD "
+            "and declare `none` now",
+        ]
+        out += [f"  {line}" for line in declared_none]
+        out += [
+            "",
+            f"SHRUNK: {len(shrunk)} rule(s) hold fewer points than HEAD, "
+            f"undeclared in ai/rules/points/{RETIRED_FILE}",
+        ]
+        out += [f"  {line}" for line in shrunk]
     else:
-        out += ["", "REGRESSED: no HEAD baseline (git could not answer); not ratcheted"]
+        out += [
+            "",
+            "REGRESSED: no HEAD baseline (git could not answer, or no dispatcher "
+            "has a version at HEAD); not ratcheted",
+        ]
 
     out += [
         "",
@@ -1354,7 +1695,7 @@ def report_gate_map(
     # a red gate with nothing on screen names no line to fix.
     out += ["", f"MISSING RATIONALE: {len(gm.missing_rationale)}"]
     for ref, path in gm.missing_rationale:
-        out.append(f"  {ref} -> {path} (no such file)")
+        out.append(f"  {ref} -> {path} (no such record: absent or empty)")
 
     # Printed in every mode for the reason dangling and missing rationale are:
     # it is a failing set, and a red gate with nothing on screen names no line
@@ -1408,7 +1749,14 @@ def report_gate_map(
 
     return out, (
         1
-        if (gm.dangling or regressed or gm.missing_rationale or gm.missing_excepted_by)
+        if (
+            gm.dangling
+            or regressed
+            or declared_none
+            or shrunk
+            or gm.missing_rationale
+            or gm.missing_excepted_by
+        )
         else 0
     )
 
@@ -1698,16 +2046,33 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"rules-points: {problem}", file=sys.stderr)
             return 1
         gm = gate_map(gate_files, points_dir, root)
-        head = head_sources(root, [p.name for p in gate_files])
-        regressed = (
-            gated_regressions(gm, gated_at_head(head)) if head is not None else []
+        head, no_head_for = head_sources(root, [p.name for p in gate_files])
+        # An EMPTY mapping is not a baseline. git answered, and it answered that
+        # no dispatcher is at HEAD, so nothing can regress against it and the
+        # zero the report would print says nothing (`ai/rules/evidence.md`).
+        at_head = bindings_at_head(head) if head else {}
+        regressed = gated_regressions(gm, gated_at_head(head)) if head else []
+        declared_none = unbound_regressions(gm, at_head) if head else []
+        head_counts = head_point_counts(root)
+        retired, ledger_problems = retired_since_head(root, points_dir)
+        shrunk = ledger_problems + (
+            corpus_shrink(
+                head_counts,
+                collections.Counter(ref.split("/", 1)[0] for ref in gm.points),
+                retired,
+            )
+            if head_counts is not None
+            else []
         )
         lines, code = report_gate_map(
             gm,
             list_ungated=args.ungated,
             quiet=args.quiet,
             regressed=regressed,
-            baseline=head is not None,
+            baseline=bool(head),
+            no_head_for=no_head_for,
+            declared_none=declared_none,
+            shrunk=shrunk,
         )
         for line in lines:
             print(line)
@@ -1721,6 +2086,18 @@ def main(argv: list[str] | None = None) -> int:
                 reason = (
                     f"{len(regressed)} point(s) were gated at HEAD and are gated by "
                     "nothing now; restore the binding, or say which check replaces it"
+                )
+            elif declared_none:
+                reason = (
+                    f"{len(declared_none)} check(s) named a point at HEAD and declare "
+                    "`none` now; repoint the binding at where the point moved to. A "
+                    "renamed point does not stop being enforced"
+                )
+            elif shrunk:
+                reason = (
+                    f"{len(shrunk)} rule(s) lost points that ai/rules/points/"
+                    f"{RETIRED_FILE} does not account for; restore the point, or add "
+                    "one line per retired instruction saying which id left and why"
                 )
             elif gm.missing_rationale:
                 reason = (

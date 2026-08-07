@@ -24,6 +24,7 @@ spec-work-runs-in-subagents-the-main-thread-supervises ## Spec Work Runs in Suba
   banned-delegation-reasoning-and-the-reality
   enforcement-delegation
   spawning-an-agent-here-needs-no-permission
+^work-phases ## Work Phases
   work-is-classified-by-phase-not-by-convenience
   what-each-work-phase-covers
   implementation-carries-no-model-requirement

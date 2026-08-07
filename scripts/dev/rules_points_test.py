@@ -9,6 +9,7 @@ splitter that drops a line and a renderer that puts it back would pass a diff.
 
 from __future__ import annotations
 
+import collections
 import json
 import sys
 import tempfile
@@ -322,7 +323,7 @@ class SectionSpineTest(unittest.TestCase):
         fields, sections = rules_points.parse_manifest(manifest, "fixture")
         self.assertEqual(fields["title"], "Fixture Rule")
         self.assertEqual(
-            [(slug, heading) for slug, heading, _ in sections],
+            [(s.slug, s.heading) for s in sections],
             [
                 ("directives", "## Directives"),
                 (
@@ -332,7 +333,7 @@ class SectionSpineTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            [len(points) for _, _, points in sections],
+            [len(s.points) for s in sections],
             [len(s.points) for s in split.sections],
         )
 
@@ -359,9 +360,11 @@ class SectionSpineTest(unittest.TestCase):
                 f"severity: {fields['severity']}\n---\n"
             )
             body = ""
-            for slug, heading, points in reversed(sections):
-                body += f"{slug} {heading}\n"
-                body += "".join(f"{rules_points.POINT_INDENT}{p}\n" for p in points)
+            for section in reversed(sections):
+                body += f"{section.slug} {section.heading}\n"
+                body += "".join(
+                    f"{rules_points.POINT_INDENT}{p}\n" for p in section.points
+                )
             manifest.write_text(head + body, encoding="utf-8")
 
             after = rules_points.render_dir(rule_dir)
@@ -376,6 +379,149 @@ class SectionSpineTest(unittest.TestCase):
             self.assertTrue(
                 (rule_dir / "a-sequel-with-punctuation-and-capitals").is_dir()
             )
+
+
+class TightHeadingTest(unittest.TestCase):
+    """A `##` with no blank line above it is still a section (R-4).
+
+    Mutation this fixes: `block_ranges` ended a run at a blank line and nowhere
+    else, so a `##` heading glued to the block above it stayed inside that
+    block's BODY. `planning.md` had one. The rendered rule was byte-identical
+    either way, so the round trip, the render check and the gate map all
+    exited 0, while every point after that heading carried an id naming a
+    section no reader ever sees and the heading could not be edited as one.
+    """
+
+    TIGHT = (
+        "# Tight\n\n**When:** always\n**Severity:** blocking\n\n"
+        "## First\n\n- A directive.\n## Second\n\n- Another directive.\n"
+    )
+
+    def test_a_heading_with_no_blank_line_above_opens_a_section(self):
+        split = rules_points.split_rule(self.TIGHT, "tight")
+        self.assertEqual([s.slug for s in split.sections], ["first", "second"])
+        self.assertEqual([s.tight for s in split.sections], [False, True])
+        # The heading is not in any body: that is the failure, stated directly.
+        for section in split.sections:
+            for point in section.points:
+                self.assertNotIn("## Second", point.body)
+
+    def test_the_tight_section_round_trips_byte_identical(self):
+        """The blank line the source does not have must not be invented."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            split = rules_points.split_rule(self.TIGHT, "tight")
+            rules_points.write_split(split, root)
+            manifest = (root / "tight" / "manifest.md").read_text(encoding="utf-8")
+            self.assertIn(f"{rules_points.TIGHT_MARK}second ## Second", manifest)
+            self.assertIn("first ## First", manifest)
+            self.assertEqual(rules_points.render_dir(root / "tight"), self.TIGHT)
+
+            # Discrimination: drop the marker and the render gains a blank line.
+            (root / "tight" / "manifest.md").write_text(
+                manifest.replace(f"{rules_points.TIGHT_MARK}second", "second"),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                rules_points.render_dir(root / "tight"),
+                self.TIGHT.replace("## Second", "\n## Second"),
+            )
+
+    def test_a_heading_inside_a_point_body_is_refused_at_render(self):
+        """The re-derivation: the rendered bytes name a section nothing lists."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rules_points.write_split(rules_points.split_rule(self.TIGHT, "tight"), root)
+            point = root / "tight" / "first" / "a-directive.md"
+            point.write_text(
+                point.read_text(encoding="utf-8") + "## Smuggled\n", encoding="utf-8"
+            )
+            with self.assertRaises(rules_points.RulePointsError) as caught:
+                rules_points.render_dir(root / "tight")
+            self.assertIn("## Smuggled", str(caught.exception))
+
+    def test_a_fenced_heading_is_not_a_section(self):
+        """`planning.md` quotes `## Executive Summary` inside a report template."""
+        self.assertEqual(
+            rules_points.section_headings(
+                ["## Real", "```", "## Quoted", "```", "## Also Real"]
+            ),
+            ["## Real", "## Also Real"],
+        )
+
+    def test_every_committed_rule_names_every_heading_it_renders(self):
+        """The corpus pin: 281 fence-aware `##` against 281 section directories."""
+        headings = 0
+        directories = 0
+        for path in committed_rules():
+            text = path.read_text(encoding="utf-8")
+            found = rules_points.section_headings(text.split("\n")[:-1])
+            listed = rules_points.split_rule(text, path.stem).sections
+            with self.subTest(rule=path.name):
+                self.assertEqual(found, [s.heading for s in listed])
+            headings += len(found)
+            directories += len(listed)
+        self.assertEqual(headings, directories)
+        self.assertGreater(headings, 250, "the corpus must not have shrunk to nothing")
+
+
+class DepthTest(unittest.TestCase):
+    """The tree is at a fixed depth of two, and nothing reads below it.
+
+    Mutation this fixes: a point at `<rule>/<section>/stray/orphan.md` rendered
+    NOTHING. `render_dir` globbed `*.md` per section and never looked into a
+    subdirectory, `points_on_disk` walked exactly `<rule>/*/*.md`, and the
+    render check, the round trip and the gate map all exited 0 while the
+    instruction reached no rendered rule. `make ze-regen` renders in WRITE mode,
+    so the loss is committed with every gate green.
+    """
+
+    RULE = (
+        "# Deep\n\n**When:** always\n**Severity:** blocking\n\n"
+        "## Directives\n\n- A directive.\n"
+    )
+
+    def _tree(self, tmp):
+        root = Path(tmp)
+        rules_points.write_split(rules_points.split_rule(self.RULE, "deep"), root)
+        return root / "deep"
+
+    def test_a_point_below_its_section_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rule_dir = self._tree(tmp)
+            stray = rule_dir / "directives" / "stray"
+            stray.mkdir()
+            (stray / "orphan.md").write_text(
+                "---\nkind: directive\nlevel:\nstage:\n---\n- Lost.\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(rules_points.RulePointsError) as caught:
+                rules_points.render_dir(rule_dir)
+            self.assertIn("directives/stray/orphan.md", str(caught.exception))
+
+    def test_a_directory_inside_a_section_is_refused_even_when_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rule_dir = self._tree(tmp)
+            (rule_dir / "directives" / "nested").mkdir()
+            with self.assertRaises(rules_points.RulePointsError) as caught:
+                rules_points.render_dir(rule_dir)
+            self.assertIn("directives/nested", str(caught.exception))
+
+    def test_write_split_refuses_a_directory_inside_a_section(self):
+        """`_refuse_stale` listed files at section level and directories at rule
+        level, so a nested directory survived a re-split untouched."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            split = rules_points.split_rule(self.RULE, "deep")
+            rules_points.write_split(split, root)
+            (root / "deep" / "directives" / "nested").mkdir()
+            with self.assertRaises(rules_points.RulePointsError) as caught:
+                rules_points.write_split(split, root)
+            self.assertIn("nested", str(caught.exception))
+
+    def test_the_control_renders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(rules_points.render_dir(self._tree(tmp)), self.RULE)
 
 
 class DelimiterTest(unittest.TestCase):
@@ -836,6 +982,25 @@ class RationaleTest(unittest.TestCase):
             self.assertIn("alpha/directives/point-0 -> gone.md", "\n".join(lines))
             # It fails on its own, not by borrowing another set's red.
             self.assertEqual(bad.dangling, [])
+
+    def test_an_empty_rationale_file_names_no_record(self):
+        """The field claims a record explains the point. `touch` is not a record.
+
+        The check asked whether a path RESOLVED, so an empty file satisfied it.
+        Same tree, same binding, same path: only the file's content moves, and
+        the exit code moves with it.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            points, gates = self._tree(tmp, ["real.md", None])
+            self.assertEqual(
+                rules_points.gate_map(gates, points, Path(tmp)).missing_rationale, []
+            )
+            (Path(tmp) / "real.md").write_text("\n   \n", encoding="utf-8")
+            gm = rules_points.gate_map(gates, points, Path(tmp))
+            self.assertEqual(
+                gm.missing_rationale, [("alpha/directives/point-0", "real.md")]
+            )
+            self.assertNotEqual(rules_points.report_gate_map(gm)[1], 0)
 
     def test_a_rationale_escaping_the_repository_is_reported(self):
         """A path that resolves outside the tree names no record this gate can
@@ -1468,11 +1633,210 @@ class GatedRatchetTest(unittest.TestCase):
     def test_head_sources_over_the_real_repository(self):
         """The baseline reader answers for a committed file, or says it cannot."""
         names = [p.name for p in rules_points.dispatchers(ROOT)[0]]
-        sources = rules_points.head_sources(ROOT, names)
+        sources, absent = rules_points.head_sources(ROOT, names)
         if sources is None:
             self.skipTest("git could not answer; no HEAD baseline on this machine")
+        self.assertEqual(absent, [], "every registered dispatcher is committed")
         for name, text in sources.items():
             self.assertIn("def ", text, name)
+
+    def test_git_answering_for_no_file_is_not_a_baseline(self):
+        """The fail-open this closes: `{}` read as "there is a baseline".
+
+        `head_sources` returned an empty mapping in three different situations
+        -- a tree with no commit, a checkout git cannot read, and a dispatcher
+        renamed since HEAD -- and `main` derived `baseline = head is not None`,
+        which is True for `{}`. `REGRESSED: 0` was then printed from a baseline
+        holding nothing. A ratchet that cannot fire prints the zero of one that
+        can.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            # A directory that is no git repository at all: git RUNS and answers
+            # that there is no HEAD, which is the case `{}` used to swallow.
+            sources, absent = rules_points.head_sources(Path(tmp), ["anything.py"])
+            self.assertIsNone(sources, "no HEAD is not an empty baseline")
+            self.assertEqual(absent, [])
+
+            lines, code = rules_points.report_gate_map(
+                self._gm(tmp, self.BOTH, write_points(tmp)), baseline=bool(sources)
+            )
+            self.assertEqual(code, 0)
+            self.assertIn("no HEAD baseline", "\n".join(lines))
+            self.assertNotIn("REGRESSED: 0 point(s)", "\n".join(lines))
+
+    def test_a_dispatcher_absent_from_head_is_named_not_absorbed(self):
+        """A rename takes a whole binding set out of the baseline, silently."""
+        names = [p.name for p in rules_points.dispatchers(ROOT)[0]]
+        sources, absent = rules_points.head_sources(
+            ROOT, names + ["pretool-renamed-away.py"]
+        )
+        if sources is None:
+            self.skipTest("git could not answer; no HEAD baseline on this machine")
+        self.assertEqual(absent, ["pretool-renamed-away.py"])
+        with tempfile.TemporaryDirectory() as tmp:
+            gm = self._gm(tmp, self.BOTH, write_points(tmp))
+            lines, _ = rules_points.report_gate_map(gm, no_head_for=absent)
+            self.assertIn(
+                "no version at HEAD: pretool-renamed-away.py", "\n".join(lines)
+            )
+
+    def test_the_ratchet_fires_against_the_real_tree(self):
+        """The mutation proof on the real dispatchers and the real points.
+
+        The fixture tests above prove the algorithm. This proves the BASELINE
+        is real: it reads HEAD's own dispatchers, deletes one binding from a
+        copy of the tree, and requires the point to be reported. With the empty
+        baseline this replaces, nothing here could ever fail.
+        """
+        gate_files, problems = rules_points.dispatchers(ROOT)
+        self.assertEqual(problems, [])
+        sources, _ = rules_points.head_sources(ROOT, [p.name for p in gate_files])
+        if sources is None:
+            self.skipTest("git could not answer; no HEAD baseline on this machine")
+        baseline = rules_points.gated_at_head(sources)
+        self.assertGreater(
+            len(baseline), 20, "an empty baseline can never report a regression"
+        )
+
+        points_dir = RULES_DIR / "points"
+        victim = sorted(baseline)[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            copies = []
+            for path in gate_files:
+                text = path.read_text(encoding="utf-8")
+                out = Path(tmp) / path.name
+                out.write_text(
+                    "\n".join(
+                        line
+                        for line in text.split("\n")
+                        if line.strip() != f"# ze point: {victim}"
+                    ),
+                    encoding="utf-8",
+                )
+                copies.append(out)
+            gm = rules_points.gate_map(copies, points_dir, ROOT)
+            self.assertIn(
+                victim, rules_points.gated_regressions(gm, baseline), "the mutation"
+            )
+
+            unchanged = rules_points.gate_map(gate_files, points_dir, ROOT)
+            self.assertEqual(
+                rules_points.gated_regressions(unchanged, baseline),
+                [],
+                "the control: the committed tree regresses nothing",
+            )
+
+    def test_a_renamed_point_relabelled_none_is_a_regression(self):
+        """The laundering route: rename the point, then declare `none`.
+
+        `gated_regressions` filters on `ref in gm.points`, so a renamed point
+        drops out of the baseline and reports nothing. Renaming alone leaves the
+        binding dangling, which fails; rewriting that dangling binding as
+        `# ze point: none -- <why>` lands it in UNBOUND, which never failed.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            points = write_points(tmp)
+            baseline = rules_points.bindings_at_head({"fake-hook.py": self.BOTH})
+            self.assertEqual(
+                baseline,
+                {
+                    "c_alpha": {"alpha/directives/first-directive"},
+                    "c_beta": {"alpha/directives/second-directive"},
+                },
+            )
+
+            # Control: both bindings intact, nothing declared none.
+            gm = self._gm(tmp, self.BOTH, points)
+            self.assertEqual(rules_points.unbound_regressions(gm, baseline), [])
+
+            laundered = self.BOTH.replace(
+                "# ze point: alpha/directives/first-directive",
+                "# ze point: none -- the rule was reworded",
+            )
+            gm = self._gm(tmp, laundered, points)
+            self.assertEqual(rules_points.gated_regressions(gm, set(baseline)), [])
+            found = rules_points.unbound_regressions(gm, baseline)
+            self.assertEqual(len(found), 1, found)
+            self.assertIn("c_alpha", found[0])
+            self.assertIn("alpha/directives/first-directive", found[0])
+            _, code = rules_points.report_gate_map(gm, declared_none=found)
+            self.assertNotEqual(code, 0, "a check that un-gated itself must fail")
+
+
+class CorpusRatchetTest(unittest.TestCase):
+    """A point may not leave the corpus without saying so.
+
+    Mutation this fixes: deleting a point file AND its manifest line left
+    `ze-rules-render-check`, `ze-rules-points-roundtrip`, `ze-rules-gate-map`,
+    `ze-rules-lint` and all 73 tests green. The points and the rendered rule
+    agree on the smaller corpus, so every gate that reads the tree as it IS sees
+    nothing. Only a git diff on the rendered rule showed it.
+    """
+
+    def test_an_undeclared_deletion_is_reported(self):
+        shrunk = rules_points.corpus_shrink(
+            {"alpha": 4, "beta": 2}, collections.Counter({"alpha": 3, "beta": 2}), {}
+        )
+        self.assertEqual(len(shrunk), 1, shrunk)
+        self.assertIn("alpha", shrunk[0])
+        self.assertIn("1 vanished", shrunk[0])
+        _, code = rules_points.report_gate_map(self._gm(), shrunk=shrunk)
+        self.assertNotEqual(code, 0, "an undeclared deletion must fail")
+
+    def test_a_declared_retirement_covers_the_drop(self):
+        """Legitimate deletion stays possible: one ledger row per point."""
+        shrunk = rules_points.corpus_shrink(
+            {"alpha": 4},
+            collections.Counter({"alpha": 3}),
+            collections.Counter({"alpha": 1}),
+        )
+        self.assertEqual(shrunk, [])
+
+    def test_a_growing_corpus_is_never_a_shrink(self):
+        self.assertEqual(
+            rules_points.corpus_shrink(
+                {"alpha": 2}, collections.Counter({"alpha": 5, "beta": 1}), {}
+            ),
+            [],
+        )
+
+    def test_the_ledger_reads_rows_and_ignores_its_prose(self):
+        text = (
+            "# Retired\n\nProse that is not a row, with a | pipe in it.\n\n"
+            "| Point | Why |\n|-------|-----|\n"
+            "| `alpha/directives/gone` | merged into `alpha/directives/kept` |\n"
+        )
+        rows = rules_points.retirement_rows(text)
+        self.assertEqual(len(rows), 1, rows)
+        found = rules_points.RETIREMENT.match(rows[0])
+        self.assertIsNotNone(found, rows[0])
+        self.assertEqual(found.group("id"), "alpha/directives/gone")
+
+    def test_the_committed_ledger_parses(self):
+        """The real file: prose plus a header, and every row well formed."""
+        path = RULES_DIR / "points" / rules_points.RETIRED_FILE
+        self.assertTrue(path.is_file(), f"{path} must exist for the ratchet to read")
+        for row in rules_points.retirement_rows(path.read_text(encoding="utf-8")):
+            self.assertIsNotNone(rules_points.RETIREMENT.match(row), row)
+
+    def test_head_point_counts_over_the_real_repository(self):
+        counts = rules_points.head_point_counts(ROOT)
+        if counts is None:
+            self.skipTest("git could not answer; no HEAD baseline on this machine")
+        self.assertGreater(len(counts), 20, "27 rules are committed")
+        self.assertNotIn("manifest", counts)
+        self.assertGreater(sum(counts.values()), 1000)
+
+    def _gm(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            points = write_points(tmp)
+            path = Path(tmp) / "fake-hook.py"
+            path.write_text(
+                "# ze point: alpha/directives/first-directive\n"
+                "def c_alpha(ctx):\n    return None\n",
+                encoding="utf-8",
+            )
+            return rules_points.gate_map([path], points)
 
 
 def _dispatcher_checks() -> set[str]:

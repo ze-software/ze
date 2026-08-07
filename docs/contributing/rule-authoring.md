@@ -121,6 +121,27 @@ A body line matching neither shape is a hard error, never a skipped line.
 | The same slug twice in one section, or the same section twice | The body would be emitted twice |
 | A section listing no point | An empty directory carries no instruction and does not survive a clone |
 | A slug carrying a path separator, a leading dot, or a parent reference | A manifest MUST NOT read outside its own rule directory |
+| A `*.md` below its section directory, or a directory inside one | The tree is at a fixed depth of two and nothing reads deeper, so the instruction renders into nothing while every gate exits 0 |
+| A `##` heading inside a point BODY | A `##` opens a section, and a section is a directory. The rendered bytes are identical either way, so this is the one loss no other gate can see: every point after that heading carries an id naming a section no reader ever sees |
+
+A `##` heading with no blank line above it is still a section. The manifest
+records the missing blank line with a leading `^` on the section line, so the
+rendered rule keeps the bytes the source had.
+
+## Retiring a point
+
+A point IS an instruction. Delete the file and its manifest line together and
+every gate stays green, because the points and the rendered rule then agree on
+the smaller corpus.
+
+So a removal is declared: one row in `ai/rules/points/RETIRED.md`, naming the id
+and saying what happened to the instruction. `make ze-rules-gate-map` compares
+each rule's point count against git HEAD and fails when a drop is not covered by
+a row added since HEAD. A row stops counting once it is committed, so nothing
+there pre-approves a future deletion.
+
+Moving a point between sections is a rename, not a retirement: the count does
+not change, and the point's `# ze point:` binding is repointed at the new id.
 
 ## Binding a hook check to a point
 
@@ -141,12 +162,15 @@ the dangling bindings, the points that regressed, the checks that declare
 `none`, the two sets of links naming nothing, the ungated count, and the two
 coverage counts.
 
-Four of those sets fail. Dangling is a binding naming a point that does not
+Six of those sets fail. Dangling is a binding naming a point that does not
 exist. Regressed is a point that carried a binding at HEAD and carries none now,
 which is the one route from gated to ungated that leaves every other gate green.
-The other two are a `rationale` naming no file and an `excepted-by` naming no
-point: the same defect one direction out, where the explanation or the exception
-moved out from under the instruction.
+Declared-none is the same route with one more step: rename the point, then
+rewrite the dangling binding as `none -- <why>`. Shrunk is a rule that lost
+points no `RETIRED.md` row accounts for. The last two are a `rationale` naming
+no record and an `excepted-by` naming no point: the same defect one direction
+out, where the explanation or the exception moved out from under the
+instruction.
 
 Every count is a measurement and exits 0 whatever its value.
 

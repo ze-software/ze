@@ -237,6 +237,12 @@ ze-rules-render-check:
 # which is the number this target exists to publish. Dangling FAILS: a check
 # naming a point that does not exist is what a reworded rule looks like, and
 # before the id was a path nothing could see it.
+#
+# Three more sets fail here, and each one is a route by which an instruction or
+# its gate leaves with every other target green: a check that named a point at
+# HEAD and declares `none` now, a rule holding fewer points than HEAD with no
+# row in ai/rules/points/RETIRED.md, and a `rationale`/`excepted-by` naming
+# nothing. All three read git HEAD, so this target needs a repository.
 ze-rules-gate-map:
 	@python3 scripts/dev/rules_points.py coverage
 

@@ -200,7 +200,7 @@ def _is_review_work(prompt: str) -> bool:
     return bool(hit) and hit[0] in _REVIEW_SKILLS
 
 
-# ze point: planning/spec-work-runs-in-subagents-the-main-thread-supervises/run-every-review-on-opus-5
+# ze point: planning/work-phases/run-every-review-on-opus-5
 def review_model_refusal(prompt: str, transcript: str | None = None) -> str:
     """Why this review may not run here, or '' when it may."""
     if not _is_review_work(prompt):

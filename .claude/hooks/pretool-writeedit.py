@@ -96,6 +96,80 @@ def isfile(path):
     return os.path.isfile(path)
 
 
+# --- path identity, asked of the filesystem ---
+#
+# `os.path.realpath` resolves symlinks. It does NOT resolve CASE, and this
+# repository is developed on a case-insensitive volume, where
+# `<repo>/AI/rules/points/<rule>/<section>/<slug>.md` and
+# `<repo>/ai/rules/Points/.../<Slug>.md` both open the very file a check exists
+# to protect. Every comparison built from realpath STRINGS therefore permitted a
+# Write that destroyed the point it refused under the canonical spelling. Two
+# checks had it, and it is the same defect class as the depth bug beside it: one
+# keyed on depth, one on case.
+#
+# `os.path.normcase` is not the fix. It lowercases on Windows and is the
+# IDENTITY on every POSIX platform, this one included, so it would leave the
+# hole exactly where it is. Identity is asked of the filesystem instead
+# (`st_dev`, `st_ino`), which answers truly on a case-insensitive volume and on
+# a case-sensitive one alike -- and on a case-sensitive volume `AI/rules` names
+# nothing, so refusing it would be a false block rather than a fix.
+
+
+def _same_path(a, b):
+    """Whether two paths name the same file or directory on disk.
+
+    Falls back to a string comparison when either side is absent: a path with
+    no inode cannot be compared by identity, and the strings are then the only
+    evidence there is.
+    """
+    try:
+        return os.path.samestat(os.stat(a), os.stat(b))
+    except OSError:
+        return a == b
+
+
+def _on_disk_name(directory, name):
+    """`name` as `directory` spells it, or `name` when nothing there matches.
+
+    Only reached once the parent has already matched by identity, so this is
+    about NAMING the file in a refusal and routing the message, never about the
+    verdict.
+    """
+    try:
+        entries = os.listdir(directory)
+    except OSError:
+        return name
+    if name in entries:
+        return name
+    folded = name.lower()
+    return next((e for e in entries if e.lower() == folded), name)
+
+
+def _tail_under(base, path):
+    """The components of `path` below `base`, in their on-disk spelling.
+
+    None when `path` is not under `base`. The walk compares by identity at every
+    step, so a case variant of any segment resolves to the same answer as the
+    canonical spelling. Bounded: a path deeper than 24 components below `base`
+    is not a rule point and is not worth walking.
+    """
+    parts = []
+    current = path
+    while not _same_path(current, base):
+        head, tail = os.path.split(current)
+        if not tail or head == current or len(parts) >= 24:
+            return None
+        parts.append(tail)
+        current = head
+    out = []
+    where = base
+    for name in reversed(parts):
+        name = _on_disk_name(where, name)
+        out.append(name)
+        where = os.path.join(where, name)
+    return out
+
+
 # --- session id + state file ---
 #
 # The session id is resolved by the ONE shared resolver, .claude/hooks/lib/
@@ -1186,9 +1260,12 @@ def c_rendered_rules(ctx):
     Matched by full path against PROJECT_DIR, for the reason c_generated_files
     records: a basename or suffix match would also catch a rule file in another
     checkout and send its author to a points directory that does not govern them.
-    Points themselves are the canonical source and are always permitted -- their
-    parent is ai/rules/points/<rule>, never ai/rules, so the dirname test lets
+    Points themselves are the canonical source and are always permitted -- they
+    sit two or more components below ai/rules, never one, so the depth test lets
     them through by construction (spec AC-8).
+
+    Matched by IDENTITY, never by comparing realpath strings: see `_same_path`.
+    `<repo>/AI/rules/performance.md` opened the generated rule and exited 0.
 
     Fails CLOSED: when the path cannot be resolved the answer is a refusal, never
     a permit, because the file this could not classify might be a rendered rule
@@ -1208,6 +1285,7 @@ def c_rendered_rules(ctx):
         given = fp if os.path.isabs(fp) else os.path.join(PROJECT_DIR, fp)
         resolved = os.path.realpath(given)
         rules_dir = os.path.realpath(os.path.join(PROJECT_DIR, "ai", "rules"))
+        tail = _tail_under(rules_dir, resolved)
     except (OSError, ValueError):
         return (
             2,
@@ -1215,12 +1293,13 @@ def c_rendered_rules(ctx):
             f" directory{RESET}\n  Refusing rather than permitting: it may be a"
             "\n  generated file under ai/rules/. Pass an absolute path.",
         )
-    if os.path.dirname(resolved) != rules_dir:
+    if tail is None or len(tail) != 1:
         return None
-    # Named from the RESOLVED path, never the raw one. A symlink from outside is
-    # correctly blocked either way, and the refusal has to name the file the
-    # author must actually edit rather than the name they typed.
-    base = os.path.basename(resolved)
+    # Named from the ON-DISK spelling, never the one the payload typed. A
+    # symlink from outside is correctly blocked either way, and the refusal has
+    # to name the file the author must actually edit. `ai/rules/index.md` opens
+    # INDEX.md here, and the fix line has to send them to rules_index.py.
+    base = tail[0]
     if not base.endswith(".md"):
         return None
 
@@ -1276,17 +1355,35 @@ def c_point_overwrite(ctx):
     and on whether the file already exists. Folding two opposite polarities into
     one function would make the AC-8 early return something to work around.
 
-    Edit and MultiEdit stay permitted: both are targeted, both fail when their
-    old_string does not match, and neither can silently drop a body. A Write to
-    a NEW path stays permitted too, because that is how a point is authored
-    (`ai/rules/never-destroy-work.md` bans destroying work, not creating it).
+    Edit stays permitted: it is targeted, it fails when its old_string does not
+    match, and it cannot silently drop a body. MultiEdit is refused on the ONE
+    shape that can: an empty `old_string` matches at position 0 and replaces the
+    whole file, which is a Write wearing another name. That branch is unreachable
+    in a harness whose tool set carries no MultiEdit, and it is written because
+    the previous docstring asserted MultiEdit was safe without anything proving
+    it. A Write to a NEW path stays permitted, because that is how a point is
+    authored (`ai/rules/never-destroy-work.md` bans destroying work, not
+    creating it).
 
     TWO shapes are canonical, because the tree is at a fixed depth of two:
     ai/rules/points/<rule>/manifest.md carries the whole spine, and
     ai/rules/points/<rule>/<section>/<slug>.md carries one instruction. A path at
     any other depth is not a canonical source, so it is left alone.
+
+    Matched by IDENTITY, never by comparing realpath strings: see `_same_path`.
+    A Write through `<repo>/AI/rules/points/...` landed on the real point and
+    exited 0, which is this check's own failure mode with different capitals.
     """
-    if ctx["tool"] != "Write":
+    tool = ctx["tool"]
+    if tool == "Write":
+        replaces = True
+    elif tool == "MultiEdit":
+        replaces = any(
+            not (e or {}).get("old_string") for e in (ctx["ti"].get("edits") or [])
+        )
+    else:
+        replaces = False
+    if not replaces:
         return None
     fp = ctx["fp"]
     if not fp:
@@ -1297,6 +1394,7 @@ def c_point_overwrite(ctx):
         points_dir = os.path.realpath(
             os.path.join(PROJECT_DIR, "ai", "rules", "points")
         )
+        tail = _tail_under(points_dir, resolved)
     except (OSError, ValueError):
         return (
             2,
@@ -1304,18 +1402,17 @@ def c_point_overwrite(ctx):
             f" directory{RESET}\n  Refusing rather than permitting: it may be a"
             "\n  rule point under ai/rules/points/. Pass an absolute path.",
         )
-    base = os.path.basename(resolved)
-    parent = os.path.dirname(resolved)
-    if os.path.dirname(parent) == points_dir and base == "manifest.md":
+    if tail is None:
+        return None
+    if len(tail) == 2 and tail[1] == "manifest.md":
         # ai/rules/points/<rule>/manifest.md
-        stem, rel = os.path.basename(parent), f"{os.path.basename(parent)}/{base}"
+        stem, rel = tail[0], "/".join(tail)
         what = (
             "the sections, the reading order, the title, the trigger and the severity"
         )
-    elif os.path.dirname(os.path.dirname(parent)) == points_dir:
+    elif len(tail) == 3:
         # ai/rules/points/<rule>/<section>/<slug>.md
-        stem = os.path.basename(os.path.dirname(parent))
-        rel = f"{stem}/{os.path.basename(parent)}/{base}"
+        stem, rel = tail[0], "/".join(tail)
         what = "one instruction of the rule"
     else:
         return None
