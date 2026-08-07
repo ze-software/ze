@@ -15,7 +15,9 @@ See also: `/ze-implement` (implement the spec), `/ze-review-spec` (post-impl ver
 phase itself.
 
 - **If you are the main thread:** spawn an agent to run this skill, hand it the
-  spec path and the phase, then stop. Do not run the steps below inline. You do
+  spec path and the phase, then stop. Use `subagent_type: ze-read`, which costs
+  about 6k fewer startup tokens per agent than the default
+  (`ai/rules/context-economy.md`). Do not run the steps below inline. You do
   not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
   Independent work goes out in ONE message with parallel `Agent` calls.
 - **If you are that agent:** run the steps below. Resolve symbols with the LSP

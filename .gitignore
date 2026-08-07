@@ -78,13 +78,15 @@ scripts/zeledon/weekly/
 .claude/.compaction-detected-*
 .claude/scheduled_tasks.lock
 
-# Generated AI tool config (canonical sources: ai/skills/, ai/INSTRUCTIONS.md)
+# Generated AI tool config (canonical sources: ai/skills/, ai/agents/,
+# ai/INSTRUCTIONS.md)
 # Regenerate with: make ze-ai-sync
 CLAUDE.md
 AGENTS.md
 .claude/skills/
 .codex/skills/
 .agents/skills/
+.claude/agents/
 
 test/perf/results/
 bin/ze-perf-linux

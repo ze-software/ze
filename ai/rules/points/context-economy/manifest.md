@@ -8,6 +8,7 @@ directives ## Directives
   where-these-measurements-come-from
   why-the-ratios-matter-more-than-the-absolutes
   lower-cost-by-cutting-round-trips-and-context
+  agent-startup-floor-is-set-by-the-tools-field
   python-symbols-resolve-through-pyright
 which-lsp-operation-answers-which-question ## Which LSP Operation Answers Which Question
   lsp-operation-and-gopls-command-for-each-question

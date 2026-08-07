@@ -16,7 +16,12 @@ See also: `/ze-implement` (produces the diff this closes), `/ze-review` (the BLO
 phase itself.
 
 - **If you are the main thread:** spawn an agent to run this skill, hand it the
-  spec path and the phase, then stop. Do not run the steps below inline. You do
+  spec path and the phase, then stop. Leave `subagent_type` unset here, alone
+  among the phase skills. Step 5 loops the Review Gate, which spawns reviewer
+  subagents. Neither `ze-read` nor `ze-work` holds the Agent tool
+  (`ai/rules/context-economy.md`), and the higher startup is the correct trade
+  against a closure that cannot reach its own gate. Do not run the steps below
+  inline. You do
   not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
   Independent work goes out in ONE message with parallel `Agent` calls.
 - **If you are that agent:** run the steps below. Resolve symbols with the LSP

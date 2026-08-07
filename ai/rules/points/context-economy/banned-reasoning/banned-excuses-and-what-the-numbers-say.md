@@ -17,3 +17,6 @@ stage:
 | "My ToolSearch came back empty, so I have no LSP here" | You have no LSP TOOL here. The capability is on PATH: run `gopls` from Bash. `gopls symbols` cost 1,297 bytes where the file cost 44,164 (34.1x) |
 | "Subagents never get LSP, so I will not try" | Which contexts carry the tool depends on the harness build and the machine, and both change. Issue the query, then fall back |
 | "This phase needs findReferences, so it cannot be delegated" | `references` is answerable in a subagent by either route. Delegation is a cost decision, not a tooling one |
+| "`Explore` starts at 8,507 against 49,537, so route the read-only phases to it" | It is cheap because it receives none of this repository's rules: probed, it answers no to `ABSOLUTE PROHIBITIONS`, to the STE line and to `Ze Rules -- Always-On Core`. Use `ze-read`, which keeps the preamble and still lowers the floor |
+| "The `tools:` list is what costs, so cut tools until the agent is cheap" | The FIELD lowers the floor, not its length. `ze-work` keeps Edit, Write and NotebookEdit at 43,566 against `ze-read`'s 42,956. Removing a tool the phase needs buys nothing and breaks the phase |
+| "The name is in my tool list, so the agent I spawn will have it" | A `tools:` name the harness does not serve is dropped in SILENCE. Six were, on 2026-08-07. Probe the agent and read back its own registry |

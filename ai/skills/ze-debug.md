@@ -18,7 +18,11 @@ own fan-out. Do not wrap the whole skill in a single agent. That buries the
 parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/planning.md`).
 
-Launch the agents this skill defines, all in ONE message, on `model: opus`.
+Launch the agents this skill defines, all in ONE message, on `model: opus`,
+with `subagent_type: ze-work`. Every lens here implements its own fix at step
+4, so none of them can be `ze-read`, which holds no Edit. `ze-work` costs about
+6k fewer startup tokens per agent than the default
+(`ai/rules/context-economy.md`).
 Never trade their model down for cost; cut their NUMBER instead
 (`ai/rules/planning.md`). You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 934 summaries
+Total: 935 summaries
 
 ## 400-499
 
@@ -993,3 +993,4 @@ Total: 934 summaries
 | 1357 | `flock(1)` on a macOS dev machine is not util-linux | `plan/learned/1357-flock-macos-is-not-util-linux.md` |
 | 1358 | dev-setup-cross-platform | `plan/learned/1358-dev-setup-cross-platform.md` |
 | 1359 | A number typed into a rule file is an unverified claim | `plan/learned/1359-rules-corpus-paraphrase-drift.md` |
+| 1360 | An Agent's Startup Floor Is Set by Its `tools:` Field, and `Explore` Is Cheap Because It Is Ignorant | `plan/learned/1360-agent-startup-floor-is-the-tools-field.md` |

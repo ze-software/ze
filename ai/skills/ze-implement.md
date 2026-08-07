@@ -19,7 +19,8 @@ phase itself.
 - **If you are the main thread: spawn ONE AGENT PER IMPLEMENTATION PHASE, never
   one agent for the whole spec.** Read the spec's **Implementation Phases**
   section. Treat each phase as one work package. Hand each agent the spec path,
-  its phase number, and the per-spec state file path (below). Do not run the
+  its phase number, and the per-spec state file path (below), on
+  `subagent_type: ze-work` (`ai/rules/context-economy.md`). Do not run the
   steps below inline. You do not need to ask permission first
   (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 - **Order the phase agents by their dependencies.** Phases that do not depend on

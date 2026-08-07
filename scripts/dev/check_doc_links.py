@@ -95,6 +95,7 @@ MD_GLOBS = [
     "ai/rationale/*.md",
     "ai/patterns/*.md",
     "ai/skills/*.md",
+    "ai/agents/*.md",
     ".claude/rules/*.md",
     ".claude/README.md",
     ".claude/hooks/README.md",

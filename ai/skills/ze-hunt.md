@@ -37,9 +37,14 @@ Example: `/ze-hunt internal/component/bgp/`.
    and read the surrounding code before classifying. Do not report a grep line
    as a bug.
 4. Rule out the known false positives listed per hunt.
-5. For surviving candidates, verify against callers (LSP `findReferences`):
-   does any caller handle the bad value (e.g. check `.IsValid()`, the error,
-   the lock)? If yes, downgrade; if no, it is a real candidate.
+5. For surviving candidates, verify against callers: does any caller handle the
+   bad value (e.g. check `.IsValid()`, the error, the lock)? If yes, downgrade;
+   if no, it is a real candidate. Resolve callers with the LSP tool's
+   `findReferences` where your registry carries it, and with
+   `gopls references <file>:<line>:<col>` from Bash where it does not. A
+   `ze-read` agent has no LSP tool, so it takes the second route
+   (`ai/rules/context-economy.md`). Never fall back to grep for this: it matches
+   comments and string literals too.
 6. Report in the format below. Honest negatives matter: state which classes
    came back clean.
 
@@ -146,9 +151,11 @@ two sources. Where none exists, that gap is the finding. See
 ### H8 -- Unwired feature (structural; the project's most recurring defect)
 
 A production (non-`_test.go`) exported symbol with zero non-test callers is
-either dead code or a feature not reachable from any user entry point. Use LSP
-`findReferences` (not grep) on suspect exported symbols; cross-check that
-registered CLI dispatch keys, web routes, and config validators are reachable.
+either dead code or a feature not reachable from any user entry point. Resolve
+callers on suspect exported symbols by the LSP tool's `findReferences`, or by
+`gopls references` from Bash when the tool is absent, never by grep (step 5).
+Cross-check that registered CLI dispatch keys, web routes, and config
+validators are reachable.
 See `ai/rules/completion.md`.
 
 ## Report format
@@ -187,7 +194,9 @@ Grep catches the recorded *shapes*. To find unknown bugs, escalate:
 
 For a large scope, run the independent hunts as parallel subagents (one per
 subsystem or per hunt) and have a second agent adversarially verify each
-surviving candidate before it reaches the report.
+surviving candidate before it reaches the report. Both are read-only work, so
+spawn them with `subagent_type: ze-read`, which costs about 6k fewer startup
+tokens per agent than the default (`ai/rules/context-economy.md`).
 
 ## Do NOT
 

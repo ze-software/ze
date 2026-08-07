@@ -268,9 +268,14 @@ ze-rules-router-report-json:
 # (~/.claude/projects/<slug>/), so a checkout with no transcripts reports that
 # and exits 0. Token counts only, never money. Override the ceiling with
 # `make ze-token-economy ZE_CONTEXT_CAP=150000`.
+# Scope to one session with `make ze-token-economy ZE_SESSION=<id-prefix>`. The
+# startup-context comparison between two agent types is only valid inside one
+# session: the always-on preamble changes size between them, and it is the
+# largest term in that number.
 ZE_CONTEXT_CAP ?= 200000
+ZE_SESSION ?=
 ze-token-economy:
-	@python3 scripts/dev/token_economy.py --cap $(ZE_CONTEXT_CAP)
+	@python3 scripts/dev/token_economy.py --cap $(ZE_CONTEXT_CAP) $(if $(ZE_SESSION),--session $(ZE_SESSION))
 
 # Rule format lint: every ai/rules/*.md carries the required **When:** /
 # **Severity:** metadata block (see ai/rules/rule-format.md), so tooling can

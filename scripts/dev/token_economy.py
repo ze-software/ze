@@ -50,6 +50,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import statistics
 import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -151,10 +152,29 @@ class Agent:
     calls: list[Call] = field(default_factory=list)
     tool_calls: list[ToolCall] = field(default_factory=list)
     is_fork: bool = False
+    prompt_chars: int = 0
 
     @property
     def phase(self) -> str:
         return phase_of(self.description, self.agent_type)
+
+    @property
+    def harness_floor(self) -> int:
+        """First-call context with the spawn prompt taken back out.
+
+        What the harness supplied before the agent did anything: system
+        prompt, tool schemas, and the SubagentStart injection. Subtracting the
+        prompt is what makes the number comparable between two agents, and
+        stable as a session grows. Without it the figure tracks how much the
+        parent happened to write, which is why the raw first call cannot be
+        cited as a property of an agent TYPE.
+
+        A fork is excluded by its caller, not here: it inherits the parent's
+        whole context, so nothing about it is a floor.
+        """
+        if not self.calls:
+            return 0
+        return max(0, self.calls[0].context - int(approx_tokens(self.prompt_chars)))
 
 
 @dataclass
@@ -248,6 +268,11 @@ class Scan:
     calls: dict[str, Call] = field(default_factory=dict)
     origins: dict[str, str] = field(default_factory=dict)
     tools: dict[str, list[ToolCall]] = field(default_factory=dict)
+    # Characters of the FIRST user message: for a subagent, the prompt its
+    # parent wrote. Held so `agent_type_startup` can take it back out of the
+    # first call and leave what the harness supplied. Zero when the transcript
+    # opens with no user text.
+    prompt_chars: int = 0
 
 
 def _blocks(message) -> list:
@@ -307,6 +332,18 @@ def scan(path: Path) -> Scan:
         kind = record.get("type")
         message = record.get("message")
         if kind == "user":
+            if not found.calls and not found.prompt_chars:
+                # Before the first assistant record, so this is the spawn
+                # prompt rather than a tool result fed back mid-run.
+                content = message.get("content") if isinstance(message, dict) else None
+                if isinstance(content, str):
+                    found.prompt_chars = len(content)
+                elif isinstance(content, list):
+                    found.prompt_chars = sum(
+                        len(b.get("text") or "")
+                        for b in content
+                        if isinstance(b, dict) and b.get("type") == "text"
+                    )
             for block in _blocks(message):
                 if block.get("type") != "tool_result":
                     continue
@@ -520,6 +557,7 @@ def find_sessions(store: Path) -> list[Session]:
                     calls=calls,
                     tool_calls=tools,
                     is_fork=transcript.is_fork,
+                    prompt_chars=found.prompt_chars,
                 )
             )
         else:
@@ -639,6 +677,40 @@ def repeat_reads(group: list[ToolCall], tool: str = "Read") -> tuple[int, int]:
     """
     paths = [t.file_path for t in group if t.name == tool and t.file_path]
     return (len(paths), len(paths) - len(set(paths)))
+
+
+def agent_type_startup(agents: list[Agent]) -> list[tuple[str, int, int, int, int]]:
+    """Per agent type: (type, agents, calls, median harness floor, context).
+
+    The floor is `Agent.harness_floor`: the first call with the spawn prompt
+    subtracted, so it is what the harness gave the agent and not what its
+    parent wrote. It is re-fed on every later call, so it multiplies by
+    `calls` rather than being paid once. That is what the column is for.
+
+    Subtracting the prompt is what makes the figure a property of the agent
+    TYPE. The raw first call is not: it moves with each spawn's prompt length,
+    so a median over it drifts as a live session grows, and a number cited
+    from it stops reproducing. Scope with `--session` as well, because the
+    always-on preamble changes size between sessions and it is the largest
+    term here.
+
+    A `fork` is reported with a floor of 0. It inherits its parent's whole
+    context, so no part of its first call is a harness floor, and leaving the
+    inherited figure in this column invited exactly the misreading above.
+
+    Sorted by total context, descending: the type to fix first is the one
+    feeding the most, not the one with the highest floor.
+    """
+    by_type: dict[str, list[Agent]] = {}
+    for agent in agents:
+        by_type.setdefault(agent.agent_type or "unknown", []).append(agent)
+    rows = []
+    for name, members in by_type.items():
+        calls = [c for a in members for c in a.calls]
+        floors = [a.harness_floor for a in members if a.calls and not a.is_fork]
+        median = int(statistics.median(floors)) if floors else 0
+        rows.append((name, len(members), len(calls), median, totals(calls)["context"]))
+    return sorted(rows, key=lambda r: r[4], reverse=True)
 
 
 def capped_counterfactual(calls: list[Call], cap: int) -> tuple[int, int, float]:
@@ -861,6 +933,38 @@ def render(sessions: list[Session], cap: int, top: int) -> list[str]:
         out.append("  store records the phase an agent ran. calls/agent times mean")
         out.append("  ctx is the context one agent of that phase feeds the model.")
 
+        out.append("")
+        out.append(
+            "Subagent harness floor by agent type, from <agent>.meta.json agentType"
+        )
+        out.append(
+            _row(["agent type", "agents", "calls", "median floor", "context", "share"])
+        )
+        out.append(_row(["---"] * 6))
+        for name, count, calls, median, context in agent_type_startup(agents):
+            share = (100.0 * context / sub_context) if sub_context else 0.0
+            out.append(
+                _row(
+                    [
+                        name,
+                        f"{count:,}",
+                        f"{calls:,}",
+                        f"{median:,}",
+                        _short(context),
+                        f"{share:.1f}%",
+                    ]
+                )
+            )
+        out.append("  median floor is the first call with the spawn prompt subtracted:")
+        out.append("  what the harness gave the agent before it did anything. It is")
+        out.append("  re-fed on every later call, so it multiplies by calls. The")
+        out.append("  prompt comes out because otherwise the number tracks how much")
+        out.append("  the parent wrote, and drifts as a live session grows. A fork")
+        out.append("  reports 0: it inherits its parent's context, so it has no floor.")
+        out.append("  ACROSS sessions the rows do not compare, because the always-on")
+        out.append("  preamble changes size. Scope with make ze-token-economy")
+        out.append("  ZE_SESSION=<id>. See ai/agents/, ai/rules/context-economy.md.")
+
     out.extend(_render_tools(sessions))
     return out
 
@@ -1010,6 +1114,16 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_TOP,
         help=f"sessions listed in the per-session table, {TOP_MIN}-{TOP_MAX}",
     )
+    parser.add_argument(
+        "--session",
+        default="",
+        help=(
+            "report only sessions whose id starts with this prefix. The "
+            "startup-context comparison between two agent types is only valid "
+            "inside one session, because the always-on preamble changes size "
+            "between them"
+        ),
+    )
     args = parser.parse_args(
         glue_dash_values(list(sys.argv[1:] if argv is None else argv))
     )
@@ -1026,6 +1140,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     sessions = [s for s in find_sessions(store) if s.all_calls]
+    if args.session:
+        sessions = [s for s in sessions if s.sid.startswith(args.session)]
+        if not sessions:
+            print(f"Token economy: {args.project}")
+            print(f"  Store: {store}")
+            print(f"  No session id starts with {args.session!r}.")
+            return 0
     if not sessions:
         print(f"Token economy: {args.project}")
         print(f"  Looked for:  {store}")
@@ -1035,6 +1156,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Token economy: {args.project}")
     print(f"  Store: {store}")
+    if args.session:
+        print(f"  Session: {args.session} ({len(sessions)} matched)")
     print("")
     for line in render(sessions, cap=args.cap, top=args.top):
         print(line)

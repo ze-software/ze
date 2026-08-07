@@ -1,5 +1,5 @@
 #!/bin/bash
-# Sync canonical skills and AGENTS.md from their sources into
+# Sync canonical skills, subagents and AGENTS.md from their sources into
 # tool-specific directories.
 #
 # Skills:
@@ -8,6 +8,15 @@
 #     .claude/skills/<name>/SKILL.md  -- verbatim copy
 #     .codex/skills/<name>/SKILL.md   -- verbatim copy
 #     .agents/skills/<name>/SKILL.md  -- .claude/ paths replaced with .agents/
+#
+# Subagents:
+#   Canonical source: ai/agents/<name>.md (frontmatter: name, description, tools)
+#   Target:
+#     .claude/agents/<name>.md        -- verbatim copy, flat, no per-agent dir
+#   Claude Code is the only tool here that reads agent definitions, so there is
+#   one target rather than three. The layout is the harness's, not ours: it
+#   loads .claude/agents/<name>.md at SESSION START, so a new or edited agent
+#   takes effect in the NEXT session, never the one that wrote it.
 #
 # CLAUDE.md / AGENTS.md:
 #   Generated from ai/INSTRUCTIONS.md ({{TOOL}} substituted).
@@ -27,6 +36,8 @@ CANON_DIR="ai/skills"
 CLAUDE_DIR=".claude/skills"
 CODEX_DIR=".codex/skills"
 AGENTS_DIR=".agents/skills"
+AGENT_CANON_DIR="ai/agents"
+AGENT_CLAUDE_DIR=".claude/agents"
 INSTRUCTIONS="ai/INSTRUCTIONS.md"
 
 mode="sync"
@@ -57,6 +68,13 @@ generate_into() {
         sed 's/\.claude\//\.agents\//g' "$src" > "$root/$AGENTS_DIR/$name/SKILL.md"
     done
 
+    # Subagent definitions: one flat file per agent, Claude Code only.
+    mkdir -p "$root/$AGENT_CLAUDE_DIR"
+    for src in "$AGENT_CANON_DIR"/*.md; do
+        [ -f "$src" ] || continue
+        cp "$src" "$root/$AGENT_CLAUDE_DIR/$(basename "$src")"
+    done
+
     # Generate tool-specific instruction files from ai/INSTRUCTIONS.md
     if [ -f "$INSTRUCTIONS" ]; then
         sed 's/{{TOOL}}/Claude/' "$INSTRUCTIONS" > "$root/CLAUDE.md"
@@ -80,7 +98,7 @@ if [ "$mode" = "check" ]; then
     stale=0
     # diff -rq also reports orphans ("Only in <dir>"): a mirror entry whose
     # canonical source was removed, or a missing mirror for a new skill.
-    for dir in "$CLAUDE_DIR" "$CODEX_DIR" "$AGENTS_DIR"; do
+    for dir in "$CLAUDE_DIR" "$CODEX_DIR" "$AGENTS_DIR" "$AGENT_CLAUDE_DIR"; do
         if ! diff -rq "$tmpdir/$dir" "$dir"; then
             stale=1
         fi
@@ -105,5 +123,10 @@ for src in "$CANON_DIR"/*.md; do
     [ -f "$src" ] || continue
     synced=$((synced + 1))
 done
+agents=0
+for src in "$AGENT_CANON_DIR"/*.md; do
+    [ -f "$src" ] || continue
+    agents=$((agents + 1))
+done
 generate_into "."
-echo "synced $synced skill(s) + CLAUDE.md + AGENTS.md"
+echo "synced $synced skill(s) + $agents agent(s) + CLAUDE.md + AGENTS.md"

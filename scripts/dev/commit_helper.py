@@ -120,6 +120,7 @@ def comment_line(text: str) -> str:
 LESSON_WORTHY_PREFIXES = (
     "ai/rules/",
     "ai/skills/",
+    "ai/agents/",
     "internal/plugins/skills/",
     "scripts/dev/",
     "scripts/docvalid/",

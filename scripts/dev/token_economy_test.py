@@ -14,8 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from token_economy import (  # noqa: E402
+    Agent,
     Call,
     ToolCall,
+    agent_type_startup,
     capped_counterfactual,
     find_sessions,
     glue_dash_values,
@@ -732,6 +734,125 @@ class TestBoundaries(unittest.TestCase):
 
     def test_top_invalid_above(self):
         self.assert_rejected(["--top", "1001"])
+
+
+class TestAgentTypeStartup(unittest.TestCase):
+    """`agent_type_startup` groups agents by type and reports the FIRST call.
+
+    The column is what an agent type costs before it does anything, re-fed on
+    every later call. The branches worth pinning are the ones a reader would
+    otherwise trust silently: the even-n median, an agent that never called,
+    and a spawn whose meta.json carried no agentType.
+    """
+
+    @staticmethod
+    def agent(agent_type: str, *contexts: int) -> Agent:
+        return Agent(
+            name="a",
+            agent_type=agent_type,
+            description="",
+            calls=[Call(cache_read=c) for c in contexts],
+        )
+
+    def test_median_of_an_even_count_is_the_midpoint_not_the_upper(self):
+        """Two agents is the COMMON case, and picking the larger overstates."""
+        rows = agent_type_startup(
+            [self.agent("ze-read", 40_000), self.agent("ze-read", 44_000)]
+        )
+        self.assertEqual(rows[0][3], 42_000)
+
+    def test_median_of_an_odd_count_is_the_middle_value(self):
+        rows = agent_type_startup(
+            [
+                self.agent("gp", 10),
+                self.agent("gp", 30),
+                self.agent("gp", 20),
+            ]
+        )
+        self.assertEqual(rows[0][3], 20)
+
+    def test_an_agent_with_no_calls_does_not_divide_by_zero(self):
+        """A spawn that died before its first call still counts as an agent."""
+        rows = agent_type_startup([self.agent("ze-work")])
+        self.assertEqual(rows, [("ze-work", 1, 0, 0, 0)])
+
+    def test_a_missing_agent_type_is_bucketed_as_unknown(self):
+        rows = agent_type_startup([self.agent("", 500)])
+        self.assertEqual(rows[0][0], "unknown")
+
+    def test_rows_are_sorted_by_total_context_not_by_first_call(self):
+        """The type to fix first is the one feeding the most, not the biggest
+        single start. A cheap type that runs constantly outranks a costly one
+        that ran once."""
+        rows = agent_type_startup(
+            [
+                self.agent("expensive-but-rare", 90_000),
+                self.agent("cheap-but-constant", 30_000, 30_000, 30_000, 30_000),
+            ]
+        )
+        self.assertEqual(
+            [r[0] for r in rows], ["cheap-but-constant", "expensive-but-rare"]
+        )
+
+    def test_calls_counts_every_call_not_only_the_first(self):
+        rows = agent_type_startup([self.agent("ze-read", 100, 200, 300)])
+        _, agents, calls, median, context = rows[0]
+        self.assertEqual((agents, calls, median, context), (1, 3, 100, 600))
+
+
+class TestSessionFilter(unittest.TestCase):
+    """`--session` scopes the report to one session.
+
+    It exists because the startup comparison between two agent types is only
+    valid inside one session: the always-on preamble changes size between
+    them, and it is the largest term in that number.
+    """
+
+    def run_main(self, store_root: str, project: str, *extra: str) -> str:
+        buf = io.StringIO()
+        with redirect_stdout(buf), redirect_stderr(io.StringIO()):
+            main(["--root", store_root, "--project", project, *extra])
+        return buf.getvalue()
+
+    def build_store(self, tmp: str) -> str:
+        project = Path(tmp) / "proj"
+        (project).mkdir(parents=True)
+        for sid in (
+            "aaaa1111-0000-0000-0000-000000000000",
+            "bbbb2222-0000-0000-0000-000000000000",
+        ):
+            with open(project / f"{sid}.jsonl", "w", encoding="utf-8") as handle:
+                handle.write(
+                    json.dumps(
+                        {
+                            "type": "assistant",
+                            "requestId": f"req-{sid}",
+                            "message": {"usage": usage(read=1000), "content": []},
+                        }
+                    )
+                    + "\n"
+                )
+        return str(Path(tmp))
+
+    def test_an_unmatched_prefix_says_so_and_exits_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.build_store(tmp)
+            out = self.run_main(root, "proj", "--session", "zzzz")
+            self.assertIn("No session id starts with", out)
+
+    def test_a_matching_prefix_reports_only_that_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.build_store(tmp)
+            out = self.run_main(root, "proj", "--session", "aaaa")
+            self.assertIn("aaaa1111", out)
+            self.assertNotIn("bbbb2222", out)
+
+    def test_no_filter_reports_every_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.build_store(tmp)
+            out = self.run_main(root, "proj")
+            self.assertIn("aaaa1111", out)
+            self.assertIn("bbbb2222", out)
 
 
 if __name__ == "__main__":
