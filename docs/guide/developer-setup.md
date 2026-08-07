@@ -25,6 +25,11 @@ make ze-setup CHECK=1
 Exits 0 if all required tools are present, nonzero if any are missing.
 Useful as a CI preflight check.
 
+Two of the rows are behaviour, not binaries: `gopls-answers` and
+`pyright-answers` run each language server and check that it replies. A server
+on PATH that does not answer fails this check, because every LSP call against
+it fails the same silent way.
+
 ## What It Installs
 
 ### Build and Lint
@@ -41,12 +46,13 @@ Useful as a CI preflight check.
 | `python3` | Runs evidence and dev scripts |
 | `pipx` | Python tool installer |
 | `ruff` | Python linter (via `pipx`) |
+| `pyright` | Python language server behind the agent LSP tool (via `pipx`) |
 
 ### Appliance and Evidence
 
 | Tool | Purpose |
 |------|---------|
-| `uv` | Python package runner for SSH probe (`uv run --with paramiko`) |
+| `uv` | Python package runner for SSH probe (`uv run --with paramiko`, via `pipx`) |
 | `qemu` | QEMU functional and install gate tests |
 | `e2fsprogs` | `mkfs.ext4` and `debugfs` for appliance builds |
 | `xorriso` | ISO image creation |
@@ -70,8 +76,27 @@ Useful as a CI preflight check.
 
 ### Linux
 
-The script prints `sudo apt-get install ...` commands but never runs `sudo`
-automatically. Copy and run the printed commands to install.
+`make ze-setup` installs the apt packages itself, the same way it installs the
+Homebrew ones on macOS. Each command is echoed before it runs. It takes
+`apt-get update` once per run, because a container image ships no package
+lists, and it sets `DEBIAN_FRONTEND=noninteractive` so a package with a debconf
+prompt cannot stop the run.
+
+**How it reaches root.** The answer is decided before any command runs, and
+`sudo` is always given `-n`, so no path can stop at a password prompt:
+
+| State | What setup does |
+|-------|-----------------|
+| You are root (a container build) | Runs the command directly. `sudo` need not be installed |
+| `sudo` acts with no password | Runs `sudo -n <command>` |
+| `sudo` wants a password, a terminal is attached | Asks once with `sudo -v`, then runs `sudo -n <command>` |
+| `sudo` wants a password, no terminal (CI, an agent session) | Prints the command, installs nothing, exits nonzero |
+
+<!-- source: scripts/dev/dev-setup.py -- privilege_mode, run_privileged, apt_install -->
+
+**uv** is not in the Debian or Ubuntu repositories, so it installs through
+`pipx` on both platforms. One route is one thing to fix, and it keeps
+`curl | sh` off every dev machine.
 
 **Unprivileged user namespaces.** Ubuntu 23.10+ ships
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox

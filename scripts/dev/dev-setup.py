@@ -16,6 +16,7 @@ import argparse
 import getpass
 import glob
 import grp
+import json
 import os
 import platform
 import re
@@ -93,13 +94,6 @@ REQUIRED_TOOLS: list[Tool] = [
     ),
     Tool(name="python3", probe=["python3"], brew="python", apt="python3"),
     Tool(
-        name="uv",
-        probe=["uv"],
-        brew="uv",
-        apt=None,
-        note="not in apt repos; install via: curl -LsSf https://astral.sh/uv/install.sh | sh",
-    ),
-    Tool(
         name="qemu",
         probe=["qemu-system-x86_64", "qemu-system-aarch64"],
         probe_any=True,
@@ -124,7 +118,36 @@ REQUIRED_TOOLS: list[Tool] = [
         note="no first-party Homebrew formula; macOS skips (ISO builds are Linux/container-only)",
     ),
     Tool(name="pipx", probe=["pipx"], brew="pipx", apt="pipx"),
+    # uv installs through pipx on BOTH platforms, and the reason is Linux: uv is
+    # not in the Debian or Ubuntu repositories, so `apt=None` left a REQUIRED
+    # tool with no package there. `_has_package` answers False for that state
+    # and the loop prints `[skipped]`, so the tool the evidence SSH probe needs
+    # (`uv run --with paramiko`) went missing without ever reaching
+    # `missing_required`: check mode said "All required tools present" on a box
+    # that had no uv. A guard that reports green on absence is worse than none.
+    #
+    # pipx over brew on macOS, and over the curl installer everywhere: one route
+    # is one thing to fix, and `curl | sh` is a supply-chain hole this script
+    # would be opening on every dev machine. It must come after the pipx row --
+    # install_tool skips a pipx tool when pipx is not there yet.
+    Tool(
+        name="uv",
+        probe=["uv"],
+        pipx_install="uv",
+        note="not in apt repos, so pipx is the one route that works on both platforms",
+    ),
     Tool(name="ruff", probe=["ruff"], pipx_install="ruff"),
+    Tool(
+        name="pyright",
+        probe=["pyright", "pyright-langserver"],
+        pipx_install="pyright",
+        note=(
+            "language server for the Python half of the tree; gopls answers a"
+            " symbol question about a .go file, pyright answers the same"
+            " question about scripts/dev/*.py and the hooks"
+            " (ai/rules/context-economy.md)"
+        ),
+    ),
 ]
 
 OPTIONAL_TOOLS: list[Tool] = [
@@ -258,6 +281,209 @@ def gopls_status(probe=gopls_probe) -> tuple[str, str]:
     return ("ok", f"{len(symbols)} symbols from {GOPLS_PROBE_FILE}")
 
 
+# The Python half of the same story. `scripts/dev/*.py` and `.claude/hooks/*.py`
+# were read 405 times in the measured transcript store with no symbol server on
+# the machine at all, so every one of those reads was a whole file where a
+# symbol was the question (ai/rules/context-economy.md).
+#
+# The probe file is this script. `gopls_status` carries an "n/a" state for the
+# day its probe file is renamed out from under it; a probe that names the
+# running script cannot reach that state, so `pyright_status` does not carry it.
+# Repointing this at another file therefore means restoring that branch.
+PYRIGHT_PROBE_FILE = "scripts/dev/dev-setup.py"
+
+# Measured warm on this machine: 0.5s. The first run after install downloads a
+# node runtime, which is the slow case this budget is for. Same reasoning as
+# GOPLS_PROBE_TIMEOUT: generous enough that a cold run never reds spuriously.
+PYRIGHT_PROBE_TIMEOUT = 120
+
+PYRIGHT_NOT_INSTALLED = "pyright is not installed; the pyright row above installs it"
+PYRIGHT_NOT_ANSWERING = "pyright is present but not answering"
+
+
+def pyright_probe(timeout: int = PYRIGHT_PROBE_TIMEOUT) -> subprocess.CompletedProcess:
+    """Ask the language server to analyse one file and report what it did.
+
+    Split out from `pyright_status` for the same reason `gopls_probe` is: a unit
+    test fakes the answer rather than shelling out to a real server.
+    """
+    return subprocess.run(
+        ["pyright", "--outputjson", PYRIGHT_PROBE_FILE],
+        cwd=str(REPO_ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+    )
+
+
+def pyright_summary(out: str) -> dict | None:
+    """The analysis summary from a reply that may carry a bootstrap preamble.
+
+    `json.loads(out)` was wrong here, and it was wrong on exactly one run: the
+    first. With no global node on PATH the pipx wrapper installs one, and
+    `_install_node_env` (`pyright/node.py`) runs nodeenv through
+    `subprocess.run(args, check=True)` with no redirection, so nodeenv's
+    progress lands on the stdout this probe captured. Only the npm path is
+    silenced (`install_pyright`, `pyright/_utils.py`, `silent = '--outputjson'
+    in args`). The reply is then valid JSON with text in front of it, the whole
+    decode fails, and `make ze-setup` reds on the fresh Linux box it exists to
+    prepare. The second run is green, which makes it read as flakiness.
+
+    Returns None when no JSON object in `out` carries a summary. The preamble
+    is not itself valid JSON (nodeenv prints a Python dict repr, single quotes),
+    so scanning is unambiguous rather than a guess at where the reply starts.
+    """
+    decoder = json.JSONDecoder()
+    start = out.find("{")
+    while start != -1:
+        try:
+            value, _ = decoder.raw_decode(out, start)
+        except ValueError:
+            value = None
+        if isinstance(value, dict) and isinstance(value.get("summary"), dict):
+            return value["summary"]
+        start = out.find("{", start + 1)
+    return None
+
+
+def pyright_status(probe=pyright_probe) -> tuple[str, str]:
+    """Whether the language server answers, and why not when it does not.
+
+    Three states, not the four `gopls_status` has: `na` is absent because
+    PYRIGHT_PROBE_FILE is this script, which cannot be missing while this
+    function runs. Repoint the probe at another file and the state comes back
+    with it (`test_the_probe_file_is_this_script`).
+
+    One difference from gopls decides the rest of the implementation: pyright
+    exits 1 when it finds a type error, so the exit code says whether the CODE
+    is clean, never whether the SERVER worked. A check keyed on it would go red
+    the first time somebody's script gained a diagnostic, and a check that reds
+    spuriously is a check somebody disables. `summary.filesAnalyzed` is the
+    field that answers the question asked here.
+    """
+    if shutil.which("pyright") is None:
+        return ("absent", PYRIGHT_NOT_INSTALLED)
+    try:
+        result = probe()
+    except subprocess.TimeoutExpired:
+        return (
+            "broken",
+            f"{PYRIGHT_NOT_ANSWERING}: no reply within {PYRIGHT_PROBE_TIMEOUT}s on"
+            f" {PYRIGHT_PROBE_FILE}",
+        )
+    except OSError as err:
+        return ("broken", f"{PYRIGHT_NOT_ANSWERING}: {err}")
+    summary = pyright_summary(result.stdout.decode(errors="replace"))
+    try:
+        analyzed = int(summary["filesAnalyzed"])
+    except (ValueError, KeyError, TypeError):
+        detail = result.stderr.decode(errors="replace").strip().splitlines()
+        why = (
+            detail[0] if detail else f"no summary in its reply for {PYRIGHT_PROBE_FILE}"
+        )
+        return ("broken", f"{PYRIGHT_NOT_ANSWERING}: {why}")
+    if analyzed < 1:
+        return (
+            "broken",
+            f"{PYRIGHT_NOT_ANSWERING}: analysed no file for {PYRIGHT_PROBE_FILE}",
+        )
+    return ("ok", f"{analyzed} file analysed from {PYRIGHT_PROBE_FILE}")
+
+
+# --- Root: one route, and it never waits for a password nobody can type ---
+#
+# Three things here need root, all of them on Linux: `apt-get`, the sysctl
+# drop-in below, and the `usermod` that grants KVM. They reached it three
+# different ways, and two of those could hang forever. `sudo` reads its
+# password prompt from the stdin it inherits, so a run with no terminal waits
+# for an answer that is never coming, and `sudo tee` fed a config line on stdin
+# hands that line to the prompt instead of to the file.
+#
+# So privilege is decided BEFORE a command runs, and sudo is always given `-n`.
+# A password is asked for once, by `sudo -v`, and only when a terminal is
+# attached to answer it. Every other case prints the command for a human and
+# returns False. A setup script that says what to run is recoverable; one that
+# blocks with no output is not.
+
+# `sudo -n true` touches no network and reads a local timestamp file. A second
+# of that is already pathological, so this bound only exists to stop a wedged
+# sudo (an unreachable LDAP sudoers source, typically) from holding the run.
+SUDO_PROBE_TIMEOUT = 15
+
+
+def privilege_mode() -> str:
+    """How this process can run a root command right now.
+
+    "root"        -- already root. No sudo is used, so none needs to be there.
+    "sudo"        -- sudo acts with no password: NOPASSWD, or a live timestamp.
+    "sudo-prompt" -- sudo wants a password and a terminal is attached to type
+                     it on.
+    "none"        -- no route to root that would not block. The caller prints
+                     the command instead of running it.
+    """
+    if os.geteuid() == 0:
+        return "root"
+    if shutil.which("sudo") is None:
+        return "none"
+    try:
+        probe = subprocess.run(
+            ["sudo", "-n", "true"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=SUDO_PROBE_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "none"
+    if probe.returncode == 0:
+        return "sudo"
+    return "sudo-prompt" if sys.stdin.isatty() else "none"
+
+
+def run_privileged(
+    argv: list[str],
+    stdin: bytes | None = None,
+    shown: str | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[bool, str]:
+    """Run one command as root. Returns (ok, detail).
+
+    `shown` overrides the echoed command for a caller whose argv is not what a
+    human would copy: the sysctl drop-in is written by piping into `tee`, and
+    printing the argv alone would show a `tee` with no content.
+
+    `detail` is written for whoever has to fix it: the command's own first line
+    of complaint, or the reason root was out of reach.
+    """
+    mode = privilege_mode()
+    label = shown or " ".join(argv if mode == "root" else ["sudo", *argv])
+    if mode == "none":
+        return (False, f"no password-free route to root for `{label}`")
+    if mode == "sudo-prompt":
+        print("  sudo needs your password")
+        if subprocess.run(["sudo", "-v"]).returncode != 0:
+            return (False, f"sudo could not authenticate for `{label}`")
+    # `-n` even after `sudo -v` has cached the timestamp: the prompt is what
+    # eats a piped stdin, and this way no code path can reach one.
+    full = argv if mode == "root" else ["sudo", "-n", *argv]
+    print(f"  Run: {label}")
+    try:
+        result = subprocess.run(
+            full,
+            input=stdin,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
+    except OSError as err:
+        return (False, f"{label}: {err}")
+    if result.returncode != 0:
+        complaint = result.stderr.decode(errors="replace").strip().splitlines()
+        why = complaint[0] if complaint else f"exit {result.returncode}"
+        return (False, f"{label}: {why}")
+    return (True, label)
+
+
 # --- Linux system tunable: unprivileged user namespaces -------------------
 #
 # Ubuntu 23.10+ ships kernel.apparmor_restrict_unprivileged_userns=1, which
@@ -297,33 +523,23 @@ def apply_userns_fix() -> bool:
     """Print, then run, the commands that lift the restriction persistently.
 
     Writes the /etc/sysctl.d drop-in (survives reboot) and applies the value
-    live, via sudo. Each command is echoed before it runs. Returns True only
-    when the restriction is actually cleared; on any failure (e.g. sudo needs
-    a password and none is available) it returns False so the caller can fall
-    back to printing the manual commands.
+    live, through `run_privileged`. Each command is echoed before it runs.
+    Returns True only when the restriction is actually cleared; on any failure
+    (e.g. sudo needs a password and no terminal is attached to type it on) it
+    returns False so the caller can fall back to printing the manual commands.
     """
     steps = [
         (
-            f'echo "{USERNS_SYSCTL} = 0" | sudo tee {USERNS_CONF}',
-            ["sudo", "tee", USERNS_CONF],
+            ["tee", USERNS_CONF],
             f"{USERNS_SYSCTL} = 0\n".encode(),
+            f'echo "{USERNS_SYSCTL} = 0" | sudo tee {USERNS_CONF}',
         ),
-        (
-            f"sudo sysctl -w {USERNS_SYSCTL}=0",
-            ["sudo", "sysctl", "-w", f"{USERNS_SYSCTL}=0"],
-            None,
-        ),
+        (["sysctl", "-w", f"{USERNS_SYSCTL}=0"], None, None),
     ]
-    for shown, argv, stdin in steps:
-        print(f"  Run: {shown}")
-        r = subprocess.run(
-            argv,
-            input=stdin,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-        if r.returncode != 0:
-            print(f"  FAIL: {shown}: {r.stderr.decode().strip()}")
+    for argv, stdin, shown in steps:
+        ok, detail = run_privileged(argv, stdin=stdin, shown=shown)
+        if not ok:
+            print(f"  FAIL: {detail}")
             return False
     return userns_status() == "ok"
 
@@ -390,11 +606,9 @@ def apply_kvm_fix() -> bool:
     the same as usable: this process keeps the groups it was started with, so
     the caller must still tell the user to log back in.
     """
-    argv = ["sudo", "usermod", "-aG", KVM_GROUP, getpass.getuser()]
-    print(f"  Run: {' '.join(argv)}")
-    r = subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-    if r.returncode != 0:
-        print(f"  FAIL: {' '.join(argv)}: {r.stderr.decode().strip()}")
+    ok, detail = run_privileged(["usermod", "-aG", KVM_GROUP, getpass.getuser()])
+    if not ok:
+        print(f"  FAIL: {detail}")
         return False
     return in_kvm_group()
 
@@ -487,10 +701,50 @@ def install_tool(tool: Tool, pkg_mgr: str) -> bool:
             if tool.note:
                 print(f"  SKIP {tool.name}: {tool.note}")
             return False
-        print(f"  Run: sudo apt-get install -y {pkg}")
-        return False
+        return apt_install(pkg, tool.name)
 
     return False
+
+
+# One `apt-get update` per run, taken before the first install. A container
+# image ships no package lists at all, and an install against an empty list
+# fails with "Unable to locate package <x>" -- which reads as a wrong package
+# name, not a missing index. Per-tool it would be ~20s of network each, for an
+# index that does not change during one run.
+_apt_updated = False
+
+
+def apt_install(pkg: str, name: str) -> bool:
+    """Install one Debian package, or print the command when root is out of reach.
+
+    `DEBIAN_FRONTEND=noninteractive` rides in the argv rather than in `env=`
+    because sudo resets the environment (`env_reset` is the default in
+    sudoers), so an exported value does not reach apt-get. Without it a package
+    carrying a debconf prompt stops the run dead.
+    """
+    global _apt_updated
+
+    manual = f"sudo apt-get install -y {pkg}"
+    if privilege_mode() == "none":
+        print(f"  Run: {manual}")
+        return False
+
+    if not _apt_updated:
+        # One attempt, success or not: a stale index still installs most
+        # packages, and re-running a failing update per tool helps nobody.
+        _apt_updated = True
+        ok, detail = run_privileged(["apt-get", "update"])
+        if not ok:
+            print(f"  WARN apt-get update: {detail}")
+
+    ok, detail = run_privileged(
+        ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", pkg]
+    )
+    if not ok:
+        print(f"  FAIL {name}: {detail}")
+        print(f"  Run: {manual}")
+        return False
+    return True
 
 
 def vendor_go_deps() -> bool:
@@ -589,6 +843,8 @@ def main() -> int:
                 print(f"  [installed] {tool.name} (not yet on PATH)")
                 installed.append(tool.name)
         elif pkg_mgr == "apt" and tool.apt is not None:
+            # apt_install has already printed why, and the command to run.
+            print(f"  [pending]   {tool.name} (not installed)")
             pending_manual.append(tool.name)
         else:
             if tool.required:
@@ -612,6 +868,19 @@ def main() -> int:
     else:
         print(f"  [MISSING]   gopls-answers ({detail})")
         missing_required.append("gopls-answers")
+
+    # The same behaviour check for the Python half of the tree. Presence proves
+    # nothing here either: pyright bootstraps a node runtime on first use, so a
+    # binary on PATH that never ran is exactly the state gopls was in for weeks.
+    state, detail = pyright_status()
+    if state == "ok":
+        print(f"  [present]   pyright-answers ({detail})")
+    elif state == "absent":
+        print(f"  [skipped]   pyright-answers ({detail})")
+        skipped.append("pyright-answers")
+    else:
+        print(f"  [MISSING]   pyright-answers ({detail})")
+        missing_required.append("pyright-answers")
 
     # Linux kernel tunable (not a binary): unprivileged user namespaces must be
     # allowed or Chrome's sandbox fails, breaking the agent-browser web tests.
