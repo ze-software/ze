@@ -455,6 +455,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		{
 			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
+				// Same obligation as the general rail (reactor_api_forward.go):
+				// this is the one exit between the rebuild that took the client's
+				// Outgoing Peer Pool buffer and the forward pool that returns it.
+				r.fwdPool.releaseItem(&item)
 				continue
 			}
 			// Site 8: body.transcodeBuf backs the cross-context RFC 6793 transcode,

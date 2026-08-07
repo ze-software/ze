@@ -753,6 +753,12 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		{
 			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
+				// The rebuild above can have put this destination's Outgoing Peer
+				// Pool buffer on the item, and this is the ONE exit between that
+				// acquire and the forward pool that returns it. Dropping the item
+				// here loses the buffer for the life of the session, one per
+				// failing UPDATE, out of the 64 the destination has.
+				a.r.fwdPool.releaseItem(&item)
 				continue
 			}
 			// Site 7: body.transcodeBuf backs the cross-context RFC 6793 transcode,
