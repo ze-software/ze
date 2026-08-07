@@ -28,9 +28,11 @@ func TestDPDSendReceive(t *testing.T) {
 		t.Error("should send after interval elapsed")
 	}
 
-	sa := testSA()
+	// A real transport, because a probe is awaited only once its datagram is written
+	// (sendDPD, dpd.go). The nil transport this used to pass now returns early.
+	sa, _, _, _, myTr := dpdProbeLink(t)
 	sa.NextMsgID = 1
-	sendDPD(sa, nil, dpd, slogutil.DiscardLogger())
+	sendDPD(sa, myTr, dpd, slogutil.DiscardLogger())
 
 	if !dpd.awaitReply {
 		t.Error("awaitReply should be true after send")
@@ -85,6 +87,112 @@ func TestDPDNotTimedOutBeforeTimeout(t *testing.T) {
 
 	if dpd.timedOut(now) {
 		t.Error("should not be timed out before timeout period")
+	}
+}
+
+// VALIDATES: a liveness probe that cannot be written claims nothing. sendDPD on an SA
+// with no send path takes no request window, spends no Message ID, and awaits nothing.
+// The SA here holds no socket of its own, so a nil fallback leaves sendPath (sa.go)
+// with nothing to answer. TestDPDFloatedSAProbesWithoutTheFallback is the other side of
+// that predicate: a nil fallback alone never stops a probe.
+// PREVENTS: the request window a probe reserved and no path released. RFC 7296 Section
+// 2.3 allows one outstanding request per IKE SA, so a held window blocks the rekey and
+// the Delete behind it. serviceRequestWindow (established.go) returns early while a
+// probe awaits its reply, and shouldRetransmit finds no datagram to repeat, so the one
+// exit left was the dead-peer verdict of Section 2.4 after zero attempts.
+//
+// RFC requirement: RFC7296-2.4-11 negative -- the verdict must follow repeated attempts,
+// so the state that leads to it is not entered for a probe no send path ever wrote.
+// RFC requirement: RFC7296-2.3-2 negative -- the one request window is not spent by a
+// request that was never raised.
+func TestDPDNoTransportTakesNoWindow(t *testing.T) {
+	ini, _, _, peerTr, myTr := dpdProbeLink(t)
+	log := slogutil.DiscardLogger()
+
+	dpd := winDueDPD()
+	firstID := ini.NextMsgID
+	lastSent := dpd.lastSent
+
+	sendDPD(ini, nil, dpd, log)
+
+	if ini.requestOutstanding {
+		t.Error("a probe that was never built holds the one request window")
+	}
+	if dpd.awaitingReply() {
+		t.Error("a probe that was never built is awaited")
+	}
+	if len(dpd.probeMsg) != 0 {
+		t.Errorf("the state kept %d bytes of a probe that was never built", len(dpd.probeMsg))
+	}
+	if ini.NextMsgID != firstID {
+		t.Errorf("Message ID moved to %d, want %d: no request was sent", ini.NextMsgID, firstID)
+	}
+	if !dpd.lastSent.Equal(lastSent) {
+		t.Error("the probe clock advanced for a probe that was never built")
+	}
+
+	// The control. The same call with a transport does write the probe and does take
+	// the window, so the assertions above measure the missing transport and not a
+	// sendDPD that never does anything.
+	sendDPD(ini, myTr, dpd, log)
+
+	if raw := rtxRecv(t, peerTr); raw == nil {
+		t.Fatal("the probe never reached the peer")
+	}
+	if !ini.requestOutstanding {
+		t.Error("the written probe holds no request window")
+	}
+	if !dpd.awaitingReply() {
+		t.Error("the written probe is not awaited")
+	}
+	if len(dpd.probeMsg) == 0 {
+		t.Error("the written probe kept no datagram to retransmit")
+	}
+	if ini.NextMsgID != firstID+1 {
+		t.Errorf("Message ID = %d after one probe, want %d", ini.NextMsgID, firstID+1)
+	}
+}
+
+// VALIDATES: a floated SA raises its liveness probe with a nil fallback transport.
+// sendDPD asks the SA for its send path, and RFC 7296 Section 2.23 makes that the NAT-T
+// socket once a NAT is discovered, whatever the caller passes.
+// PREVENTS: a guard written on the fallback argument instead of the send path. The
+// session hands maintainSA the port-500 transport, which is nil when that socket failed
+// to open, while the floated SA sends from its own nattSocket. Reading the argument
+// would stop every probe for the life of a working NAT-traversing tunnel, and RFC 7296
+// Section 2.4 asks liveness checks to prevent exactly that black hole.
+func TestDPDFloatedSAProbesWithoutTheFallback(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	_, resp, _ := establishPSK(t)
+	peerTr, ikeTr, nattTr := nttNATTLink(t)
+	resp.bindSockets(ikeTr, nattTr)
+	resp.floatToNATTPort()
+	resp.peerEndpoint = nttPeerAddr(t, peerTr)
+
+	dpd := winDueDPD()
+	firstID := resp.NextMsgID
+
+	// Nil, as maintainSA passes it when the port-500 socket is absent.
+	sendDPD(resp, nil, dpd, log)
+
+	gotPort, gotData := nttSourcePortOf(t, peerTr)
+	if want := nttPort(t, nattTr); gotPort != want {
+		t.Errorf("the probe left from port %d, want the NAT-T socket %d", gotPort, want)
+	}
+	if len(gotData) == 0 {
+		t.Error("the probe carried no bytes")
+	}
+	if !resp.requestOutstanding {
+		t.Error("the probe holds no request window")
+	}
+	if !dpd.awaitingReply() {
+		t.Error("the probe is not awaited, so no answer can clear it")
+	}
+	if len(dpd.probeMsg) == 0 {
+		t.Error("the probe kept no datagram to retransmit")
+	}
+	if resp.NextMsgID != firstID+1 {
+		t.Errorf("Message ID = %d after one probe, want %d", resp.NextMsgID, firstID+1)
 	}
 }
 

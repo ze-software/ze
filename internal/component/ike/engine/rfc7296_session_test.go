@@ -304,9 +304,10 @@ func TestSesRetransmitWaitIncreasesExponentially(t *testing.T) {
 
 // VALIDATES: an endpoint is declared failed only after repeated silence.
 // RFC requirement: RFC7296-2.4-11 positive -- runInitiator returns errTimeout only once
-// RetransmitCount reaches maxRetransmissions (fsm.go:131), after 7 resends.
-// The second producer is Dead Peer Detection. dpdState.timedOut (dpd.go:75) reports
-// failure only past the timeout, and established.go:183 reads it for the verdict.
+// RetransmitCount reaches maxRetransmissions (fsm.go), after 7 resends.
+// The second producer is Dead Peer Detection. dpdState.timedOut (dpd.go) reports
+// failure only past the timeout, and maintainSA (established.go) reads it for the
+// verdict.
 // RFC requirement: RFC7296-2.4-11 negative -- one unanswered attempt does not reach the
 // verdict, and a probe that draws an answer never reaches the timeout at all.
 func TestSesPeerFailedOnlyAfterRepeatedSilence(t *testing.T) {
@@ -334,9 +335,10 @@ func TestSesPeerFailedOnlyAfterRepeatedSilence(t *testing.T) {
 	if dpd == nil {
 		t.Fatal("newDPDState returned nil")
 	}
-	probeSA := testSA()
+	// rfc-test-change-approved: 2026-08-07 Thomas approved replacing this test's fake DPD probe (nil transport) with a real one via dpdProbeLink. The old fixture depended on the defect being fixed: sendDPD with a nil transport reserved the request window, skipped the build, and still set awaitReply with a nil probeMsg. Every assertion is preserved; only the probe becomes real.
+	probeSA, _, _, _, probeTr := dpdProbeLink(t)
 	probeSA.NextMsgID = 1
-	sendDPD(probeSA, nil, dpd, log)
+	sendDPD(probeSA, probeTr, dpd, log)
 	if !dpd.awaitingReply() {
 		t.Fatal("the probe left no outstanding wait")
 	}

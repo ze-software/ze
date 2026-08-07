@@ -99,8 +99,9 @@ func (d *dpdState) timedOut(now time.Time) bool {
 // request until it draws a reply, or until the SA is deemed failed. Section 2.4
 // makes the wait between attempts grow.
 //
-// A probe with no stored datagram is one no transport ever wrote. There is nothing
-// to repeat.
+// A probe with no stored datagram cannot be repeated. sendDPD is the only writer of
+// the awaiting state, and it stores the datagram it sent, so this reads as a guard on
+// the field rather than as a live path.
 func (d *dpdState) shouldRetransmit(now time.Time) bool {
 	if d == nil || !d.awaitReply || len(d.probeMsg) == 0 {
 		return false
@@ -122,8 +123,37 @@ func (d *dpdState) noteRetransmit(now time.Time) {
 // Section 1.4: an INFORMATIONAL exchange is cryptographically protected with the
 // negotiated keys. The liveness check carries no payload other than the empty
 // Encrypted payload the syntax requires, so the inner chain of the probe is nil.
+//
+// Every exit releases what it took. The request window of Section 2.3 is claimed
+// once the probe is certain to be built, and the build failure below hands it back.
+// The state at the tail is entered only after a datagram reached the send path, so
+// an awaited probe always has bytes behind it.
 func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger) {
 	if sa == nil {
+		return
+	}
+	// An SA that cannot send writes no probe, and a probe that was never written must
+	// not be awaited. RFC 7296 Section 2.4 lets an endpoint conclude the other one has
+	// failed only once REPEATED attempts have gone unanswered, and an unbuilt probe is
+	// zero attempts. The state at the tail of this function would still start the
+	// liveness clock, while serviceRequestWindow (established.go) leaves an awaited
+	// probe to its own budget and shouldRetransmit finds no datagram to repeat. The
+	// only exit left was the dead-peer verdict, on a peer this side never asked
+	// anything.
+	//
+	// THE PREDICATE IS THE SEND PATH, NEVER THE FALLBACK ARGUMENT. sendPath (sa.go)
+	// answers with the SA's OWN socket first, so a floated SA sends from nattSocket
+	// while tr is nil. Reading tr instead would silence Dead Peer Detection for the
+	// whole life of a NAT-traversing tunnel that sends perfectly well, which is the
+	// black hole Section 2.4 asks liveness checks to prevent.
+	//
+	// This returns BEFORE reserveRequestWindow, so the branch takes nothing and has
+	// nothing to give back: no window, no Message ID, no awaited reply, and no change
+	// to the probe clock. sendRaw warns once per dropped message for the same
+	// condition, so the repeat rate here follows that convention.
+	if out, _ := sa.sendPath(tr); out == nil {
+		log.Warn("dpd: probe skipped, the SA has no send path",
+			"peer", sa.PeerName, "local-port", sa.localPort)
 		return
 	}
 	// RFC 7296 Section 2.3: one self-initiated request at a time. A probe that finds
@@ -135,20 +165,14 @@ func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger
 	}
 
 	msgID := sa.NextMsgID
-	// A session with no transport has no datagram to protect. The probe state below
-	// still advances, so the liveness timeout runs on its own clock either way.
-	var probe []byte
-	if tr != nil {
-		built, err := buildEncryptedMessageEx(sa, nil, msgID,
-			wire.ExchangeInformational, initiatorFlag(sa))
-		if err != nil {
-			log.Warn("dpd: probe build failed, dropping", "peer", sa.PeerName, "error", err)
-			sa.releaseRequestWindow()
-			return
-		}
-		probe = built
-		sendRaw(sa, tr, probe, log)
+	probe, err := buildEncryptedMessageEx(sa, nil, msgID,
+		wire.ExchangeInformational, initiatorFlag(sa))
+	if err != nil {
+		log.Warn("dpd: probe build failed, dropping", "peer", sa.PeerName, "error", err)
+		sa.releaseRequestWindow()
+		return
 	}
+	sendRaw(sa, tr, probe, log)
 	sa.advanceMsgID()
 
 	now := time.Now()

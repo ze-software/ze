@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `-` |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -61,6 +61,29 @@ The reconnect-on-peer-Delete path re-enters `runInitiator`, so the imbalance
 repeats once per reconnect cycle rather than once per process. Any subscriber that
 counts SAs up against SAs down drifts without bound.
 
+### Leak 4: a liveness probe that was never built holds the request window (CLOSED 2026-08-07)
+
+Inherited from the closure review of `spec-fixit-ike-dpd-cleartext`, row 2 of
+`plan/deferrals/fixit-ike-dpd-cleartext.md`. It is the same rule as the three above.
+
+`sendDPD` (`internal/component/ike/engine/dpd.go`) reserved the one request window of
+RFC 7296 Section 2.3, then wrapped the build and the send in `if tr != nil`, then set
+`awaitReply` whether or not a datagram existed. With a nil transport the window was held
+by a probe nobody could answer. `serviceRequestWindow` (`established.go`) returns early
+while a probe awaits its reply, and `shouldRetransmit` finds no datagram to repeat, so
+the one exit left was the dead-peer verdict, which RFC 7296 Section 2.4 allows only after
+repeated attempts go unanswered.
+
+Fixed: `sendDPD` returns before `reserveRequestWindow` when the SA has no send path, and
+the build moved out of the conditional. The awaiting state is now entered only for a
+datagram `sendRaw` was given, so an awaited probe always has bytes behind it.
+
+The predicate is `sa.sendPath(tr)`, never the `tr` argument. `tr` is a FALLBACK:
+`sendPath` (`sa.go`) answers with `sa.nattSocket` whenever the SA has floated to port
+4500, so a working NAT-traversing tunnel sends while `tr` is nil. A guard on `tr` would
+stop every probe for the life of that tunnel, which is the black hole RFC 7296 Section
+2.4 asks liveness checks to prevent.
+
 ### What is read and what is measured
 
 Every claim above is READ from the producing function, and the file plus symbol is
@@ -93,6 +116,10 @@ lands.
 - [ ] `internal/component/ike/engine/register.go` - `Run` returns 1 at `:451`, `removeIKEBypass` at `:483`
 - [ ] `internal/component/ike/engine/fsm.go` - `SAUp.Emit` at `:238` (initiator) and `:305` (responder), `emitSADown` at `:324`
 - [ ] `internal/component/ike/engine/delete.go` - the documented double-remove that reaches leak 1
+- [ ] `internal/component/ike/engine/dpd.go` - `sendDPD` reserved the window, skipped the build on a nil transport, and set `awaitReply` with a nil `probeMsg`. It is the only non-test writer of `awaitReply = true`, which is what makes the fixed guard sufficient
+  → Decision: return before `reserveRequestWindow`, never reserve and release. Nothing is then taken that a later path has to give back
+- [ ] `internal/component/ike/engine/established.go` - `serviceRequestWindow` and `serviceRequestRetransmit` both return early on `dpd.awaitingReply()`, and `maintainSA` reads `dpd.timedOut(now)` BEFORE `shouldRetransmit` in the same tick
+  → Constraint: `shouldRetransmit` refuses once `timedOut`, so a liveness budget shorter than one tick plus one backoff step reaches the verdict with no repeat. See Known Limitations
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - `RemoveSA` still returns the `XfrmStateDel` error to its caller. Forgetting the ESP form must not swallow the failure.
@@ -173,6 +200,8 @@ lands.
 | Daemon start that fails after bypass install | → | `p.Run` error exit | `TestRunRemovesIKEBypassOnEveryErrorExit` |
 | Initiator tunnel that goes down | → | `runInitiator` teardown | `TestInitiatorEmitsSADownWhenEstablishedLoopReturns` |
 | Full teardown on a real kernel | → | XFRM state and policy tables | `test/ipsec/ipsec-teardown-leaves-nothing.ci` |
+| A DPD tick on an SA with no send path | → | `sendDPD` early return | `TestDPDNoTransportTakesNoWindow` |
+| A DPD tick on a floated SA with a nil fallback | → | `sendDPD` send-path predicate | `TestDPDFloatedSAProbesWithoutTheFallback` |
 
 ## Acceptance Criteria
 
@@ -183,6 +212,8 @@ lands.
 | AC-3 | An initiator tunnel establishes and then goes down | Exactly one `SADown` follows the one `SAUp`, on the initiator path |
 | AC-4 | An initiator tunnel reconnects N times after a peer Delete | The count of `SAUp` equals the count of `SADown` for every N |
 | AC-5 | A tunnel is torn down twice on a real kernel | The XFRM state table, the policy table, and `espForms` are all empty |
+| AC-6 | `sendDPD` runs on an SA with no send path | No request window is held, no `awaitReply` is set, no probe is stored, and no Message ID is spent |
+| AC-7 | `sendDPD` runs on a floated SA whose fallback transport is nil | The probe leaves from the NAT-T socket, and the SA awaits its reply |
 
 ## End-to-End User Stories
 
@@ -200,6 +231,8 @@ lands.
 | `TestRunRemovesIKEBypassOnEveryErrorExit` | `internal/component/ike/engine/register_test.go` | AC-2 | |
 | `TestInitiatorEmitsSADownWhenEstablishedLoopReturns` | `internal/component/ike/engine/fsm_test.go` | AC-3 | |
 | `TestSAUpAndSADownBalanceAcrossReconnects` | `internal/component/ike/engine/fsm_test.go` | AC-4 | |
+| `TestDPDNoTransportTakesNoWindow` | `internal/component/ike/engine/dpd_test.go` | AC-6 | PASS 2026-08-07 |
+| `TestDPDFloatedSAProbesWithoutTheFallback` | `internal/component/ike/engine/dpd_test.go` | AC-7 | PASS 2026-08-07 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -220,6 +253,7 @@ lands.
 - `internal/component/ike/dataplane/xfrm_linux.go` - forget the ESP form on every exit of `RemoveSA`
 - `internal/component/ike/engine/register.go` - remove the bypass on every error exit of `Run`
 - `internal/component/ike/engine/fsm.go` - pair the initiator `SAUp` with an `SADown`
+- `internal/component/ike/engine/dpd.go` - DONE 2026-08-07, `sendDPD` returns before it reserves the request window when the session has no transport
 
 ## Files to Create
 - `test/ipsec/ipsec-teardown-leaves-nothing.ci` - functional proof that teardown leaves no residue
@@ -327,9 +361,24 @@ lands.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Leak 4: `sendDPD` returns before `reserveRequestWindow` | Reserve first and release on the no-send-path branch | A release that a later edit forgets recreates the leak. A path that takes nothing needs no release, and it also stops the Message ID being spent on a message nobody sends |
+| Leak 4: the guard reads `sa.sendPath(tr)`, not `tr` | Guard on the `tr` argument | `tr` is a fallback. `sendPath` prefers the SA's own socket, so a floated SA sends while `tr` is nil. A guard on the argument silences liveness for the life of a working NAT-T tunnel |
 
 ## Known Limitations
 - Phase 1 is evidence, so no fix lands until each leak is measured rather than read.
+- Leak 4 leaves one edge open, and it is the owner's call. `maintainSA` reads
+  `dpd.timedOut(now)` before `shouldRetransmit` in the same tick, and `shouldRetransmit`
+  refuses once `timedOut`. A `dead-peer-detection timeout 1`, the smallest value
+  `parseDPD` accepts, plus a tick delayed past the microseconds between the probe and the
+  tick boundary, therefore reaches the dead-peer verdict after ONE attempt and no repeat.
+  RFC 7296 Section 2.4 MUST: an endpoint concludes the other one has failed "only when
+  repeated attempts to contact it have gone unanswered for a timeout period". One attempt
+  is not repeated attempts, so this is a violation of the MUST and not a tuning choice.
+  The same section's later sentence, "The number of retries and length of timeouts are
+  not covered in this specification", chooses HOW MANY repeats an implementation makes.
+  It never licenses zero of them, and it must not be read as softening the MUST.
+  Two candidate fixes were put to Thomas on 2026-08-07 and neither is approved:
+  `timedOut` also requiring `retries > 0`, or `parseDPD` flooring `timeout` at 2 seconds.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -340,7 +389,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
+- [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
