@@ -183,10 +183,12 @@ LOSSY_FILTER = re.compile(r"^\s*(head|tail|grep|egrep|fgrep|awk|sed|cat|less|mor
 # Options that take a SEPARATE argument (`timeout -k 5 30 make ...`,
 # `nice -n 5 make ...`): the flag and its value both sit in front.
 LAUNCHER_OPT_WITH_ARG = {"-k", "--kill-after", "-s", "--signal", "-n", "--adjustment"}
-# The duration/niceness operand itself. `timeout` accepts a unit suffix, and
-# ai/rules/git-safety.md tells every session to write exactly that (`timeout 240s
-# make ze-verify`) -- the old bare-`isdigit()` test did not match it, so the
-# repo's own documented invocation slipped straight past this gate. A bare
+# The duration/niceness operand itself. `timeout` accepts a unit suffix and
+# sessions write one (`timeout <n>s make ze-verify`) -- the old bare-`isdigit()`
+# test did not match it, so that invocation slipped straight past this gate.
+# No duration is named here on purpose: ai/rules/git-safety.md ("Running
+# ze-verify") sets the policy, and a number copied into a comment is the drift
+# this repo keeps paying for (plan/learned/1359). A bare
 # negative niceness (`nice -5 make ...`) is a flag and the operand at once, hence
 # the optional leading `-`.
 LAUNCHER_OPERAND = re.compile(r"^-?\d+(?:\.\d+)?[smhd]?$")

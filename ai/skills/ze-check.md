@@ -12,7 +12,7 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
 ## Steps
 
 1. **Verify (if Go code changed):** Check if any `.go` files are modified. If yes:
-   run `make ze-verify` (timeout 240s). If it fails, report all failures from
+   run `make ze-verify` (foreground, largest timeout your harness allows). If it fails, report all failures from
    `tmp/ze-verify-failures.log`. If no `.go` files changed: skip.
 2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
 

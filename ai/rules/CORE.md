@@ -70,7 +70,7 @@ BLOCKING only when the commit could plausibly affect build, tests, or generated 
 | Anything that runs at build time or affects a binary | YES |
 | `ai/**/*.md`, `.claude/**/*.md`, `plan/**/*.md`, `docs/**/*.md`, `README.md` | NO |
 ### Step 1: If `ze-verify` applies (BLOCKING)
-`make ze-verify` (timeout 240s).
+`make ze-verify`, in the foreground ("Running ze-verify" below).
 ### Structural Gates Are Never Known-Red (BLOCKING)
 The item-2 "log to `plan/known-failures/`" path is for **non-deterministic** failures only -- flaky or environmental TEST reds (load-sensitive races, GC-pressure pool flakes, host-specific listener probes).
 **The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
@@ -110,7 +110,11 @@ One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide -- parallel run
 | If the run is yours (same tree), read `tmp/ze-verify.log` instead of re-running | Delete the lockfile |
 | If "waiting for lock" appears, do other work | Start `go test` / `golangci-lint` / `bin/ze-test` in parallel (bypasses lock) |
 ### Running ze-verify
-Foreground with 240s timeout.
+Each directive below is one physical line on purpose.
+**Run `make ze-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
+**Do not kill it for being slow. Give the call the largest timeout your harness allows.**
+**Never take a timeout from a duration written in a rule. The one measurement is `tmp/.ze-verify-duration.txt`.**
+**Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
 ### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
 **Several agents work this checkout at once. `make ze-verify` reads the WORKING
 TREE, so it reads their half-finished edits too, and a fully green run is unreachable by construction.

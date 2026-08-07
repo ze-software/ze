@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 933 summaries
+Total: 934 summaries
 
 ## 400-499
 
@@ -992,3 +992,4 @@ Total: 933 summaries
 | 1356 | Learned Corpus: Drain the Ceiling, Do Not Delete the Gate | `plan/learned/1356-learned-corpus-drain-over-archive.md` |
 | 1357 | `flock(1)` on a macOS dev machine is not util-linux | `plan/learned/1357-flock-macos-is-not-util-linux.md` |
 | 1358 | dev-setup-cross-platform | `plan/learned/1358-dev-setup-cross-platform.md` |
+| 1359 | A number typed into a rule file is an unverified claim | `plan/learned/1359-rules-corpus-paraphrase-drift.md` |

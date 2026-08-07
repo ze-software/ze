@@ -36,8 +36,8 @@ phase itself.
    - Report "ze-verify already running (pid N), waiting for it to finish"
    - Wait for it to complete (the make target handles this automatically)
    - Read `tmp/ze-verify.log` for the results
-2. **Run verification:** Execute `make ze-verify` **foreground** with 240s timeout. Output is auto-captured to `tmp/ze-verify.log`.
-   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `ai/rules/git-safety.md` "Running ze-verify in the Background (BLOCKING)".
+2. **Run verification:** Execute `make ze-verify` in the **foreground**, giving the call the largest timeout your harness allows. Never kill it for being slow. Output is auto-captured to `tmp/ze-verify.log`.
+   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `ai/rules/git-safety.md` "Running ze-verify".
    - Custom log path: `make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
    - `ze-verify` runs `-race` on changed component groups (two-pass strategy). For reactor concurrency changes, also run `make ze-race-reactor`.
 3. **Parse results:** On failure, search the log:
@@ -74,12 +74,16 @@ phase itself.
 
 ## Fallback
 
-If `make ze-verify` times out (240s), fall back to running stages separately:
-1. `make ze-lint` (60s timeout)
-2. `make ze-unit-test-cached` then `make ze-unit-test-race-changed` (120s total)
-3. `make ze-functional-test` (120s timeout)
+A slow run is not a failed run, so a timeout is never the trigger for this.
+`verify-lock.sh` either waits or breaks a stuck holder itself, so contention is
+not a trigger either. Fall back only when the run exits non-zero for a reason
+that is not a test failure: a broken build cache, a missing tool, a wedged
+environment. Then run the stages separately:
+1. `make ze-lint`
+2. `make ze-unit-test-cached` then `make ze-unit-test-race-changed`
+3. `make ze-functional-test`
 
-Report whichever stages completed. Note which stage timed out. This gives partial results instead of no results.
+Report whichever stages completed and which one stopped the run. This gives partial results instead of no results.
 
 ## Rules
 

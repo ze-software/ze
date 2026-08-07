@@ -3,7 +3,8 @@ kind: note
 level:
 stage:
 ---
-`make ze-verify` (timeout 240s). Not `go test`, not any subset.
+`make ze-verify`, in the foreground ("Running ze-verify" below). Not `go test`,
+not any subset.
 Before any verify target, check freshness. A FRESH status covers the
 byte-identical tree and forbids rerunning `make ze-verify` or
 `make ze-verify-changed`. The check output is qualified by mode:
