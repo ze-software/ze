@@ -30,7 +30,11 @@ const (
 	// deadline" is the defect this exists to remove, so it must not be
 	// reachable by configuration.
 	minNetlinkTimeout = 1 * time.Second
-	maxNetlinkTimeout = 60 * time.Second
+	// maxNetlinkTimeout is the shared contract ceiling, not a local choice:
+	// the apply-latency histogram's last finite bucket is derived from the same
+	// constant, so raising one here alone would silently push every
+	// max-deadline timeout into +Inf (firewall.MaxBackendDeadline).
+	maxNetlinkTimeout = firewall.MaxBackendDeadline
 )
 
 var _ = env.MustRegister(env.EnvEntry{

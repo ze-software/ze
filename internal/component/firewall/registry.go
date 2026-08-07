@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — firewall table registry
+// Related: metrics.go -- observeApply, the reconcile latency and timeout report
 
 package firewall
 
@@ -7,6 +8,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var errFirewallBackendNotLoaded = errors.New("firewall backend not loaded")
@@ -98,6 +100,26 @@ func RegisterTables(owner string, tables []Table) {
 // are concatenated so that e.g. a plugin can register sets for a table
 // whose chains are owned by the firewall engine.
 func ApplyAll() error {
+	// Report the reconcile AFTER reconcileMu is released. Registered before the
+	// unlock defer, so LIFO runs it last: observeApply writes a log line on a
+	// timeout, and a syscall under the process-wide reconcile lock would extend
+	// exactly the hold this spec exists to keep short.
+	//
+	// applyResult stays empty until Apply is entered, which is what keeps the
+	// early returns below (no backend, autoload failure) out of the histogram:
+	// no reconcile was attempted, so there is nothing to record.
+	var (
+		applyStart  time.Time
+		applyResult string
+		err         error
+	)
+	defer func() {
+		if applyResult == "" {
+			return
+		}
+		observeApply(time.Since(applyStart), applyResult, err)
+	}()
+
 	// Serialize the whole snapshot-plus-apply so at most one owner is inside
 	// Backend.Apply at a time and no stale snapshot lands out of order. See the
 	// reconcileMu doc for the lock order and rationale.
@@ -147,7 +169,21 @@ func ApplyAll() error {
 		}
 		return errFirewallBackendNotLoaded
 	}
-	return b.Apply(all)
+	// Time every reconcile, and report a wedged dataplane at the one place that
+	// calls Backend.Apply. An owner sees only its own failed apply; this layer is
+	// where "the dataplane is behind the registry, for every owner" becomes
+	// observable (metrics.go). The observation itself runs after the unlock, in
+	// the defer registered at the top of this function.
+	//
+	// applyResult is set to panic BEFORE the call and overwritten only once Apply
+	// has returned, so a backend that unwinds is recorded as a panic rather than
+	// lost or filed as healthy.
+	applyStart = time.Now()
+	applyResult = applyResultPanic
+
+	err = b.Apply(all)
+	applyResult = applyResultOf(err)
+	return err
 }
 
 type tableKey struct {

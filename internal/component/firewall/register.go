@@ -10,6 +10,7 @@ import (
 
 	firewallyang "github.com/ze-software/ze/internal/component/firewall/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -45,6 +46,9 @@ func init() { //nolint:gochecknoinits // plugin registration
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBusRef(eb)
+		},
+		ConfigureMetrics: func(reg metrics.Registry) {
+			bindMetrics(reg)
 		},
 	}
 	reg.CLIHandler = func(_ []string) int {

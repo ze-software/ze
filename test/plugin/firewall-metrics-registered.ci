@@ -1,0 +1,172 @@
+# Test: the firewall component's own metrics reach the Prometheus registry
+#
+# VALIDATES: firewall Registration.ConfigureMetrics runs, so both series the
+#            firewall reconcile publishes are exposed to an operator scraping
+#            Prometheus: ze_firewall_apply_timeout_total (the wedged-dataplane
+#            count behind AC-10 of fixit-firewall-concurrency-deadlock) and
+#            ze_firewall_apply_duration_seconds (the reconcile latency).
+# PREVENTS: the hook silently not firing for the firewall component. Every Go
+#           test of these metrics calls bindMetrics directly, so all of them
+#           stay green while the daemon exposes nothing -- which is exactly the
+#           regression test/plugin/plugin-metrics-registered.ci was written for
+#           after GetInternalPluginRunner dropped ConfigureMetrics for every
+#           internal plugin. That test covers ze_role_* only; this covers the
+#           firewall component, whose hook is a separate registration.
+#
+# The counter carries the load here: a plain Counter is created at 0 the moment
+# the hook runs, so its PRESENCE is the signal and no timeout has to occur. The
+# histogram is a Vec, whose children exist only after an observation, so it also
+# proves the boot reconcile was recorded -- which needs a real backend, hence
+# CAP_NET_ADMIN rather than plain Linux.
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.firewall:value=info
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Scrape the Prometheus endpoint until both firewall series appear."""
+import os
+import signal
+import sys
+import urllib.error
+import urllib.request
+
+from ze_api import wait_until
+
+PORT = "$PORT"  # substituted by the runner, same value as the telemetry block
+WANT = ("ze_firewall_apply_timeout_total", "ze_firewall_apply_duration_seconds")
+
+pid_holder = {}
+
+
+def daemon_up():
+    if not (os.path.exists("daemon.pid") and os.path.exists("daemon.ready")):
+        return False
+    with open("daemon.pid") as fh:
+        pid_holder["pid"] = int(fh.read().strip())
+    return True
+
+
+if not wait_until(daemon_up, attempts=200, delay=0.05):
+    sys.exit("daemon.pid/ready never appeared")
+
+scrape = {}
+
+
+def fetch():
+    """Scrape once, keeping the body. True when the endpoint answered.
+
+    A failed poll CLEARS the body rather than leaving the previous one in
+    place: the failure diagnostic below reports what the last scrape saw, and
+    a stale body would make it describe a poll that is not the one that failed.
+    """
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/metrics", timeout=2) as resp:
+            scrape["body"] = resp.read().decode()
+    except (urllib.error.URLError, OSError):
+        scrape["body"] = ""
+        return False
+    return True
+
+
+def series_present():
+    """True once the exposition carries every wanted family.
+
+    Polled rather than read once: the firewall reconcile that creates the
+    histogram child happens during OnConfigure, which can land after the
+    daemon reports ready.
+    """
+    return fetch() and all(name in scrape["body"] for name in WANT)
+
+
+# The endpoint answering is what proves telemetry is on, so this wait -- not any
+# later family count -- is the control for "the firewall series are missing
+# because the hook did not fire" rather than "because telemetry is off".
+if not wait_until(fetch, attempts=200, delay=0.05):
+    sys.exit(f"the Prometheus endpoint on 127.0.0.1:{PORT} never answered")
+
+# test-relax: the "some non-firewall family exists" count is REPLACED by the two
+# named runtime families below, which is strictly stronger, not weaker. The count
+# could never deny: RegisterRuntimeCollectors (exporter.go) puts go_* and
+# process_* into any answering exposition, so it was true exactly when the wait
+# above succeeded, restating the previous assertion. The named check denies on an
+# endpoint that answers with an empty body, and on a build that stops registering
+# the runtime collectors -- cases the count accepted.
+#
+# What neither version can distinguish, for a future session: /metrics being
+# served by a DIFFERENT registry than the one plugin hooks bind into. Only
+# another plugin-bound family in the same exposition separates that from a
+# firewall hook failure, which is what plugin-metrics-registered.ci gets from
+# ze_role_* and this peer-less config has no equivalent of.
+RUNTIME_FAMILIES = ("go_goroutines", "process_start_time_seconds")
+absent = [f for f in RUNTIME_FAMILIES if f not in scrape["body"]]
+if absent:
+    print(f"ERROR: the serving registry is missing runtime families {absent}; it is not the populated one")
+    sys.exit(1)
+# Printed on the PASSING path too, so a later failure's log shows this ran and
+# cleared the registry before the firewall series were ever asserted.
+print(f"CONTROL: serving registry populated, {len(scrape['body'])} bytes")
+
+if not wait_until(series_present, attempts=200, delay=0.05):
+    body = scrape.get("body", "")
+    missing = [n for n in WANT if n not in body]
+    # stdout, not stderr: the runner truncates a long daemon stderr, and these
+    # lines are the whole diagnosis (observed while mutation-checking this test,
+    # where the reason vanished into the truncation).
+    print(f"ERROR: missing from the exposed registry: {missing}")
+    print(f"scrape carried {len(body)} bytes")
+    for line in body.split("\n"):
+        if line.startswith("ze_firewall"):
+            print(f"  {line}")
+    sys.exit(1)
+
+for name in WANT:
+    print(f"OK: {name} is exposed", file=sys.stderr)
+
+# test-relax: the non-firewall-families control is MOVED, not dropped. It now
+# runs above the series_present wait (see the comment there), where it can
+# actually deny; here it sat after a branch that exits first, so it could never
+# execute in the one case it exists for. Same assertion, same failure message,
+# strictly earlier. Nothing is now unchecked that was checked before.
+sys.stdout.write("firewall metrics exposed\n")
+os.kill(pid_holder["pid"], signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fwmetrics {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-ssh {
+				from {
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=firewall metrics exposed
+expect=stderr:contains=firewall config applied

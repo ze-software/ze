@@ -1,4 +1,5 @@
 // Design: plan/learned/671-fw-6-firewall-vpp.md -- VPP firewall backend
+// Related: timeout_linux.go -- the reply deadline and the typed timeout error
 
 //go:build linux
 
@@ -71,13 +72,17 @@ func (b *backend) Apply(desired []firewall.Table) error {
 
 	ctx := context.Background()
 	connCtx, connCancel := context.WithTimeout(ctx, waitConnectedTimeout)
+	// The connect phase is NOT classified as a dataplane timeout: running out
+	// this wait means VPP is absent, not that it accepted a request and went
+	// quiet. See asDataplaneTimeout (timeout_linux.go) for why the distinction
+	// changes what callers do.
 	conn, err := b.waitConnector(connCtx)
 	connCancel()
 	if err != nil {
-		return fmt.Errorf("firewall-vpp: %w", err)
+		return fmt.Errorf("firewall-vpp: vpp not reachable: %w", err)
 	}
 	if err := conn.WaitConnected(ctx, waitConnectedTimeout); err != nil {
-		return fmt.Errorf("firewall-vpp: %w", err)
+		return fmt.Errorf("firewall-vpp: vpp not reachable: %w", err)
 	}
 
 	ch, err := conn.NewChannel()
@@ -86,7 +91,10 @@ func (b *backend) Apply(desired []firewall.Table) error {
 	}
 	defer ch.Close()
 
-	return b.applyWithOps(&govppOps{ch: ch}, desired)
+	// newGovppOps binds the reply deadline to the channel before the first
+	// request goes out. govpp leaves a new channel on core.DefaultReplyTimeout,
+	// which is 0 and means "wait forever" (timeout_linux.go).
+	return b.applyWithOps(newGovppOps(ch), desired)
 }
 
 func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error) {
@@ -113,7 +121,14 @@ func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error)
 	}
 }
 
+// applyWithOps reconciles and classifies the outcome. Every ops error reaches
+// the caller through here, so this is the single place that can tell a wedged
+// dataplane from a rejected ruleset (timeout_linux.go).
 func (b *backend) applyWithOps(ops vppOps, desired []firewall.Table) error {
+	return asDataplaneTimeout(b.reconcileWithOps(ops, desired))
+}
+
+func (b *backend) reconcileWithOps(ops vppOps, desired []firewall.Table) error {
 	nameIndex, err := ops.dumpInterfaces()
 	if err != nil {
 		return fmt.Errorf("firewall-vpp: %w", err)

@@ -9,13 +9,32 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// ErrKernelTimeout reports that a Backend.Apply bounded a kernel round-trip
+// MaxBackendDeadline is the largest per-operation deadline any backend may use
+// to bound one dataplane round-trip.
+//
+// It lives on the contract because three places must agree and nothing else
+// makes them: each backend clamps its own knob to this ceiling
+// (ze.firewall.nft.netlink-timeout, ze.firewall.vpp.reply-timeout), and the
+// apply-latency histogram's last finite bucket is derived from it. Three
+// separate literals would let a backend be raised on its own, after which every
+// max-deadline timeout lands in +Inf, indistinguishable from any other overrun
+// and unreachable by a quantile, with nothing red to say so.
+const MaxBackendDeadline = 60 * time.Second
+
+// ErrKernelTimeout reports that a Backend.Apply bounded a dataplane round-trip
 // that never answered. It is part of the Backend contract rather than any one
 // backend's package so an owner can react to it without importing a backend.
+//
+// It means the dataplane ACCEPTED the request and went quiet. A dataplane that
+// is absent (no netlink permission, VPP not running, a connect wait that ran
+// out) MUST NOT be reported with this error: the reconcile failed for a
+// different reason, with a different fix, and both consumers of this sentinel
+// would draw the wrong conclusion from it.
 //
 // It exists because the caller's correct response differs from an ordinary
 // apply failure: on a timeout the registry's desired state is already correct

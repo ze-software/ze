@@ -967,21 +967,45 @@ newer one.
 The cost of that single-writer design is that `reconcileMu` is held for the entire kernel
 round-trip, so an `Apply` that never returns stalls *every* firewall owner, not merely
 concurrent reconciles of the same one. `Backend.Apply` therefore carries a hard obligation:
-bound every kernel call with a deadline and surface a timeout as an error. The nft backend
-does this with a per-dial netlink deadline (`ze.firewall.nft.netlink-timeout`, default 10s,
-clamped to 1..60s). Because ze's `nftables.Conn` is not lasting, a fresh netlink socket is
-dialed per operation and the deadline option is re-applied to each one, so every operation
-gets a full deadline rather than sharing one absolute instant.
+bound every dataplane call with a deadline and surface a timeout as an error. Both backends
+carry it, and each had to be given it: the library default in each case is "wait forever".
+
+| Backend | Bound | Knob |
+|---------|-------|------|
+| nft | per-dial netlink deadline, re-applied on every dial because ze's `nftables.Conn` is not lasting, so each operation gets a full deadline rather than sharing one absolute instant | `ze.firewall.nft.netlink-timeout` |
+| vpp | per-request binary-API reply deadline, bound to the channel when the ops facade is constructed. govpp's `DefaultReplyTimeout` is 0, which it documents as disabling the timeout | `ze.firewall.vpp.reply-timeout` |
+
+Both default to 10s and clamp to 1..60s. Zero is refused rather than honored: it is each
+library's spelling of "no deadline", which is the defect the bound exists to remove.
 
 A timeout is reported as `firewall.ErrKernelTimeout`, which lives on the `Backend` contract
-rather than in a backend package so an owner can react without importing a backend. The
-distinction matters to callers: on a timeout the registry's desired state is already correct
+rather than in a backend package so an owner can react without importing a backend. It means
+the dataplane accepted the request and went quiet, and it deliberately excludes a dataplane
+that is ABSENT: the vpp backend's connect wait also times out, but "VPP is not running" is a
+different condition with a different fix, and both consumers of the sentinel would read it
+wrongly. The distinction matters to callers: on a timeout the registry's desired state is already correct
 and only the kernel is behind, so re-applying cannot help and merely burns a second full
 deadline. ddos-local relies on this -- it rolls the registry back but skips the rollback
 reconcile, because its detector re-fires about once a second and spending two deadlines would
 leave an attack unmitigated far longer than one.
+
+`ApplyAll` also measures what it serializes. Every reconcile observes
+`ze_firewall_apply_duration_seconds`, labeled by `result` (`ok`, `timeout`, `error`,
+`panic`), and a reconcile that ends in `ErrKernelTimeout` also increments
+`ze_firewall_apply_timeout_total` and logs at the registry. The label is load-bearing:
+latency alone cannot separate a 10s timeout from a 10s slow success, and a backend that
+panics must not read as a healthy reconcile, so the observation is deferred and the result
+starts at `panic` until `Apply` returns.
+
+Both series live at that layer because it is the only caller of `Backend.Apply`: an owner
+sees its own failed apply, and only this layer can report that the dataplane is behind the
+registry for every owner. The timeout count means the same thing under either backend, which
+is why both are bound above. The log does not wait for a metrics registry, so a wedged
+dataplane speaks even with telemetry disabled.
 <!-- source: internal/component/firewall/registry.go -- ApplyAll, reconcileMu -->
 <!-- source: internal/component/firewall/backend.go -- Backend.Apply contract, ErrKernelTimeout -->
+<!-- source: internal/component/firewall/metrics.go -- observeApply, the apply latency and timeout count -->
+<!-- source: internal/plugins/firewall/vpp/timeout_linux.go -- per-request VPP reply deadline -->
 <!-- source: internal/plugins/firewall/nft/deadline_linux.go -- per-dial netlink deadline -->
 <!-- source: internal/plugins/ddos/local/responder.go -- rollback skips reconcile on a timeout -->
 

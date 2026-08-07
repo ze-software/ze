@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 0/N (research) |
-| Updated | 2026-07-19 |
+| Phase | 4/6 (phases 2-5 landed; phase 1 reproduction and its phase-6 `.ci` remain) |
+| Updated | 2026-08-07 |
 
 ## Task
 
@@ -642,39 +642,145 @@ section already admits as IN.
 
 ## Implementation Summary
 ### What Was Implemented
-- (fill at completion)
+- D-1: `reconcileMu` in `internal/component/firewall/registry.go` serializes the whole
+  `ApplyAll` body, snapshot and apply together. Lock order documented on the mutex.
+- D-2: a per-dial netlink deadline in `internal/plugins/firewall/nft/deadline_linux.go`
+  (`netlinkTimeout`, `withNetlinkDeadline`, `asKernelTimeout`), installed by `newBackend`.
+  Default 10s, clamped to 1..60s, and zero clamps up rather than disabling the bound.
+- D-2 observability (AC-10 "counted"): `internal/component/firewall/metrics.go`
+  (`observeApply`), called by `ApplyAll` and bound through `Registration.ConfigureMetrics`.
+  `ze_firewall_apply_duration_seconds` on every reconcile, labeled by `result`
+  (`ok`, `timeout`, `error`, `panic`); `ze_firewall_apply_timeout_total` plus an
+  error log on `ErrKernelTimeout`. The observation is deferred, so a backend that
+  panics is recorded rather than lost, and is not filed as healthy. It is
+  registered BEFORE the `reconcileMu` unlock so LIFO runs it after the release:
+  the timeout log is a syscall, and it must not extend the hold this spec exists
+  to shorten. Buckets run to 60s, the largest deadline either backend accepts.
+- `ErrKernelTimeout` means the dataplane accepted the request and went quiet. A
+  dataplane that is ABSENT is excluded: the vpp connect wait also times out, but
+  "VPP is not running" needs a different fix, and the sentinel's two consumers
+  (the timeout counter, and ddos-local skipping its rollback reconcile) would
+  both read it wrongly.
+- D-2 for the SECOND backend: `internal/plugins/firewall/vpp/timeout_linux.go` bounds
+  every VPP binary-API reply (`ze.firewall.vpp.reply-timeout`, default 10s, clamped
+  1..60s) and tags a timeout as `ErrKernelTimeout`. govpp's `DefaultReplyTimeout` is 0,
+  which it documents as disabling the timeout, and nothing called `SetReplyTimeout`, so
+  the vpp backend had D-2's exact defect: an unbounded call held under `reconcileMu`.
+  The deadline is bound inside `newGovppOps`, so no construction path can skip it.
+- D-3: ddos-local publishes `{active, target}` through an atomic snapshot
+  (`setStatus`), and `status()` takes no lock. `applyMitigation` skips the rollback
+  reconcile on `ErrKernelTimeout` (R-8).
+- D-4: the same shape in anomaly-shape (`publishStatus`, `statusSnapshot`).
+- D-5: the single-writer and bounded-`Apply` contract on the `Backend` interface,
+  `ErrKernelTimeout` on the contract rather than in a backend package, and the
+  "Firewall reconcile concurrency" section of `docs/architecture/core-design.md`.
+
 ### Bugs Found/Fixed
-- (fill at completion)
+- Concurrent `Backend.Apply` (Finding 1): two owners staged into one shared
+  `nftables.Conn` batch, so one `Flush` drained both and the other returned success
+  having sent nothing. Fixed at the registry, so all six `ApplyAll` callers benefit.
+- Unbounded `Backend.Apply` (Finding 2): no netlink deadline anywhere, so a wedged
+  kernel held `reconcileMu` forever.
+- Head-of-line blocking on the management plane (Finding 3): `show ddos local` and
+  `show anomaly-shape` waited on the same mutex the responder held across the reconcile.
+- A wedged kernel was returned to the caller but never counted: AC-10's second half.
+  Found while auditing this deferral row on 2026-08-07 and fixed here.
+- The vpp backend had NO reply deadline at all (govpp defaults to 0, meaning
+  disabled), so `backend vpp` kept the unbounded-`Apply` defect D-2 removed from nft,
+  and the timeout counter could never leave 0 there. Found on 2026-08-07 while
+  closing a review finding that read as a documentation gap and was not one.
+
 ### Documentation Updates
-- (fill at completion)
+- `docs/architecture/core-design.md`, "Firewall reconcile concurrency": the lock order,
+  the bounded-`Apply` obligation, `ErrKernelTimeout`'s home and why re-applying after a
+  timeout is wrong, and the two metrics.
+
 ### Deviations from Plan
-- (fill at completion)
+- The D-1 unit tests live in `registry_concurrency_test.go`, not `registry_test.go` as
+  the TDD plan named. Same package, no functional difference.
+- The metric surface the plan left "to settle at implement time" is one histogram plus
+  one counter in the firewall component, with no new config leaf. It follows the
+  deadline's reasoning: this is a safety and observability backstop, not a tuning knob.
+- Phase 1 (reproduce the 2026-07-12 stall and capture goroutine stacks) was never run,
+  so AC-1, AC-2, AC-3 and AC-7 are open and `test/plugin/ddos-firewall-concurrency.ci`
+  does not exist. R-6 recommends waiting for `plan/spec-fixit-qemu-runtime-kernel.md`.
+  This is a scope question for the owner, not a claim of completion.
 
 ## Implementation Audit
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Root-cause the dispatch hang | Partial | Findings 1-4 | The mechanism the code supports is read and cited. The link to the 2026-07-12 event stays a hypothesis (A-6) |
+| Fix it at the owning layer | Done | `internal/component/firewall/registry.go`, `backend.go`, `metrics.go` | D-1, D-5, AC-10 counter all live in the shared component |
+| The lock-discipline hazards on their own merits | Done | `ddos/local/responder.go`, `anomaly/shape/responder.go`, `nft/deadline_linux.go` | D-2, D-3, D-4 |
+| Make the failure observable rather than a silent hang | Done | `firewall/metrics.go`, `nft/deadline_linux.go` | Bounded, logged, counted |
+
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Open | - | Needs phase 1, or the evidenced "cannot reproduce" statement. Findings 1-4 do not close it and the spec says so |
+| AC-2 | Open | - | No deterministic reproduction of the stall exists |
+| AC-3 | Partial | `TestResponderStatusDuringSlowApply`, `TestShapeStatusDuringSlowApply` | The in-process proof holds: a show handler no longer waits on a reconcile. The under-flood `.ci` is not written |
+| AC-4 | Done | `TestApplyAllSerialisesBackendApply`, `TestApplyAllConcurrentOwnersConverge`, `TestApplyAllStaleSnapshotNotApplied` | Max concurrent `Apply` is 1; the last apply carries every owner |
+| AC-5 | Done | `internal/component/firewall/registry.go` | Serialization is in the registry, not in any plugin or test |
+| AC-6 | Done | `firewall/metrics.go`, `docs/architecture/core-design.md` | Bounded timeout, log, counter, and the contract written where a backend author reads it |
+| AC-7 | Open | - | Depends on AC-2: the ddos-direction `.ci` workaround cannot be re-evaluated without a reproduction |
+| AC-8 | Done | `TestApplyAllSerialisesBackendApply` plus the caller re-grep | All six `ApplyAll` callers inherit D-1. Only ddos-local and anomaly-shape needed the D-3 shape, and both have it |
+| AC-9 | Done | `reconcileMu` doc comment, `Backend.Apply` doc, `core-design.md` | Lock order and the no-lock-across-`ApplyAll` rule are stated in code and in the doc |
+| AC-10 | Done | `TestNetlinkTimeoutBounds`, `TestAsKernelTimeoutTagsDeadlineOnly`, `TestNftApplyDeadlineSurfacesError`, `TestApplyAllCountsKernelTimeout` | Bounded within the deadline, typed, logged, counted |
+
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestApplyAllSerialisesBackendApply` | Done | `internal/component/firewall/registry_concurrency_test.go` | File name differs from the plan |
+| `TestApplyAllConcurrentOwnersConverge` | Done | same | |
+| `TestApplyAllStaleSnapshotNotApplied` | Done | same | |
+| The three existing registry contract tests | Done | `internal/component/firewall/registry_test.go` | Green under `reconcileMu` (R-3) |
+| `TestResponderStatusDuringSlowApply` | Done | `internal/plugins/ddos/local/responder_test.go` | |
+| `TestShapeStatusDuringSlowApply` | Done | `internal/plugins/anomaly/shape/responder_test.go` | |
+| `TestResponderRollbackDoesNotRetryOnTimeout` | Changed | `internal/plugins/ddos/local/responder_test.go` | Landed as `TestKernelTimeoutSkipsRollbackReconcile`, table-driven so an ordinary failure still gets its rollback reconcile |
+| `TestNftApplyDeadlineSurfacesError` | Done | `internal/plugins/firewall/nft/deadline_integration_linux_test.go` | `integration && linux`, runs under `make ze-qemu-integration-test` |
+| `TestApplyAllCountsKernelTimeout` | Added | `internal/component/firewall/metrics_test.go` | Not in the plan: AC-10's "counted" half had no test because it had no counter |
+| `TestApplyAllRecordsAPanickingBackend` | Added | `internal/component/firewall/metrics_test.go` | Pins the deferred observation |
+| `TestApplyAllObservesOutsideTheReconcileLock` | Added | `internal/component/firewall/metrics_test.go` | Pins WHERE it runs: the observer probes `reconcileMu.TryLock` and fails if the lock is still held |
+| `TestVppReplyTimeoutBounds`, `TestNewGovppOpsBindsReplyTimeout`, `TestApplyTagsDataplaneTimeout` | Added | `internal/plugins/firewall/vpp/timeout_linux_test.go` | D-2 for the vpp backend; linux-only, run under `make ze-qemu-integration-test` |
+| `firewall-metrics-registered.ci` | Added | `test/plugin/` | Proves `Registration.ConfigureMetrics` fires for the firewall component; needs-linux, caps=net-admin |
+| `ddos-firewall-concurrency.ci` | Open | - | Conditional on phase 1 (Known Limitations) |
+
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/firewall/registry.go` | Done | `reconcileMu` plus the `observeApply` call |
+| `internal/component/firewall/backend.go` | Done | Single-writer and bounded-`Apply` contract, `ErrKernelTimeout` |
+| `internal/plugins/firewall/nft/backend_linux.go` | Done | `newBackend` installs the deadline; `asKernelTimeout` tags the error |
+| `internal/plugins/ddos/local/responder.go` | Done | Atomic snapshot, no lock in `status`, no rollback retry on a timeout |
+| `internal/plugins/anomaly/shape/responder.go` | Done | Same shape |
+| `docs/architecture/core-design.md` | Done | "Firewall reconcile concurrency" |
+| `internal/component/firewall/metrics.go` | Added | The AC-6 metric surface the plan left to settle at implement time |
+| `internal/plugins/firewall/vpp/timeout_linux.go` | Added | D-2 for the vpp backend, so the timeout count means the same under both |
+| `test/plugin/firewall-metrics-registered.ci` | Added | The metrics wiring proof |
+| `test/plugin/ddos-firewall-concurrency.ci` | Open | Conditional on phase 1 |
+
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 10 AC, 10 planned tests, 8 files
+- **Done:** AC-4, AC-5, AC-6, AC-8, AC-9, AC-10; 8 of 10 tests; 7 of 8 files
+- **Partial:** AC-3 (in-process proof only, no under-flood `.ci`)
+- **Skipped:** none
+- **Open, needs an owner decision:** AC-1, AC-2, AC-7 and the `.ci`, all gated on the
+  phase-1 reproduction (A-6, R-6)
+- **Changed:** the rollback test name, the D-1 test file name, and one added test
+  (documented in Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Dispatch no longer hangs under flood + firewall block | functional (QEMU) | `test/plugin/ddos-firewall-concurrency.ci` red before fix, green after |
-| Root cause established | trace | goroutine dump / lock trace pasted into Design Insights |
+| Dispatch no longer hangs under flood + firewall block | functional (QEMU) | NOT MET. `test/plugin/ddos-firewall-concurrency.ci` does not exist; it is conditional on phase 1 (Known Limitations) |
+| A management-plane read is no longer coupled to kernel latency | unit, discrimination-checked | `TestResponderStatusDuringSlowApply` and `TestShapeStatusDuringSlowApply`. Restoring the lock in `status()` / `statusSnapshot()` makes each report "blocked behind the in-flight reconcile" (observed 2026-08-07) |
+| A wedged kernel cannot stall every firewall owner forever | unit + QEMU integration | `TestNetlinkTimeoutBounds` (zero clamps up, never disables the bound), `TestNftApplyDeadlineSurfacesError` under `make ze-qemu-integration-test` |
+| The failure is observable rather than silent | unit + functional | `TestApplyAllCountsKernelTimeout` (with the increment removed: "timeout counter = 0, want 1"), and `test/plugin/firewall-metrics-registered.ci`, which scrapes the daemon's Prometheus endpoint and finds both series (738ms PASS; 11.6s FAIL with `ConfigureMetrics` emptied) |
+| The timeout count means the same under either backend | unit (QEMU) | `TestApplyTagsDataplaneTimeout` and `TestNewGovppOpsBindsReplyTimeout` for vpp, beside the nft pair. Both fail with their fix reverted (observed 2026-08-07) |
+| Concurrent apply converges, no lost update | unit, race | `TestApplyAllSerialisesBackendApply` (max concurrent `Apply` 1, observed 8 without `reconcileMu`), `TestApplyAllConcurrentOwnersConverge`, `TestApplyAllStaleSnapshotNotApplied`, all under `-race` |
+| Root cause established | trace | NOT MET. No goroutine dump exists. A-6 stays unvalidated and R-9 stands |
 
 ## Review Gate
 
@@ -696,10 +802,82 @@ disjoint sibling-agent scopes and reviewed under their own gates.
 - None required: both reviewers returned 0 BLOCKER, 0 ISSUE on the first pass. All four
   NOTEs are non-blocking and acknowledged above.
 
-### Run 2+ (re-runs until clean)
+### Run 2 (2026-08-07) — independent reviewer
+
+**Scope, fixed before the round ran:** the 2026-08-07 additions only, none of which
+existed at Run 1: `internal/component/firewall/metrics.go` and its wiring
+(`ApplyAll`, `ConfigureMetrics` in `register.go`), and the D-2/D-3/D-4 slices as
+committed (`nft/deadline_linux.go`, `ddos/local/responder.go`,
+`anomaly/shape/responder.go`). The D-1 registry serialization reviewed at Run 1 was
+out of scope except where the new code touches it.
+
+Upheld without change: `observeApply` is genuinely wired (`ApplyAll`, 11 production
+call sites), and the timeout classification is correct (`errors.Is` against a
+`%w: %w` wrap).
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | - | Not needed; Run 1 was already 0 BLOCKER / 0 ISSUE | - | - |
+| 4 | ISSUE | The metrics wiring itself is untested. `metrics_test.go` calls `bindMetrics` directly; nothing drives `Registration.ConfigureMetrics` and no `.ci` asserts either series, so if the hook stops firing both metrics vanish permanently and every test stays green. Not hypothetical: `test/plugin/plugin-metrics-registered.ci` exists because internal plugins once silently skipped that hook, and it covers only `ze_role_*` | `internal/component/firewall/register.go`, `metrics_test.go` | FIXED. Added `test/plugin/firewall-metrics-registered.ci` (needs-linux, caps=net-admin), which scrapes the daemon's Prometheus endpoint and requires both series. Not folded into `plugin-metrics-registered.ci`: that test carries no `needs-linux`, so adding a `firewall{}` block would have pulled its `ze_role_*` coverage out of the merge gate |
+| 6 | ISSUE | `ze_firewall_apply_timeout_total` can never increment under the vpp backend: `ErrKernelTimeout` is produced only in `nft/deadline_linux.go`. Under `backend vpp` the dataplane wedges, the histogram tail fills, and the counter reads 0 forever, while the help string and `core-design.md` both read backend-agnostic | `internal/plugins/firewall/vpp/`, `metrics.go` help string | FIXED, by making the claim true rather than narrowing it. Reading the producer showed this was not a wording gap: govpp's `DefaultReplyTimeout` is 0 (documented as disabling the timeout) and nothing called `SetReplyTimeout`, so vpp carried D-2's unbounded-`Apply` defect under the process-wide `reconcileMu`. Added `vpp/timeout_linux.go`: a clamped per-request deadline bound inside `newGovppOps`, and `asDataplaneTimeout` tagging the timeout |
+| 7 | NOTE | Two smaller ones in `ApplyAll`: it times without `defer`, so a panic in a backend skips both the observation and the timeout log; and the histogram carries no result dimension, so a 10s timeout and a 10s slow success are indistinguishable | `internal/component/firewall/registry.go`, `metrics.go` | FIXED both. Observation deferred with the result starting at `panic`; histogram became a `HistogramVec` labeled `result` (`ok`/`timeout`/`error`/`panic`), with the counter and the label derived from one value so they cannot drift |
+
+**Discrimination observed for each fix:** `.ci` PASS 738ms, and with `ConfigureMetrics`
+emptied it polls its whole budget and fails at 11.6s. vpp: "SetReplyTimeout was never
+called" with the binding removed; `errors.Is(err, ErrKernelTimeout) = false, want true`
+with the tagging removed. Panic path: `observations under result="panic" = 0, want 1`
+without the defer. Label: `apply-duration observations under result="timeout" = 0, want 1`
+with the label collapsed.
+
+### Run 3 (2026-08-07) — independent reviewer
+
+**Scope, fixed before the round ran:** the Run 2 fixes themselves, verified against
+govpp's own source rather than against the implementer's account of it.
+
+Upheld without change: the item-6 diagnosis (confirmed stronger than claimed, with
+`(*Channel).receiveReplyInternal` substituting `maxInt64` for a non-positive timeout
+and `ReceiveReply` having no context arm); the `newGovppOps` single-construction
+claim; the deferred observation registering after every early return; the counter
+and log gating on one `result` value; and both backends' bounds matching the doc.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | The new `.ci`'s control is a guard that can never deny: the `families` check runs only AFTER the `series_present` wait succeeds, and the missing-series branch exits first, so it cannot execute in the one case its own comment names | `test/plugin/firewall-metrics-registered.ci` | FIXED. Moved above the series wait, behind a `fetch()` wait that only requires the endpoint to answer. Observed on the failure path: `CONTROL: telemetry on, 71 non-firewall families exposed` prints, then the series diagnosis, so the failure is attributed to the hook rather than to telemetry |
+| 2 | ISSUE | The same govpp defect exists in `internal/plugins/traffic/vpp/backend_linux.go`, which builds `&govppOps{ch: ch}` with no `SetReplyTimeout`. Narrower blast radius (its own `b.mu`, not the process-wide `reconcileMu`), so it needs a HOME rather than a fix in this round | `internal/plugins/traffic/vpp/` | HOMED, not fixed. Six-cell row in `plan/deferrals/fixit-firewall-concurrency-deadlock.md`, destination `plan/spec-finish-vpp-stub.md`, naming the producer and quoting the govpp mechanism |
+| 3 | NOTE | `observeApply` runs INSIDE `reconcileMu`: the unlock defer is registered first, so LIFO runs the observation before it, putting a `slog` Error write and a syscall under the process-wide reconcile lock | `internal/component/firewall/registry.go` | FIXED. The observe defer is now registered before the unlock defer, so it runs after the release; `applyResult` stays empty until `Apply` is entered, which keeps the early returns out of the histogram. New test `TestApplyAllObservesOutsideTheReconcileLock` probes `reconcileMu.TryLock` at observation time |
+| 4 | NOTE | One classification is a stretch: VPP being ABSENT (the connect wait running out) was tagged `ErrKernelTimeout`, which ticks the wedged-dataplane counter and makes ddos-local skip its rollback reconcile. "Not there" is not "wedged" | `internal/plugins/firewall/vpp/timeout_linux.go` | FIXED by separating them. `asDataplaneTimeout` now tags `core.ErrReplyTimeout` only; the connect phase returns `vpp not reachable`, untagged. Recorded on the `ErrKernelTimeout` contract and in `core-design.md`. Test row flipped to `an absent dataplane is not a wedged one` |
+| 5 | NOTE | Stale clause: `bindMetrics`'s doc says "before the engine runs", but `InjectPluginMetrics` defers the hook when no registry exists yet | `internal/component/firewall/metrics.go` | FIXED. The doc now states the hook can fire late, and records the reviewer's finding that `startStandaloneTelemetry` sets the registry before the plugin phase, so the boot reconcile is still observed |
+| 6 | NOTE | Bucket ceiling: the last finite bucket was 30s while the deadline may be 60s, so a max-deadline timeout lands only in `+Inf` | `internal/component/firewall/metrics.go` | FIXED, and the follow-up finding that the 60s tie was nominal is fixed with it: three literals became one exported `firewall.MaxBackendDeadline`, which both backend clamps and the bucket list derive from. `countingRegistry.HistogramVec` now records its buckets, and `TestApplyDurationBucketsReachTheMaxDeadline` asserts on the REGISTERED list |
+
+**Discrimination observed for each fix:** control moved, `CONTROL:` line appears on the
+failure path where it previously could not print at all; lock position, re-registering
+the observe defer after the unlock reds exactly `TestApplyAllObservesOutsideTheReconcileLock`
+("observeApply ran while reconcileMu was held"); bucket ceiling, hardcoding the old 30s
+list reds with "last finite bucket = 30s, want >= 60s (a max-deadline timeout would land
+in +Inf)".
+
+**One Run 3 note was judged rather than applied, per its own instruction.** The control's
+family count could never deny, because `RegisterRuntimeCollectors` puts `go_*` and
+`process_*` into any answering exposition, so it restated the preceding `fetch()`
+assertion. It is REPLACED, not deleted, by a named check that the serving registry
+carries `go_goroutines` and `process_start_time_seconds`: that denies on an endpoint
+answering with an empty body and on a build that stops registering the runtime
+collectors, both of which the count accepted. What neither version can distinguish,
+recorded in the test for the next reader, is `/metrics` being served by a different
+registry than plugin hooks bind into; only another plugin-bound family in the same
+exposition separates that from a firewall hook failure, and this peer-less config has
+no equivalent of `plugin-metrics-registered.ci`'s `ze_role_*`. The stale-body defect
+Run 3 noted alongside it is fixed: a failed poll now clears the body, so the failure
+diagnostic never describes an earlier successful scrape.
+
+### Not yet reviewed (2026-08-07)
+- The Run 3 fixes themselves. Every finding from rounds 2 and 3 is fixed and each fix
+  carries an observed red, but no reviewer has read the fixes for rounds 3's items.
+- One finding was homed rather than fixed (Run 3 item 2), and one blind spot in the
+  review tooling was homed with it: `scripts/dev/audit-test-relaxation.py` reads
+  `git diff` against HEAD, so a `test-relax:` token in an UNTRACKED test file feeds
+  nothing. Measured on this work: the audit reported `1 finding(s)`, another session's
+  file, and never mentioned `test/plugin/firewall-metrics-registered.ci` despite its two
+  tokens. Row destination `plan/spec-fixit-test-harness-fail-open-guards.md`.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (achieved on Run 1; scope = firewall slice)
