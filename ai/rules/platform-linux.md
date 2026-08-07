@@ -52,6 +52,39 @@ one VM per test):
 No per-test wiring is needed for either: the suites are the same as the native
 runner, so the QEMU pass discovers `needs-linux` tests automatically.
 
+**Both targets boot ze's own runtime kernel, never the stock Alpine one
+(2026-08-07).** Each passes `--kernel tmp/kernel/vmlinuz` and refuses to start
+without it, so `make ze-kernel KERNEL_ARCH=<amd64|arm64>` is a precondition of
+each. That command costs a copy on a cache hit and only builds on a miss.
+
+**The guard compares, it does not merely check existence.** `GOKRAZY_ARCH`
+defaults to `amd64` on every host while `QEMU_GOARCH` follows `uname`, so a bare
+`make ze-kernel` on an Apple Silicon machine stages an amd64 vmlinuz that a
+`test -f` accepts and QEMU then fails to boot, with no line naming the
+architecture. `ze-qemu-kernel-guard` (`mk/test-integration.mk`) compares the
+staged kernel against the architecture-keyed durable cache entry instead, which
+also catches a kernel staged before a config fragment changed. A missing or
+mismatched kernel is an error exit, never a silent fall back to stock.
+
+**All six kernel-consuming targets use that one guard**, the two above plus
+`ze-qemu-pppoe-test`, `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test` and
+`ze-qemu-traffic-usage-test`. **A target that uses it MUST declare `: ze-host`**,
+because the guard's first command execs that binary; without the prerequisite it
+still denies, but it names the wrong cause. `TestQemuTargetsGuardTheStagedKernel`
+(`scripts/evidence/qemu_kernel_wiring_test.go`) reads the guard's users out of the
+makefile rather than from a list, so a seventh target is checked the day it is
+written.
+
+**Why they moved.** The stock Alpine 6.12.13-0-virt kernel crashes on the nft
+set-element-timeout operations the firewall suite performs, so `firewall` sat in
+the default skip list and the suite proved nothing. ze also declares that kernel
+unsupported: `tools/kernel-builder/build.py` refuses anything below 7.0. On
+7.1.4 the same operations succeed and the VM survives them, so `firewall` left
+that list. **Two files carry the default and they MUST move together**:
+`mk/test-integration.mk` and `scripts/evidence/qemu-all-tests.sh`. The script
+default wins whenever the script is invoked directly, so changing only the
+makefile leaves the old behavior in force.
+
 Decision rule:
 
 | The `.ci` test ... | Use |
@@ -196,13 +229,21 @@ The pattern (do all four in the same change):
 
 **When you add a new interop lab, add its row here and ship both targets together.**
 
-Step 3's custom kernel is conditional, not automatic: use `--kernel` only when a
-`CONFIG_*` the lab needs is absent from the stock Alpine kernel. L2TP and PPPoE
-need it (`CONFIG_PPPOL2TP`, `CONFIG_PPPOE`); VRRP does not, because the stock
-Alpine 6.12.13-0-virt kernel already creates macvlan (bridge mode), bridge, veth
-and netns (probed 2026-07-15). Adding `--kernel` when it is not needed forces a
-~30-minute `make ze-kernel` build on everyone who runs the lab, so probe the
-stock kernel before reaching for it.
+Step 3's custom kernel is conditional for a LAB, not automatic: use `--kernel`
+only when a `CONFIG_*` the lab needs is absent from the stock Alpine kernel.
+L2TP and PPPoE need it (`CONFIG_PPPOL2TP`, `CONFIG_PPPOE`); VRRP does not,
+because the stock Alpine 6.12.13-0-virt kernel already creates macvlan (bridge
+mode), bridge, veth and netns (probed 2026-07-15). Probe the stock kernel before
+reaching for it, so a lab that gains nothing does not gain a precondition.
+
+**The cost that used to decide this is gone (2026-08-07).** `make ze-kernel`
+routes through the durable architecture- and config-keyed cache under
+`~/.cache/ze`, so it materializes in seconds on a hit and builds only on a miss
+or after a config fragment changes. The older advice, that `--kernel` "forces a
+~30-minute build on everyone who runs the lab", described a checkout where the
+kernel lived in `tmp/`. It now costs a copy. The two functional targets
+(`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally
+for that reason.
 
 ## What the QEMU VM Provides
 
@@ -211,7 +252,7 @@ Alpine Linux live system (no systemd) with:
 - Root access (all capabilities)
 - `/dev/ptmx` for PTY pairs
 - Network namespaces (`ip netns`)
-- Kernel modules: nftables, l2tp, ppp (loaded at boot)
+- Kernel modules: nftables, l2tp, ppp (loaded at boot) -- **only under the stock Alpine kernel.** A `--kernel` run pairs ze's kernel with Alpine's initramfs and Alpine's `/lib/modules`, which are built for 6.12.13-0-virt, so NO module of the ze kernel can load. Every symbol such a run needs must be `=y` in `gokrazy/kernel/*.config`, and `gokrazy/kernel/kernel.require` is what makes a silent demotion to `=m` fail the build instead of the test
 - Go toolchain (downloaded and cached in `tmp/qemu/`)
 - Repo mounted read-write via virtio-9p at `/workspace`
 - No systemd, no getty, no desktop (Alpine minimal)

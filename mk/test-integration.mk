@@ -26,7 +26,7 @@
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-vrrp-keepalived-test ze-qemu-traffic-usage-test ze-vpp-hugepages-qemu-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-pppoe-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-vrrp-keepalived-test ze-qemu-traffic-usage-test ze-vpp-hugepages-qemu-test ze-install-qemu-test ze-install-iso-qemu-test ze-install-scenarios-qemu-test ze-install-ventoy-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -332,9 +332,17 @@ ze-deployment-preflight:
 #     Linux-CI unit runs). The VM's unique value: //go:build linux paths and the
 #     integration-tagged netlink/nft/fib/socket tests.
 # GOARCH is derived from the host (Apple Silicon -> arm64, Intel -> amd64) so the
-# binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web,firewall) lets you
-# drop suites: web needs agent-browser; firewall crashes the Alpine QEMU kernel
-# on nft set-element-timeout operations.
+# binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web) lets you drop
+# suites: web needs agent-browser.
+#
+# firewall left that default on 2026-08-07. It was there because the suite
+# "crashes the Alpine QEMU kernel on nft set-element-timeout operations", and
+# both functional targets now boot ze's own runtime kernel instead of stock
+# Alpine (see ze-qemu-kernel-guard below). Measured on 7.1.4: `nft add set ...
+# flags timeout` then `nft add element ... timeout 5s` both succeed, the element
+# reads back with its expiry, and the VM survives a following `nft flush
+# ruleset`. The stock Alpine 6.12.13-0-virt kernel is the one that cannot take
+# it, and no target runs on it any more.
 # Cross-compiled binaries go to bin/ze-linux-<arch> so $(ZEBIN_ZE) stays the
 # host-native binary. No need to run `make ze test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
@@ -350,8 +358,53 @@ ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)$(ZE_BIN_SUFFIX)
 # rather than re-deriving an unsuffixed literal (scripts/evidence/qemu-run.py's
 # copy-paste hint, scripts/evidence/netns_qemu.py's exec).
 export ZE_QEMU_BIN ZE_QEMU_STRIPPED_BIN ZE_QEMU_TEST_BIN
-ZE_QEMU_SKIP_SUITES ?= web,firewall
+ZE_QEMU_SKIP_SUITES ?= web
 ZE_QEMU_PARALLEL ?= 4
+
+# ─── The runtime kernel both functional QEMU targets boot ───────────────────
+#
+# Staged by `make ze-kernel` (mk/gokrazy.mk), which materializes it from the
+# durable arch+config-keyed cache under ~/.cache/ze in seconds on a hit, and
+# builds only on a miss.
+ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
+
+# Refuse to boot anything but THIS host's architecture and THIS tree's kernel
+# config, and never fall back to stock Alpine.
+#
+# `test -f $(ZE_QEMU_KERNEL)` alone, which is what every kernel-consuming target
+# used to do, is not
+# enough: GOKRAZY_ARCH defaults to amd64 (mk/gokrazy.mk), tmp/kernel/vmlinuz is
+# not keyed by architecture, and QEMU_GOARCH follows uname. So a bare
+# `make ze-kernel` on an Apple Silicon host stages an amd64 vmlinuz, an
+# existence-only guard accepts it, and the VM dies during boot with no line that
+# names the architecture.
+#
+# The architecture is not re-derived here. ze-host owns the cache key
+# (kernelCacheVariantFor, internal/appliance/cache.go), which already hashes the
+# architecture AND every resolved config fragment. Comparing the staged kernel
+# against the key's own cache entry therefore answers both questions at once --
+# right architecture, and current config -- and adds no second copy of the
+# bzImage/Image magic numbers to keep in step (ai/rules/evidence.md).
+#
+# Fail closed. A silent fall back to the stock Alpine kernel would restore the
+# nft crash quietly, which is the one outcome worse than an error message.
+#
+# EVERY target that uses this guard MUST declare `: ze-host`. The first command
+# below execs $(CURDIR)/ze-host, which a clean checkout does not have. Without
+# the prerequisite the guard still fails closed, but it fails with
+# `sh: ze-host: not found` and then reports the CACHE branch's message, whose
+# hint (`make ze-kernel`) does not fix the actual problem. That is a guard that
+# denies while naming the wrong cause, and it is what
+# TestQemuTargetsGuardTheStagedKernel now checks for every user of the guard
+# rather than for a hand-written list of two.
+define ze-qemu-kernel-guard
+@hint="run: make ze-kernel KERNEL_ARCH=$(QEMU_GOARCH)"; \
+	cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(QEMU_GOARCH) --print-cache-dir)"; \
+	test -f "$(ZE_QEMU_KERNEL)" || { echo "error: $(ZE_QEMU_KERNEL) not found -- this target boots ze's runtime kernel and never stock Alpine ($$hint)"; exit 1; }; \
+	{ test -n "$$cache_dir" && test -f "$$cache_dir/vmlinuz"; } || { echo "error: no $(QEMU_GOARCH) runtime kernel in the durable cache ($$hint)"; exit 1; }; \
+	cmp -s "$(ZE_QEMU_KERNEL)" "$$cache_dir/vmlinuz" || { echo "error: $(ZE_QEMU_KERNEL) is not this tree's $(QEMU_GOARCH) runtime kernel -- wrong architecture, or a kernel config fragment changed after it was staged ($$hint)"; exit 1; }; \
+	echo "Runtime kernel: $(ZE_QEMU_KERNEL) ($(QEMU_GOARCH), matches $$cache_dir)"
+endef
 
 # The QEMU ze build deliberately OMITS ZE_LDFLAGS (the version/buildDate -X
 # stamps). The .ci suites reuse this binary via ZE_TEST_NO_BUILD=1, and the
@@ -399,12 +452,14 @@ CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_STRI
 CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_TEST_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endef
 
-ze-qemu-all-test:
+ze-qemu-all-test: ze-host
+	$(ze-qemu-kernel-guard)
 	$(ze-qemu-crossbuild)
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
 	# e2fsprogs: same reason as ze-qemu-needs-linux-test below -- this target runs
 	# the same qemu-all-tests.sh, so its unit phase needs debugfs/mkfs.ext4 too.
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra" \
 		--timeout 3600 \
 		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
@@ -419,7 +474,8 @@ ze-qemu-all-test:
 # web is skipped (browser-driven, not a kernel-feature surface); every other
 # suite runs so a needs-linux test in any of them (plugin, firewall, l2tp, ...)
 # is exercised.
-ze-qemu-needs-linux-test:
+ze-qemu-needs-linux-test: ze-host
+	$(ze-qemu-kernel-guard)
 	$(ze-qemu-crossbuild)
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
 	# 5400s. 1800s was sized when the unit phase died on startup (GOCACHE pointed
@@ -448,6 +504,7 @@ ze-qemu-needs-linux-test:
 	# logged "e2fsck not found" and "debugfs write silently failed" with e2fsprogs
 	# demonstrably installed, and four tests failed on that rather than on ze.
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra" \
 		--timeout 5400 \
 		--run 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="web" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
@@ -561,6 +618,31 @@ ze-netns-qemu-test:
 		--timeout 1200 \
 		--run 'QEMU_GOARCH=$(QEMU_GOARCH) ZE_QEMU_BIN="$(ZE_QEMU_BIN)" ZE_QEMU_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_QEMU_TEST_BIN="$(ZE_QEMU_TEST_BIN)" python3 scripts/evidence/netns_qemu.py'
 
+# The PPPoE access concentrator's own functional suite (test/pppoe/). It needs
+# two things together that no existing target supplies at once:
+#
+#   - the per-test netns launch mode, because each test asks the runner for a
+#     veth PAIR (option=netns-link:peer=) and creating veth-bng in a developer's
+#     real host namespace is the one thing that mode exists to prevent, and
+#   - ze's runtime kernel, because handlePADR opens an AF_PPPOX/PX_PROTO_OE
+#     socket BEFORE it sends PADS (internal/component/l2tp/pppoe/server.go) and
+#     the stock Alpine kernel carries no CONFIG_PPPOE, so every PADR would die on
+#     "kernel socket failed" and no test could pass.
+#
+# ze-netns-qemu-test gives the first on the stock kernel; this gives both. It
+# reuses that target's in-VM driver and selects the suite with
+# ZE_NETNS_QEMU_SUITES, so the setcap / uid-drop / host-safety machinery has one
+# implementation rather than two.
+ze-qemu-pppoe-test: ze-host
+	$(ze-qemu-kernel-guard)
+	$(ze-qemu-crossbuild)
+	@echo "Running the PPPoE .ci suite under the netns launch mode in QEMU (runtime kernel)..."
+	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
+		--packages "nftables iproute2 python3 libcap kmod" \
+		--timeout 1200 \
+		--run 'QEMU_GOARCH=$(QEMU_GOARCH) ZE_NETNS_QEMU_SUITES=pppoe ZE_QEMU_BIN="$(ZE_QEMU_BIN)" ZE_QEMU_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_QEMU_TEST_BIN="$(ZE_QEMU_TEST_BIN)" python3 scripts/evidence/netns_qemu.py'
+
 ze-qemu-ldp-frr-test:
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
@@ -616,8 +698,8 @@ ze-install-ventoy-qemu-test:
 		python3 scripts/evidence/effective-install-ventoy-qemu.py; \
 	fi
 
-ze-qemu-l2tp-ppp-test:
-	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }
+ze-qemu-l2tp-ppp-test: ze-host
+	$(ze-qemu-kernel-guard)
 	@echo "Running L2TP PPP/NCP peer test in QEMU Linux VM with gokrazy kernel..."
 	python3 scripts/evidence/qemu-run.py \
 		--kernel tmp/kernel/vmlinuz \
@@ -630,8 +712,8 @@ ze-qemu-l2tp-ppp-test:
 # CONFIG_PPPOE built in). accel-ppp is installed from Alpine community.
 # `make ze-kernel` builds and stages the kernel to tmp/kernel/vmlinuz, and
 # rebuilds when runtime.config changes so CONFIG_PPPOE is picked up.
-ze-qemu-pppoe-accel-test:
-	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }
+ze-qemu-pppoe-accel-test: ze-host
+	$(ze-qemu-kernel-guard)
 	@echo "Running PPPoE client-vs-accel-ppp test in QEMU Linux VM with runtime kernel..."
 	python3 scripts/evidence/qemu-run.py \
 		--kernel tmp/kernel/vmlinuz \
@@ -662,8 +744,8 @@ ze-qemu-vrrp-keepalived-test:
 # Loads the pure-Go programs, attaches them to a veth pair, injects frames via
 # AF_PACKET, asserts the maps, and scrapes /metrics. Validates the kernel
 # additions end-to-end, not just on the stock Alpine kernel.
-ze-qemu-traffic-usage-test:
-	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }
+ze-qemu-traffic-usage-test: ze-host
+	$(ze-qemu-kernel-guard)
 	@echo "Running traffic-usage eBPF TCX test in QEMU Linux VM with the runtime kernel..."
 	python3 scripts/evidence/qemu-run.py \
 		--kernel tmp/kernel/vmlinuz \

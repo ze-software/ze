@@ -2,3 +2,50 @@ CONFIG_IP_PNP_DHCP
 CONFIG_EXT4_FS
 CONFIG_BLK_DEV_INITRD
 CONFIG_DEVTMPFS_MOUNT
+
+# The netfilter surface ze's own firewall programs. A fragment line asking for
+# =y is a request; kconfig answers it, and it answered =m for the four tristate
+# expressions below until NF_CONNTRACK and NF_NAT were themselves built in.
+# Nothing reported that, because enforce_required_symbols (tools/kernel-builder/build.py)
+# only checks symbols listed HERE, and none of these were listed. The result
+# shipped for months: a kernel whose "inet" family is absent, so control-plane
+# policing (coppTable, internal/plugins/copp/translate.go) makes a table the
+# kernel refuses with EOPNOTSUPP.
+#
+# These entries make that failure loud and early. The build stops and names the
+# symbol, instead of a daemon exiting at startup on the appliance.
+CONFIG_NF_TABLES
+CONFIG_NF_TABLES_INET
+CONFIG_NF_TABLES_IPV4
+CONFIG_NF_TABLES_IPV6
+CONFIG_NF_CONNTRACK
+CONFIG_NF_NAT
+CONFIG_NFT_CT
+CONFIG_NFT_NAT
+CONFIG_NFT_MASQ
+CONFIG_NFT_REDIR
+CONFIG_NFT_LIMIT
+CONFIG_NFT_LOG
+CONFIG_NFT_REJECT
+
+# The list above is derived, not chosen: it is every nft expression the backend
+# emits that still has a Kconfig symbol of its own in 7.x. `expr.Ct`, `expr.NAT`,
+# `expr.Masq`, `expr.Redir`, `expr.Limit`, `expr.Log` and `expr.Reject` all appear
+# in internal/plugins/firewall/nft, and every one of those symbols is tristate, so
+# every one can silently answer =m.
+#
+# Deliberately NOT pinned, so the next reader does not read the gap as an
+# oversight:
+#   CONFIG_NFT_COMPAT   xtables compatibility. ze speaks netlink directly and
+#                       emits no xtables target, and the symbol resolves to =m
+#                       today, so pinning it would fail the build for a feature
+#                       nothing uses.
+#   CONFIG_NFT_HASH, CONFIG_NFT_FIB*, CONFIG_NFT_DUP*
+#                       ze emits none of these expressions. NFT_DUP_IPV4 and
+#                       NFT_DUP_IPV6 are asked for as =y in kernel.config and
+#                       answer =m; that mismatch predates this list and is
+#                       harmless only because nothing lowers a `dup`.
+#   CONFIG_NFT_COUNTER, CONFIG_NFT_PAYLOAD, CONFIG_NFT_META, CONFIG_NFT_RBTREE,
+#   CONFIG_NFT_OBJREF   no longer exist. Upstream folded them into nf_tables, so
+#                       they are absent from the resolved .config rather than
+#                       unset, and a pin on one could never be satisfied.

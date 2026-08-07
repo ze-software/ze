@@ -29,15 +29,30 @@
 #   2. unit tests                 (go test ./..., no -race, cacheable)
 #   3. integration tests          (-tags integration; linux-only netlink/nft/fib/...)
 #
-# Tunables (env): ZE_QEMU_SKIP_SUITES (comma list, default "web,firewall"),
+# Tunables (env): ZE_QEMU_SKIP_SUITES (comma list, default "web"),
 #                 ZE_QEMU_PARALLEL (default 4), ZE_QEMU_SUITE_TIMEOUT (default 900s).
+#
+# This default and the one in mk/test-integration.mk must move together. They
+# are two defaults for one decision, and the one below wins whenever the script
+# is invoked directly, so a change made only in the makefile leaves the old
+# behavior in force here.
 set -u
 
 cd /workspace || { echo "error: /workspace not mounted"; exit 1; }
 
 export ZE_TEST_NO_BUILD=1
 export ZE_QEMU=1
-SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web,firewall}"
+# Repo-invariant tests (test/install/kernel-*.ci and friends) grep the source
+# tree, and each derives the tree as `dirname $(command -v ze)/..`, honouring
+# ZE_REPO_ROOT first. That derivation is right for a plain checkout and wrong
+# here, because the PATH shim built below puts `ze` in a scratch directory whose
+# parent is not the repo. The greps then scan paths that do not exist, find
+# nothing, and the check FAILS having read no source at all -- reporting
+# "found in:" with an empty list, which reads like a real violation. Five
+# install tests were red on that alone. The harness broke the derivation, so the
+# harness states the root.
+export ZE_REPO_ROOT=/workspace
+SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web}"
 PARALLEL="${ZE_QEMU_PARALLEL:-4}"
 SUITE_TIMEOUT="${ZE_QEMU_SUITE_TIMEOUT:-900s}"
 

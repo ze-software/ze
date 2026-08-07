@@ -16,6 +16,7 @@ linux-only-functional-ci-tests-run-via-qemu-never-natively ## Linux-only functio
   one-vm-runs-them-all-from-two-entry-points
   choose-between-the-tight-loop-and-the-full-pass
   qemu-discovers-needs-linux-tests-with-no-wiring
+  both-functional-targets-boot-zes-runtime-kernel
   decision-rule
   which-option-marker-each-ci-test-needs
   declare-the-capability-never-hide-the-test-with-skip-os

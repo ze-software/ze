@@ -15,3 +15,41 @@ CONFIG_HUGETLBFS
 CONFIG_INET_ESP
 CONFIG_INET6_ESP
 CONFIG_XFRM_STATISTICS
+
+# The interface kinds, policy routing and traffic control ze programs. Each has
+# a producer named in runtime.config beside its request. A `=y` line in a
+# fragment is a request and kconfig may answer `=m`, which is the same as absent
+# in a QEMU run and a surprise on the appliance; only a line here makes that
+# answer fail the build.
+CONFIG_DUMMY
+CONFIG_VLAN_8021Q
+CONFIG_IP_MULTIPLE_TABLES
+CONFIG_IPV6_MULTIPLE_TABLES
+CONFIG_IP_ROUTE_MULTIPATH
+CONFIG_NET_SCH_HTB
+CONFIG_NET_SCH_TBF
+CONFIG_NET_SCH_FQ_CODEL
+CONFIG_NET_SCH_HFSC
+CONFIG_NET_SCH_FQ
+CONFIG_NET_SCH_SFQ
+CONFIG_NET_SCH_NETEM
+CONFIG_NET_SCH_PRIO
+CONFIG_NET_SCH_INGRESS
+CONFIG_NET_CLS_U32
+CONFIG_NET_CLS_FW
+CONFIG_NET_CLS_MATCHALL
+CONFIG_NET_ACT_MIRRED
+
+# Every qdisc above is TRISTATE, so a kernel bump can answer =m to a `=y`
+# request and nothing else in the tree would notice. The list must therefore
+# carry one line per qdisc-type `translateQdisc` has a case for, not just the
+# ones a test happens to exercise: HFSC, FQ, SFQ, NETEM and PRIO were requested
+# in runtime.config and left unpinned in the first version of this file, which
+# is the same enumeration hole this whole change exists to close.
+#
+# Deliberately NOT pinned:
+#   CONFIG_IP_ADVANCED_ROUTER   a bool menu gate. CONFIG_IP_MULTIPLE_TABLES and
+#                               CONFIG_IP_ROUTE_MULTIPATH both `depends on` it
+#                               and both are pinned, so neither can answer =y
+#                               while the gate is off. Pinning the dependents is
+#                               strictly stronger than pinning the gate.
