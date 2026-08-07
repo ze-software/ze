@@ -69,7 +69,8 @@ fix into five independently landable children.
   cache deletion; it absorbed a duplicate of itself on 2026-08-05, and this row
   cited the duplicate until then),
   `spec-wire-edit-4-api-origin-deferred-bird-interop` (closed 2026-08-07 in `2cc75ab5f`),
-  `plan/spec-wire-edit-4-api-origin-deferred-oversize-metric.md`,
+  `spec-wire-edit-4-api-origin-deferred-oversize-metric` (closed in `64fa02d41`,
+  its knowledge now in `plan/learned/1352-wire-edit-4-api-origin-deferred-oversize-metric.md`),
   `plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`,
   `plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md`,
   `plan/spec-fixit-ci-peer-block-silent-directives.md`
