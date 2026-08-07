@@ -113,7 +113,8 @@ One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide -- parallel run
 Each directive below is one physical line on purpose.
 **Run `make ze-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
 **Do not kill it for being slow. Give the call the largest timeout your harness allows.**
-**Never take a timeout from a duration written in a rule. The one measurement is `tmp/.ze-verify-duration.txt`.**
+**Never take a timeout from a duration written in a rule: read `tmp/.ze-verify-duration.txt` instead.**
+**A slow run can outlast the lock's own break threshold: raise `ZE_VERIFY_MAX_LOCK_AGE` rather than lose the pass.**
 **Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
 ### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
 **Several agents work this checkout at once. `make ze-verify` reads the WORKING

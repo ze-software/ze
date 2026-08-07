@@ -145,15 +145,47 @@ it.** It took three drafts to stop doing it.
 Two things the corrected text does, both forced by a reviewer rather than
 chosen:
 
-- It quotes the corpus's competing durations ("25 to 30 minutes" in
-  `git-safety`, "4-10 minutes" in `testing`) instead of claiming there is no
-  number. An earlier draft asserted the absolute, which its own generated digest
-  refuted twenty lines further down.
+- It quotes the corpus's two durations ("25 to 30 minutes" in `git-safety`,
+  "4-10 minutes" in `testing`) instead of claiming there is no number. An
+  earlier draft asserted that absolute, which its own generated digest refuted
+  twenty lines further down.
 - It puts each directive on ONE physical line. `condense_body`
   (`scripts/dev/rules_condensed.py`) appends the bold-led LINE, not the
   paragraph and not the sentence, so a directive that wraps reaches
   `ai/rules/CORE.md` cut mid-clause. Two successive drafts were truncated there.
   The second one asserted, in this file, that truncation was no longer possible.
+
+## A Duration Is Not The Same Kind Of Number
+
+The owner corrected a draft of this summary that filed the two durations as a
+corpus contradiction. They are not one. They are different machines, and the VM
+carries variable load, so its elapsed time is not deterministic even against
+itself.
+
+That distinction matters for the rule this summary produced, and it makes the
+case stronger rather than weaker:
+
+| Kind of number | Example | What authoring it costs |
+|---|---|---|
+| Derivable fact | the 24 stages of `stagesForMode` | It is checkable, so a hand-typed copy is wrong once it drifts |
+| Environment measurement | how long a full `ze-verify` takes | It is not one value at all. It varies by machine and by load, so NO committed number can be right for the reader |
+
+Derive a derivable fact. Never commit an environment measurement at all, because
+there is no correct value to commit. `tmp/*` is
+gitignored, which is why `tmp/.ze-verify-duration.txt` is the right home: it
+records the machine that ran it. The rule now says to read it as an expectation
+and never as a threshold, and that is the whole reason "do not kill it for being
+slow" is a directive rather than a number.
+
+**One live consequence came out of the same correction.** The owner's "30
+minutes seems to often be enough but it is not guaranteed" is a statement about
+a threshold that already exists in code: `verify-lock.sh` sets `MAX_LOCK_AGE`
+to 1800s, and a waiting second invocation breaks a lock older than that by
+SIGKILLing the holder's process group. If half an hour is not guaranteed, that
+break can land on a healthy run rather than a stuck one. The rule now names
+`ZE_VERIFY_MAX_LOCK_AGE` as the way out. This is the practical difference
+between the two kinds of number: the wrong stage count misinformed a reader,
+while a wrong duration threshold kills work.
 
 ## Caveat
 
