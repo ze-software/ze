@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | tooling |
 | Depends | - |
 | Phase | 5/5 |
@@ -158,7 +158,7 @@ Not applicable. Scope is tooling. No protocol surface is touched.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every block gap in the corpus is exactly one blank line, so the renderer needs no recorded separator | Measured: consecutive blank lines absent across all 27 files | The renderer needs a `blank-after` field on each point and the format grows a field | `ze-rules-points-roundtrip` over all 27 | confirmed - re-measured 2026-08-07: zero consecutive blanks outside fences, zero blank line at EOF. A gap is therefore 0 or 1 blanks, and `block_ranges` makes a zero gap impossible by defining a block as a maximal non-blank run: 2471 runs, 46 of them heterogeneous, all kept whole. `split_rule` also raises when a gap is not exactly 1 |
 | A-2 | A block-level partition with fence and indent state can express every rule file with no residue | The grammar table above; fences balanced, tables well formed | The split is lossy and the work does not land (D6) | `ze-rules-points-roundtrip` over all 27 | confirmed - all 27 round-trip byte-identical (2417 points). Fence state is load-bearing: the corpus carries 66 blank lines inside fences |
-| A-3 | A triple-dash frontmatter delimiter is unambiguous, because horizontal rules are absent from the corpus | Measured: no horizontal rules in any of the 27 | A body opening with a triple-dash line truncates its own header | A splitter unit test on a body whose first line is a triple dash | confirmed - zero horizontal rules outside fences and zero `---` lines inside them. The delimiter is unambiguous by construction, not only by measurement: `_frontmatter` terminates the header at the first `---` after line 1, which is always the one the writer emitted, so the body is never reached. `test_body_opening_with_delimiter` |
+| A-3 | A triple-dash frontmatter delimiter is unambiguous, because horizontal rules are absent from the corpus | Measured: no horizontal rules in any of the 27 | A body opening with a triple-dash line truncates its own header | A splitter unit test on a body whose first line is a triple dash | confirmed - zero horizontal rules outside fences and zero `---` lines inside them. The delimiter is unambiguous by construction, not only by measurement: `_frontmatter` stops the header at the first `---` after line 1, which is always the one the writer emitted, so the body is never reached. `test_body_opening_with_delimiter` |
 | A-4 | `ai/rules/points/` is invisible to every existing consumer of `ai/rules/`, because all three glob non-recursively | `list_rules` in `rule_coverage.py`, and the glob in `rules_condensed.py` and `rules_index.py` | A phantom 28th rule appears in `INDEX.md`, `TRIGGERS.md` or the coverage report, exactly as `CONDENSED.md` once did | `make ze-doc-test` plus a count assertion after the split lands | **broken** - the named consequence did NOT happen (27 rules in `INDEX.md`, 27 rows in `TRIGGERS.md`, 8 in `CORE.md`, all three byte-identical after the flip), because the three named globs really are non-recursive. The assumption is wrong in its SCOPE: "every existing consumer" is false. Four consumers reach `ai/rules/points/` by a recursive walk and one by a prefix test, all fixed in phase 3. `default_files` in `ste_check.py` globs `ai/**/*.md`, so it reviewed each point body a SECOND time: 951 of the 2417 lines its ratchet printed were duplicates of findings the rendered rule already reports (fixed: `ai/rules/points/` added to `EXCLUDE_DIRS`). `targets` in `line_refs.py` `rglob`s `ai/`, so `--apply` would have rewritten a GENERATED rule (fixed: every `*.md` directly in `ai/rules/` is skipped, so the sweep reaches the point instead). `read_transcript` in `rule_coverage.py` credited `os.path.basename` for any read under `ai/rules/`, and four real slugs equal a rule stem (`architecture`, `completion`, `git-safety`, `testing`), so opening one point falsely cleared a blocking rule (fixed: `_is_rule_path`, plus two tests). `c_line_number_ref` and `c_enforce_naming` in `.claude/hooks/pretool-writeedit.py` both reach points: measured zero strippable line refs in the corpus and every slug is lowercase kebab by `SLUG_SAFE`, so neither fires today. `lesson_worthy` in `commit_helper.py` treats the `ai/rules/` prefix as lesson-worthy, which is correct and already what closure owes |
 | A-5 | Nothing outside the three dispatchers needs to name a point | The handover scopes STEP 4 to the 44 checks | The binding comment convention needs a second reader | Grep for other enforcement sites during STEP 4 | **broken** - two points are enforced at BOTH ends and only the hook end names one. `_model_refusal` in `scripts/dev/review_gate.py` refuses to record a review off Opus 5. `review_model_refusal` in `.claude/hooks/pretool-agent-skill.py` refuses to spawn one. `planning/review-still-runs-on-opus-5-and-that-half-is-unchanged` names both, and only the hook names it back. `testing/blocking-gate-check-ci-sleep-justification-in` is the same shape over `check_ci_sleep_justification` in `scripts/dev/verify_wiring_docs.py` and `c_ci_sleep_justification` in the hook. Two more families want a binding. `scripts/dev/commit_helper.py` (`lesson_worthy`, `structural_gate_reds`, `commit_gate_problems`, `review_gate_problems`) cites a rule FILE in a comment for each. The twelve `check_*` ratchets in `scripts/dev/rfc_requirements.py`, `check_enrolment` to `check_gap_count_agreement`, enforce a table that is itself points of `rfc-compliance.md`. `.claude/hooks/block-premature-stop.sh` enforces `completion.md` and `.claude/hooks/validate-spec.sh` enforces `planning.md`. Scope is NOT expanded. Known Limitations already scopes phase 4 to the dispatcher checks. `parse_bindings` reads whatever file list it is given, so a later spec adds readers, never a second convention |
 
@@ -439,6 +439,21 @@ Not applicable. No wire-visible behavior and no peer daemon.
 
 ## Review Gate
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rules-as-points-7545230e-2aee-4587-9c64-0412270cf78c.md`, and the same review under a second key, `tmp/review/learned-corpus-drain-over-archive-...md` |
+| `review_gate.py check` | clean under both keys (`review_gate: OK (0 code files, clean, hashes match ...)`, exit 0) |
+| Why two keys | `spec_closure_stem` in `scripts/dev/commit_helper.py` reads `add_paths` first and derives the stem from the learned summary's FILENAME, not from the removed spec. This spec's summary is `plan/learned/1356-learned-corpus-drain-over-archive.md`, and it cannot be renamed to the spec stem: a committed rule point names it in a `rationale:` key, so a rename would edit `ai/rules/` and re-render `ai/rules/planning.md` inside a closure commit. The second artifact carries the SAME verdict over the SAME nine files, and its hash block is byte-identical to the first. No file was re-reviewed |
+| Reviewer lenses used | round 1: correctness/wiring, guards/security, tests/removed-behaviour. round 2: the same three over everything round 1 produced. round 3: one lens scoped to `7f03b3dfa` |
+| Rounds | 3. Round 1: 1 BLOCKER, 7 ISSUE, 6 NOTE. Round 2: 4 BLOCKER, 3 ISSUE. Round 3: 0 BLOCKER, 2 ISSUE. Final state 0 BLOCKER, 0 ISSUE |
+| Independence | the reviewers were subagents, none of them the author. The main thread re-probed every BLOCKER and both round-3 mutations against the real tree before it accepted the round |
+
+Round 1's findings are recorded in full below. Round 2's four BLOCKER and three
+ISSUE were fixed in `7f03b3dfa` ("close four gates that were green because they
+could not fire"), and round 3's two ISSUE in `513b427c1` ("make the retirement
+ledger checked, and let it free a check"). Each commit message carries the
+finding it answers, so the fix and its reason stay together in `git log`.
+
 ### Round 1
 
 | Field | Value |
@@ -467,6 +482,46 @@ Not applicable. No wire-visible behavior and no peer daemon.
 | N6 | NOTE | The comment above `DOC_RULE` claimed the columns cannot disagree with the bindings, one level stronger than the code | Corrected in both places: the `Enforces` comparison is at RULE granularity, so rebinding within one rule is invisible to it |
 
 Every fix carries a mutation proof: the new test fails when the fix is reverted, and passes when it is restored. Findings 2, 3, 4 and 6 are gates that were not themselves gated, so the mutation proof is the deliverable rather than a supporting detail.
+
+### Round 2
+
+| Field | Value |
+|-------|-------|
+| Scope | everything produced after round 1, over `299334063` |
+| Reviewers | three, independent of the author |
+| Result | 4 BLOCKER, 3 ISSUE. All fixed in `7f03b3dfa` |
+| Verified | the main thread re-probed every BLOCKER against the real tree before it accepted the round |
+
+#### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R2-1 | BLOCKER | `c_point_overwrite` and `c_rendered_rules` compared realpath STRINGS. `realpath` resolves symlinks but not case, so on this case-insensitive filesystem a Write to `AI/rules/points/...` exited 0 and landed on the real file | `.claude/hooks/pretool-writeedit.py` | Identity asked of the filesystem through `os.path.samestat`, and each tail component's on-disk spelling read from the directory listing so a case-sensitive volume is not falsely blocked. Nine fixtures, one per varied segment. `normcase` is the identity on POSIX and is not the fix |
+| R2-2 | BLOCKER | `render_dir` globbed `*.md` non-recursively inside a section and `points_on_disk` walked exactly `rule/section/point.md`, so a point one level too deep rendered nothing while render-check, roundtrip and the gate map all exited 0. `make ze-regen` runs render in write mode, so the instruction would have been deleted | `scripts/dev/rules_points.py` | Both walks made total, with a test. This is R-4 realized, immediately after six agents moved 1580 files |
+| R2-3 | BLOCKER | The section mapping was not total. `planning.md` carried 27 fence-aware `##` headings against 26 section directories: `## Work Phases` sat inside a point BODY because no blank line preceded it, so every point beneath it carried an id naming a section the reader never sees | `scripts/dev/rules_points.py` | `block_ranges` breaks on a fence-aware `##` mid-block and `Section.tight` records the absent blank line, so the render stays byte-identical. `render_dir` re-derives the `##` set from the RENDERED bytes and refuses any heading the manifest does not name. 281/280 before, 281/281 after |
+| R2-4 | BLOCKER | `head_sources` returned `{}` both when git answered for no file and when a dispatcher was renamed, and the caller read "not None" as "there is a baseline", printing `REGRESSED: 0` from a baseline holding nothing | `scripts/dev/rules_points.py` | HEAD probed once with `rev-parse --verify`, `None` means git could not answer, and a dispatcher absent at HEAD is named in the report rather than absorbed |
+| R2-5 | ISSUE | Deleting a point and its manifest line together was invisible to every gate: points and rendered rule agree on the smaller corpus, so nothing goes red | `scripts/dev/rules_points.py` | Coverage compares each rule's point count against `git ls-tree HEAD`, and a drop must be declared in `ai/rules/points/RETIRED.md` |
+| R2-6 | ISSUE | A rename whose dangling binding was relabelled `none -- <why>` laundered a lost gate into the UNBOUND set | `scripts/dev/rules_points.py` | A check that named a point at HEAD and declares `none` now is a regression, reported as DECLARED NONE |
+| R2-7 | ISSUE | `RETIRED.md` prose did not say its rows were checked | `ai/rules/points/RETIRED.md` | Corrected in round 3, with the ledger |
+
+### Round 3
+
+| Field | Value |
+|-------|-------|
+| Scope | `7f03b3dfa` only, the code round 2 produced |
+| Reviewers | one, independent of the author |
+| Result | 0 BLOCKER, 2 ISSUE. Both fixed in `513b427c1` |
+| Verified | the main thread re-ran both mutations the reviewer wrote against the real tree |
+
+#### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R3-1 | ISSUE | `unbound_regressions` refused the intended transition. Retire an instruction, declare it, relabel the check, and the gate failed: the function read only the gate map and the baseline and never consulted `retired_since_head`, which landed in the same commit for that purpose | `scripts/dev/rules_points.py` | A declared retirement is exempt, and retiring part of what a check named still reports the live points. Mutation re-run: a declared retirement whose check declares `none` exits 0 |
+| R3-2 | ISSUE | `retired_since_head` believed a lie. It read only the rule name out of each row, so declaring a fictional id bought a real deletion elsewhere in the same rule, and rewording a committed row minted another | `scripts/dev/rules_points.py` | `retired_rows_since` is now pure and validated: it refuses a malformed row, an id HEAD never carried, an id whose point is still on disk, and a duplicate declaration. Mutation re-run: deleting a real point while declaring `rule/nowhere/never-existed` exits 2 and names both the bogus row and the vanished point |
+
+`report_gate_map` also prints the dispatchers absent at HEAD, which the round-2
+fix collected and then dropped on the no-baseline branch.
 
 ### Follow-on: the 47 bound slugs, re-authored (owner-authorised, 2026-08-07)
 
@@ -729,3 +784,236 @@ Not applicable. No protocol code is touched.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+The code landed in three commits before this closure, so commit A carries no
+code: the spec, the learned summary and the regenerated learned index only.
+
+| Commit | What it carried |
+|--------|-----------------|
+| `299334063` | The split. 2199 files. `ai/rules/points/<rule>/<section>/<slug>.md` becomes canonical, `ai/rules/<rule>.md` becomes generated, the three dispatchers gain `# ze point:` bindings, and `scripts/dev/rules_points.py` plus `scripts/dev/rules_points_test.py` are created |
+| `7f03b3dfa` | Review Gate round 2. Four gates that were green because they could not fire: a case-variant path that clobbered a point, a point one level too deep that rendered nothing, a `##` heading inside a point body that made the section mapping non-total, and a ratchet that read an empty baseline as a clean one |
+| `513b427c1` | Review Gate round 3. `ai/rules/points/RETIRED.md` becomes a validated ledger: a declared retirement exempts a check from the unbound regression, and a row naming a fictional id, a live point, or a duplicate is refused |
+
+`a30ad29be` sits before all three. It repaired another closure's dangling
+references and is separable from this work.
+
+Five surfaces outside `ai/rules/` had to learn about `ai/rules/points/`, all in
+phase 3: `default_files` in `scripts/dev/ste_check.py`, `targets` in
+`scripts/dev/line_refs.py`, `read_transcript` in `scripts/dev/rule_coverage.py`,
+and `c_line_number_ref` plus `c_enforce_naming` in
+`.claude/hooks/pretool-writeedit.py`. A-4 predicted none of them.
+
+### Bugs Found/Fixed
+
+- A `Write` over an EXISTING point was permitted, and phase 5 used it to clobber a point file. Fixed by the sibling check `c_point_overwrite` in `.claude/hooks/pretool-writeedit.py`, six fixtures in `.claude/hooks/fixtures/`.
+- `c_point_overwrite` and `c_rendered_rules` compared realpath STRINGS, and realpath resolves symlinks but not case, so on a case-insensitive filesystem `AI/rules/points/...` landed on the real file with exit 0. Fixed by asking the filesystem for identity through `os.path.samestat`, nine fixtures.
+- `render_dir` in `scripts/dev/rules_points.py` globbed `*.md` non-recursively, so a point one level too deep rendered nothing while every gate exited 0. `make ze-regen` runs render in write mode, so the instruction would have been deleted. That is R-4 realized.
+- `head_sources` returned `{}` both when git answered for no file and when a dispatcher was renamed, so the ratchet printed `REGRESSED: 0` from a baseline holding nothing. HEAD is now probed once with `rev-parse --verify` and `None` means git could not answer.
+- Deleting a point and its manifest line together was invisible to every gate. Fixed by comparing each rule's point count against `git ls-tree HEAD`, with the drop declared in `ai/rules/points/RETIRED.md`.
+- `retired_rows_since` believed a fictional id, so declaring one bought a real deletion elsewhere in the same rule. It is now pure and validated.
+
+### Documentation Updates
+
+- `docs/contributing/rule-authoring.md` -- created. The layout, the five authoring tasks, the frontmatter fields, what the renderer refuses, the binding convention and the generator order.
+- `docs/contributing/README.md` -- the index row for `rule-authoring.md`.
+- `ai/INDEX.md` -- Dev Tools rows for `ze-rules-render` / `ze-rules-render-check`, `ze-rules-points-roundtrip` and `ze-rules-gate-map`.
+- `ai/rules/rule-format.md` -- rewritten through its points for the point format.
+- `ai/rules/repo-maintenance.md` -- Sync Flows row, the Rule Placement bullet, a Banned Actions row, and the Hook-to-Rule Mapping table now held to the bindings by `hook_table_problems`.
+- `make ze-doc-test` result: red on ONE line, `WARNING: ai/LEARNED-FULL-INDEX.md is stale`. Every other stage passes, including the three new rules-points stages. The staleness is the shared checkout: another session holds `plan/learned/1358-dev-setup-cross-platform.md` untracked. See Documentation Verified below.
+
+### Deviations from Plan
+
+- **AC-6 says `TRIGGERS.md` stays byte-identical. It did not, by one row.** `299334063` changed the `rule-format.md` trigger in `ai/rules/TRIGGERS.md` and `ai/rules/INDEX.md`, from "authoring or editing any `ai/rules/*.md` rule file" to "authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment". This is the deliberate rewrite the Files to Modify list requires, not a regression of the payload: a trigger is a manifest field, so rewriting the rule moves it. `ai/rules/CORE.md` is untouched by the split (`git log -- ai/rules/CORE.md` stops at `5d3e99d65`, before it).
+- The corpus dedup, the depth-two move and the `excepted-by` key were added on owner instruction after the spec was written. Each is recorded in its own follow-on section above.
+- Point count moved through the work: 2417 at the split, 2422 after the flat-layout re-render, 2142 after the depth-two move turned 280 `##` heading points into directories, 2143 today.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 claimed `ai/rules/points/` was invisible to EVERY existing consumer of `ai/rules/`, on the basis that all three named globs are non-recursive | The three named globs really are non-recursive, so the predicted phantom 28th rule never appeared. The SCOPE was wrong: five more consumers reach the tree. Four walk it recursively (`default_files` in `ste_check.py`, `targets` in `line_refs.py`, `read_transcript` in `rule_coverage.py`, and the naming check), one by a prefix test. `ste_check.py` reviewed every point body a second time, and 951 of the 2417 lines its ratchet printed were duplicates. `line_refs.py --apply` would have rewritten a GENERATED rule. `rule_coverage.py` credited `os.path.basename`, and four point slugs equal a rule stem, so opening one point falsely cleared a blocking rule | Phase 3, by grepping for consumers rather than trusting the enumeration. The assumption named three and stopped | All four fixed at source in phase 3, with two tests on `_is_rule_path`. The lesson: an assumption that names a closed set of consumers must be validated by a search, never by the list that produced it |
+| assumption | A-5 claimed nothing outside the three dispatchers needs to name a point, on the basis that the handover scoped STEP 4 to the 44 checks | Two points are already enforced at BOTH ends and only the hook end names one: `_model_refusal` in `scripts/dev/review_gate.py` beside `review_model_refusal` in `.claude/hooks/pretool-agent-skill.py`, and `check_ci_sleep_justification` in `scripts/dev/verify_wiring_docs.py` beside `c_ci_sleep_justification`. Four more families want a binding: the `commit_helper.py` gates, the twelve RFC ratchets in `rfc_requirements.py`, `block-premature-stop.sh` and `validate-spec.sh` | Phase 4, by the grep the assumption's own "Validated by" column asked for | Scope NOT expanded, and Known Limitations already scoped phase 4 to the dispatcher checks. `parse_bindings` reads whatever file list it is given, so a later spec adds readers and never a second convention. The lesson: "the design scopes it here" answers where the WORK stops, never whether the claim is true |
+| approach | Phase 5 renamed a point with a `Write` and destroyed `check-enforces-triggers-on-what-it-does-4.md`, recovering it only from git | `c_rendered_rules` returns `None` for any path whose dirname is not `ai/rules`, which is what makes AC-8 true, so nothing answered the opposite question. `write_split` refuses the same move and cites `ai/rules/never-destroy-work.md` | Review Gate round 1, finding 1 | New sibling check `c_point_overwrite`, six fixtures. A guard that answers "is this generated" cannot be asked "is this already written" by adding a branch |
+| escalation | Four gates added by this work were green because they could not fire, and a fifth believed a declaration it never validated | The class is the same one round 1 found and fixed in its instances: a gate whose input is empty reports success. `head_sources` reading `{}` as a baseline is the cleanest instance | Review Gate rounds 2 and 3, three independent lenses then one | Fixed in `7f03b3dfa` and `513b427c1`. Every fix carries a mutation proof. `test_gate_map_empty_result_is_never_success` is the general form and is now a test rather than a habit |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One instruction becomes one checked-in file whose PATH is its id | Done | `ai/rules/points/<rule>/<section>/<slug>.md`, 2143 points, 27 rules, 280 sections | `split_rule` and `render_dir` in `scripts/dev/rules_points.py` |
+| The rendered `ai/rules/<rule>.md` becomes generated, so agents read the same bytes | Done | `render_all` in `scripts/dev/rules_points.py`, `make ze-rules-render` | `make ze-rules-points-roundtrip`: all 27 round-trip byte-identical |
+| The checks declare which points they enforce | Done | 68 `# ze point:` comments across the three PreToolUse dispatchers | 47 points named by 48 checks, 8 checks declaring `none -- <why>` |
+| A gate reports gated, ungated and dangling | Done | `report_gate_map` in `scripts/dev/rules_points.py`, `make ze-rules-gate-map` | Nine sets, not three: gated, dangling, regressed, declared-none, shrunk, unbound, missing rationale, missing exception, ungated |
+| Problem 1: we cannot tell which instructions have a machine behind them | Done | the gate map's GATED set | 47 named instructions, by path |
+| Problem 2: we cannot count what any instruction ever prevented | Done | a refusal now cites a point, not a file | The counter's granularity is the point |
+| Problem 3: a reworded instruction silently keeps its gate | Changed | answered in REVIEW, not by a machine | `gate_map` joins on `Binding.ref` alone. Handover D2 rejected a content hash and that decision stands; a digest on the BINDING is a separate design, homed in the deferral shard. `docs/contributing/rule-authoring.md` and `ai/rules/points/rule-format/rationale/one-instruction-one-file.md` say so rather than claiming three |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test_split_partitions_every_line` | asserted by summation over line indices, over all 27 real rules |
+| AC-2 | Done | `test_roundtrip_every_committed_rule`, `make ze-rules-points-roundtrip` | "all 27 rules round-trip byte-identical" |
+| AC-3 | Done | `test_render_fails_on_unlisted_point` | `render_dir` names the unlisted file and renders nothing |
+| AC-4 | Done | `test_render_fails_on_missing_and_duplicate_slug` | plus `test_render_rejects_unsafe_slug` for the security row |
+| AC-5 | Done | `test_body_opening_with_delimiter`, `test_point_file_on_disk_opening_with_delimiter` | in memory and through the filesystem |
+| AC-6 | Changed | `make ze-rules-lint`, `ze-rules-condensed-check`, `ze-rules-index-check` all pass | `CORE.md` byte-identical. `TRIGGERS.md` and `INDEX.md` moved by ONE row, the deliberate `rule-format.md` trigger rewrite. See Deviations |
+| AC-7 | Done | fixtures `rendered-rule-edit-refused`, `-write-refused`, `-index-refused`, `-triggers-refused`, `-core-refused`, `-relative-path-refused` | `c_rendered_rules` exits 2 and names the point directory |
+| AC-8 | Done | fixtures `point-file-edit-allowed`, `point-manifest-edit-allowed`, `point-overwrite-edit-allowed` | |
+| AC-9 | Done | `TestRegenCheckReadonlyCoversGenerators` | `make ze-test-pkg PKG=./scripts/status` ok |
+| AC-10 | Done | `test_gate_map_sets_and_exits`, `test_gate_map_over_the_real_dispatchers` | GATED 47, exit 0 |
+| AC-11 | Done | `test_gate_map_sets_and_exits` dangling branch | DANGLING 0 on the real tree, and non-zero exit when one is planted |
+| AC-12 | Done | `test_gate_map_sets_and_exits`, real run | UNGATED 1538 of 1585, exit 0 |
+| AC-13 | Done | `make ze-rules-index-check`, `ze-rules-condensed-check` | 27 rules in `INDEX.md`, 27 rows in `TRIGGERS.md`. No phantom rule |
+| AC-14 | Done | `make ze-rules-router-report` | 27 rules, 5 always-on by precedence plus 3 no task surfaces, which is `CORE.md`'s 8 |
+| AC-15 | Done | `RationaleTest` (7 cases) | `rationale` parses, its absence parses, and it never reaches a body |
+| AC-16 | Done | `RationaleTest`, `rationale_problems` | MISSING RATIONALE: 0 on the real tree; a planted missing path exits non-zero |
+| AC-17 | Done | real run | RATIONALE: 11 of 1585, exit 0 |
+| AC-18 | Done | `DrainPolicyTest` (`scripts/dev/learned_staleness_test.py`), `plan/.learned-staleness-drain` | `start 2026-08-07`, `rate 0`. `ze-doc-test` prints "learned drain: INERT" |
+| AC-19 | Done | `ai/rules/points/planning/writing-learned-summaries/the-staleness-ceiling-is-drained-never-removed.md`, `plan/learned/1356-learned-corpus-drain-over-archive.md` | the directive point refuses the retirement and names the drain; the summary carries the measurement and why citation count is the wrong metric |
+| AC-20 | Done | `ExceptedByTest` (10 cases) | includes the mutation: deleting an exception point reds the gate |
+| AC-21 | Done | real run | EXCEPTED: 7 of 1585 naming 6 points, MISSING EXCEPTION: 0, exit 0 |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every unit test named in the TDD plan | Done | `scripts/dev/rules_points_test.py` | 105 tests, `Ran 105 tests ... OK`. The plan named 31 entries; rounds 2 and 3 added the rest |
+| `TestRegenCheckReadonlyCoversGenerators` | Done | `scripts/status/verify_run_test.go` | `ok github.com/ze-software/ze/scripts/status 1.920s` |
+| `rendered-rule-edit-refused`, `point-file-edit-allowed` and 33 siblings | Done | `.claude/hooks/fixtures/` | `hook-fixture-check.py --only rendered-rule`: 35/35 passed |
+| Whole hook fixture suite | Done | `.claude/hooks/fixtures/` | 232/232 passed |
+| `DrainPolicyTest` | Done | `scripts/dev/learned_staleness_test.py` | 30 tests, OK |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `scripts/dev/rules_points.py` | Done | `split`, `render`, `coverage`, plus the retirement ledger and the published-table check |
+| `scripts/dev/rules_points_test.py` | Done | 105 tests |
+| `ai/rules/points/<rule>/` | Changed | depth two, not flat: `<rule>/<section>/<slug>.md`. 27 rule directories, 280 section directories, 2143 points |
+| `docs/contributing/rule-authoring.md` | Done | |
+| `Makefile`, `mk/inventory.mk` | Done | `ze-regen`, `ze-regen-check-readonly`, `ze-doc-test`, and the four new targets |
+| `scripts/status/verify_run_test.go` | Done | `regenCheckPrereqs` and `generatorChecks` entries |
+| `.claude/hooks/pretool-writeedit.py`, `-bash.py`, `-agent-skill.py` | Done | `c_rendered_rules`, `c_point_overwrite`, and 68 binding comments |
+| `ai/rules/rule-format.md`, `ai/rules/repo-maintenance.md` | Done | through their points |
+| `ai/INDEX.md`, `docs/contributing/README.md` | Done | |
+| `ai/rules/points/RETIRED.md` | Changed | not in the plan. Added by round 3 as the declaration the shrink check reads |
+| `plan/.learned-staleness-drain` | Changed | not in the original plan. Added by AC-18 |
+
+### Audit Summary
+
+- **Total items:** 61 (7 requirements, 21 AC, 5 test groups, 11 file rows, 17 documentation rows)
+- **Done:** 55
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 6 (Problem 3, AC-6, and the four file rows above, each recorded in Deviations or in a follow-on section)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The repository can name which individual instructions have a machine behind them | functional, `make ze-rules-gate-map` | `gate map: 2143 points, 68 bindings, 56 checks` / `GATED: 47 point(s) named by 48 check(s)` / `DANGLING: 0` / `REGRESSED: 0` / `UNGATED: 1538 of 1585 instruction points`. Each gated line prints the point path and the checks that name it, for example `performance/three-rules/never-use-fmt-or-string-on-a-hot-path <- c_sprintf_new` |
+| An agent keeps reading exactly the file it reads today | functional, byte comparison | `make ze-rules-points-roundtrip`: "all 27 rules round-trip byte-identical". `make ze-rules-render-check`: "27 rules are fresh". `git diff --quiet -- ai/rules/` is clean against HEAD |
+| The always-loaded session payload cannot regress | functional | `make ze-rules-condensed-check`: TRIGGERS.md (27 rules) and CORE.md (8 rules) up to date, from a `rules_condensed.py` this work never modified. `ai/rules/CORE.md` is byte-identical across the split (`git log -- ai/rules/CORE.md` stops before `299334063`) |
+| A dangling or lost gate is a red, never a silent pass | functional, mutation | `test_gate_map_empty_result_is_never_success`, `test_gate_map_reports_a_binding_that_gates_nothing`, `GatedRatchetTest` (4), and the round-3 mutations re-run against the real tree: deleting a real point while declaring a fictional retirement exits 2 and names both |
+| An author can find and change one instruction | functional | `docs/contributing/rule-authoring.md`, and `ai/INDEX.md` Dev Tools rows for the four targets. `make ze-rules-render` refuses an unlisted point, a listed slug with no file, a duplicate slug and an unsafe slug, so a silent drop is not reachable |
+| Coverage is a measurement, never a red (handover D5) | functional | The same run exits 0 and reports UNGATED 1538, RATIONALE 11 and EXCEPTED 7. Only DANGLING, REGRESSED, DECLARED NONE, SHRUNK, MISSING RATIONALE, MISSING EXCEPTION and PUBLISHED can fail it |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `DemoLockTest` in `demos/terminal/test_render.py` depends on `flock -F`, which the macOS flock(1) does not carry | done | Fixed outside this spec by `db493f22a`. The lock holders are now a Python child taking `fcntl.flock` and writing a ready marker, which is the fix the row named as preferred. `plan/learned/1357-flock-macos-is-not-util-linux.md` carries the reasoning. Verified: no `flock -F` remains in `demos/`, and `test_render.py` imports `fcntl` |
+| `check_hook_names` in `scripts/dev/check_doc_links.py` cannot see a dead check name in a rule file, and stale `c_model_phase` prose survives it | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md`. Row kept live. Its two point paths were repaired at closure: the depth-two move renamed them to `planning/work-phases/implementation-carries-no-model-requirement.md` and `planning/work-phases/how-the-model-phase-gates-work-and-where-they-stop.md` |
+| `c_check_existing_tests` in `.claude/hooks/pretool-writeedit.py` is `return None` under a comment promising a warning | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md`. Row kept live. The gate map now names it: `c_check_existing_tests: the function is a no-op that always returns None, so it enforces nothing` |
+| An authored `title:` field for the roughly 1538 ungated points | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md`. Row kept live |
+| A digest of the point BODY on the `Binding` | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md`. Row kept live. This is the third Task problem, and Implementation Audit records it as Changed rather than Done |
+| `is_test_path` in `scripts/dev/audit-test-relaxation.py` cannot see a Python test | deferred | `plan/spec-fixit-test-harness-fail-open-guards.md`. Row kept live. `scripts/dev/audit-test-relaxation.py` is being edited by a concurrent session, so this closure does not touch it |
+
+**The shard SURVIVES this closure.** Five of its six rows are live and homed at
+`plan/spec-fixit-test-harness-fail-open-guards.md`, which is a `skeleton` and has
+not yet enumerated them. A shard holding a live row outlives its source spec, so
+commit B removes the spec and nothing else. No FOREIGN shard was emptied: the
+`flock` row is written down only here, and no other shard in `plan/deferrals/`
+mentions it.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `scripts/dev/rules_points.py` | Yes | `ls`: 93K, 2026-08-07 13:25 |
+| `scripts/dev/rules_points_test.py` | Yes | `ls`: 96K, 2026-08-07 13:21 |
+| `docs/contributing/rule-authoring.md` | Yes | `ls`: 14K, 2026-08-07 12:42 |
+| `ai/rules/points/` | Yes | `ls -1d ai/rules/points/*/ \| wc -l` = 27 rule directories, plus `RETIRED.md` and the top-level manifest entries |
+| `ai/rules/points/RETIRED.md` | Yes | `ls`: 2.2K, 2026-08-07 13:28 |
+| `plan/.learned-staleness-drain` | Yes | read: `start 2026-08-07`, `rate 0` |
+| `.claude/hooks/fixtures/` rendered-rule and point-overwrite fixtures | Yes | `hook-fixture-check.py --only rendered-rule` enumerates all 35 by name |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | the split is a total partition and renders back byte-identical | `make ze-rules-points-roundtrip` exit 0: "rules-points: all 27 rules round-trip byte-identical" |
+| AC-3, AC-4, AC-5 | the renderer fails closed on an unlisted, missing, duplicate or unsafe slug, and a triple-dash body survives | `python3 scripts/dev/rules_points_test.py`: `Ran 105 tests in 2.007s` / `OK` |
+| AC-6 | the rendered corpus still lints and the payload is fresh | `make ze-rules-lint` exit 0 ("27 rule file(s) conform"), `make ze-rules-condensed-check` exit 0, `make ze-rules-index-check` exit 0 |
+| AC-7, AC-8 | an edit to a rendered rule is refused, an edit to a point is permitted | `python3 scripts/dev/hook-fixture-check.py --only rendered-rule` exit 0: "hook fixture check: 35/35 passed" |
+| AC-9 | the generator is in `ze-regen` and its check in `ze-regen-check-readonly` | `make ze-test-pkg PKG=./scripts/status` exit 0: `ok github.com/ze-software/ze/scripts/status 1.920s` |
+| AC-10, AC-11, AC-12 | gated is listed, dangling is a red, ungated is a measurement | `make ze-rules-gate-map` exit 0: GATED 47 / DANGLING 0 / REGRESSED 0 / UNGATED 1538 of 1585 |
+| AC-13, AC-14 | no phantom rule, and the router sees the same corpus | `make ze-rules-index-check`: "checked 27 rules". `make ze-rules-router-report` exit 0: "rules: 27 (5 always-on core, 22 routed)" |
+| AC-15, AC-16, AC-17 | `rationale` parses, a missing path reds, coverage never reds | `make ze-rules-gate-map`: "MISSING RATIONALE: 0" and "RATIONALE: 11 of 1585", exit 0 |
+| AC-18, AC-19 | the drain ships inert and a point refuses the retirement | `python3 scripts/dev/learned_staleness_test.py` exit 0, `Ran 30 tests ... OK`. `make ze-doc-test` prints "learned drain: INERT (rate 0 per calendar month since 2026-08-07), floor 0" |
+| AC-20, AC-21 | `excepted-by` parses and reds on a dangling ref, and its coverage never reds | `make ze-rules-gate-map`: "MISSING EXCEPTION: 0" and "EXCEPTED: 7 of 1585 instruction points ... naming 6 point(s)", exit 0 |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-rules-points-roundtrip` | `scripts/dev/rules_points_test.py`, `test_roundtrip_every_committed_rule` | Yes. The target runs the real `split` then `render` over the committed corpus and compares bytes, and it is wired into the `ze-doc-test` recipe in `mk/inventory.mk` (round-1 finding 2) |
+| `make ze-rules-render` | `render_all` writing `ai/rules/<rule>.md` | Yes. `git diff --quiet -- ai/rules/` is clean after the render, so what the tree holds is what the points produce |
+| `make ze-rules-render-check` | `TestRegenCheckReadonlyCoversGenerators` | Yes. The Go test asserts `regenCheckPrereqs` and `generatorChecks` as exact sets in both directions, and it is green |
+| An Edit to `ai/rules/performance.md` | `.claude/hooks/fixtures/` fixture `rendered-rule-edit-refused` | Yes. Read: the fixture drives the whole `pretool-writeedit.py` dispatcher through `_writeedit` (round-1 note N2), not `c_rendered_rules` directly |
+| `make ze-rules-gate-map` | `test_gate_map_sets_and_exits`, `test_gate_map_over_the_real_dispatchers` | Yes. The second reads the committed dispatchers, so a binding rewritten without its point is a red in the suite as well as in the target |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Re-measured 2026-08-07: zero consecutive blank lines outside fences, zero blank line at EOF. `block_ranges` defines a block as a maximal non-blank run, so a zero gap is unreachable, and `split_rule` raises when a gap is not exactly 1 |
+| A-2 | confirmed | `make ze-rules-points-roundtrip`: all 27 byte-identical. Fence state is load-bearing: the corpus carries 66 blank lines inside fences |
+| A-3 | confirmed | Zero horizontal rules outside fences and zero `---` lines inside them. `_frontmatter` stops the header at the first `---` after line 1, so the body is never reached. `test_body_opening_with_delimiter` |
+| A-4 | **broken** | The predicted consequence did not happen (27 rules in `INDEX.md`, 27 rows in `TRIGGERS.md`, 8 in `CORE.md`), but the assumption's SCOPE was wrong: five consumers reach `ai/rules/points/`, four by a recursive walk and one by a prefix test. Four were fixed at source in phase 3. Mistake Log row 1 |
+| A-5 | **broken** | Enforcement outside the three dispatchers exists and is already paired with a bound point: `_model_refusal` in `scripts/dev/review_gate.py`, and `check_ci_sleep_justification` in `scripts/dev/verify_wiring_docs.py`. Four more families want a binding. Scope was NOT expanded; `parse_bindings` takes a file list, so a later spec adds readers. Mistake Log row 2 |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #6 user guide: `docs/contributing/rule-authoring.md` | The page describes the depth-two layout, and `ls -1d ai/rules/points/*/ \| wc -l` = 27 with 280 section directories under them | Yes |
+| #6 index row in `docs/contributing/README.md` | `grep -n rule-authoring docs/contributing/README.md` line 11 | Yes |
+| #15 inventory: `ai/INDEX.md` Dev Tools rows | `grep -n` finds rows 231, 232, 233 for `ze-rules-render` / `-render-check`, `ze-rules-points-roundtrip` and `ze-rules-gate-map`, each naming `scripts/dev/rules_points.py` | Yes |
+| #16 source anchors naming `rules_condensed.py` and `rule-format.md` | `rules_condensed.py` is unmodified by this work, so its anchors cannot have gone stale. `ai/rules/rule-format.md` was rewritten through its points and `make ze-rules-lint` passes over the result | Yes |
+| #17 `ai/rules/rule-format.md` carried a skeleton rule that became wrong | Rewritten for the point format. `ai/rules/points/rule-format/` is its source, and `make ze-rules-render-check` reports it fresh | Yes |
+| #1 to #5, #7 to #14 answered No | No `ze` command, RPC, plugin, YANG leaf, wire format or `internal/` change is in the three commits. `git show --stat` over `299334063`, `7f03b3dfa` and `513b427c1` shows `scripts/`, `.claude/`, `ai/`, `docs/`, `mk/`, `Makefile` and one `_test.go` only | Yes |
+| `make ze-doc-test` | Red on ONE line: `WARNING: ai/LEARNED-FULL-INDEX.md is stale`. Every other stage passes, `make ze-rules-gate-map`, `ze-rules-index-check`, `ze-rules-condensed-check` and `ze-rules-points-roundtrip` among them. The staleness is a shared-checkout artifact: another session holds `plan/learned/1358-dev-setup-cross-platform.md` untracked in this tree, and the working-tree index carries ITS row rather than 1356's. Commit A carries the index regenerated against HEAD plus its own files, which is what `discovery_index_problems` in `scripts/dev/commit_helper.py` checks | Yes, attributed |
+
+## Core Insight
+
+**A gate whose input is empty reports success, and that is the failure mode this
+work kept finding in itself.** Round 1 found it in instances. Round 2 found four
+more and named the class. Round 3 found the round-2 fix believing a declaration
+it never validated. The general form is now a test rather than a habit:
+`test_gate_map_empty_result_is_never_success` asserts that no points and no
+bindings both fail, and `check_new_summaries` in `scripts/dev/rfc_requirements.py`
+is the same shape one domain over. The corollary is what made the count worth
+having: a coverage number is only trustworthy when the machine that produces it
+cannot reach that number by seeing nothing.

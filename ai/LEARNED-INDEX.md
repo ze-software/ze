@@ -315,6 +315,7 @@ Agent rules, self-improvement, discovery paths, and development-time inventories
 - [1310](plan/learned/1310-phase-gates.md) -- Two rules with no gate: use the skill, and implement on the implementation model
 - [1349](plan/learned/1349-context-economy.md) -- Where agent sessions spend tokens, and three traps in reading the transcripts
 - [1353](plan/learned/1353-commit-script-push.md) -- Why the push ban became a push option, and the injection that adding one exposed
+- [1356](plan/learned/1356-learned-corpus-drain-over-archive.md) -- Why the learned corpus is drained rather than retired, and why citation count is the wrong relevance metric
 - [1093](plan/learned/1093-followup-hooks.md) -- Which three dead agent-guard hooks were enabled, and where they now run
 
 ## Testing

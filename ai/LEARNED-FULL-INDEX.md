@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 931 summaries
+Total: 932 summaries
 
 ## 400-499
 
@@ -989,4 +989,5 @@ Total: 931 summaries
 | 1353 | Pushing from the commit script, and the injection it exposed | `plan/learned/1353-commit-script-push.md` |
 | 1354 | Headless `gopls mcp` exhausts the system file table | `plan/learned/1354-gopls-mcp-exhausts-file-descriptors.md` |
 | 1355 | A regression test that fails against HEAD can still be vacuous | `plan/learned/1355-wire-edit-4-api-origin-deferred-bird-interop.md` |
+| 1356 | Learned Corpus: Drain the Ceiling, Do Not Delete the Gate | `plan/learned/1356-learned-corpus-drain-over-archive.md` |
 | 1357 | `flock(1)` on a macOS dev machine is not util-linux | `plan/learned/1357-flock-macos-is-not-util-linux.md` |
