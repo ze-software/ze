@@ -68,7 +68,7 @@ fix into five independently landable children.
 - Survivors: `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` (the EBGP wire
   cache deletion; it absorbed a duplicate of itself on 2026-08-05, and this row
   cited the duplicate until then),
-  `plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`,
+  `spec-wire-edit-4-api-origin-deferred-bird-interop` (closed 2026-08-07 in `2cc75ab5f`),
   `plan/spec-wire-edit-4-api-origin-deferred-oversize-metric.md`,
   `plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`,
   `plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md`,

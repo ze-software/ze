@@ -110,7 +110,7 @@ is opt-in per scenario, never a cost every scenario pays.
 | AC-2 | `sortByCode()` is removed from `(*announceAttrs).emit`, on a route shape where a later contribution sorts EARLIER than an earlier one | The assertion FAILS, proving the capture discriminates |
 
 **AC-2's route shape is load-bearing, found at the round 1 review of
-`plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`, 2026-08-05.** On a
+`spec-wire-edit-4-api-origin-deferred-bird-interop` (closed 2026-08-07 in `2cc75ab5f`), 2026-08-05.** On a
 plain IPv4-unicast announce the contributions are ORIGIN, AS_PATH and NEXT_HOP,
 which arrive in naturally ascending order, so removing `sortByCode()` is a NO-OP
 and the output is byte-identical. A capture scenario built on that shape would

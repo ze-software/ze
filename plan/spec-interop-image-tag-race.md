@@ -24,7 +24,7 @@ daemon.** The second build overwrites the tag between the first run's build and
 its container start, and nothing downstream can tell.
 
 **Measured on 2026-08-05, twice, during the round 2 review of
-`plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`:**
+`spec-wire-edit-4-api-origin-deferred-bird-interop` (closed 2026-08-07 in `2cc75ab5f`):**
 
 | What happened | Consequence |
 |---------------|-------------|

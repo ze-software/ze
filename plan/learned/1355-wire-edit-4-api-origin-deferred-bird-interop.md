@@ -97,3 +97,25 @@ and right. Making the evidence trustworthy was neither, and the six repeats say
 the vacuity class is not obvious to the author even when the author has just been
 shown the previous instance. Reach for the matrix on the FIRST regression test,
 not the sixth.
+
+## Files
+
+- `test/interop/interop.py` -- `docker_rm` and `Scenario._remove_network` gained the
+  two contracts, `strict` for the pre-clean and silent-continue for cleanup, each
+  denying on all three failure shapes; `docker_logs` gained `strict`;
+  `observer_fail_line`, `raise_if_observer_failed` and `observer_failure_note` are new
+- `test/interop/run.py` -- `main`'s per-scenario handler: the interrupt catch, the
+  counters ahead of the note read, and the note printed as it comes back
+- `test/interop/run_test.go` -- `pythonOrSkip`, `probeEnv`, and the runner tests
+- `test/interop/scenario55_check_test.go` (new) -- the scenario's failure-path tests
+- `test/interop/testdata/runner_probe.py`, `test/interop/testdata/check_except_probe.py`
+  (both new) -- the probes the Go tests drive, starting no container
+- `test/interop/scenarios/55-wire-edit-api-origin-bird/check.py`,
+  `announce-api-origin.py` -- `_check_session_budget`, the strict log read, and the
+  guard whose reasoning three rounds corrected
+- `docs/architecture/testing/interop.md` -- the process-plugin failure section
+- `internal/component/bgp/reactor/announce_build.go` -- read, not changed:
+  `(*announceAttrs).emit` is the writer both rails converge on
+- `internal/component/bgp/reactor/peer.go` -- read, not changed: `Peer.ShouldQueue`
+  decides which rail an announce takes
+

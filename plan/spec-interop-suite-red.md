@@ -47,7 +47,7 @@ Measured again on 2026-08-05: `ze show bgp rib status` answers `unknown command`
 in the scenario container, so the helper is masking a second fault the same way.
 
 That shape is the same one that produced a BLOCKER in
-`plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md` round 3, where
+`spec-wire-edit-4-api-origin-deferred-bird-interop` (closed 2026-08-07 in `2cc75ab5f`) round 3, where
 `API.peer_counter` returned its default of 0 on an unreadable lookup and a guard
 read 0 as permission to proceed. `ai/rules/evidence.md`: a zero value must never
 be a valid-looking answer.

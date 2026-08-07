@@ -279,7 +279,7 @@ The independent review of `spec-rfcgate-2-deferred-rs-replay-evidence`,
 ### Homed here 2026-08-07: a third harness claim that names the wrong producer
 
 Found while verifying round 6 of
-`plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`, outside that round's
+`spec-wire-edit-4-api-origin-deferred-bird-interop` (closed 2026-08-07 in `2cc75ab5f`), outside that round's
 scope, so it is homed rather than fixed there.
 
 `wait_peer_eor_sent` (`test/scripts/ze_api.py`) is the barrier every EOR-asserting
