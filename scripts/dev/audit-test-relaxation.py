@@ -46,6 +46,28 @@ BOLD = "\033[1m"
 RESET = "\033[0m"
 
 _RELAX_LINE = re.compile(r"//[ \t]*test-relax:[ \t]*(\S.*)?$", re.MULTILINE)
+# The `.ci` and `.et` carriers this audit examines comment with `#`, so a relaxation
+# written in their own syntax was invisible here and its reason went unreported. One
+# alternation rather than a union of two patterns, for two reasons: `# // test-relax:`
+# matches at the `//` only (the `#` branch requires the token immediately after it), so
+# a line is never counted twice; and the matches come back in FILE order, which the
+# positional slice in `run_audit` depends on to name the reason that was ADDED.
+#
+# Only the two extensions `is_test_path` can yield. A `.py` arm would be unreachable
+# here, whatever the hook's own carrier list says.
+_RELAX_LINE_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*(\S.*)?$", re.MULTILINE)
+# Named apart from the hook's `_HASH_COMMENT_CARRIERS` on purpose: this audit imports
+# the hook's DETECTORS but not its carrier list, and the two lists differ (the hook adds
+# `.py`, reachable there through `_carries_rfc_tag`). One name with two contents, in
+# files that already share code, is a trap for whoever greps it next.
+_AUDITED_HASH_CARRIERS = (".ci", ".et")
+
+
+def relax_reasons(text, path):
+    """Every relaxation justification in `text`, in file order, for `path`'s syntax."""
+    if path.endswith(_AUDITED_HASH_CARRIERS):
+        return _RELAX_LINE_ANY.findall(text)
+    return _RELAX_LINE.findall(text)
 
 
 def git(args, cwd):
@@ -260,8 +282,8 @@ def run_audit(base, cwd, detector, rfc_detector=None):
                 + ", ".join(rfc_tags),
                 "  the user must approve this; see rfc-test-change-approved:",
             ]
-        old_tokens = len(_RELAX_LINE.findall(old))
-        new_tokens = _RELAX_LINE.findall(new)
+        old_tokens = len(relax_reasons(old, new_p))
+        new_tokens = relax_reasons(new, new_p)
         added_tokens = [t for t in new_tokens[old_tokens:]]
         label = "RENAMED " if status.startswith("R") else ""
         if added_tokens:

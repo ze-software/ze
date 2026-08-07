@@ -1931,6 +1931,36 @@ def c_system_tmp_we(ctx):
 # assertions, downgrading require->assert, commenting assertions out, build-tag
 # 'ignore', and the same via Write/MultiEdit overwrite. Rule: ai/rules/testing.md
 _RELAX_TOKEN = re.compile(r"//[ \t]*test-relax:[ \t]*\S")
+# The same token on a carrier that comments with `#`. `c_test_weakening` has judged
+# `/test/` `.ci` files since it was written, and a `.ci` comments with `#`, so the
+# escape hatch it offers was unreachable in the syntax those files use: 315 of them
+# carry `# // test-relax:`, an alien Go comment nested inside a hash comment purely
+# to match the pattern above, and 3 wrote the natural `# test-relax:` and got a token
+# that matched nothing.
+#
+# The alternation is what keeps `# // test-relax:` a SINGLE token: `#` matches first,
+# then `test-relax:` is required immediately, `//` is there instead, and the scan moves
+# on to match at the `//`. A two-pattern union would count that line twice.
+#
+# `.py` earns its place through `_carries_rfc_tag`, not through `is_test`: a tagged
+# interop `check.py` reaches this check when `_rfc_tagged_change_err` declines. `.et`
+# is here for the same reason. Neither is the broad parity `_behavior_bytes` has, which
+# runs on every carrier it names.
+_RELAX_TOKEN_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*\S")
+_HASH_COMMENT_CARRIERS = (".ci", ".et", ".py")
+
+
+def _has_relax_token(text, fp):
+    """Whether `text` carries a written relaxation justification for `fp`.
+
+    Both forms are accepted on a hash-comment carrier, so the 315 files using
+    `# // test-relax:` keep working and nothing has to be rewritten. On every other
+    carrier this is bit-identical to a bare `_RELAX_TOKEN` search.
+    """
+    pattern = _RELAX_TOKEN_ANY if fp.endswith(_HASH_COMMENT_CARRIERS) else _RELAX_TOKEN
+    return bool(pattern.search(text))
+
+
 _ASSERT_PAT = r"(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)"
 _FATAL_PAT = r"(?:t\.(?:Fatal|Fatalf|FailNow)|require\.)"
 _SKIP_PAT = r"\b[A-Za-z_]\w*\.Skip(?:Now|f)?[ \t]*\("
@@ -2224,7 +2254,7 @@ def c_test_weakening(ctx):
         )
     # Documented, auditable escape hatch. Forces a written reason instead of a
     # silent edit. Audit every relaxation: grep -rn 'test-relax:' --include='*_test.go'
-    if _RELAX_TOKEN.search(new):
+    if _has_relax_token(new, fp):
         return None
     errs = _test_weakening_errs(old, new, fp)
     if not errs:
@@ -2237,7 +2267,8 @@ def c_test_weakening(ctx):
         "  A red test means the CODE is wrong by default. Diagnose the failure and\n"
         "  fix the source. Only relax a test for a removed feature or replaced coverage.\n"
         "  If genuinely obsolete, document why on/above the changed line:\n"
-        "    // test-relax: <why this test/assertion no longer applies>\n"
+        f"    {'#' if fp.endswith(_HASH_COMMENT_CARRIERS) else '//'}"
+        " test-relax: <why this test/assertion no longer applies>\n"
         "  (the user can audit all relaxations: grep -rn 'test-relax:')",
     )
 

@@ -1648,6 +1648,20 @@ def run_rfc_test_guard(results: Results) -> None:
         "rfc-guard-blocks-assertion-delete", r is not None and r[0] == 2, repr(r)
     )
 
+    # The hash form must NOT buy a pass on a .go test: `#` is not a Go comment, so a
+    # token written that way is not in the file's own syntax and cannot be the record
+    # this hatch exists to leave behind.
+    r = edit(
+        tagged.replace(
+            "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n",
+            "",
+        ),
+        "func TestX(t *testing.T) {\n\t# test-relax: nope\n}\n",
+    )
+    results.check(
+        "relax-hash-token-rejected-on-go", r is not None and r[0] == 2, repr(r)
+    )
+
     # Must NOT over-block ordinary maintenance, or the hook gets disabled and protects
     # nothing (spec risk R-8).
     r = edit(tagged, tagged.replace("\t", "    "))
@@ -1933,6 +1947,33 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         ci,
     )
     results.check("rfc-guard-ci-on-disk-covers-whole-file", blocked_on_rfc(r), repr(r))
+
+    # The escape hatch has to exist in the syntax the carrier actually uses. This guard
+    # has judged `/test/` `.ci` files since it was written, a `.ci` comments with `#`,
+    # and the token pattern read `//` only: 315 `.ci` files carry `# // test-relax:`, an
+    # alien Go comment nested in a hash comment to match it, and 4 wrote the natural form
+    # and got a justification that bought nothing. Each case below shrinks a `.ci`'s
+    # non-comment line count, which is what `_test_weakening_errs` blocks.
+    os.makedirs(os.path.join(tmp, "test", "ui"), exist_ok=True)
+    relax_ci = os.path.join(tmp, "test", "ui", "relax-form.ci")
+    ci_old = "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
+    ci_new = "cmd=ze show\nexpect=out:text=one\n"
+    with open(relax_ci, "w", encoding="utf-8") as fh:
+        fh.write(ci_old)
+
+    r = edit(ci_old, ci_new, relax_ci)
+    results.check(
+        "relax-ci-shrink-blocked-without-a-token", r is not None and r[0] == 2, repr(r)
+    )
+
+    reason = "the `two` line tested a command that was removed\n"
+    r = edit(ci_old, "# test-relax: " + reason + ci_new, relax_ci)
+    results.check("relax-ci-hash-token-accepted", r is None, repr(r))
+
+    # ...and the Go form keeps working on a .ci, or the 315 files already carrying
+    # `# // test-relax:` would start being refused by the fix meant to help them.
+    r = edit(ci_old, "# // test-relax: " + reason + ci_new, relax_ci)
+    results.check("relax-ci-legacy-slash-token-still-accepted", r is None, repr(r))
 
     # An interop scenario's check.py. `is_test` covers `_test.go` and a `/test/` `.ci` and
     # NOTHING else, so when plan/spec-rfcgate-2-evidence.md started admitting interop

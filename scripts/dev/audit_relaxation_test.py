@@ -195,6 +195,97 @@ class TestRealComparisonsStillWork(unittest.TestCase):
             self.assertIn("clean", out.lower())
 
 
+class TestRelaxTokenInTheCarrierSyntax(unittest.TestCase):
+    """A relaxation written in the file's own comment syntax must be REPORTED.
+
+    `.ci` and `.et` scenarios comment with `#`, and this audit read `//` only, so a
+    reason written the natural way was invisible: the finding downgraded from RELAXED,
+    which prints the author's justification for the user to confirm, to WEAKENED, which
+    prints no reason at all. The form that must never stop working is the Go one, since
+    315 `.ci` files already carry `# // test-relax:`.
+
+    End-to-end through the entry point, per this file's contract. The three helper
+    assertions below it pin regex properties the exit code cannot isolate.
+    """
+
+    CI = "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
+
+    def _ci_fixture(self, tmp, body):
+        fx = AuditFixture(tmp)
+        Path(tmp, "test", "ui").mkdir(parents=True)
+        Path(tmp, "test", "ui", "relax.ci").write_text(body)
+        fx._commit("add the .ci")
+        return fx
+
+    def test_a_hash_reason_is_reported_as_a_relaxation(self):
+        # VALIDATES: the natural `# test-relax:` reaches the verdict AND its text is
+        # printed for the user to confirm.
+        # PREVENTS: silently downgrading a justified .ci reduction to WEAKENED, which
+        # tells the reviewer a test was weakened and nothing about why.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._ci_fixture(tmp, self.CI)
+            Path(tmp, "test", "ui", "relax.ci").write_text(
+                "# test-relax: the `two` command was removed\ncmd=ze show\n"
+                "expect=out:text=one\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("RELAXED", out)
+            self.assertIn("the `two` command was removed", out)
+
+    def test_the_reason_reported_is_the_one_that_was_added(self):
+        # VALIDATES: reasons come back in FILE order, so run_audit's positional slice
+        # names the new token.
+        # PREVENTS: the regression a two-pattern union caused here -- Go matches were
+        # concatenated ahead of hash matches, so a file already carrying a hash reason
+        # that gained a Go one reported the OLD text as the addition.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._ci_fixture(tmp, "# test-relax: OLD reason\n" + self.CI)
+            Path(tmp, "test", "ui", "relax.ci").write_text(
+                "# test-relax: OLD reason\n# // test-relax: NEW reason\n"
+                "cmd=ze show\nexpect=out:text=one\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("NEW reason", out)
+            self.assertNotIn("reason: OLD reason", out)
+
+    def test_a_go_test_still_ignores_the_hash_form(self):
+        # VALIDATES: `#` is not a Go comment, so a token written that way is no record
+        # in the file's own syntax and must not silence the audit.
+        # PREVENTS: a one-character escape from the weakening gate on every Go test.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp)
+            Path(tmp, "pkg", "x_test.go").write_text(
+                "package a\n# test-relax: nope\nfunc TestA(t *testing.T){}\n"
+            )
+            code, out = fx.audit()
+            self.assertEqual(code, 1, out)
+            self.assertIn("WEAKENED", out)
+            self.assertNotIn("RELAXED", out)
+
+
+class TestRelaxReasonRegexProperties(unittest.TestCase):
+    """The two properties an exit code cannot isolate, asserted on the helper."""
+
+    def setUp(self):
+        self.mod = _load_audit_module()
+
+    def test_one_line_is_never_counted_twice(self):
+        # `# // test-relax:` must match at the `//` only: the `#` branch requires the
+        # token immediately after it. A double count reads as an ADDED relaxation and
+        # prints a phantom finding on a file nobody touched that way.
+        self.assertEqual(
+            self.mod.relax_reasons("# // test-relax: once\n", "a/b.ci"), ["once"]
+        )
+
+    def test_indentation_and_tabs_do_not_defeat_the_match(self):
+        self.assertEqual(
+            self.mod.relax_reasons("\t #\ttest-relax:\tspaced out\n", "a/b.ci"),
+            ["spaced out"],
+        )
+
+
 class TestSelftest(unittest.TestCase):
     def test_selftest_passes(self):
         # VALIDATES: the script's own --selftest still passes after the change.

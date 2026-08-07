@@ -166,13 +166,19 @@ assertions), ask: "is the old behavior still tested?"
 
 When relaxation IS legitimate, document the reason on or above the changed line:
 
+In the comment syntax the file itself uses: `//` in a `.go` test, `#` in a `.ci` or
+`.et` scenario. Both are accepted on a `#` carrier, so the `# // test-relax:` already
+in 315 scenarios keeps working.
+
 ```
 // test-relax: <why this test/assertion no longer applies>
+# test-relax: <why this test/assertion no longer applies>
 ```
 
 The token unblocks the edit and leaves an audit trail. Review all relaxations with:
-`grep -rn 'test-relax:' --include='*_test.go'`. Using the token without a real
-reason is a violation, not a bypass.
+`git grep -n 'test-relax:' -- '*_test.go' '*.ci' '*.et'`. It must be `git grep`: plain
+`grep` reads those globs as filenames after `--` and reports nothing, which looks
+exactly like no relaxations. Using the token without a real reason is a violation.
 
 ## Functional Test Gate
 
