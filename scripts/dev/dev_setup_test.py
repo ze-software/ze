@@ -19,7 +19,10 @@ dev_setup = importlib.import_module("dev-setup")
 
 class TestOSDetect(unittest.TestCase):
     @mock.patch.object(dev_setup.platform, "system", return_value="Darwin")
-    @mock.patch.object(dev_setup.shutil, "which", return_value="/opt/homebrew/bin/brew")
+    # A prefix-free path on purpose: detect_os only asks whether `brew` was
+    # found, never where, and naming a prefix here would be a second place that
+    # believes Homebrew lives at one (scripts/dev/homebrew_prefix_test.py).
+    @mock.patch.object(dev_setup.shutil, "which", return_value="/somewhere/bin/brew")
     def test_macos_with_brew(self, _which, _sys):
         self.assertEqual(dev_setup.detect_os(), "brew")
 
@@ -170,6 +173,59 @@ class TestRunPrivileged(unittest.TestCase):
         _, _, run = self._run(["apt-get", "update"], mode="root")
         self.assertEqual(run.call_args[0][0], ["apt-get", "update"])
 
+    def test_the_echoed_line_says_what_actually_ran(self):
+        """A root run must not print a `sudo` it did not use.
+
+        The echoed line is what a reader copies when the step fails, and on a
+        container build there is no sudo on the box to copy it to.
+        """
+        with (
+            mock.patch.object(dev_setup, "privilege_mode", return_value="root"),
+            mock.patch.object(dev_setup.subprocess, "run") as run,
+            mock.patch("builtins.print") as printed,
+        ):
+            run.return_value = _completed(0)
+            dev_setup.run_privileged(
+                ["tee", "/etc/x.conf"],
+                stdin=b"a = 0\n",
+                shown='echo "a = 0" | {sudo}tee /etc/x.conf',
+            )
+        self.assertIn('echo "a = 0" | tee /etc/x.conf', _said(printed))
+        self.assertNotIn("sudo", _said(printed))
+
+    def test_a_password_is_asked_for_once_then_never_prompted_again(self):
+        """Row 3 of the documented table: sudo wants a password and a terminal
+        is attached to type it on.
+
+        `sudo -v` is the only interactive call, and every command after it is
+        still `-n`, so a piped stdin cannot reach a prompt even here.
+        """
+        with (
+            mock.patch.object(dev_setup, "privilege_mode", return_value="sudo-prompt"),
+            mock.patch.object(dev_setup.subprocess, "run") as run,
+            mock.patch("builtins.print"),
+        ):
+            run.return_value = _completed(0)
+            ok, _ = dev_setup.run_privileged(["apt-get", "update"])
+
+        self.assertTrue(ok)
+        calls = [c[0][0] for c in run.call_args_list]
+        self.assertEqual(calls[0], ["sudo", "-v"])
+        self.assertEqual(calls[1], ["sudo", "-n", "apt-get", "update"])
+
+    def test_a_refused_password_runs_nothing(self):
+        with (
+            mock.patch.object(dev_setup, "privilege_mode", return_value="sudo-prompt"),
+            mock.patch.object(dev_setup.subprocess, "run") as run,
+            mock.patch("builtins.print"),
+        ):
+            run.return_value = _completed(1)
+            ok, detail = dev_setup.run_privileged(["apt-get", "update"])
+
+        self.assertFalse(ok)
+        self.assertIn("could not authenticate", detail)
+        self.assertEqual([c[0][0] for c in run.call_args_list], [["sudo", "-v"]])
+
     def test_no_route_runs_nothing(self):
         ok, detail, run = self._run(["apt-get", "update"], mode="none")
         self.assertFalse(ok)
@@ -275,6 +331,102 @@ class TestAptInstalls(unittest.TestCase):
         ok, _, printed = self._install(rc=100)
         self.assertFalse(ok)
         self.assertIn("sudo apt-get install -y xorriso", printed)
+
+    def test_the_echoed_command_is_copyable_on_the_box_that_printed_it(self):
+        """A root container usually has no sudo binary at all, so naming one
+        gives the reader a command they cannot run. `run_privileged` already
+        got this right; the manual line beside it did not."""
+        _, _, printed = self._install(mode="root", rc=100)
+        self.assertIn("Run: apt-get install -y xorriso", printed)
+        self.assertNotIn("sudo", printed)
+
+    def test_install_tool_reports_the_failure_up(self):
+        """The other half of the chain the old test covered end to end: a
+        refused install must come back as False through `install_tool`, which
+        is what makes `main` file it as pending and exit nonzero."""
+        tool = dev_setup.Tool(name="xorriso", probe=["xorriso"], apt="xorriso")
+        with (
+            mock.patch.object(dev_setup, "privilege_mode", return_value="none"),
+            mock.patch.object(dev_setup.subprocess, "run") as run,
+            mock.patch("builtins.print") as printed,
+        ):
+            self.assertFalse(dev_setup.install_tool(tool, "apt"))
+        run.assert_not_called()
+        self.assertIn("sudo apt-get install -y xorriso", _said(printed))
+
+
+class TestInstalledButNotUsable(unittest.TestCase):
+    """An install whose tool the probe still cannot find is not a success.
+
+    This used to print `[installed] <tool> (not yet on PATH)`, count it as
+    installed, and end the run "Setup complete" with exit 0 -- while `--check`
+    on the same box exited 1. The two modes disagreed permanently, and the
+    install one was the mode reading green on an unusable tool. pipx reaches
+    this every time on a fresh Debian, where ~/.local/bin is on PATH only if it
+    existed at login.
+    """
+
+    def _run_main(self, tool):
+        with (
+            mock.patch.object(dev_setup, "REQUIRED_TOOLS", [tool]),
+            mock.patch.object(dev_setup, "OPTIONAL_TOOLS", []),
+            mock.patch.object(dev_setup, "detect_os", return_value="brew"),
+            mock.patch.object(dev_setup, "install_tool", return_value=True),
+            mock.patch.object(dev_setup, "probe_tool", return_value=False),
+            mock.patch.object(dev_setup, "gopls_status", return_value=("ok", "x")),
+            mock.patch.object(dev_setup, "pyright_status", return_value=("ok", "x")),
+            mock.patch.object(dev_setup, "vendor_go_deps", return_value=True),
+            mock.patch.object(dev_setup.sys, "argv", ["dev-setup.py"]),
+            mock.patch("builtins.print") as printed,
+        ):
+            code = dev_setup.main()
+        return code, _said(printed)
+
+    def test_exit_is_nonzero_and_says_where_to_look(self):
+        tool = dev_setup.Tool(
+            name="ze-fake-uv", probe=["ze-fake-uv"], pipx_install="ze-fake-uv"
+        )
+        code, printed = self._run_main(tool)
+        self.assertEqual(code, 1, "a tool that cannot be run is not a complete setup")
+        self.assertIn("not on PATH", printed)
+        self.assertIn(".local/bin", printed)
+        self.assertNotIn("Setup complete", printed)
+
+    def test_a_go_tool_names_its_own_bin_directory(self):
+        tool = dev_setup.Tool(
+            name="ze-fake-gopls", probe=["ze-fake-gopls"], go_install="example.com/x@v1"
+        )
+        _, printed = self._run_main(tool)
+        self.assertIn("go/bin", printed)
+
+
+class TestGrubPackageFollowsTheHostArch(unittest.TestCase):
+    """One GRUB module set per EFI target, one Debian package per host arch.
+
+    Measured in debian:stable-slim on both arches: an arm64 host answers "E:
+    Package 'grub-efi-amd64-bin' has no installation candidate" and installs
+    NOTHING, `grub-mkstandalone` included, so the whole setup run ends short.
+    The arm64 package installs there and carries grub-common, which is where
+    `grub-mkstandalone` lives. An amd64 host takes the amd64 package.
+    """
+
+    def test_an_arm64_host_gets_the_arm64_module_set(self):
+        """The discriminator: this was a constant amd64 name until it measured."""
+        self.assertEqual(dev_setup.grub_apt_package("aarch64"), "grub-efi-arm64-bin")
+        self.assertEqual(dev_setup.grub_apt_package("arm64"), "grub-efi-arm64-bin")
+
+    def test_an_x86_host_gets_the_amd64_module_set(self):
+        self.assertEqual(dev_setup.grub_apt_package("x86_64"), "grub-efi-amd64-bin")
+
+    def test_both_grub_surfaces_name_the_same_package(self):
+        """The tool row installs it; APPLIANCE_CHECKS documents what installs
+        the doctor check. Two spellings drift, and only one of them is tested."""
+        grub = [t for t in dev_setup.REQUIRED_TOOLS if t.name == "grub"][0]
+        self.assertEqual(grub.apt, dev_setup.GRUB_APT_PACKAGE)
+        self.assertEqual(
+            dev_setup.APPLIANCE_CHECKS["appliance-grub"]["apt"],
+            dev_setup.GRUB_APT_PACKAGE,
+        )
 
 
 class TestUvIsReachableOnLinux(unittest.TestCase):

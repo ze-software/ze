@@ -142,10 +142,7 @@ func buildQEMUCommand(cfg *applianceConfig, imgPath string) (string, []string) {
 
 	switch cfg.Image.Arch {
 	case archARM64:
-		bios := os.Getenv("GOKRAZY_QEMU_AARCH64_BIOS")
-		if bios == "" {
-			bios = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
-		}
+		bios := qemuAARCH64Firmware()
 		cpuModel := os.Getenv("GOKRAZY_QEMU_AARCH64_CPU")
 		if cpuModel == "" {
 			cpuModel = "max"

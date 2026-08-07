@@ -47,6 +47,8 @@ import threading
 import time
 from pathlib import Path
 
+from homebrew import brew_files, brew_keg_dirs
+
 
 # Serial markers emitted by the Go installer (slog output) on success.
 MARK_WRITTEN = "image written, partition table re-read"
@@ -84,6 +86,10 @@ QEMU_ACCEL = os.environ.get("ZE_INSTALL_QEMU_ACCEL") or (
     if sys.platform == "darwin"
     else ("kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg")
 )
+# What a host with no discoverable firmware is handed. QEMU then reports "could
+# not load PC BIOS" naming this path, which is the message this carried before
+# the prefix was resolved. The Apple Silicon default: see homebrew.py.
+AARCH64_BIOS_FALLBACK = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
 
 
 def repo_root() -> Path:
@@ -146,8 +152,11 @@ def have_image_build_tools(root: Path) -> str | None:
 
 
 def _brew_debugfs() -> str | None:
-    cand = Path("/opt/homebrew/opt/e2fsprogs/sbin/debugfs")
-    return str(cand) if cand.is_file() else None
+    for sbin in brew_keg_dirs("e2fsprogs"):
+        cand = sbin / "debugfs"
+        if cand.is_file():
+            return str(cand)
+    return None
 
 
 # ── build steps ───────────────────────────────────────────────────────────
@@ -222,9 +231,11 @@ def build_image(root: Path, work: Path) -> Path:
     env["ze.appliance.ssh.password"] = SSH_PASS
     # `ze appliance build` shells out to debugfs/mkfs.ext4 by name; on
     # macOS those live in the (keg-only) e2fsprogs prefix, off PATH by default.
-    e2fs_sbin = Path("/opt/homebrew/opt/e2fsprogs/sbin")
-    if e2fs_sbin.is_dir():
-        env["PATH"] = f"{e2fs_sbin}:{env.get('PATH', '')}"
+    # Spliced in ONE assignment: prepending inside the loop reverses the list,
+    # so the oldest Cellar version would end up first.
+    e2fs_sbins = [str(d) for d in brew_keg_dirs("e2fsprogs")]
+    if e2fs_sbins:
+        env["PATH"] = ":".join([*e2fs_sbins, *filter(None, [env.get("PATH", "")])])
     init = run(
         [ze, "appliance", "init", name],
         stdin=subprocess.DEVNULL,
@@ -356,10 +367,10 @@ def qemu_base(needs_bios: bool) -> list[str]:
     if ARCH == "arm64":
         cmd += ["-machine", f"virt,highmem=off,accel={QEMU_ACCEL}", "-cpu", "max"]
         if needs_bios:
-            bios = os.environ.get(
-                "ZE_INSTALL_AARCH64_BIOS",
-                "/opt/homebrew/share/qemu/edk2-aarch64-code.fd",
-            )
+            bios = os.environ.get("ZE_INSTALL_AARCH64_BIOS")
+            if not bios:
+                found = brew_files("share/qemu/edk2-aarch64-code.fd")
+                bios = str(found[0]) if found else AARCH64_BIOS_FALLBACK
             cmd += ["-bios", bios]
     else:
         cmd += ["-machine", f"accel={QEMU_ACCEL}"]

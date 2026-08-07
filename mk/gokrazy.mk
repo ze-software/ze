@@ -57,11 +57,33 @@ GOKRAZY_PERM_SKIP  := 282624
 # RUNS; its result is then discarded, because a command-line assignment beats the
 # makefile's `:=`. E2FS stays empty and the guard below rejects it. Pass a path,
 # or leave E2FS unset.
+#
+# BREW_PREFIX comes from the root Makefile, which resolves it from the machine
+# rather than writing a literal: Homebrew is under /opt/homebrew on Apple
+# Silicon and /usr/local on Intel. It is empty where Homebrew is not installed,
+# so both users below guard on it.
+#
+# `sort -V -r`, a VERSION sort, because the Cellar keeps the previous version
+# after an upgrade and this loop breaks on its first hit. `ls -dr` is not enough
+# and was measured wrong: it reverses the SPELLING, so over
+# {1.47.4, 1.47.9, 1.47.10} it yields 1.47.9 first and pins a build two releases
+# old. brewKegDirs and brew_keg_dirs both key on the numbers, and this is the
+# copy that has to agree with them (scripts/dev/homebrew_prefix_test.py runs
+# this snippet against a fixture and compares the answer, not the spelling).
 ifndef E2FS
-E2FS               := $(shell for d in /usr/sbin /sbin /usr/local/sbin $$(ls -d /opt/homebrew/Cellar/e2fsprogs/*/sbin 2>/dev/null); do [ -x "$$d/mkfs.ext4" ] && [ -x "$$d/debugfs" ] && { echo "$$d"; break; }; done)
+E2FS               := $(shell for d in /usr/sbin /sbin /usr/local/sbin $(foreach p,$(BREW_PREFIXES),$(p)/opt/e2fsprogs/sbin $$(ls -d $(p)/Cellar/e2fsprogs/*/sbin 2>/dev/null | sort -V -r)); do [ -x "$$d/mkfs.ext4" ] && [ -x "$$d/debugfs" ] && { echo "$$d"; break; }; done)
 endif
 GOKRAZY_QEMU_ACCEL ?= tcg
-GOKRAZY_QEMU_AARCH64_BIOS ?= /opt/homebrew/share/qemu/edk2-aarch64-code.fd
+# The same rungs qemuAARCH64Firmware and qemu_args carry: a resolved Homebrew
+# prefix, then the distribution path. Without the second, an arm64 QEMU run on
+# Linux failed the `test -f` guard below while /usr/share/qemu held the image.
+# `firstword` over `wildcard` takes the first that EXISTS; the literal at the
+# end is what QEMU is handed when none does, so its "could not load PC BIOS"
+# names a path rather than nothing.
+GOKRAZY_QEMU_AARCH64_BIOS ?= $(firstword $(wildcard \
+	$(foreach p,$(BREW_PREFIXES),$(p)/share/qemu/edk2-aarch64-code.fd) \
+	/usr/share/qemu/edk2-aarch64-code.fd) \
+	/opt/homebrew/share/qemu/edk2-aarch64-code.fd)
 GOKRAZY_QEMU_AARCH64_CPU ?= max
 
 # .PHONY on purpose: as a plain file target with no source prerequisites, a

@@ -30,6 +30,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from homebrew import brew_files, brew_keg_dirs
+
 # The ISO builder and this QEMU proof support both amd64 (x86_64 UEFI) and arm64
 # (aarch64 UEFI). amd64 UEFI is the proven default; arm64 is OPT-IN via
 # ZE_INSTALL_ARCH=arm64 until it has a green QEMU proof, so an arm64 host still
@@ -122,9 +124,11 @@ def prepare_image(
     env = os.environ.copy()
     env["ZE_APPLIANCE_DIR"] = str(appliance_dir)
     env["ze.appliance.ssh.password"] = SSH_PASS
-    e2fs_sbin = Path("/opt/homebrew/opt/e2fsprogs/sbin")
-    if e2fs_sbin.is_dir():
-        env["PATH"] = f"{e2fs_sbin}:{env.get('PATH', '')}"
+    # One assignment, in order: prepending inside the loop would reverse the
+    # list and put the oldest Cellar version first.
+    e2fs_sbins = [str(d) for d in brew_keg_dirs("e2fsprogs")]
+    if e2fs_sbins:
+        env["PATH"] = ":".join([*e2fs_sbins, *filter(None, [env.get("PATH", "")])])
 
     app_dir = init_appliance(ze, appliance_dir, env)
 
@@ -241,8 +245,9 @@ def find_x86_uefi_firmware() -> Path | None:
     override = os.environ.get("ZE_INSTALL_X86_UEFI_BIOS")
     if override and Path(override).is_file():
         return Path(override)
+    for path in brew_files("share/qemu/edk2-x86_64-code.fd"):
+        return path
     for candidate in (
-        "/opt/homebrew/share/qemu/edk2-x86_64-code.fd",
         "/usr/share/OVMF/OVMF_CODE.fd",
         "/usr/share/ovmf/OVMF.fd",
         "/usr/share/edk2/ovmf/OVMF_CODE.fd",
@@ -258,8 +263,9 @@ def find_aarch64_uefi_firmware() -> Path | None:
     override = os.environ.get("ZE_INSTALL_AARCH64_BIOS")
     if override and Path(override).is_file():
         return Path(override)
+    for path in brew_files("share/qemu/edk2-aarch64-code.fd"):
+        return path
     for candidate in (
-        "/opt/homebrew/share/qemu/edk2-aarch64-code.fd",
         "/usr/share/AAVMF/AAVMF_CODE.fd",
         "/usr/share/edk2/aarch64/QEMU_EFI.fd",
         "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd",

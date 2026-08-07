@@ -47,18 +47,36 @@ var (
 )
 
 // e2fsSearchDirs are the directories searched for each e2fsprogs tool, in order.
+//
+// The Homebrew directories come first and are resolved from the running host
+// (brewPrefixes), never written as a literal: e2fsprogs is keg-only, so it is
+// absent from <prefix>/bin, and the prefix itself differs between an Apple
+// Silicon and an Intel Mac.
 func e2fsSearchDirs() []string {
-	dirs := []string{
-		"/opt/homebrew/sbin",
-		"/usr/sbin",
-		"/sbin",
+	dirs := brewKegDirs("e2fsprogs", "sbin")
+	for _, prefix := range brewPrefixes() {
+		dirs = append(dirs, filepath.Join(prefix, "sbin"))
 	}
-	// Homebrew doesn't symlink e2fsprogs to /opt/homebrew/sbin on macOS;
-	// pick the latest versioned Cellar path if present.
-	if matches, _ := filepath.Glob("/opt/homebrew/Cellar/e2fsprogs/*/sbin"); len(matches) > 0 {
-		dirs = append([]string{matches[len(matches)-1]}, dirs...)
+	// /usr/local/sbin is in the tail because mk/gokrazy.mk searches it for the
+	// same two tools, and leaving it out here let `make ze-gokrazy` and `ze
+	// appliance build` pick different mkfs.ext4 binaries on one host.
+	//
+	// On macOS it has usually arrived already: /usr/local is one of the two
+	// Homebrew defaults, so the prefix loop above contributes <prefix>/sbin for
+	// it. Hence the dedup, which keeps the FIRST occurrence and leaves the
+	// order the loops produced.
+	dirs = append(dirs, "/usr/sbin", "/sbin", "/usr/local/sbin")
+
+	seen := make(map[string]bool, len(dirs))
+	unique := dirs[:0]
+	for _, d := range dirs {
+		if seen[d] {
+			continue
+		}
+		seen[d] = true
+		unique = append(unique, d)
 	}
-	return dirs
+	return unique
 }
 
 // resolveE2FSTool returns the absolute path of one e2fsprogs tool, or "" when it

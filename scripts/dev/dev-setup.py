@@ -28,6 +28,38 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+
+# GRUB ships one module set per EFI target, and Debian packages each set for its
+# own host architecture only: `grub-efi-amd64-bin` is Architecture: amd64, so on
+# an arm64 box apt answers "has no installation candidate" and installs nothing
+# at all, `grub-mkstandalone` included. Measured in debian:stable-slim on both
+# arches: arm64 refuses the amd64 package and takes `grub-efi-arm64-bin`; amd64
+# takes the amd64 one. Either package pulls grub-common, which is where
+# `grub-mkstandalone` lives.
+#
+# So ask for the set this host can build with. `ze appliance iso` picks its
+# target from the architecture of the image it packs (`isoGRUBTarget`,
+# internal/appliance/cmd_iso.go), so building an ISO for the OTHER architecture
+# needs that architecture's set as well, through `dpkg --add-architecture`.
+def grub_apt_package(machine: str) -> str:
+    """The GRUB module-set package this host architecture can install.
+
+    Debian names one package per EFI target and builds each only for its own
+    architecture, so the answer is the host's, not a preference. Anything not
+    listed falls back to amd64: Ze's appliance targets are amd64 and arm64
+    (`isoGRUBTarget`, internal/appliance/cmd_iso.go), and a host outside the
+    table cannot build for itself whatever this returns.
+    """
+    return {
+        "aarch64": "grub-efi-arm64-bin",
+        "arm64": "grub-efi-arm64-bin",
+        "i386": "grub-efi-ia32-bin",
+        "i686": "grub-efi-ia32-bin",
+    }.get(machine, "grub-efi-amd64-bin")
+
+
+GRUB_APT_PACKAGE = grub_apt_package(platform.machine())
+
 # DRIFT-GUARD: appliance check names from applianceDoctorChecks()
 # in internal/appliance/doctor_checks.go. The Go drift test
 # (dev_setup_drift_test.go) parses this dict and verifies every
@@ -36,7 +68,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 APPLIANCE_CHECKS = {
     "appliance-grub": {
         "brew": None,
-        "apt": "grub-efi-amd64-bin",
+        "apt": GRUB_APT_PACKAGE,
         "probe": ["grub-mkstandalone", "grub2-mkstandalone"],
         "note": "no first-party Homebrew formula; macOS skips grub (ISO builds are Linux/container-only)",
     },
@@ -114,7 +146,7 @@ REQUIRED_TOOLS: list[Tool] = [
         probe=["grub-mkstandalone", "grub2-mkstandalone"],
         probe_any=True,
         brew=None,
-        apt="grub-efi-amd64-bin",
+        apt=GRUB_APT_PACKAGE,
         note="no first-party Homebrew formula; macOS skips (ISO builds are Linux/container-only)",
     ),
     Tool(name="pipx", probe=["pipx"], brew="pipx", apt="pipx"),
@@ -450,13 +482,19 @@ def run_privileged(
 
     `shown` overrides the echoed command for a caller whose argv is not what a
     human would copy: the sysctl drop-in is written by piping into `tee`, and
-    printing the argv alone would show a `tee` with no content.
+    printing the argv alone would show a `tee` with no content. It carries a
+    `{sudo}` placeholder rather than a literal `sudo `, so the echoed line stays
+    true on a root run, where no sudo is used.
 
     `detail` is written for whoever has to fix it: the command's own first line
     of complaint, or the reason root was out of reach.
     """
     mode = privilege_mode()
-    label = shown or " ".join(argv if mode == "root" else ["sudo", *argv])
+    prefix = "" if mode == "root" else "sudo "
+    # `.replace`, not `.format`: a `{` anywhere else in the shown text (a shell
+    # brace expansion, an awk program) raises KeyError out of a helper whose
+    # only job is to echo a line.
+    label = shown.replace("{sudo}", prefix) if shown else prefix + " ".join(argv)
     if mode == "none":
         return (False, f"no password-free route to root for `{label}`")
     if mode == "sudo-prompt":
@@ -532,7 +570,7 @@ def apply_userns_fix() -> bool:
         (
             ["tee", USERNS_CONF],
             f"{USERNS_SYSCTL} = 0\n".encode(),
-            f'echo "{USERNS_SYSCTL} = 0" | sudo tee {USERNS_CONF}',
+            f'echo "{USERNS_SYSCTL} = 0" | {{sudo}}tee {USERNS_CONF}',
         ),
         (["sysctl", "-w", f"{USERNS_SYSCTL}=0"], None, None),
     ]
@@ -626,25 +664,123 @@ def detect_os() -> str | None:
 
 
 def probe_tool(tool: Tool) -> bool:
-    if tool.name == "e2fsprogs" and platform.system() == "Darwin":
-        return _probe_e2fsprogs_macos()
+    # e2fsprogs is searched by DIRECTORY on every platform, not only on macOS.
+    # PATH is the wrong question for it on both: Homebrew links none of a
+    # keg-only formula onto PATH, and Debian keeps /usr/sbin off a non-root
+    # user's PATH, so `which` answers nothing on a box where the tools are
+    # installed and working. Both consumers name the directories outright
+    # (`E2FS` in mk/gokrazy.mk, `e2fsSearchDirs` in internal/appliance), so a
+    # PATH-based probe reported missing what the build then used happily. It
+    # also made the install path report [pending] forever on such a box.
+    if tool.name == "e2fsprogs":
+        return probe_e2fsprogs()
     if tool.probe_any:
         return any(shutil.which(p) is not None for p in tool.probe)
     return all(shutil.which(p) is not None for p in tool.probe)
 
 
-def _probe_e2fsprogs_macos() -> bool:
-    cellar = glob.glob("/opt/homebrew/Cellar/e2fsprogs/*/sbin")
-    if cellar:
-        latest = sorted(cellar)[-1]
-        if (Path(latest) / "mkfs.ext4").is_file() and (
-            Path(latest) / "debugfs"
-        ).is_file():
-            return True
-    for d in ["/opt/homebrew/sbin", "/usr/sbin", "/sbin"]:
-        if (Path(d) / "mkfs.ext4").is_file() and (Path(d) / "debugfs").is_file():
-            return True
-    return False
+def brew_prefixes() -> list[Path]:
+    """Homebrew prefixes that exist on this host, most authoritative first.
+
+    Homebrew has no single prefix: /opt/homebrew on Apple Silicon, /usr/local on
+    Intel, and whatever an operator chose for a relocated install. Naming only
+    the first made a properly installed e2fsprogs read as missing on an Intel
+    Mac, and `make ze-setup` then offered to install what was already there.
+
+    1. HOMEBREW_PREFIX, exported by `brew shellenv`. The only source that knows
+       a relocated install.
+    2. The `brew` binary, at <prefix>/bin/brew. It is NOT resolved through its
+       symlinks: on Intel /usr/local/bin/brew links into
+       /usr/local/Homebrew/bin/brew, and following that answers with the wrong
+       prefix, on exactly the machines this exists for.
+    3. The two documented defaults, for a PATH that never sourced shellenv,
+       and on macOS ONLY. /usr/local is a directory on essentially every Linux
+       host and it is not Homebrew's there, so offering it unconditionally puts
+       /usr/local/sbin ahead of the distribution's own tools.
+
+    This repeats `brew_prefixes` in scripts/evidence/homebrew.py rather than
+    importing it. This script is what a new contributor runs against a machine
+    where nothing is installed yet, so it stays readable and runnable on its
+    own. scripts/dev/homebrew_prefix_test.py holds the copies to one answer.
+    """
+    candidates: list[str] = []
+    exported = os.environ.get("HOMEBREW_PREFIX")
+    if exported:
+        candidates.append(exported)
+    brew = shutil.which("brew")
+    if brew:
+        candidates.append(str(Path(brew).parent.parent))
+    if sys.platform == "darwin":
+        candidates.extend(("/opt/homebrew", "/usr/local"))
+
+    prefixes: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if Path(candidate).is_dir():
+            prefixes.append(Path(candidate))
+    return prefixes
+
+
+def cellar_version_key(sbin: str) -> tuple:
+    """Sort key for a Cellar version directory, by NUMBER not by spelling.
+
+    Plain string order puts 1.47.10 below 1.47.4, so it hands back last
+    month's e2fsprogs the first time a formula reaches a two-digit patch.
+
+    A segment that is not a number sorts BELOW every number, so 1.47.4 outranks
+    1.47.rc1. A Homebrew revision suffix is not that case: 1.47.4_1 splits into
+    four numeric segments and simply outranks 1.47.4, which is correct. This
+    keys the same way as `version_key` in scripts/evidence/homebrew.py.
+    """
+    version = Path(sbin).parent.name
+    return tuple(
+        (int(part), "") if part.isdigit() else (-1, part)
+        for part in re.split(r"[._-]", version)
+    )
+
+
+def e2fsprogs_dirs() -> list[Path]:
+    """Every directory that can hold mkfs.ext4 and debugfs, best first.
+
+    e2fsprogs is keg-only, so Homebrew links none of it onto PATH and
+    `shutil.which` answers nothing however well it is installed. Its binaries
+    appear in <prefix>/opt/e2fsprogs/sbin, the stable link at the current
+    version, and in <prefix>/Cellar/e2fsprogs/<version>/sbin, which is where an
+    interrupted upgrade leaves them with no link.
+
+    Split out from `probe_e2fsprogs` so a test can assert WHERE the
+    probe looks. The boolean cannot carry that: it ends with /usr/sbin and
+    /sbin, so on any Linux host that has e2fsprogs it answers True with both
+    Homebrew branches deleted, and a test on it alone is green either way.
+    """
+    dirs: list[Path] = []
+    for prefix in brew_prefixes():
+        dirs.append(prefix / "opt" / "e2fsprogs" / "sbin")
+        cellar = sorted(
+            glob.glob(str(prefix / "Cellar" / "e2fsprogs" / "*" / "sbin")),
+            key=cellar_version_key,
+            reverse=True,
+        )
+        dirs.extend(Path(d) for d in cellar)
+        dirs.append(prefix / "sbin")
+    dirs.extend((Path("/usr/sbin"), Path("/sbin")))
+    return dirs
+
+
+def probe_e2fsprogs() -> bool:
+    """True when one directory holds BOTH e2fsprogs tools.
+
+    Both, not either: the image build formats /perm with mkfs.ext4 and then
+    injects credentials with debugfs, so a directory carrying only the first
+    passes a one-tool probe and the build dies later (`mk/gokrazy.mk`, E2FS).
+    """
+    return any(
+        (d / "mkfs.ext4").is_file() and (d / "debugfs").is_file()
+        for d in e2fsprogs_dirs()
+    )
 
 
 def install_tool(tool: Tool, pkg_mgr: str) -> bool:
@@ -724,8 +860,12 @@ def apt_install(pkg: str, name: str) -> bool:
     """
     global _apt_updated
 
-    manual = f"sudo apt-get install -y {pkg}"
-    if privilege_mode() == "none":
+    # The echoed line must be copyable on the box that printed it: a root
+    # container usually has no sudo at all, so naming one there gives the
+    # reader a command they cannot run.
+    mode = privilege_mode()
+    manual = f"{'' if mode == 'root' else 'sudo '}apt-get install -y {pkg}"
+    if mode == "none":
         print(f"  Run: {manual}")
         return False
 
@@ -840,8 +980,24 @@ def main() -> int:
                 print(f"  [installed] {tool.name}")
                 installed.append(tool.name)
             else:
-                print(f"  [installed] {tool.name} (not yet on PATH)")
-                installed.append(tool.name)
+                # The installer succeeded and the probe still cannot find it,
+                # so the tool is on the disk and unusable. This used to count
+                # as [installed] and the run ended "Setup complete" with exit
+                # 0, while `--check` on the same box exited 1: the two modes
+                # disagreed permanently, and install mode was the one reading
+                # green on absence. `pipx` reaches it every time on a fresh
+                # Debian, where ~/.local/bin is on PATH only if it existed at
+                # login, and `go install` reaches it through ~/go/bin.
+                where = (
+                    "~/.local/bin, which pipx uses; run `pipx ensurepath`"
+                    if tool.pipx_install
+                    else "~/go/bin, which `go install` uses"
+                    if tool.go_install
+                    else "the package manager's bin directory"
+                )
+                print(f"  [pending]   {tool.name} (installed, not on PATH)")
+                print(f"    add {where}, then re-run")
+                pending_manual.append(tool.name)
         elif pkg_mgr == "apt" and tool.apt is not None:
             # apt_install has already printed why, and the command to run.
             print(f"  [pending]   {tool.name} (not installed)")
@@ -938,7 +1094,9 @@ def main() -> int:
         return 1
 
     if pending_manual:
-        print(f"Run the install commands above for: {', '.join(pending_manual)}")
+        # "Steps", not "install commands": a tool that installed into a
+        # directory off PATH needs the PATH fixed, not the install rerun.
+        print(f"Finish the steps above for: {', '.join(pending_manual)}")
         print("Then re-run: make ze-setup")
         return 1
 

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 306 design docs, 3255 files
+Total: 306 design docs, 3256 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3009,6 +3009,7 @@ Total: 306 design docs, 3255 files
 | `internal/appliance/cmd_unlock.go` | passphrase agent lifecycle |
 | `internal/appliance/config.go` | appliance config structs and validation |
 | `internal/appliance/crypto.go` | Argon2id KDF + ChaCha20-Poly1305 AEAD encryption |
+| `internal/appliance/homebrew.go` | Homebrew prefix resolution for the macOS build host |
 | `internal/appliance/main.go` | appliance CLI dispatch |
 | `internal/appliance/manifest.go` | build manifest and image checksums |
 | `internal/appliance/resolve.go` | appliance directory resolution |

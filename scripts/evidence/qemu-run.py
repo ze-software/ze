@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 from alpine_iso import ALPINE_MINOR, ALPINE_VERSION, ensure_iso
+from homebrew import brew_files
 
 ALPINE_ARCH = "aarch64" if platform.machine() == "arm64" else "x86_64"
 QEMU_BIN = f"qemu-system-{ALPINE_ARCH}"
@@ -126,7 +127,7 @@ def qemu_args(iso: Path, root: Path, kernel: Path | None = None) -> list[str]:
 
     if platform.machine() == "arm64":
         bios_paths = [
-            Path("/opt/homebrew/share/qemu/edk2-aarch64-code.fd"),
+            *brew_files("share/qemu/edk2-aarch64-code.fd"),
             Path("/usr/share/qemu/edk2-aarch64-code.fd"),
         ]
         bios = next((p for p in bios_paths if p.is_file()), None)

@@ -30,11 +30,41 @@ ze-ensure-links:
 ze-migrate-scratch:
 	@python3 scripts/dev/ensure-links.py --migrate
 
+# Where Homebrew is, asked of the machine rather than written down. It is under
+# /opt/homebrew on Apple Silicon and /usr/local on Intel, and `brew` itself sits
+# at <prefix>/bin/brew, so its own location answers for both. Empty on a host
+# with no Homebrew, which is every Linux one, so each user below guards on it.
+# The same resolution in Go is brewPrefixes (internal/appliance/homebrew.go) and
+# in Python brew_prefixes (scripts/evidence/homebrew.py). They are held together
+# by scripts/dev/homebrew_prefix_test.py.
+BREW_BIN      := $(shell command -v brew 2>/dev/null)
+BREW_FROM_BIN := $(if $(BREW_BIN),$(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(BREW_BIN))))))
+# The defaults on macOS only: /usr/local exists on every Linux box and is not
+# Homebrew's there. Same rule as brewPrefixes and brew_prefixes.
+BREW_DEFAULTS := $(if $(filter Darwin,$(shell uname -s)),/opt/homebrew /usr/local)
+# `wildcard` drops what does not exist. Without the defaults rung, a make run
+# whose PATH has no brew (sudo resets PATH, and so does launchd) left the prefix
+# empty and E2FS lost its whole Homebrew branch on a working Apple Silicon Mac.
+#
+# BREW_PREFIXES keeps ALL of them, in order, because that is what the Go and
+# Python resolvers return and what searching them all is worth: a stale empty
+# /opt/homebrew beside a real install at /usr/local otherwise wins on a single
+# `firstword` and hides it. BREW_PREFIX is the first, for the callers that can
+# only use one path.
+# `filter-out` drops a default the earlier rungs already named. Make has no
+# order-preserving uniq, and `sort` would reorder the rungs, which is the one
+# thing this list must not do.
+BREW_PREFIXES := $(wildcard $(HOMEBREW_PREFIX) $(BREW_FROM_BIN) \
+	$(filter-out $(HOMEBREW_PREFIX) $(BREW_FROM_BIN),$(BREW_DEFAULTS)))
+BREW_PREFIX   := $(firstword $(BREW_PREFIXES))
+
 # Go compiler: override with GO=tinygo for smaller binaries
 # TinyGo finds go via PATH, so we prepend Go 1.26 when GO=tinygo
 GO ?= go
 ifeq ($(GO),tinygo)
-export PATH := /opt/homebrew/opt/go@1.26/bin:$(PATH)
+ifneq ($(BREW_PREFIX),)
+export PATH := $(BREW_PREFIX)/opt/go@1.26/bin:$(PATH)
+endif
 endif
 
 # Build tags: optional compile-time features (e.g. ZE_TAGS=maprib)

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 932 summaries
+Total: 933 summaries
 
 ## 400-499
 
@@ -991,3 +991,4 @@ Total: 932 summaries
 | 1355 | A regression test that fails against HEAD can still be vacuous | `plan/learned/1355-wire-edit-4-api-origin-deferred-bird-interop.md` |
 | 1356 | Learned Corpus: Drain the Ceiling, Do Not Delete the Gate | `plan/learned/1356-learned-corpus-drain-over-archive.md` |
 | 1357 | `flock(1)` on a macOS dev machine is not util-linux | `plan/learned/1357-flock-macos-is-not-util-linux.md` |
+| 1358 | dev-setup-cross-platform | `plan/learned/1358-dev-setup-cross-platform.md` |

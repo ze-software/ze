@@ -38,6 +38,11 @@ import ksource  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "evidence"))
 from alpine_iso import ALPINE_MINOR, ALPINE_VERSION, ensure_iso  # noqa: E402,F401
 
+# Where Homebrew put things, for the same reason: one implementation, shared
+# with the evidence scripts, so a hardcoded /opt/homebrew cannot come back here
+# and leave an Intel Mac without firmware.
+from homebrew import brew_files  # noqa: E402
+
 VM_MEMORY_MIN = 9216
 VM_MEMORY_MAX = 12288
 VM_MEMORY_FRACTION = 4
@@ -149,7 +154,7 @@ def _alpine_arch(target_arch: str) -> str:
 
 def _find_aarch64_firmware() -> Path | None:
     candidates = [
-        Path("/opt/homebrew/share/qemu/edk2-aarch64-code.fd"),
+        *brew_files("share/qemu/edk2-aarch64-code.fd"),
         Path("/usr/share/qemu/edk2-aarch64-code.fd"),
         Path("/usr/share/AAVMF/AAVMF_CODE.fd"),
         Path("/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw"),
