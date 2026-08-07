@@ -365,18 +365,10 @@ See `plan/learned/479-redistribution-filter.md` for the full design.
 
 ### Non-CIDR Families (BLOCKING for filter plugin authors)
 
-The engine's text-mode filter protocol inlines NLRI prefixes only for the
-"CIDR-family" set: IPv4/IPv6 unicast, multicast, and mpls-label. For every
-other family (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and any
-future non-CIDR family) the text protocol emits a marker-only block of
-the form `nlri <family> <op>` with no prefixes. A filter plugin that
-needs per-NLRI decisions on a non-CIDR family MUST declare `raw=true`
-and parse `FilterUpdateInput.Raw` itself.
-
 | Family set | Text protocol emits | Filter plugin requirement |
 |------------|---------------------|--------------------------|
-| CIDR (ipv4/ipv6 unicast, multicast, mpls-label) | `nlri <family> <op> <prefix>...` | `raw=false` is sufficient |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `nlri <family> <op>` (marker only) | `raw=true` REQUIRED for per-NLRI decisions |
+| CIDR (ipv4/ipv6 unicast, multicast, mpls-label) | `nlri <family> <op> <prefix>...` with the prefixes inlined | `raw=false` is sufficient |
+| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and every future non-CIDR family) | `nlri <family> <op>` (marker only, no prefixes) | `raw=true` REQUIRED for per-NLRI decisions, and the plugin parses `FilterUpdateInput.Raw` itself |
 
 See `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
 Filter Text Protocol" for the full contract and

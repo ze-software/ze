@@ -177,6 +177,61 @@ class TestDetector(DetectorCase):
 
         self.assertEqual(["performance.md"], result["missed"])
 
+    def test_point_read_does_not_count_as_reading_its_rule(self):
+        """Reading one point of a rule is not reading the rule.
+
+        VALIDATES: `_is_rule_path` accepts only a file sitting DIRECTLY in
+        ai/rules/, so a Read of `ai/rules/points/<rule>/<section>/<slug>.md`
+        credits nothing.
+        PREVENTS: the false clear that a basename match produces. Slugs are
+        derived from the block's first line, and four of the real corpus's 2316
+        slugs already equal a rule stem (`architecture`, `completion`,
+        `git-safety`, `testing`). Under a bare prefix test, opening
+        `ai/rules/points/plugins/directives/architecture.md` would mark the blocking rule
+        `ai/rules/architecture.md` as consulted.
+        """
+        write_rule(
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
+        )
+        point = self.rules / "points" / "plugins" / "directives" / "performance.md"
+        point.parent.mkdir(parents=True)
+        point.write_text("---\nkind: note\n---\nbody\n", encoding="utf-8")
+        write_transcript(
+            self.transcript,
+            [
+                ("Edit", str(self.root / "internal" / "wire.go")),
+                ("Read", str(point)),
+            ],
+        )
+
+        _, rules_read = rule_coverage.read_transcript(str(self.transcript))
+
+        self.assertEqual(set(), rules_read)
+        self.assertEqual(["performance.md"], self.analyse()["missed"])
+
+    def test_rule_read_still_counts_after_the_point_exclusion(self):
+        """The exclusion must not mute the rule file itself.
+
+        A guard that refuses everything passes the test above and measures
+        nothing (`ai/rules/evidence.md`). This is its other half.
+        """
+        write_rule(
+            self.rules, "performance.md", "writing any wire-encoding path", "blocking"
+        )
+        (self.rules / "points" / "performance").mkdir(parents=True)
+        write_transcript(
+            self.transcript,
+            [
+                ("Edit", str(self.root / "internal" / "wire.go")),
+                ("Read", str(self.rules / "performance.md")),
+            ],
+        )
+
+        _, rules_read = rule_coverage.read_transcript(str(self.transcript))
+
+        self.assertEqual({"performance.md"}, rules_read)
+        self.assertEqual([], self.analyse()["missed"])
+
     def write_core(self, *names, cites="completion.md"):
         """A CORE.md carrying the given rules, in the generator's own shape.
 

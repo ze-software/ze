@@ -42,12 +42,17 @@ BOLD = "\033[1m"
 RESET = "\033[0m"
 
 # A check returns None to pass, or (code, message) where code is 1 or 2.
+#
+# A `ze point:` comment directly above a check names the rule point it enforces
+# (`<rule-stem>/<slug>` under ai/rules/points/), or `none -- <why>`. Joined by
+# `make ze-rules-gate-map`, which fails on a point that does not exist.
 
 # --------------------------------------------------------------------------- #
 # Always-run string checks (run on every Bash command).
 # --------------------------------------------------------------------------- #
 
 
+# ze point: none -- the worktree prohibition is in ai/INSTRUCTIONS.md, which is not a rule under ai/rules/
 def check_worktree_copy(cmd, _ctx):
     """block-worktree-copy.sh: no cp/mv/rsync/redirect out of .claude/worktrees."""
     worktree = ".claude/worktrees"
@@ -70,6 +75,7 @@ def _worktree_block():
     )
 
 
+# ze point: git-safety/before-destructive-actions/never-run-a-destructive-git-verb
 def check_destructive_git(cmd, _ctx):
     """block-destructive-git.sh: refuse destructive git verbs from Bash."""
     if "git restore --staged" in cmd:  # unstaging is safe
@@ -96,6 +102,7 @@ def check_destructive_git(cmd, _ctx):
     return None
 
 
+# ze point: none -- build hygiene, and no rule states where a Go binary lands
 def check_root_build(cmd, _ctx):
     """block-root-build.sh: no `go build` that drops a binary in the repo root."""
     if not re.search(r"(^|[^A-Za-z0-9_])go\s+build([^A-Za-z0-9_]|$)", cmd):
@@ -228,6 +235,8 @@ def _is_expensive(segment):
     return bool(EXPENSIVE_COMMAND.match(cmd))
 
 
+# ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log
+# ze point: commands/directives/run-commands-through-make-and-never-poll
 def check_pipe_tail(cmd, _ctx):
     """block-pipe-tail.sh: no lossy pipe on an expensive command's output.
 
@@ -308,6 +317,7 @@ SEARCH_COMMANDS = {
 }
 
 
+# ze point: commands/directives/run-commands-through-make-and-never-poll
 def check_poll_loop(cmd, _ctx):
     """commands.md: no unbounded wait loop.
 
@@ -357,6 +367,7 @@ def check_poll_loop(cmd, _ctx):
     return None
 
 
+# ze point: testing/temporary-files/use-project-tmp-for-scratch-files
 def check_system_tmp(cmd, _ctx):
     """block-system-tmp.sh (Bash branch): no absolute /tmp references."""
     if not cmd:
@@ -370,6 +381,7 @@ def check_system_tmp(cmd, _ctx):
     return None
 
 
+# ze point: testing/directives/write-the-test-first-and-never-weaken-it
 def check_test_deletion(cmd, _ctx):
     """block-test-deletion.sh (Bash branch): guard rm/checkout of test files."""
     errors = []

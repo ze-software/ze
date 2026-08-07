@@ -41,6 +41,12 @@ off. A count ceiling cannot name which finding is new when one is fixed and one
 is added in the same change; that is the cost of the idiom, shared with the
 `test/.ci-sleep-baseline` ratchet.
 
+Drain policy (`plan/.learned-staleness-drain`): a start date and a rate, and
+nothing else. The ceiling is shrink-only, so it can only be DRAINED, and this is
+the schedule that says how fast. It ships at rate 0 and lands inert, which is the
+point: the answer to "this tax is permanent" is "arm the drain", never "delete
+the gate" (`ai/rules/planning.md`).
+
 Usage:
     python3 scripts/dev/learned_staleness.py            # report, exit 1 over baseline
     python3 scripts/dev/learned_staleness.py --check    # alias, for make-target symmetry
@@ -52,12 +58,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import calendar
+import datetime
 import glob as globmod
 import json
+import math
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 # The repo's one definition of "which backtick token is a path" lives in the
 # doc-links checker; deriving from it keeps the two gates from disagreeing
@@ -74,6 +85,7 @@ from check_doc_links import (
 
 LEARNED_DIR = ("plan", "learned")
 BASELINE_REL = "plan/.learned-staleness-baseline"
+DRAIN_REL = "plan/.learned-staleness-drain"
 
 BACKTICK = re.compile(r"`([^`]+)`")
 # A `{a,b}` alternation or a `{001..011}` range. Stripped before the traversal
@@ -261,6 +273,19 @@ def check(root: Path) -> list[dict]:
     return findings
 
 
+def _first_int(text: str) -> int | None:
+    """The first bare integer in a baseline file, ignoring comments and blanks."""
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            return int(line)
+        except ValueError:
+            return None
+    return None
+
+
 def load_baseline(root: Path) -> int | None:
     """The recorded shrink-only ceiling, or None when none is recorded.
 
@@ -271,15 +296,7 @@ def load_baseline(root: Path) -> int | None:
         text = (root / BASELINE_REL).read_text(encoding="utf-8")
     except OSError:
         return None
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        try:
-            return int(line)
-        except ValueError:
-            return None
-    return None
+    return _first_int(text)
 
 
 MIN_RAISE_REASON = 12
@@ -355,6 +372,216 @@ def write_baseline(root: Path, count: int, *, raise_reason: str | None = None) -
     target = root / BASELINE_REL
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(f"{header}{note}{count}\n", encoding="utf-8")
+
+
+# --------------------------------------------------------------------------
+# Drain schedule: the COMPARISON. The POLICY it reads is authored in
+# plan/.learned-staleness-drain and owned by Thomas. The shape mirrors
+# check_drain_floor in scripts/dev/rfc_requirements.py, deliberately: one drain
+# idiom in this repository, not two.
+# --------------------------------------------------------------------------
+_DRAIN_KEYS = ("start", "rate")
+
+
+class DrainError(Exception):
+    """The drain policy cannot be read, or does not carry policy."""
+
+
+class DrainBudget(NamedTuple):
+    start: datetime.date
+    rate: float
+
+
+def parse_drain_budget(root: Path) -> DrainBudget:
+    """Read `plan/.learned-staleness-drain`: a start date and a rate, and NOTHING else.
+
+    The key set is closed, so the file cannot grow a per-summary row, a count, or
+    a file list. The count already lives in the baseline, where one flag writes
+    it from a measurement; a hand-typed second copy here would drift from it.
+
+    No rate or date is defaulted. A default would be this module quietly
+    authoring policy that belongs to the owner, and an absent file does NOT mean
+    "nothing owed": a zero value must never be a valid-looking answer
+    (`ai/rules/evidence.md`).
+    """
+    try:
+        raw = (root / DRAIN_REL).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise DrainError(
+            f"{DRAIN_REL}: cannot read the drain policy: {exc}. An absent policy "
+            "does NOT mean 'nothing owed'. Create it with a 'start' date and a "
+            "'rate' in dead references repaired per calendar month"
+        ) from exc
+
+    seen: dict[str, str] = {}
+    for i, line in enumerate(raw.split("\n"), start=1):
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2 or parts[0] not in _DRAIN_KEYS:
+            raise DrainError(
+                f"{DRAIN_REL}:{i}: expected '<key> <value>' with key in "
+                f"{list(_DRAIN_KEYS)}, got {line!r}. This file carries POLICY "
+                "ONLY: it may never name a summary, hold a count, or list files"
+            )
+        if parts[0] in seen:
+            raise DrainError(f"{DRAIN_REL}:{i}: {parts[0]!r} is set twice")
+        seen[parts[0]] = parts[1]
+
+    missing = [k for k in _DRAIN_KEYS if k not in seen]
+    if missing:
+        raise DrainError(
+            f"{DRAIN_REL}: missing {missing}. Both are required: 'start' is when "
+            "the drain clock begins, 'rate' is dead references repaired per "
+            "calendar month (it ships at 0, and only the owner arms it)"
+        )
+
+    try:
+        year, month, day = (int(p) for p in seen["start"].split("-"))
+        start = datetime.date(year, month, day)
+    except ValueError as exc:
+        raise DrainError(
+            f"{DRAIN_REL}: start {seen['start']!r} is not a YYYY-MM-DD date: {exc}"
+        ) from exc
+    try:
+        rate = float(seen["rate"])
+    except ValueError as exc:
+        raise DrainError(
+            f"{DRAIN_REL}: rate {seen['rate']!r} is not a number of dead "
+            "references per calendar month"
+        ) from exc
+    # float() accepts "nan" and "inf", and NaN compares FALSE against every
+    # operator, so `rate < 0` below would miss it and math.ceil(nan) would raise
+    # where a clean message is owed. Refused where every other bad value is.
+    if not math.isfinite(rate):
+        raise DrainError(
+            f"{DRAIN_REL}: rate {seen['rate']!r} is not a finite number. A "
+            "schedule needs a rate arithmetic can compare against a count"
+        )
+    if rate < 0:
+        raise DrainError(
+            f"{DRAIN_REL}: rate {rate} is negative; a corpus cannot un-drain"
+        )
+    return DrainBudget(start=start, rate=rate)
+
+
+def drain_anchor(root: Path, start: datetime.date) -> int | None:
+    """The ceiling in force when the clock started, or None when git cannot say.
+
+    The anchor is READ FROM HISTORY rather than written into the policy, because
+    the policy file may hold no count. It is the baseline recorded at the last
+    commit before `start`, so it is fixed for as long as the start date is: a
+    later `--write-baseline` tightens the ceiling without moving the bar that
+    tightening is measured against. Anchoring on the policy file's own last
+    commit was rejected for that reason -- a comment fix would silently re-anchor
+    the schedule and forgive every month elapsed.
+    """
+    try:
+        found = subprocess.run(
+            ["git", "rev-list", "-1", f"--before={start.isoformat()}", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    sha = found.stdout.strip()
+    if found.returncode != 0 or not sha:
+        return None
+    shown = subprocess.run(
+        ["git", "show", f"{sha}:{BASELINE_REL}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if shown.returncode != 0:
+        return None
+    return _first_int(shown.stdout)
+
+
+def required_drain(
+    start: datetime.date,
+    rate: float,
+    drainable: int,
+    today: datetime.date | None = None,
+) -> int:
+    """ceil(rate x whole calendar months since start), capped at `drainable`.
+
+    The cap is the anchor: the corpus cannot repair more references than it had.
+    It also retires the schedule without a removal commit, since a corpus at zero
+    has drained the whole anchor and the floor can never exceed it.
+
+    "Whole calendar month" counts to the start day CLAMPED to the current month's
+    length. Comparing the raw day numbers drops a month whenever the target month
+    is shorter than the start day, which would lose a February every year for a
+    policy starting on the 29th, 30th or 31st.
+    """
+    now = today or datetime.date.today()
+    months = (now.year - start.year) * 12 + (now.month - start.month)
+    anniversary = min(start.day, calendar.monthrange(now.year, now.month)[1])
+    if now.day < anniversary:
+        months -= 1
+    months = max(0, months)
+    # ceil, never floor: at 0.5/month the FIRST month already owes one repair,
+    # and a schedule owing nothing for its first period is not a schedule.
+    return min(drainable, math.ceil(rate * max(0.0, float(months))))
+
+
+def check_drain(
+    root: Path,
+    count: int,
+    *,
+    anchor: int | None = None,
+    today: datetime.date | None = None,
+) -> tuple[list[str], int]:
+    """Judge the measured dead-reference count against the authored schedule.
+
+    Ships INERT: at rate 0 the floor is 0 and this passes on every tree it will
+    see before Thomas arms it. The arming commit is his.
+
+    `anchor` is injected by the tests. In production it is read from history by
+    `drain_anchor`, and only when the rate is non-zero: a git subprocess on every
+    `ze-doc-test` buys nothing while the schedule demands nothing.
+    """
+    try:
+        budget = parse_drain_budget(root)
+    except DrainError as err:
+        return [f"learned drain: {err}"], 1
+
+    if budget.rate == 0:
+        return [
+            f"learned drain: INERT (rate 0 per calendar month since "
+            f"{budget.start.isoformat()}), floor 0 repaired reference(s). "
+            f"Arming it is a one-line rate in {DRAIN_REL}, and Thomas takes it"
+        ], 0
+
+    if anchor is None:
+        anchor = drain_anchor(root, budget.start)
+    if anchor is None:
+        return [
+            f"learned drain: the schedule is armed at {budget.rate} per calendar "
+            f"month, and the ceiling in force on {budget.start.isoformat()} "
+            f"cannot be read from git. A schedule that cannot measure progress "
+            f"must not report success (ai/rules/evidence.md)"
+        ], 1
+
+    floor = required_drain(budget.start, budget.rate, anchor, today)
+    repaired = anchor - count
+    if repaired >= floor:
+        return [
+            f"learned drain: {repaired} of {anchor} reference(s) repaired since "
+            f"{budget.start.isoformat()}, floor {floor}"
+        ], 0
+    return [
+        f"learned drain FAILED: the schedule requires {floor} repaired "
+        f"reference(s) by now (rate {budget.rate} per calendar month since "
+        f"{budget.start.isoformat()}, capped at the {anchor} in force then), and "
+        f"{repaired} are repaired. Repoint or delete {floor - repaired} more "
+        f"(plan/learned/METHODOLOGY.md), or ask Thomas to change the rate"
+    ], 1
 
 
 def _report(findings: list[dict], limit: int = 40) -> None:
@@ -472,6 +699,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {BASELINE_REL} with a ceiling of {count} dead reference(s)")
         return 0
 
+    drain_lines, drain_code = check_drain(root, count)
+
     if args.json:
         print(
             json.dumps(
@@ -481,14 +710,22 @@ def main(argv: list[str] | None = None) -> int:
                     "implemented": IMPLEMENTED,
                     "baseline": baseline,
                     "dead": count,
+                    "drain": drain_lines,
                     "findings": findings,
                 },
                 indent=2,
             )
         )
-        return 1 if baseline is not None and count > baseline else 0
+        over = baseline is not None and count > baseline
+        return 1 if (over or drain_code) else 0
 
-    return enforce(root, findings, baseline)
+    code = enforce(root, findings, baseline)
+    # Printed on every run, green included. A schedule nobody can see is a
+    # schedule nobody arms, and the whole point of the mechanism is that it is
+    # the answer to "this tax is permanent" (`ai/rules/planning.md`).
+    for line in drain_lines:
+        print(line, file=sys.stderr if drain_code else sys.stdout)
+    return max(code, drain_code)
 
 
 if __name__ == "__main__":

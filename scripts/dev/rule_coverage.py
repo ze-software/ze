@@ -91,6 +91,22 @@ TOOLS_READ = ("Read",)
 
 RULES_DIR = "ai/rules/"
 
+
+def _is_rule_path(rel: str) -> bool:
+    """True for a rule file sitting DIRECTLY in ai/rules/, never for a point.
+
+    `ai/rules/points/<rule>/<section>/<slug>.md` is one block of a rule, not the rule, and
+    its basename is a slug. Four slugs already collide with a rule stem
+    (`architecture`, `completion`, `git-safety`, `testing`), so a prefix test
+    that took the basename would credit a session with having READ a blocking
+    rule it never opened -- and reporting an unread blocking rule is the only
+    thing this program does (`ai/rules/evidence.md`).
+    """
+    if not rel.startswith(RULES_DIR) or not rel.endswith(".md"):
+        return False
+    return "/" not in rel[len(RULES_DIR) :]
+
+
 # The rule paths `ai/rules/CORE.md` carries, one per section heading. Membership
 # is DERIVED from that file at every run, never listed here: `make
 # ze-rules-condensed` regenerates CORE.md, and a list in this file would go stale
@@ -379,7 +395,7 @@ def read_transcript(path: str) -> tuple[set[str], set[str]]:
             rel = rel_path(fp, root)
             if name in TOOLS_WRITE:
                 written.add(rel)
-            elif name in TOOLS_READ and rel.startswith(RULES_DIR):
+            elif name in TOOLS_READ and _is_rule_path(rel):
                 rules_read.add(os.path.basename(rel))
     return written, rules_read
 

@@ -483,16 +483,21 @@ out of scope here. **Before the image is distributed to third parties, a source-
 
 ### Root-module pseudo-version pins (no upstream tags)
 
-Separate from the builddir concern: six **root** `go.mod` direct dependencies are
+Separate from the builddir concern: five **root** `go.mod` direct dependencies are
 pinned to pseudo-versions (`v0.0.0-<date>-<hash>`) rather than semver tags. This is
 **not a defect**. It was verified (2026-07-21, `spec-fixit-supply-chain-hardening`
 AC-4) that **none of these upstreams publish any semver tag**: `go list -m -versions`
 and `proxy.golang.org/<mod>/@v/list` return an empty version list for every one, and
 `@latest` resolves to a pseudo-version. There is nothing to move the pin to.
 
+The list was six until 2026-08-07. `github.com/charmbracelet/ssh` left it because
+upstream MOVED the module rather than tagging it: the same code now publishes as
+`charm.land/ssh`, which carries semver, and the root pin is `charm.land/ssh v0.4.2`.
+A module that disappears from this table has either been tagged or been moved. Find
+out which before you re-add a row.
+
 | Root dep (root `go.mod`) | Pin form | Upstream semver tag? |
 |--------------------------|----------|----------------------|
-| `github.com/charmbracelet/ssh` | pseudo-version | none published |
 | `github.com/insomniacslk/dhcp` | pseudo-version | none published |
 | `github.com/packetcap/go-pcap` | pseudo-version | none published |
 | `golang.zx2c4.com/wireguard/wgctrl` | pseudo-version | none published |

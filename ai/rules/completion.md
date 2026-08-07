@@ -39,11 +39,10 @@ later that 1/3 or 2/3 of the feature was never built.
 
 ## The Rule
 
-**You may not claim work is done, complete, ready to commit, or ready for review while any in-scope acceptance criterion remains unimplemented.**
-
-"Deferred" does not mean "done." "Tracked in a plan/deferrals/ shard" does not mean "done."
-"Will be handled in a follow-up" does not mean "done." If the spec lists it and
-you did not build it, the work is not done.
+The claim-done ban above has no synonyms. "Deferred" does not mean "done."
+"Tracked in a plan/deferrals/ shard" does not mean "done." "Will be handled in
+a follow-up" does not mean "done." If the spec lists it and you did not build
+it, the work is not done.
 
 ## What "Done" Requires
 
@@ -372,8 +371,6 @@ Assume your implementation report is optimistic. Re-read spec, re-run verificati
 
 ## Diagnosis Before Fix
 
-Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first. Editing to silence the symptom before the root cause is named is the defect, not the fix.
-
 ### The Diagnosis (write all five before any edit)
 
 1. **Symptom** -- the exact failure, verbatim (error text, rejected input, failing assertion).
@@ -448,12 +445,6 @@ Wiring is not a verification step at the end. It is the first implementation ste
 
 If you find yourself checking wiring for the first time at completion, three earlier gates failed.
 
-### The Wiring Rule
-
-Every exported function, type, or constant created by a spec implementation
-MUST have at least one caller in the running daemon. "Library code with tests"
-is not done. "Tested but not wired" is not done.
-
 ### Mechanical Check (MANDATORY before claiming done)
 
 `make ze-verify` runs `make ze-verify-wiring-docs`. That changed-file
@@ -504,8 +495,6 @@ incomplete, not done.
 
 Every new feature MUST be proven to work integrated, not just in isolation.
 Rationale: `ai/rationale/integration-completeness.md`
-
-Every feature needs at least one end-to-end test from its intended usage point.
 
 | Feature Type | Required Test |
 |-------------|---------------|
@@ -569,7 +558,6 @@ Before modifying any handler, dispatcher, or protocol step: **grep for ALL imple
 
 ## Implementation Audit
 
-Before marking any spec done, complete line-by-line audit comparing spec to implementation.
 Rationale: `ai/rationale/implementation-audit.md`
 
 ### When to run the audit

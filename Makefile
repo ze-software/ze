@@ -657,7 +657,7 @@ ze-ai-sync:
 ze-ai-check:
 	@scripts/dev/skill_sync.sh --check
 
-ze-regen: generate ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index ze-test-health
+ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index ze-test-health
 	@echo "All generated files updated"
 
 # Write-safe twin of ze-regen-check, and the ONLY one wired into verify
@@ -684,6 +684,7 @@ ze-regen: generate ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index
 #                        docs/guide/quickstart.md            -> ze-feature-tags-check
 #   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
 #   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-check-stale
+#   rules_points.py   -> ai/rules/<rule>.md (from ai/rules/points/) -> ze-rules-render-check
 #   rules_index.py    -> ai/rules/INDEX.md                   -> ze-rules-index-check
 #   rules_condensed.py-> ai/rules/TRIGGERS.md, ai/rules/CORE.md -> ze-rules-condensed-check
 #   arch_map.py       -> arch lists in ai/INSTRUCTIONS.md    -> ze-arch-map-check
@@ -713,16 +714,17 @@ ze-regen: generate ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index
 ze-arch-map-check:
 	@python3 scripts/dev/arch_map.py --check
 
-ze-regen-check-readonly: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-fuzz-targets-check ze-doc-check-stale ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
+ze-regen-check-readonly: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-fuzz-targets-check ze-doc-check-stale ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
 	@echo "All generated files are up to date"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
+	@python3 scripts/dev/rules_points.py render --check
 	@python3 scripts/dev/rules_index.py --check
 	@python3 scripts/dev/rules_condensed.py --check
 	@python3 scripts/dev/rules_lint.py --quiet

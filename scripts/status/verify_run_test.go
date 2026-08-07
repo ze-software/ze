@@ -808,8 +808,9 @@ var regenCheckPrereqs = map[string]string{
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
 	"ze-doc-check-stale":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
+	"ze-rules-render-check":    "rules_points.py -> ai/rules/<rule>.md, rendered from ai/rules/points/",
 	"ze-rules-index-check":     "rules_index.py -> ai/rules/INDEX.md",
-	"ze-rules-condensed-check": "rules_condensed.py -> ai/rules/CONDENSED.md",
+	"ze-rules-condensed-check": "rules_condensed.py -> ai/rules/TRIGGERS.md, ai/rules/CORE.md",
 	"ze-rules-lint":            "rules_lint.py -> ai/rules/*.md format contract (read-only validator, no generated output)",
 	"ze-arch-map-check":        "arch_map.py -> the architecture lists in ai/INSTRUCTIONS.md (NOT covered by ze-doc-test)",
 	"ze-discovery-index-check": "package_map.py, docs_to_code.py, learned_index.py, learned_numbers.py -> the ai/ discovery indexes",
@@ -834,6 +835,7 @@ var generatorChecks = map[string]string{
 	"ze-ai-instructions": "ze-arch-map-check",
 	"ze-ai-sync":         "", // gitignored outputs -- excluded on purpose
 	"ze-doc-index":       "ze-doc-check-stale",
+	"ze-rules-render":    "ze-rules-render-check",
 	"ze-rules-index":     "ze-rules-index-check",
 	"ze-rules-condensed": "ze-rules-condensed-check",
 	"ze-discovery-index": "ze-discovery-index-check",
@@ -845,6 +847,7 @@ var generatorChecks = map[string]string{
 	"scripts/dev/arch_map.py":        "ze-arch-map-check",
 	"scripts/dev/code_to_docs.py":    "ze-doc-check-stale",
 	"scripts/dev/rules_index.py":     "ze-rules-index-check",
+	"scripts/dev/rules_points.py":    "ze-rules-render-check",
 	"scripts/dev/rules_condensed.py": "ze-rules-condensed-check",
 	"scripts/dev/package_map.py":     "ze-discovery-index-check",
 	"scripts/dev/docs_to_code.py":    "ze-discovery-index-check",
@@ -937,7 +940,7 @@ func optionalRecipeBody(corpus, target string) []string {
 // silently ignored, because the exact-count assertions fail when the parsed set
 // changes size". A reviewer measured that false twice over: (a) there is NO
 // count assertion for generators found inside SUB-TARGET recipes -- the only
-// counts are on `generate:`'s 4 and `ze-regen`'s 7 prerequisites; and (b) even
+// counts are on `generate:`'s 4 and `ze-regen`'s 9 prerequisites; and (b) even
 // inside `generate:`, a form yielding no capture leaves the count at 4, so the
 // tripwire never fires. Measured misses at the time: `go run -tags x ./cmd/y`,
 // `python3 -m pkg.mod`, `$(MAKE) some-target`. The first two are now matched
@@ -1083,8 +1086,8 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	// ze-regen unnoticed, so `make ze-regen` would stop regenerating an output
 	// that ze-regen-check-readonly (an un-parkable structural gate) still checks
 	// -- a red whose documented remediation does not fix it.
-	if len(subTargets) != 8 {
-		t.Fatalf("`ze-regen` has %d prerequisites (%v), expected 8; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
+	if len(subTargets) != 9 {
+		t.Fatalf("`ze-regen` has %d prerequisites (%v), expected 9; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
 	}
 	producers = append(producers, subTargets...)
 	for _, sub := range subTargets {

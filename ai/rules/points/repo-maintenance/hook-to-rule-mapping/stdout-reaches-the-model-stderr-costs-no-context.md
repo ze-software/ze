@@ -1,0 +1,6 @@
+---
+kind: directive
+level:
+stage:
+---
+**UserPromptSubmit stdout reaches the model. UserPromptSubmit stderr does not.** A reminder that must land in the context writes to stdout. A banner that must cost no context tokens writes to stderr, as `compaction-reminder.sh` does. The two stdout reminders below fire on every turn, so each one stays a single line.

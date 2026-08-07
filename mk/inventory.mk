@@ -12,7 +12,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-points-roundtrip ze-rules-render ze-rules-render-check ze-rules-gate-map ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 .PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
@@ -104,6 +104,15 @@ ze-doc-test:
 	echo "  -> Source anchors (docs source references exist)..."; \
 	python3 scripts/dev/code_to_docs.py --check || FAIL=1; \
 	echo ""; \
+	echo "  -> Rules render (ai/rules/<rule>.md matches ai/rules/points/)..."; \
+	python3 scripts/dev/rules_points.py render --check || FAIL=1; \
+	echo ""; \
+	echo "  -> Rules round trip (split every rendered rule, render it back, compare bytes)..."; \
+	python3 scripts/dev/rules_points.py roundtrip || FAIL=1; \
+	echo ""; \
+	echo "  -> Rules gate map (no hook check names a point that does not exist)..."; \
+	python3 scripts/dev/rules_points.py coverage --quiet || FAIL=1; \
+	echo ""; \
 	echo "  -> Rules index (ai/rules/INDEX.md fresh, every rule has a summary)..."; \
 	python3 scripts/dev/rules_index.py --check || FAIL=1; \
 	echo ""; \
@@ -165,7 +174,10 @@ ze-doc-index:
 ze-doc-check-stale:
 	@python3 scripts/dev/code_to_docs.py --check
 
-ze-rules-index:
+# Depends on ze-rules-render for the reason ze-rules-condensed does, below:
+# rules_index.py parses the RENDERED rules, so under `make -j` it must not race
+# the generator that writes them.
+ze-rules-index: ze-rules-render
 	@python3 scripts/dev/rules_index.py
 
 ze-rules-index-check:
@@ -176,11 +188,57 @@ ze-rules-index-check:
 #   CORE.md       the directives of the always-on rules, derived from the
 #                 rung 1/2 ladder in ai/rules/rule-precedence.md
 # Generated from the canonical rule format; a stale artifact fails ze-doc-test.
-ze-rules-condensed:
+#
+# The ze-rules-render prerequisite is what ORDERS the two. Both digests parse
+# the RENDERED rules, which ze-rules-render writes with a plain write_text, and
+# GNU make honours prerequisite ORDER only when it runs serially: under
+# `make -j ze-regen` the digest could be built from pre-render text or from a
+# torn read. A dependency edge is the ordering make actually enforces, an
+# order-only prerequisite (`|`) would not have (it orders a prerequisite against
+# its own target, never two siblings of one target), and .NOTPARALLEL would pay
+# for it by serialising every unrelated target in the file.
+ze-rules-condensed: ze-rules-render
 	@python3 scripts/dev/rules_condensed.py
 
 ze-rules-condensed-check:
 	@python3 scripts/dev/rules_condensed.py --check
+
+# Rules-as-points round trip: split every ai/rules/*.md into per-point files in
+# a scratch directory, render those files back, and compare bytes. A rendered
+# rule is what every agent Reads, so a lossy split is silent instruction loss.
+# This target is the gate on that: it exits non-zero naming any rule whose round
+# trip is not byte-identical. Scratch only, it never writes ai/rules/points/.
+#
+# It runs inside ze-doc-test, and the render check does NOT subsume it. They
+# read the two directions of the same identity. `render --check` asks whether
+# the rendered rule matches the points; the round trip asks whether the rendered
+# rule can be split back into points at all. One blank line at the top of a
+# point body satisfies the first and breaks the second, and the corpus is then
+# permanently un-splittable with every other gate green.
+ze-rules-points-roundtrip:
+	@python3 scripts/dev/rules_points.py roundtrip
+
+# Rules-as-points render: ai/rules/points/<rule>/<section>/ -> ai/rules/<rule>.md. The
+# rendered rule is what every agent Reads, so this generator owns those files
+# and an edit to one is refused by .claude/hooks/pretool-writeedit.py. Order
+# matters inside ze-regen: ze-rules-condensed and ze-rules-index both parse the
+# RENDERED rules, and each one declares this target as a PREREQUISITE so make
+# enforces that under `-j` rather than the recipe order asserting it.
+ze-rules-render:
+	@python3 scripts/dev/rules_points.py render
+
+ze-rules-render-check:
+	@python3 scripts/dev/rules_points.py render --check
+
+# Rules-as-points gate map: which rule point each hook check enforces. The
+# `# ze point: <rule>/<section>/<slug>` comments in the three PreToolUse dispatchers are
+# joined against the point files, and three sets come out. Gated and ungated are
+# MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet,
+# which is the number this target exists to publish. Dangling FAILS: a check
+# naming a point that does not exist is what a reworded rule looks like, and
+# before the id was a path nothing could see it.
+ze-rules-gate-map:
+	@python3 scripts/dev/rules_points.py coverage
 
 # What a session actually loads: ai/INSTRUCTIONS.md + TRIGGERS.md + CORE.md,
 # measured against the token budget and against the digest it replaces.

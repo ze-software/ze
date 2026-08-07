@@ -33,7 +33,7 @@ Rules: 27 (27 blocking, 0 advisory). Always-on: 8.
 | `ai/rules/quality.md` | blocking | before presenting any work as complete |
 | `ai/rules/repo-maintenance.md` | blocking | adding or changing a feature, tool, gate, hook, runtime dependency, or generated file, looking up which check enforces a rule, or reporting... |
 | `ai/rules/rfc-compliance.md` | blocking, always-on | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements |
-| `ai/rules/rule-format.md` | blocking | authoring or editing any `ai/rules/*.md` rule file |
+| `ai/rules/rule-format.md` | blocking | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment |
 | `ai/rules/rule-precedence.md` | blocking, always-on | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue |
 | `ai/rules/spec-no-code.md` | blocking | writing or editing a spec |
 | `ai/rules/stale-comments.md` | blocking, always-on | when changing code behavior |

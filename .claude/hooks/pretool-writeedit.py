@@ -47,6 +47,19 @@ _TEXTBUF_REF = (
 
 
 # --------------------------------------------------------------------------- #
+# Rule bindings
+#
+# A `ze point:` comment directly above a check names the rule point that check
+# enforces, spelled `<rule>/<section>/<slug>` under ai/rules/points/: the rule,
+# the `##` section directory, and the point file, always three components. A
+# check may name several, and one that enforces no written point says
+# `none -- <why>`.
+# `make ze-rules-gate-map` joins these against the points on disk: it reports
+# which points are gated and which are not, and it FAILS on a reference to a
+# point that does not exist, which is what a reworded rule looks like.
+# --------------------------------------------------------------------------- #
+
+# --------------------------------------------------------------------------- #
 # Shared helpers
 # --------------------------------------------------------------------------- #
 
@@ -165,6 +178,7 @@ def _go_we(ctx):
     return ctx["tool"] in ("Write", "Edit") and ctx["fp"].endswith(".go")
 
 
+# ze point: architecture/design-principles/apply-these-design-principles-to-every-decision
 def c_and_functions(ctx):
     if not _go_we(ctx) or re.search(r"_test\.go$", ctx["fp"]):
         return None
@@ -190,6 +204,7 @@ def c_and_functions(ctx):
     return None
 
 
+# ze point: cli/cli-patterns/return-exit-codes-and-write-errors-to-stderr
 def c_os_exit(ctx):
     fp = ctx["fp"]
     if (
@@ -218,6 +233,7 @@ def c_os_exit(ctx):
     return None
 
 
+# ze point: go-standards/directives/never-write-these-forbidden-go-patterns
 def c_panic(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or "/scripts/" in fp:
@@ -243,6 +259,7 @@ def c_panic(ctx):
     return None
 
 
+# ze point: none -- no point states the raw-ANSI ban; the palette is in docs/architecture/cli/color-system.md
 def c_raw_ansi(ctx):
     fp = ctx["fp"]
     if (
@@ -276,6 +293,7 @@ def c_raw_ansi(ctx):
     return None
 
 
+# ze point: go-standards/directives/never-write-these-forbidden-go-patterns
 def c_legacy_log(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or "/scripts/" in fp:
@@ -301,6 +319,8 @@ def c_legacy_log(ctx):
     return None
 
 
+# ze point: performance/three-rules/never-use-fmt-or-string-on-a-hot-path
+# ze point: performance/directives/write-wire-encoding-into-pooled-bounded-buffers
 def c_sprintf_new(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
@@ -342,6 +362,7 @@ def c_sprintf_new(ctx):
     return None
 
 
+# ze point: performance/banned-patterns/build-strings-with-textbuf-never-with-plus
 def c_string_concat(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
@@ -391,6 +412,7 @@ def c_string_concat(ctx):
 _DEBUG_MARKER = r'fmt\.F?Print.*"(DEBUG|debug|TRACE|trace|>>>|<<<|\*\*\*|XXX|FIXME)'
 
 
+# ze point: go-standards/directives/log-through-slog-never-printf
 def c_temp_debug(ctx):
     fp = ctx["fp"]
     if (
@@ -435,6 +457,7 @@ def c_temp_debug(ctx):
     return None
 
 
+# ze point: quality/linting/fix-lint-issues-never-disable-a-linter
 def c_nolint(ctx):
     if not _go_we(ctx):
         return None
@@ -456,6 +479,8 @@ def c_nolint(ctx):
     return None
 
 
+# ze point: cli/json-format/name-json-keys-in-lowercase-kebab-case
+# ze point: go-standards/directives/tag-every-json-field-with-a-kebab-case-name
 def c_json_kebab(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
@@ -479,6 +504,7 @@ def c_json_kebab(ctx):
     return None
 
 
+# ze point: architecture/design-principles/apply-these-design-principles-to-every-decision
 def c_yagni(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
@@ -511,6 +537,7 @@ def c_yagni(ctx):
     return None
 
 
+# ze point: go-standards/directives/never-write-these-forbidden-go-patterns
 def c_ignored_errors(ctx):
     if not _go_we(ctx):
         return None
@@ -535,6 +562,8 @@ def c_ignored_errors(ctx):
     return None
 
 
+# ze point: no-layering/directives/delete-the-old-before-implementing-the-new
+# ze point: no-layering/directives/never-keep-the-old-path-beside-the-new-one
 def c_layering(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
@@ -567,6 +596,7 @@ def c_layering(ctx):
     return None
 
 
+# ze point: go-standards/no-backwards-compatibility/keep-exabgp-awareness-out-of-engine-code
 def c_exabgp(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or "/exabgp/" in fp or "cmd/ze/exabgp" in fp:
@@ -607,6 +637,7 @@ def c_exabgp(ctx):
     return None
 
 
+# ze point: goroutine-lifecycle/directives/keep-every-goroutine-a-long-lived-worker
 def c_goroutine(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
@@ -637,6 +668,8 @@ def c_goroutine(ctx):
     return None
 
 
+# ze point: performance/directives/write-wire-encoding-into-pooled-bounded-buffers
+# ze point: performance/buffer-first-encoding-mechanical-reference/audit-and-fix-encoding-allocations
 def c_encoding_alloc(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
@@ -724,6 +757,7 @@ def c_encoding_alloc(ctx):
     return None
 
 
+# ze point: performance/hot-path-rule/apply-the-hot-path-ban-to-these-packages
 def c_format_alloc(ctx):
     # ENABLED 2026-07-09 (spec-followup-hooks). Previously a deliberate no-op:
     # the original block-format-alloc.sh used a bash-4 `declare -A` table that
@@ -778,6 +812,7 @@ def c_format_alloc(ctx):
     return None
 
 
+# ze point: config/directives/manipulate-config-only-by-the-two-approved-methods
 def c_silent_ignore(ctx):
     fp = ctx["fp"]
     if (
@@ -841,6 +876,7 @@ def c_silent_ignore(ctx):
     return None
 
 
+# ze point: evidence/directives/derive-every-string-from-the-canonical-registry
 def c_hardcoded_commands(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
@@ -874,6 +910,7 @@ def c_hardcoded_commands(ctx):
     return None
 
 
+# ze point: go-standards/directives/never-write-these-forbidden-go-patterns
 def c_init_register(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
@@ -927,6 +964,7 @@ def c_init_register(ctx):
 # --------------------------------------------------------------------------- #
 
 
+# ze point: quality/linting/fix-lint-issues-never-disable-a-linter
 def c_lint_exclusions(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit"):
@@ -958,6 +996,7 @@ def c_lint_exclusions(ctx):
     return None
 
 
+# ze point: config/directives/manipulate-config-only-by-the-two-approved-methods
 def c_version_config(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit"):
@@ -989,6 +1028,7 @@ def c_version_config(ctx):
     return None
 
 
+# ze point: performance/common-mistakes/fix-these-common-allocation-mistakes
 def c_fake_bufhandle(ctx):
     fp = ctx["fp"]
     if not fp.endswith(".go"):
@@ -1033,6 +1073,7 @@ def c_fake_bufhandle(ctx):
     return None
 
 
+# ze point: testing/observer-exit-antipattern-in-ci-tests-blocking/fail-a-ci-observer-with-runtime-fail-not-sys-exit
 def c_observer_sys_exit(ctx):
     fp = ctx["fp"]
     if not fp.endswith(".ci"):
@@ -1060,6 +1101,7 @@ def c_observer_sys_exit(ctx):
     )
 
 
+# ze point: architecture/zefs-persistence-no-loose-state-files/persist-runtime-state-in-zefs-not-a-loose-file
 def c_direct_fs_state(ctx):
     # Edit-time nudge (the authoritative block is `make ze-fs-persistence-check`,
     # scripts/checks/direct_fs_persistence.go): runtime STATE must persist through
@@ -1090,6 +1132,8 @@ def c_direct_fs_state(ctx):
     )
 
 
+# ze point: repo-maintenance/canonical-sources-and-sync-direction/edit-the-canonical-source-not-the-generated-file
+# ze point: repo-maintenance/canonical-sources-and-sync-direction/sync-generated-files-from-their-canonical-source
 def c_generated_files(ctx):
     """Block edits to THIS project's generated CLAUDE.md / AGENTS.md.
 
@@ -1119,6 +1163,181 @@ def c_generated_files(ctx):
     return (2, f"BLOCKED: {base} is generated{fix}")
 
 
+# The generated files that sit DIRECTLY in ai/rules/, and how each is rebuilt.
+# A rendered rule (any other `*.md` there) comes from ai/rules/points/<stem>/.
+_RULES_ARTIFACTS = {
+    "INDEX.md": ("scripts/dev/rules_index.py", "make ze-rules-index"),
+    "TRIGGERS.md": ("scripts/dev/rules_condensed.py", "make ze-rules-condensed"),
+    "CORE.md": ("scripts/dev/rules_condensed.py", "make ze-rules-condensed"),
+}
+
+
+# ze point: repo-maintenance/canonical-sources-and-sync-direction/keep-shared-rules-in-ai-rules-and-render-them
+# ze point: repo-maintenance/canonical-sources-and-sync-direction/sync-generated-files-from-their-canonical-source
+def c_rendered_rules(ctx):
+    """Block edits to the generated files sitting directly in ai/rules/.
+
+    Every `ai/rules/<rule>.md` is RENDERED from `ai/rules/points/<rule>/` by
+    scripts/dev/rules_points.py, so an edit there is overwritten by the next
+    `make ze-rules-render` and silently lost. The three all-caps artifacts beside
+    them (INDEX.md, TRIGGERS.md, CORE.md) are generated too, from the rendered
+    rules; nothing guarded them before this check existed.
+
+    Matched by full path against PROJECT_DIR, for the reason c_generated_files
+    records: a basename or suffix match would also catch a rule file in another
+    checkout and send its author to a points directory that does not govern them.
+    Points themselves are the canonical source and are always permitted -- their
+    parent is ai/rules/points/<rule>, never ai/rules, so the dirname test lets
+    them through by construction (spec AC-8).
+
+    Fails CLOSED: when the path cannot be resolved the answer is a refusal, never
+    a permit, because the file this could not classify might be a rendered rule
+    (`ai/rules/evidence.md`).
+
+    NotebookEdit is deliberately absent from the tool set. `main()` reads
+    `file_path` and NotebookEdit sends `notebook_path`, so that branch could
+    never be reached; and a notebook is not markdown, so nothing under ai/rules/
+    is a notebook. Listing it asserted coverage the entry point cannot deliver.
+    """
+    if ctx["tool"] not in ("Write", "Edit", "MultiEdit"):
+        return None
+    fp = ctx["fp"]
+    if not fp:
+        return None
+    try:
+        given = fp if os.path.isabs(fp) else os.path.join(PROJECT_DIR, fp)
+        resolved = os.path.realpath(given)
+        rules_dir = os.path.realpath(os.path.join(PROJECT_DIR, "ai", "rules"))
+    except (OSError, ValueError):
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: cannot resolve {fp} against the project"
+            f" directory{RESET}\n  Refusing rather than permitting: it may be a"
+            "\n  generated file under ai/rules/. Pass an absolute path.",
+        )
+    if os.path.dirname(resolved) != rules_dir:
+        return None
+    # Named from the RESOLVED path, never the raw one. A symlink from outside is
+    # correctly blocked either way, and the refusal has to name the file the
+    # author must actually edit rather than the name they typed.
+    base = os.path.basename(resolved)
+    if not base.endswith(".md"):
+        return None
+
+    if base in _RULES_ARTIFACTS:
+        script, target = _RULES_ARTIFACTS[base]
+        fix = (
+            f"\n  ai/rules/{base} is generated by {script}."
+            f"\n  Edit the rule's point under ai/rules/points/<rule>/, then run:"
+            f"\n    make ze-rules-render && {target}"
+            '\n  See ai/rules/repo-maintenance.md, "Canonical Sources and Sync Direction"'
+        )
+        return (2, f"{RED}{BOLD}❌ BLOCKED: ai/rules/{base} is generated{RESET}{fix}")
+
+    stem = base[: -len(".md")]
+    if stem.isupper():
+        fix = (
+            f"\n  ai/rules/{base} sits beside the rendered rules and is not one."
+            "\n  Find the generator that owns it before editing; run `make ze-regen`"
+            "\n  to rebuild every generated file. See ai/rules/repo-maintenance.md"
+        )
+        return (2, f"{RED}{BOLD}❌ BLOCKED: ai/rules/{base} is generated{RESET}{fix}")
+
+    fix = (
+        f"\n  ai/rules/{base} is RENDERED from ai/rules/points/{stem}/ by"
+        "\n  scripts/dev/rules_points.py. An edit here is lost at the next render."
+        f"\n  Edit the point that carries the instruction:"
+        f"\n    ai/rules/points/{stem}/<section>/<slug>.md   one block of the rule"
+        f"\n    ai/rules/points/{stem}/manifest.md           title, When, Severity,"
+        "\n                                                 sections and reading order"
+        "\n  Then run: make ze-rules-render"
+        '\n  See ai/rules/repo-maintenance.md, "Rule Placement"'
+    )
+    return (2, f"{RED}{BOLD}❌ BLOCKED: ai/rules/{base} is generated{RESET}{fix}")
+
+
+# ze point: never-destroy-work/forbidden-without-explicit-permission/ask-before-deleting-or-overwriting-user-work
+def c_point_overwrite(ctx):
+    """Refuse a Write that would replace an EXISTING rule point.
+
+    A point file is the canonical source of one instruction, and a Write
+    replaces the whole file. Writing over a slug that is already taken deletes
+    that instruction at the moment of the write, and every gate downstream of it
+    runs afterwards: `make ze-rules-render` reports the manifest duplicate, and
+    `make ze-rules-render-check` reports the rendered drift, but the bytes are
+    already gone by then and only git holds them. That is what happened to one
+    point of ai/rules/points/repo-maintenance/, recovered only from git.
+
+    A SIBLING of c_rendered_rules rather than a branch inside it. That check
+    answers "is this a GENERATED file", and its verdict for every path under
+    ai/rules/points/ is permit-by-construction: the early return on the dirname
+    is exactly what makes spec AC-8 true. This one answers the opposite
+    question, about the canonical source, and its verdict depends on the TOOL
+    and on whether the file already exists. Folding two opposite polarities into
+    one function would make the AC-8 early return something to work around.
+
+    Edit and MultiEdit stay permitted: both are targeted, both fail when their
+    old_string does not match, and neither can silently drop a body. A Write to
+    a NEW path stays permitted too, because that is how a point is authored
+    (`ai/rules/never-destroy-work.md` bans destroying work, not creating it).
+
+    TWO shapes are canonical, because the tree is at a fixed depth of two:
+    ai/rules/points/<rule>/manifest.md carries the whole spine, and
+    ai/rules/points/<rule>/<section>/<slug>.md carries one instruction. A path at
+    any other depth is not a canonical source, so it is left alone.
+    """
+    if ctx["tool"] != "Write":
+        return None
+    fp = ctx["fp"]
+    if not fp:
+        return None
+    try:
+        given = fp if os.path.isabs(fp) else os.path.join(PROJECT_DIR, fp)
+        resolved = os.path.realpath(given)
+        points_dir = os.path.realpath(
+            os.path.join(PROJECT_DIR, "ai", "rules", "points")
+        )
+    except (OSError, ValueError):
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: cannot resolve {fp} against the project"
+            f" directory{RESET}\n  Refusing rather than permitting: it may be a"
+            "\n  rule point under ai/rules/points/. Pass an absolute path.",
+        )
+    base = os.path.basename(resolved)
+    parent = os.path.dirname(resolved)
+    if os.path.dirname(parent) == points_dir and base == "manifest.md":
+        # ai/rules/points/<rule>/manifest.md
+        stem, rel = os.path.basename(parent), f"{os.path.basename(parent)}/{base}"
+        what = (
+            "the sections, the reading order, the title, the trigger and the severity"
+        )
+    elif os.path.dirname(os.path.dirname(parent)) == points_dir:
+        # ai/rules/points/<rule>/<section>/<slug>.md
+        stem = os.path.basename(os.path.dirname(parent))
+        rel = f"{stem}/{os.path.basename(parent)}/{base}"
+        what = "one instruction of the rule"
+    else:
+        return None
+    if not os.path.isfile(resolved):
+        return None
+
+    fix = (
+        f"\n  ai/rules/points/{rel} already exists and carries {what}."
+        "\n  A Write replaces the whole file, so the instruction in it would be"
+        "\n  gone before any gate ran. Two routes, both non-destructive:"
+        f"\n    Edit ai/rules/points/{rel}   change the point that is there"
+        f"\n    Write ai/rules/points/{stem}/<section>/<a-free-slug>.md   then add"
+        "\n      the slug to that section in the rule's manifest.md"
+        "\n  See ai/rules/never-destroy-work.md and docs/contributing/rule-authoring.md"
+    )
+    return (
+        2,
+        f"{RED}{BOLD}❌ BLOCKED: Write over an existing rule point{RESET}{fix}",
+    )
+
+
+# ze point: architecture/directives/load-ze-context-before-any-design-decision
 def c_utils_package(ctx):
     fp = ctx["fp"]
     if ctx["tool"] != "Write" or not fp.endswith(".go"):
@@ -1142,6 +1361,8 @@ def c_utils_package(ctx):
     return None
 
 
+# ze point: testing/no-throw-away-tests/put-each-test-in-the-suite-that-runs-its-format
+# ze point: testing/temporary-files/use-project-tmp-for-scratch-files
 def c_throwaway_tests(ctx):
     fp = ctx["fp"]
     if ctx["tool"] != "Write":
@@ -1176,6 +1397,7 @@ def c_throwaway_tests(ctx):
     return None
 
 
+# ze point: none -- plan-file location is a Claude-only rule (.claude/rules/planning.md); only ai/rules/ has points
 def c_claude_plans(ctx):
     fp = ctx["fp"]
     if ctx["tool"] != "Write":
@@ -1202,6 +1424,7 @@ def c_claude_plans(ctx):
     return None
 
 
+# ze point: none -- no point states the file-naming convention (.md kebab-case, .go underscores, .sh kebab-case)
 def c_enforce_naming(ctx):
     fp = ctx["fp"]
     if ctx["tool"] != "Write" or isfile(fp):
@@ -1236,6 +1459,8 @@ def c_enforce_naming(ctx):
     return None
 
 
+# ze point: evidence/no-fabrication/investigate-source-in-session-before-writing-a-spec
+# ze point: evidence/no-fabrication/read-the-producing-code-before-claiming-behavior
 def c_design_without_lsp(ctx):
     if ctx["tool"] not in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
         return None
@@ -1281,6 +1506,7 @@ def c_design_without_lsp(ctx):
     return None
 
 
+# ze point: planning/spec-metadata-blocking/update-spec-status-at-each-transition
 def c_source_edit_spec(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit", "MultiEdit"):
@@ -1328,6 +1554,7 @@ def c_source_edit_spec(ctx):
     return None
 
 
+# ze point: none -- session state is a Claude-only rule (.claude/rules/post-compaction.md), outside the corpus
 def c_pre_write_go(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit"):
@@ -1365,6 +1592,7 @@ def c_pre_write_go(ctx):
     return None
 
 
+# ze point: none -- same Claude-only rule as c_pre_write_go (.claude/rules/post-compaction.md)
 def c_require_docs_read(ctx):
     fp = ctx["fp"]
     if ctx["tool"] != "Write":
@@ -1384,6 +1612,7 @@ def c_require_docs_read(ctx):
     return None
 
 
+# ze point: go-standards/design-document-references/every-go-file-carries-a-design-comment
 def c_require_design_ref(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".go"):
@@ -1425,6 +1654,8 @@ def c_require_design_ref(ctx):
     )
 
 
+# ze point: go-standards/file-cross-references/keep-file-cross-references-bidirectional
+# ze point: go-standards/file-cross-references/update-cross-references-when-a-file-moves
 def c_require_related_refs(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".go"):
@@ -1494,6 +1725,7 @@ def c_require_related_refs(ctx):
     return None
 
 
+# ze point: testing/directives/write-the-test-first-and-never-weaken-it
 def c_require_test_first(ctx):
     fp = ctx["fp"]
     if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".go"):
@@ -1518,6 +1750,7 @@ def c_require_test_first(ctx):
     return None
 
 
+# ze point: architecture/design-context/reuse-the-existing-pattern-before-adding-one
 def c_check_existing_patterns(ctx):
     fp = ctx["fp"]
     if ctx["tool"] != "Write":
@@ -1576,11 +1809,13 @@ def c_check_existing_patterns(ctx):
     return None
 
 
+# ze point: none -- the function is a no-op that always returns None, so it enforces nothing
 def c_check_existing_tests(ctx):
     # Warning-only hook: prints to stderr but always exit 0. No effect on exit code.
     return None
 
 
+# ze point: testing/temporary-files/use-project-tmp-for-scratch-files
 def c_system_tmp_we(ctx):
     fp = ctx["fp"]
     if fp.startswith("/tmp/") or fp == "/tmp":
@@ -1751,6 +1986,7 @@ def _enclosing_tagged_scope(fp, hunks):
     return _rfc_scope.tag_scope(fp, content, hunks, _RFC_TAG)
 
 
+# ze point: testing/rfc-tagged-tests-blocking/never-edit-an-rfc-tagged-test-to-match-the-code
 def _rfc_tagged_change_err(old, new, fp, tag_scope=None):
     """Describe an unapproved behavior change to a test carrying an `RFC requirement:` tag.
 
@@ -1821,6 +2057,8 @@ def _carries_rfc_tag(fp):
         return False
 
 
+# ze point: testing/directives/write-the-test-first-and-never-weaken-it
+# ze point: testing/fix-code-not-tests/fix-the-code-when-a-test-fails-not-the-test
 def c_test_weakening(ctx):
     fp = ctx["fp"]
     is_test = bool(
@@ -1925,6 +2163,7 @@ def _file_contains(path, needle):
         return False
 
 
+# ze point: plugins/registration-based-dispatch/dispatch-subcommands-by-registration-not-switch
 def c_switch_dispatch(ctx):
     """ai/rules/plugins.md: no switch-based subcommand dispatch."""
     fp = ctx["fp"]
@@ -1947,6 +2186,7 @@ def c_switch_dispatch(ctx):
     return None
 
 
+# ze point: testing/ci-sleep-justification/justify-every-sleep-in-a-ci-test
 def c_ci_sleep_justification(ctx):
     # Edit-time nudge; the authoritative BLOCK is check_ci_sleep_justification in
     # scripts/dev/verify_wiring_docs.py (run by the inventory make gate). Every
@@ -2052,6 +2292,8 @@ def _in_prose_root(fp, new=""):
     return any(f"/{r}" in fp or fp.startswith(r) for r in _LINE_REF_ROOTS)
 
 
+# ze point: writing/detail-budget/write-only-what-changes-the-next-action
+# ze point: evidence/no-fabrication/cite-a-line-number-only-when-a-generator-maintains-it
 def c_line_number_ref(ctx):
     fp = ctx["fp"]
     if not fp.endswith(_LINE_REF_PROSE):
@@ -2109,6 +2351,8 @@ def c_line_number_ref(ctx):
 CHECKS = (
     c_line_number_ref,
     c_generated_files,
+    c_rendered_rules,
+    c_point_overwrite,
     c_design_without_lsp,
     c_claude_plans,
     c_source_edit_spec,

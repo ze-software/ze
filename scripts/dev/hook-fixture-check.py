@@ -144,6 +144,195 @@ def run_format_alloc(results: Results) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# rendered-rule: ai/rules/<rule>.md is generated, ai/rules/points/** is not
+# --------------------------------------------------------------------------- #
+
+
+def _writeedit(fp: str, tool: str = "Edit", content: str = "x") -> tuple[int, str]:
+    """Drive the WHOLE pretool-writeedit dispatcher over one payload.
+
+    Through the dispatcher, never by importing one check and calling it. A
+    helper's return value cannot see whether the function is in `CHECKS`, cannot
+    see a sibling check refusing the same path for another reason, and cannot
+    see `main()` failing to hand it a file path at all -- which is exactly how
+    the NotebookEdit branch stayed unreachable while a tuple claimed it.
+    """
+    ti = {"file_path": fp}
+    if tool == "Write":
+        ti["content"] = content
+    else:
+        ti["old_string"] = "a"
+        ti["new_string"] = content
+    payload = json.dumps({"tool_name": tool, "tool_input": ti})
+    proc = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "pretool-writeedit.py")],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return proc.returncode, proc.stderr
+
+
+def run_rendered_rule(results: Results) -> None:
+    print("rendered-rule:")
+    rules = os.path.join(ROOT, "ai", "rules")
+
+    # AC-7: the rendered rule is refused, and the refusal names the point dir.
+    code, err = _writeedit(os.path.join(rules, "performance.md"))
+    results.check(
+        "rendered-rule-edit-refused",
+        code == 2 and "ai/rules/points/performance/" in err,
+        repr((code, err)),
+    )
+
+    # AC-8: a point file is the canonical source and is permitted. The tree is at
+    # a fixed depth of two, so a point sits under its `##` section directory.
+    code, err = _writeedit(
+        os.path.join(
+            rules, "points", "performance", "hot-path-rule", "some-directive.md"
+        )
+    )
+    results.check("point-file-edit-allowed", code == 0, repr((code, err)))
+
+    code, err = _writeedit(os.path.join(rules, "points", "performance", "manifest.md"))
+    results.check("point-manifest-edit-allowed", code == 0, repr((code, err)))
+
+    # The three artifacts beside the rendered rules, each pointed at its OWN
+    # generator rather than at the points.
+    for name, target in (
+        ("INDEX.md", "make ze-rules-index"),
+        ("TRIGGERS.md", "make ze-rules-condensed"),
+        ("CORE.md", "make ze-rules-condensed"),
+    ):
+        code, err = _writeedit(os.path.join(rules, name))
+        results.check(
+            f"rendered-rule-{name.split('.')[0].lower()}-refused",
+            code == 2 and target in err,
+            repr((code, err)),
+        )
+
+    # A relative path resolves against PROJECT_DIR, so the check cannot fail OPEN
+    # for a caller whose CWD is not the project root.
+    code, err = _writeedit(os.path.join("ai", "rules", "performance.md"))
+    results.check("rendered-rule-relative-path-refused", code == 2, repr((code, err)))
+
+    # Write, not only Edit.
+    code, err = _writeedit(os.path.join(rules, "testing.md"), tool="Write")
+    results.check("rendered-rule-write-refused", code == 2, repr((code, err)))
+
+    # Discrimination: a same-named rule in ANOTHER checkout is not this project's
+    # generated file, exactly as c_generated_files documents for CLAUDE.md.
+    code, err = _writeedit("/nonexistent-checkout/ai/rules/performance.md")
+    results.check("rendered-rule-other-checkout-allowed", code == 0, repr((code, err)))
+
+    # Discrimination: nothing outside ai/rules/ is touched.
+    code, err = _writeedit(
+        os.path.join(ROOT, "docs", "contributing", "writing-style.md")
+    )
+    results.check("rendered-rule-unrelated-doc-allowed", code == 0, repr((code, err)))
+
+    code, err = _writeedit(os.path.join(ROOT, ".claude", "rules", "planning.md"))
+    results.check("rendered-rule-claude-rules-allowed", code == 0, repr((code, err)))
+
+    # A non-markdown file in ai/rules/ is not a rendered rule.
+    code, err = _writeedit(os.path.join(rules, "notes.txt"))
+    results.check("rendered-rule-non-md-allowed", code == 0, repr((code, err)))
+
+    # --- c_point_overwrite: a Write over an existing point destroys it --------
+    #
+    # The point files are the canonical source. `write_split` in
+    # scripts/dev/rules_points.py refuses this same move and cites
+    # ai/rules/never-destroy-work.md; before this check the hook permitted it,
+    # and one point was clobbered and recovered only from git.
+    existing = os.path.join(rules, "points", "performance", "manifest.md")
+    code, err = _writeedit(existing, tool="Write")
+    results.check(
+        "point-overwrite-write-refused",
+        code == 2 and "already exists" in err,
+        repr((code, err)),
+    )
+    results.check(
+        "point-overwrite-names-both-routes",
+        "Edit ai/rules/points/performance/manifest.md" in err and "a-free-slug" in err,
+        repr(err),
+    )
+
+    # The other canonical shape: a point inside its `##` section directory. The
+    # manifest is one level up from a point, so a depth test written for one
+    # shape silently permits an overwrite of the other.
+    point = os.path.join(
+        rules,
+        "points",
+        "performance",
+        "hot-path-rule",
+        "apply-the-hot-path-ban-to-these-packages.md",
+    )
+    code, err = _writeedit(point, tool="Write")
+    results.check(
+        "point-overwrite-section-point-refused",
+        code == 2 and "one instruction of the rule" in err,
+        repr((code, err)),
+    )
+    results.check(
+        "point-overwrite-section-point-names-its-path",
+        "ai/rules/points/performance/hot-path-rule/"
+        "apply-the-hot-path-ban-to-these-packages.md" in err,
+        repr(err),
+    )
+
+    code, err = _writeedit(point, tool="Edit")
+    results.check(
+        "point-overwrite-section-point-edit-allowed", code == 0, repr((code, err))
+    )
+
+    # Discrimination, four ways. Each one is the same path shape with ONE thing
+    # changed, so a check that refused everything under points/ would fail here.
+    code, err = _writeedit(
+        os.path.join(
+            rules, "points", "performance", "hot-path-rule", "no-such-slug-exists.md"
+        ),
+        tool="Write",
+    )
+    results.check("point-overwrite-new-slug-allowed", code == 0, repr((code, err)))
+
+    code, err = _writeedit(existing, tool="Edit")
+    results.check("point-overwrite-edit-allowed", code == 0, repr((code, err)))
+
+    code, err = _writeedit(
+        "/nonexistent-checkout/ai/rules/points/performance/manifest.md", tool="Write"
+    )
+    results.check(
+        "point-overwrite-other-checkout-allowed", code == 0, repr((code, err))
+    )
+
+    # One level too deep for a point, and a loose `*.md` at the rule level that
+    # is not the manifest: neither is a canonical source, so neither is refused.
+    code, err = _writeedit(
+        os.path.join(
+            rules, "points", "performance", "hot-path-rule", "nested", "manifest.md"
+        ),
+        tool="Write",
+    )
+    results.check("point-overwrite-nested-path-allowed", code == 0, repr((code, err)))
+
+    code, err = _writeedit(
+        os.path.join(rules, "points", "performance", "loose-point.md"), tool="Write"
+    )
+    results.check("point-overwrite-loose-md-allowed", code == 0, repr((code, err)))
+
+    # The two checks must be REACHED by the dispatcher. The fixtures above already
+    # go through it; these name the cause directly when one of them goes red.
+    mod = _load_pretool_writeedit()
+    for check in ("c_rendered_rules", "c_point_overwrite"):
+        results.check(
+            f"{check}-wired-into-CHECKS",
+            getattr(mod, check) in mod.CHECKS,
+            f"{check} is not in pretool-writeedit.CHECKS, so it never runs",
+        )
+
+
+# --------------------------------------------------------------------------- #
 # validate-spec: drive validate-spec.sh over crafted spec files
 # --------------------------------------------------------------------------- #
 
@@ -2892,6 +3081,7 @@ def run_phase_gates(results: Results) -> None:
 
 SECTIONS = {
     "format-alloc": run_format_alloc,
+    "rendered-rule": run_rendered_rule,
     "validate-spec": run_validate_spec,
     "commit-gate": run_commit_gate,
     "session-id": run_session_id,

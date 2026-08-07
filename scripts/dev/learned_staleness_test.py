@@ -16,6 +16,7 @@ These are the Step 1 (wiring) rows of the Wiring Test table in
 from __future__ import annotations
 
 import contextlib
+import datetime
 import io
 import json
 import os
@@ -28,9 +29,15 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from learned_staleness import (
+    DRAIN_REL,
+    DrainError,
     check,
+    check_drain,
+    drain_anchor,
     load_baseline,
     main,
+    parse_drain_budget,
+    required_drain,
     summary_files,
     write_baseline,
 )
@@ -168,7 +175,13 @@ class GateTestCase(unittest.TestCase):
     def _root(self) -> Path:
         d = tempfile.mkdtemp(prefix="learned-staleness-")
         self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
-        return Path(d)
+        root = Path(d)
+        # A root the gate JUDGES carries the drain policy, because an absent one
+        # fails closed: "no schedule authored" must never be reachable by
+        # deleting the file once a rate is armed (`parse_drain_budget`). The
+        # fixture ships the inert rate, so these tests judge the ceiling only.
+        write(root, DRAIN_REL, "start 2026-08-07\nrate 0\n")
+        return root
 
     def findings(self, root: Path) -> list[dict]:
         return check(root)
@@ -561,6 +574,109 @@ class ShippedBaselineTest(unittest.TestCase):
             f"ceiling {ceiling} exceeds the real count {dead}: that gap is slack "
             "a regression can grow into unnoticed. Re-run --write-baseline",
         )
+
+
+class DrainPolicyTest(unittest.TestCase):
+    """AC-18: the ceiling gains a schedule, and the schedule ships inert.
+
+    The ceiling is shrink-only, so the only way it ends is by being drained. The
+    policy says how fast, in two fields and nothing else. Rate 0 makes it inert:
+    the mechanism exists so the answer to "this tax is permanent" is "arm the
+    drain", never "delete the gate" (`ai/rules/planning.md`).
+    """
+
+    START = datetime.date(2026, 8, 7)
+
+    def _root(self, body: str | None) -> Path:
+        d = Path(tempfile.mkdtemp(prefix="learned-drain-"))
+        self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
+        if body is not None:
+            write(d, DRAIN_REL, body)
+        return d
+
+    def test_the_shipped_policy_is_inert(self):
+        """The committed file parses, ships at rate 0, and demands nothing."""
+        self.assertTrue((REPO_ROOT / DRAIN_REL).is_file())
+        budget = parse_drain_budget(REPO_ROOT)
+        self.assertEqual(budget.rate, 0)
+        lines, code = check_drain(REPO_ROOT, len(check(REPO_ROOT)))
+        self.assertEqual(code, 0)
+        self.assertIn("INERT", lines[0])
+        self.assertIn("floor 0", lines[0])
+
+    def test_the_policy_carries_policy_only(self):
+        """A count, a per-summary row, or a third key is refused at the parser."""
+        for body, why in (
+            ("start 2026-08-07\nrate 0\nsummaries 934\n", "a third key"),
+            ("start 2026-08-07\nrate 0\nplan/learned/983 1\n", "a per-item row"),
+            ("start 2026-08-07\n", "a missing rate"),
+            ("rate 0\n", "a missing start"),
+            ("start 2026-08-07\nrate 0\nrate 3\n", "a repeated key"),
+            ("start 7/8/2026\nrate 0\n", "a date that is not YYYY-MM-DD"),
+            ("start 2026-08-07\nrate -1\n", "a negative rate"),
+            ("start 2026-08-07\nrate nan\n", "a rate arithmetic cannot compare"),
+        ):
+            with self.subTest(why=why):
+                with self.assertRaises(DrainError):
+                    parse_drain_budget(self._root(body))
+
+    def test_a_missing_policy_is_never_a_silent_pass(self):
+        """An absent policy does not mean nothing owed (`ai/rules/evidence.md`)."""
+        lines, code = check_drain(self._root(None), 0)
+        self.assertEqual(code, 1)
+        self.assertIn("does NOT mean", lines[0])
+
+    def test_required_drain_counts_whole_calendar_months(self):
+        """ceil over whole months, capped at the anchor, clamped anniversary."""
+        start = datetime.date(2026, 1, 31)
+        # Nothing owed before the first whole month has elapsed.
+        self.assertEqual(required_drain(start, 10, 500, datetime.date(2026, 2, 1)), 0)
+        # February is short, so the anniversary clamps to the 28th rather than
+        # dropping the month. Comparing raw day numbers would lose it.
+        self.assertEqual(required_drain(start, 10, 500, datetime.date(2026, 2, 28)), 10)
+        self.assertEqual(required_drain(start, 10, 500, datetime.date(2026, 4, 30)), 30)
+        # ceil, not floor: the first month already owes one at half a reference.
+        self.assertEqual(required_drain(start, 0.5, 500, datetime.date(2026, 2, 28)), 1)
+        # Capped at the anchor, which is what retires the schedule.
+        self.assertEqual(required_drain(start, 100, 7, datetime.date(2027, 1, 31)), 7)
+
+    def test_an_armed_schedule_reds_only_when_the_corpus_does_not_repair(self):
+        """The mutation proof: the rate is the only thing that moves.
+
+        Same tree, same count, same anchor. At rate 0 the schedule passes; armed,
+        it fails; and it goes green again when the repairs are made. Nothing else
+        in the fixture can be what changed the exit code.
+        """
+        later = datetime.date(2026, 9, 7)
+        inert = self._root("start 2026-08-07\nrate 0\n")
+        lines, code = check_drain(inert, 95, anchor=100, today=later)
+        self.assertEqual(code, 0, "rate 0 must demand nothing")
+
+        armed = self._root("start 2026-08-07\nrate 10\n")
+        lines, code = check_drain(armed, 95, anchor=100, today=later)
+        self.assertEqual(code, 1, "5 repaired against a floor of 10 must fail")
+        self.assertIn("requires 10 repaired", lines[0])
+
+        lines, code = check_drain(armed, 90, anchor=100, today=later)
+        self.assertEqual(code, 0, "10 repaired against a floor of 10 must pass")
+        self.assertIn("10 of 100", lines[0])
+
+    def test_an_armed_schedule_with_no_anchor_refuses(self):
+        """A schedule that cannot measure progress must not report success."""
+        armed = self._root("start 2026-08-07\nrate 10\n")
+        lines, code = check_drain(armed, 95, today=datetime.date(2026, 9, 7))
+        self.assertEqual(code, 1)
+        self.assertIn("cannot be read from git", lines[0])
+
+    def test_the_anchor_is_read_from_history(self):
+        """The anchor comes from git, so the policy file holds no count."""
+        anchor = drain_anchor(REPO_ROOT, self.START)
+        self.assertTrue(
+            anchor is None or anchor > 0,
+            f"the anchor must be a real ceiling or absent, got {anchor}",
+        )
+        # A date before this repository existed has no commit to read.
+        self.assertIsNone(drain_anchor(REPO_ROOT, datetime.date(1999, 1, 1)))
 
 
 class RealCorpusTest(unittest.TestCase):

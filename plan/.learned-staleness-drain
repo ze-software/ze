@@ -1,0 +1,30 @@
+# Drain policy for the learned-summary staleness ceiling.
+#
+# Read by check_drain (scripts/dev/learned_staleness.py) on every run of that gate,
+# which is every `make ze-doc-test` inside `make ze-verify`.
+# Owned by ai/rules/planning.md, "Writing Learned Summaries", and ultimately by Thomas.
+#
+# THIS FILE CARRIES POLICY ONLY: a start date and a rate. Two fields, nothing else.
+# It may NEVER gain a per-summary row, a count, a file list, or a rule column. The
+# count lives in plan/.learned-staleness-baseline, it is derived from a run, and one
+# flag writes it. A second copy here would drift from that one, and a reviewer should
+# treat such a line as a defect rather than an extension.
+#
+#   start  YYYY-MM-DD the drain clock begins counting from.
+#   rate   Dead references the corpus must have REPAIRED per calendar month. The
+#          required drain is ceil(rate x whole calendar months since start), CAPPED at
+#          the ceiling in force when the clock started. Progress is measured from that
+#          same anchor, so tightening the baseline never raises the bar the corpus is
+#          measured against. The check also retires itself: a corpus at zero dead
+#          references has drained the whole anchor, and the floor can never exceed it.
+#
+# The rate SHIPS AT 0, so the comparison lands inert and nothing changes today. Arming
+# it is a one-line commit that sets a non-zero rate, and Thomas takes it. Guessing a
+# rate now would either demand nothing or red the tree on unrelated work.
+#
+# The mechanism exists so the answer to "this tax is permanent" is "arm the drain",
+# never "delete the gate" (ai/rules/planning.md, "The learned-staleness ceiling is
+# drained, never removed and never widened").
+
+start 2026-08-07
+rate 0

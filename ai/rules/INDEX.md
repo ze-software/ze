@@ -31,7 +31,7 @@ Total: 27 rules
 | Quality Standards | before presenting any work as complete | blocking | `ai/rules/quality.md` |
 | Repository Maintenance | adding or changing a feature, tool, gate, hook, runtime dependency, or generated file, looking up which check enforces a rule, or reporting development friction | blocking | `ai/rules/repo-maintenance.md` |
 | RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements | blocking | `ai/rules/rfc-compliance.md` |
-| Rule File Format | authoring or editing any `ai/rules/*.md` rule file | blocking | `ai/rules/rule-format.md` |
+| Rule File Format | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment | blocking | `ai/rules/rule-format.md` |
 | Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |
 | No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
 | Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |

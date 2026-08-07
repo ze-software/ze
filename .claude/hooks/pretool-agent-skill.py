@@ -23,6 +23,10 @@ import os
 import re
 import sys
 
+# A `ze point:` comment directly above a gate names the rule point it enforces
+# (`<rule-stem>/<slug>` under ai/rules/points/), or `none -- <why>`. Joined by
+# `make ze-rules-gate-map`, which fails on a point that does not exist.
+
 # (skill, regex over the prompt) -- ordered, first match wins.
 # Each pattern names the ASK, never the subject matter: "review this diff" is a
 # review, while "explain how review works" is research about reviews.
@@ -90,6 +94,7 @@ def names_a_skill(prompt: str) -> bool:
     return any(m.group(1) in known for m in _SKILL_REF.finditer(prompt))
 
 
+# ze point: cli/agent-tooling-contract/use-the-skill-instead-of-a-raw-agent
 def verdict(prompt: str) -> tuple[str, str] | None:
     """(skill, matched-text) when a skill covers this prompt, else None."""
     if not prompt:
@@ -195,6 +200,7 @@ def _is_review_work(prompt: str) -> bool:
     return bool(hit) and hit[0] in _REVIEW_SKILLS
 
 
+# ze point: planning/spec-work-runs-in-subagents-the-main-thread-supervises/run-every-review-on-opus-5
 def review_model_refusal(prompt: str, transcript: str | None = None) -> str:
     """Why this review may not run here, or '' when it may."""
     if not _is_review_work(prompt):

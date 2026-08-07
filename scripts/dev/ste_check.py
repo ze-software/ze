@@ -99,6 +99,12 @@ DEFAULT_GLOBS = (
 
 # rfc/ holds external normative text that must stay verbatim. The rest is either
 # vendored, generated into, or scratch.
+#
+# ai/rules/points/ is the source `ai/rules/<rule>.md` is rendered from, and every
+# point body is a VERBATIM fragment of that rendered file. Reviewing both counts
+# each sentence twice: 951 of the 2417 lines the ratchet printed the first time
+# the points existed were the same findings the rendered rule already reports.
+# The rendered rule stays in scope, so nothing here goes unreviewed.
 EXCLUDE_DIRS = (
     "rfc/",
     "tmp/",
@@ -107,6 +113,7 @@ EXCLUDE_DIRS = (
     "gokrazy/",
     ".git/",
     "backups/",
+    "ai/rules/points/",
 )
 
 # Generated files carry their producer's prose, so a finding there belongs to the
