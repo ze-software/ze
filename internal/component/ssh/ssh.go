@@ -23,10 +23,10 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/ssh"
 	"charm.land/wish/v2"
 	"charm.land/wish/v2/activeterm"
 	"charm.land/wish/v2/bubbletea"
-	"github.com/charmbracelet/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/ze-software/ze/internal/component/authz"

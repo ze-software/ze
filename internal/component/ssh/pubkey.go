@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/charmbracelet/ssh"
+	"charm.land/ssh"
 
 	"github.com/ze-software/ze/internal/component/authz"
 )
