@@ -86,6 +86,13 @@ Reuses SSH user database (`[]ssh.UserConfig`). Two mechanisms:
 
 Session tokens: 32 bytes from `crypto/rand`, hex-encoded. Cookie: `Secure`, `HttpOnly`, `SameSite=Strict`. One session per user, 24h TTL.
 
+A session also ends when the running configuration stops declaring its user. The session records which backend authenticated it (`AuthResult.Source`), and `ValidateToken` re-checks a session the LOCAL backend granted against the credentials the running configuration declares right now, on every request. An operator removed by a reload loses an open browser tab at once, with no restart and no wait for the TTL. A session a remote backend granted (RADIUS, TACACS+) is not checked against the local list, because that list never granted it.
+
+<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken, WebSession.LocalAnchored -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, liveConfigUsers -->
+
+An SSE stream that is already open survives the removal until the client disconnects: it authenticates at connect and then blocks for the life of the connection, so no later request exists to refuse. Every mutation route is a fresh request and is refused.
+
 ## Per-User Editor
 
 The `EditorManager` creates independent `cli.Editor` instances per authenticated user.

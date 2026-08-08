@@ -64,6 +64,9 @@ The web interface uses the same user database as the SSH server. Users log in th
 2. Enter username and password. On success, a `ze-session` cookie is set.
 3. The cookie is `Secure`, `HttpOnly`, and `SameSite=Strict`.
 4. Each user can have one active session. Logging in again invalidates the previous session.
+5. A session lasts 24 hours, and ends earlier if the configuration stops declaring the user. Remove a user and reload, and their open browser tab is refused on its next request. No daemon restart is necessary.
+
+A user authenticated by RADIUS or TACACS+ keeps their session: the local user list did not grant it and does not end it.
 
 ### JSON API
 

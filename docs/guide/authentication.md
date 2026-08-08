@@ -166,6 +166,40 @@ variable is caught at startup rather than by these checks.
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
 
+### Authentication on reload
+
+A config reload rebuilds the credentials of the running REST and gRPC servers.
+Add a token, rotate it, remove it, or edit the user list, and the change takes
+effect on the next reload. The daemon does not restart and the listeners do not
+rebind, so open connections keep working.
+
+The web and MCP servers choose their authentication once, when they are built.
+A reload that asks either of them for a different mode fails the whole commit:
+
+```
+<service> cannot change its authentication while running: it is serving
+<mode> and the config asks for <mode>; restart ze to apply it
+```
+
+The reload is refused before anything is applied. No listener moves and no
+credential changes. Restart ze to apply that edit.
+
+A transport the config does not enable is never built, and a server that does
+not run cannot refuse a reload. An `api-server` block that enables REST alone
+reloads on the REST server, and says nothing about gRPC.
+
+The listener guard runs again over the pair each service holds once the reload
+applies, and it reads the rebuilt authentication rather than the mode the server
+started with. A reload that removes the API credentials and moves the same
+listener off loopback is refused for that reason. The refusal restores the
+credentials the reload had already installed, so the daemon keeps serving the
+config it rolled back to.
+
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- checkAuthRebuildable, applyAuthIntents, checkReloadExposure -->
+<!-- source: internal/component/api/rest/auth.go -- UpdateAuth -->
+<!-- source: internal/component/api/grpc/server.go -- UpdateAuth -->
+
 ### Tab completion (`ze completion`)
 
 Tab completion runs silently in the shell and does not accept flags. To

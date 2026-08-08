@@ -195,7 +195,14 @@ Two ways:
 | `ze start --web-only` | Starts web UI only, no daemon (config editing, default port 3443) |
 | `environment { web { } }` in config | Detected during config load, enables web server |
 
-Both paths call `startWebServer()` in `cmd/ze/hub/main.go` which wires all routes, creates the EditorManager, CLI completer, and session store.
+Both paths call `startWebServer()` in `cmd/ze/hub/service_web.go` which wires all routes, creates the EditorManager, CLI completer, and session store.
+
+The caller gives `startWebServer` the local credentials. It does not read them
+for itself. `liveLocalUsers` (`cmd/ze/hub/main_servers.go`) is the one producer:
+it merges the zefs power user with the users the running configuration declares,
+and the AAA chain, the web login and the session check all answer from it. A
+second reader could disagree with the first, and a login the chain granted would
+then be revoked by the session check on the next request.
 
 ## Security
 
@@ -205,4 +212,5 @@ Both paths call `startWebServer()` in `cmd/ze/hub/main.go` which wires all route
 | CSP | `script-src 'self'` -- no inline scripts, no unsafe-eval |
 | Auth | Session cookie (Secure, HttpOnly, SameSite=Strict) or Basic Auth for API |
 | Sessions | 32-byte random token, 24h TTL, one per user, bcrypt password check |
+| Session revocation | A session the LOCAL backend granted is re-checked against the running configuration on every request (`SessionStore.ValidateToken`, `internal/component/web/auth.go`). A user an operator deletes and reloads loses the session at once: the TTL is a ceiling, never the only test. A session a RADIUS or TACACS+ backend granted is not anchored to the local list and survives, because that list never declared the operator |
 | Paths | YANG identifier validation, path traversal rejected |
