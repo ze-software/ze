@@ -33,7 +33,13 @@ type Checker struct {
 	lastReceived        string // For diff output on mismatch
 	connectionJustEnded bool   // True if last match ended a connection (not just sequence)
 	expectClose         bool   // True after sighup action — next EOF is expected (daemon restarts peer)
-	mu                  sync.Mutex
+	// misorder holds one note per marker accepted in silence that ALSO matched an
+	// expectation the fixture still owed (ExpectedOrKeepalive). misorderPending is
+	// the note the caller has not read yet, so the peer can print it where it
+	// happened rather than only where a later frame fails.
+	misorder        []string
+	misorderPending string
+	mu              sync.Mutex
 }
 
 // NewChecker creates a new checker from expected messages.
@@ -493,10 +499,34 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 		return true, false
 	}
 
-	// No match - if KEEPALIVE or EOR, silently accept.
-	// EOR (End-of-RIB) may arrive before expected messages due to
-	// initial route sync racing with the read loop.
+	// No match against the current group. A KEEPALIVE or an End-of-RIB is
+	// tolerated here: both are frames a daemon emits on its own schedule, so a
+	// fixture that says nothing about them is not red merely because one arrived.
+	//
+	// A marker that ALSO matches an expectation the fixture still owes is
+	// ambiguous, and the ambiguity cannot be settled at arrival time. Two frames
+	// with the same bytes have two different meanings, and only what comes AFTER
+	// tells them apart:
+	//
+	//   the marker the fixture declares later, arrived early. Nothing else will
+	//   fill that slot, so the expectation below it fails and this frame is the
+	//   one that went out of order (test/plugin/mup4.ci).
+	//
+	//   an extra marker the daemon emits on its own account. A SECOND, identical
+	//   marker fills the declared slot later and the run is correct
+	//   (test/plugin/role-otc-rs-withdraw-eor.ci: ze sends the destination its own
+	//   End-of-RIB at establishment, byte-identical to the relayed one the fixture
+	//   declares at seq 3).
+	//
+	// So the judgement is DEFERRED rather than guessed: accept the frame, record
+	// it, and let the failure that follows name it (noteMisordered). Refusing it
+	// here reds the second shape, and accepting it in silence with no record is
+	// what left the first shape diffing an End-of-RIB rule against a withdraw,
+	// blaming two frames neither of which was the one out of order.
 	if msg.IsKeepalive() || msg.IsEOR() {
+		if c.expectedLater(stream) {
+			c.noteMisordered(stream)
+		}
 		return false, true
 	}
 
@@ -507,6 +537,105 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 	}
 
 	return false, false
+}
+
+// expectedLater reports whether stream satisfies an expectation the fixture
+// still owes, in the current seq group or in any group behind it. Caller must
+// hold c.mu. It consumes nothing.
+//
+// This is what separates a frame nobody asked for from one that arrived out of
+// order, and it has to look past the current group because that is exactly where
+// consumeMatches cannot see. The current group is re-checked as well: an
+// "ordered:" needle that is present but not at the front of its subqueue is a
+// match consumeOrdered correctly refuses to consume, and it is still an
+// expectation the fixture owes.
+func (c *Checker) expectedLater(stream string) bool {
+	if groupMatches(c.messages, stream) {
+		return true
+	}
+	for _, group := range c.sequences {
+		if groupMatches(group, stream) {
+			return true
+		}
+	}
+	return false
+}
+
+// groupMatches reports whether stream satisfies any check in one group, without
+// consuming it or advancing anything. It mirrors the matching that
+// consumeMatches and consumeOrdered perform, including the 32-character marker
+// skip for a bare-hex check, so the two can never disagree about what "matches".
+func groupMatches(checks []string, stream string) bool {
+	upper := ""
+	for _, check := range checks {
+		if needle, ok := strings.CutPrefix(check, "ordered:"); ok {
+			if upper == "" {
+				upper = strings.ToUpper(stream)
+			}
+			if indexByteAligned(upper, needle, 0) >= 0 {
+				return true
+			}
+			continue
+		}
+		received := stream
+		if !strings.HasPrefix(check, strings.Repeat("F", 32)) && !strings.Contains(check, ":") && len(received) >= 32 {
+			received = received[32:]
+		}
+		if matchRule(check, received) {
+			return true
+		}
+	}
+	return false
+}
+
+// noteMisordered records one marker that was accepted in silence while an
+// expectation the fixture still owed matched it. Caller must hold c.mu.
+//
+// The note names the frame and the expectation that was current when it landed,
+// because those two together are what a reader needs: the frame that arrived,
+// and the place the fixture was up to when it did.
+func (c *Checker) noteMisordered(stream string) {
+	var b textbuf.Buffer
+	b.Str("out-of-order marker accepted in silence: ").Str(stream)
+	if len(c.messages) > 0 {
+		b.Str("\n  the fixture was waiting for: ").Str(c.messages[0])
+	}
+	b.Str("\n  a later expectation matches this frame and the current one does not.")
+	b.Str("\n  If an expectation below fails or never matches, this is the frame that arrived in the wrong place.")
+	note := b.String()
+	c.misorder = append(c.misorder, note)
+	c.misorderPending = note
+}
+
+// TakeMisorderNote returns the note for the most recent marker that arrived out
+// of order, and clears it. It returns an empty string when the last silent
+// accept matched no remaining expectation.
+//
+// The peer calls this on every silent accept so the note reaches the log at the
+// moment the frame landed. That is the only report a fixture gets when the run
+// ends in a TIMEOUT rather than a mismatch, which is the shape a starved host
+// produces.
+func (c *Checker) TakeMisorderNote() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	note := c.misorderPending
+	c.misorderPending = ""
+	return note
+}
+
+// MisorderNotes returns every out-of-order marker note recorded so far, ready to
+// append to a mismatch report. It returns an empty string when there are none.
+func (c *Checker) MisorderNotes() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.misorder) == 0 {
+		return ""
+	}
+	var b textbuf.Buffer
+	for _, note := range c.misorder {
+		b.Str("\n").Str(note)
+	}
+	return b.String()
 }
 
 // LastMismatch returns the expected and received values from the last mismatch.

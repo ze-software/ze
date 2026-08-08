@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — initial route sending on BGP session establishment
 // Overview: peer.go — Peer struct and FSM state machine
+// RFC: rfc/short/rfc4724.md — End-of-RIB marker: sent once the initial routing update completes
 
 package reactor
 
@@ -39,12 +40,13 @@ func (p *Peer) sendInitialRoutes() {
 	addr := p.settings.Address.String()
 	peerLogger().Debug("sendInitialRoutes ENTER", "peer", addr)
 
-	// The FSM callback sets sendingInitialRoutes to 1 before notifying plugins,
-	// ensuring ShouldQueue() returns true during event delivery. Here we upgrade
-	// 1→2 to indicate the goroutine is actively running. CAS guards against
-	// concurrent execution from rapid reconnects (flag would be 2 if another
-	// goroutine is already processing). If the flag is 0, the session was torn
-	// down before we started — don't run.
+	// setState sets sendingInitialRoutes to 1 in the same call that publishes
+	// PeerStateEstablished, and before it, so ShouldQueue() is already true when
+	// the FSM callback notifies plugins. Here we upgrade 1→2 to indicate the
+	// goroutine is actively running. CAS guards against concurrent execution from
+	// rapid reconnects (flag would be 2 if another goroutine is already
+	// processing). If the flag is 0, the session was torn down before we started
+	// — don't run.
 	if !p.sendingInitialRoutes.CompareAndSwap(1, 2) {
 		peerLogger().Debug("sendInitialRoutes skipped", "peer", addr, "flag", p.sendingInitialRoutes.Load())
 		return
@@ -91,7 +93,7 @@ func (p *Peer) sendInitialRoutes() {
 					continue
 				}
 				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.settings.LinkLocal, p.sendCtx.Load())
+				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load())
 				err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
 				message.PutUpdateBuilder(ub)
 				if err != nil {
@@ -110,7 +112,7 @@ func (p *Peer) sendInitialRoutes() {
 						routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
 						continue
 					}
-					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.settings.LinkLocal, p.sendCtx.Load()))
+					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load()))
 				}
 				if len(params) == 0 {
 					message.PutUpdateBuilder(ub)
@@ -140,7 +142,7 @@ func (p *Peer) sendInitialRoutes() {
 			}
 			addPath := p.addPathFor(routeFamily(route))
 			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.settings.LinkLocal, p.sendCtx.Load())
+			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load())
 			err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
 			message.PutUpdateBuilder(ub)
 			if err != nil {
@@ -179,6 +181,25 @@ func (p *Peer) sendInitialRoutes() {
 	// 2. Channel-based sync for internal plugins like bgp-rib that signal
 	//    "plugin session ready" after replaying routes (may take longer than 500ms
 	//    under load).
+	//
+	// KNOWN DEFECT, do not "simplify" this condition without reading
+	// plan/spec-fixit-forward-rail-initial-sync-ordering.md first. apiSyncExpected
+	// counts only bindings that declare `send [ update ]`
+	// (ProcessBinding.SendUpdate, peer_run.go), and NOTHING on the route-injection
+	// path reads that declaration -- a plugin bound as a bare `process X { }`
+	// injects routes all the same. So a peer with an undeclared external route
+	// source takes no hold at all and its End-of-RIB can precede the very routes
+	// it claims to complete (RFC 4724 Section 4; test/plugin/mup4.ci and
+	// test/plugin/ipv6.ci fail on it under load).
+	//
+	// Widening the condition to "any process binding" is NOT the fix on its own:
+	// the hold keeps sendingInitialRoutes non-zero, so it also widens the window
+	// in which ShouldQueue() is true, and the FORWARDING rail does not consult
+	// ShouldQueue. Measured on 2026-08-08: with a 500ms hold,
+	// test/plugin/role-otc-rs-withdraw-eor.ci delivers the same relayed route to
+	// the destination peer TWICE. Separating "initial sync running" (which gates
+	// queueing) from "End-of-RIB not yet sent" (which gates the marker) is what
+	// this needs, and that is the forward-rail spec's subject.
 	p.mu.RLock()
 	needsAPIWait := p.apiSyncExpected > 0
 	p.mu.RUnlock()
@@ -757,6 +778,12 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			Prefix:  defaultPrefix,
 			NextHop: nextHop,
 			Origin:  attribute.OriginIGP,
+			// RFC 2545 Section 3 binds every advertisement of an IPv6 route, and a
+			// default route is one: the link-local address is appended after the
+			// global one when the speaker shares a subnet with both the next-hop
+			// entity and this peer. linkLocalNextHopFor returns the zero Addr in
+			// every other case, and buildMPReach then writes the 16-octet form.
+			LinkLocalNextHop: p.linkLocalNextHopFor(nextHop),
 		}
 		update := ub.BuildUnicast(&params)
 		err := p.SendUpdate(update)

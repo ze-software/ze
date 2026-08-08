@@ -648,7 +648,13 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 
 		matched, silentAccept := p.checker.ExpectedOrKeepalive(msg)
 		if silentAccept {
-			// KEEPALIVE not in expectations, silently accept
+			// KEEPALIVE not in expectations, silently accept. A marker that also
+			// matched an expectation still owed is accepted the same way and said
+			// out loud, because a run that then TIMES OUT gets no other report
+			// (checker.go, TakeMisorderNote).
+			if note := p.checker.TakeMisorderNote(); note != "" {
+				p.printf("\n%s\n", note)
+			}
 			continue
 		}
 
@@ -659,7 +665,10 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		if !matched {
 			expected, received := p.checker.LastMismatch()
 			diff := decode.Diff(expected, received)
-			return Result{Success: false, Error: fmt.Errorf("message mismatch%s", diff)}
+			// Every marker accepted in silence that a remaining expectation
+			// matched is repeated here. When THIS mismatch is the consequence of
+			// one of them, the diff alone names two innocent frames.
+			return Result{Success: false, Error: fmt.Errorf("message mismatch%s%s", diff, p.checker.MisorderNotes())}
 		}
 
 		if p.checker.Completed() {
