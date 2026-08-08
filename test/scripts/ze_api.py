@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import select
 import signal
 import socket
@@ -74,6 +75,51 @@ def _ze_env(key: str, default: str = "") -> str:
     if v:
         return v
     return os.environ.get(under.upper(), default)
+
+
+# Shares of the test budget the observer gives its two waits. They sum to 0.85,
+# leaving the runner a margin in which to report the child's own diagnosis
+# rather than killing it first. Any share below 1.0 keeps both waits reachable,
+# which is the property that matters: a constant cannot, because it is unrelated
+# to the .ci timeout that will kill the process.
+_EOR_BUDGET_SHARE = 0.60
+_SHUTDOWN_BUDGET_SHARE = 0.25
+
+
+def _test_budget_seconds() -> float | None:
+    """The wall-clock deadline the runner will enforce, in seconds, or None.
+
+    `ze_test_budget` is published by `(*Runner).testBudgetEnv`
+    (`internal/test/runner/runner_exec_util.go`) as a Go duration string. None
+    means this process is not under the runner, so callers keep their own
+    defaults.
+    """
+    raw = _ze_env("ze.test.budget")
+    if not raw:
+        return None
+    try:
+        return _parse_go_duration(raw)
+    except ValueError:
+        return None
+
+
+def _parse_go_duration(raw: str) -> float:
+    """Seconds from a Go duration string such as `1m30s`, `1.5s` or `250ms`.
+
+    Raises ValueError on anything it cannot read in full, so a format this does
+    not handle falls back to the caller's default rather than to a silent zero.
+    A zero would make every derived wait expire at once.
+    """
+    units = {"ns": 1e-9, "us": 1e-6, "ms": 1e-3, "s": 1.0, "m": 60.0, "h": 3600.0}
+    pair = r"[0-9]*\.?[0-9]+(?:ns|us|ms|s|m|h)"
+    # fullmatch, so leading or trailing text cannot be skipped over. Scanning for
+    # pairs and checking only where the last one ENDED accepted "junk30s".
+    if not re.fullmatch(f"(?:{pair})+", raw):
+        raise ValueError(f"unreadable Go duration: {raw!r}")
+    return sum(
+        float(value) * units[unit]
+        for value, unit in re.findall(r"([0-9]*\.?[0-9]+)(ns|us|ms|s|m|h)", raw)
+    )
 
 
 class API:
@@ -1763,8 +1809,8 @@ class API:
         self,
         expected_peers: int,
         forward_prefix: str | None = None,
-        eor_timeout: float = 30.0,
-        shutdown_timeout: float = 15.0,
+        eor_timeout: float | None = None,
+        shutdown_timeout: float | None = None,
         require: bool = True,
     ) -> bool:
         """Standard route-server observer: hand-shake, wait for the RS replay to
@@ -1789,8 +1835,23 @@ class API:
         arrived. Pass `require=False` for a test that deliberately tolerates an
         incomplete replay; it then returns False and shuts ze down cleanly.
 
+        Both timeouts default to a SHARE of the runner's deadline for this test
+        (`ze_test_budget`), not to a constant, and a constant is what made the
+        promise above false. Every one of the 17 `.ci` files calling this ran with
+        a foreground timeout of 10s, 15s or 20s against the old 30.0s default, so
+        the runner always killed the process first and `ZE-OBSERVER-FAIL` never
+        once reached anyone. Outside the runner the old constants still apply.
+        Pass an explicit value to override either.
+
         Returns True if the RS replayed fully before `eor_timeout`.
         """
+        budget = _test_budget_seconds()
+        if eor_timeout is None:
+            eor_timeout = 30.0 if budget is None else budget * _EOR_BUDGET_SHARE
+        if shutdown_timeout is None:
+            shutdown_timeout = (
+                15.0 if budget is None else budget * _SHUTDOWN_BUDGET_SHARE
+            )
         self.declare_done()
         self.wait_for_config()
         self.capability_done()

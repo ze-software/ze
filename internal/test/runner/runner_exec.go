@@ -776,6 +776,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Plugin startup stall watchdog. Derived from this test's own budget,
 			// not a constant: see pluginStageStall (plugin_stage_stall.go).
 			r.pluginStageStallEnv(testBudget),
+			r.testBudgetEnv(testBudget),
 			// Cap doctor reachability probes so they fail fast against
 			// deliberately-unreachable fixtures instead of waiting out their full
 			// multi-second timeout (which dominates wall-clock and flakes under

@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | guards 1 and 3 done; guard 2 surveyed, not fixed; guard 4 not started |
+| Phase | guards 1, 2 and 3 done; guard 4 needs the owner ruling below |
 | Deferral shard | `-` |
 | Updated | 2026-08-09 |
 
@@ -19,9 +19,8 @@ The third answers 0 for a query that failed, and 0 is a legitimate RIB size. The
 fourth is missing outright: nothing stops a new scenario writing the same
 swallowed call the third one hid behind.**
 
-Guard 3 is DONE (2026-08-07). Guard 1 is DONE (2026-08-09). Guard 2 is SURVEYED
-(2026-08-09, see AC-4 below) and not fixed. Guard 4 is untouched and needs the
-ruling in the table above. This spec stays open for guards 2 and 4.
+Guard 3 is DONE (2026-08-07). Guards 1 and 2 are DONE (2026-08-09). Guard 4 is
+untouched and needs the ruling in the table above. This spec stays open for it.
 
 Found on 2026-08-02 by the independent review of
 `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record is `plan/learned/1307-rfc-evidence-tier-vacuity.md`), while closing
@@ -223,8 +222,8 @@ here may expose tests that were passing for the wrong reason, which is the point
 |-------|-------------------|-------------------|
 | AC-1 | `ln.Accept()` fails with the context done, and the checker has NOT completed | `Result.Success` is false and the error names cancellation before completion. **MET**, `acceptConnMapBatch` (`internal/test/peer/peer_connmap.go`); `TestCanceledAcceptReportsFailureUntilCheckerCompletes/expectation_outstanding` |
 | AC-2 | `ln.Accept()` fails with the context done, and the checker HAS completed | `Result.Success` is true, unchanged from today. **MET**, same test, `/expectations_satisfied` |
-| AC-3 | `run_rs_observer` runs inside a `.ci` whose foreground timeout is shorter than `eor_timeout` | Either the observer timeout is derived from the `.ci` budget, or the mismatch is reported as a harness error rather than silently unreachable |
-| AC-4 | Every `.ci` invoking `run_rs_observer` | Surveyed, and none leaves the diagnostic unreachable. **SURVEYED 2026-08-09 and it FAILS today**: all 17 call sites are 10s, 15s or 20s against a 30.0s default, so every one leaves it unreachable. The survey is the evidence; the repair is AC-3 |
+| AC-3 | `run_rs_observer` runs inside a `.ci` whose foreground timeout is shorter than `eor_timeout` | Either the observer timeout is derived from the `.ci` budget, or the mismatch is reported as a harness error rather than silently unreachable. **MET by DERIVATION**: `(*Runner).testBudgetEnv` (`internal/test/runner/runner_exec_util.go`) publishes `ze_test_budget`, the headroom-scaled deadline the child actually races, and `run_rs_observer` (`test/scripts/ze_api.py`) takes 60% of it for `eor_timeout` and 25% for `shutdown_timeout`. A share below 1.0 is reachable at every budget, which no constant can be |
+| AC-4 | Every `.ci` invoking `run_rs_observer` | Surveyed, and none leaves the diagnostic unreachable. **MET**: surveyed 2026-08-09, all 17 call sites were 10s (3), 15s (9) or 20s (5) against a 30.0s default, so every one was unreachable. The derivation in AC-3 fixes all 17 at once, and no `.ci` needed editing. `shutdown_timeout` had the same defect at 15.0s and is fixed with it |
 | AC-5 | The full functional suite, before and after | Same set of passing tests, or a named test whose green was false, with the evidence. **MET for guard 1**: `make ze-plugin-test` 602/602 PASS, exit 0, which is where all 15 `connmap` `.ci` files live and so is the population `acceptConnMapBatch` can affect |
 | AC-6 | Guard 1 mutated to return success unconditionally | `TestCanceledAcceptReportsFailureUntilCheckerCompletes` turns red. **MET**, mutation run 2026-08-09: `result.Success = true, want false` |
 | AC-7 | `show bgp rib status` fails, or answers without a `routes-in` field | `Ze.rib_count` raises and names the container and the command. It never returns 0. **MET** |

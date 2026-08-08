@@ -161,6 +161,24 @@ func childEnv(extra ...string) []string {
 	return append(env, extra...)
 }
 
+// testBudgetEnv publishes the deadline a child actually races, so the child can
+// size its own waits inside it instead of picking a constant.
+//
+// A constant larger than the .ci timeout is a branch that can never run. Every
+// one of the 17 callers of run_rs_observer sat under its 30s eor_timeout
+// default, so the ZE-OBSERVER-FAIL diagnosis it advertises had never once
+// reached anyone (`plan/spec-fixit-test-harness-fail-open-guards.md`, guard 2).
+//
+// The value is headroom-SCALED, unlike the input pluginStageStallEnv takes: this
+// is the wall-clock the child is measured against, not a budget it must scale
+// itself.
+func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
+	var tb textbuf.Buffer
+	return tb.Str("ze_test_budget=").
+		Str(r.withParallelHeadroom(testBudget).String()).
+		String()
+}
+
 // parallelFactor is the multiplier withParallelHeadroom applies:
 // ParallelTimeoutHeadroom under concurrent execution, 1 for a serial run.
 // Exposed so COUNT-based budgets (an HTTP readiness poll's retry attempts)

@@ -602,5 +602,68 @@ class TestWaitForOutput(unittest.TestCase):
         return path
 
 
+class TestObserverBudget(unittest.TestCase):
+    """Guard 2 of plan/spec-fixit-test-harness-fail-open-guards.md.
+
+    VALIDATES: the observer sizes its waits from the runner's deadline, so both
+    stay reachable inside it.
+    PREVENTS: the constant that made ZE-OBSERVER-FAIL unreachable at all 17 call
+    sites. Every one ran a 10s, 15s or 20s .ci timeout against a 30.0s default,
+    so the runner always killed the process before the diagnosis could fire.
+    """
+
+    def test_go_durations_parse(self):
+        for raw, want in (
+            ("30s", 30.0),
+            ("1.5s", 1.5),
+            ("250ms", 0.25),
+            ("1m30s", 90.0),
+            ("2m", 120.0),
+            ("1h", 3600.0),
+        ):
+            with self.subTest(raw=raw):
+                self.assertAlmostEqual(ze_api._parse_go_duration(raw), want)
+
+    def test_an_unreadable_duration_raises_rather_than_reading_zero(self):
+        # Zero is the dangerous answer: every derived wait would expire at once,
+        # so this must raise and let the caller keep its own default.
+        for raw in ("", "30", "abc", "30s junk", "junk30s", "30x"):
+            with self.subTest(raw=raw):
+                with self.assertRaises(ValueError):
+                    ze_api._parse_go_duration(raw)
+
+    def test_budget_is_none_when_the_runner_did_not_publish_one(self):
+        for key in ("ze.test.budget", "ze_test_budget", "ZE_TEST_BUDGET"):
+            os.environ.pop(key, None)
+        self.assertIsNone(ze_api._test_budget_seconds())
+
+    def test_budget_is_read_from_the_runner_variable(self):
+        os.environ["ze_test_budget"] = "20s"
+        self.addCleanup(os.environ.pop, "ze_test_budget", None)
+        got = ze_api._test_budget_seconds()
+        self.assertIsNotNone(got)
+        self.assertAlmostEqual(got, 20.0)
+
+    def test_an_unreadable_budget_falls_back_rather_than_to_zero(self):
+        os.environ["ze_test_budget"] = "not-a-duration"
+        self.addCleanup(os.environ.pop, "ze_test_budget", None)
+        self.assertIsNone(ze_api._test_budget_seconds())
+
+    def test_both_shares_stay_inside_the_deadline_that_kills_the_process(self):
+        # The property that makes the diagnosis reachable: each wait, and their
+        # sum, must finish before the runner's deadline. Checked at the three
+        # budgets every current caller uses.
+        for budget in (10.0, 15.0, 20.0):
+            with self.subTest(budget=budget):
+                eor = budget * ze_api._EOR_BUDGET_SHARE
+                shutdown = budget * ze_api._SHUTDOWN_BUDGET_SHARE
+                self.assertLess(eor, budget)
+                self.assertLess(shutdown, budget)
+                self.assertLess(eor + shutdown, budget)
+                # And large enough to be useful: the measured replay for these
+                # tests is 1.1s to 1.6s, so the smallest window keeps ~4x margin.
+                self.assertGreater(eor, 3.0)
+
+
 if __name__ == "__main__":
     unittest.main()
