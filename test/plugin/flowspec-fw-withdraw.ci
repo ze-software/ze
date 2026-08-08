@@ -1,28 +1,59 @@
 # FlowSpec-to-firewall bridge: verify FlowSpec add+withdraw via process plugin
-# A Python process plugin sends a FlowSpec add then withdraw, verifying both
-# wire messages reach the peer with the bridge plugin loaded.
+# A Python process plugin sends a FlowSpec add then withdraw, and both wire
+# messages must reach the peer with the bridge plugin loaded.
+#
+# The observer is the ONLY producer of the asserted bytes. A static
+# `update { nlri { ipv4/flow add destination-ipv4 10.1.0.0/24 } }` block used to
+# stand in this config and produce the announce in the observer's place. That was
+# a crutch: the observer's command carried no add/del verb, so the grammar
+# rejected it (route/route.go ErrMissingAddDel) and the observer produced
+# nothing, while the static route satisfied the wire assertion. The failure was
+# invisible on darwin and red on linux, decided only by whether the observer's
+# ZE-OBSERVER-FAIL sentinel reached the runner before ze stopped. The same crutch
+# was removed from test/plugin/flowspec.ci for the same reason.
 #
 # VALIDATES: FlowSpec add and withdraw wire encoding correct with bridge plugin
+# VALIDATES: a FlowSpec withdrawal sent through the external process API reaches
+#            the wire as MP_UNREACH_NLRI
+# PREVENTS: an observer command the grammar rejects passing unnoticed, because a
+#           static config route produced the asserted bytes in its place
 
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24
+# Route announced by the plugin script
+cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064800E0F0001850401020304000501180A0100C010080800000000000001
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+# Same route withdrawn by the plugin script
+cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0023020000000C800F090001850501180A0100
 EOF_PEER
 
 tmpfs=flowspec-fw.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-import time
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import API, runtime_fail
 
 
 def main() -> None:
-    ready()
-    send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24')
-    wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
-    wait_for_shutdown()
+    api = API()
+    # Full 5-stage handshake (the module-level ready() helper's sequence).
+    api.declare_done()
+    api.wait_for_config(timeout=10.0)
+    api.capability_done()
+    api.wait_for_registry(timeout=10.0)
+    api.ready()
+
+    # ready() returns before StartPeers, so send() without this barrier can run
+    # while no session accepts ipv4/flow and fail with ErrNoPeersMatch.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
+
+    # `add` and `del` are the grammar's required verbs (route/route.go
+    # ErrMissingAddDel); a FlowSpec section carries components, not a prefix.
+    api.send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24')
+    api.wait_for_ack(expected_count=1)
+    api.send('peer * update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24')
+    api.wait_for_ack(expected_count=2)
+    api.wait_for_shutdown()
 
 
 if __name__ == '__main__':
@@ -60,15 +91,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		update {
-			attribute {
-				next-hop 1.2.3.4
-				extended-community [copy-to-nexthop]
-			}
-			nlri {
-				ipv4/flow add destination-ipv4 10.1.0.0/24
-			}
-		}
+		# test-relax: the static `update { nlri { ipv4/flow add ... } }` block that
+		# stood here is DELETED, and coverage goes up rather than down. It produced
+		# the announce in the observer's place, so the observer's own rejected
+		# command changed no asserted byte and the test passed while proving
+		# nothing about the external process API. The observer is now the only
+		# producer, and the withdraw this file is named for is asserted for the
+		# first time.
 		process flowspec-fw-process {
 		}
 	}
