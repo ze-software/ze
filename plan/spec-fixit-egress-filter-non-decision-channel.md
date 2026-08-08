@@ -2,15 +2,97 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Deferral shard | - |
-| Updated | 2026-08-03 |
+| Phase | 1/1 |
+| Deferral shard | plan/deferrals/fixit-stored-route-relay-hardening.md (row 1) |
+| Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+**RESOLVED 2026-08-07. Implementation is complete; the Review Gate and closure
+are the phases still owed.** Both questions the spec was opened for now have
+answers, and both are recorded below in "Outcome".
+
+## Outcome (2026-08-07)
+
+**The ordering question: the window IS reachable, and ordering does not close
+it.** `filterapi.Register` puts `LLGREgressFilter` into the egress pipeline from
+`init()` in `internal/component/bgp/plugins/gr/register.go`, and
+`internal/component/plugin/all/all_ze_bgp.go` imports the package for every
+`ze_bgp` build, so the filter is live from process start. The only non-test store
+of `egressState` is `setEgressState`, called from `RunGRPlugin`'s `OnConfigure`
+callback in `internal/component/bgp/plugins/gr/gr.go`. Nothing sequences the
+registration against the store. The gap is not merely a startup race either: when
+the GR plugin engine does not run in this process, `egressState` is nil for the
+whole process lifetime while the filter stays registered and stays called. So the
+spec does not close "with a test proving the window is unreachable"; it closes
+with the answer implemented.
+
+**The RFC question: fail CLOSED.** RFC 9494 Section 4.3 keys the decision on
+whether the capability "has been received" from the neighbor. With no state
+loaded it has not been received from anyone, so `hasLLGR=false` is the literal
+reading rather than a defensive choice. The destination then takes the treatment
+already written for a peer known not to have advertised it: withdraw for EBGP,
+Section 4.6 NO_EXPORT + LOCAL_PREF=0 for IBGP. No new branch was invented; the
+nil state simply stops short-circuiting past the existing ones.
+
+This needed no owner ruling. Full conformance plus a tagged test was reachable,
+which `ai/rules/rfc-compliance.md` makes the answer rather than a question. The
+two directions are not symmetric: failing closed costs a transient withdraw or
+depreference toward a peer that turns out to be LLGR-capable, repaired the moment
+`OnConfigure` stores the state, while failing open puts a long-lived stale route
+into a neighbor that never agreed to hold one, at normal preference, which is the
+risk RFC 9494 Section 5.2 describes.
+
+**Shape of the fix** (`internal/component/bgp/plugins/gr/gr_egress.go`):
+the `staleLevel == 0` fast path moved ABOVE the state load, since it needs no
+state and now answers the common case more cheaply than before. A latched WARN
+(`egressStateMissingWarned`) says the state is unloaded once per process,
+matching `recordDrop` in the sibling `role` plugin rather than inventing a shape.
+
+**The WARN was unhearable at first, and that is fixed (2026-08-07).** A reviewer
+found that every caller of `SetLogger` is on the ENGINE path
+(`ConfigureEngineLogger` and the CLI `ConfigLogger`, both in `register.go`), so in
+the case the warning exists for -- the engine never runs and the state is nil for
+the whole process -- `logger()` was still `init()`'s discard logger. The latch was
+spent on a dropped line, and no later occurrence could speak. Failing closed held;
+the "or say something" half of `ai/rules/evidence.md` did not. `egressWarnLogger`
+now routes through `slogutil.Logger(grSubsystem)` when `SetLogger` never ran, and
+through the engine's own logger when it did, so an operator who silenced the
+subsystem still gets silence. `loggerConfigured` (gr.go) is what tells the two
+apart.
+
+**A test pinned the violation and was replaced.** `TestLLGREgressFilter_NilState`
+asserted a stale route to an EBGP destination passing through with
+`mods.Len() == 0`, which is the Section 4.3 violation with a green bar on top
+(`ai/rules/rfc-compliance.md`). Its stated purpose, preventing a nil-pointer
+panic, still holds and is still covered.
+
+**Proof.** `RFC9494-4.3-3` was unproven in `ai/RFC-REQUIREMENTS.md` (`--` in both
+polarity columns) and now carries both:
+
+| Test (`internal/component/bgp/plugins/gr/gr_egress_test.go`) | Proves |
+|---|---|
+| `TestLLGREgressFilter_NilStateWithdrawsEBGP` | RFC9494-4.3-3 positive: unloaded state withdraws rather than advertises |
+| `TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer` | RFC9494-4.3-3 negative: a recorded LLGR peer still receives the route unmodified |
+| `TestLLGREgressFilter_NilStateDepreferencesIBGP` | RFC9494-4.6-2 / 4.6-3 positives under an unloaded state |
+| `TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute` | bounds the fix: a fresh route is never suppressed |
+| `TestLLGREgressWarnLoggerIsLiveWhenEngineNeverStarted` | the WARN reaches a live logger when the engine never ran |
+| `TestLLGREgressWarnLoggerRespectsEngineChoice` | the fallback does not override the engine's own logger |
+| `TestLLGREgressFilterWarnsWhenStateMissing` | the warning is actually emitted, and latched to one line |
+
+Both nil-state tests were verified RED with the fix reverted:
+`NilStateWithdrawsEBGP` failed on `mods.IsWithdraw()`, and
+`NilStateDepreferencesIBGP` failed on both the NO_EXPORT and the LOCAL_PREF
+assertion. The two contrast tests stayed green under the revert, which is what
+makes them contrasts rather than duplicates.
+
+Gates: `make ze-test-pkg PKG=./internal/component/bgp/plugins/gr` green,
+`golangci-lint run ./internal/component/bgp/plugins/gr` reports 0 issues,
+`make ze-rfc-check` green after `make ze-rfc-index`.
 
 **Provenance:** deferred from `plan/spec-fixit-stored-route-relay-hardening.md`
 (R6-1) on 2026-08-03. Rows live in
@@ -155,19 +237,57 @@ egress filters.
 ## Wiring Test
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| GR restart before the plugin stores its egress state | -> | `LLGREgressFilter` nil-state answer | `.ci` in `test/plugin/` asserting the stale route's treatment toward a non-LLGR peer |
+| A stale route reaches the egress pipeline while `egressState` is unloaded | -> | `LLGREgressFilter` nil-state answer | `TestLLGREgressFilter_NilStateWithdrawsEBGP`, `TestLLGREgressFilter_NilStateDepreferencesIBGP` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| LLGR nil-state answer | `internal/component/bgp/plugins/gr/gr_egress_test.go` | the chosen fail-open or fail-closed behavior for an unloaded plugin state | |
+| `TestLLGREgressFilter_NilStateWithdrawsEBGP` | `internal/component/bgp/plugins/gr/gr_egress_test.go` | RFC9494-4.3-3 positive: an unloaded state withdraws instead of advertising | done, RED when reverted |
+| `TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer` | same | RFC9494-4.3-3 negative: a recorded LLGR peer still gets the route unmodified | done |
+| `TestLLGREgressFilter_NilStateDepreferencesIBGP` | same | RFC9494-4.6-2 / 4.6-3 positives under an unloaded state | done, RED when reverted |
+| `TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute` | same | the fix is bounded to stale routes | done |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| LLGR stale readvertise before plugin state load | `test/plugin/*.ci` | a peer restarts and stale routes are readvertised while the GR plugin is still starting | |
+| LLGR stale readvertise before plugin state load | `test/plugin/*.ci` | a peer restarts and stale routes are readvertised while the GR plugin is still starting | **WITHDRAWN 2026-08-07: not implementable, and nothing is owed later** -- see the decision below |
+
+### Scope decision: no functional `.ci` for the nil-state window (2026-08-07)
+
+**Decision: this row is withdrawn. Nothing is owed later and nothing is
+deferred.** It was a skeleton-era placeholder written before anyone had read the
+producer. It carries no `plan/deferrals/` shard on purpose: a shard records work
+that is still owed, and recording this one would create a backlog row that can
+never be closed.
+
+**Evidence.** The state the test would have to stage is `egressState` being nil.
+That pointer is package-private to `internal/component/bgp/plugins/gr`, and its
+only non-test writer is `setEgressState`, called from `RunGRPlugin`'s
+`OnConfigure` callback. A `.ci` drives the built `ze` binary from outside the
+process and has no operator-facing way to unload, delay, or observe that pointer.
+Staging the window end to end would therefore require a new hook whose only
+purpose is to suppress or delay the egress state, which is a production
+backdoor into filter state: a control that could disable an RFC 9494 gate at
+runtime. Building it would create a worse defect than the one this spec fixed.
+
+**What covers the behavior instead.** The unit tests drive `LLGREgressFilter`
+itself, which is the function that PRODUCES the behavior rather than a caller of
+it (`ai/rules/evidence.md`), and each fails when the fix is reverted. The
+observed reds are recorded in "Outcome" above. `ai/rules/testing.md`'s functional
+requirement is about proving a user-visible workflow; the workflow here is the
+ordinary LLGR stale readvertise, which the existing `RFC9494-4.6-*` coverage
+already exercises with the state loaded. What is new is one branch inside that
+function, and the unit tier reaches it exactly.
+
+**Not a coverage reduction** (`ai/rules/completion.md`): `RFC9494-4.3-3` had no
+test at all before this work and now has both polarities. Nothing lost a tier.
+`check_evidence_ratchet` agrees -- `make ze-rfc-check` is green.
+
+**If the reviewer disagrees**, the fix is a purpose-built startup-ordering seam,
+designed as such and reviewed on its own merits, not a test-only backdoor bolted
+onto the filter. That would be a separate spec.
 
 ## Files to Modify
 - `internal/component/bgp/plugins/gr/gr_egress.go` -- the nil-state answer

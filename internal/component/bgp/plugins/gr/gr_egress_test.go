@@ -1,7 +1,10 @@
 package gr
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
+	"log/slog"
 	"net/netip"
 	"sync"
 	"testing"
@@ -9,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // newTestEgressState creates an egressFilterState for testing with the given
@@ -131,12 +135,220 @@ func TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState(t *testing.
 		"a stale route to a non-LLGR eBGP peer MUST be withdrawn, not advertised fresh")
 }
 
-// TestLLGREgressFilter_NilState verifies filter passes through when plugin not yet started.
+// TestLLGREgressFilter_NilStateWithdrawsEBGP pins the answer for an unloaded
+// plugin state, which used to be a silent ACCEPT.
 //
-// VALIDATES: Safe behavior before plugin initialization.
-// PREVENTS: Nil pointer panic before RunGRPlugin.
-func TestLLGREgressFilter_NilState(t *testing.T) {
+// The window is real and is not closed by ordering. filterapi.Register puts
+// LLGREgressFilter into the egress pipeline from init() (register.go), so it is
+// callable the moment the ze_bgp build group is linked, while the only store of
+// egressState is setEgressState from RunGRPlugin's OnConfigure callback (gr.go).
+// If the GR plugin engine never runs in this process, the state is nil for its
+// whole lifetime and the filter is still registered and still called.
+//
+// This test previously existed as TestLLGREgressFilter_NilState and asserted the
+// opposite: a stale route to an EBGP destination passing through with
+// mods.Len()==0. That is the Section 4.3 violation with a green bar on top
+// (ai/rules/rfc-compliance.md: a test that pins non-conformant behavior is the
+// wrong artifact). Its stated purpose, "PREVENTS: nil pointer panic", is still
+// served -- a nil state must not panic -- but not-panicking never required
+// advertising the route.
+//
+// RFC requirement: RFC9494-4.3-3 positive -- with no LLGR capability recorded for
+// any neighbor, "has not been received" is true of this destination, so the stale
+// route is withdrawn from it rather than advertised. LLGREgressFilter resolves an
+// unloaded egressState to hasLLGR=false and falls to the EBGP SetWithdraw branch.
+func TestLLGREgressFilter_NilStateWithdrawsEBGP(t *testing.T) {
 	setEgressState(nil)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	// EBGP: dest.PeerAS (65001) != dest.LocalAS (65000).
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	var mods filterapi.ModAccumulator
+
+	meta := map[string]any{"stale": uint8(2)}
+	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
+
+	assert.True(t, accept, "the route is handled (converted to a withdraw), not passed as-is")
+	assert.True(t, mods.IsWithdraw(),
+		"an unloaded egress state must not advertise a stale route to an EBGP peer whose LLGR capability was never received")
+}
+
+// TestLLGREgressFilter_NilStateDepreferencesIBGP is the Section 4.6 half of the
+// same window: an unloaded state must not skip the partial-deployment
+// depreference either. The deferral shard recorded exactly this, that the nil
+// state "withholds the destination's LLGR capability" and so Section 4.6's iBGP
+// depreference "is skipped too".
+//
+// RFC requirement: RFC9494-4.6-2 positive -- NO_EXPORT is attached to the stale
+// route on the partial-deployment branch even when the plugin state is unloaded,
+// because an unloaded state resolves to "capability not received" rather than to
+// an early accept that reaches no branch at all.
+// RFC requirement: RFC9494-4.6-3 positive -- LOCAL_PREF is likewise set to zero on
+// that branch with no plugin state loaded.
+func TestLLGREgressFilter_NilStateDepreferencesIBGP(t *testing.T) {
+	setEgressState(nil)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	// IBGP: dest.PeerAS (65000) == dest.LocalAS (65000).
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000}
+	var mods filterapi.ModAccumulator
+
+	meta := map[string]any{"stale": uint8(2)}
+	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
+
+	assert.True(t, accept, "IBGP partial deployment: the route is delivered, depreferenced, not withdrawn")
+	assert.False(t, mods.IsWithdraw(), "an internal neighbor is the Section 4.6 exception, not a withdrawal target")
+
+	hasCommunityAdd := false
+	hasLocalPrefSet := false
+	for _, op := range mods.Ops() {
+		if op.Code == attrCodeCommunity && op.Action == filterapi.AttrModAdd {
+			hasCommunityAdd = true
+			assert.Equal(t, 4, len(op.Buf), "community value should be 4 bytes")
+			assert.Equal(t, uint32(0xFFFFFF01), binary.BigEndian.Uint32(op.Buf), "should be NO_EXPORT community")
+		}
+		if op.Code == attrCodeLocalPref && op.Action == filterapi.AttrModSet {
+			hasLocalPrefSet = true
+			assert.Equal(t, 4, len(op.Buf), "local-pref value should be 4 bytes")
+			assert.Equal(t, uint32(0), binary.BigEndian.Uint32(op.Buf), "should be LOCAL_PREF=0")
+		}
+	}
+	assert.True(t, hasCommunityAdd, "should add NO_EXPORT community with no plugin state loaded")
+	assert.True(t, hasLocalPrefSet, "should set LOCAL_PREF=0 with no plugin state loaded")
+}
+
+// TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute bounds the fix. Failing
+// closed applies only to routes Section 4.3 governs, which are the stale ones. A
+// route carrying no stale metadata must still pass untouched with no state
+// loaded, or an unstarted GR plugin would suppress ordinary traffic.
+func TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute(t *testing.T) {
+	setEgressState(nil)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	var mods filterapi.ModAccumulator
+
+	accept := LLGREgressFilter(src, dest, nil, map[string]any{}, &mods)
+
+	assert.True(t, accept, "a fresh route passes through with no plugin state")
+	assert.False(t, mods.IsWithdraw(), "a fresh route is never withdrawn by the LLGR filter")
+	assert.Equal(t, 0, mods.Len(), "a fresh route gets no modifications")
+}
+
+// rfc-test-change-approved: 2026-08-07 Thomas approved replacing TestLLGREgressFilter_NilState, which asserted the RFC 9494 Section 4.3 violation itself: accept with no mods for a stale route to an EBGP peer whose LLGR capability was never received. Coverage was checked and did not shrink. accept==true and the no-panic assertion moved to TestLLGREgressFilter_NilStateWithdrawsEBGP; the mods.Len()==0 assertion moved to TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute, where it is correct. Thomas separately approved consolidating gr_egress_warn_test.go into this file on 2026-08-07; the three logger tests below arrive from there verbatim, with no assertion changed.
+
+// withGRLoggerRestored saves and restores the package logger globals, so a test
+// that simulates "the engine never started" cannot leak that state into whatever
+// runs next in this binary.
+func withGRLoggerRestored(t *testing.T) {
+	t.Helper()
+	prevLogger := loggerPtr.Load()
+	prevConfigured := loggerConfigured.Load()
+	prevWarned := egressStateMissingWarned.Load()
+	t.Cleanup(func() {
+		loggerPtr.Store(prevLogger)
+		loggerConfigured.Store(prevConfigured)
+		egressStateMissingWarned.Store(prevWarned)
+	})
+}
+
+// TestLLGREgressWarnLoggerIsLiveWhenEngineNeverStarted pins the fix for a WARN
+// that could not be heard on the one path it exists for.
+//
+// VALIDATES: the egress fail-closed guard says something, not just fails closed.
+// PREVENTS: the latched warning being spent on a discard logger, leaving an
+// unloaded LLGR egress state silent for the whole life of the process.
+//
+// Every caller of SetLogger is on the engine path (ConfigureEngineLogger and the
+// CLI ConfigLogger, both in register.go). The case the warning is about is the
+// case where that path never runs: no engine, so egressState is nil for the whole
+// process. loggerPtr then still holds init()'s discard logger, so the latched
+// WARN was spent on a line that went nowhere and no later occurrence could ever
+// speak. Failing closed still held; "or say something" (ai/rules/evidence.md)
+// did not.
+//
+// The assertion is on Enabled rather than on captured text because that is the
+// property that was false: the logger reached in this state cannot carry a WARN
+// at all. Reverting egressWarnLogger to plain logger() makes the second
+// assertion fail.
+func TestLLGREgressWarnLoggerIsLiveWhenEngineNeverStarted(t *testing.T) {
+	withGRLoggerRestored(t)
+
+	// Simulate a process where RunGRPlugin never ran: init()'s discard logger,
+	// and SetLogger never called.
+	loggerPtr.Store(slogutil.DiscardLogger())
+	loggerConfigured.Store(false)
+
+	ctx := context.Background()
+	assert.False(t, logger().Enabled(ctx, slog.LevelWarn),
+		"precondition: with no engine start the package logger is still init()'s discard logger")
+	assert.True(t, egressWarnLogger().Enabled(ctx, slog.LevelWarn),
+		"the egress warning must reach a live logger when the engine never started, or the latch is spent on a dropped line")
+}
+
+// TestLLGREgressWarnLoggerRespectsEngineChoice is the contrast: when the engine
+// path DID run, its logger and its level are what the warning goes through. The
+// fallback must not override an operator's configured logger.
+func TestLLGREgressWarnLoggerRespectsEngineChoice(t *testing.T) {
+	withGRLoggerRestored(t)
+
+	var buf bytes.Buffer
+	engineLogger := slogutil.LoggerWithOutput(grSubsystem, "warn", &buf)
+	SetLogger(engineLogger)
+
+	assert.Same(t, engineLogger, egressWarnLogger(),
+		"once the engine installed a logger, the warning goes through that one, not a rebuilt fallback")
+}
+
+// TestLLGREgressFilterWarnsWhenStateMissing captures the logger and asserts the
+// filter actually emits the diagnosis when it falls closed on an unloaded state.
+// Deleting the warn branch leaves the buffer empty and fails this test.
+//
+// It also pins the latch: the message is once per process, so a second stale
+// route must not re-emit it. That is what keeps the warning off the per-route
+// forward path (ai/rules/performance.md).
+func TestLLGREgressFilterWarnsWhenStateMissing(t *testing.T) {
+	withGRLoggerRestored(t)
+
+	var buf bytes.Buffer
+	SetLogger(slogutil.LoggerWithOutput(grSubsystem, "warn", &buf))
+	egressStateMissingWarned.Store(false)
+	setEgressState(nil)
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
+	meta := map[string]any{"stale": uint8(2)}
+
+	var mods filterapi.ModAccumulator
+	LLGREgressFilter(src, dest, nil, meta, &mods)
+
+	first := buf.String()
+	assert.Contains(t, first, "LLGR egress state not loaded",
+		"an unloaded state must say so, not fail closed in silence")
+	assert.Contains(t, first, "10.0.0.2", "the warning names the destination it applied to")
+
+	// Second stale route: same condition, no second line.
+	var mods2 filterapi.ModAccumulator
+	LLGREgressFilter(src, dest, nil, meta, &mods2)
+	assert.Equal(t, first, buf.String(), "the warning is latched to one line per process")
+}
+
+// TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer is the contrast that
+// keeps the fix from being a blanket suppression: once the state IS present and
+// records the destination's LLGR capability, the same stale route goes out
+// unmodified. Without this, "withdraw every stale route" would satisfy the
+// positive above and be equally wrong.
+//
+// RFC requirement: RFC9494-4.3-3 negative -- the SHOULD NOT binds only a neighbor
+// from which the capability "has not been received". For a destination present in
+// peerLLGRCaps it has been received, so LLGREgressFilter returns before the
+// withdraw and depreference branches and leaves the accumulator empty.
+func TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer(t *testing.T) {
+	state := newTestEgressState(map[string]*llgrPeerCap{
+		"10.0.0.2": {Families: []llgrCapFamily{{LLST: 3600}}},
+	})
+	setEgressState(state)
+	defer setEgressState(nil)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001, LocalAS: 65000}
@@ -145,8 +357,9 @@ func TestLLGREgressFilter_NilState(t *testing.T) {
 	meta := map[string]any{"stale": uint8(2)}
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
 
-	assert.True(t, accept, "nil state should pass through")
-	assert.Equal(t, 0, mods.Len(), "no mods when state is nil")
+	assert.True(t, accept, "stale route accepted for an LLGR-capable peer")
+	assert.False(t, mods.IsWithdraw(), "a peer that advertised LLGR must not have the route withdrawn")
+	assert.Equal(t, 0, mods.Len(), "no mods for an LLGR-capable peer (community already in wire)")
 }
 
 // TestLLGREgressFilter_LLGRPeer verifies stale routes are accepted for LLGR-capable peers.

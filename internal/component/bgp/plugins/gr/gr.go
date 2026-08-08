@@ -74,11 +74,22 @@ func init() {
 
 func logger() *slog.Logger { return loggerPtr.Load() }
 
+// loggerConfigured records whether SetLogger has ever installed a real logger.
+//
+// It matters because every caller of SetLogger is on the ENGINE path:
+// ConfigureEngineLogger and the CLI ConfigLogger, both in register.go. Any code
+// that runs when the GR plugin engine does NOT start therefore sees loggerPtr
+// still holding the discard logger from init(), and anything it logs is dropped
+// with no signal. egressWarnLogger (gr_egress.go) reads this to tell "the engine
+// chose this level" apart from "no engine ever ran".
+var loggerConfigured atomic.Bool
+
 // SetLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_gr.go with slogutil.PluginLogger().
 func SetLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
+		loggerConfigured.Store(true)
 	}
 }
 
