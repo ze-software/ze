@@ -14,6 +14,18 @@ func init() {
 		Description: "L2TP tools",
 		Mode:        "offline",
 		Section:     registry.SectionConfiguration,
-		Subs:        "",
+		Subs:        "decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | all}",
 	})
+
+	// Flag inventory for shell completion (registration over hardcoding).
+	// Mirrors the FlagSet clientFlags declares in show.go for the three
+	// daemon-forwarding verbs. Every other token these verbs take belongs to
+	// the daemon grammar and is forwarded unchanged, so --user is the whole
+	// client-side flag surface.
+	userFlag := []registry.FlagSpec{
+		{Name: "--user", Description: "SSH login username (overrides zefs super-admin)", ValueHint: registry.FlagValueNone},
+	}
+	registry.RegisterCommandFlags("l2tp show", userFlag)
+	registry.RegisterCommandFlags("l2tp tunnel", userFlag)
+	registry.RegisterCommandFlags("l2tp session", userFlag)
 }

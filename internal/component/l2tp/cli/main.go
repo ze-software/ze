@@ -42,14 +42,20 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: ze l2tp <subcommand> [flags]")
+	fmt.Fprintln(os.Stderr, "usage: ze l2tp <subcommand> [flags] [args]")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "subcommands:")
 	fmt.Fprintln(os.Stderr, "  decode                            Decode a hex L2TPv2 control message from stdin to JSON")
 	fmt.Fprintln(os.Stderr, "  show [tunnels|tunnel <id>|...]    Query the running daemon (forwards via SSH)")
-	fmt.Fprintln(os.Stderr, "  tunnel id <id>                   Send StopCCN to one tunnel")
+	fmt.Fprintln(os.Stderr, "  tunnel id <id>                    Send StopCCN to one tunnel")
 	fmt.Fprintln(os.Stderr, "  tunnel all                        Send StopCCN to every tunnel")
-	fmt.Fprintln(os.Stderr, "  session id <id>                  Send CDN to one session")
+	fmt.Fprintln(os.Stderr, "  session id <id>                   Send CDN to one session")
 	fmt.Fprintln(os.Stderr, "  session all                       Send CDN to every session")
 	fmt.Fprintln(os.Stderr, "  help                              Show this message")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "flags (show, tunnel and session):")
+	fmt.Fprintln(os.Stderr, "  --user <name>, -u <name>          SSH login username (overrides zefs super-admin)")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "A flag must come before the subcommand arguments:")
+	fmt.Fprintln(os.Stderr, "  ze l2tp show --user alice tunnels")
 }
