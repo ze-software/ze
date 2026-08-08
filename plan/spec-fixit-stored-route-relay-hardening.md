@@ -169,13 +169,35 @@ actually drives, or reject the config combination.
 process, so a respawned adj-rib-in resumes self-replay and the duplicate announce
 returns. Re-deliver post-startup on respawn, or make the claim re-confirmable.
 
-### I-5 — `test/plugin/adj-rib-in-replay-on-peerup.ci` does not gate
+### I-5 — `test/plugin/adj-rib-in-replay-on-peerup.ci` does not gate — DONE (2026-08-07)
 
-It replays to `10.0.0.99`, which is not a configured peer, so `RelayStoredRoute`
-returns at destination resolution and the test asserts on the SELECTED route count.
-It passes with the relay entirely dead — it fails the mutation check in
-`ai/rules/testing.md`. Give it a second source peer and assert on wire
-bytes reaching an established destination, then mutation-verify it.
+It replayed to `10.0.0.99`, which is not a configured peer, so `RelayStoredRoute`
+returned at destination resolution and the test asserted on the SELECTED route count.
+It passed with the relay entirely dead — it failed the mutation check in
+`ai/rules/testing.md`.
+
+**Reproduced before it was fixed.** With `return nil` as the first statement of
+`RelayStoredRoute`, the old test still reported PASS.
+
+**The rewrite.** The replay now targets an ESTABLISHED second peer on 127.0.0.2,
+and the destination asserts exact wire bytes TWICE: seq=1 is the LIVE forward
+(the control) and seq=2 is the RELAYED copy (the subject). Both pin the same
+51-byte UPDATE, which is the direct statement of learned 1271's
+one-egress-transform invariant rather than a restatement of the code. The second
+peer is the DESTINATION, not the second SOURCE this item predicted: one source
+suffices, because what the test lacked was a destination the relay could resolve.
+
+**Why nothing else can produce the second copy.** No RIB plugin is loaded, so the
+dest has no local-table delivery path, and adj-rib-in receives `state` for the
+SOURCE peer only, so its own peer-up self-replay never fires for the dest. The
+observer's explicit `request bgp adj-rib-in replay 127.0.0.2 0` is the sole
+producer, and it passes two arguments so the cut stays UNBOUNDED.
+
+**Mutation-verified both ways.** RED with the relay dead: the dest wire carries one
+UPDATE and the observer reports `dest peer was never sent the relayed copy of the
+stored route`, while the plugin still reports `replay selected 1 route(s)` — the
+exact gap between plugin-side selection and engine-side relay that the old test
+could not see. GREEN once restored. `make ze-plugin-test` 558/558.
 
 ### I-6 — smaller relay gaps
 
@@ -306,7 +328,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 | AC-3 | Forked adj-rib-in, replay whose routes exceed 16 MB | Chunked by bytes; every route arrives |
 | AC-4 | Peer gives `state` to adj-rib-in but not bgp-rs | Either that peer is still replayed, or the config is rejected — never silently unreplayed |
 | AC-5 | adj-rib-in respawns mid-life with bgp-rs loaded | Ownership is re-established; no duplicate announce on the next peer-up |
-| AC-6 | `adj-rib-in-replay-on-peerup.ci` with the relay stubbed to error | Test goes RED (mutation-verified) |
+| AC-6 | `adj-rib-in-replay-on-peerup.ci` with the relay stubbed to error | Test goes RED (mutation-verified). **DONE 2026-08-07 — see I-5** |
 | AC-7 | An egress rail cannot carry out its decision: an in-process filter PANICS on the RS fast path (`forward_rs.go`) or on the LLGR stale re-advertise rail, or that rail's modifications cannot be built | No rail reports a failure of THIS speaker as a peer's policy. `reactorForwardRS` puts the destination on the skipped list so the plugin rail decides what it could not. `decideStaleReadvertise` returns `staleFilterFailed` or `staleBuildFailed`, and `AnnounceNLRIBatch` reports the matching cause wrapping `errStaleReadvertiseWithheld` instead of `ErrNoPeersAcceptedFamily`. The route is withheld fail-closed in every case; only the report changes. **REPLACED 2026-08-03 by Thomas's ruling — see "AC-7 replaced" below. DONE** |
 | AC-8 | Destination peer whose remote role was never recorded, source with a non-empty `role { export }` set (R6-1) | The suppression is counted under its own reason (`role-unrecorded`) and carries recordDrop's first-occurrence WARN, so it is never reported as an export-set decision. **DONE** |
 | AC-8b | Config reload while peers stay established (R6-1) | Learned remote roles survive for every peer the new config still names, so no peer is reclassified `unknown` and black-holed by a reload. **DONE** |
@@ -538,7 +560,7 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | add-path replay | `test/plugin/` | an add-path peer establishes late and receives its routes | |
-| `adj-rib-in-replay-on-peerup.ci` rewrite | `test/plugin/` | replay to an ESTABLISHED peer, asserted on wire bytes | |
+| `adj-rib-in-replay-on-peerup.ci` rewrite | `test/plugin/` | replay to an ESTABLISHED peer, asserted on wire bytes | DONE (mutation-verified, I-5) |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_api_relay.go` — lift `errRelayAddPath`; context choice

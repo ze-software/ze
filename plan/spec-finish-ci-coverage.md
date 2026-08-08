@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | op-1 Tier-1 commands |
-| Updated | 2026-08-03 |
+| Updated | 2026-08-07 |
 
 **Phase in hand: the op-1 Tier-1 command `.ci` item only.** Its acceptance
 criteria are filled below. The other four work items in `## Task` stay captured
@@ -32,6 +32,41 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - **cli-dispatch `.ci` (L83)** - validate-config done; missing `set interface create` and `update peeringdb`.
 - **no-congestion-initial chaos `.ci` (L118)** - UNBLOCKED - ze-chaos multi-peer orchestration now exists (`mk/test-chaos.mk --peers`); just needs writing.
 - **gRPC-over-wire `.ci` (L40)** - engine path covered by `test/plugin/grpc-execute.ci`; a true gRPC-wire test needs grpcio/grpcurl vendored (tooling gate).
+- **`test/pppoe/` orphan (from `plan/deferrals/fixit-ddos-test-infra.md`, 2026-07-16)** - DONE 2026-08-07.
+  Thomas chose "repair" on 2026-08-07, which VOIDS the Option D (delete) decision recorded
+  in `plan/learned/1218-fixit-pppoe-orphaned-tests.md`. The three `.ci` are restored and run.
+  `option=netns:veth=` was never a real directive; the repair extends the option that already
+  provisions netns interfaces, `netns-link`, with `peer=` (veth pair) and `vlan=` (802.1Q
+  sub-interface on each end), rather than adding a second directive family for the same job.
+  `registerCIRoot("pppoe", ...)` roots the suite and `make ze-qemu-pppoe-test` runs it: the
+  netns launch mode is required (each test asks for a veth pair) and so is ze's runtime kernel
+  (`handlePADR` opens AF_PPPOX before it sends PADS, and stock Alpine has no `CONFIG_PPPOE`).
+  Running them found the reason the feature had no test: **PPPoE never started from a real
+  config.** `ExtractParameters` read `interface` as a `[]any`, and `Tree.ToMap` emits a keyed
+  YANG list as a map of key to entry, so `Interfaces` was always empty and
+  `registerBNGSubsystems` never registered the subsystem. Two unit tests passed throughout,
+  both building the map by hand in a shape no producer emits; the replacements drive the real
+  parser and fail against the pre-fix code on BOTH halves (0 interfaces AND 0 service names).
+  Discrimination, each break run in QEMU and each turning exactly one test red: accepting any
+  AC-Cookie reds `pppoe-basic`; resolving `veth-bng.100` to its parent reds `pppoe-vlan`;
+  building the SCCRP with message type HELLO reds `pppoe-concurrent-l2tp`. That third break is
+  what found the concurrent test vacuous as first written -- `len(data) >= 12` accepts L2TP's
+  bare 12-byte ZLB ACK -- so it now parses the Message Type AVP.
+
+- **Agent-tooling gates T-4 / T-5 (from `plan/deferrals/fixit-agent-tooling-misleads.md`)** - DONE 2026-08-07.
+  T-5 (the validator's `.ci` demand) was scoped to daemon specs in `e3af7a13e`, with
+  `validate-spec-tooling-surface-accepted` and two must-not-fire fixtures beside it.
+  T-4 (the spec-write gate's evidence set) had been WIDENED rather than scoped, so any
+  source read cleared any spec, and a Python hook or a YANG model still cleared nothing.
+  `mark-source-read.sh` now records the KIND read and `c_design_without_lsp` asks for
+  EVERY kind the spec's own `## Files to Modify` names, each on its own 30-minute clock.
+  The LSP tool is gopls, so it grounds Go and nothing else. A subject the gate cannot
+  read still takes the older any-source bar, and the gate warns that it did.
+  Proven by the `design-gate` fixture section, which fails on the pre-change gates.
+  An adversarial review (2026-08-07) defeated the first version four ways: an LSP-only
+  session grounded a Python spec, a cheap kind stood in for an expensive one beside it,
+  a fresh kind renewed a stale one, and a `### Checklist` row became a subject. Each has
+  a fixture that reds against the code as it stood before the fix.
 
 ## Required Reading
 
@@ -127,6 +162,8 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 | `.ci` dispatches `show interface errors` | → | `handleShowInterfaceErrors` -> `showInterfaceErrors` | `test/plugin/show-interface-errors.ci` |
 | `.ci` runs `ze generate wireguard keypair` | → | `RunWgKeypair` | `test/parse/cli-generate-wireguard-keypair.ci` |
 | unit test shims `wg` on PATH | → | `RunWgKeypair` genkey -> pubkey pipe | `TestRunWgKeypair_PipesGenkeyIntoPubkey` |
+| a Read of a hook / model / tool | → | `mark-source-read.sh` kind markers | `mark-source-read-writes-*` fixtures |
+| a spec Write | → | `c_design_without_lsp` subject match | `design-gate-*` fixtures |
 
 **Still not wired, and named so it is not mistaken for done:** the env-knob,
 cli-dispatch, chaos, and gRPC-over-wire work items in `## Task` have no test and
@@ -171,6 +208,7 @@ phase uncovered.
 | `show-interface-errors.ci` | `test/plugin/` | AC-5: find the links with errors or drops | done |
 | `cli-generate-wireguard-keypair.ci` | `test/parse/` | AC-6: the offline CLI command resolves and rejects arguments | done |
 | `show-interface-rate.ci` (corrected) | `test/plugin/` | AC-8: its assertion had pinned the aliasing defect | done |
+| `design-gate` fixtures | `scripts/dev/hook-fixture-check.py` | T-4: an agent writes a spec about a hook, a model or the daemon; the gate asks for that subject and refuses the rest. A hook has no `.ci`, so its driving surface is the fixture suite | done |
 
 Every one is proven by mutation: each was re-run with the behaviour under test
 broken at the producer and observed to FAIL. The interface pair needs no
@@ -181,6 +219,9 @@ unfixed dispatcher and turned green only with the wire methods split.
 
 - `internal/test/runner/` - see Task work items
 - `internal/component/cmd/show/show.go` - see Task work items
+- `.claude/hooks/mark-source-read.sh` - T-4: records the kind of source read
+- `.claude/hooks/pretool-writeedit.py` - T-4: `c_design_without_lsp` asks for the spec's subject
+- `scripts/dev/hook-fixture-check.py` - T-4: the `design-gate` fixtures, both directions
 
 ## Implementation Steps
 

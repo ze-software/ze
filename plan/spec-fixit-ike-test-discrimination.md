@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
-| Deferral shard | `-` |
-| Updated | 2026-08-02 |
+| Phase | 1/4 |
+| Deferral shard | `plan/deferrals/fixit-ike-dpd-cleartext.md` |
+| Updated | 2026-08-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -98,11 +98,25 @@ path, and nothing proves a configured DPD does not tear a healthy tunnel down. T
 exact failure the cleartext defect produced in the field, and it is the shape item 3 above
 warns about: a necessary assertion standing in for a sufficient one.
 
-The blocker is harness duration, not signal. `newDPDState`
-(`internal/component/ike/engine/dpd.go`) returns nil at `Interval == 0`, so the test must
-configure a non-zero interval and then outlive it. Decide at design time whether the ipsec
-`.ci` harness can hold a peer that long, or whether this belongs in the interop tier beside
-scenario `07`.
+~~The blocker is harness duration, not signal.~~ **CLOSED 2026-08-07. There was no
+blocker.** `newDPDState` (`internal/component/ike/engine/dpd.go`) returns nil at
+`Interval == 0`, so the test configures a non-zero interval and outlives it.
+
+→ Decision: the deferral's stated reason, "the ipsec `.ci` harness cannot drive a peer
+for longer than one DPD interval", named a limit the harness never had. The default
+per-test budget is 15s (`runCISubcommandInner`, `internal/test/cli/ci_runner.go`) and
+`resolveOrchestratedTimeout` (`internal/test/runner/runner_exec_util.go`) lets a `.ci`
+override it with no cap, which `ipsec-clear-reestablish.ci` had already done at 60s. The
+smallest legal DPD interval is 1 second (`parseDPD`,
+`internal/component/ike/ipsec/config.go`, and the YANG `range "1..3600"`), and
+`maintainSA` (`established.go`) ticks once a second. So one second of DPD fits inside a
+budget the suite was already declaring, and the test needed no harness change. It stays
+in the `.ci` tier rather than moving beside interop scenario `07`.
+
+→ Constraint: the assertion is `uptime-seconds` from the SA's own `EstablishedAt`
+(`saToMap`, `internal/component/ike/cmd/show_ipsec.go`), polled until it passes 20. A DPD
+teardown destroys that SA, so the value resets and no host load can carry it past the
+threshold. Nothing in the test reads the test's own clock.
 
 ## Required Reading
 
@@ -254,7 +268,7 @@ scenario `07`.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | existing IPsec suite | `test/ipsec/*.ci` | ~~No new `.ci` is expected.~~ Confirm at design time whether the EAP guard is reachable from a `.ci`, and add one if it is | |
-| DPD hold-open (item 5) | `test/ipsec/` | An operator configures a DPD `interval` and the tunnel stays up past more than one interval. Corrected 2026-08-03: a new `.ci` IS expected here unless design shows the harness cannot outlive an interval, in which case it moves to the interop tier | |
+| DPD hold-open (item 5) | `test/ipsec/ipsec-dpd-holds-tunnel.ci` | An operator configures a DPD `interval` and the tunnel stays up past more than one interval | done 2026-08-07. `make ze-ipsec-test` 14/14, three consecutive runs. Discriminates: blocking the sends in `sendDPD` and `retransmitDPD` turns it RED at the uptime step, restoring them turns it GREEN |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -270,7 +284,8 @@ scenario `07`.
 - `internal/component/ike/engine/established_test.go` - the discriminating test for the clear defer
 
 ## Files to Create
-- none expected. Confirm at design time whether a shared ESP-counter assertion helper belongs in the interop library rather than in each scenario
+- `test/ipsec/ipsec-dpd-holds-tunnel.ci` - item 5 / AC-8. LANDED 2026-08-07
+- Confirm at design time whether a shared ESP-counter assertion helper belongs in the interop library rather than in each scenario
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -311,6 +326,11 @@ scenario `07`.
 
 ## Implementation Steps
 
+0. **Phase: DPD hold-open (item 5, AC-8)** - DONE 2026-08-07
+   - Tests: `test/ipsec/ipsec-dpd-holds-tunnel.ci`
+   - Files: that one file. No harness change was needed; see item 5 above
+   - Verify: `make ze-ipsec-test` green, and the RED/GREEN mutation recorded in the
+     test's own header comment
 1. **Phase: Wiring (MANDATORY FIRST)** - prove each item discriminates before fixing it
    - Tests: the two unit tests, written to FAIL only when the guard is present, then reverted to confirm
    - Files: the two `_test.go` files

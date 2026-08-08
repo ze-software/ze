@@ -2,10 +2,16 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-07 |
+
+> **BLOCKER CLEARED 2026-08-07.** D-1 and D-2 are both answered by Thomas. The
+> spec said it could not leave `skeleton` until they were, so it moves to
+> `design`. Read "### Rulings (2026-08-07)" under the Open Questions before
+> designing: D-2's answer is a propagation rule that does not answer the Partial
+> question as posed, and it changes the shape of the work.
 
 ## Task
 
@@ -121,8 +127,81 @@ Question for Thomas: under inherit, does a recognizing speaker forward a transit
 marker with Partial set (inherit bullet) or clear (propagate bullet's reasoning)? And
 is ze's accidental compliance the intended behavior?
 
-→ Constraint: until D-1 and D-2 are answered, do not write code. The right first
-deliverable of this spec may be a **draft revision**, not a Go change.
+~~→ Constraint: until D-1 and D-2 are answered, do not write code. The right first
+deliverable of this spec may be a **draft revision**, not a Go change.~~
+
+**SUPERSEDED 2026-08-07: both answered. See the rulings below.** The draft
+revision half of that prediction holds; the Go change half largely does not,
+because ze already implements the answer.
+
+### Rulings (2026-08-07, Thomas)
+
+**The mechanism, quoted:** *"it can be done by removing the transitive bit when
+going to an ebgp peer"*.
+
+That one sentence answers both ambiguities, and it does so by identifying the
+lever. The Transitive bit is what governs onward propagation; the Partial bit is
+not, and neither is physical removal of the attribute.
+
+**D-1, "not forwarded", RESOLVED as reading (b).** Thomas first answered *"the
+attribute is removed from the update and not passed to other peers, like
+local-pref would be on an EBGP session"*, then named the mechanism. Taken
+together: the INTENT is that the marker goes no further, and clearing the
+Transitive bit achieves it, because a receiving speaker does not propagate an
+optional non-transitive attribute (RFC 4271 Section 5). So "not forwarded"
+does not require a rebuild.
+
+This retires the cost the spec was most worried about. R-2 predicted that
+reading (a) would add a rebuild to the egress funnel and cost the zero-copy fast
+path for every marker-bearing UPDATE. It does not apply.
+
+**The draft still needs the revision**, because Section 5.3 states the outcome
+("not forwarded") without stating the mechanism, and the reader who implements
+it literally arrives at a rebuild. Say that clearing Transitive at the eBGP
+boundary is how the outcome is met.
+
+**D-2, the Partial bit, ANSWERED BY NOT BEING THE QUESTION.** Asked whether a
+recognizing speaker under inherit forwards a transitive marker with Partial set
+or clear, Thomas answered with the propagation rule instead: *"We should only
+forward IF it comes from an IBGP connection if it is EBGP it should never be
+passed to other peers"*, then named the Transitive bit as the mechanism.
+
+So Partial is not a lever this design pulls, and ze's current handling stands.
+Verified at both producers on 2026-08-07:
+
+| Moment | What ze does | Producer |
+|--------|--------------|----------|
+| Ze ORIGINATES a marker | Partial cleared: `0x80 \| (originalFlags & 0x50)` keeps Optional, Transitive and Extended Length only | `attrDiscardFlags`, `internal/component/bgp/message/attr_discard.go` |
+| Ze FORWARDS a received marker | Partial untouched; only Transitive is cleared, `dst[flagsOff] &^= FlagTransitive` | `clearTombstoneTransitive`, `internal/component/bgp/wireu/tombstone.go` |
+
+`FlagPartial` and `0x20` appear nowhere else in `wireu/`, so on the forward path
+the bit arrives and leaves unchanged. The earlier note that ze complies "by
+accident" is half right and should be read narrowly: the ORIGINATION clear is
+deliberate and documented at its producer. The FORWARD pass-through is not a
+decision anyone recorded, and it is now the ruled behaviour.
+
+**The draft revision owed here** is to make the default-behaviour bullet say
+which speaker it describes. "Transitive ATTR_TOMBSTONE: forwarded to peers with
+Partial bit set (RFC 4271 Section 5)" reads as an instruction to the forwarder
+and is meant as a description of how the bit came to be set by an upstream
+non-recognizing speaker. That is what made it look like it contradicted the
+propagate bullet.
+
+### What remains, and it is narrower than this spec assumed
+
+The mechanism is already implemented for every destination that passes through
+the prepend funnel. **One path does not**, and it is the live gap:
+
+eBGP RS-clients bypass the funnel entirely. `forward_rs.go` and
+`reactor_api_forward.go` hand out `update.WireUpdate`, the received wire, with
+no per-destination buffer, so `clearTombstoneTransitive` never runs for them and
+the marker reaches an RS-client with Transitive intact. Under this ruling that
+is now unambiguously wrong rather than a policy question: the mechanism is
+defined and one path skips it.
+
+That gap is the subject of `plan/deferrals/fixit-tombstone-ebgp-transitive.md`
+and is recorded in `skip-blocked.md` as B-4, where a further ruling of Thomas's
+is still being confirmed.
 
 ## Post-Compaction Recovery
 
