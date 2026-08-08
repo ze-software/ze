@@ -147,7 +147,8 @@ Automated enforcement of `ai/rules/` requirements.
 ## Session Identity
 
 Every hook that names a per-session marker under `tmp/session/`
-(`.lsp-loaded-<sid>`, `.lsp-invoked-<sid>`, `.source-read-<sid>`, `.session-<sid>`,
+(`.lsp-loaded-<sid>`, `.lsp-invoked-<sid>`, `.source-read-<sid>`,
+`.source-read-<kind>-<sid>`, `.session-<sid>`,
 `session-state-<sid>.md`) resolves `<sid>` through **one** resolver:
 `.claude/hooks/lib/session_id.py`. It has two faces:
 

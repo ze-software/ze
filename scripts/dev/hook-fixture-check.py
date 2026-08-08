@@ -2054,8 +2054,11 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _run_mark_source_read(file_path: str) -> bool:
-    """Drive mark-source-read.sh over a Read of `file_path`; return marker-written.
+_DESIGN_SID = "11111111-2222-3333-4444-555555555555"
+
+
+def _mark_project() -> str:
+    """A fixture project mark-source-read.sh and pretool-writeedit.py can share.
 
     The script cd's to CLAUDE_PROJECT_DIR and sources
     .claude/hooks/lib/session-id.sh relative to it, so the fixture project needs a
@@ -2063,45 +2066,93 @@ def _run_mark_source_read(file_path: str) -> bool:
     deterministic (env source wins in _session_id).
     """
     work = tempfile.mkdtemp(prefix="mark-source-read-", dir=_fixture_root())
+    libdst = os.path.join(work, ".claude", "hooks", "lib")
+    os.makedirs(libdst, exist_ok=True)
+    shutil.copytree(os.path.join(HOOKS, "lib"), libdst, dirs_exist_ok=True)
+    return work
+
+
+def _read_source(work: str, file_path: str, response=_UNSET) -> None:
+    """Drive mark-source-read.sh over a Read of `file_path` inside `work`.
+
+    `response` is the PostToolUse `tool_response`. The default stands for a
+    whole-file Read of a substantial file, which is what every case that is not
+    ABOUT read depth wants. Pass None to omit it (an unrecognised payload shape),
+    a dict to state exactly how much of the file the Read showed, or a string,
+    which is what the harness returns when the Read FAILED.
+    """
+    ti: dict = {"file_path": file_path}
+    if response is _UNSET:
+        response = {"file": {"numLines": 400, "totalLines": 400}}
+    if isinstance(response, dict):
+        limit = response.pop("_limit", None)
+        if limit is not None:
+            ti["limit"] = limit
+    payload: dict = {"tool_input": ti}
+    if response is not None:
+        payload["tool_response"] = response
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=_DESIGN_SID)
+    subprocess.run(
+        ["bash", os.path.join(HOOKS, "mark-source-read.sh")],
+        input=json.dumps(payload),
+        text=True,
+        capture_output=True,
+        env=env,
+        timeout=30,
+    )
+
+
+def _markers(work: str) -> set:
+    sess = os.path.join(work, "tmp", "session")
     try:
-        libdst = os.path.join(work, ".claude", "hooks", "lib")
-        os.makedirs(libdst, exist_ok=True)
-        shutil.copytree(os.path.join(HOOKS, "lib"), libdst, dirs_exist_ok=True)
-        sid = "11111111-2222-3333-4444-555555555555"
-        env = dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=sid)
-        payload = json.dumps({"tool_input": {"file_path": file_path}})
-        subprocess.run(
-            ["bash", os.path.join(HOOKS, "mark-source-read.sh")],
-            input=payload,
-            text=True,
-            capture_output=True,
-            env=env,
-            timeout=30,
-        )
-        return os.path.isfile(
-            os.path.join(work, "tmp", "session", f".source-read-{sid}")
-        )
+        return set(os.listdir(sess))
+    except OSError:
+        return set()
+
+
+def _run_mark_source_read(file_path: str, response=_UNSET) -> set:
+    """Marker file names a Read of `file_path` produces (empty = nothing recorded)."""
+    work = _mark_project()
+    try:
+        _read_source(work, file_path, response)
+        return _markers(work)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
 def run_mark_source_read(results: Results) -> None:
-    """T-4 (AC-6): reading the .py/.sh/Makefile a spec is ABOUT must satisfy the
-    spec-write gate -- the marker is written for those, not only for Go, so an
-    agent need not read an unrelated .go file purely to pass."""
+    """T-4 (AC-6): reading the .py/.sh/.yang/Makefile a spec is ABOUT must satisfy
+    the spec-write gate -- the marker is written for those, not only for Go, so an
+    agent need not read an unrelated .go file purely to pass. Each accepted Read
+    also records its KIND, which is what lets the gate be scoped to the spec's own
+    subject rather than relaxed for everyone (see design-gate below)."""
     print("mark-source-read:")
 
-    for label, path in (
-        ("go-internal", "/repo/internal/x/y.go"),
-        ("py-scripts", "/repo/scripts/dev/foo.py"),
-        ("sh-hooks", "/repo/.claude/hooks/foo.sh"),
-        ("makefile", "/repo/Makefile"),
-        ("mk-file", "/repo/mk/inventory.mk"),
+    aggregate = f".source-read-{_DESIGN_SID}"
+    for label, path, kind in (
+        ("go-internal", "/repo/internal/x/y.go", "go"),
+        ("py-scripts", "/repo/scripts/dev/foo.py", "py"),
+        ("py-hooks", "/repo/.claude/hooks/pretool-writeedit.py", "py"),
+        ("sh-hooks", "/repo/.claude/hooks/foo.sh", "sh"),
+        ("sh-scripts", "/repo/scripts/dev/verify-status.sh", "sh"),
+        ("makefile", "/repo/Makefile", "make"),
+        ("mk-file", "/repo/mk/inventory.mk", "make"),
+        ("yang-model", "/repo/internal/component/iface/yang/ze-iface.yang", "yang"),
+        # BLOCKER 1 (reviewer, 2026-08-07): the kind is the extension, so the
+        # subjects real specs name are reachable. Each path below is a subject an
+        # open spec lists today and NO accepted Read could record before: 11 specs
+        # for py, 2 for sh. Their authors' only route past the gate was reading an
+        # unrelated scripts/*.py.
+        ("py-under-test", "/repo/test/ipsec-interop/lab.py", "py"),
+        ("py-under-tools", "/repo/tools/kernel-builder/build.py", "py"),
+        ("sh-under-packaging", "/repo/packaging/deb/preinstall.sh", "sh"),
+        ("go-under-test", "/repo/test/interop/harness_test.go", "go"),
     ):
+        written = _run_mark_source_read(path)
         results.check(
             f"mark-source-read-writes-{label}",
-            _run_mark_source_read(path),
-            f"marker not written for {path}",
+            aggregate in written and f".source-read-{kind}-{_DESIGN_SID}" in written,
+            f"markers for {path}: {sorted(written)}",
         )
 
     # MUST-NOT-FIRE: an unrelated doc/spec read does not ground a spec, so it must
@@ -2109,13 +2160,619 @@ def run_mark_source_read(results: Results) -> None:
     for label, path in (
         ("doc", "/repo/docs/guide/x.md"),
         ("spec", "/repo/plan/spec-foo.md"),
-        ("py-outside-scripts", "/repo/internal/x/tool.py"),
+        ("json", "/repo/.claude/settings.json"),
+        ("functional-test", "/repo/test/bgp/session.ci"),
+        ("no-extension", "/repo/scripts/dev/some-tool"),
     ):
         results.check(
             f"mark-source-read-skips-{label}",
             not _run_mark_source_read(path),
             f"marker wrongly written for {path}",
         )
+
+    # ISSUE 3 (reviewer, 2026-08-07): the gate is strict about WHICH file was read
+    # and was trivial about HOW MUCH. Read(file, limit=1) cleared every spec of
+    # that kind for 30 minutes. A window under 20 lines cannot have grounded a
+    # claim about a producer, so it records nothing.
+    for label, response, want in (
+        ("keyhole-window", {"file": {"numLines": 1, "totalLines": 900}}, False),
+        ("short-window", {"file": {"numLines": 19, "totalLines": 900}}, False),
+        ("adequate-window", {"file": {"numLines": 20, "totalLines": 900}}, True),
+        # A small file read ENTIRE is the producer, whatever its length.
+        ("whole-small-file", {"file": {"numLines": 12, "totalLines": 12}}, True),
+        # Content, when the harness sends text instead of a line count.
+        ("content-counted", {"file": {"content": "x\n" * 3, "totalLines": 900}}, False),
+        # No totalLines, so "was it the whole file" is unanswerable and the window
+        # bar is the only thing left to judge by.
+        ("num-without-total-short", {"file": {"numLines": 5}}, False),
+        ("num-without-total-long", {"file": {"numLines": 50}}, True),
+        # The request capped the window below the bar and the response is silent.
+        ("limit-only-keyhole", {"_limit": 1}, False),
+        ("limit-only-adequate", {"_limit": 200}, True),
+        # BLOCKER 1 (reviewer, round 2): ZERO IS NOT UNMEASURABLE. Each shape
+        # below shows the reader nothing, each was found in the real transcripts
+        # under ~/.claude/projects, and each used to reach the fail-open default
+        # and write a marker. Counted over 211 transcripts: 13, 36, 65.
+        #
+        # The harness answered a repeat Read without a body ("Wasted call -- file
+        # unchanged since your last Read"), so this Read showed nothing while
+        # renewing a 30-minute clearance.
+        (
+            "file-unchanged",
+            {"type": "file_unchanged", "file": {"filePath": "/x"}},
+            False,
+        ),
+        # A zero-byte file. numLines and totalLines are both 1 because the split
+        # keeps an empty tail, so it used to pass as a whole-file read of a
+        # one-line file: one Read of any empty .py cleared every py spec.
+        (
+            "empty-file",
+            {
+                "type": "text",
+                "file": {
+                    "filePath": "/x",
+                    "content": "",
+                    "numLines": 1,
+                    "startLine": 1,
+                    "totalLines": 1,
+                },
+            },
+            False,
+        ),
+        # A FAILED Read: tool_response is a plain string, so jq could not index
+        # it and every count defaulted to unmeasurable.
+        ("read-error", "Error: File does not exist. Note: your cwd is /repo.", False),
+        # UNRECOGNISED MUST STAY PERMISSIVE, and unrecognised now means exactly
+        # that: no `file` object and not the failure string. A payload shape this
+        # hook has never seen must not silently disable the evidence path and
+        # block every spec write in the session. This is the fail-open half, and
+        # it is deliberate -- the three cases above are what it stopped covering.
+        ("unrecognised-no-response", None, True),
+        ("unrecognised-shape", {"stdout": "..."}, True),
+    ):
+        written = _run_mark_source_read("/repo/internal/x/y.go", response)
+        results.check(
+            f"mark-source-read-depth-{label}",
+            (f".source-read-go-{_DESIGN_SID}" in written) is want,
+            f"markers for {response}: {sorted(written)}",
+        )
+
+    # The depth cases above use the fields the hook reads. These are the WHOLE
+    # payload as the harness actually sends it, copied field for field off a real
+    # transcript (`~/.claude/projects/*/*.jsonl`, `toolUseResult`). Asserting only
+    # against an abstraction of the shape would keep passing if the shape moved.
+    #
+    # `shown` is the count of lines carrying TEXT; numLines and totalLines are one
+    # HIGHER, because the harness splits on "\n" and keeps the empty tail. That is
+    # measured, not assumed: numLines equalled the raw split length in all 5064
+    # transcript records carrying both, and totalLines equalled `wc -l` + 1 for
+    # all 118 whole-file reads of files still on disk.
+    #
+    # NOTE 6 (reviewer, round 2) is the boundary pair: 19 lines of text arrive as
+    # numLines 20, so counting the phantom tail put a 19-line window over a bar
+    # that exists to refuse it. The earlier cases sat at 3 and 4 lines, where the
+    # off-by-one changes no verdict.
+    for label, shown, total, want in (
+        ("real-window", 4, 480, False),
+        ("real-boundary-19-lines", 19, 480, False),
+        ("real-boundary-20-lines", 20, 480, True),
+        ("real-whole", 480, 480, True),
+    ):
+        written = _run_mark_source_read(
+            "/repo/internal/x/y.go",
+            {
+                "type": "text",
+                "file": {
+                    "filePath": "/repo/internal/x/y.go",
+                    "content": "package x\n" * shown,
+                    "numLines": shown + 1,
+                    "startLine": 1,
+                    "totalLines": total + 1,
+                },
+            },
+        )
+        results.check(
+            f"mark-source-read-depth-{label}",
+            (f".source-read-go-{_DESIGN_SID}" in written) is want,
+            f"markers for {shown} lines of {total}: {sorted(written)}",
+        )
+
+
+# --------------------------------------------------------------------------- #
+# design-gate: c_design_without_lsp asks for the spec's OWN subject (T-4)
+# --------------------------------------------------------------------------- #
+
+_DESIGN_SPEC = """# Spec: fixture
+
+## Task
+
+Fixture spec for the design-without-lsp gate.
+
+## Files to Modify
+
+@FILES@
+
+## Implementation Steps
+
+1. Do the thing.
+"""
+
+
+def _write_spec(
+    work: str,
+    files_line: str,
+    *,
+    on_disk: bool = True,
+    tool: str = "Write",
+    trailer: str = "",
+):
+    """Drive the whole pretool-writeedit dispatcher over a spec write in `work`.
+
+    Through the dispatcher for the reason _writeedit gives, and with
+    CLAUDE_PROJECT_DIR pointed at the fixture so the gate reads the fixture's
+    markers rather than this session's real ones. `tool` selects the payload
+    SHAPE: a MultiEdit carries its text only inside `edits`, which is a place the
+    gate has to look on purpose. `trailer` appends sections after Files to
+    Modify, which is how a checklist subsection is put in the gate's way.
+    """
+    spec_text = _DESIGN_SPEC.replace("@FILES@", files_line + trailer)
+    fp = os.path.join(work, "plan", "spec-fixture.md")
+    os.makedirs(os.path.dirname(fp), exist_ok=True)
+    if on_disk:
+        with open(fp, "w", encoding="utf-8") as fh:
+            fh.write(spec_text)
+    if tool == "MultiEdit":
+        ti = {
+            "file_path": fp,
+            "edits": [{"old_string": "", "new_string": spec_text}],
+        }
+    elif tool == "Write":
+        ti = {"file_path": fp, "content": spec_text}
+    else:
+        ti = {"file_path": fp, "old_string": "x", "new_string": spec_text}
+    payload = json.dumps({"tool_name": tool, "tool_input": ti})
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=_DESIGN_SID)
+    proc = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "pretool-writeedit.py")],
+        input=payload,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+    return proc.returncode, proc.stderr
+
+
+def _age_marker(work: str, name: str, seconds: int) -> None:
+    """Backdate a marker, so a freshness window can be crossed without waiting."""
+    path = os.path.join(work, "tmp", "session", name)
+    old = time.time() - seconds
+    os.utime(path, (old, old))
+
+
+def _touch_marker(work: str, name: str) -> None:
+    sess = os.path.join(work, "tmp", "session")
+    os.makedirs(sess, exist_ok=True)
+    with open(os.path.join(sess, name), "w", encoding="utf-8") as fh:
+        fh.write("2026-08-07T00:00:00+00:00\n")
+
+
+def _design_case(files_line: str, reads: tuple, *, read_response=_UNSET, **kw):
+    """Read `reads` in a fresh fixture project, then write a spec about `files_line`.
+
+    `read_response` is the `tool_response` every one of those Reads returned. The
+    default is a whole-file read of a substantial file; pass a shape to state that
+    the author was shown less than that, or nothing.
+    """
+    work = _mark_project()
+    try:
+        for path in reads:
+            _read_source(work, path, read_response)
+        return _write_spec(work, files_line, **kw)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _design_blocked(r) -> bool:
+    """Blocked BY THIS GATE. Advisory findings from sibling checks are not a block,
+    and another check's exit 2 must not be read as this one firing. Every refusal
+    this check emits carries its own name, so the test never guesses from prose."""
+    rc, err = r
+    return rc == 2 and "[design-without-lsp]" in err
+
+
+def _design_degraded(r) -> bool:
+    """The gate could not read a subject and SAID so. A permissive path that says
+    nothing is the thing this asserts against (ai/rules/evidence.md)."""
+    return "design-without-lsp: no subject read" in r[1]
+
+
+def run_design_gate(results: Results) -> None:
+    """T-4 (AC-6): the spec-write gate is SCOPED to the spec's own subject, not
+    relaxed. A spec about a hook, a dev script or a YANG model is grounded by
+    reading THAT file; a spec about the daemon still needs the daemon's Go, and
+    an uninvestigated spec is still refused."""
+    print("design-gate:")
+
+    # SHOULD PASS NOW, DID NOT BEFORE: a hooks spec grounded by its own hook.
+    # The hook it is about is Python (the 3 dispatchers), which wrote no marker at
+    # all before, so writing that spec meant reading an unrelated .go file.
+    r = _design_case(
+        "- `.claude/hooks/pretool-writeedit.py` - the gate",
+        ("/repo/.claude/hooks/pretool-writeedit.py",),
+    )
+    results.check(
+        "design-gate-hooks-spec-reads-its-hook", not _design_blocked(r), repr(r)
+    )
+
+    # Same shape for a YANG spec and a dev-script spec.
+    r = _design_case(
+        "- `internal/component/iface/yang/ze-iface.yang` - the model",
+        ("/repo/internal/component/iface/yang/ze-iface.yang",),
+    )
+    results.check(
+        "design-gate-yang-spec-reads-its-model", not _design_blocked(r), repr(r)
+    )
+
+    r = _design_case(
+        "- `scripts/dev/commit_helper.py` - the helper",
+        ("/repo/scripts/dev/commit_helper.py",),
+    )
+    results.check(
+        "design-gate-tooling-spec-reads-its-tool", not _design_blocked(r), repr(r)
+    )
+
+    # MUST STILL FIRE: a daemon spec written with NOTHING investigated. This is the
+    # refusal the gate exists for (inference-written specs, 2026-07-16).
+    r = _design_case("- `internal/x/y.go` - the daemon", ())
+    results.check(
+        "design-gate-daemon-spec-uninvestigated-blocked", _design_blocked(r), repr(r)
+    )
+
+    # MUST STILL FIRE, and this is the scoping: a daemon spec grounded by reading a
+    # shell hook is NOT grounded. Widening the accepted set without asking WHICH
+    # kind the spec is about would have let this through -- relaxing the gate for
+    # every Go spec in the repository.
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon", ("/repo/.claude/hooks/foo.sh",)
+    )
+    results.check(
+        "design-gate-daemon-spec-grounded-by-hook-blocked", _design_blocked(r), repr(r)
+    )
+
+    # ...and the control: the same spec with its own Go read is allowed.
+    r = _design_case("- `internal/x/y.go` - the daemon", ("/repo/internal/x/y.go",))
+    results.check(
+        "design-gate-daemon-spec-reads-its-go", not _design_blocked(r), repr(r)
+    )
+
+    # MUST STILL FIRE: the spec's own file, Read, but the harness showed the
+    # author NOTHING. This is mark-source-read-depth-file-unchanged asserted at
+    # the ENTRY POINT rather than at the marker file, which is where the operator
+    # meets it: the refusal is what they get, and a guard tested only through its
+    # helper is not tested (ai/rules/evidence.md).
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon",
+        ("/repo/internal/x/y.go",),
+        read_response={"type": "file_unchanged", "file": {"filePath": "/repo/x.go"}},
+    )
+    results.check(
+        "design-gate-subject-read-showed-nothing-blocked", _design_blocked(r), repr(r)
+    )
+
+    # A spec that states no source subject (docs, a `.ci`, a bare directory) keeps
+    # the pre-scoping bar: any implementation source, and still not nothing.
+    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))
+    results.check(
+        "design-gate-subjectless-spec-any-source", not _design_blocked(r), repr(r)
+    )
+
+    r = _design_case("- `docs/guide/x.md` - the page", ())
+    results.check(
+        "design-gate-subjectless-spec-nothing-blocked", _design_blocked(r), repr(r)
+    )
+
+    # The aggregate marker says SOMETHING was read and never says what. It cannot
+    # answer the question a subject-bearing spec asks, so it does not clear one:
+    # the only thing it still carries is the subjectless path below.
+    work = _mark_project()
+    try:
+        _touch_marker(work, f".source-read-{_DESIGN_SID}")
+        r = _write_spec(work, "- `internal/x/y.go` - the daemon")
+        results.check(
+            "design-gate-kindless-marker-not-enough-for-subject",
+            _design_blocked(r),
+            repr(r),
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The LSP tool is gopls, so an LSP invocation grounds a GO spec with no Read.
+    work = _mark_project()
+    try:
+        _read_source(work, "/repo/.claude/hooks/foo.sh")  # a per-kind marker exists
+        _touch_marker(work, f".lsp-invoked-{_DESIGN_SID}")
+        r = _write_spec(work, "- `internal/x/y.go` - the daemon")
+        results.check(
+            "design-gate-lsp-grounds-go-spec", not _design_blocked(r), repr(r)
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # BLOCKER 1 (reviewer, 2026-08-07): gopls is Go evidence and Go evidence ONLY.
+    # An LSP-only session has no per-kind marker at all, and the old branch test
+    # `kinds and any(per_kind)` fell through to the any-source bar, where the LSP
+    # marker alone allowed a PYTHON spec. That is the inversion of the hole this
+    # scoping closes, so it is asserted with no Read in the session whatsoever.
+    work = _mark_project()
+    try:
+        _touch_marker(work, f".lsp-invoked-{_DESIGN_SID}")
+        r = _write_spec(work, "- `scripts/dev/commit_helper.py` - the helper")
+        results.check(
+            "design-gate-lsp-alone-does-not-ground-py-spec",
+            _design_blocked(r),
+            repr(r),
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # BLOCKER 2: EVERY kind, not any kind. A spec naming a reactor `.go` beside an
+    # `mk/*.mk` claims things about both. Any-of let the author list a cheap file
+    # next to the expensive one and read only the cheap one.
+    r = _design_case(
+        "- `internal/component/bgp/reactor/peer.go` - the daemon\n"
+        "- `mk/appliance.mk` - the build wiring",
+        ("/repo/mk/appliance.mk",),
+    )
+    results.check(
+        "design-gate-multi-kind-needs-every-kind", _design_blocked(r), repr(r)
+    )
+
+    # ...and reading both clears it, so the rule is every-kind, not go-only.
+    r = _design_case(
+        "- `internal/component/bgp/reactor/peer.go` - the daemon\n"
+        "- `mk/appliance.mk` - the build wiring",
+        ("/repo/mk/appliance.mk", "/repo/internal/component/bgp/reactor/peer.go"),
+    )
+    results.check(
+        "design-gate-multi-kind-both-read-allowed", not _design_blocked(r), repr(r)
+    )
+
+    # BLOCKER 2, freshness half: each kind ages on its own clock. Taking the newest
+    # mtime across kinds let a fresh `.mk` read carry a Go read that had gone stale,
+    # which renews the expensive evidence for free every time the cheap file is
+    # opened.
+    work = _mark_project()
+    try:
+        _read_source(work, "/repo/internal/component/bgp/reactor/peer.go")
+        _age_marker(work, f".source-read-go-{_DESIGN_SID}", 3 * 3600)
+        _read_source(work, "/repo/mk/appliance.mk")
+        r = _write_spec(
+            work,
+            "- `internal/component/bgp/reactor/peer.go` - the daemon\n"
+            "- `mk/appliance.mk` - the build wiring",
+        )
+        results.check(
+            "design-gate-fresh-kind-does-not-carry-stale-kind",
+            _design_blocked(r) and "longer ago" in r[1],
+            repr(r),
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # ISSUE 3: a subject the gate cannot read is the one permissive path left, so
+    # it must SAY it degraded. Silence is what makes a weakened guard invisible.
+    r = _design_case("- `docs/guide/x.md` - the page", ("/repo/scripts/dev/foo.py",))
+    results.check("design-gate-subjectless-write-warns", _design_degraded(r), repr(r))
+
+    # ISSUE 3: an un-backticked path in a table row is a subject too. Reading only
+    # the backticked form derived nothing for 52 of 232 open specs, each of which
+    # then took the weaker bar.
+    r = _design_case(
+        "| internal/component/bgp/reactor/peer.go | the daemon |",
+        ("/repo/scripts/dev/foo.py",),
+    )
+    results.check("design-gate-bare-path-is-a-subject", _design_blocked(r), repr(r))
+
+    # ISSUE 3: a MultiEdit carries its text only in `edits`. A spec authored that
+    # way used to reach the gate with no visible subject at all.
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon",
+        ("/repo/scripts/dev/foo.py",),
+        on_disk=False,
+        tool="MultiEdit",
+    )
+    results.check("design-gate-multiedit-subject-seen", _design_blocked(r), repr(r))
+
+    # ISSUE 5: the section ends at the next heading of ANY depth. `### Documentation
+    # Checklist` rows name files the spec does not modify, and swallowing them let a
+    # checklist `.yang` stand in for the Go this spec is actually about.
+    _CHECKLIST = (
+        "\n\n### Documentation Checklist\n\n"
+        "- [ ] `internal/component/iface/yang/ze-iface.yang` documented\n"
+    )
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon",
+        ("/repo/internal/component/iface/yang/ze-iface.yang",),
+        trailer=_CHECKLIST,
+    )
+    results.check(
+        "design-gate-checklist-row-is-not-a-subject", _design_blocked(r), repr(r)
+    )
+
+    # A spec whose new code all sits under `## Files to Create` is about that code
+    # too. Reading only Files to Modify left such a spec subjectless on the weaker
+    # bar (`plan/spec-anomaly-0-umbrella.md` is the shape: two docs to modify, its
+    # Go to create).
+    r = _design_case(
+        "- `docs/features.md` - the feature row",
+        ("/repo/scripts/dev/foo.py",),
+        trailer="\n\n## Files to Create\n\n- `internal/plugins/anomaly/detect.go` - new",
+    )
+    results.check(
+        "design-gate-files-to-create-is-a-subject", _design_blocked(r), repr(r)
+    )
+
+    # ...and its companion: the checklist must not ADD a kind either, so the Go
+    # read alone clears the same spec.
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon",
+        ("/repo/internal/x/y.go",),
+        trailer=_CHECKLIST,
+    )
+    results.check(
+        "design-gate-checklist-adds-no-requirement", not _design_blocked(r), repr(r)
+    )
+
+    # A Write of a NEW spec has no file on disk, so the subject can only come from
+    # the payload. Reading only the disk would silently fall back to "no subject".
+    r = _design_case(
+        "- `internal/x/y.go` - the daemon",
+        ("/repo/.claude/hooks/foo.sh",),
+        on_disk=False,
+    )
+    results.check(
+        "design-gate-new-spec-subject-from-payload", _design_blocked(r), repr(r)
+    )
+
+    # BLOCKER 2 (reviewer, 2026-08-07): EVERY row of _SUBJECT_PATTERNS must be
+    # load-bearing in the REJECTING direction. Deleting the `sh`, `yang`,
+    # `Makefile` or `.mk` row used to leave all 21 design-gate fixtures green,
+    # because every rejecting case exercised `go` or `py`: no fixture made those
+    # kinds the subject-under-test, so the rows were decoration.
+    #
+    # The shape is one spec naming ONE kind, grounded by a DIFFERENT kind. Delete
+    # that kind's row and the spec becomes subjectless, the foreign read satisfies
+    # the weaker any-source bar, and the case goes green -- which is the red.
+    # `Makefile` and `.mk` are two rows and so are two cases.
+    for label, files_line, read in (
+        ("go", "- `internal/x/y.go` - the daemon", "/repo/.claude/hooks/foo.sh"),
+        (
+            "py",
+            "- `scripts/dev/commit_helper.py` - the helper",
+            "/repo/internal/x/y.go",
+        ),
+        (
+            "sh",
+            "- `.claude/hooks/mark-source-read.sh` - the writer",
+            "/repo/internal/x/y.go",
+        ),
+        (
+            "yang",
+            "- `internal/component/iface/yang/ze-iface.yang` - the model",
+            "/repo/internal/x/y.go",
+        ),
+        ("makefile", "- `Makefile` - the entry point", "/repo/internal/x/y.go"),
+        ("mk", "- `mk/appliance.mk` - the build wiring", "/repo/internal/x/y.go"),
+    ):
+        r = _design_case(files_line, (read,))
+        results.check(
+            f"design-gate-{label}-subject-needs-its-own-kind",
+            _design_blocked(r),
+            repr(r),
+        )
+        # ...and the control, which is what makes the case above a scoping test
+        # rather than a "nothing ever passes" test: the spec's OWN subject clears
+        # it. This half is also the BLOCKER 1 property, asserted per kind: the
+        # file the spec NAMES is a file a Read can record.
+        subject = files_line.split("`")[1]
+        r = _design_case(files_line, ("/repo/" + subject.lstrip("/"),))
+        results.check(
+            f"design-gate-{label}-subject-cleared-by-its-own-file",
+            not _design_blocked(r),
+            repr(r),
+        )
+
+    # BLOCKER 1: the two ends of the kind contract, walked together. The reader
+    # derives what a spec DEMANDS and the writer records what a Read SUPPLIES, and
+    # when they disagree the only exit from a block is reading a file the spec does
+    # not name -- the gate manufacturing the evidence it exists to demand. Real
+    # subjects from open specs, so a directory anchor creeping back into either end
+    # is a named red here.
+    mod = _load_pretool_writeedit()
+    for path in (
+        "internal/component/bgp/reactor/peer.go",
+        "test/interop/harness_test.go",
+        "scripts/dev/commit_helper.py",
+        ".claude/hooks/pretool-writeedit.py",
+        "test/ipsec-interop/lab.py",
+        "tools/kernel-builder/build.py",
+        ".claude/hooks/mark-source-read.sh",
+        "packaging/deb/preinstall.sh",
+        "test/ipsec-interop/scenarios/06-eap-tls13/pki/gen-pki.sh",
+        "Makefile",
+        "mk/appliance.mk",
+        "internal/component/iface/yang/ze-iface.yang",
+        "docs/guide/x.md",
+        "test/bgp/session.ci",
+    ):
+        written = _run_mark_source_read("/repo/" + path)
+        supplied = {
+            name.split("-")[2]
+            for name in written
+            if name.startswith(".source-read-")
+            and name != f".source-read-{_DESIGN_SID}"
+        }
+        demanded = mod._spec_subject_kinds(
+            "## Files to Modify\n\n- `%s` - the file\n" % path
+        )
+        results.check(
+            f"design-gate-contract-both-ends-agree-{path.replace('/', '_')}",
+            supplied == demanded,
+            f"{path}: writer supplies {sorted(supplied)}, gate demands {sorted(demanded)}",
+        )
+
+    # ISSUE 4 (reviewer, 2026-08-07): the refusal must name the section that
+    # actually carries the subject. A spec whose Go sits only under Files to
+    # Create was sent to "Files to Modify", which does not hold it.
+    r = _design_case(
+        "- `docs/features.md` - the feature row",
+        ("/repo/scripts/dev/foo.py",),
+        trailer="\n\n## Files to Create\n\n- `internal/plugins/anomaly/detect.go` - new",
+    )
+    results.check(
+        "design-gate-message-names-both-sections",
+        _design_blocked(r) and "Files to Modify / Files to Create" in r[1],
+        repr(r),
+    )
+
+    # NOTE 7 (reviewer, 2026-08-07): a table's second column is prose. Heading
+    # depth already stopped a `### Checklist` row becoming a subject; this is the
+    # same hole one row further in, where a description mentioning a helper made
+    # that helper's kind a requirement of a spec that modifies no Python.
+    r = _design_case(
+        "| `internal/x/y.go` | port the logic out of `scripts/dev/foo.py` |",
+        ("/repo/internal/x/y.go",),
+    )
+    results.check(
+        "design-gate-description-column-is-not-a-subject",
+        not _design_blocked(r),
+        repr(r),
+    )
+
+    # ...and the first cell of that same row still IS one, so the fix narrowed the
+    # scan without blinding it.
+    r = _design_case(
+        "| `scripts/dev/foo.py` | port the logic out of it |",
+        ("/repo/internal/x/y.go",),
+    )
+    results.check(
+        "design-gate-first-cell-is-still-a-subject", _design_blocked(r), repr(r)
+    )
+
+    # ISSUE 3: the depth bar reaches the gate, not just the writer. A keyhole Read
+    # of the spec's own subject leaves the session ungrounded.
+    work = _mark_project()
+    try:
+        _read_source(
+            work, "/repo/internal/x/y.go", {"file": {"numLines": 1, "totalLines": 900}}
+        )
+        r = _write_spec(work, "- `internal/x/y.go` - the daemon")
+        results.check(
+            "design-gate-keyhole-read-does-not-ground", _design_blocked(r), repr(r)
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -3229,6 +3886,7 @@ SECTIONS = {
     "session-id": run_session_id,
     "rfc-test-guard": run_rfc_test_guard,
     "mark-source-read": run_mark_source_read,
+    "design-gate": run_design_gate,
     "delegation": run_delegation,
     "subagent-context": run_subagent_context,
     "delegation-reminder": run_delegation_reminder,

@@ -95,9 +95,67 @@ because that is where a reader looking for "why did the tooling fight me" goes.
 
 ## `pretool-writeedit.py` — `c_design_without_lsp`
 
-**Trigger.** `Write`/`Edit` on `plan/spec-*.md` or `plan/design-*.md` when neither
-marker exists: `tmp/session/.lsp-invoked-<sid>` or `tmp/session/.source-read-<sid>`,
-where `<sid>` comes from that file's own `session_id()`.
+**Trigger.** `Write`/`Edit` on `plan/spec-*.md` or `plan/design-*.md` when no
+marker for the spec's SUBJECT exists: `tmp/session/.lsp-invoked-<sid>` or
+`tmp/session/.source-read-<kind>-<sid>`, where `<sid>` comes from that file's own
+`session_id()`.
+
+**The subject comes from the spec's own `## Files to Modify` and `## Files to
+Create` (2026-08-07).** A spec about `.py`, `.sh`, `.yang`, or the make wiring is
+cleared by reading that file; a spec about Go is cleared by Go or by the LSP
+tool, which is Go evidence only. The kind is the file's extension at both ends
+(2026-08-08), so the fix for a block is always to read a file the spec itself
+names. Reading some other language no longer clears it. Read more than a 20-line
+window: a keyhole read records nothing.
+
+**EVERY kind the list names must be read, each within its own 30 minutes.** The
+friction this buys is real and lands on bookkeeping edits: an umbrella spec
+naming Go, `.py` and `.sh` costs one Read per kind before a progress row can be
+ticked. That is the price of the author not choosing which file counts as the
+evidence. A spec that names no readable subject still accepts any implementation
+source, and the gate prints a warning saying it fell back.
+
+**Two ways around it, both recorded here because the 2026-08-07 tightening makes
+them more attractive rather than less.** The gate keys on the `Write`/`Edit`
+TOOL, so a spec edited from a `Bash` heredoc or `sed` never reaches it. The
+marker writer is registered on `Read` alone, so a `Bash` `grep` or `sed`
+investigation records nothing, and an author who did the work in `Bash` is asked
+for a `Read` that teaches them nothing. Neither is sanctioned. Both are cheaper
+than the sanctioned path for an author in a hurry, and the per-kind rule raises
+the price of the sanctioned path: a spec naming Go, `.py` and `.sh` re-demands
+three fresh Reads for a Status tick, because `_spec_text` reads the spec from
+disk and derives the same three kinds whatever the edit changes.
+
+**It blocks the REVERT as well as the edit, and that asymmetry pushed an agent
+off the sanctioned path this week.** Undoing your own spec edit is a `Write` on a
+`plan/spec-*.md`, so a session whose markers went stale cannot put the file back
+the way it found it. The way out was `Bash`, which is the bypass above. A guard
+that is hardest to satisfy at the moment you are trying to undo damage teaches
+the bypass to the person least able to argue with it.
+
+**The price of the sanctioned path, measured rather than guessed at
+(2026-08-08).** Over the 240 open `plan/spec-*.md`, run through
+`_spec_subject_kinds` itself: 110 name one kind, 59 name two, 11 name three, 3
+name four, and `plan/spec-release-distribution.md` names five (`go`, `make`,
+`py`, `sh`, `yang`). 56 name none the gate can read and fall to the weaker
+any-source bar. Each kind carries its OWN 1800-second window, so a Status tick on
+that one spec costs five qualifying Reads, and the four-kind specs cost four.
+This number belongs beside the two bypasses above, because it is the pressure
+that makes them attractive: a `Bash` `sed` costs one call whatever the spec
+names. The cheapest sanctioned answer is a whole-file Read of the smallest file
+the spec lists for each kind, which passes at any length above zero.
+
+**Renewing a stale marker: re-read the file at an OFFSET, not whole
+(2026-08-08).** The harness answers a second whole Read of an unchanged file with
+`{"type":"file_unchanged"}` and no body ("Wasted call -- file unchanged since
+your last Read"). Since 2026-08-08 that records nothing, because it showed
+nothing: it used to renew a 30-minute clearance on a file last seen 13.5 hours
+earlier (measured, `.gitignore`, transcript `db096d05`). The escape is immediate
+and needs no waiting: a Read carrying an `offset` returns content even when the
+file has not changed, 11 seconds after a `file_unchanged` on the same path
+(measured, `plan/spec-bgp-per-peer-received-counter.md`, transcript `39d85892`).
+So renew with `Read(path, offset=N, limit>=20)`. A failed Read and a zero-byte
+file record nothing for the same reason.
 
 **What it blocks.** Writing a spec without having investigated the implementation
 first. The intent is sound and worth keeping (`ai/rules/evidence.md`): read the

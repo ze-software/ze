@@ -1556,6 +1556,138 @@ def c_enforce_naming(ctx):
     return None
 
 
+# --- what a spec is ABOUT ---
+#
+# The kinds mark-source-read.sh records, spelled identically at both ends: it
+# writes tmp/session/.source-read-<KIND>-<SID> for a Read it accepts, and
+# c_design_without_lsp below asks for the kind the spec under edit is about.
+# The two lists are one contract; the fixtures in
+# scripts/dev/hook-fixture-check.py (sections mark-source-read and design-gate)
+# drive the writer and the reader over the SAME fixture project so they cannot
+# drift apart silently, and design-gate-contract-both-ends-agree walks a path
+# list through BOTH so a divergence is a named red rather than a hole.
+_SOURCE_KINDS = ("go", "py", "sh", "make", "yang")
+
+# A spec states its own subject in "## Files to Modify" and "## Files to Create".
+# Each pattern maps one path to the kind of source that grounds a claim about it.
+# EVERY kind the spec names must have been read: a spec listing a reactor `.go`
+# beside an `mk/*.mk` claims things about both, and letting the cheaper one
+# satisfy the gate would hand the author the choice of what counts as evidence.
+# A section that yields NO kind never passes silently: the gate degrades to the
+# older any-source bar and SAYS it did.
+#
+# THE KIND IS THE EXTENSION, WITH NO DIRECTORY ANCHOR (2026-08-08). These
+# patterns must accept exactly what mark-source-read.sh records, because the
+# author's way past a block is to READ THE FILE THE SPEC NAMES. While this end
+# demanded `py` for any `*.py` and the writer recorded `py` only under `scripts/`
+# and `.claude/hooks/`, 11 open specs (test/interop/interop.py,
+# test/ipsec-interop/lab.py, tools/kernel-builder/build.py) and 2 more for `sh`
+# (packaging/deb/preinstall.sh) had no readable route to their own marker: the
+# sanctioned exit was reading an unrelated scripts/*.py, which manufactures the
+# evidence the gate exists to demand. Anchoring THIS end to those directories
+# instead would have made those 13 specs subjectless and dropped them to the
+# weaker any-source bar -- a gate that stops asking, rather than one that can be
+# answered. Dropping the `internal|pkg|cmd` anchor on `.go` costs nothing and
+# buys the same property for Go: 6 specs naming only `test/**.go` demanded no
+# kind at all before, and now name `go`.
+_SUBJECT_PATTERNS = (
+    (r"\.go$", "go"),
+    (r"\.py$", "py"),
+    (r"\.sh$", "sh"),
+    (r"(?:^|/)Makefile$", "make"),
+    (r"\.mk$", "make"),
+    (r"\.yang$", "yang"),
+)
+
+# A path-shaped token, backticked or bare, in a bullet or in a table cell. The
+# lists on disk are written all three ways, so reading only the backticked form
+# derived NOTHING for 52 of the 232 open specs, and each of those dropped to the
+# weaker bar with nothing said. A `/` is required, which keeps a prose mention of
+# a bare `foo.go` from becoming a subject.
+_PATH_TOKEN = re.compile(r"[A-Za-z0-9_.\-/]*/[A-Za-z0-9_.\-]+|Makefile\b")
+
+
+def _subject_lines(body):
+    """The part of each line that states a FILE, with description prose dropped.
+
+    A `## Files to Modify` table is `| path | what changes |`, and the second
+    cell is prose: "mirrors `scripts/dev/foo.py`" in a description used to make
+    `py` a requirement of a spec that modifies no Python. Heading depth already
+    keeps a `### Checklist` row from becoming a subject; this is the same hole
+    one row further in. Only the first cell of a table row is a path column, so
+    only the first cell is scanned. A bullet is left whole: its paths are not
+    positional, and several specs list two files in one bullet.
+    """
+    for line in body.splitlines():
+        line = line.strip()
+        if line.startswith("|"):
+            cells = line.split("|")
+            yield cells[1] if len(cells) > 1 else ""
+        else:
+            yield line
+
+
+def _spec_subject_kinds(text):
+    """The source kinds a spec is about: its Files to Modify AND Files to Create.
+
+    Both, because a spec whose new code is all under Files to Create is about
+    that code exactly as much (`plan/spec-anomaly-0-umbrella.md` lists two docs
+    to modify and its Go under Create).
+
+    Each section ends at the next heading of ANY depth. Stopping only at `## `
+    swallowed `### Integration Checklist` and `### Documentation Checklist`,
+    whose rows name files the spec does not modify: 10 specs on disk gain a kind
+    that way, and under the every-kind rule a checklist row would then decide
+    what the author must read.
+
+    Measured 2026-08-08 over the 240 open specs: 110 name one kind, 74 name
+    several, and 56 name none the gate can read (a placeholder `internal/...`, or
+    a bare directory). Those 56 take the weaker bar and are TOLD so. Every kind
+    those 184 specs demand is reachable by reading a path the spec itself lists,
+    which is the property `_SUBJECT_PATTERNS` and `mark-source-read.sh` exist to
+    hold jointly. The tail is the price: 3 specs name four kinds and
+    `plan/spec-release-distribution.md` names five, each on its own 30-minute
+    clock (`plan/learned/HOOK-FRICTION.md`, `c_design_without_lsp`).
+    """
+    kinds = set()
+    for m in re.finditer(
+        r"^## Files to (?:Modify|Create)[^\n]*\n(.*?)(?=^#{2,6} |\Z)",
+        text,
+        re.M | re.S,
+    ):
+        for line in _subject_lines(m.group(1)):
+            for token in _PATH_TOKEN.findall(line):
+                path = token.strip().strip("`")
+                for pattern, kind in _SUBJECT_PATTERNS:
+                    if re.search(pattern, path):
+                        kinds.add(kind)
+                        break
+    return kinds
+
+
+def _spec_text(ctx):
+    """The spec as the gate can see it: what is on disk, plus what is being written.
+
+    An Edit hands over only its replacement text, so the Files to Modify section
+    usually lives on disk; a Write of a new spec has no file yet and carries the
+    whole document in the payload. A MultiEdit carries neither `content` nor
+    `new_string`, and its `edits` list is the only place its text exists: reading
+    just the first two made a MultiEdit-authored spec subjectless, which is the
+    quiet degradation this gate must not have.
+    """
+    text = ""
+    try:
+        with open(ctx["fp"], encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        pass
+    parts = [text, ctx["content"] or ""]
+    for edit in ctx["ti"].get("edits") or []:
+        if isinstance(edit, dict):
+            parts.append(str(edit.get("new_string") or ""))
+    return "\n".join(parts)
+
+
 # ze point: evidence/no-fabrication/investigate-source-in-session-before-writing-a-spec
 # ze point: evidence/no-fabrication/read-the-producing-code-before-claiming-behavior
 def c_design_without_lsp(ctx):
@@ -1568,39 +1700,113 @@ def c_design_without_lsp(ctx):
         return None
     sid = session_id()
     # A spec/design write requires that the implementation was investigated this
-    # session: either the LSP tool was invoked (.lsp-invoked) OR an implementation
-    # source file was read (.source-read). Reading the function that PRODUCES a
-    # behavior is the verification we want before authoring a spec that claims
-    # something about that behavior. See ai/rules/evidence.md.
-    markers = (
-        os.path.join(PROJECT_DIR, "tmp/session", f".lsp-invoked-{sid}"),
-        os.path.join(PROJECT_DIR, "tmp/session", f".source-read-{sid}"),
-    )
-    mtimes = []
-    for marker in markers:
+    # session. Reading the function that PRODUCES a behavior is the verification
+    # we want before authoring a spec that claims something about it
+    # (ai/rules/evidence.md).
+    #
+    # WHICH source counts is the spec's OWN subject, and EVERY kind it names must
+    # have been read. Three properties are load-bearing, and each one was a hole
+    # first:
+    #   * The LSP tool is gopls, so `.lsp-invoked` is evidence of kind `go` and of
+    #     nothing else. An LSP-only session used to satisfy a Python spec.
+    #   * Every kind, not any kind. A spec naming a reactor `.go` beside an
+    #     `mk/*.mk` claims things about both, and any-of let the author pick the
+    #     cheap file as the evidence for the expensive one.
+    #   * Each kind's own freshness. Taking the newest over all kinds let a fresh
+    #     `.mk` read carry a Go read that had gone stale.
+    #   * The kind a spec DEMANDS must be a kind a Read can RECORD. The two ends
+    #     are `_SUBJECT_PATTERNS` here and the `case` in mark-source-read.sh, and
+    #     while they disagreed the sanctioned way past a block was to read a file
+    #     the spec does not name. Both are keyed on the extension alone now.
+    sess = os.path.join(PROJECT_DIR, "tmp/session")
+
+    def _mtime(name):
         try:
-            mtimes.append(os.stat(marker).st_mtime)
+            return os.stat(os.path.join(sess, name)).st_mtime
         except OSError:
-            pass
-    if not mtimes:
+            return None
+
+    lsp = _mtime(f".lsp-invoked-{sid}")
+    any_source = _mtime(f".source-read-{sid}")
+    evidence = {k: _mtime(f".source-read-{k}-{sid}") for k in _SOURCE_KINDS}
+    if lsp is not None:
+        evidence["go"] = max(t for t in (evidence["go"], lsp) if t is not None)
+
+    fresh = int(os.environ.get("LSP_FRESHNESS_SECONDS", "1800"))
+    now = time.time()
+    # What this says is what mark-source-read.sh MEASURES, and no more. It used to
+    # say "read enough of it to have learned something", which reads as a floor
+    # under every Read and is a bar the writer does not hold: a whole-file read
+    # passes at any length, deliberately, and that is the operator's cheapest
+    # honest route past a block. A refusal that asserts a property its producer
+    # does not enforce is the shield that stops the next reader asking
+    # (ai/rules/evidence.md).
+    how = (
+        "  Reading the source a spec is ABOUT satisfies this, and the kind is the\n"
+        "  file's extension: .go, .py, .sh, .yang, the Makefile or a .mk -- anywhere in\n"
+        "  the tree -- or, for Go only, the LSP tool. What counts as reading it: the\n"
+        "  WHOLE file, at any length, or a window of at least 20 lines. A Read that\n"
+        "  showed nothing counts as nothing, so re-reading a file whole a second time\n"
+        "  renews nothing -- the harness answers that with 'file unchanged' and shows\n"
+        "  you no lines. Read a window of it at an offset instead."
+    )
+
+    kinds = _spec_subject_kinds(_spec_text(ctx))
+    if kinds:
+        missing = [k for k in sorted(kinds) if evidence.get(k) is None]
+        stale = [
+            k
+            for k in sorted(kinds)
+            if evidence.get(k) is not None and now - evidence[k] > fresh
+        ]
+        if missing or stale:
+            subject = ", ".join(sorted(kinds))
+            detail = ""
+            if missing:
+                detail += "  Never read this session: %s\n" % ", ".join(missing)
+            if stale:
+                detail += "  Read, but longer ago than %ds: %s\n" % (
+                    fresh,
+                    ", ".join(stale),
+                )
+            return (
+                2,
+                "❌ Blocked [design-without-lsp]: this spec's own subject was not\n"
+                "  investigated this session.\n"
+                "  Its Files to Modify / Files to Create name %s, and EVERY kind they\n"
+                "  name must be read: the author does not choose which one counts\n"
+                "  (ai/rules/evidence.md).\n" % subject + detail + how,
+            )
+        return None
+
+    # The subject could not be read. This is the ONLY permissive path left, so it
+    # is never silent: the older any-source bar still applies, and the operator is
+    # told the gate degraded and what to write to restore it.
+    have = [t for t in list(evidence.values()) + [any_source] if t is not None]
+    if not have:
         return (
             2,
-            "❌ Blocked: no implementation investigated this session before a spec/design write.\n"
+            "❌ Blocked [design-without-lsp]: no implementation investigated this session\n"
+            "  before a spec/design write.\n"
             "  Before specing a gap, READ the source that PRODUCES the behavior you are\n"
             "  claiming, not its caller (ai/rules/evidence.md, Behavioral claims).\n"
-            "  Reading the source a spec can be ABOUT satisfies this: .go under internal/\n"
-            "  pkg/ cmd/, .py under scripts/, .sh under .claude/hooks/, the Makefile or\n"
-            "  mk/ -- or using the LSP tool.",
+            + how,
         )
-    fresh = int(os.environ.get("LSP_FRESHNESS_SECONDS", "1800"))
-    if time.time() - max(mtimes) > fresh:
+    if now - max(have) > fresh:
         return (
             2,
-            "❌ Blocked: implementation investigation is stale (> %ds).\n"
-            "  Re-read the source that produces the behavior, or use the LSP tool,\n"
-            "  before editing the spec/design file." % fresh,
+            "❌ Blocked [design-without-lsp]: implementation investigation is stale (> %ds).\n"
+            % fresh
+            + "  Re-read the source that produces the behavior, or use the LSP tool,\n"
+            "  before editing the spec/design file.",
         )
-    return None
+    return (
+        1,
+        f"{YELLOW}⚠ design-without-lsp: no subject read from '## Files to Modify' or\n"
+        "  '## Files to Create', so this spec was checked against the WEAKER bar: any\n"
+        "  implementation source, of any kind. List the files this spec modifies or\n"
+        f"  creates, each with its path, and the gate will ask for the kinds they name.{RESET}",
+    )
 
 
 # ze point: planning/spec-metadata-blocking/update-spec-status-at-each-transition
