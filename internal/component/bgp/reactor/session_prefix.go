@@ -396,6 +396,11 @@ func (s *Session) collectPrefixSections(wu *wireu.WireUpdate, out *[maxPrefixSec
 // that family holds, so a re-announcement of a prefix the peer already has
 // moves nothing.
 //
+// The two modes therefore answer a refusal differently, and this function owns
+// the difference. An installed family is put back exactly as it was, whichever
+// family refused the message; an offered family keeps the count it took, which
+// is the behavior every config written before the `count` leaf existed has.
+//
 // RFC 4486 Section 4: "Maximum Number of Prefixes Reached" -- Cease subcode 1.
 func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notification, drop bool) {
 	if s.prefixCounts == nil {
@@ -423,6 +428,20 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 	// message, before any of it is counted. A peer whose families all keep the
 	// default never enters this branch.
 	if len(s.prefixCounts.installed) > 0 {
+		// The journal outlives applyInstalledPrefixSections on purpose. The
+		// offered loop below can still refuse this message, and by then every
+		// installed family is already settled, so this function is the only
+		// place that knows the message's final answer. Undoing the sets here is
+		// what makes a refusal all-or-nothing across families rather than
+		// all-or-nothing within the installed ones.
+		defer func() {
+			if notif != nil || drop {
+				s.rollbackPrefixSets()
+				s.restoreInstalledPrefixCounts(sections)
+			}
+			clear(s.prefixSetJournal)
+			s.prefixSetJournal = s.prefixSetJournal[:0]
+		}()
 		if n, d := s.applyInstalledPrefixSections(sections, hasLimits); n != nil || d {
 			return n, d
 		}
@@ -455,8 +474,8 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 
 // prefixSetChange is one mutation an UPDATE made to an installed family's set.
 // entry is a VIEW into the message payload, so a change is only replayable while
-// that message is being checked. applyInstalledPrefixSections clears the journal
-// before it returns, which is exactly that window.
+// that message is being checked. checkPrefixLimits clears the journal before it
+// returns, which is exactly that window.
 type prefixSetChange struct {
 	fk    uint32
 	entry []byte
@@ -475,17 +494,20 @@ type prefixSetChange struct {
 //   - a withdrawal of a prefix ze never held moves nothing;
 //   - a route refresh that replays the peer's whole table moves nothing.
 //
-// None of that is true of an event tally, which is why this function counts what
-// FRR's pcount and BIRD's imp_routes count: the cardinality of the peer's routes,
-// maintained as they enter and leave.
+// None of that is true of an event tally. What this counts is the cardinality of
+// the prefixes the peer currently advertises, maintained as they enter and
+// leave. It is not the size of any RIB: it is taken before import policy runs,
+// so it is above what `show bgp summary` reports for a peer whose prefixes that
+// policy rejects (mergeRibRouteCounts, plugins/cmd/peer/summary.go).
 //
-// A message this function refuses never moves any set, exactly as it never
-// reaches the RIB (processMessage, session_read.go, returns before plugin
-// delivery). Refusal is therefore all-or-nothing across families: the sets are
-// mutated as the sections are read, and rollbackPrefixSets undoes every one of
-// them before the refusal is reported. A message mixing an installed family with
-// an offered one is refused whole; the message reached no family's RIB, so
-// counting one of them would report prefixes no reader can see.
+// A message REFUSED anywhere never moves any set, exactly as it never reaches
+// the RIB (processMessage, session_read.go, returns before plugin delivery).
+// Refusal is all-or-nothing across families, and the family that refuses need
+// not be an installed one: the sets are mutated as the sections are read, and
+// checkPrefixLimits keeps the journal alive until the whole message has an
+// answer, so rollbackPrefixSets undoes every one of them whichever family said
+// no. Counting a family of a message no reader can see would report prefixes
+// that are not there.
 //
 // A family stops taking new prefixes the moment its set passes its maximum, so
 // one over-limit message can grow a set to maximum+1 and no further. Without
@@ -494,11 +516,6 @@ type prefixSetChange struct {
 // The count this reports is therefore maximum+1: the size at which the family
 // crossed its bound, not the size the whole message would have reached.
 func (s *Session) applyInstalledPrefixSections(sections []prefixSection, hasLimits bool) (*message.Notification, bool) {
-	defer func() {
-		clear(s.prefixSetJournal)
-		s.prefixSetJournal = s.prefixSetJournal[:0]
-	}()
-
 	for _, sec := range sections {
 		if !s.prefixCounts.installed[sec.fk] {
 			continue
@@ -507,8 +524,9 @@ func (s *Session) applyInstalledPrefixSections(sections []prefixSection, hasLimi
 		if !over {
 			continue
 		}
+		// The set size is read before the caller's rollback runs, so the
+		// operator is told the size at which the family crossed its bound.
 		current := int64(len(s.prefixCounts.sets[sec.fk]))
-		s.rollbackPrefixSets()
 		return s.reportPrefixExceeded(sec.fk, familyString(sec.fk), current, maximum)
 	}
 
@@ -589,6 +607,29 @@ func (s *Session) rollbackPrefixSets() {
 			continue
 		}
 		set[string(c.entry)] = struct{}{}
+	}
+}
+
+// restoreInstalledPrefixCounts re-derives each installed family's count from its
+// set, after rollbackPrefixSets has put the sets back. The count IS the size of
+// the set, so restoring one without the other would leave the two readings of
+// the same number disagreeing.
+//
+// It runs on every refusal, including one an installed family decided itself. In
+// that case applyInstalledPrefixSections returned before it settled any count,
+// so every delta here is zero and the walk changes nothing.
+func (s *Session) restoreInstalledPrefixCounts(sections []prefixSection) {
+	for i, sec := range sections {
+		if !s.prefixCounts.installed[sec.fk] || containsPrefixSectionFamily(sections[:i], sec.fk) {
+			continue
+		}
+		delta := int64(len(s.prefixCounts.sets[sec.fk])) - s.prefixCounts.counts[sec.fk]
+		if delta == 0 {
+			continue
+		}
+		// applyPrefixDelta, never applyPrefixCheck: the pre-message count was
+		// already inside the maximum, so putting it back can refuse nothing.
+		s.applyPrefixDelta(sec.fk, delta)
 	}
 }
 

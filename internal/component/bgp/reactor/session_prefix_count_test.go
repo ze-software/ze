@@ -286,6 +286,105 @@ func TestPrefixCountInstalledRefusalLeavesTheSetUntouched(t *testing.T) {
 	assert.Len(t, set, 2, "no new prefix stayed and no phantom appeared")
 }
 
+// twoFamilyMixedModeSettings gives ipv4/unicast the installed mode with room to
+// spare, and ipv6/unicast the default mode with a maximum one message overruns.
+// The refusal therefore comes from the family that is NOT the installed one,
+// which is the only way to reach the offered loop with an installed family
+// already settled.
+func twoFamilyMixedModeSettings(v6Maximum uint32, v6Teardown bool) *PeerSettings {
+	ps := newTestPeerSettingsWithPrefix(10, 0)
+	ps.PrefixMaximum["ipv6/unicast"] = v6Maximum
+	ps.PrefixTeardown = map[string]bool{"ipv4/unicast": false, "ipv6/unicast": v6Teardown}
+	ps.PrefixCount = map[string]PrefixCountMode{"ipv4/unicast": PrefixCountInstalled}
+	return ps
+}
+
+// mixedFamilyBody is one UPDATE that reaches two families: an MP_REACH_NLRI
+// announcing four IPv6 /32 prefixes (RFC 4760 Section 3) and two IPv4 /24 NLRIs
+// in the message body (RFC 4271 Section 4.3).
+func mixedFamilyBody() []byte {
+	return append(ipv6OverflowBody(), 24, 10, 0, 0, 24, 10, 0, 1)
+}
+
+// TestPrefixCountInstalledRefusalByAnotherFamilyLeavesTheSetUntouched is the
+// cross-family half of the atomicity guard, and it is the case the single-family
+// tests above cannot reach.
+//
+// One UPDATE carries both families. ipv4/unicast counts what ze installed and
+// has room for what the message brings it; ipv6/unicast keeps the default mode
+// and overruns its maximum, so the message is refused and processMessage
+// (session_read.go) delivers none of it to any plugin. The IPv4 prefixes
+// therefore reached no RIB, and the installed set must not hold them.
+//
+// The defect this pins: checkPrefixLimits settled the installed families first
+// and the journal that can undo them died with that call, so a refusal decided
+// afterwards had nothing left to roll back. Every single-family test stayed
+// green through it, because a single-family message is refused by the same call
+// that mutated the set.
+func TestPrefixCountInstalledRefusalByAnotherFamilyLeavesTheSetUntouched(t *testing.T) {
+	tests := []struct {
+		name     string
+		teardown bool
+	}{
+		{"warn-only drop", false},
+		{"teardown", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewSession(twoFamilyMixedModeSettings(3, tt.teardown))
+
+			notif, drop := s.checkPrefixLimits(testWireUpdate(mixedFamilyBody()))
+
+			require.True(t, notif != nil || drop, "four IPv6 prefixes overrun a maximum of 3")
+			assert.Equal(t, int64(0), s.prefixCounts.counts[ipv4UKey],
+				"a refused message must not move an installed family's count")
+			assert.Empty(t, s.prefixCounts.sets[ipv4UKey],
+				"a refused message must not move an installed family's set")
+		})
+	}
+
+	// The same message with room in both families is accepted, so the installed
+	// set keeps what it brought. Without this the rollback could fire on every
+	// message and the assertions above would still pass.
+	t.Run("an accepted message still moves the set", func(t *testing.T) {
+		s := NewSession(twoFamilyMixedModeSettings(10, false))
+
+		checkOK(t, s, mixedFamilyBody())
+
+		assert.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey])
+		assert.Len(t, s.prefixCounts.sets[ipv4UKey], 2)
+		assert.Equal(t, int64(4), s.prefixCounts.counts[ipv6UKey],
+			"the offered family counts what it was sent")
+	})
+}
+
+// TestPrefixCountInstalledRefusalByAnotherFamilyRestoresAWithdrawal is the same
+// refusal over a message that LOWERS the installed family. The IPv4 section
+// withdraws a prefix ze holds; the IPv6 section then overruns its maximum. The
+// withdrawal never reached a RIB either, so the set must still hold that prefix
+// and the count must still be 2.
+//
+// A rollback that only undid insertions would pass the test above and fail this
+// one, and a count restored by subtraction alone would report 1.
+func TestPrefixCountInstalledRefusalByAnotherFamilyRestoresAWithdrawal(t *testing.T) {
+	s := NewSession(twoFamilyMixedModeSettings(3, false))
+
+	checkOK(t, s, announceBody(t, 0, 2))
+	require.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey])
+
+	// The IPv4 withdrawn-routes field takes 10.0.0.0/24 away; the MP_REACH then
+	// overruns ipv6/unicast.
+	body := append([]byte{0, 4, 24, 10, 0, 0}, ipv6OverflowBody()[2:]...)
+	_, drop := s.checkPrefixLimits(testWireUpdate(body))
+	require.True(t, drop)
+
+	assert.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey],
+		"a refused withdrawal must not free a slot")
+	assert.Contains(t, s.prefixCounts.sets[ipv4UKey], string([]byte{24, 10, 0, 0}),
+		"the withdrawal was rolled back")
+	assert.Len(t, s.prefixCounts.sets[ipv4UKey], 2)
+}
+
 // TestPrefixCountInstalledStopsGrowingAtTheMaximum bounds what one refused
 // message can make ze allocate. A Go map keeps its buckets after its entries
 // go, so a peer that could make ze insert a whole message before ze threw it

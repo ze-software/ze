@@ -554,14 +554,16 @@ Section 3.1). `offered` reads that second announcement as a second prefix.
 Pick `offered` to bound how much a peer may SEND you, announcement by
 announcement, and accept that a peer which re-announces will reach the bound
 without ever holding that many routes. Pick `installed` to bound how many
-prefixes that peer may HOLD, which is the number `show bgp summary` reports and
-the one the two other implementations compare (FRR's `pcount`, BIRD's
-`imp_routes`).
+distinct prefixes a peer may advertise to you at once, which is the number that
+stops moving when the peer only churns attributes.
 
-Neither value is the size of the RIB: import policy can reject a prefix the
-count holds, and the count is taken before that policy runs. Neither value
-changes enforcement, either: both drop the same UPDATE whole, and both send the
-same NOTIFICATION under `teardown true`.
+Neither value is the size of the RIB, and neither is the number
+`show bgp summary` reports. Both counts are taken before import policy runs.
+`show bgp summary` reports `routes-received` and `routes-accepted`, and both are
+the Adj-RIB-In size AFTER that policy, because Ze stores no route the policy
+rejected. A peer whose prefixes the policy rejects therefore reads lower there
+than in either count. Neither value changes enforcement, either: both drop the
+same UPDATE whole, and both send the same NOTIFICATION under `teardown true`.
 
 `installed` keeps one entry per prefix for that family, so it costs memory in
 proportion to what the peer sends, bounded by `maximum` when one is configured.

@@ -265,7 +265,10 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		}
 		if prefixDrop {
 			// AC-27: teardown=false, exceeded. Skip plugin delivery but keep session.
-			// Withdrawals were already counted. The UPDATE is consumed but not forwarded.
+			// The UPDATE is consumed but not forwarded. What its withdrawals did to
+			// the count depends on the family's `count` mode: an `offered` family
+			// keeps them, an `installed` family had them rolled back by
+			// checkPrefixLimits, because this message reached no RIB.
 			// The FSM handler for EventUpdateMsg restarts the HoldTimer per §8.2.2 Event 27.
 			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
