@@ -130,11 +130,19 @@ func SetLogger(l *slog.Logger) {
 
 // withdrawalKey is a value-type map key for the withdrawal set.
 // For unicast families, prefix is set and nlriStr is empty (zero-alloc).
-// For non-unicast families, nlriStr stores the full NLRI string.
+// For a family with a text NLRI spelling, nlriStr holds that text token.
+// For a family ze holds only as opaque wire bytes (BGP-LS and every other
+// family with no dedicated parser), nlriStr holds the hex of ONE NLRI and
+// wireForm is true: the withdrawal then goes out as "update hex", because no
+// text spelling of those bytes exists. addPath records whether the hex carries
+// a 4-octet path identifier (RFC 7911 Section 3), which the sizer on the
+// receiving side needs to frame each NLRI.
 type withdrawalKey struct {
-	fam     family.Family
-	prefix  netip.Prefix
-	nlriStr string
+	fam      family.Family
+	prefix   netip.Prefix
+	nlriStr  string
+	wireForm bool
+	addPath  bool
 }
 
 // RouteServer implements a BGP Route Server API plugin.

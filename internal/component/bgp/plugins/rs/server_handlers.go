@@ -167,24 +167,42 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 	go rs.sendBatchedWithdrawals(peerAddr, entries)
 }
 
-// sendBatchedWithdrawals groups withdrawal entries by family and sends them
-// in batched text RPCs. Each batch packs up to withdrawalBatchSize prefixes
-// into a single "update text nlri <family> del <prefix1> del <prefix2> ..."
+// withdrawalGroup names one batched withdrawal command: every entry in it
+// shares a family AND a command form, because those two together decide the
+// command's opening tokens.
+type withdrawalGroup struct {
+	fam      string
+	wireForm bool
+	addPath  bool
+}
+
+// sendBatchedWithdrawals groups withdrawal entries by family and command form
+// and sends them in batched RPCs. Each batch packs up to withdrawalBatchSize
+// NLRIs into a single "update text nlri <family> del <p1> del <p2> ..."
 // command, reducing the number of RPC roundtrips by ~500x compared to
 // one-prefix-per-RPC.
+//
+// A family ze holds only as opaque wire bytes has no text NLRI spelling, so its
+// batch goes out as "update hex nlri <family> [addpath] del <hex1> del <hex2>"
+// instead. RFC 9552 Section 5.2 requires ze to keep an unknown Link-State NLRI
+// type as an opaque object, and that is exactly what the text form cannot
+// carry: sending it as text failed with route.ErrFamilyNotSupported and left
+// the departing peer's Link-State routes announced to every other client.
 func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]struct{}) {
 	if len(entries) == 0 {
 		return
 	}
 
-	// Group by family for batched commands. String conversion on cold path only.
-	byFamily := make(map[string][]string)
+	// Group by family and form for batched commands. String conversion on cold
+	// path only.
+	var tb textbuf.Buffer
+	byGroup := make(map[withdrawalGroup][]string)
 	for wk := range entries {
-		famStr := wk.fam.String()
+		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath}
 		if wk.nlriStr != "" {
-			byFamily[famStr] = append(byFamily[famStr], wk.nlriStr)
+			byGroup[g] = append(byGroup[g], wk.nlriStr)
 		} else {
-			byFamily[famStr] = append(byFamily[famStr], "prefix "+wk.prefix.String())
+			byGroup[g] = append(byGroup[g], tb.Reset().Str("prefix ").Prefix(wk.prefix).String())
 		}
 	}
 
@@ -196,14 +214,28 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 	excludeSel := selector.ExcludeAddr(addr)
 	var buf strings.Builder
 
-	for fam, prefixes := range byFamily {
-		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
-			end := min(i+withdrawalBatchSize, len(prefixes))
-			batch := prefixes[i:end]
+	for g, nlris := range byGroup {
+		// Map iteration is unordered, so without this the same peer-down emits a
+		// different byte sequence on every run: unreadable in a log, and
+		// untestable on the wire. Cold path, once per peer-down.
+		sort.Strings(nlris)
+		for i := 0; i < len(nlris); i += withdrawalBatchSize {
+			end := min(i+withdrawalBatchSize, len(nlris))
+			batch := nlris[i:end]
 
 			buf.Reset()
-			buf.WriteString("update text nlri ")
-			buf.WriteString(fam)
+			if g.wireForm {
+				buf.WriteString("update hex nlri ")
+				buf.WriteString(g.fam)
+				if g.addPath {
+					// RFC 7911 Section 3: tells the receiving sizer that each
+					// NLRI opens with a 4-octet path identifier.
+					buf.WriteString(" addpath")
+				}
+			} else {
+				buf.WriteString("update text nlri ")
+				buf.WriteString(g.fam)
+			}
 			for _, p := range batch {
 				buf.WriteString(" del ")
 				buf.WriteString(p)
