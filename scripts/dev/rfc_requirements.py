@@ -2432,6 +2432,20 @@ def check_new_summaries(
     summary in the repository accused of being new -- a wall of violations naming files
     committed years ago, which no developer can act on and which teaches people to bypass
     the gate. "I could not look" must not render as "nothing was there".
+
+    The source is read through `source_obligation_keyword_count`, not through the raw
+    `source_keyword_count` beside it: a keyword inside the document's own RFC 2119
+    key-words paragraph is the document saying how to read its other sentences, so it is
+    not evidence that this summary hid an obligation. It used to be read that way, and
+    RFC 7454 -- a BCP whose body states no MUST at all -- was refused on the strength of
+    the four keywords in its own Section 1.1.
+
+    `_BOILERPLATE_RE` recognizes that paragraph by its WORDING, so a document writing
+    "keywords" as one word, or "defined in RFC 2119", is still charged its four keywords
+    and still fails here with nothing to extract. The message therefore names the route
+    that case actually has -- enrol, and classify each such site `not-a-requirement` in
+    the extraction sign-off enrolling already requires -- rather than only "extract the
+    obligations", which is work that does not exist for such a document.
     """
     errs: List[str] = []
     if not baseline_stems:
@@ -2464,14 +2478,18 @@ def check_new_summaries(
                 f"requirement as tested, {{single-polarity}}, {{gap}} or {{not-applicable}}"
             )
             continue
-        src = source_keyword_count(stem)
+        src = source_obligation_keyword_count(stem)
         if src:
             errs.append(
                 f"rfc/short/{stem}.md is new and declares NO MUST-level requirement, but "
-                f"the source text has {src} MUST-level keyword(s). An absent summary is "
-                f"indistinguishable from a compliant one: extract the obligations, or "
-                f"record in the summary why the source keywords are not requirements on a "
-                f"speaker"
+                f"the source text has {src} MUST-level keyword(s) outside any RFC 2119 "
+                f"key-words paragraph this gate recognizes. An absent summary is "
+                f"indistinguishable from a compliant one. Enrol the stem, with the "
+                f"obligations extracted; when those keywords are not requirements on a "
+                f'speaker (a key-words paragraph written "keywords", or "defined in '
+                f'RFC 2119", is invisible to the exclusion), record that at each site as '
+                f"not-a-requirement in rfc/extraction/{stem}.json -- the sign-off "
+                f"enrolling requires anyway"
             )
     return errs
 
@@ -4416,6 +4434,60 @@ def source_prose_keyword_count(stem: str) -> Optional[int]:
     return len(_SRC_PROSE_KEYWORD_RE.findall(text))
 
 
+def source_obligation_keyword_count(stem: str) -> Optional[int]:
+    """`source_keyword_count` again, minus the document's own key-words paragraph.
+
+    A third denominator, and the one a GATE may read. The two above are published
+    measurements and stay raw (rfc/extraction/README.md, "Three denominators, all
+    correct"); this one answers the only question a gate asks of the source: does it state
+    an obligation the summary failed to capture?
+
+    "The key words MUST, MUST NOT, ... are to be interpreted as described in RFC 2119" is
+    not one. It is the document saying how to read its other sentences, which is why
+    `_sites_for` excludes it. Counting it charged most of the corpus four keywords it does
+    not owe, and for a document whose ONLY capitalised keywords are that sentence the raw
+    count reads as four hidden obligations.
+    Measured over the 178 summaries in rfc/short on 2026-08-08, by driving both counters
+    over every stem: the correction removes 4 keywords from 131 stems, 2 from 3, 6 from
+    rfc4552 (which writes the paragraph twice), and nothing at all from the other 43. Three
+    stems reach zero, and they are the three whose capitalised keywords were ALL in that
+    paragraph: rfc5301, rfc5443 and rfc7454. No stem loses a keyword sitting outside one.
+
+    Shares `_BOILERPLATE_RE` and the sentence splitter with `_sites_for` rather than
+    re-deciding what boilerplate is, so the gate and the extraction inventory can never
+    disagree about which sentence binds nobody.
+
+    The exclusion drops a whole SENTENCE, and the splitter decides what one is, so what it
+    takes is only PARTLY bounded. `_split_off_boilerplate` recovers an obligation fused
+    AFTER the key-words paragraph, and only when the fused chunk carries a sentence
+    terminator after the boilerplate match. Two shapes still leave with the exclusion and
+    are counted as zero:
+
+    * no terminator after the match -- the chunk goes whole, obligation included;
+    * an obligation BEFORE the key-words paragraph -- the cut never looks to the left of
+      the match, and cannot, because the keyword listing of an `interpreted as described
+      in RFC 2119` match sits there too (rfc2890, rfc4301, rfc4303, rfc4862).
+
+    Neither shape occurs in rfc/full or rfc/drafts on 2026-08-08: all 331 excluded
+    sentences reach here already terminated by the splitter, so this counter loses no
+    obligation today. That is a fact about the corpus, not a property of the rule
+    (ai/rules/rfc-compliance.md), and rfc/extraction/README.md states the same bound.
+
+    None, not 0, when we have no source text: "I could not look" must never render as
+    "nothing was there" (ai/rules/evidence.md, the zero-value trap).
+    """
+    text = source_text(stem)
+    if text is None:
+        return None
+    total = 0
+    for _sid, body in _section_bodies(_strip_page_furniture(text)):
+        for sentence in _sentences(body):
+            if _BOILERPLATE_RE.search(sentence):
+                continue
+            total += len(_SRC_KEYWORD_RE.findall(sentence))
+    return total
+
+
 def unconverted_summaries(captured: Set[str]) -> List[Dict[str, object]]:
     """Summaries that declare no MUST-level requirement, with the source keyword count.
 
@@ -5276,6 +5348,14 @@ _SITE_PROSE_RE = re.compile(
 # document saying how to read its other sentences. Counting it as a site would give every
 # RFC in the corpus one guaranteed site to classify as `not-a-requirement`, which is noise
 # that teaches a reviewer to skim.
+#
+# It excludes MORE than that paragraph, and the name says less than the pattern does. Both
+# alternatives also match a REFERENCE-LIST entry citing either RFC by title, because the
+# entry carries "Key words ..." within 600 characters of "BCP 14". Of the 331 sentences
+# excluded across rfc/full and rfc/drafts, 145 are key-words paragraphs and 186 are
+# reference entries. Not one of the 186 carries a MUST-level keyword, so nothing is lost
+# today, and a scope documented narrower than the code is how the next reader mis-reasons
+# about it (rfc/extraction/README.md, "Three denominators").
 _BOILERPLATE_RE = re.compile(
     r"key\s+words.{0,600}?(?:interpreted|RFC\s*2119|BCP\s*14)"
     r"|interpreted\s+as\s+described\s+in\s+\[?(?:RFC\s*2119|BCP\s*14)",
@@ -5306,7 +5386,17 @@ _PAGE_FOOTER_RE = re.compile(r"\[Page\s+\d+\]\s*$")
 
 # Sentence boundary: end punctuation, whitespace, then something that starts a sentence.
 # Demanding the follower rules out "e.g. the" and "Fig. 3" without an abbreviation list.
+# What it costs is a sentence opening on a digit or a lowercase letter, which stays fused
+# to the one before it. _split_off_boilerplate covers the one place that fusion can hide an
+# obligation.
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"(\[])")
+
+# A terminator that ends something: end punctuation with whitespace after it. The lookahead
+# is what tells "RFC 2119. 6PE routers ..." from the dots inside "DOI 10.17487/RFC2119" and
+# "www.rfc-editor.org", which every RFC 2119 reference-list entry carries. 103 sentences in
+# this corpus match the boilerplate and hold a later dot; all 103 are reference entries, and
+# every one of those dots is intra-token. Cutting on a bare [.!?] would shear them in two.
+_BOILERPLATE_END_RE = re.compile(r"[.!?](?=\s)")
 
 
 class Site(NamedTuple):
@@ -5436,18 +5526,79 @@ def _section_bodies(text: str) -> List[Tuple[str, str]]:
     return [(sid, "\n".join(bodies[sid])) for sid in order]
 
 
+def _split_off_boilerplate(sentence: str) -> List[str]:
+    """Cut the key-words paragraph away from whatever the splitter fused onto it.
+
+    Both readers of a sentence -- `_sites_for` and `source_obligation_keyword_count` --
+    drop it whole when `_BOILERPLATE_RE` matches, so the splitter decides how much the
+    exclusion takes. `_SENTENCE_SPLIT_RE` cannot cut before a digit or a lowercase letter,
+    which leaves "... as described in RFC 2119. 6PE routers MUST support X." as ONE
+    sentence. Excluding the key-words paragraph then takes the obligation with it, and it
+    leaves no trace: the gate reads an RFC that asks for nothing, and a summary that
+    captured nothing passes `check_new_summaries`. That is the one direction a compliance
+    gate must not fail in (ai/rules/rfc-compliance.md).
+
+    Cutting here rather than loosening the follower class keeps "e.g. the" and "Fig. 3"
+    unsplit everywhere else in the corpus. No sentence in rfc/full or rfc/drafts cuts
+    differently under this rule, which is the intent: it changes nothing that exists today
+    and closes the way an obligation could leave unseen tomorrow.
+
+    WHAT IT DOES NOT REACH, because the caller must not read it as a closed bound:
+
+    * A chunk with NO `[.!?]` and whitespace after the match. `_BOILERPLATE_END_RE` finds
+      nothing, the loop breaks, and the chunk leaves WHOLE with the obligation inside it.
+      Every one of the 331 excluded sentences in rfc/full and rfc/drafts is in this state
+      on 2026-08-08 -- the splitter had already terminated them, so there is nothing fused
+      to cut and this function is a no-op over the whole corpus today.
+    * An obligation BEFORE the key-words paragraph. The search starts at `m.end()` and
+      never looks left. Cutting a preceding head cannot be done safely by this rule: for
+      an `interpreted as described in RFC 2119` match the paragraph's OWN keyword listing
+      sits to the left of the match (rfc2890 1.1, rfc4301 1.1, rfc4303 1, rfc4862 2.1 --
+      the only four in the corpus), so a left-hand cut would promote a listing to an
+      obligation. Zero occurrences today; the shape is a bullet list whose marker is
+      lowercase, which `_SENTENCE_SPLIT_RE` will not cut before.
+    """
+    out: List[str] = []
+    rest = sentence
+    while True:
+        m = _BOILERPLATE_RE.search(rest)
+        if m is None:
+            break
+        end = _BOILERPLATE_END_RE.search(rest, m.end())
+        if end is None:
+            break
+        # The cut can land inside a citation, and the quote a reviewer reads is what
+        # suffers. "... described in [BRADNER, S. 1997]. 6PE routers MUST support X."
+        # takes its first `[.!?]` and whitespace at the "S.", so the head keeps
+        # "... [BRADNER, S." and this site's quote opens "1997]. 6PE routers MUST ...".
+        # The keyword survives, so the direction is an over-count and never a missed
+        # obligation, but a sign-off RECORDS the quote and a mangled quote is what the
+        # human walking the sites has to judge. Zero occurrences in rfc/full and
+        # rfc/drafts on 2026-08-08.
+        head, tail = rest[: end.end()].strip(), rest[end.end() :].strip()
+        if not head or not tail:
+            break
+        out.append(head)
+        rest = tail
+    out.append(rest.strip())
+    return [s for s in out if s]
+
+
 def _sentences(body: str) -> List[str]:
     """Every sentence of a section body, paragraph by paragraph, whitespace collapsed.
 
     Paragraph-at-a-time so a sentence never runs across a blank line, and whitespace
-    collapsed so the derived quote is stable no matter how the source wrapped it.
+    collapsed so the derived quote is stable no matter how the source wrapped it. Each cut
+    then passes through `_split_off_boilerplate`, which separates a key-words paragraph
+    from an obligation the follower class could not cut away from it.
     """
     out: List[str] = []
     for para in re.split(r"\n\s*\n", body):
         flat = " ".join(para.split())
         if not flat:
             continue
-        out.extend(s.strip() for s in _SENTENCE_SPLIT_RE.split(flat) if s.strip())
+        for chunk in _SENTENCE_SPLIT_RE.split(flat):
+            out.extend(_split_off_boilerplate(chunk))
     return out
 
 

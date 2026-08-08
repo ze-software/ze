@@ -2334,6 +2334,32 @@ class TestEvidenceRatchetWiring(unittest.TestCase):
         self.assertIn("interop/nightly 0", out)
 
 
+# The key-words paragraph and a real obligation in ONE paragraph, with the obligation
+# opening on a digit -- the shape the sentence splitter cannot cut, because it demands
+# `[A-Z"(\[]` after the full stop. Merged, the whole thing matches _BOILERPLATE_RE and the
+# obligation leaves with it. "6PE" is the real spelling of RFC 4798's subject, and an RFC
+# that opens a sentence with it is ordinary.
+_SRC_MERGED_DIGIT = """\
+1.  Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119.
+   6PE routers MUST support the label stack of Section 3.
+"""
+
+# The same trap sprung by a lowercase opener instead, and through the OTHER arm of
+# _BOILERPLATE_RE: "keywords" as one word is invisible to the `key\\s+words` alternative, so
+# the match starts at "interpreted" and ends inside the sentence rather than at its head.
+_SRC_MERGED_LOWER = """\
+1.  Conventions
+
+   The keywords MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, MAY in
+   this document are to be interpreted as described in RFC 2119.
+   iSCSI targets MUST reject the request.
+"""
+
+
 # --------------------------------------------------------------------------
 # New-summary enrolment (spec-rfc-gate-regression-ratchets AC-9..AC-13)
 # --------------------------------------------------------------------------
@@ -2344,7 +2370,7 @@ class TestNewSummaryEnrolment(unittest.TestCase):
     unrelated commit."""
 
     def _errs(self, stems, baseline, enrolled, reqs, parse_errors=None, src=0):
-        with _patched(source_keyword_count=lambda stem: src):
+        with _patched(source_obligation_keyword_count=lambda stem: src):
             return R.check_new_summaries(
                 stems=set(stems),
                 baseline_stems=set(baseline),
@@ -2389,10 +2415,74 @@ class TestNewSummaryEnrolment(unittest.TestCase):
         self.assertEqual(errs, [])
 
     def test_new_summary_unknown_source_is_clean(self):
-        """rfc/full/<stem>.txt absent: source_keyword_count returns None. Guessing a
-        violation from a missing file would punish RFCs we simply have not downloaded."""
+        """rfc/full/<stem>.txt absent: source_obligation_keyword_count returns None.
+        Guessing a violation from a missing file would punish RFCs we simply have not
+        downloaded."""
         errs = self._errs(["rfc9999", "rfc0000"], ["rfc0000"], [], [], src=None)
         self.assertEqual(errs, [])
+
+    def test_new_summary_boilerplate_only_passes(self):
+        """The real counter, over a real source: a document whose ONLY capitalised
+        MUST-level keywords are its own RFC 2119 key-words sentence states no obligation,
+        so a summary that gates nothing has hidden nothing.
+
+        Unpatched on purpose. The four keywords of rfc7454 Section 1.1 were read as four
+        hidden obligations and refused a BCP whose body contains no MUST at all.
+        """
+        self.assertEqual(R.source_keyword_count("rfc7454"), 4)
+        self.assertEqual(R.source_obligation_keyword_count("rfc7454"), 0)
+        errs = R.check_new_summaries(
+            stems={"rfc7454", "rfc0000"},
+            baseline_stems={"rfc0000"},
+            enrolled=set(),
+            requirements=[],
+            parse_errors={},
+        )
+        self.assertEqual(errs, [])
+
+    def test_a_real_must_outside_the_boilerplate_still_fails(self):
+        """The discriminating twin: strip the key-words paragraph out of a genuinely
+        normative source and the obligations are still there. Without this the change
+        above is indistinguishable from switching the gate off."""
+        self.assertGreater(R.source_obligation_keyword_count("rfc4271"), 100)
+        errs = R.check_new_summaries(
+            stems={"rfc4271", "rfc0000"},
+            baseline_stems={"rfc0000"},
+            enrolled=set(),
+            requirements=[],
+            parse_errors={},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc4271", errs[0])
+        self.assertIn("key-words paragraph", errs[0])
+
+    def _count(self, src):
+        with _patched(source_text=lambda stem: src):
+            return R.source_obligation_keyword_count("rfc9999")
+
+    def test_an_obligation_merged_into_the_key_words_paragraph_survives(self):
+        """The exclusion drops a SENTENCE, and the splitter decides what one is. Where it
+        cannot cut, the key-words paragraph and the obligation after it are one sentence,
+        and excluding the first takes the second with it.
+
+        This is the one failure direction a gate must not have: the counter feeds
+        check_new_summaries, so a swallowed MUST reads as an RFC that asks for nothing and
+        the summary capturing nothing passes. Zero occurrences in today's corpus, which is
+        a fact about the corpus rather than about the rule (ai/rules/rfc-compliance.md).
+        Both openers the splitter refuses are covered: a digit and a lowercase letter."""
+        self.assertEqual(self._count(_SRC_MERGED_DIGIT), 1)
+        self.assertEqual(self._count(_SRC_MERGED_LOWER), 1)
+
+    def test_the_key_words_paragraph_alone_still_counts_nothing(self):
+        """The discriminating control: the fix above must save the obligation without
+        readmitting the four keywords of the paragraph that carried it. Same fixtures, cut
+        at the paragraph's own full stop."""
+        for src in (_SRC_MERGED_DIGIT, _SRC_MERGED_LOWER):
+            head = "\n".join(src.rstrip("\n").split("\n")[:-1]) + "\n"
+            self.assertIn("interpreted as described", head)
+            self.assertNotIn("MUST support", head)
+            self.assertNotIn("MUST reject", head)
+            self.assertEqual(self._count(head), 0)
 
     def test_new_summary_parse_error_is_reported(self):
         """AC-12: parse errors are suppressed for un-enrolled summaries (they predate the
@@ -2616,7 +2706,7 @@ class TestDegradedBaselineIsQuiet(unittest.TestCase):
             _git_baseline_tag_polarities=lambda: {},
             _git_baseline_evidence=lambda: {},
             _git_baseline_summary_stems=lambda: stems_baseline,
-            source_keyword_count=lambda stem: 23,
+            source_obligation_keyword_count=lambda stem: 23,
             scan_tree=lambda *a, **k: [
                 _tag("RFC7606-2-1", "positive"),
                 _tag("RFC7606-2-1", "negative", line=2),
@@ -3256,6 +3346,17 @@ class TestSiteInventory(unittest.TestCase):
             "   all capitals, as shown here.\n"
         )
         self.assertEqual(self._inv(src).sites, [])
+
+    def test_obligation_merged_into_the_key_words_paragraph_is_still_a_site(self):
+        """`_sentences` feeds the inventory as well as the gate counter, so the merge that
+        hides a MUST from the counter also hides it from the reviewer's walk -- and a site
+        nobody sees is a site nobody classifies. The quote must be the obligation alone,
+        because the sign-off records what was classified."""
+        for src in (_SRC_MERGED_DIGIT, _SRC_MERGED_LOWER):
+            sites = self._inv(src).sites
+            self.assertEqual(len(sites), 1, sites)
+            self.assertNotIn("interpreted as described", sites[0].quote)
+            self.assertRegex(sites[0].quote, r"^(6PE routers|iSCSI targets) MUST ")
 
     def test_register_is_derived_not_authored(self):
         """AC-9: a keyword-rich source derives rfc2119; a keyword-free one derives

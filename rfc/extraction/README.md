@@ -81,21 +81,64 @@ and the 23 selected by `keyword_sites == 0` with their gated totals summed from
 `gated_counts` -- never retyped from a previous run.
 <!-- source: scripts/dev/rfc_requirements.py — derive_inventory, derive_register, gated_counts, source_keyword_count -->
 
-**Two denominators, both correct; do not reconcile them into one number.** The figure
-above counts SITES: normative *sentences* after the RFC 2119 boilerplate is excluded. A
-second measurement counts raw uppercase keyword *occurrences* anywhere in the source
-(`source_keyword_count`), and on the same day it gives **22 stems declaring 164 gated
-MUSTs** -- the figure `plan/spec-rfcgate-0-umbrella.md` records as one of its "three
-pre-2119 measurements". The whole difference is `rfc5443` (8 gated MUSTs): its only four
-uppercase occurrences sit inside its own "Conventions Used in This Document" paragraph,
-which the site scan correctly refuses to count as an obligation. 164 + 8 = 172. Quote the
-site figure when talking about sign-off arithmetic, because sites are what a sign-off
-classifies; quote the occurrence figure only when talking about raw keyword presence.
-<!-- source: scripts/dev/rfc_requirements.py — _sites_for, _BOILERPLATE_RE, source_keyword_count -->
+**Three denominators, all correct; do not reconcile them into one number.** Each one reads
+the same source text and answers a different question.
+
+| Denominator | Counts | Who reads it |
+|---|---|---|
+| sites (`_sites_for`) | normative *sentences*, boilerplate excluded | the sign-off arithmetic, because a site is what a reviewer classifies |
+| `source_keyword_count` | raw uppercase keyword *occurrences*, anywhere in the text | the rendered ledger, as published evidence |
+| `source_obligation_keyword_count` | the same occurrences, minus the sentences `_BOILERPLATE_RE` excludes | `check_new_summaries`. It is the only one a gate reads as a NUMBER (`check_enrolment` reads `source_keyword_count`, but only for `is None`: have we got the source text at all) |
+
+The figure above counts sites. The occurrence count gives **22 stems declaring 164 gated
+MUSTs** on the same day, the figure `plan/spec-rfcgate-0-umbrella.md` records as one of its
+"three pre-2119 measurements". The whole difference is `rfc5443` (8 gated MUSTs): its only
+four uppercase occurrences sit inside its own "Conventions Used in This Document"
+paragraph, which the site scan correctly refuses to count as an obligation. 164 + 8 = 172.
+
+The third denominator exists because a gate asks one question of the source: does it state
+an obligation the summary failed to capture? The raw count answers a different one. It
+charges a document four keywords for its own key-words paragraph, and for a document whose
+only capitalised keywords are that paragraph it reads as four hidden obligations. It
+refused RFC 7454 on exactly that basis. Quote the site figure for sign-off arithmetic, the
+occurrence figure for raw keyword presence, and the obligation figure only for what a gate
+decided.
+
+**`_BOILERPLATE_RE` excludes more than its name says.** Of the 331 sentences it excludes
+across `rfc/full` and `rfc/drafts`, 145 are key-words paragraphs and 186 are reference-list
+entries that cite RFC 2119 or RFC 8174 by title. No excluded reference entry carries a
+MUST-level keyword, so no denominator above loses an obligation to one today. Read the
+wider scope as the contract: a reader who assumes the narrow one will mis-judge the next
+document that names those RFCs in prose.
+
+**The exclusion drops a whole sentence, and `_split_off_boilerplate` bounds only part of
+what that can take.** It cuts a key-words paragraph away from an obligation fused AFTER it.
+It cuts only when the fused chunk carries a sentence terminator after the boilerplate
+match. Two shapes still leave with the exclusion, and both count as zero:
+
+| Shape | Why the cut misses it |
+|---|---|
+| No `.`, `!` or `?` and whitespace after the match | `_BOILERPLATE_END_RE` finds nothing, so the chunk goes whole |
+| The obligation sits BEFORE the key-words paragraph | The search starts at the match end and never looks left. It cannot: for an `interpreted as described in RFC 2119` match the paragraph's own keyword listing is to the left (rfc2890 1.1, rfc4301 1.1, rfc4303 1, rfc4862 2.1), so a left-hand cut would promote a listing to an obligation |
+
+Neither shape occurs today: all 331 excluded sentences arrive already terminated by the
+splitter, so `_split_off_boilerplate` is a no-op over the present corpus and no denominator
+loses an obligation to either shape. That is a measurement of the corpus, not a property of
+the rule.
+
+A fourth counter, `source_prose_keyword_count`, counts the same words in LOWERCASE. It is
+the evidence a pre-2119 document offers instead of capitalised keywords, it renders in the
+ledger beside the raw count, and no gate reads it.
+<!-- source: scripts/dev/rfc_requirements.py -- _sites_for, _BOILERPLATE_RE, _split_off_boilerplate, source_keyword_count, source_obligation_keyword_count, source_prose_keyword_count -->
 
 *(Corrected 2026-07-29: this paragraph previously read "168 gated MUSTs", which is neither
 denominator's answer. Re-measured against the producing code, `ai/rules/writing.md`
-Source Anchors.)*
+Source Anchors. Extended 2026-08-08: the section named two denominators and the gate reads
+a third, so a reader sent here by `source_obligation_keyword_count` learned the wrong
+one. Corrected the same day: it then said `_split_off_boilerplate` "bounds what the
+exclusion can take", which overstates a cut that fires only after the match and only on a
+terminated chunk. The two shapes it misses are now named, and so is the reason the
+left-hand one cannot be cut.)*
 
 ## Fields
 
