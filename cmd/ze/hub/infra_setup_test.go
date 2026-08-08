@@ -41,7 +41,7 @@ func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
 		},
 	}
 
-	sshSrv := infraSetup(params, nil, nil)
+	sshSrv := infraSetup(params, nil, nil, nil)
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
 	srv, ok := sshSrv.(*zessh.Server)
 	require.True(t, ok, "infraSetup should return a *zessh.Server when ssh is compiled in")

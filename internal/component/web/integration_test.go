@@ -44,7 +44,10 @@ func setupTestServer(t *testing.T) (baseURL string, client *http.Client, cleanup
 		{Name: "testuser", Hash: string(hash)},
 	}
 
-	store := NewSessionStore()
+	// The store answers from the same list the authenticator does, the shape the
+	// hub wires: a session the local backend granted is re-checked against that
+	// backend's users on every request.
+	store := NewSessionStore(func() ([]authz.UserConfig, error) { return users, nil })
 
 	// Create a renderer for the login page.
 	renderer, err := NewRenderer()

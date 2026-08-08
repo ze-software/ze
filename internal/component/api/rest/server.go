@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/architecture.md -- REST API transport
+// Related: auth.go -- the per-request credential gate and the reload seam that replaces it
 //
 // Package rest provides an HTTP server that exposes the shared API engine
 // as a RESTful JSON API. All logic lives in the engine; this package is a
@@ -7,8 +8,6 @@ package rest
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -409,81 +408,6 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 
 	// CORS preflight (no auth required).
 	mux.HandleFunc("OPTIONS /api/", s.handlePreflight)
-}
-
-// usernameKey is the request-context key for the authenticated username.
-type usernameKeyType struct{}
-
-var usernameKey = usernameKeyType{}
-
-type readOnlyKeyType struct{}
-
-var readOnlyKey = readOnlyKeyType{}
-
-// withAuth wraps a handler with Bearer token authentication and CORS.
-// On success, stores the authenticated username in the request context.
-func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if s.corsOrigin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", s.corsOrigin)
-		}
-
-		username := "api" // default for no-auth mode
-		readOnly := s.authenticator == nil && s.token == ""
-
-		// Per-user authenticator takes precedence over single token.
-		if s.authenticator != nil {
-			auth := r.Header.Get("Authorization")
-			user, ok := s.authenticator(auth)
-			if !ok {
-				s.recordAuthFailure(r, attemptedBearerUser(auth))
-				writeError(w, http.StatusUnauthorized, "unauthorized")
-				return
-			}
-			username = user
-			readOnly = false
-		} else if s.token != "" {
-			auth := r.Header.Get("Authorization")
-			var tb textbuf.Buffer
-			expected := tb.Str("Bearer ").Str(s.token).String()
-			gotHash := sha256.Sum256([]byte(auth))
-			wantHash := sha256.Sum256([]byte(expected))
-			if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) != 1 {
-				s.recordAuthFailure(r, attemptedBearerUser(auth))
-				writeError(w, http.StatusUnauthorized, "unauthorized")
-				return
-			}
-			readOnly = false
-		}
-
-		ctx := context.WithValue(r.Context(), usernameKey, username)
-		ctx = context.WithValue(ctx, readOnlyKey, readOnly)
-		next(w, r.WithContext(ctx))
-	}
-}
-
-// callerIdentity extracts trusted caller metadata from the request.
-func (s *RESTServer) callerIdentity(r *http.Request) api.CallerIdentity {
-	readOnly, _ := r.Context().Value(readOnlyKey).(bool)
-	if user, ok := r.Context().Value(usernameKey).(string); ok {
-		return api.CallerIdentity{Username: user, RemoteAddr: r.RemoteAddr, Surface: audit.REST, ReadOnly: readOnly}
-	}
-	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr, Surface: audit.REST, ReadOnly: s.authenticator == nil && s.token == ""}
-}
-
-func (s *RESTServer) requireWriteAccess(w http.ResponseWriter, caller api.CallerIdentity, command string) bool {
-	if caller.ReadOnly {
-		writeError(w, http.StatusForbidden, "read-only API caller cannot modify configuration")
-		return false
-	}
-	if s.authorizer == nil {
-		return true
-	}
-	if s.authorizer.Authorize(caller.Username, caller.RemoteAddr, command, false) {
-		return true
-	}
-	writeError(w, http.StatusForbidden, "API caller is not authorized to modify configuration")
-	return false
 }
 
 func (s *RESTServer) handleListCommands(w http.ResponseWriter, r *http.Request) {

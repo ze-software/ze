@@ -45,6 +45,15 @@ type BuildParams struct {
 	Logger     *slog.Logger
 	LocalUsers []UserCredential // consumed by the local backend
 
+	// LocalUsersFunc returns the local credentials that are valid RIGHT NOW.
+	// When set, the local backend prefers it over LocalUsers, so the chain
+	// follows the running configuration instead of the one the bundle was built
+	// from. It exists because the bundle is NOT rebuilt on a config reload:
+	// without it, the chain's local backend keeps authenticating a user the
+	// operator has deleted, and it does so BEFORE any later fallback is
+	// consulted, which makes it the authoritative stale answer.
+	LocalUsersFunc func() ([]UserCredential, error)
+
 	// LocalAuthorizer is the hub-supplied adapter over *authz.Store.
 	// Backends that need a local RBAC fallback (tacacs on server error)
 	// consume it here. The local backend returns it as its Authorizer
@@ -84,12 +93,33 @@ type BackendRegistry struct {
 	frozen   bool
 }
 
+// SourceLocal is the AuthResult.Source the built-in bcrypt backend reports, and
+// the name that backend registers under. It is declared here, beside the field
+// it fills, so a caller that must recognize the local backend compares against
+// the registry's own spelling instead of repeating the string.
+const SourceLocal = "local"
+
 // AuthResult holds the outcome of an authentication attempt.
 type AuthResult struct {
 	Authenticated bool
 	Profiles      []string // ze authz profile names for this user
-	Source        string   // backend identifier ("local", "tacacs", ...)
+
+	// Source names the backend that produced this result: SourceLocal,
+	// "tacacs", "radius", and so on. It is the ANSWER to "who authenticated
+	// this user", reported by the backend that did it. A caller that needs the
+	// answer reads it here rather than asking a second question of its own,
+	// which would be a different question taken at a different instant.
+	Source string
 }
+
+// GrantedByLocalBackend reports whether the local (configuration plus zefs)
+// backend produced this result, and therefore whether the local user list is
+// this result's revoker.
+//
+// An empty Source is NOT local. A backend that names itself is claiming the
+// grant; silence is not that claim, and reading silence as "local" would attach
+// the local list's revocation to a session some other backend granted.
+func (r AuthResult) GrantedByLocalBackend() bool { return r.Source == SourceLocal }
 
 // AuthRequest carries request-scoped authentication input and trusted metadata.
 type AuthRequest struct {

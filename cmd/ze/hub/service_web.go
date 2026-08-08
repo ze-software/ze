@@ -72,7 +72,8 @@ func buildWebService(deps ServiceDeps) (Service, error) {
 		deps.Authorizer,
 		deps.Recorder,
 		deps.CommitHook,
-		deps.ConfigUsers,
+		deps.PowerUsers,
+		deps.LocalUsersLive,
 		deps.WebCommands,
 	)
 	if webSrv == nil {
@@ -112,7 +113,18 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	// config-file users (only the zefs power user authenticates here), no
 	// plugin engine to source completion commands from (nil source), and no pki
 	// block to reference: the self-signed certificate path is the only one.
-	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, nil, nil)
+	// noConfigUsers states that emptiness rather than leaving it implied.
+	//
+	// This is the one process that reads zefs for the web server, because there
+	// is no AAA chain here to share the read with. An unreadable database leaves
+	// the power user out of both the serve-or-not test and the live view, which
+	// is the same answer both would reach separately.
+	powerUsers, powerErr := loadZefsUsers()
+	if powerErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", powerErr)
+	}
+	localUsersLive := liveLocalUsers(powerUsers, noConfigUsers, slogutil.Logger("hub.web.auth"))
+	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, powerUsers, localUsersLive, nil)
 	if webSrv == nil {
 		return 1
 	}
@@ -257,7 +269,20 @@ func webTLSMaterial(certName string, certStore selfcert.CertStore, listenAddr st
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig, commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
+// localUsersLive is the caller's live view of the local credentials: the zefs
+// power users merged with the users the RUNNING configuration declares. It comes
+// from the caller because the caller already built that closure for the AAA
+// chain, and a second reader could disagree with it. A power user the chain
+// admits, whom this server's session check then does not declare, is refused on
+// every following request: a login loop on the break-glass account.
+//
+// It is consulted per login attempt AND per request carrying a session cookie,
+// so a reload that removes a user takes effect at once on both paths, and once
+// HERE to decide whether the server serves at all.
+//
+// powerUsers is the caller's zefs snapshot, used to NAME those accounts for the
+// UI. It never decides who may log in; localUsersLive already carries them.
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
 	dispatch = withBGPDecode(dispatch)
 
 	if !storage.IsBlobStorage(store) {
@@ -267,33 +292,34 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	listenAddrs = resolveWebListeners(true, listenAddrs)
 
-	var users []authz.UserConfig
-	var powerUserNames []string
+	powerUserNames := make([]string, 0, len(powerUsers))
+	for _, u := range powerUsers {
+		powerUserNames = append(powerUserNames, u.Name)
+	}
 	if !insecureWeb {
-		// Both the always-on zefs power user and config-file users may log in.
-		// A failure to load the power user is not fatal as long as config users
-		// exist; the server is only disabled when there are no users at all
-		// (fail closed -- never serve an unauthenticated admin UI).
-		if zefsUsers, err := loadZefsUsers(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", err)
-		} else {
-			users = zefsUsers
-			for _, u := range zefsUsers {
-				powerUserNames = append(powerUserNames, u.Name)
-			}
+		// Serve only when somebody can log in. Both the zefs power user and
+		// config-file users may, and an absent power user is not fatal while
+		// config users exist. The question is asked of the SAME source the
+		// login path answers from, so the server cannot decide to serve on a
+		// user list it will then refuse to admit anyone from.
+		//
+		// A source that is missing or unreadable disables the server (fail
+		// closed -- never serve an unauthenticated admin UI).
+		if localUsersLive == nil {
+			fmt.Fprintf(os.Stderr, "warning: web server disabled: no user source wired\n")
+			return nil, nil
 		}
-		users = mergeAuthUsers(users, configUsers)
-		if len(users) == 0 {
+		serving, usersErr := localUsersLive()
+		if usersErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: web server disabled: cannot read the running configuration users: %v\n", usersErr)
+			return nil, nil
+		}
+		if len(serving) == 0 {
 			fmt.Fprintf(os.Stderr, "warning: web server disabled: no authenticatable users\n")
 			return nil, nil
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
-		if zefsUsers, err := loadZefsUsers(); err == nil {
-			for _, u := range zefsUsers {
-				powerUserNames = append(powerUserNames, u.Name)
-			}
-		}
 	}
 
 	certStore := &blobCertStore{store: store}
@@ -395,7 +421,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()
 
-	sessionStore := zeweb.NewSessionStore()
+	// The caller's one live view of the local credentials, shared by the session
+	// store, by the web fallback authenticator below, and by the AAA chain the
+	// caller built it for. Three readers of one producer: a session, a password
+	// and the chain must never disagree about who exists.
+	sessionStore := zeweb.NewSessionStore(localUsersLive)
 	loginRenderer := func(w http.ResponseWriter, r *http.Request) {
 		data := zeweb.LoginData{ReturnTo: r.URL.RequestURI(), Locale: zeweb.LocaleFromRequest(r)}
 		if renderErr := renderer.RenderLogin(w, data); renderErr != nil {
@@ -483,10 +513,13 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// Auth wrapper for protecting individual routes. The live AAA bundle chain
 	// (RADIUS/TACACS + local) is preferred once infra setup installs it; before
 	// that (web starts before config load in the BGP path) and for users absent
-	// from the chain, it falls back to the statically-known local users
-	// (zefs power user + config-file web users). This lets RADIUS/TACACS admins
-	// authenticate on web without regressing local login (AC-2, A-3).
-	webAuth := liveAAABundleAuthenticator{fallback: &authz.LocalAuthenticator{Users: users}}
+	// from the chain, it falls back to the zefs power user plus the config-file
+	// users the RUNNING config declares. This lets RADIUS/TACACS admins
+	// authenticate on web without regressing local login (AC-2, A-3), while a
+	// user the operator deletes stops authenticating at the next reload rather
+	// than at the next restart -- with a password here, and with an already
+	// issued session cookie in sessionStore above (AC-10).
+	webAuth := liveAAABundleAuthenticator{fallback: &authz.LocalAuthenticator{UsersFunc: localUsersLive}}
 	var authWrap func(http.Handler) http.Handler
 	if insecureWeb {
 		authWrap = zeweb.InsecureMiddleware

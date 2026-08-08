@@ -191,7 +191,7 @@ func TestReloadListenersRefusesUnauthNonLoopback(t *testing.T) {
 	migrator.web = web
 	migrator.MarkUnauthenticated("web")
 
-	err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))
+	_, err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "web")
 	assert.Contains(t, err.Error(), "0.0.0.0:3443")
@@ -208,7 +208,7 @@ func TestReloadListenersAllowsAuthenticatedNonLoopback(t *testing.T) {
 	migrator := NewListenerMigrator(nil)
 	migrator.web = web
 
-	err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))
+	_, err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))
 	require.NoError(t, err)
 	assert.Equal(t, [][]string{{"0.0.0.0:3443"}}, web.calls)
 	assert.Equal(t, []string{"0.0.0.0:3443"}, web.addrs)

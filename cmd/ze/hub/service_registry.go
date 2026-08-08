@@ -74,11 +74,34 @@ type ServiceDeps struct {
 	// WebCertificate names an entry in the PKI store to serve on HTTPS. Empty
 	// selects the self-signed certificate. A plain string (no pki type crosses
 	// this boundary); the factory resolves it through pki.ServerTLSMaterial.
-	WebCertificate    string
-	Authorizer        aaa.Authorizer
-	Recorder          audit.Recorder
-	CommitHook        func() error
-	ConfigUsers       []authz.UserConfig
+	WebCertificate string
+	Authorizer     aaa.Authorizer
+	Recorder       audit.Recorder
+	CommitHook     func() error
+	// PowerUsers is the zefs break-glass account, read once by the hub. Those
+	// credentials live in the blob store, so no reload changes them and a
+	// snapshot is correct. It reaches the factory rather than being re-read
+	// there because the hub already merged it into LocalUsersLive below: two
+	// reads of one database can disagree, and a factory that granted a login
+	// from its own read and then revoked it against the hub's would lock the
+	// break-glass account out of the surface it exists to recover. A factory
+	// uses it to NAME those accounts, never to decide who may log in.
+	PowerUsers []authz.UserConfig
+	// LocalUsersLive returns the local credentials the daemon accepts RIGHT NOW:
+	// PowerUsers merged with the users the RUNNING config declares, read per call
+	// rather than snapshotted. A reload can delete a user, and a snapshot would
+	// keep letting them in until the daemon restarted. An error means the
+	// running config could not be read, and the caller MUST deny rather than
+	// fall back to a snapshot.
+	//
+	// It answers the serve-or-not question too, asked once at construction:
+	// "does this configuration authenticate anybody". One source answers both,
+	// so a surface cannot decide to serve on a user list it will not then admit.
+	//
+	// It is the SAME closure the AAA chain's local backend answers from
+	// (liveLocalUsers in main.go), which is what stops a session and a password
+	// disagreeing about who exists.
+	LocalUsersLive    func() ([]authz.UserConfig, error)
 	EventRing         *pluginserver.EventRing
 	WebPortalServices []webPortalService
 	// WebCommands sources plugin-registered commands (Hidden excluded) for the

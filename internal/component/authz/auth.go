@@ -7,6 +7,7 @@ package authz
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -36,29 +37,55 @@ var dummyHash = []byte("$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ0
 
 // LocalAuthenticator wraps the existing bcrypt-based user list authentication.
 type LocalAuthenticator struct {
+	// Users is a fixed credential list, correct only where the set cannot
+	// change while the process runs.
 	Users []UserConfig
+
+	// UsersFunc returns the credentials that are valid RIGHT NOW. When set it
+	// REPLACES Users rather than adding to it: a caller whose user set follows
+	// the running configuration must not also carry a snapshot, because the
+	// snapshot is exactly the stale answer that has to stop being given. A
+	// daemon built one credential list at startup and kept consulting it, so a
+	// user the operator deleted and reloaded went on logging in until restart.
+	UsersFunc func() ([]UserConfig, error)
 }
 
-// Authenticate checks username/password against local bcrypt user list.
+// users returns the credential list this authenticator answers from.
+func (a *LocalAuthenticator) users() ([]UserConfig, error) {
+	if a.UsersFunc != nil {
+		return a.UsersFunc()
+	}
+	return a.Users, nil
+}
+
+// Authenticate checks username/password against the local bcrypt user list.
 // Returns (result, nil) on success, (result, ErrAuthRejected) on failure.
-// Never returns a connection error (local auth has no infrastructure failures).
 // Timing-safe: invokes bcrypt even for unknown users.
+//
+// With UsersFunc set it can also return that function's error. An unreadable
+// user list is NOT an empty one: treating it as empty would reject every login
+// while claiming the credentials were simply wrong, so the cause is returned
+// instead (ai/rules/evidence.md, "a guard must fail closed or say something").
 func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, error) {
 	username := request.Username
 	password := request.Password
 
 	if username == "" {
-		return AuthResult{Source: "local"}, ErrAuthRejected
+		return AuthResult{Source: aaa.SourceLocal}, ErrAuthRejected
+	}
+	users, err := a.users()
+	if err != nil {
+		return AuthResult{Source: aaa.SourceLocal}, fmt.Errorf("local: read users: %w", err)
 	}
 	found := false
-	for _, u := range a.Users {
+	for _, u := range users {
 		if u.Name == username {
 			found = true
 			if CheckPassword(u.Hash, password, request.Local) {
 				return AuthResult{
 					Authenticated: true,
 					Profiles:      u.Profiles,
-					Source:        "local",
+					Source:        aaa.SourceLocal,
 				}, nil
 			}
 		}
@@ -67,7 +94,7 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 		// Timing-safe: always run bcrypt even for unknown users.
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password)) //nolint:errcheck // result intentionally ignored
 	}
-	return AuthResult{Source: "local"}, ErrAuthRejected
+	return AuthResult{Source: aaa.SourceLocal}, ErrAuthRejected
 }
 
 // CheckPassword validates a credential against a stored bcrypt hash.

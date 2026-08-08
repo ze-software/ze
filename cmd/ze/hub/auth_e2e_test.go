@@ -42,7 +42,9 @@ func e2eAuthUsers(t *testing.T) (users []authz.UserConfig, powerPass, configPass
 func TestWebLoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	users, powerPass, configPass := e2eAuthUsers(t)
 
-	store := zeweb.NewSessionStore()
+	// The store reads the same user set the authenticator answers from, which is
+	// how startWebServer wires it (one live producer, two readers).
+	store := zeweb.NewSessionStore(func() ([]authz.UserConfig, error) { return users, nil })
 	recorder, err := audit.NewMemory(100)
 	if err != nil {
 		t.Fatalf("audit: %v", err)
@@ -102,7 +104,8 @@ func TestWebLoginAdmitsPowerAndConfigUsers(t *testing.T) {
 func TestAPILoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	users, powerPass, configPass := e2eAuthUsers(t)
 
-	validate := buildUserAuthenticator(users)
+	// The live source the hub threads in: the same merged set, read per request.
+	validate := buildUserAuthenticator(users, func() ([]authz.UserConfig, error) { return users, nil })
 	if validate == nil {
 		t.Fatal("buildUserAuthenticator returned nil for a non-empty user set")
 	}
@@ -140,7 +143,9 @@ func TestLiveAAABundleAuthorizerHonorsConfiguredProfiles(t *testing.T) {
 	store.AssignProfiles("operator", []string{"read-only"})
 	users := []authz.UserConfig{{Name: "operator", Hash: bcryptHash(t, "operator-secret")}}
 
-	bundle, err := buildAAABundle(nil, users, store, nil)
+	// nil liveUsers: this test asserts authorization, not credential freshness,
+	// so the backend keeps the snapshot behavior.
+	bundle, err := buildAAABundle(nil, users, nil, store, nil)
 	if err != nil {
 		t.Fatalf("buildAAABundle: %v", err)
 	}

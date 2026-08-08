@@ -17,7 +17,11 @@ import urllib.request
 from ze_api import wait_until
 
 BASE_URL = 'https://127.0.0.1:18443'
-AUTH = 'Basic ' + base64.b64encode(b'readonly:readonlypass').decode()
+# The CONFIG-FILE readonly user, not the zefs power user of the same name.
+# `readonly` exists in both, and mergeAuthUsers gives the config entry
+# precedence, so this password is the one the daemon checks. The config entry is
+# also the one carrying `profile [ readweb ]`, which is what this test is about.
+AUTH = 'Basic ' + base64.b64encode(b'readonly:testpass').decode()
 CTX = ssl._create_unverified_context()
 
 def request(method, path, data=None, content_type=None):
@@ -123,8 +127,16 @@ ze data --path "$DB" write 'meta/ssh/{host}/{port}/password' zefs-password >/dev
 cat > web-rbac-deny.conf << 'ZECONF'
 system {
 	authentication {
+		# bcrypt cost-4 hash of "testpass" -- the same fixture as
+		# ssh-user-login-yang.ci and authz-allow.ci. The plaintext MUST be known:
+		# web authentication reads the running config per login, so this entry
+		# is the credential the daemon checks for `readonly`, overriding the
+		# zefs power user of the same name (mergeAuthUsers). The hash that used
+		# to sit here matched no known plaintext, and the test passed only
+		# because config users were then invisible to the web server unless the
+		# config also declared an environment{ssh{}} block.
 		user readonly {
-			password "$2a$04$P5lzA6RZkZjT4nkUSNITpOgM8tFzFeGkROQ6wbJCje4PXFlj2JzP6"
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
 			profile [ readweb ]
 		}
 	}

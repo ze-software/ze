@@ -6,13 +6,16 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -92,6 +95,98 @@ func mergeAuthUsers(zefsUsers, configUsers []authz.UserConfig) []authz.UserConfi
 	}
 	out = append(out, configUsers...)
 	return out
+}
+
+// errNoLiveConfigProvider reports that no live view of the running config is
+// wired, so the current user list cannot be read at all. The reachable caller
+// is liveLocalUsers with no config source threaded into it; the nil-provider
+// branch of liveConfigUsers guards the same seam one layer down, for a caller
+// that holds the provider rather than the func.
+var errNoLiveConfigProvider = errors.New("no live config provider")
+
+// errNoSystemConfigRoot reports that the running configuration holds no
+// `system` root at all, as distinct from a `system` root that declares no
+// users. Both yield an empty user list, so a caller handed only that list
+// cannot tell an operator's configuration from a root the daemon lost.
+//
+// It is not a denial: a configuration with no `system` block is legal, and the
+// zefs power user must keep authenticating through it (AC-7). It exists so the
+// caller says which one happened instead of treating one answer as two facts.
+var errNoSystemConfigRoot = errors.New("the running configuration declares no system root")
+
+// liveConfigUsers returns the users the CURRENT configuration declares, read
+// from the shared ConfigProvider rather than from a startup snapshot.
+//
+// Every applied reload refreshes that provider root by root
+// (applyLoadedTreeToProvider in main_reload.go), and a rolled-back reload
+// restores the prior roots, so the provider is the one in-process view of the
+// config the daemon is actually running. A caller that authenticates against it
+// stops accepting a user the operator deleted, without waiting for a restart.
+//
+// A nil provider is an ERROR, not an empty user list. The caller cannot tell a
+// configuration with no users from a configuration it failed to read, so this
+// makes the miss explicit at the producer and lets the caller deny
+// (ai/rules/evidence.md, "fail closed or say something").
+//
+// An absent `system` root is reported the same way, as errNoSystemConfigRoot
+// beside an empty list. It is not a denial (see that error), but it is the
+// fault mode this reader actually has: Provider.Get answers a missing root with
+// an empty map and a nil error, so before this branch existed the daemon losing
+// the root and the operator writing no users were one indistinguishable answer.
+func liveConfigUsers(cp *zeconfig.Provider) ([]authz.UserConfig, error) {
+	if cp == nil {
+		return nil, errNoLiveConfigProvider
+	}
+	system, ok := cp.Root("system")
+	if !ok {
+		return nil, errNoSystemConfigRoot
+	}
+	return infra.ExtractAuthUsers(system), nil
+}
+
+// liveLocalUsers returns the local credentials the daemon accepts RIGHT NOW:
+// the zefs power users merged with the users the running configuration
+// declares. It is the one live user source in the hub, shared by the AAA
+// chain's local backend and by the web fallback, so those two can never
+// disagree about who exists.
+//
+// zefsUsers is a startup snapshot and correctly so. Those credentials live in
+// the blob store, not the config file: no reload adds or removes them, and
+// `meta/instance/admin-disabled` is written only at image assembly
+// (internal/appliance/cmd_assemble.go).
+//
+// A read failure is logged HERE, at the layer that knows the read happened, and
+// returned so the caller denies. Every later layer sees only "no credentials
+// matched", which is indistinguishable from a wrong password
+// (ai/rules/evidence.md, "make the miss explicit at the producer").
+func liveLocalUsers(zefsUsers []authz.UserConfig, configUsers func() ([]authz.UserConfig, error), logger *slog.Logger) func() ([]authz.UserConfig, error) {
+	return func() ([]authz.UserConfig, error) {
+		if configUsers == nil {
+			if logger != nil {
+				logger.Warn("no running-config user source wired; refusing local authentication")
+			}
+			return nil, errNoLiveConfigProvider
+		}
+		current, err := configUsers()
+		switch {
+		case errors.Is(err, errNoSystemConfigRoot):
+			// A configuration with no `system` block declares no users. That is
+			// a configuration, not a read failure, so the zefs power user keeps
+			// authenticating (AC-7). Said out loud because the same empty list
+			// arrives from a `system` root that declares no users, and an
+			// operator reading the log needs to know which one they wrote.
+			if logger != nil {
+				logger.Debug("the running configuration declares no system root; only power users authenticate")
+			}
+			current = nil
+		case err != nil:
+			if logger != nil {
+				logger.Warn("cannot read running config users; refusing local authentication", "error", err)
+			}
+			return nil, err
+		}
+		return mergeAuthUsers(zefsUsers, current), nil
+	}
 }
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).

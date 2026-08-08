@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // fakeBackend is a test Authenticator that returns configurable results.
@@ -370,4 +372,105 @@ func TestAuthenticateUserTimingSafe(t *testing.T) {
 		"unknown user should still invoke bcrypt (took %v)", unknownDuration)
 	assert.Greater(t, knownDuration, minBcryptTime,
 		"known user wrong password should invoke bcrypt (took %v)", knownDuration)
+}
+
+// VALIDATES: UsersFunc is consulted on EVERY call, so a credential list that
+// changes under a running process changes what authenticates.
+// PREVENTS: the snapshot defect. A LocalAuthenticator built once at daemon
+// startup kept accepting a user the operator had deleted and reloaded, because
+// the list it held could not change.
+func TestLocalAuthenticatorUsersFuncIsReadPerCall(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("alicepw"), bcrypt.MinCost)
+	require.NoError(t, err)
+	current := []UserConfig{{Name: "alice", Hash: string(hash)}}
+
+	auth := &LocalAuthenticator{UsersFunc: func() ([]UserConfig, error) { return current, nil }}
+
+	res, aerr := auth.Authenticate(AuthRequest{Username: "alice", Password: "alicepw"})
+	require.NoError(t, aerr)
+	assert.True(t, res.Authenticated)
+
+	current = nil
+
+	_, aerr = auth.Authenticate(AuthRequest{Username: "alice", Password: "alicepw"})
+	require.ErrorIs(t, aerr, ErrAuthRejected,
+		"a credential the current list no longer holds must not authenticate")
+}
+
+// VALIDATES: UsersFunc replaces Users rather than adding to it.
+// PREVENTS: a snapshot surviving beside the live reader and re-admitting exactly
+// the users the live reader was added to exclude.
+func TestLocalAuthenticatorUsersFuncReplacesUsers(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("stalepw"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	auth := &LocalAuthenticator{
+		Users:     []UserConfig{{Name: "stale", Hash: string(hash)}},
+		UsersFunc: func() ([]UserConfig, error) { return nil, nil },
+	}
+
+	_, aerr := auth.Authenticate(AuthRequest{Username: "stale", Password: "stalepw"})
+	require.ErrorIs(t, aerr, ErrAuthRejected, "the snapshot must not be consulted when a live reader is set")
+}
+
+// VALIDATES: a UsersFunc error denies AND reports its cause.
+// PREVENTS: an unreadable credential list reading as an empty one, which would
+// refuse every login while claiming the password was simply wrong.
+func TestLocalAuthenticatorUsersFuncErrorFailsClosed(t *testing.T) {
+	auth := &LocalAuthenticator{
+		UsersFunc: func() ([]UserConfig, error) { return nil, errors.New("credential store unavailable") },
+	}
+
+	res, err := auth.Authenticate(AuthRequest{Username: "alice", Password: "alicepw"})
+	require.Error(t, err)
+	assert.False(t, res.Authenticated)
+	assert.ErrorContains(t, err, "credential store unavailable",
+		"the caller must be able to tell a broken read from a wrong password")
+}
+
+// VALIDATES: every return path of LocalAuthenticator.Authenticate names the
+// local backend on AuthResult.Source.
+// PREVENTS: the web session store mistaking a local grant for a remote one. It
+// anchors a session on this field, and an empty Source reads as NOT local, so a
+// silent return path here would leave a locally-authenticated operator
+// un-revocable for the whole session TTL.
+func TestLocalAuthenticatorAlwaysNamesItsSource(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("alicepw"), bcrypt.MinCost)
+	require.NoError(t, err)
+	live := &LocalAuthenticator{Users: []UserConfig{{Name: "alice", Hash: string(hash)}}}
+	broken := &LocalAuthenticator{
+		UsersFunc: func() ([]UserConfig, error) { return nil, errors.New("unreadable") },
+	}
+
+	cases := []struct {
+		name string
+		auth *LocalAuthenticator
+		req  AuthRequest
+	}{
+		{"accepted", live, AuthRequest{Username: "alice", Password: "alicepw"}},
+		{"wrong password", live, AuthRequest{Username: "alice", Password: "nope"}},
+		{"unknown user", live, AuthRequest{Username: "ghost", Password: "nope"}},
+		{"empty username", live, AuthRequest{Password: "nope"}},
+		{"unreadable list", broken, AuthRequest{Username: "alice", Password: "alicepw"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res, _ := c.auth.Authenticate(c.req)
+			assert.Equal(t, aaa.SourceLocal, res.Source,
+				"the backend that answered must say so, on every path")
+		})
+	}
+}
+
+// VALIDATES: the local backend registers under the same name it reports.
+// PREVENTS: the registry and AuthResult.Source drifting apart, which would make
+// a caller that recognizes one fail to recognize the other.
+func TestLocalBackendNameMatchesTheSourceItReports(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("alicepw"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	res, _ := (&LocalAuthenticator{Users: []UserConfig{{Name: "alice", Hash: string(hash)}}}).Authenticate(
+		AuthRequest{Username: "alice", Password: "alicepw"})
+
+	assert.Equal(t, localBackend{}.Name(), res.Source)
 }

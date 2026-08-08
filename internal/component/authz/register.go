@@ -38,16 +38,21 @@ func (a StoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args 
 type localBackend struct{}
 
 // Name returns the backend identifier matching AuthResult.Source.
-func (localBackend) Name() string { return "local" }
+func (localBackend) Name() string { return aaa.SourceLocal }
 
 // Priority 200 places local after tacacs (priority 100) in the chain:
 // tacacs is tried first; local is the fallback when tacacs is unreachable.
 func (localBackend) Priority() int { return 200 }
 
-// Build returns a Contribution with a LocalAuthenticator bound to
-// params.LocalUsers and the hub-supplied Authorizer (if any). Empty user
-// list yields an authenticator that rejects every login (timing-safe),
-// matching prior behavior.
+// Build returns a Contribution with a LocalAuthenticator and the hub-supplied
+// Authorizer (if any). Empty user list yields an authenticator that rejects
+// every login (timing-safe), matching prior behavior.
+//
+// params.LocalUsersFunc wins over params.LocalUsers when both are supplied. The
+// bundle is not rebuilt by a config reload, so a caller that can describe the
+// RUNNING credentials is describing something the snapshot cannot: which users
+// exist now. Passing both and preferring the snapshot would keep the chain
+// authenticating deleted accounts.
 //
 // Authorizer is only contributed when params.LocalAuthorizer is non-nil.
 // A nil LocalAuthorizer means "no local RBAC configured" and the dispatcher
@@ -55,7 +60,10 @@ func (localBackend) Priority() int { return 200 }
 // a StoreAuthorizer{Store: nil} here would lie about the configured state.
 func (localBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 	contrib := aaa.Contribution{
-		Authenticator: &LocalAuthenticator{Users: params.LocalUsers},
+		Authenticator: &LocalAuthenticator{
+			Users:     params.LocalUsers,
+			UsersFunc: params.LocalUsersFunc,
+		},
 	}
 	if params.LocalAuthorizer != nil {
 		contrib.Authorizer = params.LocalAuthorizer

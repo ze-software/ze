@@ -41,7 +41,17 @@ type apiBuildInputs struct {
 	Server     *pluginserver.Server
 	Store      storage.Storage
 	ConfigPath string
-	Users      []authz.UserConfig
+
+	// Users is the boot user list, and answers one question only: whether this
+	// daemon authenticates API callers per user at all. It is a snapshot and
+	// must never decide WHICH credentials are valid.
+	Users []authz.UserConfig
+
+	// UsersLive returns the credentials valid right now. It is what the API
+	// authenticator answers from, so a user an operator removes and reloads
+	// loses REST and gRPC access with no restart (AC-13).
+	UsersLive func() ([]authz.UserConfig, error)
+
 	Authorizer aaa.Authorizer
 	ReloadHook func() error
 	Recorder   audit.Recorder

@@ -1,0 +1,253 @@
+# Test: SIGHUP refuses a reload that would expose a rebuilt listener
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard-deferred-reload-auth-rebuild
+# AC-3 -- the exposure guard is re-run over the authentication the reload
+# PRODUCES, not the one the server was constructed with. The daemon starts with
+# an authenticated REST listener on loopback. The reloaded config removes the
+# token AND moves the listener to 0.0.0.0, so the pair the reload would produce
+# is non-loopback and unauthenticated. The whole reload is refused before any
+# listener rebinds, and the credentials the reload had already installed are put
+# back: the listener still answers 401 without a bearer and 200 with the token
+# it booted on.
+# PREVENTS: classifying on the BOOT record. That record says "authenticated",
+# because that is what the server was when it started, so the guard would wave
+# the migration through and publish a listener that gates nothing.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=mgmt-refuses-unauth.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify the refused reload leaves the REST listener exactly as it was.
+
+The reload is rejected, so nothing observable CHANGES by design. The
+assertion is only evidence once the reload has actually run, so it is
+fenced on the reload generation counter, which advances on every processed
+reload including a rejecting one.
+"""
+
+import json
+import os
+import urllib.error
+import urllib.request
+
+from ze_api import API, result_json_data, runtime_fail
+
+REST_URL = 'http://127.0.0.1:$PORT2/api/v1/commands'
+BOOT_TOKEN = 'boot-token'
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def rest_status(token=None):
+    """HTTP status of a REST read, or 0 when the listener does not answer."""
+    req = urllib.request.Request(REST_URL)
+    if token is not None:
+        req.add_header('Authorization', 'Bearer ' + token)
+    try:
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return resp.status
+    except urllib.error.HTTPError as err:
+        return err.code
+    except (urllib.error.URLError, OSError):
+        return 0
+
+
+def generation_of(result):
+    """Reload generation from `show reload-status`, or -1 when the dispatch has
+    not completed. Poll-safe: never raises."""
+    if result is None or result.get('status') != 'done':
+        return -1
+    try:
+        data = result_json_data(result, {})
+    except json.JSONDecodeError:
+        return -1
+    gen = data.get('generation')
+    return gen if isinstance(gen, int) else -1
+
+
+def assert_authenticated(label):
+    status = rest_status()
+    if status != 401:
+        runtime_fail(f'{label}: unauthenticated read status={status}, want 401')
+    status = rest_status(token=BOOT_TOKEN)
+    if status != 200:
+        runtime_fail(f'{label}: read with the boot token status={status}, want 200')
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    if not api.wait_until(lambda: rest_status(token=BOOT_TOKEN) == 200, attempts=60, delay=0.25):
+        runtime_fail('before SIGHUP: REST never answered on the boot token')
+    assert_authenticated('before SIGHUP')
+
+    baseline = generation_of(api.dispatch_until_done('show reload-status', attempts=40, delay=0.1))
+    if baseline < 0:
+        runtime_fail('before SIGHUP: show reload-status returned no generation')
+
+    with open('observer.initial-ok', 'w') as f:
+        f.write('ok')
+
+    if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=100, delay=0.1):
+        runtime_fail('trigger.sh never created the reload.done marker')
+
+    fenced = api.dispatch_until(
+        'show reload-status',
+        lambda r: generation_of(r) > baseline,
+        attempts=150,
+        delay=0.1,
+    )
+    if generation_of(fenced) <= baseline:
+        runtime_fail(f'reload generation never advanced past {baseline}: {fenced!r}')
+
+    # The refusal restores the credentials it had already installed, so the
+    # listener is authenticated against the config the daemon rolled back to.
+    assert_authenticated('after refused SIGHUP')
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Post-SIGHUP config: the token is gone and REST is asked for 0.0.0.0. Either
+# half alone is allowed; together they are the pair the guard refuses.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external mgmt-refuses-unauth-test {
+		run ./mgmt-refuses-unauth.run
+		encoder json
+	}
+}
+
+environment {
+	api-server {
+		rest {
+			enabled true
+			server main {
+				ip 0.0.0.0
+				port $PORT2
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process mgmt-refuses-unauth-test {
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+while [ ! -f observer.initial-ok ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+touch reload.done
+EOF_TRIGGER
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external mgmt-refuses-unauth-test {
+		run ./mgmt-refuses-unauth.run
+		encoder json
+	}
+}
+
+environment {
+	api-server {
+		token "boot-token"
+		rest {
+			enabled true
+			server main {
+				ip 127.0.0.1
+				port $PORT2
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process mgmt-refuses-unauth-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=refusing to migrate rest to non-loopback listener

@@ -58,18 +58,30 @@ func buildAPIShared(in *apiBuildInputs) *apiShared {
 	return &apiShared{
 		Engine:        engine,
 		Sessions:      sessions,
-		Authenticator: buildUserAuthenticator(in.Users),
+		Authenticator: buildUserAuthenticator(in.Users, in.UsersLive),
 	}
 }
 
 // buildUserAuthenticator returns an Authenticator that parses
 // "Bearer <username>:<password>" and validates against the user list.
 // Returns nil if no users are configured (caller falls back to Token or no-auth).
-func buildUserAuthenticator(users []authz.UserConfig) func(string) (string, bool) {
+//
+// users decides only WHETHER this daemon authenticates API callers per user.
+// usersLive decides WHO they are, read per request, so a user an operator
+// removes and reloads stops being able to dispatch commands over REST or gRPC
+// without waiting for a restart (AC-13). A nil usersLive leaves the returned
+// authenticator on the boot list, which is correct only for a caller whose list
+// is itself rebuilt whenever the configuration changes.
+func buildUserAuthenticator(users []authz.UserConfig, usersLive func() ([]authz.UserConfig, error)) func(string) (string, bool) {
 	if len(users) == 0 {
 		return nil
 	}
+	// One list, never two: UsersFunc REPLACES Users at authz.LocalAuthenticator,
+	// and a snapshot left beside it is the stale answer this spec deletes.
 	auth := &authz.LocalAuthenticator{Users: users}
+	if usersLive != nil {
+		auth = &authz.LocalAuthenticator{UsersFunc: usersLive}
+	}
 	return func(header string) (string, bool) {
 		raw, ok := strings.CutPrefix(header, "Bearer ")
 		if !ok {

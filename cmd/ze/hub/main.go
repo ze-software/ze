@@ -275,6 +275,38 @@ func logStartupFailure(stage string, err error) {
 	slogutil.Logger("hub").Error("startup failed", "stage", stage, "err", err)
 }
 
+// bootPowerUsers reads the zefs break-glass accounts once, and says so when it
+// cannot. The read is not fatal: config users can still authenticate.
+//
+// Two outcomes arrive here with no power user and they are not the same event.
+// errAdminDisabledInZefs is the operator's own declaration, written when the
+// appliance was built (internal/appliance/cmd_assemble.go), so it is SILENT:
+// a console that prints a repair instruction on every boot of such a box tells
+// the operator to undo what they asked for. Every other error is a database
+// this daemon expected to read and could not, and that one stays audible.
+//
+// The diagnostic is at WARN because this is the only place it is produced. The
+// web factory used to print its own on stderr when it read zefs for itself;
+// that second read is gone (one producer), so a level the default logger drops
+// makes an unreadable database completely silent on a daemon that never builds
+// a web server. What is lost is the break-glass account: the operator finds out
+// at the login prompt, with nothing anywhere saying why.
+//
+// slog rather than stderr, for the reason logStartupFailure gives above: on the
+// gokrazy appliance stderr goes to the supervisor and the console sees kmsg.
+func bootPowerUsers(log *slog.Logger) []authz.UserConfig {
+	users, err := loadZefsUsers()
+	if err == nil {
+		return users
+	}
+	// admin-disabled is a declaration, not a fault: nothing is broken and there
+	// is nothing to repair. Anything else is a read this daemon expected to work.
+	if log != nil && !errors.Is(err, errAdminDisabledInZefs) {
+		log.Warn("zefs power user unavailable: the break-glass account cannot log in until this is repaired", "error", err)
+	}
+	return users
+}
+
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
 	// Close the AAA bundle on every exit path so TACACS+ accounting and other
 	// backend workers drain before the process terminates. swapAAABundle is
@@ -412,10 +444,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	//
 	// ADDRESSES come only from a config block that asks for a listener, so
 	// `enabled false` still means "config does not start the web server".
+	// webAuthFollowsConfig records WHICH input decided the web authentication
+	// switch, so a SIGHUP reload can re-answer the same question. The flag and
+	// the environment variable are fixed for the life of the process; only the
+	// config leaf can change under a reload, and it decides only when it decided
+	// here (see the auth reloader registered after the boot guard).
+	webAuthFollowsConfig := false
 	if webCfg, ok := zeconfig.ExtractWebConfig(loadResult.Tree); ok {
 		if len(webAddrs) == 0 {
 			webAddrs = endpointsToAddrs(webCfg.Servers)
 			insecureWeb = webCfg.Insecure
+			webAuthFollowsConfig = true
 		}
 		webEnabled = true
 	}
@@ -440,6 +479,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// silently discarded the operator's authentication instruction when the
 	// listener came from `--mcp <port>` or ze.mcp.listen, leaving an accept-all
 	// server (ai/rules/protocol.md).
+	// The flag and environment half of the MCP token, captured before the config
+	// block fills it in. A reload re-answers the config half against the same
+	// base, so the precedence has one implementation (mgmt_auth_reload.go).
+	mcpTokenBase := mcpToken
 	mcpCfg, mcpCfgOK := zeconfig.ExtractMCPSettings(loadResult.Tree)
 	if mcpCfgOK && mcpToken == "" && mcpCfg.Token != "" {
 		mcpToken = mcpCfg.Token
@@ -524,7 +567,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		return (*fn)()
 	}
-	setupInfraHook(auditLog, sessionReload)
+	// The AAA chain's local backend answers from the running config, not from
+	// the tree the reactor was built with. The zefs power users are read once
+	// here: they live in the blob store, so no reload can change them, and a
+	// failure to read them is not fatal while config users exist.
+	zefsAuthUsers := bootPowerUsers(slogutil.Logger("hub.aaa"))
+	configUsersLive := func() ([]authz.UserConfig, error) { return liveConfigUsers(configProvider) }
+	localUsers := liveLocalUsers(zefsAuthUsers, configUsersLive, slogutil.Logger("hub.aaa"))
+	setupInfraHook(auditLog, sessionReload, localUsers)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory as a typed
@@ -797,6 +847,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		inputs := &sshStandaloneInputs{
 			Config:        sshCfg,
 			Users:         users,
+			UsersFunc:     localUsers,
 			Recorder:      auditLog,
 			ConfigDir:     configDir,
 			Storage:       infra.ResolveSSHStorage(store, configDir),
@@ -812,7 +863,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// closeAAABundle (deferred at the top of runYANGConfig) drains backend
 		// workers on process exit.
 		aaaLog := slogutil.Logger("hub.aaa")
-		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, users, infra.ExtractAuthzStore(loadResult.Tree), aaaLog)
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, users, localUsers, infra.ExtractAuthzStore(loadResult.Tree), aaaLog)
 		if aaaErr != nil {
 			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
 			registerAAAAccountingProvider(nil)
@@ -878,16 +929,23 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
 	}
-	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
-		apiCfg.Token = token
+	apiTokenEnv := env.Get("ze.api-server.token")
+	if apiTokenEnv != "" && apiCfg.Token == "" {
+		apiCfg.Token = apiTokenEnv
 	}
 
 	var apiUsers []authz.UserConfig
+	// Whether the zefs power user was readable at boot. A reload that suddenly
+	// cannot read it must fail closed rather than rebuild the API servers
+	// without those credentials; a reload on a daemon that never had them keeps
+	// working (mgmt_auth_reload.go).
+	apiZefsUsersOK := false
 	if apiCfgOK {
 		if u, uErr := loadZefsUsers(); uErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: API power-user auth unavailable: %v\n", uErr)
 		} else {
 			apiUsers = u
+			apiZefsUsersOK = true
 		}
 		// Config-file users authenticate alongside the always-on power user.
 		apiUsers = mergeAuthUsers(apiUsers, sshCfg.Users)
@@ -993,41 +1051,75 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	// Mark unauthenticated surfaces so a SIGHUP listener migration cannot move
-	// them to a non-loopback address after boot (fail-closed corollary: a
-	// boot-only guard would otherwise fail open on reload -- AC-7).
-	if webFactoryOn && webEnabled && !webAuthed {
-		lm.MarkUnauthenticated("web")
-	}
-	if mcpFactoryOn && !mcpAuthed {
-		lm.MarkUnauthenticated("mcp")
-	}
-	if apiCfgOK && !apiAuthed {
-		lm.MarkUnauthenticated("rest")
-		lm.MarkUnauthenticated("grpc")
-	}
+	// Hand the guard's classification to the listener migrator, BEFORE any
+	// server handle is installed on it. The reload guard reads authAtBoot, and
+	// every commit path below (the SSH ReloadFn, the web CommitHook,
+	// apiServer.SetFullReloadFunc, wireManagedCommit) is wired into a live
+	// surface as its server is built. Classifying after those would leave a
+	// window in which the migrator holds a handle with no record for it, and an
+	// unknown service is the PERMISSIVE branch of checkReloadExposure: a web
+	// migration to a non-loopback address would pass unauthenticated. Nothing
+	// else backstops web, which carries no loopback rule of its own.
+	//
+	// A surface the daemon never builds is handled at RELOAD time instead, in
+	// resolveAuthIntents, which needs no startup ordering to be correct.
+	//
+	// gNMI is deliberately absent from this map though checkMgmtListeners
+	// classifies it above. It has no ListenerMigrator slot, so buildChanges can
+	// never move its listener and there is no migration for the guard to judge.
+	markMgmtAuth(lm, map[string]bool{
+		svcWeb:  webAuthed,
+		svcMCP:  mcpAuthed,
+		svcREST: apiAuthed,
+		svcGRPC: apiAuthed,
+	})
+
+	// Teach the migrator how to re-answer each surface's authentication
+	// question from a reloaded tree, so an auth-mode change takes effect on
+	// SIGHUP instead of waiting for a restart.
+	registerMgmtAuthReloaders(lm, mgmtAuthInputs{
+		webFollowsConfig: webAuthFollowsConfig,
+		mcpTokenBase:     mcpTokenBase,
+		apiTokenEnv:      apiTokenEnv,
+		apiZefsUsersOK:   apiZefsUsersOK,
+		apiUsersLive:     localUsers,
+	})
 
 	// Build optional, compile-out-able services through the construction
 	// registry. With a feature's ze_<feature> tag off, its factory is not
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
 	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
 	builtServices := buildServices(ServiceDeps{
-		Store:             store,
-		ConfigPath:        configPath,
-		Resolvers:         resolvers,
-		Dispatch:          webDispatch,
-		LGAddrs:           lgAddrs,
-		LGTLS:             lgTLS,
-		LGTLSExplicit:     lgTLSSet,
-		LGToken:           lgToken,
-		WebEnabled:        webEnabled,
-		WebAddrs:          webAddrs,
-		InsecureWeb:       insecureWeb,
-		WebCertificate:    webCertificate,
-		Authorizer:        liveAAABundleAuthorizer{},
-		Recorder:          auditLog,
-		CommitHook:        reloadAfterCommit,
-		ConfigUsers:       sshCfg.Users,
+		Store:          store,
+		ConfigPath:     configPath,
+		Resolvers:      resolvers,
+		Dispatch:       webDispatch,
+		LGAddrs:        lgAddrs,
+		LGTLS:          lgTLS,
+		LGTLSExplicit:  lgTLSSet,
+		LGToken:        lgToken,
+		WebEnabled:     webEnabled,
+		WebAddrs:       webAddrs,
+		InsecureWeb:    insecureWeb,
+		WebCertificate: webCertificate,
+		Authorizer:     liveAAABundleAuthorizer{},
+		Recorder:       auditLog,
+		CommitHook:     reloadAfterCommit,
+		// The zefs break-glass account, read once above and merged into
+		// localUsers. Handing the factory the same snapshot and the same closure
+		// the AAA chain uses is what keeps one producer: a web server that read
+		// zefs again could fail where the chain succeeded, admit a power user
+		// through the chain, and then revoke their session on the next request
+		// for not being declared.
+		PowerUsers: zefsAuthUsers,
+		// The power users merged with the config users, read from the shared
+		// ConfigProvider at each login instead of pinned here. Every applied
+		// reload refreshes that provider, so a deleted user stops authenticating
+		// without a restart. It answers the serve-or-not question too, which
+		// used to come from sshCfg.Users: that list is empty when the config
+		// declares users but no `environment { ssh { } }` block, so a web server
+		// with users to admit could refuse to start.
+		LocalUsersLive:    localUsers,
 		EventRing:         apiServer.EventRing(),
 		WebPortalServices: webPortalServices,
 		// Plugin-registered commands for web tab-completion, resolved lazily
@@ -1096,6 +1188,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				Store:      store,
 				ConfigPath: configPath,
 				Users:      apiUsers,
+				UsersLive:  localUsers,
 				Authorizer: liveAAABundleAuthorizer{},
 				ReloadHook: reloadAfterCommit,
 				Recorder:   auditLog,

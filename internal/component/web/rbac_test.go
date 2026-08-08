@@ -22,8 +22,8 @@ func (f fakeAuthorizer) Authorize(_, _, _ string, isReadOnly bool) bool {
 func TestSessionStoresProfiles(t *testing.T) {
 	// VALIDATES: AC-2 -- WebSession carries the authenticated user's profiles,
 	// preserved across ValidateToken.
-	store := NewSessionStore()
-	session, err := store.CreateSession("alice", []string{"read-only"})
+	store := NewSessionStore(nil)
+	session, err := store.CreateSession("alice", authz.AuthResult{Profiles: []string{"read-only"}})
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -75,8 +75,8 @@ func TestRouteGateOpenWhenUnassigned(t *testing.T) {
 func TestProfilesInRequestContext(t *testing.T) {
 	// VALIDATES: AC-2 -- AuthMiddleware carries session profiles into the
 	// request context for route gates and nav rendering.
-	store := NewSessionStore()
-	session, err := store.CreateSession("carol", []string{"admin"})
+	store := NewSessionStore(nil)
+	session, err := store.CreateSession("carol", authz.AuthResult{Profiles: []string{"admin"}})
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}

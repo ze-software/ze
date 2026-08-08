@@ -57,10 +57,10 @@ func (r *recordingAuthenticator) Authenticate(request authz.AuthRequest) (authz.
 // VALIDATES: AC-2 (missing session returns login page), AC-3 (valid session passes)
 // PREVENTS: unauthenticated access to protected routes.
 func TestSessionCookieValidation(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	users := testUsers(t)
 
-	session, err := store.CreateSession("alice", nil)
+	session, err := store.CreateSession("alice", authz.AuthResult{})
 	require.NoError(t, err)
 
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
@@ -114,9 +114,9 @@ func TestSessionCookieValidation(t *testing.T) {
 // VALIDATES: AC-3 (session created on login)
 // PREVENTS: weak or predictable session tokens.
 func TestSessionCreation(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 
-	session, err := store.CreateSession("alice", nil)
+	session, err := store.CreateSession("alice", authz.AuthResult{})
 	require.NoError(t, err)
 	require.NotNil(t, session)
 
@@ -139,10 +139,10 @@ func TestSessionCreation(t *testing.T) {
 // VALIDATES: AC-10 (new login invalidates previous)
 // PREVENTS: stale sessions remaining valid after re-login.
 func TestSessionInvalidation(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 
 	// Create first session.
-	first, err := store.CreateSession("alice", nil)
+	first, err := store.CreateSession("alice", authz.AuthResult{})
 	require.NoError(t, err)
 	firstToken := first.Token
 
@@ -150,7 +150,7 @@ func TestSessionInvalidation(t *testing.T) {
 	require.NotNil(t, store.ValidateToken(firstToken), "first session must be valid initially")
 
 	// Create second session for the same user.
-	second, err := store.CreateSession("alice", nil)
+	second, err := store.CreateSession("alice", authz.AuthResult{})
 	require.NoError(t, err)
 
 	// First token must now be invalid.
@@ -171,7 +171,7 @@ func TestSessionInvalidation(t *testing.T) {
 // VALIDATES: AC-12 (JSON API with Basic Auth)
 // PREVENTS: API clients being forced to use cookie-based sessions.
 func TestBasicAuthForJSONAPI(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	users := testUsers(t)
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
@@ -219,7 +219,7 @@ func TestBasicAuthForJSONAPI(t *testing.T) {
 // VALIDATES: web auth passes HTTP remote address into the shared authenticator request.
 // PREVENTS: AAA backends seeing empty rem_addr for browser/API logins.
 func TestAuthMiddlewarePassesRemoteAddrToAuthenticator(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	authenticator := &recordingAuthenticator{
 		result: authz.AuthResult{Authenticated: true, Source: "test"},
 	}
@@ -246,7 +246,7 @@ func TestAuthMiddlewarePassesRemoteAddrToAuthenticator(t *testing.T) {
 // PREVENTS: a loopback reverse-proxy web request accidentally enabling
 // hash-as-token.
 func TestWebBasicAuthNeverSetsLocal(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	authenticator := &recordingAuthenticator{
 		result: authz.AuthResult{Authenticated: true, Source: "test"},
 	}
@@ -274,7 +274,7 @@ func TestWebBasicAuthRejectsHashAsToken(t *testing.T) {
 	require.NoError(t, err)
 	users := []authz.UserConfig{{Name: "alice", Hash: string(hash)}}
 
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
 	basic := func(user, pass string) int {
@@ -299,10 +299,10 @@ func TestWebBasicAuthRejectsHashAsToken(t *testing.T) {
 // VALIDATES: AC-13 (security headers)
 // PREVENTS: clickjacking, MIME sniffing, protocol downgrade, caching of sensitive data.
 func TestSecurityHeaders(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	users := testUsers(t)
 
-	session, err := store.CreateSession("alice", nil)
+	session, err := store.CreateSession("alice", authz.AuthResult{})
 	require.NoError(t, err)
 
 	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
@@ -338,8 +338,11 @@ func TestSecurityHeaders(t *testing.T) {
 // VALIDATES: AC-3 (session created on login), AC-4 (invalid credentials rejected)
 // PREVENTS: unauthenticated session creation, missing Set-Cookie on login.
 func TestLoginHandler(t *testing.T) {
-	store := NewSessionStore()
 	users := testUsers(t)
+	// The store answers from the same list the authenticator does, as the hub
+	// wires it: a session the local backend grants is checked against the local
+	// backend's own users on every later request.
+	store := NewSessionStore(func() ([]authz.UserConfig, error) { return users, nil })
 	handler := LoginHandler(store, &authz.LocalAuthenticator{Users: users}, noopRenderer)
 
 	t.Run("valid credentials set session cookie", func(t *testing.T) {
@@ -410,7 +413,7 @@ func TestLoginHandler(t *testing.T) {
 // VALIDATES: AC-16 -- Web failed login emits an audit record with source IP and attempted user.
 // PREVENTS: Browser login failures being visible only in web logs.
 func TestLoginHandlerAuthFailureAuditRecord(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(nil)
 	users := testUsers(t)
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
@@ -432,23 +435,30 @@ func TestLoginHandlerAuthFailureAuditRecord(t *testing.T) {
 	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
-// TestInvalidateUser verifies that InvalidateUser removes the session for a user.
-// PREVENTS: stale sessions persisting after explicit logout.
-func TestInvalidateUser(t *testing.T) {
-	store := NewSessionStore()
+// TestInvalidateSessionIsTokenScoped verifies that invalidation removes exactly
+// the session it is given, never whichever session the user holds now.
+// PREVENTS: a superseded session invalidating its successor. Invalidation used
+// to delete s.users[username], so a stale token reaching the expiry or
+// revocation branch destroyed the session a later login had created.
+func TestInvalidateSessionIsTokenScoped(t *testing.T) {
+	store := NewSessionStore(nil)
 
-	session, err := store.CreateSession("alice", nil)
+	first, err := store.CreateSession("alice", authz.AuthResult{})
 	require.NoError(t, err)
+	second, err := store.CreateSession("alice", authz.AuthResult{})
+	require.NoError(t, err)
+	require.NotNil(t, store.ValidateToken(second.Token), "the newer session must be valid to start with")
 
-	// Session must be valid before invalidation.
-	require.NotNil(t, store.ValidateToken(session.Token))
+	store.invalidateSession(first)
 
-	store.InvalidateUser("alice")
+	assert.NotNil(t, store.ValidateToken(second.Token),
+		"invalidating a superseded session must leave the current one alone")
 
-	// Session must be invalid after explicit invalidation.
-	assert.Nil(t, store.ValidateToken(session.Token),
-		"session must be invalid after InvalidateUser")
+	store.invalidateSession(second)
 
-	// Invalidating a non-existent user is a no-op (no panic).
-	store.InvalidateUser("nonexistent")
+	assert.Nil(t, store.ValidateToken(second.Token),
+		"invalidating the current session must remove it")
+
+	// A session for a user the store has never heard of is a no-op, not a panic.
+	store.invalidateSession(&WebSession{Username: "nonexistent", Token: "deadbeef"})
 }

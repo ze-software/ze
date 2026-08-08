@@ -33,8 +33,13 @@ type sshServer interface {
 // sshBuildInputs carries everything the gated ssh builder needs to construct
 // and start the server. Generic types only -- no zessh.
 type sshBuildInputs struct {
-	Config        infra.SSHExtractedConfig
-	Users         []aaa.UserCredential
+	Config infra.SSHExtractedConfig
+	Users  []aaa.UserCredential
+	// UsersFunc is the running-config credential source (liveLocalUsers in
+	// main_servers.go). Public-key authentication answers from it, so a user a
+	// reload removed loses their key access without a daemon restart. It
+	// REPLACES Users at the server rather than adding to it.
+	UsersFunc     func() ([]aaa.UserCredential, error)
 	Authenticator aaa.Authenticator
 	Recorder      audit.Recorder
 	EphemeralFile string
@@ -62,8 +67,10 @@ type sshWireInputs struct {
 // and starts the server. The AAA bundle is built always-on by the caller (it
 // may also serve MCP/API); only the resolved authenticator crosses the seam.
 type sshStandaloneInputs struct {
-	Config        infra.SSHExtractedConfig
-	Users         []aaa.UserCredential
+	Config infra.SSHExtractedConfig
+	Users  []aaa.UserCredential
+	// UsersFunc is the running-config credential source, as in sshBuildInputs.
+	UsersFunc     func() ([]aaa.UserCredential, error)
 	Authenticator aaa.Authenticator
 	Recorder      audit.Recorder
 	ConfigDir     string

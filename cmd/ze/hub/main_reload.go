@@ -284,8 +284,28 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}
 
+	// Undo the credentials ReloadListeners installs on the running management
+	// servers, unless this reload reaches its end. The operator is told a failed
+	// reload was rejected and the config is rolled back, so a listener left
+	// authenticating against the rejected config is a divergence nothing else
+	// repairs: rollbackReload restores config and PKI, and takes no lm.
+	//
+	// A deferred flag, not a call on each failure path. There are five returns
+	// below and every one of them is a rejected reload; hand-placing the undo on
+	// each made it a line a later edit can forget, and the promote-candidate
+	// path had already been written without it. This way a new failure path
+	// inherits the undo instead of needing to remember it.
+	restoreAuth := noAuthRestore
+	reloadApplied := false
+	defer func() {
+		if !reloadApplied {
+			restoreAuth()
+		}
+	}()
 	if lm != nil && parsedTree != nil {
-		if err := lm.ReloadListeners(reloadCtx, parsedTree); err != nil {
+		undo, err := lm.ReloadListeners(reloadCtx, parsedTree)
+		restoreAuth = undo
+		if err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				if clearErr := clearCandidate(); clearErr != nil {
 					return fmt.Errorf("reload: listener migration: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
@@ -331,6 +351,7 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}
 
+	reloadApplied = true
 	return nil
 }
 

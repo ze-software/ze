@@ -189,21 +189,40 @@ func (p *Provider) DeleteRoot(root string) {
 	}
 }
 
-// Get returns the config subtree for a root name.
-// Returns empty map if the root does not exist.
-func (p *Provider) Get(root string) (map[string]any, error) {
+// Root returns the config subtree stored for a root name and reports whether
+// that root exists at all. The subtree is a shallow copy, so a caller cannot
+// mutate the provider through it.
+//
+// The bool is the fact Get cannot carry. "The daemon runs no `system` block"
+// and "the daemon runs a `system` block that declares nothing" both reach a
+// caller as an empty map, and a guard that reads users out of that map cannot
+// tell an operator's configuration from a root it lost. Ask here when the
+// difference matters (ai/rules/evidence.md, "make the miss explicit at the
+// producer").
+func (p *Provider) Root(root string) (map[string]any, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	tree, ok := p.roots[root]
 	if !ok {
-		return map[string]any{}, nil
+		return map[string]any{}, false
 	}
 
 	// Return a shallow copy to prevent mutation.
 	result := make(map[string]any, len(tree))
 	maps.Copy(result, tree)
-	return result, nil
+	return result, true
+}
+
+// Get returns the config subtree for a root name.
+// Returns empty map if the root does not exist.
+//
+// It answers from Root and discards the presence bit, for the callers that
+// write a root or do not care whether one exists. A caller that must not read
+// an absent root as an empty one calls Root instead.
+func (p *Provider) Get(root string) (map[string]any, error) {
+	tree, _ := p.Root(root)
+	return tree, nil
 }
 
 // Validate checks the current config against the merged YANG schema.

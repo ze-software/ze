@@ -26,7 +26,14 @@ import (
 // A nil store yields a nil LocalAuthorizer so the local backend does not
 // contribute a permissive "allow all" authorizer when the caller explicitly
 // has no RBAC configured.
-func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, store *authz.Store, logger *slog.Logger) (*aaa.Bundle, error) {
+//
+// liveUsers is the running-config view of the same credentials `users` holds.
+// The bundle is built once per reactor creation and is NOT rebuilt by a config
+// reload, so without it the chain's local backend answers from the boot list
+// forever, and it answers FIRST: a deleted user is accepted by the chain before
+// any fallback can refuse them. A nil liveUsers leaves the snapshot behavior,
+// which is correct only where no reload can reach the process.
+func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, liveUsers func() ([]aaa.UserCredential, error), store *authz.Store, logger *slog.Logger) (*aaa.Bundle, error) {
 	var localAuthorizer aaa.Authorizer
 	if store != nil {
 		localAuthorizer = authz.StoreAuthorizer{Store: store}
@@ -36,6 +43,7 @@ func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, store *auth
 		ConfigTree:      tree,
 		Logger:          logger,
 		LocalUsers:      users,
+		LocalUsersFunc:  liveUsers,
 		LocalAuthorizer: localAuthorizer,
 	}
 	return aaa.Default.Build(params)
@@ -63,9 +71,13 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 // reloadFn is the daemon-reaching config reload threaded into every SSH
 // session editor (commit = apply + propagate); the hub passes a late-bound
 // wrapper because the hook is registered before reloadAfterCommit exists.
-func setupInfraHook(recorder audit.Recorder, reloadFn func() error) {
+// liveUsers is the running-config credential source the AAA chain's local
+// backend answers from. It is threaded from the hub rather than derived from
+// params.ConfigTree because that tree is the one the reactor was BUILT with:
+// re-deriving from it would reproduce the snapshot this exists to remove.
+func setupInfraHook(recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) {
 	infra.SetHook(func(params infra.HookParams) {
-		_ = infraSetup(params, recorder, reloadFn)
+		_ = infraSetup(params, recorder, reloadFn, liveUsers)
 	})
 }
 
@@ -73,7 +85,7 @@ func setupInfraHook(recorder audit.Recorder, reloadFn func() error) {
 // reboot/GR marker) and, when ssh is compiled in, builds + wires the ssh server
 // through the seam (ssh_infra.go). Returns the ssh server handle (nil if ssh is
 // not configured, failed to start, or compiled out).
-func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func() error) sshServer {
+func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) sshServer {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
 
@@ -123,7 +135,7 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 	// every dispatched command (SSH, MCP, API), so the bundle must exist
 	// even when SSH is disabled. On config reload the previous bundle is
 	// closed so backend workers (TACACS+ accounting) drain.
-	bundle, buildErr := buildAAABundle(params.ConfigTree, users, params.AuthzStore, log)
+	bundle, buildErr := buildAAABundle(params.ConfigTree, users, liveUsers, params.AuthzStore, log)
 	if buildErr != nil {
 		log.Warn("AAA backend build failed", "error", buildErr)
 		bundle = nil
@@ -138,6 +150,7 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 		sshSrv = sshBuild(&sshBuildInputs{
 			Config:        sshCfg,
 			Users:         users,
+			UsersFunc:     liveUsers,
 			Authenticator: bundle.Authenticator,
 			Recorder:      recorder,
 			EphemeralFile: ephemeralFile,

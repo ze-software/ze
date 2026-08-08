@@ -147,3 +147,26 @@ func TestChainAuthenticatorForwardsAuthRequest(t *testing.T) {
 	assert.True(t, result.Authenticated)
 	assert.Equal(t, request, backend.request)
 }
+
+// VALIDATES: GrantedByLocalBackend recognizes the local backend and nothing
+// else, an unset Source included.
+// PREVENTS: silence reading as a claim. A caller anchors a web session on this
+// answer, so treating "" as local would attach the local user list's revocation
+// to a session some other backend granted, and logging every remote-backend
+// operator out on their next request.
+func TestGrantedByLocalBackend(t *testing.T) {
+	cases := []struct {
+		source string
+		want   bool
+	}{
+		{SourceLocal, true},
+		{"tacacs", false},
+		{"radius", false},
+		{"", false},
+		{"Local", false},
+	}
+	for _, c := range cases {
+		assert.Equal(t, c.want, AuthResult{Source: c.source}.GrantedByLocalBackend(),
+			"source %q", c.source)
+	}
+}

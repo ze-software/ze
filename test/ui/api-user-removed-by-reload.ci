@@ -1,0 +1,330 @@
+# Test: a user deleted from the config loses REST API access at the next reload,
+#       whether the authenticator was built at boot or rebuilt by an earlier
+#       listener-changing reload
+# VALIDATES: AC-13 of spec-fixit-web-auth-deleted-user-survives-reload. REST and
+#            gRPC accept `Bearer <user>:<pass>` and dispatch commands through the
+#            same dispatcher every other surface uses, so the API is a third
+#            credential surface and it must follow the running config too.
+# PREVENTS: an operator who removes an account and reloads keeping API access on
+#           it until the daemon restarts. buildUserAuthenticator (cmd/ze/hub/api.go)
+#           is built at TWO sites -- buildAPIShared at boot, and apiAuthReloader
+#           (cmd/ze/hub/mgmt_auth_reload.go) on a reload that resolves the API's
+#           authentication -- and each one has to be handed the live user source.
+#           A unit test calling the helper with a hand-made closure proves neither
+#           site passes one, so an edit dropping the live source at either site
+#           would restore the boot snapshot with the whole Go suite still green.
+#
+# Both sites are covered, and they are told apart by WHICH reload asserts them.
+#
+#   1. boot           api-server present   every user authenticates
+#   2. reload         api-server REMOVED   ExtractAPIConfig answers ok=false, so
+#                                          apiAuthReloader resolves nothing and no
+#                                          UpdateAuth runs. The BOOT authenticator
+#                                          is still installed, and it must refuse
+#                                          the user this reload deleted.
+#   3. reload         api-server restored  on a NEW port, so the listener move is
+#                                          visible proof that the API config was
+#                                          read: the same ok=true that migrates the
+#                                          listener is what makes applyAuthIntents
+#                                          install a freshly built authenticator.
+#   4. reload         api-server REMOVED   nothing is rebuilt again, so the
+#                                          authenticator under test is the one
+#                                          reload 3 built, and it must refuse the
+#                                          user this reload deleted.
+#
+# The ordering is why this is a shell driver rather than http= steps: http= steps
+# run in their own phase, before the runner waits on anything, so nothing in the
+# .ci grammar can place a request strictly after a SIGHUP. The driver owns the
+# whole sequence instead, exactly as its sibling web-user-removed-by-reload.ci
+# does for the web surface.
+
+option=timeout:value=120s
+
+tmpfs=api-user-reload-check.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Assert that a reload which deletes a user takes its REST access away at once.
+
+Requests carry `Authorization: Bearer <user>:<password>`, the per-user
+credential internal/component/api/rest/auth.go accepts, so this drives the real
+API authentication path rather than a test-only entry point.
+"""
+import os
+import sys
+import urllib.error
+import urllib.request
+
+from ze_api import wait_until
+
+PATH = '/api/v1/commands'
+
+
+def status_for(port, user, password):
+    """HTTP status the REST command list gives this user, or None when the
+    listener does not answer at all.
+
+    A refused connection must never read as a rejected login: this test asserts
+    that the daemon keeps serving and changes its mind about one account.
+    """
+    req = urllib.request.Request(f'http://127.0.0.1:{port}{PATH}')
+    req.add_header('Authorization', f'Bearer {user}:{password}')
+    try:
+        return urllib.request.urlopen(req, timeout=5).status
+    except urllib.error.HTTPError as err:
+        return err.code
+    except (urllib.error.URLError, ConnectionRefusedError, OSError):
+        return None
+
+
+def require(condition, message):
+    if not condition:
+        print('FAIL: ' + message, file=sys.stderr)
+        sys.exit(1)
+    print('OK: ' + message, file=sys.stderr)
+
+
+def main():
+    stage = sys.argv[1]
+    port1 = os.environ['ZE_REST_PORT']
+    port2 = os.environ['ZE_REST_PORT2']
+
+    if stage == 'boot':
+        require(wait_until(lambda: status_for(port1, 'bootuser', 'bootuserpass') == 200,
+                           attempts=60, delay=0.5),
+                'bootuser dispatches over REST against the config that declares them')
+        require(status_for(port1, 'reloaduser', 'reloaduserpass') == 200,
+                'reloaduser dispatches over REST against the config that declares them')
+        require(status_for(port1, 'keepuser', 'keepuserpass') == 200,
+                'keepuser dispatches over REST against the config that declares them')
+        require(status_for(port1, 'bootuser', 'wrongpass') == 401,
+                'a wrong password is refused, so a 200 above means credentials were checked')
+        return
+
+    if stage == 'boot-site':
+        # The api-server block is gone from the reloaded config, so nothing
+        # rebuilt the API authenticator. What answers here is the one
+        # buildAPIShared constructed at boot.
+        require(wait_until(lambda: status_for(port1, 'bootuser', 'bootuserpass') == 401,
+                           attempts=60, delay=0.5),
+                'bootuser is refused by the BOOT-built authenticator once the reload removes them')
+        require(status_for(port1, 'keepuser', 'keepuserpass') == 200,
+                'keepuser still dispatches, so the reload removed one user and not the listener')
+        require(status_for(port1, 'reloaduser', 'reloaduserpass') == 200,
+                'reloaduser is untouched by this reload')
+        return
+
+    if stage == 'rebuilt':
+        # The restored api-server block moved REST to a second port. Serving
+        # there is proof that ExtractAPIConfig answered ok, which is the same
+        # answer that makes applyAuthIntents install a freshly built
+        # authenticator over the boot one.
+        require(wait_until(lambda: status_for(port2, 'keepuser', 'keepuserpass') == 200,
+                           attempts=60, delay=0.5),
+                'REST serves on the reloaded port, so the API config was read and the authenticator was rebuilt')
+        require(status_for(port2, 'reloaduser', 'reloaduserpass') == 200,
+                'reloaduser still dispatches through the rebuilt authenticator')
+        require(status_for(port2, 'bootuser', 'bootuserpass') == 401,
+                'the user deleted before the rebuild stays refused after it')
+        return
+
+    # stage == 'reload-site': the api-server block is gone again, so no reloader
+    # ran and the authenticator under test is the one the previous reload built.
+    require(wait_until(lambda: status_for(port2, 'reloaduser', 'reloaduserpass') == 401,
+                       attempts=60, delay=0.5),
+            'reloaduser is refused by the RELOAD-built authenticator once a later reload removes them')
+    require(status_for(port2, 'keepuser', 'keepuserpass') == 200,
+            'keepuser still dispatches, so the refusal is a decision about one account')
+
+
+if __name__ == '__main__':
+    main()
+EOF_PY
+
+tmpfs=test-api-user-reload.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+ZE_DIR=$(mktemp -d)
+DAEMON_PID=""
+cleanup() {
+	if [ -n "$DAEMON_PID" ]; then
+		kill "$DAEMON_PID" 2>/dev/null || true
+		wait "$DAEMON_PID" 2>/dev/null || true
+	fi
+	rm -rf "$ZE_DIR"
+}
+trap cleanup EXIT
+
+ZE_REST_PORT=$((19500 + ($$ % 400)))
+ZE_REST_PORT2=$((19950 + ($$ % 400)))
+SSH_PORT=$((23000 + ($$ % 900)))
+BGP_PORT=$((12000 + ($$ % 40000)))
+export ze_test_bgp_port=$BGP_PORT
+export ZE_REST_PORT ZE_REST_PORT2
+
+# Hash every password with ze's own tool rather than pasting a fixture, so the
+# test cannot drift from the cost factor and algorithm ze actually writes.
+BOOTHASH=$(printf 'bootuserpass\n' | ze passwd)
+RELOADHASH=$(printf 'reloaduserpass\n' | ze passwd)
+KEEPHASH=$(printf 'keepuserpass\n' | ze passwd)
+
+# write_config <users-file> <api-block-file>
+# The ssh{} and bgp{} halves are byte-identical across every config, so the only
+# things a reload changes are which users exist and whether the API block is
+# there. The ssh block is what makes config-file users reach API authentication
+# at all: ExtractSSHConfig returns nothing without it, which is a known
+# limitation this spec homed rather than a property under test here.
+write_config() {
+	cat "$1" > api-user-reload.conf
+	cat >> api-user-reload.conf << ZEENV
+
+environment {
+	ssh {
+		enabled true;
+		server main { ip 127.0.0.1; port $SSH_PORT; }
+	}
+ZEENV
+	cat "$2" >> api-user-reload.conf
+	cat >> api-user-reload.conf << ZECONF
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+ZECONF
+}
+
+cat > api-on-port1.conf << ZEAPI
+	api-server {
+		rest {
+			enabled true;
+			server main { ip 127.0.0.1; port $ZE_REST_PORT; }
+		}
+	}
+ZEAPI
+
+cat > api-on-port2.conf << ZEAPI
+	api-server {
+		rest {
+			enabled true;
+			server main { ip 127.0.0.1; port $ZE_REST_PORT2; }
+		}
+	}
+ZEAPI
+
+# No api-server block at all. ExtractAPIConfig answers ok=false, so the reload
+# resolves no API authentication and rebuilds nothing; the running REST listener
+# keeps both its address and the credentials it is already serving.
+: > api-absent.conf
+
+# None of these three is the zefs power user, so the config file is the only
+# thing that can grant or withdraw any of them.
+cat > users-all.conf << ZEUSERS
+system {
+	authentication {
+		user bootuser {
+			password "$BOOTHASH"
+		}
+		user reloaduser {
+			password "$RELOADHASH"
+		}
+		user keepuser {
+			password "$KEEPHASH"
+		}
+	}
+}
+ZEUSERS
+
+cat > users-no-bootuser.conf << ZEUSERS
+system {
+	authentication {
+		user reloaduser {
+			password "$RELOADHASH"
+		}
+		user keepuser {
+			password "$KEEPHASH"
+		}
+	}
+}
+ZEUSERS
+
+cat > users-keep-only.conf << ZEUSERS
+system {
+	authentication {
+		user keepuser {
+			password "$KEEPHASH"
+		}
+	}
+}
+ZEUSERS
+
+reload_and_check() {
+	kill -HUP "$DAEMON_PID"
+	if ! ./api-user-reload-check.py "$1"; then
+		echo "--- daemon.log ---" >&2
+		cat daemon.log >&2
+		exit 1
+	fi
+}
+
+write_config users-all.conf api-on-port1.conf
+# ze writes this file once plugin startup is complete, which is after the SIGHUP
+# handler is installed. The runner arms ZE_READY_FILE only for a ze binary it
+# launches itself, and it launches this script, so the daemon needs it here.
+rm -f daemon.ready
+ZE_READY_FILE="$PWD/daemon.ready" ZE_CONFIG_DIR="$ZE_DIR" ze start api-user-reload.conf 2>daemon.log &
+DAEMON_PID=$!
+
+if ! ./api-user-reload-check.py boot; then
+	echo "--- daemon.log ---" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+# The REST listener comes up during service construction, while the SIGHUP
+# handler is installed later in daemon startup. Serving a request is therefore
+# not proof that a signal would be caught, so wait for the daemon's own
+# readiness marker before signalling.
+i=0
+while [ ! -f daemon.ready ] && [ $i -lt 300 ]; do
+	sleep 0.1
+	i=$((i + 1))
+done
+if [ ! -f daemon.ready ]; then
+	echo "FAIL: daemon never became ready, so the reload could not be signalled" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+# Reload 1: delete bootuser, and take the api-server block away so nothing
+# rebuilds the API authenticator. The boot-built one has to answer.
+write_config users-no-bootuser.conf api-absent.conf
+reload_and_check boot-site
+
+# Reload 2: put the API block back on a second port. The listener move is the
+# observable half of the same ok=true that rebuilds the authenticator.
+write_config users-no-bootuser.conf api-on-port2.conf
+reload_and_check rebuilt
+
+# Reload 3: delete reloaduser with the API block absent again, so the
+# authenticator under test is the one reload 2 built.
+write_config users-keep-only.conf api-absent.conf
+reload_and_check reload-site
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-api-user-reload.sh:timeout=120s
+expect=exit:code=0

@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var logger = slogutil.Logger("api.grpc")
@@ -69,6 +70,12 @@ type GRPCServer struct {
 	authenticator Authenticator
 	authorizer    aaa.Authorizer
 	auditRecorder audit.Recorder
+	// tlsConfigured records that the server was built with a certificate and
+	// key, so its listeners are encrypted. Reconfigure needs it: a reload moving
+	// a listener off loopback must apply the same TLS requirement the
+	// constructor applies, and the credentials themselves are sealed inside
+	// srv's transport options where nothing can read them back.
+	tlsConfigured bool
 	srv           *grpc.Server
 	// configured holds the addresses passed in by the caller, in original order.
 	configured []string
@@ -99,13 +106,8 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	}
 
 	for _, addr := range cfg.ListenAddrs {
-		if !api.IsLoopbackAddr(addr) {
-			if cfg.Token == "" && cfg.Authenticator == nil {
-				return nil, fmt.Errorf("non-loopback gRPC listen address %q requires authentication (set token or users)", addr)
-			}
-			if !hasTLS {
-				return nil, fmt.Errorf("non-loopback gRPC listen address %q with authentication requires TLS (set tls-cert and tls-key)", addr)
-			}
+		if err := checkGRPCListenAddr(addr, cfg.Token != "" || cfg.Authenticator != nil, hasTLS); err != nil {
+			return nil, err
 		}
 	}
 
@@ -116,6 +118,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		authenticator: cfg.Authenticator,
 		authorizer:    cfg.Authorizer,
 		auditRecorder: cfg.AuditRecorder,
+		tlsConfigured: hasTLS,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
 		listeners:     make(map[string]net.Listener),
 	}
@@ -257,6 +260,16 @@ func (s *GRPCServer) Reconfigure(ctx context.Context, newAddrs []string) error {
 
 	if s.stopped {
 		return errors.New("gRPC server has been shut down")
+	}
+
+	// The constructor's rule, re-applied to the addresses this reload asks for.
+	// Skipping it let a SIGHUP move an authenticated plaintext listener off
+	// loopback, a state the daemon refuses to boot into.
+	authenticated := s.authenticator != nil || s.token != ""
+	for _, addr := range newAddrs {
+		if err := checkGRPCListenAddr(addr, authenticated, s.tlsConfigured); err != nil {
+			return err
+		}
 	}
 
 	_, toAdd, toRemove := grpcListenerDiff(s.bound, newAddrs)
@@ -432,9 +445,123 @@ func (s *GRPCServer) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grp
 	return handler(srv, wrapped)
 }
 
+// checkGRPCListenAddr enforces the two conditions a non-loopback gRPC listener
+// must satisfy: every RPC is gated, and the transport is encrypted. Without the
+// second, the bearer token that satisfies the first crosses the network in
+// cleartext.
+//
+// Four callers reach a listening state, and every one of them goes through
+// this: NewGRPCServer, Reconfigure, UpdateAuth, and the undo UpdateAuth
+// returns. The undo is the easiest of the four to forget, because putting a
+// previous value back does not look like a change; it is judged against the
+// addresses in force when it RUNS, and a reload moves those.
+//
+// Both omissions were live defects. Before Reconfigure consulted this, a SIGHUP
+// moved an authenticated plaintext listener from loopback to 0.0.0.0. Before
+// the undo consulted it, a reload that installed a token, moved the listener to
+// 0.0.0.0, and then failed at a later step restored the empty credentials and
+// left the public port ungated.
+func checkGRPCListenAddr(addr string, authenticated, tlsConfigured bool) error {
+	if api.IsLoopbackAddr(addr) {
+		return nil
+	}
+	if !authenticated {
+		return fmt.Errorf("non-loopback gRPC listen address %q requires authentication (set token or users)", addr)
+	}
+	if !tlsConfigured {
+		return fmt.Errorf("non-loopback gRPC listen address %q with authentication requires TLS (set tls-cert and tls-key)", addr)
+	}
+	return nil
+}
+
+// authSnapshot returns the credentials gating RPCs right now. The read is
+// synchronized because UpdateAuth replaces them while the server is serving, so
+// an RPC in flight during a reload sees the old pair or the new one and never a
+// mix of the two.
+func (s *GRPCServer) authSnapshot() (string, Authenticator) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.token, s.authenticator
+}
+
+// Authenticated reports whether every RPC is gated right now. It reads the live
+// credentials rather than the ones the server was constructed with, so the
+// reload exposure guard classifies what the server actually serves.
+func (s *GRPCServer) Authenticated() bool {
+	token, authenticator := s.authSnapshot()
+	return authenticator != nil || token != ""
+}
+
+// setAuthLocked installs credentials after checking that every address the
+// server holds tolerates them. Caller holds s.mu.
+//
+// Both UpdateAuth and the undo it returns go through this, and the undo is the
+// reason it exists. Restoring credentials is a credential CHANGE like any
+// other, and it is judged against the addresses in force WHEN IT RUNS, which
+// are not the ones in force when they were captured: a single reload installs a
+// token and then moves the listener off loopback, so an unconditional restore
+// puts an unauthenticated server on a public address.
+func (s *GRPCServer) setAuthLocked(token string, authenticator Authenticator) error {
+	addrs := s.bound
+	if len(addrs) == 0 {
+		addrs = s.configured
+	}
+	for _, addr := range addrs {
+		if err := checkGRPCListenAddr(addr, token != "" || authenticator != nil, s.tlsConfigured); err != nil {
+			return err
+		}
+	}
+	s.token = token
+	s.authenticator = authenticator
+	return nil
+}
+
+// UpdateAuth installs reloaded credentials without rebinding any listener, and
+// returns a function that puts the previous credentials back. A reload that
+// fails after this call runs that function, so a partially applied reload never
+// leaves the server less authenticated than it was.
+//
+// Removing authentication is refused while any address the server holds is
+// non-loopback. That is the refusal NewGRPCServer makes at construction,
+// applied to the addresses in force now: a remotely reachable gRPC listener
+// without credentials must never exist, and a config reload is not a way to
+// reach one.
+//
+// The undo carries the same refusal, and it KEEPS the reloaded credentials when
+// putting the old ones back would expose the listener. Keeping credentials the
+// running config does not describe is a divergence; serving a public port with
+// none is an exposure, and only one of those two is recoverable by restarting.
+func (s *GRPCServer) UpdateAuth(token string, authenticator func(authHeader string) (username string, ok bool)) (func(), error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stopped {
+		return nil, errors.New("gRPC server has been stopped")
+	}
+
+	prevToken, prevAuthenticator := s.token, s.authenticator
+	if err := s.setAuthLocked(token, authenticator); err != nil {
+		return nil, err
+	}
+
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err := s.setAuthLocked(prevToken, prevAuthenticator); err != nil {
+			logger.Error("keeping the reloaded gRPC credentials: restoring the previous ones would leave a listener reachable without them",
+				"error", err)
+		}
+	}, nil
+}
+
 // checkAuth validates the Authorization metadata and returns the authenticated username.
 func (s *GRPCServer) checkAuth(ctx context.Context) (string, bool, error) {
-	if s.authenticator == nil && s.token == "" {
+	// One snapshot for the whole check: reading the fields twice would let a
+	// reload land between the no-credentials decision and the comparison, and
+	// answer the two from different configurations.
+	token, authenticator := s.authSnapshot()
+
+	if authenticator == nil && token == "" {
 		return defaultUsername, true, nil
 	}
 
@@ -449,8 +576,8 @@ func (s *GRPCServer) checkAuth(ctx context.Context) (string, bool, error) {
 		return "", false, status.Error(codes.Unauthenticated, "missing authorization")
 	}
 
-	if s.authenticator != nil {
-		user, ok := s.authenticator(tokens[0])
+	if authenticator != nil {
+		user, ok := authenticator(tokens[0])
 		if !ok {
 			s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
 			return "", false, status.Error(codes.Unauthenticated, "invalid credentials")
@@ -458,7 +585,8 @@ func (s *GRPCServer) checkAuth(ctx context.Context) (string, bool, error) {
 		return user, false, nil
 	}
 
-	expected := "Bearer " + s.token
+	var tb textbuf.Buffer
+	expected := tb.Str("Bearer ").Str(token).String()
 	got := sha256.Sum256([]byte(tokens[0]))
 	want := sha256.Sum256([]byte(expected))
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {

@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -89,6 +90,23 @@ type WebSession struct {
 	// user (AuthResult.Profiles). Carried so route gates and nav rendering can
 	// reason about the session's authorization without re-querying (AC-2).
 	Profiles []string
+	// LocalAnchored reports that the LOCAL backend granted this session, and
+	// therefore that removing the user from the local list MUST end it (AC-10).
+	// It is the authenticator's own answer, carried on AuthResult.Source and
+	// recorded verbatim at CreateSession.
+	//
+	// It is not re-derived from the user list. A list read taken after the
+	// authenticator has answered is a second question asked at a later instant:
+	// a reload landing in between made a locally-authenticated session report
+	// "not local", which left it un-revocable for the rest of the 24h TTL, and
+	// a name held by both the local list and a remote backend reported "local"
+	// for a session the remote backend granted.
+	//
+	// It is false for a user a remote backend authenticated (RADIUS, TACACS+).
+	// The local list cannot revoke a session it never granted, and re-checking
+	// one against it would log out every remote-backend operator on the next
+	// request.
+	LocalAnchored bool
 }
 
 // SessionStore manages active user sessions. It maps session tokens to
@@ -102,6 +120,12 @@ type SessionStore struct {
 	mu       sync.RWMutex
 	sessions map[string]*WebSession // token -> session
 	users    map[string]string      // username -> token
+
+	// localUsers returns the local credentials that are valid RIGHT NOW. The
+	// store never holds a user list of its own: a session outlives the request
+	// that created it, so any list copied here would answer for the config the
+	// daemon booted with rather than the one it runs.
+	localUsers func() ([]authz.UserConfig, error)
 }
 
 // AuthConfig holds configuration for authentication middleware.
@@ -110,19 +134,79 @@ type AuthConfig struct {
 	LoginRenderer func(w http.ResponseWriter, r *http.Request)
 }
 
+// errNoLocalUserSource reports that the store was built with no live view of
+// the local user list, so it cannot say whether a user is still declared.
+var errNoLocalUserSource = errors.New("no live local user source")
+
 // NewSessionStore returns an initialized SessionStore ready for use.
-func NewSessionStore() *SessionStore {
+//
+// localUsers returns the credentials the running configuration declares right
+// now, read per call (the hub passes liveLocalUsers). Sessions it granted are
+// re-checked against it on every request, so a user an operator removes and
+// reloads loses an open browser tab at once instead of keeping full rights for
+// the rest of the 24h session TTL.
+//
+// A nil localUsers leaves the store unable to answer whether a user is still
+// declared, so it REFUSES every session the local backend granted rather than
+// serving one it cannot check. Only a caller with no local backend at all may
+// pass it.
+func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStore {
 	return &SessionStore{
-		sessions: make(map[string]*WebSession),
-		users:    make(map[string]string),
+		sessions:   make(map[string]*WebSession),
+		users:      make(map[string]string),
+		localUsers: localUsers,
 	}
 }
 
-// CreateSession generates a new session for the given username, recording the
-// authz profile names the authenticator returned. If the user already has an
-// active session, the previous session is invalidated first. The session token
-// is 32 bytes from crypto/rand, hex-encoded to 64 characters.
-func (s *SessionStore) CreateSession(username string, profiles []string) (*WebSession, error) {
+// localUserDeclared reports whether the live local user list declares username.
+//
+// An unreadable list is an ERROR, never a "no". The two are indistinguishable
+// to a caller that gets a bare false, and only one of them may keep a session
+// alive (ai/rules/evidence.md, "a guard fails closed or says something").
+//
+// COST: this runs on every request that carries an anchored session, not only
+// at login. ValidateToken calls it, so each `/fragment/*` and `/show/` request
+// pays the hub's liveLocalUsers chain: one RLock and a shallow copy of the
+// `system` root (config.Provider.Root), a walk of `authentication/user` that
+// allocates one UserConfig slice plus a key slice per user
+// (infra.ExtractAuthUsers), and one more slice and map to merge the power users
+// (mergeAuthUsers). ExtractAuthUsers then SORTS, by name, the users and each
+// user's public keys: its callers merge and log the result, and the map form it
+// reads has no order to give them. No I/O and no parse. The sort is over the
+// configured users, so it costs what a handful of names costs. Web requests are
+// human-paced and this is not one of the paths ai/rules/performance.md governs,
+// so the cost is accepted and NOT cached: a cache is the snapshot the
+// per-request re-check exists to delete. Measure first if that ever changes,
+// and any cache needs the reload to invalidate it.
+func (s *SessionStore) localUserDeclared(username string) (bool, error) {
+	if s.localUsers == nil {
+		return false, errNoLocalUserSource
+	}
+	users, err := s.localUsers()
+	if err != nil {
+		return false, fmt.Errorf("reading the live local user list: %w", err)
+	}
+	for _, u := range users {
+		if u.Name == username {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// CreateSession generates a new session for the given username from the result
+// the authenticator returned. If the user already has an active session, the
+// previous session is invalidated first. The session token is 32 bytes from
+// crypto/rand, hex-encoded to 64 characters.
+//
+// result decides two things and is the sole input for both: the authz profile
+// names carried on the session, and whether the local user list may later
+// revoke it (AuthResult.GrantedByLocalBackend). Taking the second from the
+// result rather than re-reading the user list is what makes the anchor the
+// authenticator's answer instead of a guess about it: the store cannot observe
+// the instant the authenticator answered, and a reload landing after it made
+// the guess wrong in both directions (WebSession.LocalAnchored).
+func (s *SessionStore) CreateSession(username string, result authz.AuthResult) (*WebSession, error) {
 	token, err := generateToken()
 	if err != nil {
 		return nil, fmt.Errorf("generating session token: %w", err)
@@ -138,10 +222,11 @@ func (s *SessionStore) CreateSession(username string, profiles []string) (*WebSe
 	}
 
 	session := &WebSession{
-		Username:  username,
-		Token:     token,
-		CreatedAt: time.Now(),
-		Profiles:  profiles,
+		Username:      username,
+		Token:         token,
+		CreatedAt:     time.Now(),
+		Profiles:      result.Profiles,
+		LocalAnchored: result.GrantedByLocalBackend(),
 	}
 	s.sessions[token] = session
 	s.users[username] = token
@@ -152,8 +237,17 @@ func (s *SessionStore) CreateSession(username string, profiles []string) (*WebSe
 }
 
 // ValidateToken returns the session associated with the given token, or nil
-// if the token is not valid or has expired (older than sessionTTL).
-// Expired sessions are invalidated automatically.
+// if the token is not valid, has expired (older than sessionTTL), or belongs to
+// a user the running configuration no longer declares. A session that fails any
+// of these is invalidated automatically.
+//
+// The last check is what makes deleting a user take effect. A cookie is
+// credential material this middleware accepted BEFORE the reload, so testing
+// only the 24h TTL left a removed operator with full config-edit rights in an
+// open tab for the rest of that day, while the reload reported success (AC-10).
+// It is read per request from the same live list the local authenticator
+// answers from, so the cookie path and the password path cannot disagree about
+// who exists.
 func (s *SessionStore) ValidateToken(token string) *WebSession {
 	s.mu.RLock()
 	session := s.sessions[token]
@@ -164,34 +258,66 @@ func (s *SessionStore) ValidateToken(token string) *WebSession {
 	}
 
 	if time.Since(session.CreatedAt) > sessionTTL {
-		s.InvalidateUser(session.Username)
+		s.invalidateSession(session)
 		return nil
 	}
 
-	return session
+	if !session.LocalAnchored {
+		return session
+	}
+
+	declared, err := s.localUserDeclared(session.Username)
+	switch {
+	case err != nil:
+		// Deny rather than serve: a session granted by the local user list
+		// cannot be renewed against a list that cannot be read.
+		logger.Warn("session refused: cannot read the live local user list",
+			"username", session.Username, "error", err)
+	case !declared:
+		logger.Info("session refused: the running configuration no longer declares this user",
+			"username", session.Username)
+	default:
+		return session
+	}
+
+	s.invalidateSession(session)
+
+	return nil
 }
 
-// InvalidateUser removes the session for the given username. This is a no-op
-// if the user has no active session.
-func (s *SessionStore) InvalidateUser(username string) {
+// invalidateSession removes exactly the session it is given, and only while
+// that session is still the user's current one. A no-op otherwise.
+//
+// The identity check is the point. Invalidating by USERNAME destroys whatever
+// token the user holds now, which is not always the token that failed: a
+// request still carrying a revoked cookie arrives after the operator has
+// re-added the user and that user has logged in again, and a username-scoped
+// delete then kills the new session on behalf of the old one. The store already
+// drops the previous token in CreateSession, so a session that is no longer
+// s.users[username] has nothing left to remove.
+func (s *SessionStore) invalidateSession(session *WebSession) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	token, exists := s.users[username]
-	if !exists {
+	if s.users[session.Username] != session.Token {
 		return
 	}
 
-	delete(s.sessions, token)
-	delete(s.users, username)
+	delete(s.sessions, session.Token)
+	delete(s.users, session.Username)
 
-	logger.Info("session invalidated", "username", username)
+	logger.Info("session invalidated", "username", session.Username)
 }
 
 // AuthMiddleware returns an http.Handler that wraps next with authentication.
 // It checks for a valid session cookie first, then falls back to Basic Auth
 // for JSON API requests (no session is created for Basic Auth). Unauthenticated
 // requests receive a 401 response rendered by loginRenderer.
+//
+// The cookie is not a bypass of the user list: store.ValidateToken re-checks
+// the session against the credentials the running configuration declares right
+// now, so a cookie issued before a reload that removed its user is refused here
+// like any other bad credential.
 //
 // HTMX requests (HX-Request header) with expired sessions receive a 401 with
 // a login overlay instead of a full page, enabling in-place session recovery.
@@ -275,7 +401,7 @@ func LoginHandlerWithAudit(store *SessionStore, authenticator authz.Authenticato
 			return
 		}
 
-		session, err := store.CreateSession(username, result.Profiles)
+		session, err := store.CreateSession(username, result)
 		if err != nil {
 			logger.Error("failed to create session", "username", username, "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)

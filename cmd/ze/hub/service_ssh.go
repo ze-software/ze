@@ -45,6 +45,7 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 		IdleTimeout:   in.Config.IdleTimeout,
 		MaxSessions:   in.Config.MaxSessions,
 		Users:         in.Users,
+		UsersFunc:     in.UsersFunc,
 		Authenticator: in.Authenticator,
 		AuditRecorder: in.Recorder,
 	}
@@ -213,6 +214,7 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 		IdleTimeout:   in.Config.IdleTimeout,
 		MaxSessions:   in.Config.MaxSessions,
 		Users:         in.Users,
+		UsersFunc:     in.UsersFunc,
 		Authenticator: in.Authenticator,
 		AuditRecorder: in.Recorder,
 		ConfigDir:     in.ConfigDir,

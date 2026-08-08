@@ -86,16 +86,25 @@ type PluginProtocolFunc func(ctx context.Context, reader io.ReadCloser, writer i
 
 // Config holds SSH server configuration parsed from the config file.
 type Config struct {
-	Listen        string
-	ListenAddrs   []string // all listen addresses (first == Listen)
-	HostKeyPath   string
-	HostCertPath  string          // optional: path to SSH host certificate (signed by CA)
-	ConfigDir     string          // directory of the config file; used for host-key default
-	ConfigPath    string          // path to config file; used by SSH sessions for concurrent editing
-	Storage       storage.Storage // when set, host key is read from/stored to blob
-	IdleTimeout   uint32
-	MaxSessions   int
-	Users         []authz.UserConfig
+	Listen       string
+	ListenAddrs  []string // all listen addresses (first == Listen)
+	HostKeyPath  string
+	HostCertPath string          // optional: path to SSH host certificate (signed by CA)
+	ConfigDir    string          // directory of the config file; used for host-key default
+	ConfigPath   string          // path to config file; used by SSH sessions for concurrent editing
+	Storage      storage.Storage // when set, host key is read from/stored to blob
+	IdleTimeout  uint32
+	MaxSessions  int
+	Users        []authz.UserConfig
+	// UsersFunc returns the credentials that are valid RIGHT NOW. When set it
+	// REPLACES Users rather than adding to it, exactly as
+	// authz.LocalAuthenticator.UsersFunc does: a server whose user set follows
+	// the running configuration must not also answer from a snapshot, because
+	// the snapshot is the stale answer that has to stop being given. The daemon
+	// captured this list at construction, so a user the operator deleted and
+	// reloaded went on getting a shell, with config-edit rights, by presenting
+	// their configured public key until the process restarted.
+	UsersFunc     func() ([]authz.UserConfig, error)
 	Authenticator authz.Authenticator // pluggable auth backend (nil = use Users with bcrypt)
 	AuditRecorder audit.Recorder      // records failed authentication attempts when set
 	Executor      CommandExecutor     // injected by daemon, not from config
@@ -227,9 +236,27 @@ func (s *Server) MaxSessions() int {
 	return s.config.MaxSessions
 }
 
-// Users returns the configured user list.
+// Users returns the boot-time user list the server was constructed with. It is
+// NOT what authentication answers from: that is users(), which prefers the live
+// UsersFunc. Do not add an auth caller here.
 func (s *Server) Users() []authz.UserConfig {
 	return s.config.Users
+}
+
+// users returns the credentials this server accepts RIGHT NOW: the live list
+// when UsersFunc is wired, and the construction-time snapshot when it is not.
+// The precedence is the one authz.LocalAuthenticator.users() applies, so a
+// caller that wires the func gets one answer from both surfaces rather than two
+// user sets that can disagree.
+//
+// The error is the func's own. An unreadable user list is NOT an empty one: a
+// caller that read it as empty would refuse every login while reporting the
+// credential as wrong (ai/rules/evidence.md, "fail closed or say something").
+func (s *Server) users() ([]authz.UserConfig, error) {
+	if s.config.UsersFunc != nil {
+		return s.config.UsersFunc()
+	}
+	return s.config.Users, nil
 }
 
 // ActiveSessions returns the current number of active SSH sessions.
@@ -393,7 +420,10 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 	authenticator := s.config.Authenticator
 	if authenticator == nil {
 		// No explicit authenticator: wrap local users as a LocalAuthenticator.
-		authenticator = &authz.LocalAuthenticator{Users: s.config.Users}
+		// It carries both fields and applies the same precedence, so this
+		// fallback follows the running config wherever UsersFunc is wired and
+		// answers from the snapshot where it is not.
+		authenticator = &authz.LocalAuthenticator{Users: s.config.Users, UsersFunc: s.config.UsersFunc}
 	}
 
 	// Always register a password auth handler.
@@ -417,18 +447,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			s.maxSessionsMiddleware(),
 		),
 		wish.WithPublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
-			username := ctx.User()
-			remote := ctx.RemoteAddr().String()
-			profiles := matchPublicKey(s.config.Users, username, key)
-			if profiles != nil {
-				s.logger.Info("SSH auth success",
-					"username", username, "remote", remote,
-					"source", "public-key",
-					"profiles", truncateProfiles(profiles))
-				return true
-			}
-			s.recordAuthFailure(username, remote)
-			return false
+			return s.authenticatePublicKey(ctx.User(), key, ctx.RemoteAddr())
 		}),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
 			return s.authenticatePassword(authenticator, ctx.User(), pass, ctx.RemoteAddr())
