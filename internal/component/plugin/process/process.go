@@ -643,24 +643,34 @@ func (p *Process) startExternal() error {
 		"ZE_PLUGIN_NAME="+p.config.Name,
 	)
 
-	p.stderr, err = p.cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("plugin %s: stderr pipe: %w", p.config.Name, err)
+	stderrRead, stderrWrite, pipeErr := attachStderrRelay(p.cmd)
+	if pipeErr != nil {
+		return fmt.Errorf("plugin %s: stderr pipe: %w", p.config.Name, pipeErr)
 	}
+	p.stderr = stderrRead
 
 	p.cmd.SysProcAttr = newSysProcAttr()
 
 	if err := p.cmd.Start(); err != nil {
-		p.stderr.Close() //nolint:errcheck,gosec // cleanup on error
+		stderrWrite.Close() //nolint:errcheck,gosec // cleanup on error
+		stderrRead.Close()  //nolint:errcheck,gosec // cleanup on error
 		return fmt.Errorf("plugin %s: start: %w", p.config.Name, err)
+	}
+	// The child holds its own descriptor now. Closing the parent's copy of the
+	// write end is what turns the child's exit into EOF for the reader below.
+	if closeErr := stderrWrite.Close(); closeErr != nil {
+		logger().Debug("close plugin stderr write end", "plugin", p.config.Name, "error", closeErr)
 	}
 
 	p.running.Store(true)
 
-	stderr := p.stderr
 	cmd := p.cmd
-	p.wg.Go(func() { p.relayStderrFrom(stderr) })
-	p.wg.Go(func() { p.monitorCmd(cmd) })
+	relayDone := make(chan struct{})
+	p.wg.Go(func() {
+		defer close(relayDone)
+		p.relayStderrFrom(stderrRead)
+	})
+	p.wg.Go(func() { p.monitorCmd(cmd, relayDone, stderrRead) })
 
 	// Wait for the child to connect back via TLS (bounded timeout).
 	waitCtx, waitCancel := context.WithTimeout(p.ctx, 30*time.Second)
@@ -679,6 +689,51 @@ func (p *Process) startExternal() error {
 	p.rawConn = conn
 
 	return nil
+}
+
+// stderrDrainGrace bounds how long monitorCmd waits, after the plugin process
+// has been reaped, for the relay to finish reading what that process wrote.
+//
+// EOF arrives the moment the last writer closes the pipe, which is normally the
+// plugin's own exit, so the wait is microseconds. The bound covers the one case
+// where it is not: a plugin that spawned a child of its own, which inherited the
+// descriptor and outlives it. Without a bound that goroutine would hold Wait
+// open for as long as the grandchild lives.
+const stderrDrainGrace = 2 * time.Second
+
+// attachStderrRelay gives cmd a stderr pipe whose read end THIS process owns,
+// and returns both ends. The caller closes the write end after Start.
+//
+// Cmd.StderrPipe is deliberately NOT used. It registers the read end with the
+// Cmd, and Cmd.Wait closes every pipe it registered as soon as the child exits:
+// "it is thus incorrect to call Wait before all reads from the pipe have
+// completed" (os/exec). monitorCmd calls Wait while relayStderrFrom is still
+// reading, so anything the relay had not consumed was discarded -- and the line
+// most exposed is the LAST one a plugin writes, which is the one that says how
+// it finished. A pipe this package creates is not registered with the Cmd, so
+// Wait cannot close it, and the reader sees every byte through to EOF.
+func attachStderrRelay(cmd *exec.Cmd) (read, write *os.File, err error) {
+	read, write, err = os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	cmd.Stderr = write
+	return read, write, nil
+}
+
+// drainStderrRelay releases the read end of a plugin's stderr pipe: as soon as
+// the relay goroutine has read it to EOF, or after grace when EOF never comes.
+// Closing it unblocks a relay still waiting on a descriptor a grandchild holds.
+func drainStderrRelay(relayDone <-chan struct{}, read io.Closer, grace time.Duration) {
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-relayDone:
+	case <-timer.C:
+	}
+	if err := read.Close(); err != nil {
+		logger().Debug("close plugin stderr read end", "error", err)
+	}
 }
 
 // relayStderrFrom reads plugin stderr and relays to engine logs.
@@ -848,7 +903,10 @@ func (p *Process) Wait(ctx context.Context) error {
 
 // monitorCmd waits for the process to exit.
 // Takes cmd as a parameter to avoid racing on p.cmd with other goroutines.
-func (p *Process) monitorCmd(cmd *exec.Cmd) {
+//
+// relayDone closes when relayStderrFrom returns, and stderr is the read end that
+// goroutine is reading. Both are parameters for the same reason cmd is.
+func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr io.Closer) {
 	// Wait for process to exit
 	_ = cmd.Wait()
 
@@ -860,7 +918,11 @@ func (p *Process) monitorCmd(cmd *exec.Cmd) {
 	}
 
 	// Close RPC connections via sync.Once — safe if Stop() races with monitor.
-	// Note: p.stderr is NOT closed here — relayStderrFrom owns a captured copy
-	// of the reader and will exit when cmd.Wait() closes the pipe.
 	p.closeConns()
+
+	// The stderr pipe is this package's, not the Cmd's, so Wait above did not
+	// close it and the relay still holds every byte the plugin wrote on its way
+	// out. Release the descriptor only once the relay has read them, which is
+	// what keeps a plugin's last line -- its verdict, or its panic block.
+	drainStderrRelay(relayDone, stderr, stderrDrainGrace)
 }

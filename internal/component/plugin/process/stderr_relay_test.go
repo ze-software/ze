@@ -1,9 +1,83 @@
 package process
 
 import (
+	"bufio"
 	"log/slog"
+	"os/exec"
+	"strings"
 	"testing"
 )
+
+// TestStderrRelayKeepsTheLineWrittenJustBeforeExit drives the same three
+// primitives startExternal and monitorCmd use -- attachStderrRelay, a relay
+// goroutine reading to EOF, and drainStderrRelay after Cmd.Wait -- against a
+// child that writes one line and exits at once. That is the shape of every
+// plugin verdict: internal/test/cli/cmd_engine_steps.go logs "all steps passed"
+// or "ZE-OBSERVER-FAIL" and then asks the daemon to shut down, which kills it.
+//
+// VALIDATES: a line written immediately before the child exits still reaches the
+// relay, on every one of the runs below.
+// PREVENTS: the regression that made test/ipsec/ipsec-clear-sa.ci and
+// ipsec-show-sa.ci red on linux CI (run 31225029268) while passing on an idle
+// machine. Cmd.StderrPipe hands Cmd.Wait the read end, and Wait closes it as
+// soon as the child exits ("it is thus incorrect to call Wait before all reads
+// from the pipe have completed", os/exec), so whatever the reader had not yet
+// consumed was discarded. The verdict line vanished and the .ci reported only
+// that its stderr did not contain the text.
+//
+// DISCRIMINATES: swap attachStderrRelay for cmd.StderrPipe() and this test
+// fails, because that is the wiring the bug lived in.
+func TestStderrRelayKeepsTheLineWrittenJustBeforeExit(t *testing.T) {
+	const (
+		runs    = 60
+		verdict = "plugin verdict written just before exit"
+	)
+	for run := range runs {
+		cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "printf '"+verdict+"\\n' >&2") //nolint:gosec // fixed argv, no user input
+		read, write, err := attachStderrRelay(cmd)
+		if err != nil {
+			t.Fatalf("run %d: attachStderrRelay: %v", run, err)
+		}
+		if startErr := cmd.Start(); startErr != nil {
+			write.Close() //nolint:errcheck,gosec // test cleanup
+			read.Close()  //nolint:errcheck,gosec // test cleanup
+			t.Fatalf("run %d: start: %v", run, startErr)
+		}
+		// The child holds its own descriptor. Closing the parent's copy is what
+		// turns the child's exit into EOF for the reader.
+		if closeErr := write.Close(); closeErr != nil {
+			t.Fatalf("run %d: close write end: %v", run, closeErr)
+		}
+
+		relayed := make(chan string, 4)
+		relayDone := make(chan struct{})
+		go func() {
+			defer close(relayDone)
+			scanner := bufio.NewScanner(read)
+			for scanner.Scan() {
+				select {
+				case relayed <- scanner.Text():
+				default:
+				}
+			}
+		}()
+
+		_ = cmd.Wait() //nolint:errcheck // the child's exit status is not what this test asserts
+		drainStderrRelay(relayDone, read, stderrDrainGrace)
+		<-relayDone
+		close(relayed)
+
+		var seen bool
+		for line := range relayed {
+			if strings.Contains(line, verdict) {
+				seen = true
+			}
+		}
+		if !seen {
+			t.Fatalf("run %d: the child's last stderr line never reached the relay; it was discarded when the child exited", run)
+		}
+	}
+}
 
 // TestClassifyStderrLineDropsBelowRelayLevel verifies the existing filter
 // behavior: a low-priority slog line is dropped when relayLevel is higher.
@@ -184,5 +258,68 @@ func TestClassifyStderrLinePanicInMessageNotMatched(t *testing.T) {
 	}
 	if inPanic {
 		t.Fatal("mid-message 'panic' must not trigger panic block")
+	}
+}
+
+// observerSentinelReason is a failure reason carrying both characters the slog
+// text format escapes: a double quote and a backslash. The quoted token is the
+// shape the plugin engine really produces -- run 31225029268 relayed
+// `expected 'add' or 'del' before prefix: got "destination-ipv4"`.
+const observerSentinelReason = `RPC error: got "destination-ipv4" and a back\slash`
+
+// observerSentinelLine is the exact stderr line that `_write_sentinel`
+// (test/scripts/ze_api.py) writes for observerSentinelReason.
+//
+// The observer helper is Python and the parser is Go, so the format contract
+// spans two languages with no compiler over the join. This literal IS the join:
+// test_the_escaped_line_matches_the_go_relay_fixture in
+// test/scripts/ze_api_test.py reads both constants out of this file and asserts
+// the Python writer emits exactly this. Change one side and that test goes red,
+// which is the whole point -- before it existed, a writer that emitted a raw
+// quote here truncated every relayed reason at the quote and nothing noticed.
+const observerSentinelLine = `time=runtime level=ERROR msg="ZE-OBSERVER-FAIL: RPC error: got \"destination-ipv4\" and a back\\slash" subsystem=test.observer`
+
+// TestClassifyStderrLineDecodesObserverSentinelEscapes drives the relay's own
+// classifier over the observer sentinel as the observer writes it.
+//
+// VALIDATES: a reason containing a double quote and a backslash reaches the
+// relay intact, with the trailing subsystem attribute still an attribute.
+// PREVENTS: the loss seen in run 31225029268, where msg closed at the reason's
+// own quote and the remainder became the attribute key
+// `original.destination-ipv4\"\" subsystem`. The ZE-OBSERVER-FAIL marker
+// survived that, so the test still failed -- but the reason a reader needs to
+// act on was cut off exactly where it named the cause.
+//
+// DISCRIMINATES: drop the escape decoding from slogutil.ParseLogLine and msg
+// comes back carrying literal backslashes, which slog then escapes again on
+// re-emit; revert findClosingQuote to its byte-before test and the backslash
+// before the closing quote swallows the subsystem attribute.
+func TestClassifyStderrLineDecodesObserverSentinelEscapes(t *testing.T) {
+	level, msg, attrs, inPanic, skip := classifyStderrLine(observerSentinelLine, false, slog.LevelWarn)
+
+	if skip {
+		t.Fatal("an ERROR sentinel must never be dropped by the relay filter")
+	}
+	if level != slog.LevelError {
+		t.Fatalf("level = %v, want ERROR", level)
+	}
+	if inPanic {
+		t.Fatal("a valid slog line must not open a panic block")
+	}
+
+	want := "ZE-OBSERVER-FAIL: " + observerSentinelReason
+	if msg != want {
+		t.Fatalf("msg = %q, want %q", msg, want)
+	}
+
+	var subsystem string
+	for i := 0; i+1 < len(attrs); i += 2 {
+		if attrs[i] == "subsystem" {
+			subsystem, _ = attrs[i+1].(string)
+		}
+	}
+	if subsystem != "test.observer" {
+		t.Fatalf("subsystem attr = %q, want %q -- the reason's escapes must not "+
+			"swallow the attributes that follow it", subsystem, "test.observer")
 	}
 }
