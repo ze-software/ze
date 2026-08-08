@@ -92,6 +92,63 @@ class TestSentinelFormat(SentinelTestCase):
             line.count("\n"), 1, f"sentinel must be one line, got {line!r}"
         )
 
+    def test_the_escaped_line_matches_the_go_relay_fixture(self):
+        """Close the format join between this writer and the Go parser.
+
+        `msg="..."` is Go slog TEXT format, and that format quotes a string
+        value with strconv.Quote (log/slog/handler.go): a `"` inside the value
+        is written `\\"` and a `\\` is written `\\\\`. This writer used to
+        interpolate the reason raw, so a reason carrying a quote closed msg
+        early: run 31225029268 relayed
+        `... before prefix: got "destination-ipv4"` as `... got ` and turned the
+        remainder into a bogus attribute key. The ZE-OBSERVER-FAIL marker
+        survived, so the test still failed -- with the cause cut off.
+
+        Nothing checked the join, because it spans two languages. Both
+        constants are read out of the Go relay test that consumes them, so a
+        change on either side goes red here rather than in CI six months later.
+        """
+        go_source = (
+            REPO_ROOT / "internal/component/plugin/process/stderr_relay_test.go"
+        ).read_text()
+
+        reason = re.search(r"const\s+observerSentinelReason\s*=\s*`([^`]*)`", go_source)
+        line = re.search(r"const\s+observerSentinelLine\s*=\s*`([^`]*)`", go_source)
+        for name, match in (
+            ("observerSentinelReason", reason),
+            ("observerSentinelLine", line),
+        ):
+            self.assertIsNotNone(
+                match,
+                f"{name} not found in stderr_relay_test.go; if the fixture moved, "
+                f"point this test at its new home rather than deleting the check",
+            )
+
+        ze_api._write_sentinel(reason.group(1))
+
+        self.assertEqual(
+            self.written(),
+            line.group(1) + "\n",
+            "the observer's sentinel line and the line the Go relay test parses "
+            "have diverged; a reason containing a quote or a backslash would be "
+            "truncated on relay",
+        )
+
+    def test_a_reason_holding_a_newline_stays_one_line(self):
+        """Line integrity belongs to the single writer, not to its callers.
+
+        `extractObserverFailLine` (internal/test/runner/runner_validate.go)
+        slices to the enclosing newline, so a reason that splits the line hides
+        its own tail. Two of the three callers flatten newlines before calling
+        here; `runtime_fail` invoked directly by an observer does not, and slog
+        escaping covers all three because it encodes a newline as `\\n`.
+        """
+        ze_api._write_sentinel("first line\nsecond line")
+        written = self.written()
+
+        self.assertEqual(written.count("\n"), 1, f"got {written!r}")
+        self.assertIn(r"first line\nsecond line", written)
+
     def test_written_once_so_first_reason_wins(self):
         ze_api._write_sentinel("the specific reason")
         ze_api._write_sentinel("a later generic reason")

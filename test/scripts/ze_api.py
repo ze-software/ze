@@ -2235,6 +2235,31 @@ _OBSERVER_FAIL_SENTINEL = "ZE-OBSERVER-FAIL"
 _sentinel_written = False
 
 
+def _slog_quote(value: str) -> str:
+    """Return value as a quoted slog string, escapes and surrounding quotes included.
+
+    slog's TextHandler quotes a string value with Go's strconv.Quote
+    (log/slog/handler.go), so a `"` inside the value is written `\\"`, a `\\` is
+    written `\\\\`, and a newline is written `\\n`. A writer that interpolates
+    the value raw is not writing slog: the parser on the far side
+    (slogutil.ParseLogLine) closes the value at the first unescaped quote, and
+    everything after it becomes a bogus attribute key.
+
+    json.dumps produces exactly those escapes, and every escape it emits
+    (`\\"`, `\\\\`, `\\n`, `\\r`, `\\t`, `\\b`, `\\f`, `\\uXXXX`) is one Go's
+    strconv.Unquote accepts, so the value survives the round trip byte for
+    byte. ensure_ascii=False keeps printable non-ASCII literal, which is what
+    strconv.Quote does too, so a reason with an accent stays readable in the
+    log.
+
+    The value is quoted unconditionally rather than only when it needs it.
+    slog quotes on demand, but the sentinel always holds a space, so the two
+    rules agree on every line this writer produces and the unconditional one is
+    the one a reader can check.
+    """
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _write_sentinel(message: str) -> None:
     """Write the ZE-OBSERVER-FAIL slog line to the observer's stderr, once.
 
@@ -2245,6 +2270,14 @@ def _write_sentinel(message: str) -> None:
     The single writer for the sentinel: runtime_fail, the fail-closed
     wait_for_shutdown guard, and the excepthook all route through here so the
     line format stays a two-point coupling with the runner rather than three.
+
+    Being the single writer, it owns the whole line contract, escaping
+    included. A reason carrying a quote used to truncate the relayed message at
+    that quote (GitHub Actions run 31225029268 lost
+    `expected 'add' or 'del' before prefix: got "destination-ipv4"` at the
+    `got `), and a reason carrying a newline used to split the line, which
+    hides its tail from extractObserverFailLine
+    (internal/test/runner/runner_validate.go). _slog_quote answers both.
     """
     global _sentinel_written
     if _sentinel_written:
@@ -2252,7 +2285,7 @@ def _write_sentinel(message: str) -> None:
     _sentinel_written = True
     sys.stderr.write(
         f"time=runtime level=ERROR "
-        f'msg="{_OBSERVER_FAIL_SENTINEL}: {message}" '
+        f"msg={_slog_quote(f'{_OBSERVER_FAIL_SENTINEL}: {message}')} "
         f"subsystem=test.observer\n"
     )
     sys.stderr.flush()
