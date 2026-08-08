@@ -1130,3 +1130,217 @@ func TestDefaultLoggerRegistered(t *testing.T) {
 	assert.Contains(t, levels, "defaultregtest")
 	assert.Equal(t, "warn", levels["defaultregtest"])
 }
+
+// TestParseLogLineRoundTripsSlogEscapes verifies that a value slog itself wrote
+// comes back out of ParseLogLine byte-identical to what went in.
+//
+// VALIDATES: ParseLogLine decodes the escapes slog's TextHandler emits, for the
+// msg field and for attribute values alike.
+// PREVENTS: A relayed diagnostic losing the quoted token that names its cause.
+// GitHub Actions run 31225029268 relayed an observer failure whose reason was
+// `... before prefix: got "destination-ipv4"` with msg closed at the inner
+// quote and the tail spilled into a bogus attribute key, so the reader of that
+// CI log never saw the cause.
+//
+// The fixture goes through a REAL slog.TextHandler rather than a hand-written
+// line: the contract under test is "parse what slog writes", and hand-writing
+// the expected encoding would test this file's belief about slog instead.
+func TestParseLogLineRoundTripsSlogEscapes(t *testing.T) {
+	values := map[string]string{
+		"quoted token": `RPC error from ze-plugin-engine:update-route: ` +
+			`expected 'add' or 'del' before prefix: got "destination-ipv4"`,
+		"backslash":            `windows path C:\temp\ze and a "quote"`,
+		"trailing backslash":   `ends with a backslash \`,
+		"escaped quote pair":   `he said \"hi\" with literal backslashes`,
+		"newline":              "first line\nsecond line",
+		"tab and equals":       "a=b\tc=d",
+		"plain":                "no escaping needed here",
+		"empty":                "",
+		"unicode":              "préfixe reçu",
+		"only a double quote":  `"`,
+		"only a backslash":     `\`,
+		"quote then backslash": `a"b\c"d`,
+	}
+
+	for name, want := range values {
+		t.Run(name, func(t *testing.T) {
+			var buf bytes.Buffer
+			h := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+				ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+					if a.Key == slog.TimeKey {
+						return slog.Attr{}
+					}
+					return a
+				},
+			})
+			slog.New(h).Error(want, "detail", want, "subsystem", "test.observer")
+			line := strings.TrimRight(buf.String(), "\n")
+
+			level, msg, attrs := ParseLogLine(line)
+
+			assert.Equal(t, slog.LevelError, level, "line: %s", line)
+			assert.Equal(t, want, msg,
+				"msg must survive the slog encode/parse round trip intact; line: %s", line)
+
+			var got string
+			var found bool
+			for i := 0; i+1 < len(attrs); i += 2 {
+				if attrs[i] == "detail" {
+					got, _ = attrs[i+1].(string)
+					found = true
+				}
+			}
+			require.True(t, found, "detail attribute lost; line: %s", line)
+			assert.Equal(t, want, got,
+				"attribute value must survive the round trip intact; line: %s", line)
+		})
+	}
+}
+
+// TestParseLogLineUnescapedValuesAreUnchanged verifies that a quoted value
+// carrying no backslash parses byte-identically to before escape decoding
+// existed.
+//
+// VALIDATES: The escape-decoding path is the identity on every escape-free
+// value, so no well-formed line that parsed correctly before parses
+// differently now.
+// PREVENTS: A parser change silently altering the ~346 observer scripts'
+// sentinel text, none of which needs an escape.
+func TestParseLogLineUnescapedValuesAreUnchanged(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		wantMsg  string
+		wantAttr []any
+	}{
+		{
+			name:     "sentinel as the observers write it",
+			line:     `time=runtime level=ERROR msg="ZE-OBSERVER-FAIL: route 10.0.0.0/24 never arrived" subsystem=test.observer`,
+			wantMsg:  "ZE-OBSERVER-FAIL: route 10.0.0.0/24 never arrived",
+			wantAttr: []any{"subsystem", "test.observer"},
+		},
+		{
+			name:     "quoted attr with spaces",
+			line:     `time=... level=ERROR msg="replay failed" error="rpc error: unknown command"`,
+			wantMsg:  "replay failed",
+			wantAttr: []any{"error", "rpc error: unknown command"},
+		},
+		{
+			name:     "empty quoted attr",
+			line:     `time=... level=WARN msg="x" status=""`,
+			wantMsg:  "x",
+			wantAttr: []any{"status", ""},
+		},
+		{
+			// needsQuoting (log/slog/text_handler.go) leaves a lone backslash
+			// unquoted, so an unquoted value must never be escape-decoded.
+			name:     "unquoted value holding a backslash",
+			line:     `time=... level=INFO msg=started path=C:\temp\ze`,
+			wantMsg:  "started",
+			wantAttr: []any{"path", `C:\temp\ze`},
+		},
+		{
+			// An unterminated quote keeps the pre-existing take-the-rest
+			// behavior rather than becoming a decode failure.
+			name:     "unterminated quoted attr",
+			line:     `time=... level=INFO msg="x" error="never closed`,
+			wantMsg:  "x",
+			wantAttr: []any{"error", "never closed"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, msg, attrs := ParseLogLine(tt.line)
+			assert.Equal(t, tt.wantMsg, msg)
+			assert.Equal(t, tt.wantAttr, attrs)
+		})
+	}
+}
+
+// TestEscapeDecodingChangesNothingWithoutABackslash proves the compatibility
+// claim that the escape decoding rests on.
+//
+// VALIDATES: on any quoted value holding no backslash, both changed helpers
+// behave exactly as they did before decoding existed -- unquoteValue is the
+// identity, and findClosingQuote agrees with its previous one-line rule.
+// PREVENTS: a parser change quietly altering what the ~346 observer scripts
+// relay. A backslash is the only byte that opens an escape, so a value without
+// one cannot be affected; this asserts that over every byte value rather than
+// leaving it as an argument about the code.
+//
+// The two helpers are the whole delta. Everything else in ParseLogLine is
+// untouched, so agreement here is agreement for the function.
+func TestEscapeDecodingChangesNothingWithoutABackslash(t *testing.T) {
+	// The pre-decode terminator rule, kept as an oracle rather than a second
+	// implementation: it is the code this file's fix replaced.
+	oldFindClosingQuote := func(s string, start int) int {
+		for i := start; i < len(s); i++ {
+			if s[i] == '"' && (i == start || s[i-1] != '\\') {
+				return i
+			}
+		}
+		return -1
+	}
+
+	corpus := []string{
+		"",
+		"ZE-OBSERVER-FAIL: route 10.0.0.0/24 never arrived",
+		"rpc error: unknown command",
+		"peer 10.0.0.1 never reached ESTABLISHED",
+		"a=b c=d",
+		"préfixe reçu",
+	}
+	for b := range 256 {
+		if byte(b) == '\\' {
+			continue // the one byte that opens an escape
+		}
+		corpus = append(corpus,
+			string([]byte{byte(b)}),
+			"prefix"+string([]byte{byte(b)})+"suffix",
+		)
+	}
+
+	for _, value := range corpus {
+		require.NotContains(t, value, `\`, "corpus entry must be escape-free")
+
+		assert.Equal(t, value, unquoteValue(value),
+			"decoding must be the identity on an escape-free value: %q", value)
+
+		// The same value as it appears on a line: opening quote, value, then
+		// whatever the writer put after it.
+		line := `"` + value + `" subsystem=test.observer`
+		assert.Equal(t, oldFindClosingQuote(line, 1), findClosingQuote(line, 1),
+			"terminator search must agree with the pre-fix rule: %q", line)
+	}
+}
+
+// TestFindClosingQuoteBackslashParity verifies the terminator scan counts
+// consecutive backslashes rather than looking only at the byte before the
+// quote.
+//
+// VALIDATES: findClosingQuote treats a quote preceded by an EVEN number of
+// backslashes as the terminator.
+// PREVENTS: A value ending in a backslash (encoded `"foo\\"`) swallowing every
+// attribute that follows it on the line.
+func TestFindClosingQuoteBackslashParity(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string // starts at the opening quote
+		want int
+	}{
+		{name: "no escapes", in: `"abc" rest`, want: 4},
+		{name: "empty", in: `"" rest`, want: 1},
+		{name: "escaped quote inside", in: `"a\"b" rest`, want: 5},
+		{name: "value ends with a backslash", in: `"foo\\" rest`, want: 6},
+		{name: "escaped backslash then escaped quote", in: `"a\\\"b" rest`, want: 7},
+		{name: "unterminated", in: `"abc`, want: -1},
+		{name: "unterminated by a trailing escape", in: `"abc\"`, want: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, findClosingQuote(tt.in, 1))
+		})
+	}
+}

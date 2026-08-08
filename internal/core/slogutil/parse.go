@@ -4,11 +4,16 @@ package slogutil
 
 import (
 	"log/slog"
+	"strconv"
 	"strings"
 )
 
 // ParseLogLine extracts level, message, and attributes from a slog text line.
 // Returns []any (not []slog.Attr) so result can be spread to slog.Group().
+//
+// Quoted values are decoded, so what slog's TextHandler wrote is what comes
+// back out: `msg="got \"x\""` yields `got "x"`. See unquoteValue for the two
+// properties that keep an escape-free or malformed line unchanged.
 //
 // For valid slog format:
 //
@@ -59,7 +64,7 @@ func ParseLogLine(line string) (slog.Level, string, []any) {
 		if msgEnd == -1 {
 			return slog.LevelInfo, line, nil
 		}
-		msg = line[msgValueStart+1 : msgEnd]
+		msg = unquoteValue(line[msgValueStart+1 : msgEnd])
 		// Parse remaining attrs after msg
 		attrs = parseAttrs(line[msgEnd+1:])
 	} else {
@@ -94,17 +99,55 @@ func parseSlogLevel(s string) slog.Level {
 
 // findClosingQuote finds the closing quote index for a quoted string.
 // Returns -1 if not found.
+//
+// A backslash escapes the byte that follows it, so the scan steps over that
+// byte rather than testing the one before each quote. The difference is
+// parity: `"foo\\"` encodes the value `foo\`, and its closing quote IS
+// preceded by a backslash. Reading only the previous byte skipped that
+// terminator and ran on into the attributes after it.
 func findClosingQuote(s string, start int) int {
 	for i := start; i < len(s); i++ {
-		if s[i] == '"' && (i == start || s[i-1] != '\\') {
+		switch s[i] {
+		case '\\':
+			i++ // the escaped byte is never a terminator
+		case '"':
 			return i
 		}
 	}
 	return -1
 }
 
+// unquoteValue decodes the escapes inside a quoted slog value. inner is the
+// text BETWEEN the quotes, as findClosingQuote delimits it.
+//
+// slog's TextHandler writes a string value with strconv.Quote whenever it
+// holds a space, an `=`, a quote, or a non-printable byte
+// (log/slog/text_handler.go, needsQuoting). Returning that text undecoded made
+// the parser lossy in one direction only: it looked correct until a value
+// carried a quote, and then the relay re-escaped the backslashes it had left
+// in place, doubling them at every hop.
+//
+// Two properties keep this safe for the lines already flowing through here.
+// A value with no backslash cannot hold an escape, so it returns unchanged by
+// the fast path -- byte-identical to the previous behavior. A value that is
+// not valid Go quoted syntax (a hand-written line, or a truncated one) fails
+// to unquote and also returns unchanged, so a malformed line degrades exactly
+// as it did before rather than becoming empty.
+func unquoteValue(inner string) string {
+	if !strings.Contains(inner, `\`) {
+		return inner
+	}
+	if decoded, err := strconv.Unquote(`"` + inner + `"`); err == nil {
+		return decoded
+	}
+	return inner
+}
+
 // parseAttrs extracts key=value pairs from remaining line.
-// Handles quoted values with spaces (e.g., error="rpc error: unknown command").
+// Handles quoted values with spaces (e.g., error="rpc error: unknown command")
+// and decodes their escapes. An unquoted value is returned verbatim: slog
+// leaves a lone backslash unquoted, so `path=C:\temp` is a literal path and
+// never an escape.
 // Returns []any for use with slog.Group().
 func parseAttrs(s string) []any {
 	s = strings.TrimSpace(s)
@@ -138,7 +181,7 @@ func parseAttrs(s string) []any {
 				value = s[1:]
 				s = ""
 			} else {
-				value = s[1:end]
+				value = unquoteValue(s[1:end])
 				s = s[end+1:]
 			}
 		} else {
