@@ -316,7 +316,7 @@ Total: 623 packages, 620 described, 3 TODO
 | `internal/component/ike/wire` | encodes and decodes IKEv2 messages, headers, and payloads |  |
 | `internal/component/ike/yang` | embeds and registers the IPsec operational command YANG schema module |  |
 | `internal/component/l2tp` | implements L2TPv2 (RFC 2661) wire format parsing and serialization for ze's L2TP subsystem |  |
-| `internal/component/l2tp/cli` | provides the `ze l2tp` subcommand |  |
+| `internal/component/l2tp/cli` | provides the `ze l2tp` subcommand | --user |
 | `internal/component/l2tp/cmd` | registers engine-side RPC handlers that expose the L2TP subsystem's observability and teardown surface to the CLI |  |
 | `internal/component/l2tp/cmd/yang` | embeds and registers the L2TP operational command YANG schema module |  |
 | `internal/component/l2tp/events` | defines the typed EventBus handle for L2TP subscriber route-change events |  |

@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 306 design docs, 3256 files
+Total: 306 design docs, 3267 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -68,6 +68,8 @@ Total: 306 design docs, 3256 files
 
 ## `ai/rules/evidence.md`
 
+- `cmd/ze/hub/main_reload_auth_test.go` -- the exposure guard, re-run on every reload
+- `cmd/ze/hub/mgmt_auth_reload.go` -- the exposure guard, re-run on every reload
 - `cmd/ze/hub/mgmt_guard.go` -- boot-time management-listener exposure guard
 
 ## `ai/rules/performance.md`
@@ -215,6 +217,7 @@ Total: 306 design docs, 3256 files
 | `internal/component/api/grpc/convert.go` | proto/domain conversion helpers |
 | `internal/component/api/grpc/server.go` | gRPC API transport |
 | `internal/component/api/requests.go` | domain request types for API transports |
+| `internal/component/api/rest/auth.go` | REST transport authentication |
 | `internal/component/api/rest/convert.go` | REST/domain conversion helpers |
 | `internal/component/api/rest/embed.go` | vendored Swagger UI assets |
 | `internal/component/api/rest/server.go` | REST API transport |
@@ -286,6 +289,7 @@ Total: 306 design docs, 3256 files
 | `internal/component/bgp/plugins/route_refresh/handler/require.go` | BGP reactor type assertion |
 | `internal/component/bgp/plugins/rr/cmd_show.go` | show rr proxy handlers. |
 | `internal/component/cli/client/register.go` | cli command ownership |
+| `internal/component/cli/client/verb_tree.go` | the verb-relative command tree |
 | `internal/component/cli/model_dashboard.go` | dashboard session lifecycle. |
 | `internal/component/cli/model_dashboard_render.go` | dashboard rendering. |
 | `internal/component/cli/model_dashboard_sort.go` | dashboard sort and selection. |
@@ -945,6 +949,7 @@ Total: 306 design docs, 3256 files
 | `internal/component/bgp/reactor/api_sync.go` | API process synchronization |
 | `internal/component/bgp/reactor/config.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/config_capabilities.go` | BGP capability parsing from config tree |
+| `internal/component/bgp/reactor/config_nexthop_form.go` | the config leaves that decide the MP_REACH next-hop field |
 | `internal/component/bgp/reactor/config_prefix.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/config_prefix_test.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/default_originate_raw.go` | default-originate raw-filter guard |
@@ -963,6 +968,7 @@ Total: 306 design docs, 3256 files
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
+| `internal/component/bgp/reactor/link_scope.go` | RFC 2545 Section 3 link-local next-hop condition |
 | `internal/component/bgp/reactor/listener.go` | TCP listener management |
 | `internal/component/bgp/reactor/negotiated.go` | negotiated capability tracking |
 | `internal/component/bgp/reactor/peer.go` | BGP reactor event loop |
@@ -973,6 +979,7 @@ Total: 306 design docs, 3256 files
 | `internal/component/bgp/reactor/peer_run.go` | peer run loop and session lifecycle |
 | `internal/component/bgp/reactor/peer_send.go` | BGP UPDATE sending |
 | `internal/component/bgp/reactor/peer_settings_apply.go` | config reload delivers changed peer settings |
+| `internal/component/bgp/reactor/peer_settings_negotiation.go` | config reload delivers changed peer settings |
 | `internal/component/bgp/reactor/peer_static_routes.go` | static route building for BGP UPDATEs |
 | `internal/component/bgp/reactor/peersettings.go` | peer configuration settings |
 | `internal/component/bgp/reactor/policy_dryrun.go` | policy filter chain |
@@ -1041,6 +1048,7 @@ Total: 306 design docs, 3256 files
 | `internal/component/firewall/default_other.go` | default firewall backend on non-Linux |
 | `internal/component/firewall/engine.go` | Firewall plugin engine (SDK 5-stage) |
 | `internal/component/firewall/engine_test.go` | Firewall plugin engine (SDK 5-stage) |
+| `internal/component/firewall/metrics.go` | Firewall reconcile concurrency |
 | `internal/component/firewall/model.go` | Firewall data model types |
 | `internal/component/firewall/protocol.go` | Firewall data model types |
 | `internal/component/firewall/register.go` | Firewall plugin registration |
@@ -1120,6 +1128,7 @@ Total: 306 design docs, 3256 files
 | `internal/core/audit/audit.go` | audit component |
 | `internal/core/audit/query.go` | audit log query and filtering |
 | `internal/core/audit/store.go` | audit log persistence |
+| `internal/core/bgp/attribute/nexthop_form.go` | address forms permitted in the MP_REACH next-hop field |
 | `internal/core/dscp/dscp.go` | DSCP name-to-value map |
 | `internal/core/helpfmt/helpfmt.go` | CLI help formatting |
 | `internal/core/helpfmt/renderwriter.go` | CLI render write-error capture |
@@ -1130,6 +1139,7 @@ Total: 306 design docs, 3256 files
 | `internal/core/metrics/nop.go` | no-op metrics for disabled state |
 | `internal/core/metrics/prometheus.go` | Prometheus metrics backend |
 | `internal/core/ndp/ra.go` | shared IPv6 Neighbor Discovery encoding |
+| `internal/core/network/connected.go` | locally connected subnets, read from the host interface table |
 | `internal/core/network/md5_darwin.go` | TCP MD5 authentication (RFC 2385) |
 | `internal/core/network/md5_freebsd.go` | TCP MD5 authentication (RFC 2385) |
 | `internal/core/network/md5_linux.go` | TCP MD5 authentication (RFC 2385) |
@@ -1202,6 +1212,7 @@ Total: 306 design docs, 3256 files
 | `internal/plugins/firewall/vpp/classify_linux.go` | VPP classify pipeline for SetMark and Limit |
 | `internal/plugins/firewall/vpp/classify_test.go` | classify pipeline tests |
 | `internal/plugins/firewall/vpp/firewallvpp.go` | VPP firewall backend |
+| `internal/plugins/firewall/vpp/timeout_linux.go` | Firewall reconcile concurrency |
 | `internal/plugins/flowspec-firewall/engine.go` | FlowSpec-to-firewall bridge engine |
 | `internal/plugins/flowspec-firewall/localaddr.go` | local address tracking for hook selection |
 | `internal/plugins/flowspec-firewall/register.go` | FlowSpec-to-firewall bridge registration |
