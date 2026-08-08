@@ -200,6 +200,7 @@ compatibility is covered by the functional test above.
 ## Known Limitations
 - `routes_filtered` stays 0 until `plan/spec-bgp-filtered-route-storage.md` lands. Not this spec's work.
 - The pre-policy received count exists only on the `ze_bgp_prefix_count` gauge, by decision (learned 1158).
+  **CORRECTED 2026-08-08: that gauge is not a received count under either mode.** The per-family `count` leaf makes it two different numbers. Under `offered` it tallies ANNOUNCEMENTS, so a peer re-announcing one prefix raises it without holding a second route. Under `installed` it is the SIZE OF THE SET this family delivered to plugins, so a prefix an over-limit UPDATE refused is absent from it (`applyInstalledPrefixSections`, `internal/component/bgp/reactor/session_prefix.go`). Neither is "what the peer advertised", and neither carries a label saying which one the reader got.
 
 ## Checklist
 

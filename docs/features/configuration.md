@@ -59,9 +59,13 @@ Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated f
 | `prefix { teardown true/false; }` | Per family | Tear down on exceed (default: true) or warn-only. |
 | `prefix { idle-timeout N; }` | Per family | Seconds to wait before reconnect after this family caused a teardown. Default 0, which keeps the peer down. |
 | `prefix { reconnect never\|backoff\|timer; }` | Per family | What the peer does after this family stopped the session. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
+| `prefix { count offered\|installed; }` | Per family | Which prefixes the count compared against `maximum` holds. Default `offered`. |
 
 When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false` on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own `teardown` value, so one family can warn while another stops the session.
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
+
+`count` states which prefixes the number compared against `maximum` holds, and it changes what happens after `teardown false` drops an UPDATE. RFC 4271 Section 6.7 does not say whether a prefix limit governs what the peer offered or what the receiver kept, so the operator chooses. `offered`, the default, keeps a dropped UPDATE's prefixes in the count: the count stays above the maximum, and Ze drops every later announce of that family until the peer withdraws them. `installed` leaves the count where it was, so the family accepts the next announce that fits. Neither value is the size of the RIB, because import policy can reject a counted prefix. The choice never changes enforcement: both values drop the same UPDATE and send the same NOTIFICATION.
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- applyInstalledPrefixDeltas settles an installed family before the count moves -->
 
 
 A peer stopped by a prefix limit STAYS DOWN by default. Its state reads `idle-hold`, `ze show warnings` carries a `prefix-hold` warning that names the family, and the log line says `peer held down`. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.

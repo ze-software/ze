@@ -62,7 +62,7 @@ The first design took `received` from the reactor's pre-policy `prefixCounts`
 (`session_prefix.go`). But `Peers()` reads under `r.mu.RLock` while the session
 loop writes `prefixCounts` without that lock — a data race. Making it safe needed
 new hot-path atomics + session->peer plumbing, for a signal that is imprecise
-(filtered=0) and already on the `ze_bgp_prefix_count` gauge. The lower-risk design
+(filtered=0) and already on the `ze_bgp_prefix_count` gauge. **CORRECTED 2026-08-08: "already on the gauge" no longer holds.** The per-family `count` leaf gave that gauge two meanings, and neither is a received count: `offered` tallies announcements and `installed` reports the size of the set delivered to plugins (`internal/component/bgp/reactor/session_prefix.go`). The lesson below is unaffected; only the claim that the signal was already published is. The lower-risk design
 took all counts from ONE owner (the RIB, whose sizes are exact and already
 per-peer), accepting that `received == accepted`. When a counter you want to
 surface lives on a hot path guarded by a different lock than your reader, prefer a
