@@ -4,6 +4,7 @@
 package pppoe
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -34,8 +35,17 @@ type Parameters struct {
 	PADIRateLimit int
 }
 
-// ExtractParameters parses PPPoE configuration from the YANG config
-// tree. Missing values get sensible defaults.
+// ExtractParameters parses PPPoE configuration from the YANG config tree, in
+// the shape Tree.ToMap produces (internal/component/config/tree.go), which is
+// the only thing the hub ever passes it (cmd/ze/hub/register_l2tp.go). Missing
+// values get sensible defaults.
+//
+// ToMap emits a keyed YANG list as a map of key to entry, and a leaf-list as one
+// string or a []string. It never emits a []any. Reading `interface` as a []any
+// therefore found nothing on every real config, so Interfaces was always empty,
+// so registerBNGSubsystems never registered the subsystem, so a configured AC
+// answered no PADI at all. Two unit tests passed throughout because both built
+// the map by hand in a shape no producer emits.
 func ExtractParameters(tree map[string]any) Parameters {
 	p := Parameters{
 		ACName:        DefaultACName,
@@ -55,13 +65,7 @@ func ExtractParameters(tree map[string]any) Parameters {
 	if acName, ok := pppoe["ac-name"].(string); ok && acName != "" {
 		p.ACName = acName
 	}
-	if svcNames, ok := pppoe["service-name"].([]any); ok {
-		for _, v := range svcNames {
-			if s, ok := v.(string); ok {
-				p.ServiceNames = append(p.ServiceNames, s)
-			}
-		}
-	}
+	p.ServiceNames = cfgStrings(pppoe["service-name"])
 	if timeout, ok := cfgFloat(pppoe["cookie-timeout"]); ok && timeout > 0 {
 		p.CookieTimeout = time.Duration(timeout) * time.Second
 	}
@@ -72,35 +76,56 @@ func ExtractParameters(tree map[string]any) Parameters {
 		p.PADIRateLimit = int(rateLimit)
 	}
 
-	if ifaces, ok := pppoe["interface"].([]any); ok {
-		for _, v := range ifaces {
-			ifm, ok := v.(map[string]any)
-			if !ok {
-				continue
-			}
-			ic := InterfaceConfig{
-				MaxSessions: p.MaxSessions,
-			}
-			if name, ok := ifm["name"].(string); ok {
-				ic.Name = name
-			}
-			if svcNames, ok := ifm["service-name"].([]any); ok {
-				for _, s := range svcNames {
-					if str, ok := s.(string); ok {
-						ic.ServiceNames = append(ic.ServiceNames, str)
-					}
-				}
-			}
-			if maxSess, ok := cfgFloat(ifm["max-sessions"]); ok && maxSess > 0 {
-				ic.MaxSessions = int(maxSess)
-			}
-			if ic.Name != "" {
-				p.Interfaces = append(p.Interfaces, ic)
-			}
+	entries, ok := pppoe["interface"].(map[string]any)
+	if !ok {
+		return p
+	}
+	// The list key IS the interface name: `interface veth-bng { }` yields the
+	// entry "veth-bng" mapped to an empty body, so nothing inside carries the
+	// name. Sorted so two runs of one config produce the same Interfaces order.
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		if name == "" {
+			continue
 		}
+		body, ok := entries[name].(map[string]any)
+		if !ok {
+			continue
+		}
+		ic := InterfaceConfig{
+			Name:         name,
+			ServiceNames: cfgStrings(body["service-name"]),
+			MaxSessions:  p.MaxSessions,
+		}
+		if maxSess, ok := cfgFloat(body["max-sessions"]); ok && maxSess > 0 {
+			ic.MaxSessions = int(maxSess)
+		}
+		p.Interfaces = append(p.Interfaces, ic)
 	}
 
 	return p
+}
+
+// cfgStrings coerces a YANG leaf-list to a slice. Tree.ToMap collapses a
+// single-member leaf-list to a bare string and emits several members as a
+// []string, so both shapes are the producer's and both are read here.
+func cfgStrings(v any) []string {
+	switch s := v.(type) {
+	case string:
+		if s == "" {
+			return nil
+		}
+		return []string{s}
+	case []string:
+		return append([]string(nil), s...)
+	default:
+		return nil
+	}
 }
 
 // cfgBool coerces a config value (native JSON bool or the string form "true"/

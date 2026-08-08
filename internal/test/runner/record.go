@@ -19,11 +19,23 @@ import (
 // per-test network namespace before ze launches (option=netns-link). It exists
 // because some Linux-only tests match or route through an interface the daemon
 // never creates itself: a policy-routing next-hop needs a connected route to
-// resolve its gateway, and enterTestNetns brings up only loopback. A dummy link
-// with the given address gives the netns that connectivity without touching the
-// host (provisioning is gated on netns mode, so the option is inert elsewhere).
+// resolve its gateway, and enterTestNetns brings up only loopback. A link with
+// the given address gives the netns that connectivity without touching the host
+// (provisioning is gated on netns mode, so the option is inert elsewhere).
 type NetnsLinkSpec struct {
 	Name string
+	// Peer names the far end of a veth PAIR. Empty means a dummy link, which has
+	// no far end at all: a dummy drops everything written to it, so two processes
+	// binding AF_PACKET sockets to one can never exchange a frame. A test that
+	// puts a daemon on one side of a real Ethernet segment and a client on the
+	// other (PPPoE discovery, RFC 2516) needs the pair, and both ends live in the
+	// same per-test namespace so a broadcast leaving Peer arrives on Name.
+	Peer string
+	// VLAN is an 802.1Q tag. Zero means no sub-interface. Non-zero additionally
+	// creates <Name>.<VLAN> (and <Peer>.<VLAN> when Peer is set), which is how a
+	// test proves a feature works on a tagged sub-interface rather than only on
+	// the parent.
+	VLAN uint16
 	// Address is the CIDR assigned to the link. The zero value means create the
 	// link and bring it up without an address.
 	Address netip.Prefix

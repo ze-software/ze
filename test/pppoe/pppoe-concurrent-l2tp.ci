@@ -1,0 +1,192 @@
+# Test: the PPPoE and L2TP subsystems answer on one daemon at the same time.
+# VALIDATES: an L2TP SCCRQ gets an SCCRP while a PPPoE AC is bound and listening
+# VALIDATES: a PPPoE PADI gets a PADO while an L2TP control connection is open
+# PREVENTS: one access method starving the other at startup. Both subsystems come
+# up through the same BNG seam (cmd/ze/hub/bng_infra.go, bngRegister); a failure
+# that leaves one of the two unstarted is invisible to test/l2tp and to
+# pppoe-basic.ci, because each of those boots only the subsystem it tests.
+#
+# The two probes use different transports on purpose: L2TP over UDP on loopback,
+# PPPoE over AF_PACKET on the veth pair. Passing both proves the daemon is
+# serving two access methods, not one wearing two names.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+
+tmpfs=concurrent-test.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Probe the L2TP and PPPoE subsystems of one running daemon.
+
+Phase 1 sends an L2TP SCCRQ and expects an SCCRP.
+Phase 2 sends a PPPoE PADI and expects a PADO.
+Both must answer, which is what "concurrent" means here.
+"""
+import os
+import socket
+import struct
+import sys
+
+if len(sys.argv) < 2:
+    print("usage: concurrent-test.py <l2tp-port>", file=sys.stderr)
+    sys.exit(2)
+
+L2TP_PORT = int(sys.argv[1])
+
+ETH_P_PPPOE_DISC = 0x8863
+PADI = 0x09
+PADO = 0x07
+TAG_SVC_NAME = 0x0101
+TAG_HOST_UNIQ = 0x0103
+
+PPPOE_IFACE = os.environ.get("TEST_IFACE", "veth-sub")
+
+# One socket timeout per attempt: the timeout IS the wait for a daemon that is
+# still binding its listeners, so nothing here sleeps blind.
+ATTEMPT_TIMEOUT = 1.0
+ATTEMPTS = 15
+
+
+def avp(mandatory, attr_type, value):
+    flags = 0x8000 if mandatory else 0
+    return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def build_sccrq():
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 1))       # Message Type = SCCRQ
+    body += avp(True, 2, b"\x01\x00")                # Protocol Version
+    body += avp(True, 3, struct.pack("!I", 3))       # Framing Capabilities
+    body += avp(True, 4, struct.pack("!I", 0))       # Bearer Capabilities
+    body += avp(True, 7, b"concurrent-test")         # Host Name
+    body += avp(True, 9, struct.pack("!H", 0x0ABC))  # Assigned Tunnel ID
+    body += avp(True, 10, struct.pack("!H", 8))      # Receive Window Size
+    total = 12 + len(body)
+    return struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0) + body
+
+
+def parse_avps(body):
+    out = {}
+    off = 0
+    while off + 6 <= len(body):
+        word, vendor, atype = struct.unpack("!HHH", body[off:off + 6])
+        length = word & 0x03FF
+        if length < 6 or off + length > len(body):
+            break
+        if vendor == 0:
+            out[atype] = body[off + 6:off + length]
+        off += length
+    return out
+
+
+def is_sccrp(data):
+    """True only for a control message whose Message Type AVP is SCCRP (2).
+
+    "Any datagram at least a header long" is not this assertion. L2TP's reliable
+    transport ZLB-ACKs an SCCRQ with a bare 12-byte header carrying no AVP at
+    all, so a length check passes even when the SCCRP is never built: deleting
+    the SCCRP send from handleSCCRQ (internal/component/l2tp/tunnel_fsm.go) left
+    this phase green, which is how the weakness was found.
+    """
+    if len(data) < 12:
+        return False
+    avps = parse_avps(data[12:])
+    return avps.get(0) == struct.pack("!H", 2)
+
+
+def test_l2tp():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(ATTEMPT_TIMEOUT)
+    sccrq = build_sccrq()
+    for _ in range(ATTEMPTS):
+        try:
+            sock.sendto(sccrq, ("127.0.0.1", L2TP_PORT))
+            data, _ = sock.recvfrom(1500)
+        except (socket.timeout, OSError):
+            continue
+        if is_sccrp(data):
+            print("OK: L2TP SCCRP received")
+            sock.close()
+            return True
+    sock.close()
+    print("ERROR: no L2TP SCCRP received", file=sys.stderr)
+    return False
+
+
+def test_pppoe():
+    sock = socket.socket(
+        socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETH_P_PPPOE_DISC)
+    )
+    sock.bind((PPPOE_IFACE, ETH_P_PPPOE_DISC))
+    sock.settimeout(ATTEMPT_TIMEOUT)
+    own_mac = sock.getsockname()[4]
+
+    tags = struct.pack("!HH", TAG_SVC_NAME, 0)
+    tags += struct.pack("!HH", TAG_HOST_UNIQ, 2) + b"\x45\x45"
+    padi = struct.pack("!BBHH", 0x11, PADI, 0, len(tags)) + tags
+    frame = b"\xff" * 6 + own_mac + struct.pack("!H", ETH_P_PPPOE_DISC) + padi
+
+    for _ in range(ATTEMPTS):
+        sock.send(frame)
+        try:
+            while True:
+                got = sock.recv(1518)
+                # A packet socket sees our own transmit too; only the far end counts.
+                if got[6:12] == own_mac:
+                    continue
+                body = got[14:]
+                if len(body) >= 6 and struct.unpack("!BBHH", body[:6])[1] == PADO:
+                    print("OK: PPPoE PADO received")
+                    sock.close()
+                    return True
+                break
+        except socket.timeout:
+            continue
+    sock.close()
+    print("ERROR: no PPPoE PADO received", file=sys.stderr)
+    return False
+
+
+def main():
+    l2tp_ok = test_l2tp()
+    pppoe_ok = test_pppoe()
+    if l2tp_ok and pppoe_ok:
+        print("OK: both subsystems active concurrently")
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+pppoe {
+    enabled true
+    ac-name ze-concurrent
+    interface veth-bng {
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.pppoe:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_IFACE:value=veth-sub
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 concurrent-test.py $PORT:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=OK: L2TP SCCRP received
+expect=stdout:contains=OK: PPPoE PADO received
+expect=stdout:contains=OK: both subsystems active concurrently

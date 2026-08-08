@@ -497,22 +497,43 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 
 	case "netns-link":
 		// Provision an interface inside the per-test network namespace before ze
-		// launches. name= is the link (created as a dummy); address= is an
-		// optional CIDR assigned to it. Consumed only under netns mode
-		// (ZE_TEST_NETNS); on the default host path the option is inert and never
-		// touches the host. The name/address are validated here so a typo fails at
-		// parse time on every platform, not silently at run time on Linux only.
+		// launches. name= is the link; address= is an optional CIDR assigned to it.
+		// Without peer= the link is a dummy, which has no far end: it drops what is
+		// written to it, so it gives a netns connectivity (a connected route for a
+		// next-hop) but can never carry a conversation. peer= makes it a veth PAIR
+		// instead, both ends in this same namespace, which is what a test needs when
+		// a daemon must exchange real frames with a client (PPPoE discovery, RFC
+		// 2516). vlan= additionally creates an 802.1Q sub-interface on each end,
+		// named <link>.<tag>.
+		//
+		// Consumed only under netns mode (ZE_TEST_NETNS); on the default host path
+		// the option is inert and never touches the host. Every field is validated
+		// here so a typo fails at parse time on every platform, not silently at run
+		// time on Linux only.
 		name := kv["name"]
 		if name == "" {
 			return errOptionNetnsLinkMissingName
 		}
-		spec := NetnsLinkSpec{Name: name}
+		spec := NetnsLinkSpec{Name: name, Peer: kv["peer"]}
+		if spec.Peer == name {
+			return fmt.Errorf("option=netns-link: peer %q must differ from name (a veth pair has two ends)", spec.Peer)
+		}
 		if addr := kv["address"]; addr != "" {
 			p, err := netip.ParsePrefix(addr)
 			if err != nil {
 				return fmt.Errorf("option=netns-link: invalid address %q: %w", addr, err)
 			}
 			spec.Address = p
+		}
+		if raw := kv["vlan"]; raw != "" {
+			// 1..4094: 0 means "no tag" and would be indistinguishable from an absent
+			// vlan=, and 4095 is reserved by 802.1Q. Rejecting both ends here keeps an
+			// unusable tag from reaching netlink as a run-time error on Linux only.
+			tag, tagErr := strconv.ParseUint(raw, 10, 16)
+			if tagErr != nil || tag < 1 || tag > 4094 {
+				return fmt.Errorf("option=netns-link: invalid vlan %q (want 1..4094)", raw)
+			}
+			spec.VLAN = uint16(tag)
 		}
 		r.NetnsLinks = append(r.NetnsLinks, spec)
 		// The skip gate for this option is applied once, after every option is

@@ -114,10 +114,14 @@ EOF_PEER
 }
 
 // TestParseOptionUnknownStillErrors verifies that an unknown option type in a
-// .ci file (here option=netns, the directive the orphaned test/pppoe/*.ci carried)
-// is rejected by parseOption's fail-closed default branch. The error must name
-// the offending type so the author sees what to fix; a zero value or silent skip
-// would be a false green (ai/rules/evidence.md).
+// .ci file is rejected by parseOption's fail-closed default branch. The error
+// must name the offending type so the author sees what to fix; a zero value or
+// silent skip would be a false green (ai/rules/evidence.md).
+//
+// The fixture below is `option=netns`, which the orphaned test/pppoe/*.ci once
+// carried and no parseOption case ever implemented. Those files were repaired
+// and run again on 2026-08-07; they now declare `option=netns-link:...:peer=`,
+// so `option=netns` belongs to nothing and stays a pure unknown-type fixture.
 //
 // VALIDATES: AC-4 (spec-fixit-pppoe-orphaned-tests) — parseOption's fail-closed
 // default is not weakened; an unknown option type stays a hard error.
@@ -133,8 +137,8 @@ func TestParseOptionUnknownStillErrors(t *testing.T) {
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	ciFile := filepath.Join(tmpDir, "unknown-option.ci")
-	// option=netns is exactly the directive the deleted test/pppoe/*.ci used; it
-	// matches no parseOption case and must hit the fail-closed default.
+	// option=netns matches no parseOption case and must hit the fail-closed
+	// default. It is not `netns-link`, which is a real option with its own tests.
 	ciContent := "option=file:path=test.conf\n" +
 		"option=netns:veth=veth-bng,veth-sub\n" +
 		"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304\n"

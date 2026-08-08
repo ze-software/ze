@@ -154,12 +154,42 @@ OSPF_IDS = [
 OSPFV3_IDS = ["ospfv3-vlink", "ospfv3-nbma", "ospfv3-ptmp"]
 
 
-SUITES = (
-    ("firewall", FIREWALL_IDS),
-    ("policy", POLICY_IDS),
-    ("ospf", OSPF_IDS),
-    ("ospfv3", OSPFV3_IDS),
-)
+# PPPoE access concentrator (test/pppoe/). Every test provisions a veth PAIR via
+# option=netns-link:peer=, so the netns launch mode is what makes them runnable
+# at all. They are NOT in DEFAULT_SUITES because handlePADR opens an
+# AF_PPPOX/PX_PROTO_OE socket before it sends PADS
+# (internal/component/l2tp/pppoe/server.go) and the stock Alpine kernel has no
+# CONFIG_PPPOE: `make ze-qemu-pppoe-test` selects them and boots ze's runtime
+# kernel, which does.
+PPPOE_IDS = ["pppoe-basic", "pppoe-concurrent-l2tp", "pppoe-vlan"]
+
+SUITE_REGISTRY = {
+    "firewall": FIREWALL_IDS,
+    "policy": POLICY_IDS,
+    "ospf": OSPF_IDS,
+    "ospfv3": OSPFV3_IDS,
+    "pppoe": PPPOE_IDS,
+}
+
+# What `make ze-netns-qemu-test` runs on the stock Alpine kernel. A caller that
+# needs a different set names it in ZE_NETNS_QEMU_SUITES, which is how a suite
+# with a kernel requirement of its own gets its own target rather than becoming
+# everybody's precondition.
+DEFAULT_SUITES = ("firewall", "policy", "ospf", "ospfv3")
+
+
+def _selected_suites():
+    names = os.environ.get("ZE_NETNS_QEMU_SUITES", "").split() or list(DEFAULT_SUITES)
+    unknown = [n for n in names if n not in SUITE_REGISTRY]
+    if unknown:
+        sys.exit(
+            f"ZE_NETNS_QEMU_SUITES names {unknown} which this script has no id set for; "
+            f"known suites: {sorted(SUITE_REGISTRY)}"
+        )
+    return tuple((n, SUITE_REGISTRY[n]) for n in names)
+
+
+SUITES = _selected_suites()
 
 
 def assert_named(suite, ids):
@@ -214,6 +244,63 @@ def prepare_state():
     sh(
         f"rm -rf {STATE} && mkdir -p {STATE} && chown 1000:1000 {STATE} && chmod 0755 {STATE}"
     )
+    prepare_dev_ppp()
+
+
+def prepare_dev_ppp():
+    """Let the credential-dropped ze open /dev/ppp.
+
+    A PPPoE AC builds the kernel PPP channel through /dev/ppp after PADR and
+    before PADS (ppp.DevPPPSetup, called from handlePADR). The node is root-owned
+    0600, and DAC is not a capability ze holds: the netns mode grants
+    cap_net_admin, cap_net_raw and cap_net_bind_service, none of which override
+    file permissions. Without this every PADR dies "open /dev/ppp: permission
+    denied" and no PADS is ever sent.
+
+    Widening the mode here, on a throwaway VM, is the honest fix. Adding
+    cap_dac_override to CAPS would let every suite in every netns run open any
+    root-owned file, which is a much larger grant for one device node. A host
+    that has no /dev/ppp (no CONFIG_PPP) is left alone: the suites that need it
+    fail loudly on their own assertion rather than on a setup step.
+
+    "Throwaway" is the whole justification, so it is CHECKED and not merely
+    asserted in this docstring. The VM boots fresh from an ISO every run and its
+    /dev is gone at poweroff; a developer's Linux box keeps the widened node, and
+    a world-writable /dev/ppp lets any local user open PPP channels. Run outside
+    the VM this refuses rather than widening (`ai/rules/evidence.md`: fail closed
+    or say something).
+    """
+    if not os.path.exists("/dev/ppp"):
+        return
+    if not in_throwaway_vm():
+        sys.exit(
+            "refusing to chmod 0666 /dev/ppp: this is not the QEMU evidence VM, and the "
+            "widened node would persist for every local user. Run: make ze-qemu-pppoe-test"
+        )
+    sh("chmod 0666 /dev/ppp")
+
+
+def in_throwaway_vm():
+    """True only inside the Alpine evidence VM qemu-run.py boots.
+
+    The repo reaches that VM as a virtio-9p share mounted at /workspace
+    (`-virtfs ... mount_tag=workspace`, scripts/evidence/qemu-run.py), which this
+    script's own cwd depends on. No developer host mounts its checkout over 9p,
+    so the mount is a property of the environment rather than a variable a caller
+    can set, which an env-var marker would not be.
+    """
+    if sys.platform != "linux":
+        return False
+    try:
+        with open("/proc/mounts", encoding="utf-8") as f:
+            mounts = f.read().splitlines()
+    except OSError:
+        return False
+    for line in mounts:
+        fields = line.split()
+        if len(fields) >= 3 and fields[1] == "/workspace" and fields[2] == "9p":
+            return True
+    return False
 
 
 def host_nft():

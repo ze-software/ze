@@ -19,11 +19,24 @@ unknown option type errors only when something parses the file. Together they ca
 
 ## Decision
 
-Adopted the spec's plan of record: **Option D (delete the 3 stale `.ci`) + C' (add
-`TestCIRootsRegistered` recurrence guard).** No repair (Option A). RFC 2516 discovery
-is already covered by `test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/` and
-`ze-qemu-pppoe-accel-test`; repairing the `.ci` would be net-new veth/topology
-construction, not restoration.
+**VOID as of 2026-08-07. Thomas answered "sure repair", which selects Option A.**
+The three `.ci` are restored, repaired and running; see the "`test/pppoe/` orphan"
+work item in `plan/spec-finish-ci-coverage.md` and the closed row in
+`plan/deferrals/fixit-ddos-test-infra.md`. The `TestCIRootsRegistered` guard below
+stands and is what the restored suite now satisfies.
+
+The reasoning that follows was wrong on its own terms and is kept only so the error
+is legible. It claimed the coverage was redundant with
+`test/pppoe-interop/scenarios/01-pppoe-chap-ipv4/` and `ze-qemu-pppoe-accel-test`:
+both exercise ze as a PPPoE **client** against accel-ppp, and the deleted `.ci` were
+the only tests of ze as the **access concentrator**. Repairing them found that the AC
+never started from a configuration at all (`ExtractParameters` read the `interface`
+list in a shape `Tree.ToMap` does not emit), a defect the "already covered" judgement
+had hidden rather than measured.
+
+The superseded decision, for the record: Option D (delete the 3 stale `.ci`) + C' (add
+the `TestCIRootsRegistered` recurrence guard), on the grounds that repairing the `.ci`
+would be net-new veth/topology construction rather than restoration.
 
 ## Key findings
 

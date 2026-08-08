@@ -21,6 +21,7 @@ import platform
 import select
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -37,7 +38,45 @@ VM_MEMORY = os.environ.get("ZE_QEMU_MEMORY", "16384")
 VM_CPUS = os.environ.get("ZE_QEMU_CPUS", "8")
 BOOT_TIMEOUT = int(os.environ.get("ZE_QEMU_BOOT_TIMEOUT", "60"))
 DEFAULT_CMD_TIMEOUT = 1200
-SSH_PORT = "2222"
+
+
+def _free_ssh_port() -> str:
+    """Host port forwarded to the VM's sshd.
+
+    2222 was a constant, and a constant makes two concurrent QEMU evidence runs
+    mutually exclusive: qemu refuses to start at all with "Could not set up host
+    forwarding rule", which this script then reported as "timeout waiting for VM
+    login prompt" because the process is already gone. Several agents share this
+    checkout and run these targets at once, so the first free port from 2222 up
+    is taken instead. ZE_QEMU_SSH_PORT pins it when a caller needs a known port.
+
+    This narrows the window; it does not close it. The probe binds and closes
+    before qemu binds, so two runs starting in the same instant still choose the
+    same port and the loser still fails to boot. What makes that survivable is
+    the sibling change in run_in_vm: qemu's stderr is kept and printed, so the
+    loser now reads "Could not set up host forwarding rule" and re-runs, instead
+    of reading a boot timeout and hunting the VM. Closing the window properly
+    means retrying the boot on that specific error, which is a change to the
+    launch path every QEMU target shares.
+    """
+    pinned = os.environ.get("ZE_QEMU_SSH_PORT")
+    if pinned:
+        return pinned
+    for candidate in range(2222, 2322):
+        # Bind exactly as qemu will: the wildcard address, and no SO_REUSEADDR. A
+        # probe on 127.0.0.1 with SO_REUSEADDR set succeeds against a live
+        # wildcard listener on macOS, so it reports every busy port as free and
+        # the collision it exists to avoid happens anyway.
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            try:
+                probe.bind(("", candidate))
+            except OSError:
+                continue
+        return str(candidate)
+    raise SystemExit("no free host port in 2222..2321 to forward to the VM's sshd")
+
+
+SSH_PORT = _free_ssh_port()
 
 
 def repo_root() -> Path:
@@ -268,14 +307,25 @@ def run_in_vm(
     """Boot ISO, configure live system, run commands via SSH."""
     args = qemu_args(iso, root, kernel=kernel)
 
-    print("Booting Alpine VM...", file=sys.stderr)
+    print(
+        f"Booting Alpine VM (ssh forwarded on host port {SSH_PORT})...", file=sys.stderr
+    )
+    # qemu's own diagnostics went to DEVNULL, so every startup refusal -- a
+    # host-forward port already taken, missing firmware, an accelerator it cannot
+    # open -- surfaced as the boot timeout below, which names none of them. Keep
+    # the stream and print it when the boot does not complete.
+    qemu_errors = tempfile.TemporaryFile(mode="w+")
     proc = subprocess.Popen(
         args,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=qemu_errors,
         text=True,
     )
+
+    def qemu_stderr() -> str:
+        qemu_errors.seek(0)
+        return qemu_errors.read().strip()
 
     def cleanup(signum=None, _frame=None):
         proc.kill()
@@ -288,7 +338,14 @@ def run_in_vm(
 
     try:
         if not expect(proc, "login:", BOOT_TIMEOUT):
-            raise RuntimeError("timeout waiting for VM login prompt")
+            detail = qemu_stderr()
+            if detail:
+                raise RuntimeError(
+                    f"VM never reached a login prompt; qemu said:\n{detail}"
+                )
+            raise RuntimeError(
+                f"timeout waiting for VM login prompt after {BOOT_TIMEOUT}s"
+            )
 
         time.sleep(1)
         send(proc, "root")

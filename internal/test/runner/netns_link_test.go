@@ -67,6 +67,57 @@ func TestNetnsLinkBadAddressRejected(t *testing.T) {
 	}
 }
 
+// VALIDATES: peer= and vlan= reach the spec, and a name-only spec leaves both at
+// their zero values (dummy, untagged).
+// PREVENTS: a silently dropped peer=, which would provision a DUMMY where the
+// test asked for a veth pair. A dummy discards what is written to it, so the
+// PPPoE client's PADI would never reach the daemon and the test would fail on a
+// discovery timeout that names neither the option nor the link type.
+func TestNetnsLinkParsesPeerAndVLAN(t *testing.T) {
+	r, err := parseNetnsLinkLine(t, "option=netns-link:name=veth-bng:peer=veth-sub:vlan=100")
+	if err != nil {
+		t.Fatalf("parseLine: %v", err)
+	}
+	if len(r.NetnsLinks) != 1 {
+		t.Fatalf("NetnsLinks = %d, want 1", len(r.NetnsLinks))
+	}
+	got := r.NetnsLinks[0]
+	if got.Name != "veth-bng" || got.Peer != "veth-sub" || got.VLAN != 100 {
+		t.Errorf("spec = {Name:%q Peer:%q VLAN:%d}, want {veth-bng veth-sub 100}", got.Name, got.Peer, got.VLAN)
+	}
+}
+
+func TestNetnsLinkWithoutPeerIsDummy(t *testing.T) {
+	r, err := parseNetnsLinkLine(t, "option=netns-link:name=eth1")
+	if err != nil {
+		t.Fatalf("parseLine: %v", err)
+	}
+	if r.NetnsLinks[0].Peer != "" {
+		t.Errorf("Peer = %q, want empty (no peer means a dummy link)", r.NetnsLinks[0].Peer)
+	}
+	if r.NetnsLinks[0].VLAN != 0 {
+		t.Errorf("VLAN = %d, want 0 (no vlan= means an untagged link)", r.NetnsLinks[0].VLAN)
+	}
+}
+
+// VALIDATES: a vlan tag outside 1..4094 and a peer equal to the name are both
+// rejected at parse time, on every platform.
+// PREVENTS: the fail-open shape this option already had once -- a value netlink
+// rejects at run time only, on Linux, inside a QEMU VM, where the diagnosis is a
+// suite-wide setup error rather than the one .ci line that caused it.
+func TestNetnsLinkRejectsBadPeerAndVLAN(t *testing.T) {
+	for _, line := range []string{
+		"option=netns-link:name=veth-bng:peer=veth-bng",
+		"option=netns-link:name=veth-bng:peer=veth-sub:vlan=0",
+		"option=netns-link:name=veth-bng:peer=veth-sub:vlan=4095",
+		"option=netns-link:name=veth-bng:peer=veth-sub:vlan=abc",
+	} {
+		if _, err := parseNetnsLinkLine(t, line); err == nil {
+			t.Errorf("accepted %q; it cannot produce the topology the test asked for", line)
+		}
+	}
+}
+
 // parseNetnsLinkFile drives the REAL entry point (parseAndAdd, which applies the
 // post-parse gates) over a .ci file declaring a netns-link, optionally preceded
 // by the needs-linux marker the eleven ospf/ospfv3 tests and
@@ -143,7 +194,7 @@ func TestNetnsLinkRunsUnderNetnsMode(t *testing.T) {
 // is host-independent: netnsActive is driven through the seam, never probed.
 func TestNetnsLinkGateCoversRealSuites(t *testing.T) {
 	root := repoRootForTest(t)
-	dirs := []string{"ospf", "ospfv3", "policy"}
+	dirs := []string{"ospf", "ospfv3", "policy", "pppoe"}
 
 	for _, netnsOn := range []bool{false, true} {
 		prev := netnsActive
@@ -174,10 +225,11 @@ func TestNetnsLinkGateCoversRealSuites(t *testing.T) {
 		}
 		netnsActive = prev
 
-		// The eight test/ospf, three test/ospfv3 and one test/policy files that
-		// declare a link today. A drop to zero would make the loop above vacuous.
-		if found < 12 {
-			t.Fatalf("found %d netns-link tests across %v, want at least 12; the assertions above ran on nothing", found, dirs)
+		// The eight test/ospf, three test/ospfv3, one test/policy and three
+		// test/pppoe files that declare a link today. A drop to zero would make the
+		// loop above vacuous.
+		if found < 15 {
+			t.Fatalf("found %d netns-link tests across %v, want at least 15; the assertions above ran on nothing", found, dirs)
 		}
 	}
 }
