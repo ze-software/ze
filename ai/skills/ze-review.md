@@ -50,14 +50,13 @@ phase itself.
 
 ## Steps
 
-0. **Pre-checks (complete all three, fix or report findings before proceeding):**
-    - **Size the change.** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Then match the process to the size: a few lines in one function earns one pass, never a loop.
-    - `make ze-validate` — catches the mechanical subset of steps 1-3 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
+0. **Automated pre-checks (run both, fix or report findings before proceeding):**
+    - `make ze-validate` — catches the mechanical subset of steps 2-4 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
     - `python3 scripts/dev/audit-test-relaxation.py` for uncommitted changes, or `python3 scripts/dev/audit-test-relaxation.py origin/main` to also cover work already committed but not yet pushed (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing — the tool now refuses that with exit 2 rather than reporting clean). — flags tests that were deleted or weakened rather than the code being fixed. Treat its output as findings: every `[DELETED]` and `[WEAKENED]` is a **BLOCKER** unless the code was genuinely fixed and the test legitimately no longer applies; every `[RELAXED]` (a `// test-relax:` token) must be justified by a removed feature or replaced coverage — quote the reason and have the user confirm it. A test edited to match broken code IS the defect, not the fix. This pass exists because weakening tests to reach green is a recurring failure mode (see `ai/rules/testing.md`).
 
-0.5. **Size the change (BEFORE step 1):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff that is bigger than its problem gets ONE finding, a BLOCKER naming the smaller change, and the review stops there: auditing the details of over-engineered code ratifies it and drives another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Then match the process to the size: a few lines in one function earns one pass, not a loop.
+1. **Size the change (BEFORE any other analysis):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Size decides the spec and the phase sequence, and nothing else (`ai/rules/context-economy.md`). It never caps the review rounds, which `ai/rules/planning.md` "Bounding the loop" owns and caps nowhere, and it never licenses doing a small edit inline instead of in its phase.
 
-1. **Wiring verification (FIRST — before any other analysis):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This is the FIRST step because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
+2. **Wiring verification (before any analysis of correctness):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. It leads the correctness checks because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
     For each new symbol, answer: **"What user action reaches this code?"** If you cannot name one, it is a BLOCKER.
 
@@ -95,7 +94,7 @@ phase itself.
 
     Find the most similar existing feature. Diff its registrations, handlers, and tests against the new feature. Report anything the reference has that the new feature lacks as a BLOCKER: "missing [component] -- reference [feature] has it in [file] [symbol]."
 
-2. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/testing.md`: match the change type to the required test directory and check for a test covering the behavior.
+3. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/testing.md`: match the change type to the required test directory and check for a test covering the behavior.
 
     | Change type | Required test |
     |-------------|--------------|
@@ -111,7 +110,7 @@ phase itself.
 
     **Exception:** pure internal refactors with no user-visible effect, or changes where an existing functional test already covers the path.
 
-3. **Documentation drift check (BLOCKING for user-visible or architecture changes):** For every changed source file and every changed behavior, verify documentation stayed current.
+4. **Documentation drift check (BLOCKING for user-visible or architecture changes):** For every changed source file and every changed behavior, verify documentation stayed current.
 
     | Change type | Required doc check |
     |-------------|--------------------|
@@ -125,18 +124,18 @@ phase itself.
 
     Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
 
-4. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
-5. **Read the actual code:** For every changed file, read the diff. Understand what changed.
-6. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
-7. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 6: step 6 asks "why did the old code exist?" This step asks "is the protection still there?"
+5. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
+6. **Read the actual code:** For every changed file, read the diff. Understand what changed.
+7. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
+8. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 7: step 7 asks "why did the old code exist?" This step asks "is the protection still there?"
 
     **Test rewrite check (BLOCKING):** For every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression, even when the assertion count stays the same. The hook cannot catch this (same structural shape); this step is the defense. Ask: "what did the old assertion prove, and where is that proof now?" If it is nowhere, report as BLOCKER: "test rewrite dropped coverage of [old behavior]." Rule: `ai/rules/testing.md` "Test Rewrite as Replacement."
-8. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
-9. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
-10. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
-11. **Security review:** Apply the security checklist to every user-controlled input.
-12. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
-13. **Logic correctness review:** Read every changed function and check for:
+9. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
+10. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
+11. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
+12. **Security review:** Apply the security checklist to every user-controlled input.
+13. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
+14. **Logic correctness review:** Read every changed function and check for:
 
     | Check | What to look for |
     |-------|-----------------|
@@ -161,7 +160,7 @@ phase itself.
 
     Never discard a finding here for being "unlikely": these degrade silently and each looks correct locally.
 
-14. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `performance.md` "Hot Path Rule" for the list).
+15. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `performance.md` "Hot Path Rule" for the list).
 
     | Check | What to look for |
     |-------|-----------------|
@@ -179,8 +178,8 @@ phase itself.
 
     Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `performance.md`.
 
-15. **Plugin traversal + config-surface check:** If config structure changed, grep for all code reading the old structure. When the diff nests a config container, adds a plugin `show`/RPC command, registers a wire method, or adds a plugin-loading `.ci`, also apply the **Config-Surface & Command-Tree Checks** section (golden-snapshot sync, merged-node description parity, nested-ConfigRoot unwrap, needs-linux for dependency-pulling `.ci`).
-16. **Altitude and simplicity check:** For each change, ask two questions. Both are about the amount of machinery, and they fail in opposite directions.
+16. **Plugin traversal + config-surface check:** If config structure changed, grep for all code reading the old structure. When the diff nests a config container, adds a plugin `show`/RPC command, registers a wire method, or adds a plugin-loading `.ci`, also apply the **Config-Surface & Command-Tree Checks** section (golden-snapshot sync, merged-node description parity, nested-ConfigRoot unwrap, needs-linux for dependency-pulling `.ci`).
+17. **Altitude and simplicity check:** For each change, ask two questions. Both are about the amount of machinery, and they fail in opposite directions.
 
     **Too shallow (altitude):** is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
 
@@ -195,8 +194,8 @@ phase itself.
     | New retry, cache, pool, or worker | A measurement, not an expectation, showed the problem |
     | A rewrite where a small change restores correctness | The small change was tried and does not restore it |
 
-    **A simplicity finding never asks for less correctness.** Cutting an acceptance criterion, an RFC MUST, a test, or a guard is the opposite failure. It is already a BLOCKER under steps 2, 13, and 20. Quality is 0% compromise, and this step cuts machinery only.
-17. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 13-14 above cover logic and performance specifically; this step covers structural and convention rules):
+    **A simplicity finding never asks for less correctness.** Cutting an acceptance criterion, an RFC MUST, a test, or a guard is the opposite failure. It is already a BLOCKER under steps 3, 14, and 21. Quality is 0% compromise, and this step cuts machinery only.
+18. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 14-15 above cover logic and performance specifically; this step covers structural and convention rules):
 
 | Changed code touches | Check against |
 |---------------------|---------------|
@@ -209,7 +208,7 @@ phase itself.
 | New data wrapper/struct | `architecture.md` -- lazy over eager, no identity wrappers |
 | Any new abstraction, option, layer, or parameter | `simplicity.md` -- the simplest fully correct answer, and nothing beyond it |
 
-18. **Filter false positives:** Before reporting, discard findings that match any of these:
+19. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -217,19 +216,19 @@ phase itself.
 | Linter/compiler-catchable (imports, types, formatting) | `make ze-lint` catches these separately |
 | Issue on unmodified lines, when the goal does not depend on it | This review does not cover it. Never discard an always-in-scope class this way (`ai/rules/planning.md`, "Bounding the loop", which owns the list). An absence sits on no changed line, so this row would otherwise swallow every one of them |
 | Intentional behavioral change clearly related to the broader diff | Not a bug, it is the point |
-| General quality concern not tied to a specific bug | Too vague to act on. A simplicity finding from step 16 is NOT this: it names the construct, the file, and the simpler shape |
+| General quality concern not tied to a specific bug | Too vague to act on. A simplicity finding from step 17 is NOT this: it names the construct, the file, and the simpler shape |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
     **Never discard wiring, functional-test, removed-behavior, logic, altitude, or hot-path performance findings.** An unwired symbol is dead code in production. A missing functional test is a coverage gap. A lost invariant from deleted code is a correctness regression. A logic bug (wrong condition, wrong variable, off-by-one) is a correctness defect. A bandaid fix at the wrong depth compounds maintenance cost. A hot-path allocation is measurable overhead. These always survive this filter.
 
     **PLAUSIBLE by default.** Do not discard a finding for being "speculative" or "depends on runtime state" when the state is realistic: concurrency races, nil on a rare-but-reachable path (error handler, cold cache, missing optional field), falsy-zero treated as missing, off-by-one on a boundary the code does not exclude, retry storms, regex that lost an anchor. These are real findings. Only discard when you can prove the scenario is impossible from the code (quote the guard, cite the type constraint, show the invariant).
 
-19. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
+20. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
     - Does an interop test scenario exist that proves this works with another daemon?
     - If the spec has a Goal Validation table, is every goal backed by concrete evidence?
     Missing interop test for protocol work is a BLOCKER. Empty goal validation for a completed feature is an ISSUE.
 
-20. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
+21. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
 
     **When to run:** The diff touches wire encoding/decoding, message handling, capability negotiation, state machine transitions, timer behavior, NLRI parsing, attribute handling, or any code with existing `// RFC NNNN` comments.
 
@@ -249,7 +248,7 @@ phase itself.
 
     **Skip this step** if the diff has no protocol code (pure config, CLI, web, docs).
 
-21. **Report findings** as a numbered list with severity:
+22. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Logic error, performance problem on hot path, missing test, edge case not handled
     - **NOTE:** Suggestion or minor observation

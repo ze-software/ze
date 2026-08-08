@@ -3,9 +3,8 @@ kind: table
 level:
 stage:
 ---
-| The change | What it earns |
-|------------|---------------|
-| A few lines inside one function, no new symbol | The main thread. One review pass. No implementation agent: the agent's startup floor costs more than the edit |
-| One file, one concern, no new exported symbol | One implementation agent or the main thread. One review pass |
-| Several files, a new exported symbol, or a new code path | One implementation agent. One review round, then further rounds only while a round finds a BLOCKER or an ISSUE in its own scope |
-| A new subsystem, a protocol change, or anything carrying an RFC or interop obligation | The full loop in `ai/rules/planning.md`, unbounded in passes. That sits on rung 2 of `ai/rules/rule-precedence.md` and no budget reaches it |
+| The change | The process it earns |
+|------------|----------------------|
+| Anything short of a non-trivial feature, whatever its line count | No spec. Every phase it does run still runs in its own agent, and the review loop keeps its own bound |
+| A non-trivial feature | A spec, and the phase sequence in `ai/rules/planning.md` |
+| A protocol change, or anything carrying an RFC or interop obligation | Whichever row above it matches, and the conformance and interop evidence rung 2 requires on top. That evidence is owed at any size |

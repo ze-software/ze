@@ -80,14 +80,16 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 ## Process Is Proportional to the Change
 
 **Process is proportional to the change. Size the diff BEFORE you spend agents and rounds on it, and state that size when you delegate.**
-**The saving is in making the CHANGE smaller. It is never in reviewing a given change less, which stays banned above. A two-line change reviewed once has had a full review, not a cut one.**
+**The saving is in making the CHANGE smaller. It is never in reviewing a given change less, which stays banned above.**
+**Line count decides the SPEC and the phase sequence. It never decides the agents, and it never decides the review rounds.**
+**Not the agents: "this edit is small, I will just do it inline" is banned reasoning (`ai/rules/planning.md`), and this rule says SIZE an agent, never spawn fewer.**
+**Not the rounds: `ai/rules/planning.md` "Bounding the loop" owns that number and caps it nowhere. Every fix is new code and earns a fresh pass, and any always-in-scope class re-opens the loop whatever the diff's size, so a two-line change that removes a guard earns a second round exactly like a large one.**
 
-| The change | What it earns |
-|------------|---------------|
-| A few lines inside one function, no new symbol | The main thread. One review pass. No implementation agent: the agent's startup floor costs more than the edit |
-| One file, one concern, no new exported symbol | One implementation agent or the main thread. One review pass |
-| Several files, a new exported symbol, or a new code path | One implementation agent. One review round, then further rounds only while a round finds a BLOCKER or an ISSUE in its own scope |
-| A new subsystem, a protocol change, or anything carrying an RFC or interop obligation | The full loop in `ai/rules/planning.md`, unbounded in passes. That sits on rung 2 of `ai/rules/rule-precedence.md` and no budget reaches it |
+| The change | The process it earns |
+|------------|----------------------|
+| Anything short of a non-trivial feature, whatever its line count | No spec. Every phase it does run still runs in its own agent, and the review loop keeps its own bound |
+| A non-trivial feature | A spec, and the phase sequence in `ai/rules/planning.md` |
+| A protocol change, or anything carrying an RFC or interop obligation | Whichever row above it matches, and the conformance and interop evidence rung 2 requires on top. That evidence is owed at any size |
 
 **On any diff, the FIRST review question is "is this change bigger than the problem?" Ask it before you audit one detail.**
 **A round that audits the details of an over-engineered change ratifies it. Every finding is about machinery that should not exist, and every fix drives another pass over more of it. Report "this should be N lines" as a BLOCKER, and restart from the smaller change (`ai/rules/simplicity.md`).**
