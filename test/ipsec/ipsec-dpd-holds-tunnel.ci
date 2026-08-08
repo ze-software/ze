@@ -1,0 +1,210 @@
+# Functional test: a configured DPD keeps a HEALTHY tunnel up.
+# Spec: plan/spec-fixit-ike-test-discrimination.md (item 5, AC-8).
+#
+# The DPD cleartext defect (plan/learned/1332-fixit-ike-dpd-cleartext.md) sent the
+# liveness probe unencrypted. A conforming peer answered nothing, the initiator's
+# own timeout fired, and a tunnel that was never broken was torn down. Four unit
+# tests in internal/component/ike/engine/rfc7296_dpd_test.go prove the probe is
+# BUILT encrypted. None of them runs a peer, so none of them can see the field
+# symptom: a configured DPD killing a live SA.
+#
+# Two unprivileged ze instances negotiate IKEv2 over loopback, exactly as
+# ipsec-child-rekey.ci does. Only the INITIATOR carries a short DPD (interval 1,
+# timeout 12); the responder's is pinned at the 3600s maximum so it never probes
+# and the probe traffic has one direction. maintainSA (engine/established.go)
+# ticks once a second, so the initiator raises a probe every second and the
+# responder answers each one.
+#
+# WHAT MAKES THIS DISCRIMINATE, and why every assertion is on STATE:
+#   1. `dpd: sent probe`  proves sendDPD (engine/dpd.go) reached the send path.
+#   2. `dpd: peer alive`  proves the peer ANSWERED and handleDPDResponse cleared
+#      the wait. A probe the peer cannot read never produces this line.
+#   3. "uptime-seconds" >= 20 proves ONE SA stayed established across ~20 probe
+#      intervals. It is not a sleep: saToMap (ike/cmd/show_ipsec.go) computes it
+#      from the SA's own EstablishedAt, and a DPD teardown destroys that SA, so a
+#      re-established one starts again at zero. With timeout 12 an unanswered
+#      probe ends the SA at ~13s, and every SA after it dies at the same age, so
+#      20 is unreachable however long the run takes. A busy host makes the poll
+#      take longer; it can never make it pass.
+#   4. `dpd: peer dead` is the field symptom itself, rejected by name.
+# Both DPD lines are logged at DEBUG by dpd.go, so the ike subsystem is raised.
+#
+# The 12s DPD timeout is the load margin: the responder may go silent for 12
+# seconds before this side calls it dead, and shouldRetransmit repeats the probe
+# several times inside that budget, so no single lost datagram ends the tunnel.
+#
+# MEASURED 2026-08-07, both directions. Blocking BOTH sends in dpd.go -- the one
+# in sendDPD and the one in retransmitDPD, which is the shape the cleartext defect
+# had, a probe the peer never usefully receives -- turns this RED at step 3:
+# "output never matched regexp \"uptime-seconds\":[2-9][0-9] within 40s".
+# Restoring both sends turns it GREEN again, 4 suite runs out of 4.
+#
+# Blocking only sendDPD's send left it GREEN, at a shorter DPD timeout, and that
+# is the correct verdict rather than a hole: retransmitDPD still delivers the
+# probe, the peer answers it, and the tunnel really is healthy.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design.
+option=env:var=ze_test_ike_dataplane:value=noop
+# sendDPD and handleDPDResponse log at DEBUG; the default level is WARN.
+option=env:var=ze.log.ike:value=debug
+option=timeout:value=60s
+
+# -- Responder daemon (background): binds 127.0.0.2, never probes --
+stdin=responder:terminator=EOF_RESPONDER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			dead-peer-detection {
+				interval 3600
+				timeout 3600
+			}
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# -- Initiator daemon (foreground) with the engine-steps executor; SHORT DPD --
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			dead-peer-detection {
+				action restart
+				interval 1
+				timeout 12
+			}
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=55s
+
+# Wait for the established SA (aes-cbc appears only after IKE_AUTH), then poll the
+# SA's own uptime until it passes 20 seconds. The poll re-dispatches the command;
+# it never sleeps, and it reads the daemon's state rather than the test's clock.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=25
+expect=output:matches="uptime-seconds":[2-9][0-9]:timeout=40
+expect=output:contains="state":"established":timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+# The probe left, and the peer answered it. Without the second line the tunnel
+# above merely survived a DPD that never ran.
+expect=stderr:contains=dpd: sent probe
+expect=stderr:contains=dpd: peer alive
+# The field symptom of the cleartext defect, named.
+reject=stderr:pattern=dpd: peer dead
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

@@ -1,31 +1,125 @@
-# Test: adj-rib-in stores received routes and replay mechanism works end-to-end
-# VALIDATES: Route from peer stored in adj-rib-in, replay produces correct commands
-# PREVENTS: Replay returning empty when routes exist
-# NOTE: Auto-replay trigger (handleState on peer-up) verified by unit tests
-# with routeSender spy; .ci tests cannot use multiple peer IPs (all 127.0.0.1).
+# Test: adj-rib-in stores a received route and RELAYS it to an established peer
+# VALIDATES: `request bgp adj-rib-in replay <peer> <index>` reconstructs the stored
+#            route and puts it on the destination's wire through the forward rail,
+#            byte-identical to what a live forward of the same route emits.
+# PREVENTS: RelayStoredRoute (internal/component/bgp/reactor/reactor_api_relay.go)
+#           being dead, or its reconstruction (relay_payload.go writeRelayPayload)
+#           diverging from the live rail. Either one leaves a peer that established
+#           late with a hole in its table that nothing reports.
+#
+# WHY THIS FILE WAS REWRITTEN. The version it replaces replayed to 10.0.0.99, which
+# is not a configured peer, so RelayStoredRoute returned at destination resolution
+# and the only assertion left was the SELECTED route count from the plugin's own
+# buildReplayRoutes. Measured 2026-08-07: with `return nil` as the first statement of
+# RelayStoredRoute -- the relay entirely dead -- that test still reported PASS. It
+# guarded nothing (ai/rules/testing.md, "Mutation-Verify the Test Actually Gates").
+# Its predecessor also carried a NOTE claiming ".ci tests cannot use multiple peer
+# IPs (all 127.0.0.1)". That is false and was already false when written:
+# relay-withdraw-reflector.ci binds a second ze-peer to 127.0.0.2.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). One route reaches the dest
+# TWICE and each arrival has its own owner:
+#   dest seq=1 -- the LIVE forward, the control. It proves the session, the egress
+#                 transform and the expected bytes are real, so seq=2 cannot be
+#                 satisfied by a build where nothing forwards at all.
+#   dest seq=2 -- the REPLAY, the subject. Nothing but RelayStoredRoute can produce
+#                 a second copy: adj-rib-in is not given `state` for the dest peer,
+#                 so its own peer-up self-replay never fires for that peer, and no
+#                 RIB plugin is loaded to announce from a local table.
+# Killing the relay therefore reddens seq=2 while seq=1 stays green, which is what
+# distinguishes "the relay is broken" from "nothing works".
+#
+# THE TWO MESSAGES ARE THE SAME BYTES ON PURPOSE. That equality IS the property
+# under test: plan/learned/1271-fixit-bgp-egress-rail-divergence.md put the replay on
+# the forward rail so a relayed route gets exactly ONE egress transform, the same one
+# a live forward applies. The old announce rail prepended the local AS first and then
+# ran only the session's export filters, so the same route left on two different byte
+# strings depending on which rail carried it. An assertion that pins one hex to both
+# arrivals is the direct statement of that invariant.
 
-# ze-peer sends a route to ze
-stdin=peer:terminator=EOF_PEER
+# ---------------------------------------------------------------------------
+# Source peer -- eBGP, AS 65001, on 127.0.0.1. Its route is what gets stored.
+# ---------------------------------------------------------------------------
+stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
-option=timeout:value=15s
-option=update:value=send-default-route
+option=timeout:value=30s
+# The source must outlive the dest's assertions: if it closes, ze withdraws its
+# routes and the dest receives a withdrawal it has no rule for.
+option=linger:value=true
+
+# seq=1 -- ze's initial-sync End-of-RIB. Carried over unchanged from the test this
+# file replaces, which asserted this exact frame. The observer holds
+# wait_peer_eor_sent() before it injects the seq=2 marker, so the EOR is on the wire
+# strictly first and this is an ordering assertion rather than a race.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-EOF_PEER
 
-# Python plugin: verify adj-rib-in stores route, then replay works
-tmpfs=replay-test.run:mode=755:terminator=EOF_RUN
+# seq=2 -- BARRIER, not an assertion. The observer injects 192.0.2.0/24 to THIS peer
+# only, and only once BOTH sessions are established. Without it the source's
+# announcement below can arrive while the dest is not yet a forward target, and the
+# dest then sees the replay alone -- so seq=1 there would be satisfied by the wrong
+# message and the control would be lost.
+expect=bgp:conn=1:seq=2:contains=18C00002
+
+# seq=3 -- announce 10.0.0.0/24 with a POPULATED AS_PATH.
+#   ORIGIN:    40010100            IGP
+#   AS_PATH:   40020602010000FDE9  AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:  40030401010101      1.1.1.1
+#   NLRI:      180A0000            10.0.0.0/24
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+# A non-empty AS_PATH is what makes the prepend below an exact number instead of
+# "a segment appeared". NO LOCAL_PREF: RFC 4271 Section 5.1.5 forbids it towards an
+# external peer, and ze would correctly overwrite it with an ATTR_DISCARD marker.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_SOURCE
+
+# ---------------------------------------------------------------------------
+# Dest peer -- eBGP, AS 65002, on 127.0.0.2. Every wire assertion lives here.
+# ---------------------------------------------------------------------------
+# Both arrivals carry the SAME bytes, derived from the source frame above by the one
+# egress transform RFC 4271 Section 5.1.2 requires towards an external peer:
+#   AS_PATH:   40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+# ze's own AS 65000 (0xFDE8) is prepended; ORIGIN and NEXT_HOP are relayed verbatim.
+# attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=bind:value=127.0.0.2
+
+# seq=1 CONTROL -- the LIVE forward of the source's announcement.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+
+# seq=2 SUBJECT -- the REPLAY, reconstructed from the stored (AttrHex, NextHopHex,
+# NLRIHex) by buildRelayUpdate and pushed through the same forwardUpdateCore. Exact
+# hex, so a reconstruction that reorders attributes, drops NEXT_HOP, or re-announces
+# a second NLRI is refused rather than tolerated.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+EOF_DEST
+
+# ---------------------------------------------------------------------------
+# Observer: sequences the run and drives the replay.
+# ---------------------------------------------------------------------------
+tmpfs=replay-relay.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import json
+"""Drive an adj-rib-in replay to an ESTABLISHED peer and prove it reached the wire."""
 import sys
-import time
-from ze_api import API, result_json_data
 
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
+from ze_api import API, dispatch, result_json_data, runtime_fail
+
+SOURCE = '127.0.0.1'
+DEST = '127.0.0.2'
+
+
+def dest_updates(api):
+    """Real UPDATEs written to the dest peer, End-of-RIB markers excluded.
+
+    updates-sent counts EVERY UPDATE written to the peer, the initial-sync EoR
+    included (IncrUpdatesSent in reactor/reactor_notify.go sees only the message
+    type). eor-sent is the separate marker counter, so the difference is the
+    route traffic this test is about.
+    """
+    return (api.peer_counter('updates-sent', peer=DEST)
+            - api.peer_counter('eor-sent', peer=DEST))
+
 
 def main():
     api = API()
@@ -35,59 +129,91 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for peer route to be stored.
-    # // test-relax: hand-rolled range(20) sleep-poll -> dispatch_until on adj-rib-in status
-    result = api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) > 0,
-        attempts=20,
-        delay=0.5,
-    )
-    if result_json_data(result, {}).get('total-routes', 0) <= 0:
-        print('FAIL: no routes stored', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+    # Every poll below carries an EXPLICIT budget, and they sum to 25s against the
+    # 30s test envelope. The defaults do not: wait_peers_established is 60 attempts
+    # and the rest 40, which sums to 55s, so a starved daemon would blow the
+    # envelope and the runner would report an opaque 30s timeout instead of the
+    # barrier that actually failed. Budgeting them is what keeps the diagnosis in
+    # the observer's own message (the /ze-test skill, "Budget the polls").
 
-    # The stored route above proves the session reached Established. Quiesce so
-    # ze's End-of-RIB reaches the wire before `request shutdown` closes the
-    # session, making the peer's EOR expectation reachable instead of a race:
-    # PendingSync stays set from establishment (peer_run.go sendingInitialRoutes)
-    # until after the EOR is sent (peer_initial_sync.go), and the bgp-peer-sync
-    # quiescer blocks on exactly that, so this barrier cannot return early.
+    # Both sessions up BEFORE the source announces, so the live forward below has a
+    # dest to reach and the dest's seq=1 control is the live rail's message.
+    if not api.wait_peers_established(expected_peers=2, attempts=32):
+        runtime_fail('both peers did not establish')
+
+    # The source asserts ze's EOR frame at its seq=1. Hold that barrier before
+    # injecting, or the marker can overtake the EOR and the source's first rule
+    # meets the wrong message.
+    if not api.wait_peer_eor_sent(peer=SOURCE, attempts=16):
+        runtime_fail('ze never sent its initial-sync EOR to the source peer')
+
+    # Release the source's announcement. This route goes to the SOURCE only; its
+    # NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 barrier matches.
+    api.send(f'peer {SOURCE} update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
+
+    # quiesce FIRST so each poll behind it is a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC.
     api.quiesce()
 
-    # Replay to a fake peer (10.0.0.99) - proves replay mechanism works
-    result = dispatch(api, 'request bgp adj-rib-in replay 10.0.0.99 0')
+    # The route must be STORED before a replay can carry it.
+    status = api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) > 0,
+        attempts=16,
+    )
+    if result_json_data(status, {}).get('total-routes', 0) <= 0:
+        runtime_fail('adj-rib-in stored no route from the source peer')
+
+    # ... and the LIVE forward must have landed, so the dest's seq=1 control is
+    # consumed before the replay arrives. Without this the two identical messages
+    # could be matched in either order and seq=2 would no longer name the replay.
+    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=16):
+        runtime_fail('dest peer was never sent the live forward of the source route')
+    print('OK: dest was sent the live forward', file=sys.stderr)
+
+    # THE SUBJECT. Two args only, so the cut is UNBOUNDED (rib_commands.go
+    # replayCommand: presence of a third arg is what bounds it). A bounded cut would
+    # exclude this route -- it was ingested after the dest became a forward target --
+    # and the replay would be a correct no-op, which is not what this test is for.
+    result = dispatch(api, f'request bgp adj-rib-in replay {DEST} 0')
     if result.get('status') != 'done':
-        print(f'FAIL: replay failed: {result}', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+        runtime_fail(f'replay dispatch failed: {result}')
+    replayed = result_json_data(result, {}).get('replayed', 0)
+    if replayed < 1:
+        runtime_fail(f'replay selected no route to relay: {result}')
+    print(f'OK: replay selected {replayed} route(s)', file=sys.stderr)
 
-    replay_data = result_json_data(result, {})
-    if replay_data.get('replayed', 0) == 0:
-        print(f'FAIL: replay returned 0 commands', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+    # The dest must still be alive when its seq=2 rule runs, so hold the daemon up
+    # until the relayed copy has actually been written to it. This is also the
+    # assertion that makes a dead RelayStoredRoute fail here rather than at the
+    # outer timeout: `replayed` above counts what the PLUGIN selected, which stays 1
+    # even when the engine relays nothing.
+    if not api.wait_until(lambda: dest_updates(api) >= 2, attempts=20):
+        runtime_fail('dest peer was never sent the relayed copy of the stored route')
+    print('OK: dest was sent the relayed copy', file=sys.stderr)
 
-    print(f'OK: replayed {replay_data["replayed"]} route(s)', file=sys.stderr)
-    dispatch(api, 'request shutdown')
+    api.dispatch('request shutdown')
     api.wait_for_shutdown()
+
 
 if __name__ == '__main__':
     main()
 EOF_RUN
 
+# ---------------------------------------------------------------------------
+# ze -- AS 65000, two external peers on separate loopbacks.
+# ---------------------------------------------------------------------------
+# No RIB plugin is loaded on purpose: bgp-rib would give the dest a second delivery
+# path for the same prefix out of a local table, and seq=2 would stop naming the
+# relay. adj-rib-in is given `update state` on the SOURCE peer only, so it stores
+# that peer's routes and never sees the dest come up -- its peer-up self-replay
+# cannot fire for the dest, leaving the observer's explicit dispatch as the one
+# producer of the second message.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external replay-test {
-		run ./replay-test.run
+	external replay-relay {
+		run ./replay-relay.run
 		encoder json
-	}
-	internal bgp-rib {
-		use bgp-rib
 	}
 	internal adj-rib-in {
 		use bgp-adj-rib-in
@@ -95,7 +221,7 @@ plugin {
 }
 
 bgp {
-	peer peer1 {
+	peer source-peer {
 		connection {
 			remote {
 				ip 127.0.0.1
@@ -107,8 +233,8 @@ bgp {
 		}
 		session {
 			asn {
-				local 1
-				remote 1
+				local 65000
+				remote 65001
 			}
 			router-id 1.2.3.4
 			family {
@@ -122,19 +248,48 @@ bgp {
 			group-updates disable
 		}
 
-		process replay-test {
-		}
-		process bgp-rib {
-			receive [ state ]
-			send [ update ]
+		process replay-relay {
+			receive [ update state ]
 		}
 		process adj-rib-in {
 			receive [ update state ]
 		}
 	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

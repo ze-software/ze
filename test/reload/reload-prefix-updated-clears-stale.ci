@@ -1,0 +1,243 @@
+# Test: a reload that bumps ONLY the prefix `updated` dates clears the prefix-stale
+#       warning on the running peer, without restarting the session
+# Initial config: peer1 carries updated 2020-01-01 -- past the 180-day threshold
+# After SIGHUP:   peer1 carries updated 2099-01-01 -- nothing else differs
+# Expected: `show warnings` stops reporting bgp/prefix-stale, and ze reports the
+#           change as an in-place settings swap rather than a peer restart.
+#
+# VALIDATES: a PeeringDB refresh that touches only the dates reaches a running peer.
+#            Before this, peerSettingsEqual (reactor_api.go) neutralized
+#            PrefixUpdated on both copies before comparing, so reconcilePeersJournaled
+#            read the peer as unchanged and RaisePrefixStale ran only from
+#            Reactor.AddPeer: the alarm could not clear until the daemon restarted
+#            (plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md).
+# PREVENTS: the two ways the fix can go wrong. Comparing the dates without
+#           classifying them hot-swappable bounces every peer on every PeeringDB
+#           refresh; delivering them without republishing the verdict moves the
+#           silent discard one layer out, leaving both alarms answering from the
+#           values read at AddPeer.
+#
+# DISCRIMINATION: the plugin REQUIRES the warning present before it waits for it to
+# go, so "no warning at the end" cannot pass on a run where it was never raised. The
+# reload is GATED on that observation rather than on a delay: the plugin writes
+# saw-stale and trigger.sh waits for that file before it rewrites the config, so the
+# two orderings cannot swap under load. The bounce is caught separately and
+# positively: the swap branch names itself on stderr and the restart branch is
+# rejected.
+
+# The in-place swap is logged at debug: BIRD prints nothing at all for a successful
+# soft reconfigure, so the quiet path stays quiet at the default level.
+option=env:var=ze.log.bgp.reactor:value=debug
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=asn:value=1
+
+# Connection 1: EOR from the established session
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Trigger script: the reload waits for the plugin to have SEEN the stale warning.
+# Gating on the observation rather than on a sleep is what makes the ordering
+# deterministic: without it the reload can clear the warning before the plugin
+# first asks, and the test then fails on its own precondition.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+while [ ! -f saw-stale ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+EOF_TRIGGER
+
+# Python test plugin: waits for the stale warning, then for it to clear
+tmpfs=prefix-stale-reload.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {}
+    return resp.get('result', {})
+
+def stale_raised(api):
+    result = dispatch(api, 'show warnings')
+    if result.get('status') != 'done':
+        return False
+    data = result.get('data', {})
+    if isinstance(data, str):
+        data = json.loads(data)
+    for w in data.get('warnings', []):
+        if w.get('source') == 'bgp' and w.get('code') == 'prefix-stale':
+            return True
+    return False
+
+def wait_for(api, want, what, attempts):
+    # test-relax: the hand-rolled deadline loop is REPLACED, not removed. Same
+    # predicate, same 0.1s interval, and api.wait_until owns the sleep, whose
+    # internal time.sleep is exempt from the ci-sleep ratchet by design
+    # (test/scripts/ze_api.py, wait_until). No assertion changed: the polling
+    # mechanism moved to the shared helper, which is the sanctioned one.
+    #
+    # The report bus is updated by the reactor, not by this plugin, so the only
+    # way to observe a change is to ask again. Attempts rather than a wall-clock
+    # deadline: each attempt costs an RPC, so a loaded machine gets MORE time,
+    # not less, which is the safe direction for a timing-sensitive reload test.
+    if api.wait_until(lambda: stale_raised(api) == want,
+                      attempts=attempts, delay=0.1):
+        return True
+    print(f'FAIL: timed out waiting for {what}', file=sys.stderr)
+    return False
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        # Precondition: the 2020-01-01 date must have raised the alarm at peer add.
+        if not wait_for(api, True, 'the prefix-stale warning to be raised', 100):
+            sys.exit(1)
+        # Release the reload only now. trigger.sh blocks on this file, so the
+        # observation above always happens before the config carrying the fresh
+        # dates is installed.
+        with open('saw-stale', 'w') as f:
+            f.write('1')
+        # The reload carries 2099-01-01, which is inside the 180-day window.
+        if not wait_for(api, False, 'the prefix-stale warning to clear after reload', 150):
+            sys.exit(1)
+
+        print('OK: refreshed prefix dates cleared the stale warning', file=sys.stderr)
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Initial ze bgp configuration: prefix data last refreshed in 2020
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external prefix-stale-reload {
+		run ./prefix-stale-reload.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+						updated 2020-01-01
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		process prefix-stale-reload {
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config: the `updated` date is the ONLY difference.
+# 2099-01-01 is in the future on purpose. IsPrefixDataStale (session_prefix.go)
+# measures now - updated against 180 days, so a future date is permanently fresh
+# and this fixture cannot expire the way a hardcoded recent date would.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external prefix-stale-reload {
+		run ./prefix-stale-reload.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+						updated 2099-01-01
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		process prefix-stale-reload {
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+
+# The reload took the swap branch and named the peer it swapped.
+expect=stderr:pattern=peer settings swapped in place
+# ... and never took the restart branch, which is the branch that bounces.
+reject=stderr:pattern=peer restart required
