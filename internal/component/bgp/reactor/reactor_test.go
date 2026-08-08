@@ -392,7 +392,8 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 	}
 
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -434,7 +435,8 @@ func TestWriteAnnounceUpdateIPv6(t *testing.T) {
 	}
 
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, true, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, true, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -529,11 +531,11 @@ func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
 
 	// With ADD-PATH enabled
 	bufAddPath := make([]byte, 4096)
-	nAddPath := WriteAnnounceUpdate(bufAddPath, 0, route, 65000, false, true, true)
+	nAddPath := WriteAnnounceUpdate(bufAddPath, 0, route, netip.Addr{}, 65000, false, true, true)
 
 	// Without ADD-PATH
 	bufNoAddPath := make([]byte, 4096)
-	nNoAddPath := WriteAnnounceUpdate(bufNoAddPath, 0, route, 65000, false, true, false)
+	nNoAddPath := WriteAnnounceUpdate(bufNoAddPath, 0, route, netip.Addr{}, 65000, false, true, false)
 
 	// RFC 7911: ADD-PATH adds 4-byte path identifier before each NLRI
 	// Message with ADD-PATH should be 4 bytes longer
@@ -558,11 +560,11 @@ func TestWriteAnnounceUpdateASN4False(t *testing.T) {
 
 	// With ASN4=true (4-byte AS)
 	bufASN4 := make([]byte, 4096)
-	nASN4 := WriteAnnounceUpdate(bufASN4, 0, route, 65000, false, true, false)
+	nASN4 := WriteAnnounceUpdate(bufASN4, 0, route, netip.Addr{}, 65000, false, true, false)
 
 	// With ASN4=false (2-byte AS)
 	bufASN2 := make([]byte, 4096)
-	nASN2 := WriteAnnounceUpdate(bufASN2, 0, route, 65000, false, false, false)
+	nASN2 := WriteAnnounceUpdate(bufASN2, 0, route, netip.Addr{}, 65000, false, false, false)
 
 	// RFC 6793: 2-byte AS encoding is shorter
 	// AS_PATH with single ASN: 4-byte = 3+4=7, 2-byte = 3+2=5, diff = 2
@@ -593,7 +595,8 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 	}
 
 	buf := make([]byte, 8192)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -676,7 +679,8 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 	}
 
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -726,7 +730,7 @@ func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
+		WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	}
 }
 
@@ -750,7 +754,7 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
+		WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, false, true, false)
 	}
 }
 
@@ -766,7 +770,7 @@ func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, 65000, true, true, false)
+		WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65000, true, true, false)
 	}
 }
 

@@ -6,6 +6,7 @@
 // Detail: update_text_vpls.go — VPLS NLRI parsing
 // RFC: rfc/short/rfc1997.md -- COMMUNITIES attribute and well-known values (parseCommunityText)
 // RFC: rfc/short/rfc3765.md -- NOPEER well-known community (parseCommunityText)
+// RFC: rfc/short/rfc2545.md -- the next-hop value must be a global IPv6 address (parseNhopFlat)
 //
 // update_text.go provides the update text parser for the "update text" command format.
 //
@@ -620,6 +621,13 @@ func parseNhopFlat(args []string, accum *parsedAttrs) (int, error) {
 	addr, err := netip.ParseAddr(value)
 	if err != nil {
 		return 0, fmt.Errorf("invalid next-hop: %w", err)
+	}
+	// RFC 2545 Section 3: the Network Address of Next Hop field carries the
+	// GLOBAL IPv6 address of the next hop. Ze appends the link-local half itself,
+	// from the session's link-local leaf, when the section's condition holds, so
+	// a link-local offered here has no global address to follow.
+	if err := attribute.ValidateGlobalNextHop(addr); err != nil {
+		return 0, err
 	}
 	accum.NextHop = addr
 	accum.NextHopSelf = false

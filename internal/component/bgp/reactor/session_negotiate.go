@@ -79,6 +79,44 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 
 // sendOpen sends an OPEN message.
 func (s *Session) sendOpen(conn net.Conn) error {
+	open := s.buildOpen(s.settings, s.configCapabilities())
+
+	s.mu.Lock()
+	s.localOpen = open
+	s.mu.Unlock()
+
+	err := s.writeMessage(conn, open)
+	if err == nil && s.onOpenSent != nil {
+		s.onOpenSent()
+	}
+	return err
+}
+
+// configCapabilities returns the configured capability list, read under the
+// Peer's lock when a Peer owns this session. A reload swap can replace the slice
+// on the shared PeerSettings (hotSwappableSettings, peer_settings_apply.go).
+//
+// The direct read is the fallback for a Session a test built with NewSession: no
+// Peer owns it, so nothing writes the field and the read cannot race.
+func (s *Session) configCapabilities() []capability.Capability {
+	if s.configCapGetter != nil {
+		return s.configCapGetter()
+	}
+	return s.settings.Capabilities
+}
+
+// buildOpen builds the OPEN message this session sends under the given settings
+// and configured capability list.
+//
+// It is the ONE producer of ze's OPEN. sendOpen writes what it returns, and the
+// reload swap decision calls it a second time with the settings a reload proposes
+// to answer "would the OPEN come out the same?" (peer_settings_negotiation.go).
+// A second builder would let the decision be taken against an OPEN ze never sends.
+//
+// configCaps is passed rather than read off settings.Capabilities because the two
+// have different lock rules: every other field this reads is set at construction
+// and never mutated, while Capabilities is replaced by a reload swap.
+func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capability) *message.Open {
 	// Build capabilities in RFC-expected order:
 	// 1. Multiprotocol (from config OR plugin decode families - not both)
 	// 2. ASN4
@@ -90,7 +128,7 @@ func (s *Session) sendOpen(conn net.Conn) error {
 
 	// Separate Multiprotocol capabilities from others.
 	// If config specifies families, use ONLY those (plugin families ignored).
-	for _, c := range s.settings.Capabilities {
+	for _, c := range configCaps {
 		if c.Code() == capability.CodeMultiprotocol {
 			caps = append(caps, c)
 			configHasFamilies = true
@@ -120,13 +158,13 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	}
 
 	// Add ASN4 unless disabled in config.
-	if !s.settings.DisableASN4 {
-		caps = append(caps, &capability.ASN4{ASN: s.settings.LocalAS})
+	if !settings.DisableASN4 {
+		caps = append(caps, &capability.ASN4{ASN: settings.LocalAS})
 	}
 
 	// draft-abraitis-idr-addpath-paths-limit: suppress PATHS-LIMIT for RS fast-path peers
 	// (RS fast-path forwards raw UPDATEs without per-prefix path tracking).
-	if s.settings.RSFastPath {
+	if settings.RSFastPath {
 		filtered := make([]capability.Capability, 0, len(otherCaps))
 		for _, c := range otherCaps {
 			if c.Code() != capability.CodePathsLimit {
@@ -148,29 +186,19 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	optParams := buildOptionalParams(caps)
 
 	// Determine AS to put in header (AS_TRANS if > 65535).
-	myAS := uint16(s.settings.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
-	if s.settings.LocalAS > 65535 {
+	myAS := uint16(settings.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
+	if settings.LocalAS > 65535 {
 		myAS = 23456 // AS_TRANS
 	}
 
-	open := &message.Open{
+	return &message.Open{
 		Version:        4,
 		MyAS:           myAS,
-		HoldTime:       uint16(s.settings.ReceiveHoldTime / time.Second), //nolint:gosec // Hold time max 65535s
-		BGPIdentifier:  s.settings.RouterID,
-		ASN4:           s.settings.LocalAS,
+		HoldTime:       uint16(settings.ReceiveHoldTime / time.Second), //nolint:gosec // Hold time max 65535s
+		BGPIdentifier:  settings.RouterID,
+		ASN4:           settings.LocalAS,
 		OptionalParams: optParams,
 	}
-
-	s.mu.Lock()
-	s.localOpen = open
-	s.mu.Unlock()
-
-	err := s.writeMessage(conn, open)
-	if err == nil && s.onOpenSent != nil {
-		s.onOpenSent()
-	}
-	return err
 }
 
 // buildOptionalParams builds optional parameters from capabilities.

@@ -1611,13 +1611,28 @@ nearly invisible to peers.
 
 ze's config apply path is based on YANG diff, which lets ze identify
 exactly which peers need to restart and which can soft-reconfigure.
-ze's filter reload path already handles the common case without
-bouncing sessions. What ze can learn from BIRD is the **compare-then-act
-pattern**: ze should explicitly compare old and new per-peer config
-for the fields that matter and log which category of change caused a
-restart when one happens. BIRD produces no log at all for a
-successful soft reconfigure, which is excellent for ops teams
-watching dashboards.
+
+ze's filter reload path did NOT handle the common case without
+bouncing sessions, contrary to what this section claimed until
+2026-08-08. `reconcilePeersJournaled` (`reactor_api.go`) applied ANY
+per-peer difference by removing and re-adding the peer, so an edit to
+a filter chain or a prefix refresh date tore the session down
+(`plan/spec-bgp-peer-settings-reload-ignored.md`).
+
+ze has since taken the **compare-then-act pattern** from BIRD.
+`peerSettingsSwapPlan` (`peer_settings_apply.go`) compares old and new
+per-peer config, delivers the fields a running session can take
+without touching the FSM, and returns the names of the fields that
+force a restart when one is unavoidable. That reason is logged as the
+`changed=` value on the `peer restart required` line, which is the
+restart-category log this section asked for. BIRD produces no log at
+all for a successful soft reconfigure, and ze mirrors that too: the
+swap path logs at debug only.
+
+What ze still does not have is BIRD's in-place comparison against the
+live `bgp_proto`. ze compares two `PeerSettings` values, which is why
+the capability case needs a separate probe against what the running
+session actually negotiated (`peer_settings_negotiation.go`).
 
 ---
 

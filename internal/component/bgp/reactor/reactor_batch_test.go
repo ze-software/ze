@@ -1,3 +1,9 @@
+// rfc-test-change-approved: 2026-08-08 Thomas approved the buildBatchAnnounceUpdate
+// signature change that carries the true cause to the caller (an (*message.Update,
+// error) pair in place of a bare *message.Update, so a refused build reports WHY
+// instead of a silent nil). Every hunk in this RFC4271-5.1.2-2 / RFC4271-5.1.2-3
+// file is that caller adaptation, `update :=` becoming `update, _ :=`. No
+// assertion, fixture, or expected value changed.
 package reactor
 
 import (
@@ -426,7 +432,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	// Use nil context (default ASN4=true, no ADD-PATH)
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, false, true, false, 65000)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, false, true, false, 65000)
 
 	require.NotNil(t, update)
 
@@ -461,7 +467,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, true, false, 65000)
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, false, true, false, 65000)
 
 	require.NotNil(t, update)
 
@@ -522,7 +528,7 @@ func announceWithExplicitASPath(t *testing.T, userPath []uint32, isIBGP, rsClien
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: localAS}}}
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
 		netip.MustParseAddr("10.0.0.1"), isIBGP, rsClient, true /*asn4*/, false, localAS)
 	require.NotNil(t, update)
 

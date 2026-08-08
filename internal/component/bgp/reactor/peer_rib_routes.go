@@ -8,6 +8,7 @@
 package reactor
 
 import (
+	"errors"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -110,16 +111,34 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
 	nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
+	// The stored next hop is not validated anywhere upstream of this rail. A route
+	// queued by AnnounceNLRIBatch (reactor_api_batch.go) carries whatever
+	// Peer.resolveNextHop returned, and resolveNextHop hands an explicit next-hop
+	// back unvalidated, the zero netip.Addr included. Both branches below refuse
+	// rather than encode: this rail builds over an EMPTY base, so there is no
+	// previous NEXT_HOP to fall back on, and an UPDATE missing one is a Missing
+	// Well-known Attribute (RFC 4271 Section 5.1.3, RFC 7606 Section 3(d)).
+	nextHop := route.NextHop()
+
 	var nlriBytes []byte
 	if fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast {
 		// 3. NEXT_HOP for IPv4 unicast
-		plan.add(plan.nextHopFor(route.NextHop()), nil)
+		if !nextHop.IsValid() {
+			logRIBRouteNextHopUnencodable(routeNLRI, nextHop)
+			return nil
+		}
+		plan.add(plan.nextHopFor(nextHop), nil)
 		nlriBytes = nlriData
 	} else {
 		// RFC 4760: every other family carries its next-hop and NLRI inside
 		// MP_REACH_NLRI (type 14), which the writer places at its type-code position.
-		plan.add(attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI),
-			[]netip.Addr{route.NextHop()}, nlriData), nil)
+		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI),
+			[]netip.Addr{nextHop}, nlriData)
+		if err := mpReach.ValidateNextHops(); err != nil {
+			logRIBRouteNextHopUnencodable(routeNLRI, nextHop)
+			return nil
+		}
+		plan.add(mpReach, nil)
 	}
 
 	// 4. MED if present.
@@ -188,6 +207,15 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	// 128-slot slab (session.go), so its CAP runs into the next peer's buffer.
 	n, ok := plan.emit(nil, attrBuf[:nlriOff])
 	if !ok {
+		// Not every refusal is oversize. announceAttrs.add refuses an attribute with
+		// no wire form on its own, for a contribution this function did not pre-check
+		// -- the stored optional attributes above are contributed unfiltered -- and
+		// the oversize line would tell the operator to reduce a route whose size was
+		// never the problem (ai/rules/cli.md).
+		if errors.Is(plan.refusalCause(), attribute.ErrUnencodableNextHop) {
+			logRIBRouteNextHopUnencodable(routeNLRI, nextHop)
+			return nil
+		}
 		logRIBRouteTooLarge(routeNLRI, len(attrBuf), "attributes")
 		return nil
 	}
@@ -196,6 +224,30 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		PathAttributes: attrBuf[:n],
 		NLRI:           nlriBytes,
 	}
+}
+
+// logRIBRouteNextHopUnencodable records a queued-rail build refused because the
+// stored next hop has no wire form.
+//
+// It is the "or say something" half of the guard above, and it is a separate line
+// from logRIBRouteTooLarge because the operator action differs: nothing about the
+// route's size would help, and the next hop is what must change (ai/rules/cli.md).
+// Reusing the oversize line was the state before this function existed, and it told
+// the operator to reduce attributes on a route whose attributes were fine.
+//
+// The text names UNRESOLVED, which is all either branch above tests: the IPv4 arm
+// is a bare netip.Addr.IsValid and the MP arm is attribute.ValidateNextHops, which
+// is the same test per next hop. An earlier wording said the next hop had no wire
+// form "for this family" and asked for one "this family can carry", claiming a
+// family determination neither branch makes -- a VALID IPv4 address on an IPv6
+// route passes both and encodes four octets under AFI 2, a length RFC 2545
+// Section 3 does not define. errAnnounceNextHopUnencodable (reactor_api_batch.go)
+// was narrowed away from that same claim; this is the queued rail's half of it
+// (ai/rules/cli.md: an operator-facing message must be true).
+func logRIBRouteNextHopUnencodable(n nlri.NLRI, nextHop netip.Addr) {
+	routesLogger().Warn("queued route rejected: next-hop is unresolved and has no wire form",
+		"family", n.Family(), "nlri", n.String(), "next-hop", nextHop,
+		"action", "route not sent to this peer; set a next-hop for this route")
 }
 
 // logRIBRouteTooLarge records a queued-rail build this buffer could not hold. The

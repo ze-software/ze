@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — peer forwarding facts precomputation
+// RFC: rfc/short/rfc2545.md
 // Related: peer.go — Peer struct, lifecycle methods
 // Related: reactor_api_forward.go — ForwardUpdate egress pipeline
 // Related: forward_rs.go — reactorForwardRS egress pipeline
@@ -13,15 +14,21 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 const (
-	nhModeNone       uint8 = iota // No next-hop ops (Auto or Unchanged)
-	nhModeSelf4                   // Self IPv4: legacy NEXT_HOP + mapped MP_REACH
-	nhModeSelfV6                  // Self IPv6: MP_REACH global only
-	nhModeSelfV6LL                // Self IPv6: MP_REACH global + link-local
-	nhModeExplicit4               // Explicit IPv4: legacy NEXT_HOP + mapped MP_REACH
-	nhModeExplicitV6              // Explicit IPv6: MP_REACH global only
+	nhModeNone   uint8 = iota // No next-hop ops (Auto or Unchanged)
+	nhModeSelf4               // Self IPv4: legacy NEXT_HOP + mapped MP_REACH
+	nhModeSelfV6              // Self IPv6: MP_REACH global only
+	// nhModeSelfV6LL is the RFC 2545 Section 3 two-address form: MP_REACH carries
+	// the global address then the link-local one. applyLinkLocalNextHop
+	// (link_scope.go) raises BOTH nhModeSelfV6 and nhModeExplicitV6 to it, so the
+	// "Self" in the name is historical: what it names is the wire form, and the
+	// global address it carries is already in nhGlobal either way.
+	nhModeSelfV6LL
+	nhModeExplicit4  // Explicit IPv4: legacy NEXT_HOP + mapped MP_REACH
+	nhModeExplicitV6 // Explicit IPv6: MP_REACH global only
 )
 
 type sendCommunityMask uint8
@@ -81,7 +88,12 @@ func (p *Peer) forwardFacts() *peerForwardFacts {
 
 // refreshForwardFacts builds and stores a new forwarding facts snapshot.
 // Called at: setEncodingContexts (after unlock), resolveDynamicPeerSettings.
+//
+// The link scope is re-read first, because buildForwardFacts precomputes the
+// next-hop wire form and RFC 2545 Section 3 decides that form against the host
+// interface table (link_scope.go).
 func (p *Peer) refreshForwardFacts() {
+	p.refreshLinkScope()
 	p.fwdFacts.Store(p.buildForwardFacts())
 }
 
@@ -95,11 +107,19 @@ func (p *Peer) refreshForwardFacts() {
 // clearEncodingContexts stores nil on teardown (peer.go), and a plain store racing
 // it would resurrect the snapshot for a session that has gone.
 func (p *Peer) refreshForwardFactsIfLive() {
+	p.refreshForwardFactsIfLiveFrom(network.ConnectedPrefixes())
+}
+
+// refreshForwardFactsIfLiveFrom is refreshForwardFactsIfLive against an interface
+// table the caller has already read, for a fan-out over many peers
+// (refreshPeerLinkScopes, reactor_iface.go).
+func (p *Peer) refreshForwardFactsIfLiveFrom(connected []netip.Prefix) {
 	for {
 		previous := p.fwdFacts.Load()
 		if previous == nil {
 			return
 		}
+		p.refreshLinkScopeFrom(connected)
 		if p.fwdFacts.CompareAndSwap(previous, p.buildForwardFacts()) {
 			return
 		}
@@ -180,11 +200,16 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	}
 
 	precomputeNextHop(s, facts)
+	applyLinkLocalNextHop(s, facts, p.llScope.Load())
 	precomputeSendCommunity(s, facts)
 
 	return facts
 }
 
+// precomputeNextHop fixes the next-hop wire form this peer will send, from
+// config alone. An IPv6 next hop lands on the single-address form here;
+// applyLinkLocalNextHop then decides whether RFC 2545 Section 3 puts a second
+// address beside it.
 func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
 	switch s.NextHopMode {
 	case NextHopAuto, NextHopUnchanged:
@@ -200,12 +225,6 @@ func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
 			f.nhMode = nhModeSelf4
 			f.nhLegacy = local.As4()
 			f.nhMapped = local.As16()
-		case s.LinkLocal.IsValid() && s.LinkLocal.Is6():
-			f.nhMode = nhModeSelfV6LL
-			f.nhGlobal = local.As16()
-			ll := s.LinkLocal.As16()
-			copy(f.nhGlobalLL[:16], f.nhGlobal[:])
-			copy(f.nhGlobalLL[16:], ll[:])
 		default:
 			f.nhMode = nhModeSelfV6
 			f.nhGlobal = local.As16()

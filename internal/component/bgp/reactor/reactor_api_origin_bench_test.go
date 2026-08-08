@@ -54,7 +54,7 @@ func BenchmarkAPIOriginVsForward(b *testing.B) {
 		for range b.N {
 			// Two contributions over the three-attribute base: NEXT_HOP (3) and
 			// LOCAL_PREF (5), the iBGP announce shape.
-			if u := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
+			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
 				true /*iBGP*/, false, true /*asn4*/, false, 65000); u == nil {
 				b.Fatal("announce build failed")
 			}
@@ -93,6 +93,13 @@ func BenchmarkAPIOriginVsForward(b *testing.B) {
 // BenchmarkAnnounceRails compares the two announce rails against each other, which
 // is the property the rail-agreement tests assert on bytes and this one asserts on
 // cost: neither rail should be the cheap one, because they are the same writer.
+//
+// Three sub-benchmarks, and the family is load-bearing. "batch" and "queued" are
+// IPv4 unicast, so both take the NEXT_HOP branch and no *attribute.MPReachNLRI is
+// ever contributed: announceAttrs.add runs its next-hop type assertion, the
+// assertion FAILS, and ValidateNextHops does not run. Only "batch-mp" is a family
+// whose next hop travels inside MP_REACH_NLRI, so it is the one that measures the
+// backstop actually validating (announce_build.go).
 func BenchmarkAnnounceRails(b *testing.B) {
 	nextHop := netip.MustParseAddr("10.0.0.1")
 	builder := attribute.NewBuilder()
@@ -115,9 +122,32 @@ func BenchmarkAnnounceRails(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
-			if u := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
+			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop,
 				true, false, true, false, 65000); u == nil {
 				b.Fatal("batch build failed")
+			}
+		}
+	})
+
+	// The MP_REACH rail: an IPv6 batch carries its next hop inside the attribute, so
+	// this is the sub-benchmark whose plan.add reaches ValidateNextHops.
+	b.Run("batch-mp", func(b *testing.B) {
+		mpNextHop := netip.MustParseAddr("2001:db8::1")
+		mpNLRI := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:1::/48"), 0)
+		batch := bgptypes.NLRIBatch{
+			Family:  family.IPv6Unicast,
+			NLRIs:   []nlri.NLRI{mpNLRI},
+			NextHop: bgptypes.NewNextHopExplicit(mpNextHop),
+			Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
+		}
+		attrBuf := make([]byte, message.MaxMsgLen)
+		nlriBuf := make([]byte, message.MaxMsgLen)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for range b.N {
+			if u, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, mpNextHop,
+				true, false, true, false, 65000); u == nil {
+				b.Fatal("batch mp build failed")
 			}
 		}
 	})

@@ -1,0 +1,150 @@
+# Test: Config reload REMOVES a capability the peer never used, and the session
+#       still restarts -- because a second field moves with it.
+# Initial config: peer1 declares capability extended-message enable
+# After SIGHUP:   the extended-message line is gone; nothing else in the file differs
+# Expected: the peer restarts, and the log names BOTH fields that forced it.
+#
+# VALIDATES: the boundary of the owner's ruling of 2026-08-07 -- "if capabilities
+#            are removed from the peer which were not used ... we can accept the
+#            change and keep the BGP session up, otherwise have to re-start and
+#            re-negotiate". ze-peer mirrors ze's OPEN, so the peer DID advertise
+#            extended-message here and the negotiation genuinely changes. The
+#            capability half of the verdict is therefore restart on its own merits.
+#            The second name in the log is the finding: parseCapabilitiesFromTree
+#            (config_capabilities.go) also rewrites CapabilityConfigJSON, the blob
+#            that carries the capability block to plugins, from the SAME edit.
+#            negotiationOutcomeUnchanged (peer_settings_negotiation.go) cannot see
+#            what a plugin would inject once it received that blob, so the field
+#            restarts and no capability-block edit can reach the swap branch today.
+# PREVENTS:  the restart reason naming one field when two forced it. An operator
+#            who reads "Capabilities", makes the capability set negotiate
+#            identically, and reloads again would watch the session flap a second
+#            time for the field nobody told them about.
+#
+# DISCRIMINATION: the assertion is the exact reason STRING, not the presence of a
+# restart. Returning early after the first changed field -- which the code did
+# until 2026-08-07 -- still restarts, still logs "peer restart required", and
+# fails this test on the reason alone. Deleting the log line fails it too.
+#
+# The swap branch of the ruling is proved where the config surface can reach it:
+# TestNegotiationOutcomeDecidesSwapOrRestart and
+# TestReloadCapabilityChangeKeepsTheSessionWhenNegotiationIsUnchanged
+# (internal/component/bgp/reactor/peer_settings_negotiation_test.go) drive a real
+# Reload() over a peer with a live negotiated session.
+
+option=env:var=ze.log.bgp.reactor:value=debug
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: drop the extended-message capability and SIGHUP.
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+
+# Connection 2: the restart reconnects and resends the same route.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial ze bgp configuration: extended-message advertised
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				extended-message enable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config: extended-message is gone; nothing else differs.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+
+# The restart names every field that forced it, in struct order after Capabilities.
+expect=stderr:pattern=peer restart required
+expect=stderr:pattern=changed=Capabilities,CapabilityConfigJSON
+reject=stderr:pattern=peer settings swapped in place

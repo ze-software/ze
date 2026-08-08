@@ -1,4 +1,5 @@
 // Design: plan/learned/492-iface-3-bgp-react.md — BGP reactions to interface events
+// RFC: rfc/short/rfc2545.md — the Section 3 link-local condition is re-settled on an address event
 // Overview: reactor.go — Reactor struct and lifecycle
 
 package reactor
@@ -7,11 +8,13 @@ import (
 	"encoding/json"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // interfaceAddrPayload is the JSON payload emitted by the interface monitor
@@ -74,6 +77,65 @@ func (r *Reactor) onInterfaceAddrRemoved(payload string) {
 	r.handleAddrRemovedPayload(p)
 }
 
+// refreshPeerLinkScopes re-reads the host interface table once and re-settles
+// RFC 2545 Section 3's inclusion condition for every peer that has a live
+// forwarding snapshot.
+//
+// Section 3 decides the next-hop wire form against the subnets this host is
+// attached to, and the snapshot that answers it is built at session
+// establishment and at a config reload (link_scope.go). An address added to or
+// removed from an interface OTHER than the one carrying the session moves that
+// answer while the TCP connection survives, so without this the speaker keeps
+// appending a link-local Section 3 now forbids, or keeps omitting one it now
+// requires.
+//
+// This binds the FORM of every advertisement made after the event. Section 3
+// constrains what a speaker "shall advertise ... in the Network Address of Next
+// Hop field", which is the act of advertising; it states no obligation to
+// re-advertise a route already sent, so no re-advertisement is triggered here.
+//
+// It runs synchronously on the EventBus delivery goroutine and MUST NOT hold
+// reactor.mu while refreshing, so the peer list is copied under the read lock and
+// the lock is released before any peer is touched. The kernel is read once for
+// the whole fan-out rather than once per peer, and a peer whose scope already
+// holds that exact table is left alone (see the loop).
+func (r *Reactor) refreshPeerLinkScopes() {
+	r.mu.RLock()
+	peers := make([]*Peer, 0, len(r.peers))
+	for _, peer := range r.peers {
+		peers = append(peers, peer)
+	}
+	r.mu.RUnlock()
+
+	if len(peers) == 0 {
+		return
+	}
+
+	connected := network.ConnectedPrefixes()
+	for _, peer := range peers {
+		// An interface burst delivers one event per address, and the kernel already
+		// holds every address of the burst by the time the first event is delivered.
+		// Events 2..N therefore read a table identical to the one this peer's scope
+		// was built from, and rebuilding on an identical table allocates a linkScope
+		// and a forwarding-facts snapshot per peer per event to reach the same
+		// answer. Section 3's condition is decided by the table alone, so an equal
+		// table decides it equally.
+		//
+		// A peer that has never read a table has a nil scope, so the comparison is
+		// false and it always rebuilds. A reordered table is not equal and rebuilds
+		// too, which costs the saving rather than the answer.
+		//
+		// This guard belongs here and NOT in refreshForwardFactsIfLiveFrom
+		// (peer_forward_facts.go). That function is also the settings-apply path
+		// (peer_settings_apply.go), which changes inputs the interface table says
+		// nothing about, and must rebuild every time.
+		if scope := peer.llScope.Load(); scope != nil && slices.Equal(scope.connected, connected) {
+			continue
+		}
+		peer.refreshForwardFactsIfLiveFrom(connected)
+	}
+}
+
 // handleAddrAddedPayload starts a listener when an address matching a
 // peer's LocalAddress appears. On success it emits (bgp, listener-ready)
 // so iface migration consumers can complete their make-before-break.
@@ -84,6 +146,10 @@ func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
 		return
 	}
 	addr = addr.Unmap()
+
+	// RFC 2545 Section 3: the new address changes which subnets this host is
+	// attached to, for every peer and not only the ones bound to it.
+	r.refreshPeerLinkScopes()
 
 	// Find peers whose LocalAddress matches.
 	r.mu.RLock()
@@ -129,6 +195,10 @@ func (r *Reactor) handleAddrRemovedPayload(p interfaceAddrPayload) {
 		return
 	}
 	addr = addr.Unmap()
+
+	// RFC 2545 Section 3: a removed address can end a shared subnet, for every
+	// peer and not only the one bound to this address.
+	r.refreshPeerLinkScopes()
 
 	r.mu.Lock()
 	port := r.config.Port

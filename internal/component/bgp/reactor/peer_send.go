@@ -38,6 +38,12 @@ func (p *Peer) SendUpdate(update *message.Update) error {
 // RFC 4271 Section 4.3 - UPDATE Message Format.
 // RFC 4760 Section 3 - MP_REACH_NLRI for IPv6 routes.
 // RFC 7911 - ADD-PATH encoding based on negotiated capabilities.
+//
+// RFC 2545 Section 3: the link-local half of the Next Hop field is decided here,
+// because the section's condition is a property of this session and this next hop
+// rather than of the route the caller describes. linkLocalNextHopFor
+// (link_scope.go) answers it against the host interface table, and returns the
+// zero Addr for every case that must carry the global address alone.
 func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	p.mu.RLock()
 	session := p.session
@@ -54,8 +60,9 @@ func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	}
 	asn4 := p.asn4()
 	addPath := p.addPathFor(fam)
+	linkLocal := p.linkLocalNextHopFor(route.NextHop.Addr)
 
-	if err := session.SendAnnounce(route, localAS, isIBGP, asn4, addPath); err != nil {
+	if err := session.SendAnnounce(route, linkLocal, localAS, isIBGP, asn4, addPath); err != nil {
 		return err
 	}
 	return nil

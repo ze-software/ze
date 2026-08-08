@@ -126,8 +126,9 @@ func TestWriteASPathAttr_MultipleASNs(t *testing.T) {
 // RFC 4271 §5.1.3: Well-known mandatory, 4 bytes for IPv4.
 func TestWriteNextHopAttr(t *testing.T) {
 	buf := make([]byte, 64)
-	addr := netip.MustParseAddr("192.168.1.1")
-	n := writeNextHopAttr(buf, 0, addr)
+	a4, err := nextHopV4Octets(netip.MustParseAddr("192.168.1.1"))
+	require.NoError(t, err)
+	n := writeNextHopAttr(buf, 0, a4)
 
 	expected, _ := hex.DecodeString("400304c0a80101")
 	assert.Equal(t, 7, n)
@@ -230,7 +231,8 @@ func TestWriteAnnounceUpdate_IPv4_iBGP(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
-	n := WriteAnnounceUpdate(buf, 0, route, 65001, true, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	require.Greater(t, n, message.MarkerLen+2+1) // at minimum: marker + len + type
 
 	// Verify marker (16 × 0xFF)
@@ -271,7 +273,8 @@ func TestWriteAnnounceUpdate_IPv4_eBGP(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
-	n := WriteAnnounceUpdate(buf, 0, route, 65001, false, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, false, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	require.Greater(t, n, 0)
 
 	// eBGP should have AS_PATH with local AS 65001
@@ -299,7 +302,8 @@ func TestWriteAnnounceUpdate_IPv6(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	n := WriteAnnounceUpdate(buf, 0, route, 65001, true, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
+	require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 	require.Greater(t, n, 0)
 
 	// Look for MP_REACH_NLRI attribute header (code 14, optional)
@@ -411,7 +415,8 @@ func TestWriteAnnounceUpdate_MessageLength(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr(tt.nhop)),
 			}
 
-			n := WriteAnnounceUpdate(buf, 0, route, 65001, tt.isIBGP, true, tt.addPath)
+			n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, tt.isIBGP, true, tt.addPath)
+			require.NotZero(t, n, "the writer reports zero bytes only when it refuses the next hop")
 			headerLen := int(buf[message.MarkerLen])<<8 | int(buf[message.MarkerLen+1])
 			assert.Equal(t, n, headerLen, "header length must match bytes written")
 		})

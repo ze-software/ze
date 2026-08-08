@@ -145,6 +145,7 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 		PrefixTeardown:    maps.Clone(tmpl.PrefixTeardown),
 		PrefixIdleTimeout: maps.Clone(tmpl.PrefixIdleTimeout),
 		PrefixReconnect:   maps.Clone(tmpl.PrefixReconnect),
+		PrefixCount:       maps.Clone(tmpl.PrefixCount),
 		PrefixUpdated:     maps.Clone(tmpl.PrefixUpdated),
 		ProcessBindings:   tmpl.ProcessBindings,
 		ImportFilters:     tmpl.ImportFilters,

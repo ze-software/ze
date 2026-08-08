@@ -399,6 +399,12 @@ type PeerSettings struct {
 	// Read it through PrefixReconnectFor, never with a bare map index.
 	PrefixReconnect map[string]PrefixReconnectMode
 
+	// PrefixCount says, per family, which prefixes the count compared against
+	// PrefixMaximum holds. Key is "afi/safi", same as PrefixMaximum. An absent
+	// key means PrefixCountOffered, which is the YANG default.
+	// Read it through PrefixCountFor, never with a bare map index.
+	PrefixCount map[string]PrefixCountMode
+
 	// PrefixUpdated is the ISO date (YYYY-MM-DD) when the prefix maximum was
 	// last updated from PeeringDB, per family. Key is "afi/safi". Empty means
 	// manually configured (no staleness tracking).
@@ -562,6 +568,63 @@ func (n *PeerSettings) PrefixTeardownFor(fam string) bool {
 		return teardown
 	}
 	return true
+}
+
+// PrefixCountMode says which prefixes a family's prefix count holds. It is the
+// Go form of the per-family `prefix { count ...; }` leaf (ze-bgp-conf.yang).
+//
+// The two values differ only after warn-only enforcement (`teardown false`)
+// drops an UPDATE. RFC 4271 Section 6.7 leaves a prefix limit's own arithmetic
+// to the implementation, so the operator states which number the limit governs.
+type PrefixCountMode uint8
+
+const (
+	// PrefixCountOffered counts every prefix the peer announces, the prefixes of
+	// a dropped UPDATE included. It is the zero value and the YANG default, so a
+	// config that states nothing keeps the behavior it had.
+	PrefixCountOffered PrefixCountMode = iota
+	// PrefixCountInstalled counts only the prefixes of an UPDATE the session
+	// delivered. A dropped UPDATE leaves the count where it was.
+	PrefixCountInstalled
+)
+
+// String returns the YANG enum spelling, which is also what a log line shows
+// the operator.
+func (m PrefixCountMode) String() string {
+	switch m {
+	case PrefixCountOffered:
+		return "offered"
+	case PrefixCountInstalled:
+		return "installed"
+	}
+	// The value itself, not a bare "unknown": a mode that reaches here is a bug,
+	// and the number is what identifies which one.
+	return textbuf.StrUintStr("unknown(", uint64(m), ")")
+}
+
+// ParsePrefixCountMode maps a YANG enum value to its mode. ok is false for any
+// other string, which the config parser rejects rather than approximates.
+func ParsePrefixCountMode(s string) (mode PrefixCountMode, ok bool) {
+	switch s {
+	case "offered":
+		return PrefixCountOffered, true
+	case "installed":
+		return PrefixCountInstalled, true
+	}
+	return PrefixCountOffered, false
+}
+
+// PrefixCountFor returns which prefixes fam's count holds. fam is an "afi/safi"
+// string.
+//
+// An unconfigured family reads as OFFERED. That is the YANG default and the
+// behavior of every config written before the leaf existed, so an absent value
+// changes nothing for an existing peer. It is also the conservative direction
+// here: offered counts the prefixes of a dropped UPDATE, so the count is never
+// below the number of routes the session delivered, and the maximum cannot be
+// passed by a count that reads low.
+func (n *PeerSettings) PrefixCountFor(fam string) PrefixCountMode {
+	return n.PrefixCount[fam]
 }
 
 // PrefixIdleTimeoutFor returns the seconds to wait before reconnecting after

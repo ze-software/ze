@@ -224,6 +224,7 @@ func (p *Peer) runOnce() error {
 	}
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
+	session.SetConfigCapabilityGetter(p.ConfiguredCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
 	session.SetOpenValidator(p.validateOpen)
 
@@ -389,6 +390,13 @@ func (p *Peer) runOnce() error {
 
 			// Reset per-session API sync: count plugins with SendUpdate permission.
 			// They will signal "plugin session ready" after replaying routes.
+			//
+			// This count is ALSO what gates the initial-sync hold that keeps ze's
+			// End-of-RIB behind plugin-injected routes, and for that it is the
+			// wrong key: nothing on the injection path reads SendUpdate, so a
+			// plugin bound as a bare `process X { }` never appears here and its
+			// routes can land after the marker. See the KNOWN DEFECT note in
+			// sendInitialRoutes (peer_initial_sync.go) before changing either.
 			apiSendCount := 0
 			for _, binding := range p.settings.ProcessBindings {
 				if binding.SendUpdate {
@@ -403,14 +411,13 @@ func (p *Peer) runOnce() error {
 			// state those calls land on must already belong to this session.
 			p.ResetPeerUpBarrier()
 
-			// Set sendingInitialRoutes flag BEFORE notifying plugins.
-			// This ensures ShouldQueue() returns true during event delivery,
-			// preventing a race where a plugin receives state=up, sends a route
-			// command, and the route bypasses the queue (because the flag wasn't
-			// set yet). Without this, the route could be sent to the peer before
-			// sendInitialRoutes runs, causing duplicates when the RIB plugin
-			// replays on state=up.
-			p.sendingInitialRoutes.Store(1)
+			// The initial-sync gate is already closed: p.setState above closes it
+			// in the same call that publishes PeerStateEstablished, so ShouldQueue()
+			// is true here and stays true through the notifications below. It used
+			// to be closed at THIS line instead, which left every line between the
+			// publication and here as a window in which an established peer's route
+			// ops bypassed opQueue and the bgp-peer-sync quiescer reported the peer
+			// settled -- see setState (peer.go).
 
 			// Notify reactor of peer established and negotiated capabilities
 			p.mu.RLock()

@@ -1,4 +1,5 @@
 // Design: plan/learned/1008-cp-survival-4-on-demand-origination-design.md -- on-demand route origination CLI verbs
+// RFC: rfc/short/rfc2545.md -- the next-hop value must be a global IPv6 address (handleAnnounceUnicast)
 
 package announce
 
@@ -235,6 +236,14 @@ func handleAnnounceUnicast(ctx *pluginserver.CommandContext, bgpReactor bgptypes
 				addr, parseErr := netip.ParseAddr(nhVal)
 				if parseErr != nil {
 					return nil, fmt.Errorf("invalid next-hop address: %w", parseErr)
+				}
+				// RFC 2545 Section 3: the Network Address of Next Hop field
+				// carries the GLOBAL IPv6 address of the next hop. The link-local
+				// half is appended by the encoder from the session's link-local
+				// leaf when the section's condition holds, so one offered here has
+				// no global address to follow.
+				if formErr := attribute.ValidateGlobalNextHop(addr); formErr != nil {
+					return nil, formErr
 				}
 				nextHop = bgptypes.NewNextHopExplicit(addr)
 			}

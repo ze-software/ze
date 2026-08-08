@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // swapTestPeerSettings is the baseline a reload starts from. Every swap test
@@ -197,8 +198,10 @@ func TestPeerSettingsRestartReasonNamesTheChangedFields(t *testing.T) {
 			next := swapTestPeerSettings()
 			tc.mutate(next)
 
-			assert.True(t, peerSettingsRestartRequired(current, next), "the change must force a restart")
-			assert.Equal(t, tc.want, peerSettingsRestartReason(current, next))
+			// nil session: these fields are not capability fields, so the
+			// negotiation probe has nothing to say about them either way.
+			assert.True(t, peerSettingsRestartRequired(current, next, nil), "the change must force a restart")
+			assert.Equal(t, tc.want, peerSettingsRestartReason(current, next, nil))
 		})
 	}
 }
@@ -217,8 +220,8 @@ func TestPeerSettingsRestartReasonEmptyForHotSwappableFields(t *testing.T) {
 	next.ExportFilters = []filterapi.FilterRef{{Name: "policy:new-export"}}
 
 	require.False(t, peerSettingsEqual(current, next), "the fixture must be a real change")
-	assert.Empty(t, peerSettingsRestartReason(current, next))
-	assert.False(t, peerSettingsRestartRequired(current, next))
+	assert.Empty(t, peerSettingsRestartReason(current, next, nil))
+	assert.False(t, peerSettingsRestartRequired(current, next, nil))
 }
 
 // TestPeerSettingsRestartRequiredIsFailClosed verifies that the restart decision
@@ -247,7 +250,7 @@ func TestPeerSettingsRestartRequiredIsFailClosed(t *testing.T) {
 			next := swapTestPeerSettings()
 			mutate(next)
 
-			assert.True(t, peerSettingsRestartRequired(current, next),
+			assert.True(t, peerSettingsRestartRequired(current, next, nil),
 				"an unclassified field must force a restart, never a silent swap")
 		})
 	}
@@ -259,6 +262,176 @@ func TestPeerSettingsRestartRequiredIsFailClosed(t *testing.T) {
 // VALIDATES: AC-2 — an import-policy edit must not read as "0 peer changes".
 // PREVENTS: the silent-success failure. A swap costs one apply, not the two of a
 // remove plus a re-add, so it counts 1 rather than 2.
+// prefixStaleTestPeer is the address the prefix-date tests below configure. It is
+// not the address swapTestPeerSettings uses, so a warning one of these tests leaves
+// on the process-wide report bus cannot be mistaken for another test's.
+const prefixStaleTestPeer = "10.0.0.9"
+
+// prefixDatedSettings is a peer whose one family carries the given PeeringDB
+// refresh date. Every other field is identical across two calls, so a pair of them
+// differs in PrefixUpdated and in nothing else.
+func prefixDatedSettings(updated string) *PeerSettings {
+	ps := NewPeerSettings(mustParseAddr(prefixStaleTestPeer), 65001, 65002, 0x01020304)
+	ps.Connection = ConnectionPassive
+	ps.PrefixMaximum = map[string]uint32{"ipv4/unicast": 10000}
+	ps.PrefixUpdated = map[string]string{"ipv4/unicast": updated}
+	return ps
+}
+
+// newPrefixStaleTestReactor is newSwapTestReactor with the metrics registry wired
+// BEFORE the peer is added, which is the production order: Start registers the
+// reactor metrics, and every AddPeer after that publishes ze_bgp_prefix_stale
+// through them (reactor.go, reactor_peers.go). The returned gauge vec is that
+// metric, so a test can read the value the reload had to correct.
+func newPrefixStaleTestReactor(t *testing.T, initial, next *PeerSettings) (*Reactor, *Peer, *spyGaugeVec) {
+	t.Helper()
+
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	configPath := filepath.Join(t.TempDir(), "config.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(emptyConfig), 0o600))
+
+	reg := newSpyRegistry()
+	r := New(&Config{ConfigPath: configPath, ListenAddr: "127.0.0.1:0", Standalone: true})
+	r.rmetrics = initReactorMetrics(reg, "1.0.0", "1.2.3.4", "65000")
+
+	require.NoError(t, r.AddPeer(initial))
+	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
+		return []*PeerSettings{next}, nil
+	})
+
+	r.mu.RLock()
+	peer := r.peers[initial.PeerKey()]
+	r.mu.RUnlock()
+	require.NotNil(t, peer, "peer must exist before reload")
+
+	return r, peer, reg.gaugeVec("ze_bgp_prefix_stale")
+}
+
+// prefixStaleRaised reports whether the report bus currently carries a
+// bgp/prefix-stale warning for the test peer, which is what `ze show warnings` and
+// the login banner read (test/plugin/show-warnings.ci).
+func prefixStaleRaised() bool {
+	for _, w := range report.Warnings() {
+		if w.Source == reportSourceBGP && w.Code == reportCodePrefixStale && w.Subject == prefixStaleTestPeer {
+			return true
+		}
+	}
+	return false
+}
+
+// freshPrefixDate is today, which IsPrefixDataStale (session_prefix.go) measures
+// against a 180-day threshold. The reactor under test runs on clock.RealClock, so
+// deriving the date from the same wall clock keeps the fixture valid on any day.
+func freshPrefixDate() string {
+	return time.Now().UTC().Format(time.DateOnly)
+}
+
+// TestReloadPrefixDatesSwapWithoutRestart verifies that a config change touching
+// ONLY the per-family prefix `updated` dates reaches the running peer, and reaches
+// it without tearing the session down.
+//
+// VALIDATES: a PeeringDB refresh that bumps only the dates is delivered. Before
+// this, peerSettingsEqual (reactor_api.go) neutralized PrefixUpdated on both copies
+// before comparing, so reconcilePeersJournaled read the peer as unchanged, neither
+// swapped nor restarted it, and the new dates were discarded
+// (plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md).
+// PREVENTS: both halves of that trade going wrong. Comparing the field without
+// classifying it hot-swappable would deliver the dates by BOUNCING every peer on
+// every PeeringDB refresh, which is a worse regression than the stale alarm.
+//
+// DISCRIMINATION: the assertions are peer OBJECT IDENTITY, the generation counter,
+// and the date read back off the running peer. "A peer exists at this key" passes
+// against both failures; identity plus the delivered date passes against neither.
+func TestReloadPrefixDatesSwapWithoutRestart(t *testing.T) {
+	fresh := freshPrefixDate()
+	initial := prefixDatedSettings("2020-01-01")
+	next := prefixDatedSettings(fresh)
+
+	r, peer, _ := newPrefixStaleTestReactor(t, initial, next)
+	peer.state.Store(int32(PeerStateEstablished))
+	generationBefore := r.peerGeneration.Load()
+
+	adapter := &reactorAPIAdapter{r: r}
+	require.NoError(t, adapter.Reload())
+
+	r.mu.RLock()
+	after := r.peers[initial.PeerKey()]
+	r.mu.RUnlock()
+
+	require.NotNil(t, after, "the peer must still be configured after reload")
+	assert.True(t, after == peer, "a prefix-date refresh must not replace the peer object")
+	assert.Equal(t, generationBefore, r.peerGeneration.Load(),
+		"peerGeneration must not advance: a restart re-adds the peer and bumps it")
+	assert.Equal(t, PeerStateEstablished, after.State(),
+		"the established session must survive a prefix-date refresh")
+	assert.Equal(t, fresh, after.OldestPrefixUpdated(),
+		"the new dates must reach the running peer, not be discarded as 'no change'")
+}
+
+// TestReloadFreshPrefixDatesClearStaleAlarm verifies that the swap republishes the
+// staleness verdict, so a PeeringDB refresh actually clears the alarm it exists to
+// clear.
+//
+// VALIDATES: the operator-visible half of the fix. Both surfaces are asserted
+// because both are published from the same dates and each is read by different
+// tooling: the report bus warning by `ze show warnings` and the login banner, the
+// ze_bgp_prefix_stale gauge by Prometheus.
+// PREVENTS: the silent-discard failure moving one layer out. A swap that delivers
+// the dates and republishes nothing leaves both alarms answering from the values
+// read at AddPeer, so they could only clear on a daemon restart.
+//
+// DISCRIMINATION: the fixture REQUIREs the alarm raised and the gauge at 1 before
+// the reload. Without that precondition, "no warning afterwards" would also pass on
+// a run where the alarm was never raised at all.
+func TestReloadFreshPrefixDatesClearStaleAlarm(t *testing.T) {
+	initial := prefixDatedSettings("2020-01-01")
+	next := prefixDatedSettings(freshPrefixDate())
+
+	r, peer, staleGauge := newPrefixStaleTestReactor(t, initial, next)
+	peer.state.Store(int32(PeerStateEstablished))
+
+	require.True(t, prefixStaleRaised(), "the fixture must start with the prefix-stale warning raised")
+	require.NotNil(t, staleGauge, "ze_bgp_prefix_stale must be registered")
+	require.Equal(t, float64(1), staleGauge.get(prefixStaleTestPeer).Value(),
+		"the fixture must start with ze_bgp_prefix_stale at 1")
+
+	adapter := &reactorAPIAdapter{r: r}
+	require.NoError(t, adapter.Reload())
+
+	assert.False(t, prefixStaleRaised(),
+		"refreshed prefix dates must clear the prefix-stale warning without a daemon restart")
+	assert.Equal(t, float64(0), staleGauge.get(prefixStaleTestPeer).Value(),
+		"refreshed prefix dates must drive ze_bgp_prefix_stale back to 0")
+}
+
+// TestReloadStalePrefixDatesRaiseStaleAlarm verifies the other direction: a reload
+// whose dates cross the 180-day threshold RAISES the alarm on the running peer.
+//
+// VALIDATES: the swap republishes the verdict rather than clearing unconditionally.
+// PREVENTS: a fix that passes the clearing test by always clearing, which would
+// silence a peer whose prefix data has genuinely gone stale.
+func TestReloadStalePrefixDatesRaiseStaleAlarm(t *testing.T) {
+	initial := prefixDatedSettings(freshPrefixDate())
+	next := prefixDatedSettings("2020-01-01")
+
+	r, peer, staleGauge := newPrefixStaleTestReactor(t, initial, next)
+	peer.state.Store(int32(PeerStateEstablished))
+
+	require.False(t, prefixStaleRaised(), "the fixture must start with no prefix-stale warning")
+	require.Equal(t, float64(0), staleGauge.get(prefixStaleTestPeer).Value(),
+		"the fixture must start with ze_bgp_prefix_stale at 0")
+
+	adapter := &reactorAPIAdapter{r: r}
+	require.NoError(t, adapter.Reload())
+
+	assert.True(t, prefixStaleRaised(),
+		"dates that cross the staleness threshold must raise the warning on the running peer")
+	assert.Equal(t, float64(1), staleGauge.get(prefixStaleTestPeer).Value(),
+		"dates that cross the staleness threshold must drive ze_bgp_prefix_stale to 1")
+}
+
 func TestPeerDiffCountCountsSwapAsOneChange(t *testing.T) {
 	initial := swapTestPeerSettings()
 	next := swapTestPeerSettings()

@@ -544,14 +544,19 @@ func (s *Session) SendUpdateHeld(update *message.Update) error {
 // SendAnnounce sends a BGP UPDATE message for announcing a route.
 // Eliminates large buffer allocations by writing directly to session buffer.
 // Returns ErrInvalidState if the session is not established.
+// Returns ErrNextHopUnencodable, with nothing sent, when the route's next hop or
+// linkLocalNextHop cannot fill the Next Hop field the encoder declares
+// (WriteAnnounceUpdate, reactor_wire.go).
 //
 // RFC 4271 Section 4.3 - UPDATE Message Format.
 // RFC 4760 Section 3 - MP_REACH_NLRI for IPv6 routes.
+// RFC 2545 Section 3 - linkLocalNextHop, when valid, is appended after the global
+// address and takes the Next Hop length octet to 32. The caller decides it.
 // RFC 7911 - ADD-PATH encoding when addPath is true.
 // RFC 6793 - 4-byte AS encoding when asn4 is true.
 //
 // Concurrent calls are serialized by writeMu.
-func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP, asn4, addPath bool) error {
+func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()
@@ -568,12 +573,27 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	// The writer refuses a next hop it cannot encode by writing nothing and
+	// reporting 0 (WriteAnnounceUpdate, reactor_wire.go). Asking for the reason
+	// first is what turns that refusal into something an operator can act on: a
+	// silent no-op would look exactly like a route nobody asked for.
+	if err := ValidateAnnounceNextHop(route, linkLocalNextHop); err != nil {
+		return err
+	}
+
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
-	n := WriteAnnounceUpdate(s.writeBuf.Buffer(), 0, route, localAS, isIBGP, asn4, addPath)
+	n := WriteAnnounceUpdate(s.writeBuf.Buffer(), 0, route, linkLocalNextHop, localAS, isIBGP, asn4, addPath)
 
 	// Egress gate: an announce is always a route (never an EOR), so it honors the
 	// peer's export filter chain here.
+	//
+	// n is not re-checked against message.HeaderLen, and the slice below would panic
+	// if it were zero. It cannot be: WriteAnnounceUpdate returns 0 only when
+	// announceNextHopOctets refuses, and ValidateAnnounceNextHop above called that
+	// same pure function with the same two arguments and returned its error. The
+	// coupling is the reason the refusal lives in one function rather than two, and
+	// it is what makes this slice safe -- anyone splitting them owes this check.
 	if s.egressRouteFilter != nil {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		suppress, override := s.egressRouteFilter(body)

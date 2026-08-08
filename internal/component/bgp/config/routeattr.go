@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — BGP route attribute parsing
+// RFC: rfc/short/rfc2545.md
 // Detail: routeattr_community.go — community attribute types
 // Detail: routeattr_prefixsid.go — prefix SID attribute types
 
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/parse"
 )
 
@@ -378,6 +380,15 @@ func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error
 		ip, err := netip.ParseAddr(src.NextHop)
 		if err != nil {
 			return nil, fmt.Errorf("invalid next-hop %q: %w", src.NextHop, err)
+		}
+		// RFC 2545 Section 3: the Network Address of Next Hop field carries the
+		// GLOBAL IPv6 address of the next hop. A link-local address belongs after
+		// it, in the second half of the 32-octet form, and Ze appends that half
+		// itself from the session's link-local leaf when the section's condition
+		// holds. There is no global address to pair one with here, so the config
+		// is refused rather than encoded into a field the RFC forbids it in.
+		if err := attribute.ValidateGlobalNextHop(ip); err != nil {
+			return nil, err
 		}
 		attrs.NextHop = ip
 	}

@@ -265,9 +265,10 @@ type Peer struct {
 	opQueueMax int
 
 	// sendingInitialRoutes gates route sending during session establishment.
-	// States: 0=idle, 1=flag set by FSM (queuing enabled), 2=goroutine running.
-	// Set to 1 by FSM callback BEFORE notifying plugins of state=up, ensuring
-	// routes from plugin commands are queued. Upgraded to 2 by sendInitialRoutes.
+	// States: 0=idle, 1=gate closed (queuing enabled), 2=goroutine running.
+	// Set to 1 by setState, in the same call that publishes PeerStateEstablished
+	// and BEFORE it, so no goroutine can ever read an established peer whose
+	// route ops still bypass opQueue. Upgraded to 2 by sendInitialRoutes.
 	sendingInitialRoutes atomic.Int32
 
 	// sendingConfigStatic is true while sendInitialRoutes sends config-originated
@@ -370,6 +371,12 @@ type Peer struct {
 	health *sessionHealth
 
 	fwdFacts atomic.Pointer[peerForwardFacts]
+
+	// llScope holds the host facts RFC 2545 Section 3 needs to decide whether
+	// the link-local address belongs in the MP_REACH_NLRI Next Hop field. It is
+	// refreshed with fwdFacts; nil means the interface table has not been read
+	// for this peer yet, which appends no link-local (link_scope.go).
+	llScope atomic.Pointer[linkScope]
 }
 
 // NewPeer creates a new peer for the given settings.
@@ -418,14 +425,47 @@ func NewPeer(settings *PeerSettings) *Peer {
 
 // Settings returns the configured peer settings.
 //
-// The returned pointer is shared: for a dynamic peer, resolveDynamicPeerSettings mutates
-// PeerAS, ImportFilters, and ExportFilters on the pointed-to struct under p.mu when the
-// session establishes. A caller running on a different goroutine than that write MUST read
-// those three fields through PeerAS()/ImportFilters()/ExportFilters(), not off this
-// pointer, or it races the establishment write. Every other PeerSettings field is set at
-// construction and never mutated, so reading it off this pointer is race-free.
+// The returned pointer is shared, and five fields on the pointed-to struct are written
+// after construction, always under p.mu. resolveDynamicPeerSettings (reactor_dynamic.go)
+// writes PeerAS, ImportFilters and ExportFilters when a dynamic peer's session
+// establishes; applyHotSwappableSettings (peer_settings_apply.go) writes ImportFilters,
+// ExportFilters and PrefixUpdated when a config reload delivers a hot-swappable change,
+// and Capabilities as well when the reload proved the negotiation unchanged
+// (peer_settings_negotiation.go). A caller running on a different goroutine than those
+// writes MUST read those five fields through PeerAS()/ImportFilters()/ExportFilters()/
+// OldestPrefixUpdated()/ConfiguredCapabilities(), not off this pointer, or it races the
+// write. Every other PeerSettings field is set at construction and never mutated, so
+// reading it off this pointer is race-free.
+//
+// A caller that needs the WHOLE struct rather than one field uses SettingsSnapshot.
+// There is no goroutine that owns every write to this struct, so no caller can be
+// excused the lock by naming one: applyHotSwappableSettings runs on the reload
+// goroutine and resolveDynamicPeerSettings runs on the establishment goroutine, and
+// the two write overlapping fields.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// SettingsSnapshot returns a copy of the peer's settings taken under p.mu, for a
+// caller that must read the struct as a whole.
+//
+// The reload path is that caller. reconcilePeersJournaled (reactor_api.go) compares
+// the configured peers against the running ones and hands the result to
+// peerSettingsSwapPlan (peer_settings_apply.go), which copies the struct and reads
+// Capabilities off it. Both are whole-struct reads of the five mutable fields, so
+// neither is served by the per-field accessors, and taking the lock here rather than
+// inside the decision keeps that decision a pure function of two PeerSettings.
+//
+// The copy is shallow, and that is sufficient rather than a shortcut: every writer
+// REPLACES a slice header or a map (resolveDynamicPeerSettings, reactor_dynamic.go,
+// and applyHotSwappableSettings, peer_settings_apply.go), and no backing array or map
+// is mutated in place. A shallow copy under the lock therefore observes one consistent
+// set of headers, and what they point at never changes afterwards.
+func (p *Peer) SettingsSnapshot() *PeerSettings {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	snapshot := *p.settings
+	return &snapshot
 }
 
 // PeerAS returns the peer's ASN under p.mu. For a dynamic peer this is 0 until the OPEN is
@@ -453,6 +493,28 @@ func (p *Peer) ExportFilters() []filterapi.FilterRef {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.settings.ExportFilters
+}
+
+// ConfiguredCapabilities returns the capabilities the config asks this peer to
+// advertise, under p.mu. A reload swap replaces the slice when the new set would
+// negotiate to the same result (peer_settings_negotiation.go), so cross-goroutine
+// readers MUST use this accessor rather than p.settings.Capabilities. The returned
+// header is a snapshot; the backing array is never mutated in place.
+func (p *Peer) ConfiguredCapabilities() []capability.Capability {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.Capabilities
+}
+
+// OldestPrefixUpdated returns the oldest per-family PeeringDB refresh date under p.mu.
+// applyHotSwappableSettings (peer_settings_apply.go) replaces the whole PrefixUpdated map
+// when a reload delivers new dates, so cross-goroutine readers MUST use this accessor:
+// PeerSettings.OldestPrefixUpdated walks the map and reads the field more than once, and
+// an unguarded walk can pair the old map's keys with the new map's values.
+func (p *Peer) OldestPrefixUpdated() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.OldestPrefixUpdated()
 }
 
 // IsIBGP reports whether this is an IBGP session (LocalAS == PeerAS) under p.mu.
@@ -1023,7 +1085,34 @@ func (p *Peer) State() PeerState {
 }
 
 // setState updates state and calls callback.
+//
+// Publishing PeerStateEstablished CLOSES the initial-sync gate first, and the
+// order is the whole point: p.state is what every other goroutine reads, so the
+// instant Established becomes visible the peer must already look busy to both
+// gate readers. ShouldQueue would otherwise send a plugin's route DIRECT to the
+// session, ahead of the End-of-RIB sendInitialRoutes has not started emitting
+// (RFC 4724 Section 2), and PendingSync would tell the bgp-peer-sync quiescer
+// (DrainPeerSync, reactor_api.go) that a peer whose initial sync has not begun
+// is settled -- so `request quiesce` returns and the caller sends its next route
+// into the same window.
+//
+// It lives HERE rather than at the one call site because the store used to sit
+// 39 lines after the publication in peer_run.go's FSM callback, and every line
+// between them (SetEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings,
+// a synchronous Info log, ResetAPISync, ResetPeerUpBarrier) held the window open
+// -- wide enough that an oversubscribed CI host reordered test/plugin/mup4.ci's
+// wire to announce, withdraw, EoR. Binding the store to the publication makes
+// the window unreachable rather than short, and a future publication site
+// inherits the guarantee instead of having to remember it.
+//
+// Store, not CompareAndSwap: a rapid reconnect can find a previous
+// sendInitialRoutes still running (flag 2), and forcing 1 is what lets the new
+// session's goroutine take the CAS(1,2) and run its own sync. That is the
+// pre-existing contract of the store this replaces.
 func (p *Peer) setState(s PeerState) {
+	if s == PeerStateEstablished {
+		p.sendingInitialRoutes.Store(1)
+	}
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
 		if old == PeerStateEstablished && s != PeerStateEstablished {
@@ -1217,11 +1306,16 @@ func (p *Peer) resetInitialSyncEOR() {
 // ShouldQueue returns true if routes should be queued rather than sent directly.
 // Routes must be queued when:
 //   - Session is not established
-//   - Initial route sending is in progress (sendInitialRoutes running)
+//   - The initial sync is pending or running (sendingInitialRoutes non-zero)
 //   - There are pending queued operations (preserves insertion order)
 //
 // This prevents a race where routes sent directly during sendInitialRoutes
 // processing arrive at the peer before older queued routes.
+//
+// The second condition covers the whole of establishment, not just the running
+// goroutine: setState closes the gate before it publishes PeerStateEstablished,
+// so an observer that sees Established already sees a non-zero flag. Reading the
+// state first and the flag second is therefore safe in either order.
 func (p *Peer) ShouldQueue() bool {
 	if p.State() != PeerStateEstablished {
 		return true

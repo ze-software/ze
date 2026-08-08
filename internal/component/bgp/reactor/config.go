@@ -1,6 +1,9 @@
 // Design: docs/architecture/core-design.md — config tree parsing (PeersFromTree)
+// RFC: rfc/short/rfc4271.md — hold-time and keepalive bounds validated on the config leaves
+// RFC: rfc/short/rfc6286.md — the router-id leaf is the BGP Identifier and must be non-zero
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Detail: config_capabilities.go — BGP capability parsing from config tree
+// Detail: config_nexthop_form.go — the local-address, link-local and next-hop leaves
 // Related: peersettings.go — PeerSettings type produced by config parsing
 
 package reactor
@@ -228,33 +231,13 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// Local address from connection > local > ip (required).
-	var localAddrStr string
-	if connMap != nil {
-		if connLocalMap, ok := mapMap(connMap, "local"); ok {
-			localAddrStr, _ = mapString(connLocalMap, "ip")
-		}
+	// The three leaves that decide the MP_REACH next-hop field are parsed together
+	// in config_nexthop_form.go, where RFC 2545 Section 3 governs all of them.
+	if err := applyLocalAddress(ps, name, connMap); err != nil {
+		return nil, err
 	}
-	if localAddrStr == "" {
-		return nil, fmt.Errorf("peer %s: local ip is required (use IP address or \"auto\")", name)
-	}
-	if localAddrStr != valAuto {
-		la, err := netip.ParseAddr(localAddrStr)
-		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid local ip: %w", name, err)
-		}
-		ps.LocalAddress = la
-	}
-
-	// RFC 2545 Section 3: IPv6 link-local address for MP_REACH next-hop from session > link-local.
-	if sessionMap != nil {
-		if v, ok := mapString(sessionMap, "link-local"); ok {
-			ll, err := netip.ParseAddr(v)
-			if err != nil {
-				return nil, fmt.Errorf("peer %s: invalid link-local: %w", name, err)
-			}
-			ps.LinkLocal = ll
-		}
+	if err := applyLinkLocal(ps, name, sessionMap); err != nil {
+		return nil, err
 	}
 
 	// RFC 4456: Route reflection from session > route-reflector-client and session > cluster-id.
@@ -275,27 +258,8 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// RFC 4271 Section 5.1.3: Next-hop rewriting policy from session > next-hop.
-	if sessionMap != nil {
-		if nhVal, ok := mapString(sessionMap, "next-hop"); ok {
-			switch nhVal {
-			case "auto":
-				ps.NextHopMode = NextHopAuto
-			case "self":
-				ps.NextHopMode = NextHopSelf
-			case "unchanged":
-				ps.NextHopMode = NextHopUnchanged
-			case "": // empty treated as auto
-				ps.NextHopMode = NextHopAuto
-			default: // must be an IP address
-				nhAddr, err := netip.ParseAddr(nhVal)
-				if err != nil {
-					return nil, fmt.Errorf("peer %s: invalid next-hop %q: expected auto, self, unchanged, or IP address", name, nhVal)
-				}
-				ps.NextHopMode = NextHopExplicit
-				ps.NextHopAddress = nhAddr
-			}
-		}
+	if err := applyNextHopMode(ps, name, sessionMap); err != nil {
+		return nil, err
 	}
 
 	// AS-override from session > as-override.

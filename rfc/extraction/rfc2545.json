@@ -1,0 +1,147 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2545",
+  "register": "prose",
+  "register-reason": "Standards Track, March 1999, published before RFC 2119 keyword usage was routine. The document has no 'Specification of Requirements' section, cites RFC 2119 nowhere, and contains no capitalised MUST-level keyword. Every modal in the source is lowercase, so the derivation grades it 'prose' and the sign-off claims exactly that grade.",
+  "source-path": "rfc/full/rfc2545.txt",
+  "source-sha": "80e7f63fb7ad995a",
+  "signed-off": "2026-08-07",
+  "reviewer": "ze-rfc phase agent, deferral fixit-stored-route-relay-hardening (rfc2545 enrolment)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice and Abstract. The Abstract states what the document defines and binds no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Introduction. States that the BGP-4 procedures apply unchanged unless this document says otherwise, and that the document concerns itself with IPv6 address scope. Its one site describes what the IPv6 addressing architecture defines and is excluded below."
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "IPv6 Address Scopes. Defines the terms 'global' and 'non-link-local' for this document, and explains why a Next Hop field sometimes carries two addresses. It states no rule for building that field; every such rule is in section 3. Its two sites bind a network administrator and an IPv6 router's neighbour-discovery behaviour, and both are excluded below."
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Constructing the Next Hop field. The only section that binds a BGP speaker. All four sites are mapped, one per requirement, to RFC2545-3-1 through RFC2545-3-4. The section's fifth sentence is the MAY captured as RFC2545-3-5; 'may' is not a derived site under either scan, which is why the site count is four rather than five."
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Transport. Explains that BGP-4 runs over IPv4 or IPv6 and reads implicit configuration from the session address, then separates that address from the BGP Identifier. Site 4:1 binds the operator who configures the session. Site 4:2 is the source of RFC2545-4-1 and is mapped to it."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: carrying IPv6 reachability raises no new security issue beyond those of BGP-4 with IPv4. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments. Credits the authors of the BGP-4 Multiprotocol Extensions work."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References: RFC 2373, RFC 1771, RFC 2283, RFC 2460, RFC 2461, RFC 2080."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Author Information. Postal addresses, telephone numbers and e-mail addresses for the two authors. No obligation."
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Full Copyright Statement. The Internet Society boilerplate governing copying and translation of the document. Its one site is a condition on republishing the text and is excluded below."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "In terms of routing information, the most significant difference between IPv6 and IPv4 (for which BGP was originally designed) is the fact that IPv6 introduces scoped unicast addresses and defines particular situations when a particular address scope must be used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of another document, in the Introduction. The subject of 'must' is IPv6 itself: the sentence reports that the IPv6 addressing architecture [ADDR-ARCH] defines situations calling for a given scope. It directs no BGP speaker and states no rule this document adds. The rules this document does add begin at section 3."
+    },
+    {
+      "id": "2:1",
+      "quote": "Network administrators must however respect address scope restrictions and should be aware that the concepts of a BGP-4 routing domain and \"site\" are orthogonal notions and that they may or may not coincide in a given situation.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the network administrator, named as the subject of the sentence. The obligation is to respect address scope restrictions when planning a deployment, and the awareness clause is about how a person reasons about routing domains against sites. Neither is an act a BGP implementation performs; the sentence exists because section 2 has just declared that the document itself makes no distinction between global and site-local addresses, and it hands the distinction back to the operator."
+    },
+    {
+      "id": "2:2",
+      "quote": "This restrictions does imply that an IPv6 router must have a link- local next hop address for all directly connected routes (routes for which the given router and the next hop router share a common subnet prefix).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence opens with 'This restrictions does imply', referring to the restrictions of the two documents cited immediately above it: [ND] (RFC 2461), which permits only a link-local address when generating ICMP Redirect messages, and [RIP] (RFC 2080), which permits only a link-local address as a RIPng next hop. The obligation to hold a link-local next hop for a directly connected route is theirs, and it binds the IPv6 neighbour-discovery and interior-routing layers rather than the BGP-4 Next Hop field. RFC 2545 draws the consequence to motivate section 3, and adds no obligation of its own here."
+    },
+    {
+      "id": "3:1",
+      "quote": "A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2545-3-1",
+      "reason": "Captured verbatim as RFC2545-3-1 at [SHALL]. It fixes both the content and the order of the field: the global address first, the link-local address second when present."
+    },
+    {
+      "id": "3:2",
+      "quote": "The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2545-3-2",
+      "reason": "Captured verbatim as RFC2545-3-2 at [SHALL]. It is the only signal a receiver has for which of the two forms arrived, so it is a distinct obligation from 3:1 rather than a restatement of it."
+    },
+    {
+      "id": "3:3",
+      "quote": "The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2545-3-3",
+      "reason": "Captured verbatim as RFC2545-3-3 at [SHALL]. The 'if and only if' makes this two-sided: it forbids the second address as well as requiring it, which is why the else-branch sentence 3:4 is a separate obligation and not a duplicate."
+    },
+    {
+      "id": "3:4",
+      "quote": "In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2545-3-4",
+      "reason": "Captured verbatim as RFC2545-3-4 at [SHALL]. The sentence carries two 'shall' clauses that always hold together, the single-address content and the length 16, so it is one requirement rather than two."
+    },
+    {
+      "id": "4:1",
+      "quote": "Thus, when using TCP over IPv4 as a transport for IPv6 reachability information, additional explicit configuration of the peer's network address is required.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the operator who configures the session. The sentence draws a consequence of the two before it: BGP-4 reads the peer's network address implicitly from the address that established the session, and the route dissemination procedure uses it, so an IPv4 transport carrying IPv6 reachability leaves that address undetermined and somebody has to supply it. What is required is a configuration act, not a wire behaviour or a decision procedure, and the sentence names no message, field or timer for a speaker to get right."
+    },
+    {
+      "id": "4:2",
+      "quote": "This is a system wide value determined at startup which must be unique in the network and should be derived from an IPv4 address regardless of the network protocol(s) a particular BGP-4 instance is configured to convey at a given moment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2545-4-1",
+      "reason": "The 'should be derived from an IPv4 address' clause is captured as RFC2545-4-1 at [SHOULD], which is the clause RFC 2545 adds: it tells an implementation that carrying IPv6 does not change where the BGP Identifier comes from. The sentence's other clause, 'must be unique in the network', restates the [BGP-4] BGP Identifier that the paragraph has just named as the value used in the BGP-4 tie-breaking procedure and exchanged in the OPEN message. That obligation is gated under its own document: RFC 6286 revised the definition to AS-wide uniqueness and rfc/short/rfc6286.md captures it as RFC6286-2.1-2."
+    },
+    {
+      "id": "9:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Internet Society copyright boilerplate that the site scanner did not strip. The 'must' governs the procedures for republishing or translating the document text, and binds a publisher of the document rather than an implementation of the protocol it specifies."
+    }
+  ]
+}

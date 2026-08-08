@@ -176,12 +176,13 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 
 				attrHandle := getBuildBuf()
 				nlriHandle := getBuildBuf()
-				update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, peer.Settings().LocalAS)
+				update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, peer.Settings().LocalAS)
 
 				// Build rejected (already logged). Not sent, and not counted as
-				// accepted, so the caller gets an error instead of a silent drop.
+				// accepted, so the caller gets the builder's own reason instead of a
+				// silent drop.
 				if update == nil {
-					lastErr = errAnnounceTooLarge
+					lastErr = buildErr
 				} else if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
 					lastErr = err
 				} else {
@@ -212,12 +213,12 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 
 		attrHandle := getBuildBuf()
 		nlriHandle := getBuildBuf()
-		update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.localAS)
+		update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.localAS)
 
 		// Build rejected (already logged): every peer in this group shares the
 		// build parameters, so none of them can be sent this batch.
 		if update == nil {
-			lastErr = errAnnounceTooLarge
+			lastErr = buildErr
 			putBuildBuf(attrHandle)
 			putBuildBuf(nlriHandle)
 			continue
@@ -256,6 +257,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		// two, so one test covers both and a third would ride in free.
 		switch {
 		case errors.Is(lastErr, errAnnounceTooLarge),
+			errors.Is(lastErr, errAnnounceNextHopUnencodable),
 			errors.Is(lastErr, errWithdrawTooLarge),
 			errors.Is(lastErr, errStaleReadvertiseWithheld):
 			return lastErr
@@ -571,16 +573,19 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 //
-// Returns nil when the batch cannot be encoded into attrBuf, having written
-// nothing: the size query runs before the write, so a truncated or over-long block
-// is not a state this function can produce (ai/rules/evidence.md). The
-// caller reports errAnnounceTooLarge rather than sending a short UPDATE.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) *message.Update {
+// Returns a nil update and the reason when the batch cannot be encoded, having
+// written nothing: every query runs before the write, so a truncated, over-long
+// or desynchronised block is not a state this function can produce
+// (ai/rules/evidence.md). The reason is returned rather than assumed by the
+// caller because the two refusals need different operator action: errAnnounceTooLarge
+// asks for fewer prefixes per announce, errAnnounceNextHopUnencodable asks for a
+// next hop at all.
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) (*message.Update, error) {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
 	if nlriOff < 0 {
 		logAnnounceTooLarge(batch, len(nlriBuf), "nlri")
-		return nil
+		return nil, errAnnounceTooLarge
 	}
 	nlriBytes := nlriBuf[:nlriOff]
 
@@ -709,8 +714,21 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		// RFC 4760 Section 3: every other family carries its next-hop and NLRI inside
 		// MP_REACH_NLRI. A relayed/replayed block may already carry one; the
 		// contribution replaces it.
-		plan.add(attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),
-			[]netip.Addr{nextHop}, nlriBytes), nil)
+		//
+		// The same validity question as the IPv4 branch above, with the same cause:
+		// resolveNextHop (peer.go) hands an explicit next-hop back unvalidated, the
+		// zero Addr included. What differs is the remedy. The IPv4 branch can leave
+		// the base's own NEXT_HOP alone because the NLRI travels in the UPDATE's own
+		// field, so the batch's prefixes still go out. Here the NLRI is INSIDE the
+		// attribute, and skipping the contribution would announce the BASE's prefixes
+		// in place of this batch's. So the whole UPDATE is refused instead.
+		mpReach := attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),
+			[]netip.Addr{nextHop}, nlriBytes)
+		if err := mpReach.ValidateNextHops(); err != nil {
+			logAnnounceNextHopUnencodable(batch, nextHop, err)
+			return nil, errAnnounceNextHopUnencodable
+		}
+		plan.add(mpReach, nil)
 	}
 
 	// RFC 4271 Section 5.1.5, the obligation half: LOCAL_PREF SHALL be included in
@@ -736,15 +754,25 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	n, ok := plan.emit(base, attrBuf)
 	if !ok {
+		// The plan's own refusals do not all mean oversize. announceAttrs.add is the
+		// backstop for an attribute with no wire form, and it reaches this rail for a
+		// contribution the branches above did not pre-check -- a filter's or a future
+		// contributor's. Reporting that as errAnnounceTooLarge asked the operator to
+		// send fewer prefixes on a batch whose size was never the problem
+		// (ai/rules/cli.md).
+		if cause := plan.refusalCause(); errors.Is(cause, attribute.ErrUnencodableNextHop) {
+			logAnnounceNextHopUnencodable(batch, nextHop, cause)
+			return nil, errAnnounceNextHopUnencodable
+		}
 		logAnnounceTooLarge(batch, len(attrBuf), "attributes")
-		return nil
+		return nil, errAnnounceTooLarge
 	}
 
 	update := &message.Update{PathAttributes: attrBuf[:n]}
 	if batch.Family == family.IPv4Unicast {
 		update.NLRI = nlriBytes
 	}
-	return update
+	return update, nil
 }
 
 // writeBatchNLRI writes every NLRI of a batch into nlriBuf, in order, and returns
@@ -781,6 +809,25 @@ func writeBatchNLRI(nlriBuf []byte, nlris []nlri.NLRI, addPath bool) int {
 // errAnnounceTooLarge is what a caller reports when buildBatchAnnounceUpdate could
 // not encode the batch into its pooled build buffer.
 var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffer; split the batch into smaller announcements")
+
+// errAnnounceNextHopUnencodable is what a caller reports when the resolved next
+// hop has no MP_REACH_NLRI wire form, so the batch's own prefixes cannot be
+// carried at all (attribute.ErrUnencodableNextHop).
+//
+// Separate from errAnnounceTooLarge because the operator action differs: nothing
+// about the batch size would help, and the next hop is what must change
+// (ai/rules/cli.md).
+//
+// The text names UNRESOLVED, which is exactly what attribute.ValidateNextHops
+// tests, and no more. An earlier wording said "configure a next-hop the family can
+// carry", which claimed a family check nobody wrote: a VALID IPv4 address on an
+// IPv6 batch passes ValidateNextHops and encodes four octets under AFI 2, a length
+// RFC 2545 Section 3 does not define. Closing that needs the valid next-hop lengths
+// to be data each NLRI family registers instead of the central switch
+// attribute.ValidNextHopLens is today, so the message was narrowed to the truth
+// rather than the check widened onto that switch (ai/rules/cli.md: leg 3 must be
+// TRUE).
+var errAnnounceNextHopUnencodable = errors.New("announce next-hop is unresolved and has no wire form; set a next-hop for this announcement")
 
 // errStaleReadvertiseWithheld is the shared cause of an LLGR stale re-advertise
 // (RFC 9494) that this speaker could not carry out for a destination peer. The
@@ -830,6 +877,22 @@ func logAnnounceTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 		"family", batch.Family, "nlri-count", len(batch.NLRIs),
 		"buffer-bytes", bufLen, "stage", stage,
 		"action", "route not sent to this peer; send fewer prefixes per announce")
+}
+
+// logAnnounceNextHopUnencodable records an announce refused because its next hop
+// has no MP_REACH_NLRI wire form.
+//
+// This is the "or say something" half of the second fail-closed guard on the
+// batch rail. The build is abandoned before a single octet is written, so no
+// desynchronised attribute leaves this speaker; without this line the route would
+// simply not arrive. The plugin that issued the command sees it too, because
+// AnnounceNLRIBatch returns errAnnounceNextHopUnencodable and DispatchNLRIGroups
+// turns that into a StatusError response (ai/rules/evidence.md, ai/rules/cli.md).
+func logAnnounceNextHopUnencodable(batch bgptypes.NLRIBatch, nextHop netip.Addr, cause error) {
+	routesLogger().Warn("announce rejected: next-hop is unresolved and has no wire form",
+		"family", batch.Family, "nlri-count", len(batch.NLRIs),
+		"next-hop", nextHop, "error", cause,
+		"action", "route not sent to this peer; set a next-hop for this announcement")
 }
 
 // announceASPathASNs appends to dst, and returns, the AS_PATH ASN sequence this
@@ -1102,13 +1165,12 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	nlriHandle := getBuildBuf()
 	defer putBuildBuf(attrHandle)
 	defer putBuildBuf(nlriHandle)
-	update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS)
+	update, buildErr := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS)
 	if update == nil {
 		// The announce itself could not be encoded (already logged). Report the
-		// same cause the non-stale rail reports for this exact failure rather
-		// than a family mismatch: the family IS negotiated, and this rail sits
-		// beside one that has always said errAnnounceTooLarge here.
-		return false, errAnnounceTooLarge
+		// builder's own cause rather than a family mismatch: the family IS
+		// negotiated, and this rail sits beside one that reports the same reason.
+		return false, buildErr
 	}
 
 	// Run the readvertise egress filters. LLGREgressFilter keys off meta["stale"]

@@ -99,12 +99,14 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	result := make([]plugin.PeerInfo, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
 		s := p.Settings()
-		// PeerAS and the filter chains via the guarded accessors: this API snapshot runs
-		// on a command goroutine that can race a dynamic peer's establishment write. All
-		// other PeerSettings fields are immutable after construction.
+		// PeerAS, the filter chains and the prefix dates via the guarded accessors: this
+		// API snapshot runs on a command goroutine that can race a dynamic peer's
+		// establishment write and a reload's hot swap. All other PeerSettings fields are
+		// immutable after construction.
 		peerAS := p.PeerAS()
 		importFilters := p.ImportFilters()
 		exportFilters := p.ExportFilters()
+		prefixUpdated := p.OldestPrefixUpdated()
 		stats := p.Stats()
 		peerType := "external"
 		if s.LocalAS == peerAS {
@@ -134,7 +136,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			KeepalivesSent:       stats.KeepalivesSent,
 			EORReceived:          stats.EORReceived,
 			EORSent:              stats.EORSent,
-			PrefixUpdated:        s.OldestPrefixUpdated(),
+			PrefixUpdated:        prefixUpdated,
 			RouteReflectorClient: s.RouteReflectorClient,
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
@@ -315,7 +317,10 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 		// Each capability that implements ConfigProvider returns its own
 		// scoped key-value pairs (e.g., "rfc4724:restart-time" or "draft-xxx:field").
 		// This allows new capabilities to be added without modifying this code.
-		for _, cap := range s.Capabilities {
+		// Through the accessor: a reload swap can replace the slice on the shared
+		// PeerSettings (peer_settings_negotiation.go), and this runs on the plugin
+		// protocol's goroutine.
+		for _, cap := range p.ConfiguredCapabilities() {
 			if provider, ok := cap.(capability.ConfigProvider); ok {
 				maps.Copy(cfg.Values, provider.ConfigValues())
 			}
@@ -496,11 +501,26 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 		newPeerSettings[p.PeerKey()] = p
 	}
 
-	// Get current peer addresses and settings snapshot.
+	// Get current peer addresses and settings snapshot. The session goes with the
+	// settings because the swap-or-restart decision is taken against what the
+	// RUNNING session negotiated, not against config alone
+	// (peer_settings_negotiation.go). A peer with no session yields nil, which the
+	// decision reads as "nothing to preserve" and restarts.
+	//
+	// SettingsSnapshot, not Settings: everything below reads the struct as a whole
+	// (peerSettingsEqual here, and the struct copy plus the Capabilities read inside
+	// peerSettingsSwapPlan), and the running peer's struct has two writers on two
+	// goroutines -- applyHotSwappableSettings on this one, resolveDynamicPeerSettings
+	// on the establishment one (peer.go, Settings). Reading the live pointer here
+	// races the second, which would decide swap-or-restart from a torn slice header.
+	// The snapshot is taken under p.mu and is immutable from here on, so the decision
+	// stays a pure function of two PeerSettings and needs no lock of its own.
 	r.mu.RLock()
 	currentPeers := make(map[netip.AddrPort]*PeerSettings)
+	currentSessions := make(map[netip.AddrPort]*Session)
 	for key, peer := range r.peers {
-		currentPeers[key] = peer.Settings()
+		currentPeers[key] = peer.SettingsSnapshot()
+		currentSessions[key] = peer.CurrentSession()
 	}
 	r.mu.RUnlock()
 
@@ -523,13 +543,14 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 		// (peer_settings_apply.go). Anything else still costs a bounce, and the
 		// reason names the fields that forced it, so an operator watching a
 		// session flap on reload can see why.
-		if reason := peerSettingsRestartReason(currentPeers[key], newSettings); reason != "" {
+		apply, reason := peerSettingsSwapPlan(currentPeers[key], newSettings, currentSessions[key])
+		if reason != "" {
 			toRemove = append(toRemove, key)
 			toAdd = append(toAdd, newSettings)
 			reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", reason)
 			continue
 		}
-		toSwap = append(toSwap, peerSettingsSwap{key: key, next: newSettings})
+		toSwap = append(toSwap, peerSettingsSwap{key: key, next: newSettings, apply: apply})
 		reactorLogger().Debug("peer settings swapped in place", "phase", label, "peer", key)
 	}
 
@@ -645,10 +666,17 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 		newPeerSettings[p.PeerKey()] = p
 	}
 
+	// SettingsSnapshot for the same reason reconcilePeersJournaled uses it: the two
+	// judgements below, peerSettingsEqual and peerSettingsRestartRequired, are
+	// whole-struct reads of a struct with writers on two goroutines (peer.go,
+	// Settings). This count is only a budget estimate, but an estimate read from a
+	// torn slice header still disagrees with the reconcile it is estimating.
 	a.r.mu.RLock()
 	currentPeers := make(map[netip.AddrPort]*PeerSettings)
+	currentSessions := make(map[netip.AddrPort]*Session)
 	for key, peer := range a.r.peers {
-		currentPeers[key] = peer.Settings()
+		currentPeers[key] = peer.SettingsSnapshot()
+		currentSessions[key] = peer.CurrentSession()
 	}
 	a.r.mu.RUnlock()
 
@@ -660,7 +688,7 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 			count++ // remove
 		case peerSettingsEqual(currentPeers[key], newSettings):
 			// No change.
-		case peerSettingsRestartRequired(currentPeers[key], newSettings):
+		case peerSettingsRestartRequired(currentPeers[key], newSettings, currentSessions[key]):
 			count += 2 // remove + re-add
 		default:
 			count++ // swap in place: one apply, no session reset
@@ -879,12 +907,16 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	// Excluded: compared semantically above.
 	ac.Capabilities, bc.Capabilities = nil, nil
 
-	// Excluded: PrefixUpdated holds the per-family ISO dates the prefix maximums
-	// were last refreshed from PeeringDB (peersettings.go). It is a hidden,
-	// display-only staleness marker that drives no session or datapath
-	// behavior, so a change to it alone must not bounce the session.
-	ac.PrefixUpdated, bc.PrefixUpdated = nil, nil
-
+	// PrefixUpdated is NOT excluded. It holds the per-family ISO dates the prefix
+	// maximums were last refreshed from PeeringDB (peersettings.go), and it drives
+	// the prefix-stale warning and the ze_bgp_prefix_stale gauge. It was excluded
+	// here until 2026-08-07 to stop a dates-only edit bouncing the session, which
+	// also stopped the dates ever reaching a running peer: the alarm a PeeringDB
+	// refresh was meant to clear stayed raised until the daemon restarted
+	// (plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md). The bounce is
+	// now answered where it belongs: the field is hot-swappable
+	// (hotSwappableSettings, peer_settings_apply.go), so the change is delivered
+	// to the running session and the FSM is never touched.
 	return reflect.DeepEqual(&ac, &bc)
 }
 

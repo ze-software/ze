@@ -111,7 +111,7 @@ func buildPreserveBatchRail(t *testing.T, c preserveCase) []byte {
 	}
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
-	update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+	update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
 		batch, netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
 	require.NotNil(t, update)
 	return update.PathAttributes

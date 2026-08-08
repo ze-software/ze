@@ -2,27 +2,42 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Depends | - |
-| Phase | 2/9 |
-| Updated | 2026-08-03 |
+| Phase | 3/9 |
+| Updated | 2026-08-08 |
 
-## Blocked
+## B1 ANSWERED (Thomas, 2026-08-07)
 
-Blocked on a decision by Thomas. Step B1, "categorise every `PeerSettings`
-field", carries the spec's own marker "BLOCKING - present to user before
-coding", and the 7-step consolidation recorded on 2026-07-16 is still marked
-not user-approved. The category of each field decides whether a change swaps in
-place or restarts the session, so A3, A4 and all of Phase B cannot start until
-Thomas answers.
+**B1 is no longer blocking.** Thomas was asked to categorise about fifty
+`PeerSettings` fields as hot-swappable or restart-requiring. He answered with a
+decision procedure instead, quoted verbatim:
 
-One live consequence belongs with that question. A2 shipped alone, against this
-spec's own "A2 MUST NOT SHIP ALONE": `peerSettingsEqual`
-(`internal/component/bgp/reactor/reactor_api.go`) now compares every field
-except `Capabilities`, and `reconcilePeersJournaled` applies any difference by
-removing and re-adding the peer. So an edit to a static route, a prefix limit
-or a BFD setting bounces the session on reload today. The in-place apply branch
-that removes that bounce is exactly what B1 gates.
+> if capabilities are removed from the peer which were not used or if added when
+> the other peer does not use them, ie: if the resulting negotiation would be
+> similar and lead to the same encoding and same families, we can accept the
+> change and keep the BGP session up, otherwise have to re-start and re-negotiate
+
+The ruling is a RULE, not a per-field classification. It is implemented as
+`negotiationOutcomeUnchanged` (`peer_settings_negotiation.go`) and described
+under D-6 below. No field was hand-classified to satisfy it.
+
+**What the ruling does NOT answer.** It governs the capability set, which is what
+it names. It says nothing about the fields whose effect never reaches the OPEN,
+so those keep failing closed to a restart, and that remains correct: restarting
+for a field nobody classified is visible and self-healing, while running a
+session on settings nobody checked is the silent mis-enforcement this spec exists
+to remove. The three fields in `hotSwappableSettings` stay swappable for their
+own separate reason (D-7).
+
+Earlier history, kept because it explains the shape of the code. A2 shipped
+alone, against this spec's own "A2 MUST NOT SHIP ALONE": `peerSettingsEqual`
+(`internal/component/bgp/reactor/reactor_api.go`) compares every field, and
+`reconcilePeersJournaled` applied any difference by removing and re-adding the
+peer, so an edit to a static route or a prefix limit bounced the session. The
+swap-or-restart split (A3/B2/B3) then landed in
+`internal/component/bgp/reactor/peer_settings_apply.go`, and `PrefixUpdated` was
+classified swappable on 2026-08-07 (B1's "Cosmetic" line below, corrected).
 
 Phase note (was in the Phase cell; moved 2026-07-22): A1+A2 DONE (bug reproduced,
 guard fixed via `reflect.DeepEqual` in `reactor_api.go`, landed 38170a13b;
@@ -103,6 +118,26 @@ does nothing.
 - [ ] `rfc/short/rfc2918.md` (Route Refresh) - needed only if the chosen design uses refresh to
   re-apply policy without bouncing the session.
   → Constraint: TO BE FILLED once the design decision is made.
+- [ ] `rfc/full/rfc5492.txt` Section 2 (Capability Advertisement) - read 2026-08-07 for D-6.
+  → Decision: the ruling is conformant, and Section 2 is why. "A given capability can be
+  used on a peering if that capability has been advertised by both peers. If either peer
+  has not advertised it, the capability cannot be used." The swap changes what ze will
+  advertise in the NEXT OPEN; it never changes what the running peering uses, because
+  every wire decision reads the negotiated state (`EncodingContext`, `Negotiated`) and
+  the only runtime readers of `PeerSettings.Capabilities` are `buildOpen` (once per
+  connection), `GetPeerCapabilityConfigs` and `validatePeerFamilies`. A capability the
+  peer did not advertise stays unusable whether ze's config lists it or not, which is
+  exactly the pair of cases the ruling names.
+  → Constraint: BGP-4 has no mid-session capability renegotiation. Section 2 sources the
+  peer's capabilities from the OPEN alone, so "apply at the next OPEN, or restart" is the
+  only conformant pair of options. There is no third.
+- [ ] `rfc/full/rfc4271.txt` Sections 4.2 and 6.8 (OPEN fields, collision detection) - read
+  2026-08-07 for D-6.
+  → Constraint: the negotiated result is not enough on its own. My AS, the BGP Identifier
+  and the Hold Time reach the peer unmediated by any negotiation and are what the peer
+  keys collision detection and its own hold timer off, and a change to any of them leaves
+  `capability.Negotiate` returning the same value on ze's side. `openHeaderEqual`
+  therefore compares them and restarts on a difference.
 
 **Key insights:**
 - Ze already has the refresh machinery (`SoftClearPeer` `reactor_api.go`; `SendRefresh`/`SendBoRR`/`SendEoRR` `reactor_api_forward.go`), but nothing on the reload path calls it.
@@ -233,6 +268,19 @@ does nothing.
 | `TestPeerSettingsEqualIdenticalIsEqual` | `internal/component/bgp/reactor/reactor_api_test.go` | no over-triggering (AC-3, R-2) | |
 | `TestPeerSettingsEqualFailsClosedOnUnknownField` | `internal/component/bgp/reactor/reactor_api_test.go` | AC-6 / A-2; shape depends on the chosen mechanism | |
 | `TestReloadWhileReceivingNoRace` | `internal/component/bgp/reactor/reactor_api_test.go` | AC-7 / R-1, run under `-race` | |
+| `TestOpenHeaderEqualCoversEveryOpenField` | `internal/component/bgp/reactor/peer_settings_negotiation_test.go` | `openHeaderEqual` discriminates on every `message.Open` field except `OptionalParams`, with the field list derived from the struct by reflection | PASS 2026-08-08 |
+| `TestReloadDecisionReadsPeerSettingsUnderLock` | `internal/component/bgp/reactor/peer_settings_negotiation_test.go` | the reload reconcile reads the running peer's settings under `p.mu`, via `Peer.SettingsSnapshot`. Race-detector test: evidence only under `make ze-race-reactor` | PASS 2026-08-08 |
+| `TestNegotiationProbeFailsClosed/router_id_change_alongside_an_ignorable_capability_change` | `internal/component/bgp/reactor/peer_settings_negotiation_test.go` | the multi-field restart reason names BOTH fields, asserted exactly rather than by `Contains` | PASS 2026-08-08 |
+
+#### Round-1 review fixes: discrimination evidence (2026-08-08)
+
+Each fix was reverted, its test run, and the fix restored. `make ze-test-pkg PKG=./internal/component/bgp/reactor`.
+
+| Fix | Mutation applied | Test | Observed red |
+|-----|------------------|------|--------------|
+| `openHeaderEqual` compares a derived field list rather than a hand-picked one (`peer_settings_negotiation.go`) | the hand-picked list restored with one field escaping it (`ASN4` dropped). A plain revert is green by construction: the pre-fix list was TOTAL over `message.Open` today, so the escaped field IS the failure mode the fix removes | `TestOpenHeaderEqualCoversEveryOpenField` | `--- FAIL: .../ASN4` -- `Should be false`, `a difference in ASN4 reaches the peer unmediated by any negotiation` |
+| The reload reconcile takes `Peer.SettingsSnapshot` rather than `Peer.Settings` (`reactor_api.go`) | `peer.SettingsSnapshot()` reverted to `peer.Settings()` in `reconcilePeersJournaled` | `TestReloadDecisionReadsPeerSettingsUnderLock` | `WARNING: DATA RACE` -- read in `peerSettingsEqual` from `reconcilePeersJournaled` against a write in `hotSwappableSettings` from `applyHotSwappableSettings`. Note the racing read is `peerSettingsEqual`, NOT `peerSettingsSwapPlan`: a lock taken inside the plan would not have covered it |
+| The multi-field restart reason is asserted exactly (`peer_settings_negotiation_test.go`) | the `changed = append(changed, "Capabilities")` branch removed from `peerSettingsSwapPlan`, so only one of the two names survives | `TestNegotiationProbeFailsClosed` | `expected: "Capabilities,RouterID"`, `actual: "RouterID"`. The previous `assert.Contains(reason, "RouterID")` passes against that same mutation, which is why it was not evidence |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -244,6 +292,11 @@ does nothing.
 |------|----------|-------------------|--------|
 | `bgp-import-policy-applies` | `test/reload/bgp-import-policy-applies.ci` | policy edit + reload is actually enforced | |
 | `bgp-reload-noop-no-bounce` | `test/reload/bgp-reload-noop-no-bounce.ci` | unchanged config does not flap sessions | |
+| `reload-capability-restart-names-both-fields` | `test/reload/reload-capability-restart-names-both-fields.ci` | a capability-block edit restarts the peer and the log names EVERY field that forced it, not just the first | PASS 2026-08-07 |
+
+The swap branch of D-6 has no functional test, and D-8 says why: no config file can
+express a capability-only edit today. It is proved instead through a real `Reload()`
+over a peer with a live negotiated session, in `peer_settings_negotiation_test.go`.
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -329,7 +382,15 @@ A4. **Apply via refresh** - issue `SoftClearPeer` (`reactor_api.go`) after the s
 > mislabel (Cisco's mechanism under BIRD's name) and is **cancelled** — no store is needed, and
 > A3's atomic swap already does the load-bearing work. See D-1b / D-4 / D-5.
 
-B1. **Categorise every `PeerSettings` field (BLOCKING - present to user before coding)** into:
+B1. **DONE 2026-08-07. Thomas answered with a procedure, not a categorisation.**
+   The ruling is quoted verbatim in "B1 ANSWERED" at the top of this file, and the
+   implementation is D-6. Read those two before reading the candidate lists below,
+   which were written when a per-field answer was still expected and are kept only
+   as a record of the question. The procedure supersedes them: it runs the
+   negotiation rather than consulting a list, so a capability the peer does not use
+   swaps whatever list it appears on, and one the peer does use restarts.
+   The original wording follows.
+   ~~Categorise every `PeerSettings` field (BLOCKING - present to user before coding)~~ into:
    - **FSM-relevant → restart** (BIRD: "If any FSM-relevant field changes (ASN, authentication
      type, hold time, etc.) ... the protocol framework tears down and restarts the session",
      `bird-bgp-reference.md`). Candidates: `LocalAS`, `PeerAS`, `RouterID`, `Address`,
@@ -338,8 +399,23 @@ B1. **Categorise every `PeerSettings` field (BLOCKING - present to user before c
    - **Hot-swappable → atomic swap, session survives**. Candidates: `ImportFilters`,
      `ExportFilters`, `RouteReflectorClient`, `ClusterID`, `ASOverride`, `NextHopMode`,
      the prefix-limit maps, `DefaultOriginate`, `SendCommunity`, the loop-detection fields.
-   - **Cosmetic → no action**. `PrefixUpdated` (display-only staleness marker,
-     `peersettings.go`).
+   - ~~**Cosmetic → no action**. `PrefixUpdated` (display-only staleness marker,
+     `peersettings.go`).~~ **CORRECTED 2026-08-07: `PrefixUpdated` is hot-swappable,
+     and "no action" was the defect rather than the classification.**
+     → Decision: the field is not display-only. It drives two operator surfaces,
+     both published from the dates alone: the prefix-stale report bus warning
+     (`ze show warnings`, the login banner) and the `ze_bgp_prefix_stale` gauge
+     (`RaisePrefixStale` and `setPrefixStaleMetric`, `session_prefix.go`). Both were
+     published only from `Reactor.AddPeer` (`reactor_peers.go`), so a PeeringDB
+     refresh that bumped only the dates left the alarm raised until the daemon
+     restarted. "Cosmetic → no action" would have kept that defect and called it
+     intended. It is now classified swappable in `hotSwappableSettings`
+     (`peer_settings_apply.go`) and republished on the swap by
+     `Peer.refreshPrefixStale`, so the session never restarts for it.
+     → Constraint: this closes ONE field, on the authority of a later review-gate
+     row (`plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md`, 2026-08-04)
+     that named the three edits. It does NOT answer B1. The remaining ~45 fields are
+     still uncategorised and this spec stays `blocked` on Thomas.
    → Constraint: the categorisation MUST fail closed (A-2/AC-6) — an unclassified field is
    treated as FSM-relevant (restart) rather than silently ignored. Restarting on an unknown
    field is conservative and visible; ignoring it is the bug this spec exists to fix.
@@ -465,6 +541,9 @@ its own justification. Do not smuggle it in here.
 | D-2 | Soft reconfiguration is a **strict superset** of the in-place+refresh option, NOT an alternative to it | - | Verified reasoning: re-running policy over stored routes uses `peer.settings.ImportFilters` (`filter_ordered.go`). If the guard still discards the new settings, soft reconfig re-runs the OLD policy and the defect survives. The guard fix AND the settings swap are unavoidable in every option. |
 | D-3 | Phase the work: **Phase A** (guard + swap + refresh-based apply) ships the defect fix; **Phase B** (pre-policy store + local re-run) delivers BIRD parity and replaces the refresh | Build Phase B only, shipping nothing until it lands | The defect is LIVE and silent today: operators are mis-enforcing policy right now. Phase A is small, complete on its own, and its work is not throwaway — the guard fix and settings swap are Phase B prerequisites (D-2), and `SoftClearPeer` already exists (`reactor_api.go`) so Phase A only calls it. Phase B then swaps the re-obtain mechanism from "ask the peer" to "replay the local store". |
 | D-4 | ~~`spec-bgp-filtered-route-storage` is **superseded**~~ **WITHDRAWN 2026-07-16. It is NOT superseded.** It is an independent spec that merely DEPENDS on this one for its AC-3. | - | D-4 rested on the fabricated "pre-policy store subsumes keep-filtered" claim. **Disproven at BIRD v2.19.0 source:** `import keep filtered` retains only the rejected copy behind a `REF_FILTERED` flag in the main table (`nest/route.h:274`, `nest/rt-table.c:1687-1697`), and `import table` is a SEPARATE knob (`nest/config.Y:718-720`). Neither is a pre-policy store, so nothing here subsumes that spec. It has been rewritten around BIRD's real model; do not re-supersede it. |
+| D-6 | **Swap-or-restart for the capability set is decided by RUNNING the negotiation, not by classifying fields.** `negotiationOutcomeUnchanged` (`peer_settings_negotiation.go`) takes the OPEN ze really sent (`Session.localOpen`) as the baseline, builds the candidate OPEN from the new settings through `buildOpen` (the same producer `sendOpen` uses), and negotiates both against the capabilities the peer really advertised (`Session.peerOpen`). The two results are compared on the derived sub-components of `capability.Negotiated`, which cover the families, the encoding and the session capabilities. Equal means the running session is already what the new config asks for, so `Capabilities` is delivered and the session is left alone; unequal means restart. | a per-field allow-list; comparing the OPEN bytes only | Thomas's ruling of 2026-08-07, quoted verbatim above. An allow-list cannot express it: the SAME capability edit swaps against one peer and restarts against another, because the verdict depends on what the peer advertised. Comparing OPEN bytes alone is the special case where nothing changed at all, and it would restart for exactly the two examples the ruling exists to allow. `Mismatches` is excluded from the comparison because removing a capability the peer never had removes its mismatch entry, which would make the ruling's first example always compare unequal. |
+| D-7 | **The two swap categories stay separate, and the copier travels with the decision.** `hotSwappableSettings` holds the fields a running session re-reads or republishes (`ImportFilters`, `ExportFilters`, `PrefixUpdated`). `negotiatedCapabilitySettings` holds `Capabilities`, and applies only when D-6 proved the outcome unchanged. `peerSettingsSwapPlan` returns the copier it neutralized with, and `applyHotSwappableSettings` applies that same function. | one merged list; a boolean flag at the apply site | The two categories qualify for different reasons, and merging them would make `Capabilities` unconditionally swappable, which is the wrong direction of the ruling. Returning the copier keeps the invariant the original defect lacked: the set neutralized when deciding IS the set delivered, so no field can be judged swappable and then discarded. |
+| D-8 | **The safety direction is restart, and `CapabilityConfigJSON` and `RawCapabilityConfig` are on that side.** They carry the peer's capability block to plugins, and a plugin's capabilities enter the OPEN through `pluginCapGetter`, which reads the injector store the plugin has already written. The probe builds its candidate OPEN from that same store, so it sees what the plugin holds now and cannot see what the plugin would inject after receiving the new config. | neutralizing them with `Capabilities`, since one config edit writes all three | An edit whose wire effect arrives later, by a path the probe does not run, is exactly what the procedure cannot determine (`ai/rules/evidence.md`). A wrong restart costs one reconverge and announces itself. **Consequence, and it is a finding rather than a design goal: no `capability { }` block edit can reach the swap branch today, because `parseCapabilitiesFromTree` rewrites `CapabilityConfigJSON` from the same input. A `family { }` edit cannot either, because every non-disabled family carries a mandatory prefix maximum (`config_prefix.go`) and so moves `PrefixMaximum` too. The procedure is therefore correct and currently unreachable from a config file. Closing that needs a decision about those fields, which is a new question for Thomas and not one this ruling answers.** |
 | D-5 | This spec builds **no store of any kind** | pre-policy retention (D-1's mislabel) | Applying a changed policy needs the config to reach the peer, not a route archive. BIRD achieves it with an atomic pointer swap and no retention. A store would be a large, memory-expensive answer to a question that is actually about a stale pointer (`peer.go`, no setter). |
 
 **Phase A is NOT "done" on its own** (`ai/rules/completion.md`): it closes AC-1..AC-7 of

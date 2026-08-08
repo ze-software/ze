@@ -946,6 +946,13 @@ func applyNextHopMod(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 		// a link-local address (RFC 2545 §3) include it as the second 16-byte
 		// half of the next-hop so downstream peers on the same link can still
 		// reach us.
+		//
+		// This function has no production caller: applyFactsNextHop
+		// (peer_forward_facts.go) is the live egress rail, and it decides the
+		// link-local against RFC 2545 Section 3's shared-subnet condition
+		// (applyLinkLocalNextHop, link_scope.go). The branch below reads the
+		// config leaf alone, which Section 3 does not permit, so it must not be
+		// wired to a peer without taking that condition first.
 		if dest.LinkLocal.IsValid() && dest.LinkLocal.Is6() {
 			var nh [32]byte
 			global := local.As16()

@@ -28,7 +28,10 @@ func toPluginParams(r PluginRoute, fam family.Family) message.PluginParams {
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.
 // Used for IPv4/IPv6 unicast routes (not VPN).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-// linkLocal is the peer's IPv6 link-local address for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
+// linkLocal is the link-local address to append after nextHop in the MP_REACH
+// Next Hop field, already decided against RFC 2545 Section 3's condition by
+// Peer.linkLocalNextHopFor (link_scope.go). The zero Addr means the field carries
+// the global address alone.
 func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
 	// RFC 8950: Extended next-hop for cross-AFI next-hop
 	var useExtNH bool
@@ -131,7 +134,10 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr) message.VPNParam
 
 // buildStaticRouteUpdateNew builds an UPDATE for a static route using ub.
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-// linkLocal is the peer's IPv6 link-local for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
+// linkLocal is the address to append after nextHop, already decided against RFC
+// 2545 Section 3's condition by Peer.linkLocalNextHopFor (link_scope.go). It is
+// not "the peer's link-local": the configured leaf reaches this parameter only
+// when the section's condition holds, and the zero Addr means the 16-octet form.
 //
 // The returned *Update's PathAttributes/NLRI alias ub.scratch. Caller MUST
 // fully consume the Update (send, copy, hand to sendUpdateWithSplit) before

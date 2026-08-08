@@ -39,7 +39,7 @@ func rfc4271Announce(t *testing.T, isIBGP bool) []byte {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, 65001, isIBGP, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, isIBGP, true, false)
 	require.Greater(t, n, message.HeaderLen+4)
 
 	// Header(19) + WithdrawnLen(2) + AttrLen(2) then the attribute section.
@@ -412,7 +412,7 @@ func TestRFC4271OwnASReachabilityChangeAdvertised(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
-	n := WriteAnnounceUpdate(buf, 0, route, 65001, true, true, false)
+	n := WriteAnnounceUpdate(buf, 0, route, netip.Addr{}, 65001, true, true, false)
 	require.Greater(t, n, message.HeaderLen)
 
 	assert.Equal(t, byte(msgtype.TypeUPDATE), buf[message.MarkerLen+2])

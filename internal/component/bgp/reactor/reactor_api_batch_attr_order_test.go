@@ -1,3 +1,9 @@
+// rfc-test-change-approved: 2026-08-08 Thomas approved the buildBatchAnnounceUpdate
+// signature change that carries the true cause to the caller (an (*message.Update,
+// error) pair in place of a bare *message.Update, so a refused build reports WHY
+// instead of a silent nil). Every hunk in this RFC4271-5-7 file is that caller
+// adaptation, `update :=` becoming `update, _ :=`. No assertion, fixture, or
+// expected value changed.
 package reactor
 
 import (
@@ -221,7 +227,7 @@ func buildBatchRail(t *testing.T, c orderCase) []byte {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: c.localAS}}}
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
 		netip.MustParseAddr(c.nextHop), c.isIBGP, false /*rsClient*/, c.asn4, false /*addPath*/, c.localAS)
 	require.NotNil(t, update)
 	return update.PathAttributes
@@ -434,7 +440,7 @@ func TestBatchBuild_EmitsNoUnwrittenBufferBytes(t *testing.T) {
 			}
 
 			adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: c.localAS}}}
-			update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+			update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
 				netip.MustParseAddr(c.nextHop), c.isIBGP, false, c.asn4, false, c.localAS)
 			require.NotNil(t, update)
 

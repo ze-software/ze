@@ -14,6 +14,7 @@ import (
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 
 	// Blank import registers the ipv4/flow family + in-process NLRI encoder so the
 	// registry-seam path in handleAnnounceFlowspec (encodeFlowspecNLRI) resolves.
@@ -453,4 +454,58 @@ func TestHandlewithdrawAllWithSelector(t *testing.T) {
 	data := respData(t, resp)
 	assert.Equal(t, 1, data["withdrawn"])
 	assert.Equal(t, 1, r.Len())
+}
+
+// TestHandleAnnounceUnicastRejectsLinkLocalNextHop drives the RFC 2545 Section 3
+// next-hop form guard from the CLI verb that reaches it, rather than from the
+// helper alone.
+//
+// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
+// Address of Next Hop field the global IPv6 address of the next hop, potentially
+// followed by the link-local IPv6 address of the next hop." Ze appends the second
+// address itself when the section's condition holds, so a link-local supplied as
+// THE next hop has no global address to follow.
+//
+// VALIDATES: `announce unicast <prefix> next-hop fe80::cafe` errors and dispatches
+// nothing.
+// PREVENTS: the CLI reaching the encoder with a link-local as the sole next hop,
+// which would put it in the field's first slot.
+func TestHandleAnnounceUnicastRejectsLinkLocalNextHop(t *testing.T) {
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+	rctr := &captureReactor{}
+
+	_, err := handleAnnounceUnicast(ctx, rctr, reg, []string{"2001:db8:1::1/128", "next-hop", "fe80::cafe"})
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
+	assert.Equal(t, 0, rctr.calls, "nothing dispatched on a refused next hop")
+}
+
+// TestHandleAnnounceUnicastAcceptsGlobalNextHop is the other side of the guard.
+//
+// VALIDATES: a global IPv6 next hop, an IPv4 next hop, and `self` all reach the
+// reactor. Without this row the guard could refuse everything and still look
+// correct.
+func TestHandleAnnounceUnicastAcceptsGlobalNextHop(t *testing.T) {
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+
+	cases := []struct {
+		nextHop string
+		prefix  string
+	}{
+		{"2001:db8::ffff", "2001:db8:1::1/128"},
+		{"::1", "2001:db8:1::1/128"},
+		{"192.0.2.1", "198.51.100.0/24"},
+		{"self", "2001:db8:1::1/128"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.nextHop, func(t *testing.T) {
+			rctr := &captureReactor{}
+			_, err := handleAnnounceUnicast(ctx, rctr, reg, []string{tc.prefix, "next-hop", tc.nextHop})
+			require.NoError(t, err)
+			assert.Equal(t, 1, rctr.calls, "verb must dispatch exactly one batch")
+		})
+	}
 }

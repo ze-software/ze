@@ -516,3 +516,55 @@ func TestClusterIDSync(t *testing.T) {
 			"loop-detection cluster-id should propagate to session cluster-id")
 	})
 }
+
+// TestDynamicGroupSettingsRefusesLinkLocalGlobalNextHop drives the RFC 2545
+// Section 3 next-hop form guard from the dynamic-group entry point.
+//
+// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
+// Address of Next Hop field the global IPv6 address of the next hop, potentially
+// followed by the link-local IPv6 address of the next hop." A dynamic group's
+// template feeds the same two leaves as a statically configured peer, so it
+// reaches the same field. This parser returns no error, so a refused value is
+// dropped rather than rejected, and the settings fail closed.
+//
+// VALIDATES: a link-local `local ip` leaves LocalAddress unset, and a link-local
+// `next-hop` leaves NextHopMode off Explicit with no address.
+// PREVENTS: a dynamic peer emitting a link-local as the sole address of the Next
+// Hop field, which the guard on the static path already refuses.
+func TestDynamicGroupSettingsRefusesLinkLocalGlobalNextHop(t *testing.T) {
+	tmpl := DynamicGroupTemplate{
+		GroupName: "ix",
+		Template: map[string]any{
+			"connection": map[string]any{"local": map[string]any{"ip": "fe80::1"}},
+			"session":    map[string]any{"next-hop": "fe80::cafe"},
+		},
+	}
+
+	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
+
+	require.NotNil(t, ps)
+	assert.False(t, ps.LocalAddress.IsValid(), "a link-local local ip must not reach LocalAddress")
+	assert.NotEqual(t, reactor.NextHopExplicit, ps.NextHopMode, "a link-local next-hop must not become an explicit rewrite")
+	assert.False(t, ps.NextHopAddress.IsValid(), "a refused next-hop must leave no address behind")
+}
+
+// TestDynamicGroupSettingsAcceptsGlobalNextHop is the other side of the guard.
+//
+// VALIDATES: a global IPv6 address reaches both leaves. Without this row the guard
+// could drop everything and still pass the negative test.
+func TestDynamicGroupSettingsAcceptsGlobalNextHop(t *testing.T) {
+	tmpl := DynamicGroupTemplate{
+		GroupName: "ix",
+		Template: map[string]any{
+			"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
+			"session":    map[string]any{"next-hop": "2001:db8::ffff"},
+		},
+	}
+
+	ps := buildDynamicGroupSettings(tmpl, 65000, 0x0a000001)
+
+	require.NotNil(t, ps)
+	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), ps.LocalAddress)
+	assert.Equal(t, reactor.NextHopExplicit, ps.NextHopMode)
+	assert.Equal(t, netip.MustParseAddr("2001:db8::ffff"), ps.NextHopAddress)
+}

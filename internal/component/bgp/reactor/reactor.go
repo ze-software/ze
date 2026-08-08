@@ -1585,8 +1585,10 @@ func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
 		settings := peer.Settings()
 		var configuredFamilies []string
 
-		// Extract Multiprotocol capabilities (these are the configured families)
-		for _, cap := range settings.Capabilities {
+		// Extract Multiprotocol capabilities (these are the configured families).
+		// Through the accessor: a reload swap can replace the slice on the shared
+		// PeerSettings (peer_settings_negotiation.go).
+		for _, cap := range peer.ConfiguredCapabilities() {
 			if mp, ok := cap.(*capability.Multiprotocol); ok {
 				fam := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
 				configuredFamilies = append(configuredFamilies, fam.String())

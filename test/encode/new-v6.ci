@@ -1,3 +1,17 @@
+# RFC requirement: RFC2545-3-1 negative -- the Next Hop field carries the global address
+# alone when the speaker has no link-local to append. The peer declares no link-local, and
+# the MP_REACH_NLRI asserted byte for byte below is 800E26 0002 01 10 followed by ONE
+# 16-octet address (2a02:b80:0:2::1). Nothing is appended, so "potentially followed by the
+# link-local IPv6 address of the next hop" stays conditional. An encoder that always wrote
+# a second address fails this assertion.
+#
+# RFC requirement: RFC2545-3-2 negative -- the Length of Next Hop Network Address octet is
+# 0x10 (16), not 0x20, when only a global address is present.
+#
+# RFC requirement: RFC2545-3-4 positive -- the "in all other cases" branch. No link-local
+# is configured for this peer, so the speaker advertises only the global IPv6 address of
+# the next hop and sets the length octet to 16.
+#
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 200 community [30740:0 30740:30740] nhop 2a02:b80:0:2::1 nlri ipv6/unicast add 2a02:b80:0:1::1/128

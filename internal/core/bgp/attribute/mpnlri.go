@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
 // RFC: rfc/short/rfc4760.md — MP_REACH_NLRI / MP_UNREACH_NLRI attributes
+// Related: nexthop_form.go — which address forms may occupy the next-hop field
 //
 // Package attribute implements BGP path attributes.
 package attribute
@@ -7,6 +8,7 @@ package attribute
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net/netip"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -18,6 +20,14 @@ var (
 	ErrInvalidNextHopLen = errors.New("attribute: invalid next-hop length")
 	ErrUnsupportedAFI    = errors.New("attribute: unsupported AFI")
 )
+
+// ErrUnencodableNextHop reports a next hop that has no MP_REACH_NLRI wire form.
+//
+// RFC 4760 Section 3 gives the attribute a "Network Address of Next Hop" field
+// and a "Length of Next Hop Network Address" octet that counts it. The zero
+// netip.Addr names no address, so no octet count encodes it, and ValidNextHopLens
+// admits no length that would. An attribute carrying one cannot go on the wire.
+var ErrUnencodableNextHop = errors.New("attribute: MP_REACH next hop has no wire form")
 
 // AFI represents Address Family Identifier.
 //
@@ -132,22 +142,83 @@ func (m *MPReachNLRI) Len() int {
 }
 
 // nextHopLen calculates the total next-hop length in bytes per RFC 4760 Section 3.
-// RFC 4364 Section 4.3.4: VPN (SAFI 128) next-hops include an 8-byte RD prefix
-// (set to zero) before each IP address: RD(8)+IPv4(4)=12 or RD(8)+IPv6(16)=24.
 func (m *MPReachNLRI) nextHopLen() int {
-	rdOverhead := 0
-	if m.SAFI == SAFIVPN {
-		rdOverhead = RDSize
-	}
 	total := 0
 	for _, nh := range m.NextHops.Slice() {
-		if nh.Is4() {
-			total += rdOverhead + 4
-		} else {
-			total += rdOverhead + 16
-		}
+		total += m.nextHopOctets(nh)
 	}
 	return total
+}
+
+// nextHopOctets returns the octet count WriteTo puts on the wire for one next
+// hop, the Route Distinguisher included.
+//
+// RFC 4364 Section 4.3.4: VPN (SAFI 128) next-hops carry an 8-octet RD prefix set
+// to zero before each IP address, so RD(8)+IPv4(4)=12 or RD(8)+IPv6(16)=24.
+//
+// The address half is measured with the same netip.Addr.AsSlice the write reads,
+// never from the address FAMILY. Those two answers differ for the zero Addr: it
+// is not Is4, so a family test counted sixteen octets, while AsSlice returns
+// none. The Length of Next Hop Network Address octet then over-stated the field
+// by sixteen, and the Reserved octet and the NLRI landed sixteen octets early
+// inside an attribute whose header still claimed the longer value. A length and
+// a write that disagree desynchronise the attribute block for everything after
+// it, which is what deriving both from one source removes.
+//
+// A next hop with no wire form is refused by ValidateNextHops rather than
+// encoded. This function only guarantees that a size query and a write can never
+// come to different answers about the same attribute.
+func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
+	n := len(nh.AsSlice())
+	if n == 0 {
+		return 0
+	}
+	if m.SAFI == SAFIVPN {
+		return RDSize + n
+	}
+	return n
+}
+
+// ValidateNextHops reports whether every next hop of this attribute has a wire
+// form, and is the refusal half of the rule nextHopOctets states.
+//
+// RFC 4760 Section 3 requires the Network Address of Next Hop field to carry "the
+// Network Address of the next router on the path to the destination system". The
+// zero netip.Addr is not such an address. Encoding it would put a next-hop length
+// of zero on the wire, which ValidNextHopLens admits for no AFI/SAFI pair, so the
+// peer would treat the UPDATE as malformed (RFC 7606 Section 7.11).
+//
+// What it does NOT check is whether the address belongs to the network-layer
+// protocol the <AFI, SAFI> names: a valid IPv4 address under AFI 2 passes here and
+// encodes four octets, a length RFC 2545 Section 3 does not define. Answering that
+// needs the valid lengths to be data each NLRI family registers rather than a
+// central switch, which ValidNextHopLens is not yet (see the errAnnounceNextHopUnencodable
+// message in reactor/reactor_api_batch.go, which is worded to this check and not
+// past it).
+//
+// Who asks, as of 2026-08-08. The two announce rails ask before they contribute
+// the attribute, because they are the callers that can name the route and the peer:
+// buildBatchAnnounceUpdate (reactor/reactor_api_batch.go) and buildRIBRouteUpdate
+// (reactor/peer_rib_routes.go). announceAttrs.add (reactor/announce_build.go) asks
+// again for anything that reaches the plan without a pre-check, and it is the single
+// point those two rails reach the wire through. CheckedWriteTo below asks for its
+// own callers.
+//
+// One caller does NOT ask, and it does not reach that backstop either:
+// (*CommitService).buildMPReachNLRI (component/bgp/rib/commit.go) writes through
+// attribute.WriteAttrTo rather than through the plan, so an unresolved next hop
+// there reaches the wire as a Length of Next Hop Network Address octet of 0x00. That
+// rail has no non-test caller today ((*Transaction).QueueAnnounce,
+// component/bgp/transaction/commit_manager.go) and is recorded in
+// plan/deferrals/ad-hoc-2026-08-08-031d68b3.md. Do not read the paragraph above as
+// saying every assembling caller asks: two do, one does not.
+func (m *MPReachNLRI) ValidateNextHops() error {
+	for _, nh := range m.NextHops.Slice() {
+		if !nh.IsValid() {
+			return fmt.Errorf("%w: AFI %d SAFI %d (RFC 4760 Section 3)", ErrUnencodableNextHop, m.AFI, m.SAFI)
+		}
+	}
+	return nil
 }
 
 // WriteTo writes the MP_REACH_NLRI attribute value into buf at offset.
@@ -167,6 +238,12 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 	// RFC 4364 Section 4.3.4: VPN next-hops are prefixed with 8-byte RD (all zeros).
 	pos := off + 4
 	for _, nh := range m.NextHops.Slice() {
+		octets := nh.AsSlice()
+		if len(octets) == 0 {
+			// No wire form. ValidateNextHops refuses such an attribute, and the RD is
+			// skipped with the address so this write matches nextHopOctets exactly.
+			continue
+		}
 		if m.SAFI == SAFIVPN {
 			// Write 8-byte RD = 0 before each next-hop address.
 			for i := range RDSize {
@@ -174,8 +251,7 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 			}
 			pos += RDSize
 		}
-		n := copy(buf[pos:], nh.AsSlice())
-		pos += n
+		pos += copy(buf[pos:], octets)
 	}
 
 	// RFC 4760 Section 3: Reserved (1 octet) - "MUST be set to 0"
@@ -194,8 +270,19 @@ func (m *MPReachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.Encod
 	return m.WriteTo(buf, off)
 }
 
-// CheckedWriteTo validates capacity before writing.
+// CheckedWriteTo validates the next hops and the capacity before writing.
+//
+// It is NOT the announce rails' entry point and cannot become one: it takes no
+// *bgpctx.EncodingContext, while announceAttrs.add (reactor/announce_build.go)
+// writes through WriteToWithContext because that context decides the AS_PATH ASN
+// width (RFC 6793 Section 4.1). Routing a plan through this signature would
+// four-octet-encode AS_PATH toward a two-octet peer. The rails therefore refuse
+// where the plan is built, calling the same ValidateNextHops this does; the
+// capacity half they get from announceAttrs.reserve.
 func (m *MPReachNLRI) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if err := m.ValidateNextHops(); err != nil {
+		return 0, err
+	}
 	needed := m.Len()
 	if len(buf) < off+needed {
 		return 0, wire.ErrBufferTooSmall

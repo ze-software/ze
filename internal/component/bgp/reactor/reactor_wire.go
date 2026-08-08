@@ -8,6 +8,8 @@ package reactor
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 
@@ -27,6 +29,123 @@ import (
 // 3. Write payload forward at advancing offset
 // 4. Backfill length fields at saved positions
 // This avoids the double traversal of computing Len() then calling WriteTo().
+
+// ErrNextHopUnencodable reports a next-hop address that cannot fill the Next Hop
+// field the encoder is about to declare a length for.
+//
+// Every next-hop field on this rail writes its own length octet before the
+// address, so the writer is the one symbol that knows what it has promised. It
+// refuses rather than writes, because neither alternative is available to it:
+// netip.Addr.As4 PANICS on an address that is not IPv4, and netip.Addr.As16
+// silently renders 192.0.2.1 as ::ffff:192.0.2.1 and the zero Addr as ::, which
+// fill the declared octets and reach the peer as a well-formed attribute naming a
+// host that does not exist. The second failure is the expensive one: the peer
+// raises no NOTIFICATION and installs the route.
+//
+// The forwarding rail already refuses in the same place. mpReachNextHopHandler
+// (filter_delta_handlers.go) synthesizes the length octet from the buffer it
+// holds and keeps the route unchanged when the replacement is not 4, 16 or 32
+// octets. Both rails therefore put the refusal in the function that writes the
+// length, and neither trusts a caller to have checked.
+var ErrNextHopUnencodable = errors.New("next hop cannot be encoded")
+
+// ValidateAnnounceNextHop reports why WriteAnnounceUpdate would refuse this route
+// and this link-local address, and nil when it would encode them.
+//
+// It is the reason behind the writer's zero return, not a second gate in front of
+// it: both call announceNextHopOctets, so a caller that skips this function still
+// cannot get bad octets out of the writer. What it loses is the diagnosis.
+func ValidateAnnounceNextHop(route bgptypes.RouteSpec, linkLocalNextHop netip.Addr) error {
+	_, err := announceNextHopOctets(route, linkLocalNextHop)
+	return err
+}
+
+// announceNextHop holds both halves of the Next Hop field, already reduced to the
+// octets that go on the wire.
+type announceNextHop struct {
+	v4            [4]byte
+	global        [16]byte
+	linkLocal     [16]byte
+	withLinkLocal bool
+}
+
+// announceNextHopOctets settles both halves of the Next Hop field for one route.
+//
+// It is the only place the route's family selects a next-hop form, so the writer
+// and ValidateAnnounceNextHop cannot come to different answers about the same
+// route.
+func announceNextHopOctets(route bgptypes.RouteSpec, linkLocalNextHop netip.Addr) (announceNextHop, error) {
+	var nh announceNextHop
+	var err error
+
+	// RFC 4271 Section 5.1.3 gives an IPv4 route the four-octet NEXT_HOP
+	// attribute; RFC 4760 Section 3 and RFC 2545 Section 3 give every IPv6 route
+	// the MP_REACH_NLRI Next Hop field instead.
+	if !route.Prefix.Addr().Is6() {
+		nh.v4, err = nextHopV4Octets(route.NextHop.Addr)
+		return nh, err
+	}
+	if nh.global, err = nextHopGlobalOctets(route.NextHop.Addr); err != nil {
+		return nh, err
+	}
+	nh.linkLocal, nh.withLinkLocal, err = nextHopLinkLocalOctets(linkLocalNextHop)
+	return nh, err
+}
+
+// nextHopV4Octets returns the four octets RFC 4271 Section 5.1.3 gives the
+// NEXT_HOP attribute of an IPv4 route.
+//
+// An IPv4-mapped address names the same host as its IPv4 form, so it is accepted
+// and unmapped. Every other address is refused: there are no four octets that
+// name it, which is why the standard library panics rather than guesses.
+func nextHopV4Octets(addr netip.Addr) ([4]byte, error) {
+	if !addr.Is4() && !addr.Is4In6() {
+		return [4]byte{}, fmt.Errorf("%w: NEXT_HOP %v is not an IPv4 address (RFC 4271 Section 5.1.3)", ErrNextHopUnencodable, addr)
+	}
+	return addr.As4(), nil
+}
+
+// nextHopGlobalOctets returns the sixteen octets RFC 2545 Section 3 calls "the
+// global IPv6 address of the next hop", the first address of the MP_REACH_NLRI
+// Next Hop field.
+//
+// attribute.ValidateGlobalNextHop owns the link-local half of that phrase and is
+// reused here rather than restated. It returns nil for an IPv4 address and for
+// the zero Addr, on the stated ground that an unset next hop is the caller's own
+// defect and naming it there would name the wrong producer. This function is that
+// caller, so those two cases are refused here.
+func nextHopGlobalOctets(addr netip.Addr) ([16]byte, error) {
+	if !addr.Is6() || addr.Is4In6() {
+		return [16]byte{}, fmt.Errorf("%w: MP_REACH next hop %v is not an IPv6 address (RFC 2545 Section 3)", ErrNextHopUnencodable, addr)
+	}
+	if err := attribute.ValidateGlobalNextHop(addr); err != nil {
+		return [16]byte{}, fmt.Errorf("%w: %w", ErrNextHopUnencodable, err)
+	}
+	return addr.As16(), nil
+}
+
+// nextHopLinkLocalOctets returns the sixteen octets RFC 2545 Section 3 calls "the
+// link-local IPv6 address of the next hop", and reports whether the 32-octet form
+// is owed at all.
+//
+// The zero Addr is not an error. It is Section 3's "in all other cases" answer,
+// which the caller has already decided against the host interface table
+// (Peer.linkLocalNextHopFor, link_scope.go), and it selects the 16-octet form.
+//
+// An address that is valid but not link-local unicast IS an error. The caller
+// asked for the second slot to be filled, and Section 3 permits exactly one kind
+// of address there. Quietly falling back to the 16-octet form would encode a
+// different answer than the caller gave, which is the failure this guard exists
+// to stop rather than a safe default.
+func nextHopLinkLocalOctets(addr netip.Addr) ([16]byte, bool, error) {
+	if !addr.IsValid() {
+		return [16]byte{}, false, nil
+	}
+	if !addr.Is6() || addr.Is4In6() || !addr.IsLinkLocalUnicast() {
+		return [16]byte{}, false, fmt.Errorf("%w: MP_REACH second next hop %v is not a link-local IPv6 address (RFC 2545 Section 3)", ErrNextHopUnencodable, addr)
+	}
+	return addr.As16(), true, nil
+}
 
 // Zero-allocation attribute writers.
 // These functions write attributes directly to the buffer without allocating structs.
@@ -173,12 +292,16 @@ func as4PathForASNs(asn4 bool, asns []uint32) *attribute.AS4Path {
 
 // writeNextHopAttr writes NEXT_HOP attribute directly to buf.
 // RFC 4271 §5.1.3: Well-known mandatory, 4 bytes for IPv4.
-func writeNextHopAttr(buf []byte, off int, addr netip.Addr) int {
+//
+// It takes the four octets rather than the address, so the length octet it writes
+// and the value that follows cannot disagree and there is no address form left
+// for it to reject. nextHopV4Octets is where an address becomes those octets, and
+// where one that is not an IPv4 address is refused.
+func writeNextHopAttr(buf []byte, off int, a4 [4]byte) int {
 	// Header: Transitive(0x40) | code(3) | len(4)
 	buf[off] = byte(attribute.FlagTransitive)
 	buf[off+1] = byte(attribute.AttrNextHop)
 	buf[off+2] = 4
-	a4 := addr.As4()
 	copy(buf[off+3:], a4[:])
 	return 7
 }
@@ -242,8 +365,35 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS uint32, isIBGP, asn4, addPath bool) int {
+//
+// RFC 2545 Section 3: linkLocalNextHop is the link-local address to write after
+// the global one in the MP_REACH Next Hop field of an IPv6 route. The zero Addr
+// means the field carries the global address alone. The caller has already
+// decided the section's condition against the host interface table
+// (Peer.linkLocalNextHopFor, link_scope.go); this writer only encodes the answer.
+//
+// It writes NOTHING and returns 0 for a next hop that cannot fill the field it is
+// about to declare a length for. A successful write is never shorter than the BGP
+// header, so 0 names the refusal and no partial message reaches the buffer.
+// ValidateAnnounceNextHop gives the reason, and Session.SendAnnounce returns it.
+//
+// The refusal is here rather than only in a caller-side guard because this
+// function is exported: a guard in Session.SendAnnounce would bind one caller,
+// while the length octet is written here for every caller there will ever be.
+// The int return is the buffer-first writer contract this package keeps
+// (WriteWithdrawUpdate, nlri.WriteNLRI, attribute.WriteAttrTo), so the reason
+// travels beside it rather than inside it.
+func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLocalNextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) int {
 	start := off
+
+	// Both halves of the Next Hop field are settled before the first byte is
+	// written, so a refusal leaves the caller's buffer untouched rather than a
+	// part-built UPDATE in a session write buffer.
+	nextHop, err := announceNextHopOctets(route, linkLocalNextHop)
+	if err != nil {
+		return 0
+	}
+	isIPv6 := route.Prefix.Addr().Is6()
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
 	for i := range message.MarkerLen {
@@ -346,12 +496,9 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 	}
 	off += writeASPathAttr(buf, off, asPathASNs, asn4)
 
-	isIPv6 := route.Prefix.Addr().Is6()
-	nhAddr := route.NextHop.Addr
-
 	// 3. NEXT_HOP - RFC 4271 §5.1.3 (IPv4 only; IPv6 uses MP_REACH_NLRI)
 	if !isIPv6 {
-		off += writeNextHopAttr(buf, off, nhAddr)
+		off += writeNextHopAttr(buf, off, nextHop.v4)
 	}
 
 	// 4. MED - RFC 4271 §5.1.4: Optional non-transitive attribute.
@@ -405,10 +552,20 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
 	} else {
 		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
-		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16) + Reserved(1) + NLRI(var)
+		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16 or 32) + Reserved(1) + NLRI(var)
 		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0)
 		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
-		nhLen := 16 // IPv6 next-hop
+
+		// RFC 2545 Section 3: "The value of the Length of Next Hop Network Address
+		// field on a MP_REACH_NLRI attribute shall be set to 16, when only a global
+		// address is present, or 32 if a link-local address is also included in the
+		// Next Hop field." The caller decided inclusion; the length follows it, and
+		// nextHopLinkLocalOctets has already refused an address that would fill the
+		// second slot with something Section 3 does not name.
+		nhLen := 16
+		if nextHop.withLinkLocal {
+			nhLen = 32
+		}
 		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
 
 		// RFC 4760 Section 3 - Attribute header (Optional, non-transitive)
@@ -428,7 +585,13 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 		off++
 
 		// RFC 4760 Section 3 - Network Address of Next Hop (variable)
-		off += copy(buf[off:], nhAddr.AsSlice())
+		// RFC 2545 Section 3: the global address is always first, the link-local
+		// address second. Both were settled at entry, so each one fills the sixteen
+		// octets the length above promises and names the host the caller gave.
+		off += copy(buf[off:], nextHop.global[:])
+		if nextHop.withLinkLocal {
+			off += copy(buf[off:], nextHop.linkLocal[:])
+		}
 
 		// RFC 4760 Section 3 - Reserved (1 octet, MUST be 0)
 		buf[off] = 0

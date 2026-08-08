@@ -199,6 +199,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 	tests := []struct {
 		name     string
 		settings *PeerSettings
+		scope    *linkScope
 		wantMode uint8
 		wantOps  int
 	}{
@@ -233,13 +234,49 @@ func TestPrecomputeNextHop(t *testing.T) {
 			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
-			name: "self IPv6 with link-local",
+			// RFC 2545 Section 3: both halves of the inclusion condition hold --
+			// the local address (which IS the global next hop under next-hop-self)
+			// and the peer both sit on a locally connected subnet.
+			name: "self IPv6 with link-local, shared subnet",
 			settings: &PeerSettings{
 				NextHopMode:  NextHopSelf,
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 				LinkLocal:    netip.MustParseAddr("fe80::1"),
 			},
+			scope: &linkScope{
+				connected:  []netip.Prefix{netip.MustParsePrefix("2001:db8::/64")},
+				peerOnLink: true,
+			},
 			wantMode: nhModeSelfV6LL,
+			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+		},
+		{
+			// RFC 2545 Section 3 "in all other cases": the leaf is set, but the
+			// peer shares no subnet with the speaker, so the 16-octet form goes
+			// on the wire. This row is what stops the leaf alone deciding the form.
+			name: "self IPv6 with link-local, peer off link",
+			settings: &PeerSettings{
+				NextHopMode:  NextHopSelf,
+				LocalAddress: netip.MustParseAddr("2001:db8::1"),
+				LinkLocal:    netip.MustParseAddr("fe80::1"),
+			},
+			scope: &linkScope{
+				connected:  []netip.Prefix{netip.MustParsePrefix("2001:db8::/64")},
+				peerOnLink: false,
+			},
+			wantMode: nhModeSelfV6,
+			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
+		},
+		{
+			// The interface table has not been read, so the condition is unproven
+			// and the link-local is not appended.
+			name: "self IPv6 with link-local, no link scope",
+			settings: &PeerSettings{
+				NextHopMode:  NextHopSelf,
+				LocalAddress: netip.MustParseAddr("2001:db8::1"),
+				LinkLocal:    netip.MustParseAddr("fe80::1"),
+			},
+			wantMode: nhModeSelfV6,
 			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
@@ -272,6 +309,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var facts peerForwardFacts
 			precomputeNextHop(tt.settings, &facts)
+			applyLinkLocalNextHop(tt.settings, &facts, tt.scope)
 			assert.Equal(t, tt.wantMode, facts.nhMode)
 
 			var mods filterapi.ModAccumulator

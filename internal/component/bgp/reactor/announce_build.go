@@ -133,6 +133,10 @@ type announceAttrs struct {
 	present [4]uint64 // one bit per contributed type code, so a duplicate is caught
 	failed  bool
 	reason  string
+	// cause is the refusal's machine-readable half, for a caller whose operator
+	// action differs by reason. Nil when the reason has no cause a caller acts on
+	// differently from "this announce was not encodable".
+	cause error
 }
 
 // begin readies the plan for one announce.
@@ -145,6 +149,7 @@ func (p *announceAttrs) begin() {
 	p.present = [4]uint64{}
 	p.failed = false
 	p.reason = ""
+	p.cause = nil
 	p.mods.Reset()
 }
 
@@ -190,15 +195,31 @@ func (p *announceAttrs) nextHopFor(addr netip.Addr) *attribute.NextHop {
 	return &p.nh
 }
 
-// fail records the first reason the plan cannot be materialized. Every later call
-// is a no-op, so a caller checks once at the end rather than at every add
-// (ai/rules/evidence.md).
-func (p *announceAttrs) fail(reason string) {
+// fail records the first reason the plan cannot be materialized, and the cause a
+// caller acts on. Every later call is a no-op, so a caller checks once at the end
+// rather than at every add (ai/rules/evidence.md), and first-reason-wins holds for
+// the cause because it is recorded here rather than beside the call.
+//
+// cause is nil for a reason whose operator action is the rail's default. It is
+// non-nil where the action DIFFERS, which is what refusalCause exists to carry.
+func (p *announceAttrs) fail(reason string, cause error) {
 	if !p.failed {
 		p.failed = true
 		p.reason = reason
+		p.cause = cause
 	}
 }
+
+// refusalCause returns the cause of the refusal emit reported, or nil when the
+// plan did not fail or its reason carries no distinct operator action.
+//
+// It exists because a rail cannot tell WHY emit refused, and the two answers need
+// different words: "the announce did not fit" asks for fewer prefixes, and an
+// unencodable next hop asks for a next hop. Without it both rails reported every
+// refusal as oversize, so the one refusal the add backstop can raise on its own --
+// an attribute with no wire form -- told the operator to send fewer prefixes on a
+// batch whose size was never the problem (ai/rules/cli.md).
+func (p *announceAttrs) refusalCause() error { return p.cause }
 
 // reserve makes room for n more scratch bytes, growing past the pooled region when
 // an announce needs it.
@@ -223,6 +244,16 @@ func (p *announceAttrs) planned(code uint8) bool {
 	return p.present[code>>6]&(uint64(1)<<(code&63)) != 0
 }
 
+// announceNextHopValidator is what the plan asks an attribute that can be
+// well-formed as a Go value and still have no wire form. attribute.MPReachNLRI is
+// the case: RFC 4760 Section 3 counts its Next Hop field with a length octet, and
+// an unresolved address fills none of it.
+//
+// Declared here rather than in the attribute package because this is the consumer
+// that needs the answer, and asking through an interface keeps add from spelling a
+// type code.
+type announceNextHopValidator interface{ ValidateNextHops() error }
+
 // add contributes one attribute, encoded under dstCtx.
 //
 // dstCtx decides the AS_PATH and AGGREGATOR ASN width (RFC 6793 Section 4.1). It
@@ -239,20 +270,55 @@ func (p *announceAttrs) add(attr attribute.Attribute, dstCtx *bgpctx.EncodingCon
 		// Two contributions for one type code would emit the attribute twice, which
 		// RFC 4271 Section 4.3 makes a Malformed Attribute List and RFC 7606
 		// Section 3(g) makes treat-as-withdraw at the receiver.
-		p.fail("duplicate attribute type code")
+		p.fail("duplicate attribute type code", nil)
 		return
+	}
+	// An attribute with no wire form is refused HERE, and this is the place because
+	// add is the single point both announce rails reach the wire through: they go
+	// WriteToWithContext -> WriteTo, and neither ever calls CheckedWriteTo, which
+	// takes no EncodingContext and so cannot be their entry point.
+	//
+	// It is not redundant with the length check below. Until 2026-08-08 an
+	// unresolved MP_REACH next hop was caught only by accident, because Len()
+	// counted sixteen octets the write never emitted; deriving both from
+	// netip.Addr.AsSlice made them agree at ZERO and silenced that accident, leaving
+	// buildRIBRouteUpdate (peer_rib_routes.go) emitting a Length of Next Hop Network
+	// Address octet of 0x00. validateMPReachNextHop (message/rfc7606.go) makes
+	// exactly that octet an RFC7606ActionSessionReset, so the trade was a dropped
+	// route for a reset session (RFC 7606 Section 7.11).
+	//
+	// It costs the hot path no allocation: the assertion is interface-to-interface
+	// over a value that is already an interface, and the check itself is a loop of
+	// netip.Addr.IsValid. Measured over BenchmarkAnnounceRails/batch-mp, 3 allocs/op
+	// and 304 B/op with the guard and with it disabled.
+	//
+	// batch-mp is the sub-benchmark that names the family whose next hop travels
+	// INSIDE the attribute, and it is the only one of the three that measures this
+	// branch: the batch and queued sub-benchmarks are IPv4 unicast, so their next hop
+	// is a NEXT_HOP attribute, this assertion fails, and ValidateNextHops never runs.
+	// An earlier version of this comment cited the whole benchmark for the number,
+	// which measured the failed assertion alone (ai/rules/evidence.md).
+	if v, ok := attr.(announceNextHopValidator); ok {
+		if err := v.ValidateNextHops(); err != nil {
+			// The cause travels with the refusal. It is the one reason this function
+			// raises that a rail must report differently from every other: the announce
+			// is the right size and the next hop is what must change, so a rail that
+			// assumed oversize told the operator to send fewer prefixes (refusalCause).
+			p.fail("attribute next hop has no wire form", err)
+			return
+		}
 	}
 	valueLen := attribute.ValueLenWithContext(attr, dstCtx)
 	if valueLen < 0 {
-		p.fail("attribute value length is not computable")
+		p.fail("attribute value length is not computable", nil)
 		return
 	}
 	if !p.reserve(valueLen) {
-		p.fail("attribute values exceed the announce scratch region")
+		p.fail("attribute values exceed the announce scratch region", nil)
 		return
 	}
 	if n := attr.WriteToWithContext(p.scratch, p.used, nil, dstCtx); n != valueLen {
-		p.fail("attribute size query disagreed with its own write")
+		p.fail("attribute size query disagreed with its own write", nil)
 		return
 	}
 	flags := attr.Flags()
@@ -290,7 +356,7 @@ func (p *announceAttrs) drop(code uint8) {
 		return
 	}
 	if p.planned(code) {
-		p.fail("duplicate attribute type code")
+		p.fail("duplicate attribute type code", nil)
 		return
 	}
 	p.plans = append(p.plans, announcePlanEntry{code: code, remove: true})

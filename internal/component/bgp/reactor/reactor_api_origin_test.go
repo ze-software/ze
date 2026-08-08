@@ -1,3 +1,9 @@
+// rfc-test-change-approved: 2026-08-08 Thomas approved the buildBatchAnnounceUpdate
+// signature change that carries the true cause to the caller (an (*message.Update,
+// error) pair in place of a bare *message.Update, so a refused build reports WHY
+// instead of a silent nil). Every hunk in this RFC4271-5.1.5-1 / RFC4271-5.1.5-2
+// file is that caller adaptation, `update :=` becoming `update, _ :=`. No
+// assertion, fixture, or expected value changed.
 package reactor
 
 import (
@@ -111,7 +117,7 @@ func TestAnnounceOversizeDropsWithNamedLog(t *testing.T) {
 		defer swapRoutesLogger(slog.New(slog.NewTextHandler(&sink, &slog.HandlerOptions{Level: slog.LevelWarn})))()
 
 		adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
-		update := adapter.buildBatchAnnounceUpdate(make([]byte, 256), make([]byte, message.MaxMsgLen),
+		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, 256), make([]byte, message.MaxMsgLen),
 			bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
 				NLRIs:   []nlri.NLRI{wn},
@@ -224,7 +230,7 @@ func TestAnnounceRejectsDuplicateBaseAttribute(t *testing.T) {
 	require.NoError(t, err)
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
-	update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+	update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
 		bgptypes.NLRIBatch{
 			Family:  family.IPv4Unicast,
 			NLRIs:   []nlri.NLRI{wn},
@@ -260,7 +266,7 @@ func TestAnnounceBuilderModeIsEditSetOverEmptyBase(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 	build := func(batch bgptypes.NLRIBatch) []byte {
-		update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
 			batch, netip.MustParseAddr("10.0.0.1"), true /*iBGP*/, false, true /*asn4*/, false, 65000)
 		require.NotNil(t, update)
 		return update.PathAttributes
@@ -321,7 +327,7 @@ func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 
 	batchRail := func(isIBGP bool) []byte {
-		update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
 			bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
 				NLRIs:   []nlri.NLRI{wn},
@@ -378,7 +384,7 @@ func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
 		b.SetASPath([]uint32{65000})
 		b.SetLocalPref(300)
 		b.AddCommunity(65000, 100)
-		update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
 			bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
 				NLRIs:   []nlri.NLRI{wn},

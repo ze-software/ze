@@ -238,7 +238,7 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 	nlriBuf := make([]byte, message.MaxMsgLen)
 
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
+	update, _ := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch,
 		netip.Addr{} /*invalid next-hop*/, false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
 
 	require.Nil(t, update, "a block that does not fit the slot must be rejected, not resliced past len")
@@ -265,7 +265,7 @@ func TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer(t *testing.T) {
 	nlris := []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)}
 	build := func(t *testing.T, wire *attribute.AttributesWire, attrBufLen int) *message.Update {
 		t.Helper()
-		return adapter.buildBatchAnnounceUpdate(make([]byte, attrBufLen), make([]byte, message.MaxMsgLen),
+		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, attrBufLen), make([]byte, message.MaxMsgLen),
 			bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
 				NLRIs:   nlris,
@@ -273,6 +273,7 @@ func TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer(t *testing.T) {
 				Wire:    wire,
 			},
 			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+		return update
 	}
 
 	// Each fixture carries 64 communities (259 wire octets) so the one-octet-short

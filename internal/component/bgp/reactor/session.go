@@ -332,6 +332,12 @@ type Session struct {
 	// Called in sendOpen() to inject plugin capabilities into OPEN.
 	pluginCapGetter func() []capability.Capability
 
+	// configCapGetter reads the CONFIGURED capabilities under the Peer's lock, so
+	// buildOpen never reads s.settings.Capabilities off the shared pointer a
+	// reload swap writes. Set by Peer; see SetConfigCapabilityGetter
+	// (peer_settings_negotiation.go).
+	configCapGetter func() []capability.Capability
+
 	// pluginFamiliesGetter retrieves families from plugins that declared decode.
 	// Used to auto-add Multiprotocol capabilities for plugin-provided families.
 	// Set by Peer to link to plugin.Server registry.
@@ -440,7 +446,7 @@ func NewSession(settings *PeerSettings) *Session {
 		writeBuf:        wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
 		errChan:         make(chan error, 2),          // Buffer 2: normal error + teardown
 		done:            make(chan struct{}),
-		prefixCounts:    &prefixCounts{counts: make(map[uint32]int64), warned: make(map[uint32]bool)},
+		prefixCounts:    newPrefixCounts(settings),
 		coalesceEnabled: coalesceEnabled(),
 		addrLabel:       settings.Address.String(),
 	}

@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/syntax.md — peer configuration extraction and route expansion
+// RFC: rfc/short/rfc2545.md — Section 3, the leaves that feed the global next-hop slot
+// RFC: rfc/short/rfc4486.md — per-family prefix limits and the teardown they cause
 // Related: loader_prefix.go — prefix expansion for route splitting
 // Related: loader_routes.go — BGP route type conversion
 
@@ -324,11 +326,25 @@ func buildDynamicGroupSettings(tmpl DynamicGroupTemplate, globalLocalAS, globalR
 	ps.IsDynamic = true
 
 	// Parse local address from connection > local > ip.
+	//
+	// RFC 2545 Section 3: this address is what `next-hop self` and the
+	// default-originate rail write into the global slot of the MP_REACH Next Hop
+	// field, which carries "the global IPv6 address of the next hop". A link-local
+	// one is refused there, exactly as reactor.parsePeerFromTree refuses it for a
+	// statically configured peer (reactor/config_nexthop_form.go). This parser
+	// returns no error, so a refused value is dropped and named in the log: the
+	// template then has no local address, and `next-hop self` produces no next-hop
+	// rewrite at all (precomputeNextHop, reactor/peer_forward_facts.go), which
+	// fails closed.
 	if connMap != nil {
 		if localMap, ok := connMap["local"].(map[string]any); ok {
 			if ipStr, ok := localMap["ip"].(string); ok && ipStr != "auto" {
 				if addr, err := netip.ParseAddr(ipStr); err == nil {
-					ps.LocalAddress = addr
+					if formErr := reactor.ValidatePeerGlobalNextHop(tmpl.GroupName, "local ip", addr); formErr != nil {
+						configLogger().Warn("dynamic group: local ip refused", "error", formErr)
+					} else {
+						ps.LocalAddress = addr
+					}
 				}
 			}
 		}
@@ -351,6 +367,11 @@ func buildDynamicGroupSettings(tmpl DynamicGroupTemplate, globalLocalAS, globalR
 	}
 
 	// Parse next-hop mode from session > next-hop.
+	//
+	// RFC 2545 Section 3: an explicit address goes straight into the global slot
+	// of the MP_REACH Next Hop field, so a link-local one is refused here for the
+	// same reason as the local address above. A refused value leaves NextHopMode
+	// on its default, so no rewrite is emitted.
 	if sessionMap != nil {
 		if nhStr, ok := sessionMap["next-hop"].(string); ok {
 			switch nhStr {
@@ -360,8 +381,12 @@ func buildDynamicGroupSettings(tmpl DynamicGroupTemplate, globalLocalAS, globalR
 				ps.NextHopMode = reactor.NextHopUnchanged
 			default:
 				if addr, err := netip.ParseAddr(nhStr); err == nil {
-					ps.NextHopMode = reactor.NextHopExplicit
-					ps.NextHopAddress = addr
+					if formErr := reactor.ValidatePeerGlobalNextHop(tmpl.GroupName, "next-hop", addr); formErr != nil {
+						configLogger().Warn("dynamic group: next-hop refused", "error", formErr)
+					} else {
+						ps.NextHopMode = reactor.NextHopExplicit
+						ps.NextHopAddress = addr
+					}
 				}
 			}
 		}

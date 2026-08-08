@@ -1,6 +1,37 @@
+# rfc-test-change-approved: 2026-08-07 Thomas ruled for a daemon-side shared-subnet check --
+# ze evaluates RFC 2545 Section 3 itself at the producer instead of treating the operator's
+# `local-link-local` leaf as the decision, and he accepted that this changes behavior for an
+# operator whose leaf is set on a non-shared subnet. This enrolment is UNCOMMITTED and was
+# held back because two reviewers found it published a claim the code did not meet, so these
+# fixtures were never proof of a shipped claim. No assertion is weakened: the pair now
+# differs in ONE variable (the route's next hop) with the same leaf and the same capability
+# in both configs, so it discriminates on the Section 3 condition rather than on the leaf.
+#
+# RFC requirement: RFC2545-3-1 positive -- the Next Hop field carries the global IPv6
+# address first and the link-local address second. The asserted MP_REACH_NLRI is 800E36
+# 0002 01 20, then 00000000000000000000000000000001 (::1, the route's next hop), then
+# FE800000000000000000000000000001 (fe80::1, the session's link-local). Order is pinned by
+# offset, so a swapped pair fails.
+#
+# RFC requirement: RFC2545-3-2 positive -- the Length of Next Hop Network Address octet is
+# 0x20 (32) because a link-local address is also included in the Next Hop field.
+#
+# RFC requirement: RFC2545-3-3 positive -- both halves of the Section 3 condition hold. The
+# speaker shares the ::1/128 loopback subnet with the entity named by the global next hop
+# (::1) and with the peer the route goes to (::1). ze evaluates that condition against the
+# host interface table; the `local-link-local fe80::1` leaf supplies the address, it does
+# not decide inclusion.
+#
+# RFC requirement: RFC2545-3-4 negative -- the "in all other cases" branch does not fire
+# while the inclusion condition holds. The field is not reduced to the global address
+# alone, and the length octet is not 16.
+#
+# Pairs with conf-llnh-lla-only.ci, which carries the SAME `local-link-local fe80::1` leaf
+# and the same capability, and differs in one variable only: its route's next hop sits on
+# no locally connected subnet.
 option=file:conf-llnh-update.conf
 option=bind:ipv6
-1:cmd:announce ipv6 unicast 2001:db8:1::1/128 next-hop 2001:db8::ffff origin igp local-preference 100
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E360002012020010DB800000000000000000000FFFFFE800000000000000000000000000001008020010DB8000100000000000000000001
+1:cmd:announce ipv6 unicast 2001:db8:1::1/128 next-hop ::1 origin igp local-preference 100
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E360002012000000000000000000000000000000001FE800000000000000000000000000001008020010DB8000100000000000000000001
 1:cmd:announce eor ipv6 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E02:00000007900F0003000201
