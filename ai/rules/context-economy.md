@@ -77,6 +77,22 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 - **Gates. No check, test, or verification target is skipped to save a round trip** (`ai/rules/completion.md`, `ai/rules/git-safety.md`). A gate not run is not a saving; it is an unmeasured risk.
 - **The rules themselves. A rule you did not read is a rule you did not follow.** `ai/rules/TRIGGERS.md` names every rule in one line each precisely so the read is targeted, not skipped.
 
+## Process Is Proportional to the Change
+
+**Process is proportional to the change. Size the diff BEFORE you spend agents and rounds on it, and state that size when you delegate.**
+**The saving is in making the CHANGE smaller. It is never in reviewing a given change less, which stays banned above. A two-line change reviewed once has had a full review, not a cut one.**
+
+| The change | What it earns |
+|------------|---------------|
+| A few lines inside one function, no new symbol | The main thread. One review pass. No implementation agent: the agent's startup floor costs more than the edit |
+| One file, one concern, no new exported symbol | One implementation agent or the main thread. One review pass |
+| Several files, a new exported symbol, or a new code path | One implementation agent. One review round, then further rounds only while a round finds a BLOCKER or an ISSUE in its own scope |
+| A new subsystem, a protocol change, or anything carrying an RFC or interop obligation | The full loop in `ai/rules/planning.md`, unbounded in passes. That sits on rung 2 of `ai/rules/rule-precedence.md` and no budget reaches it |
+
+**On any diff, the FIRST review question is "is this change bigger than the problem?" Ask it before you audit one detail.**
+**A round that audits the details of an over-engineered change ratifies it. Every finding is about machinery that should not exist, and every fix drives another pass over more of it. Report "this should be N lines" as a BLOCKER, and restart from the smaller change (`ai/rules/simplicity.md`).**
+**This happened on 2026-08-08. A two-line regex change took three review rounds and two implementation agents, because the first implementation was over-engineered and the rounds policed it instead of questioning its size.**
+
 ## Banned Reasoning
 
 | Banned | Reality |

@@ -17,5 +17,9 @@ the-gopls-cli-lsp-from-any-context-subagents-included ## The gopls CLI: LSP From
   worked-example-of-the-two-step-recipe
 what-this-rule-never-targets ## What This Rule Never Targets
   never-cut-review-gates-or-rule-reading-to-save-tokens
+process-proportional-to-the-change ## Process Is Proportional to the Change
+  size-the-change-before-you-spend-process-on-it
+  what-each-size-of-change-earns
+  ask-whether-the-change-is-too-big-before-you-audit-it
 banned-reasoning ## Banned Reasoning
   banned-excuses-and-what-the-numbers-say

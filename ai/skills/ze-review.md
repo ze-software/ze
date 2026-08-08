@@ -50,9 +50,12 @@ phase itself.
 
 ## Steps
 
-0. **Automated pre-checks (run both, fix or report findings before proceeding):**
+0. **Pre-checks (complete all three, fix or report findings before proceeding):**
+    - **Size the change.** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Then match the process to the size: a few lines in one function earns one pass, never a loop.
     - `make ze-validate` — catches the mechanical subset of steps 1-3 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
     - `python3 scripts/dev/audit-test-relaxation.py` for uncommitted changes, or `python3 scripts/dev/audit-test-relaxation.py origin/main` to also cover work already committed but not yet pushed (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing — the tool now refuses that with exit 2 rather than reporting clean). — flags tests that were deleted or weakened rather than the code being fixed. Treat its output as findings: every `[DELETED]` and `[WEAKENED]` is a **BLOCKER** unless the code was genuinely fixed and the test legitimately no longer applies; every `[RELAXED]` (a `// test-relax:` token) must be justified by a removed feature or replaced coverage — quote the reason and have the user confirm it. A test edited to match broken code IS the defect, not the fix. This pass exists because weakening tests to reach green is a recurring failure mode (see `ai/rules/testing.md`).
+
+0.5. **Size the change (BEFORE step 1):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff that is bigger than its problem gets ONE finding, a BLOCKER naming the smaller change, and the review stops there: auditing the details of over-engineered code ratifies it and drives another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Then match the process to the size: a few lines in one function earns one pass, not a loop.
 
 1. **Wiring verification (FIRST — before any other analysis):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This is the FIRST step because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
