@@ -5,6 +5,7 @@ package main
 import (
 	"testing"
 
+	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -55,7 +56,7 @@ func TestRootsRegistered(t *testing.T) {
 func TestUpdateServeLocalRegistered(t *testing.T) {
 	ensureLocalCommandsRegistered()
 
-	handler, rest := registry.LookupLocal([]string{"update", "serve", "--listen", ":9999"})
+	handler, rest := registry.LookupLocal([]string{"update", "serve", "--listen", ":9999"}, cli.IsDeclaredCommand)
 	if handler == nil {
 		t.Fatal("`update serve` must resolve as a local handler")
 	}

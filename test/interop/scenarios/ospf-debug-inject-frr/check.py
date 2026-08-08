@@ -19,7 +19,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from interop import FRROSPF, ZE_CONTAINER, docker_exec_quiet, log_info, log_pass  # noqa: E402
+from interop import FRROSPF, Ze, log_info, log_pass  # noqa: E402
 
 OPAQUE_ID = "1"
 
@@ -32,23 +32,9 @@ def check():
         raise AssertionError("adjacency not Full before injection")
 
     log_info("enabling debug injection and injecting a Private-Use opaque LSA...")
-    docker_exec_quiet(ZE_CONTAINER, ["ze", "debug", "ospf", "inject", "enable"])
-    docker_exec_quiet(
-        ZE_CONTAINER,
-        [
-            "ze",
-            "debug",
-            "ip",
-            "ospf",
-            "inject",
-            "opaque",
-            "scope",
-            "area",
-            "id",
-            OPAQUE_ID,
-            "hex",
-            "0001000401020304",
-        ],
+    Ze().cli("debug ospf inject enable")
+    Ze().cli(
+        "debug ip ospf inject opaque scope area id %s hex 0001000401020304" % OPAQUE_ID
     )
 
     log_info("waiting for FRR to receive the injected opaque-area LSA...")
@@ -65,22 +51,7 @@ def check():
         )
 
     log_info("withdrawing the injected LSA; the adjacency must not flap...")
-    docker_exec_quiet(
-        ZE_CONTAINER,
-        [
-            "ze",
-            "debug",
-            "ip",
-            "ospf",
-            "inject",
-            "opaque",
-            "scope",
-            "area",
-            "id",
-            OPAQUE_ID,
-            "withdraw",
-        ],
-    )
+    Ze().cli("debug ip ospf inject opaque scope area id %s withdraw" % OPAQUE_ID)
     time.sleep(8)
     if not frr.adjacency_full():
         raise AssertionError("adjacency flapped during inject/withdraw")

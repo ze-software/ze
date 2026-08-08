@@ -309,16 +309,58 @@ func RuntimeStorage() any {
 //
 // Caller joins words with spaces to form the match key; iteration tries
 // longest first, so "show bgp decode" is preferred over "show bgp" or "show".
-func LookupLocal(words []string) (LocalHandler, []string) {
+//
+// THE MATCH IS REFUSED WHEN THE ARGV REACHES A DECLARED COMMAND FURTHER DOWN.
+// Longest-prefix alone gives a handler registered at a SHORT path the whole
+// subtree below it, including paths another owner declared as commands of their
+// own. `show interface` is registered locally
+// (internal/component/iface/cli/register.go) and declares seven children in
+// ze-iface-interface-cmd.yang; every one of them landed on that handler, which
+// reads its first argument as an interface NAME, so `ze show interface brief`
+// looked for an interface called "brief". A handler still keeps every trailing
+// word that names no declared command, which is how `ze show interface eth0`
+// and `ze show debug profile name default` reach theirs.
+//
+// declared answers whether an absolute path is a registered ze:command; pass
+// cli.IsDeclaredCommand. A nil declared makes every match unprovable, so none is
+// served: this is a dispatch guard, and a guard with no data must fail closed
+// rather than return the shadowing match it cannot judge (ai/rules/evidence.md).
+//
+// LookupOfflineFallback keeps plain longest-prefix on purpose. A fallback is
+// consulted only after the daemon is unreachable, so covering a declared child
+// is the point rather than a collision: `show host` serves `show host cpu` with
+// no daemon running.
+func LookupLocal(words []string, declared func(path string) bool) (LocalHandler, []string) {
+	if declared == nil {
+		return nil, nil
+	}
+	handler, matched := longestLocalPrefix(words)
+	if handler == nil {
+		return nil, nil
+	}
+	// Evaluated outside the registry lock: declared is a foreign callback that
+	// reads the RPC registry, and holding one registry's lock across another's
+	// is how a lock order gets invented by accident.
+	for i := matched + 1; i <= len(words); i++ {
+		if declared(textbuf.Join(words[:i], " ")) {
+			return nil, nil
+		}
+	}
+	return handler, append([]string(nil), words[matched:]...)
+}
+
+// longestLocalPrefix returns the handler registered at the longest prefix of
+// words, and how many words that prefix consumed. matched is 0 when no prefix
+// is registered, and the handler is then nil.
+func longestLocalPrefix(words []string) (LocalHandler, int) {
 	mu.RLock()
 	defer mu.RUnlock()
 	for i := len(words); i > 0; i-- {
-		path := textbuf.Join(words[:i], " ")
-		if handler, ok := localHandlers[path]; ok {
-			return handler, append([]string(nil), words[i:]...)
+		if handler, ok := localHandlers[textbuf.Join(words[:i], " ")]; ok {
+			return handler, i
 		}
 	}
-	return nil, nil
+	return nil, 0
 }
 
 // RegisterOfflineFallback registers an in-process handler for a read-only

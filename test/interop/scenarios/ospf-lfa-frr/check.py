@@ -12,7 +12,6 @@ failover that requires full SPF reconvergence before traffic recovers.
 Runs under the Linux Docker/QEMU interop harness ONLY; it CANNOT run on darwin.
 """
 
-import json
 import os
 import sys
 import time
@@ -25,6 +24,7 @@ from interop import (  # noqa: E402
     docker_exec_quiet,
     log_info,
     log_pass,
+    poll,
 )
 
 # FRR's loopback prefix advertised into area 0 (the destination we protect).
@@ -33,14 +33,13 @@ PRIMARY_LINK = "eth0"
 
 
 def _fast_reroute_rows():
-    """Return the `show ospf route fast-reroute` rows as parsed JSON."""
-    out = docker_exec_quiet(
-        Ze().container, ["ze", "show", "ospf", "route", "fast-reroute", "--json"]
-    )
-    try:
-        return json.loads(out)
-    except (ValueError, TypeError):
-        return []
+    """Return the `show ospf route fast-reroute` rows as parsed JSON.
+
+    want=list is what makes the loop below safe: a document that decoded to an
+    object hands `row` a str, and `row.get(...)` then raises AttributeError from
+    inside the probe, which poll does not bound (see Ze.cli_json).
+    """
+    return Ze().cli_json("show ospf route fast-reroute", want=list)
 
 
 def _protected_backup(prefix):
@@ -63,13 +62,13 @@ def check():
 
     # 2. Ze must have computed a link-protecting backup toward FRR's loopback.
     log_info("waiting for Ze to pre-compute an LFA backup...")
-    deadline = time.time() + 60
-    backup = None
-    while time.time() < deadline:
-        backup = _protected_backup(FRR_LOOPBACK)
-        if backup:
-            break
-        time.sleep(2)
+    backup = poll(
+        lambda: _protected_backup(FRR_LOOPBACK),
+        bool,
+        timeout=60,
+        interval=2,
+        what="show ospf route fast-reroute",
+    )
     if not backup:
         raise AssertionError(
             "Ze did not pre-compute a fast-reroute backup for %s" % FRR_LOOPBACK

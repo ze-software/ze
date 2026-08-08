@@ -14,11 +14,10 @@ with `mpls-te on`). It CANNOT run on darwin.
 
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from interop import FRROSPF, ZE_CONTAINER, docker_exec_quiet, log_info, log_pass  # noqa: E402
+from interop import FRROSPF, Ze, log_info, log_pass, poll  # noqa: E402
 
 
 def check():
@@ -27,14 +26,14 @@ def check():
     frr.wait_adjacency(timeout=90)
 
     log_info("waiting for Ze to decode FRR's TE opaque LSA...")
-    deadline = time.time() + 60
-    ze_te = ""
-    while time.time() < deadline:
-        ze_te = docker_exec_quiet(ZE_CONTAINER, ["ze", "show", "ospf", "te-database"])
-        low = ze_te.lower()
-        if "router-address" in low or "link-id" in low or "te-metric" in low:
-            break
-        time.sleep(3)
+    ze_te = poll(
+        lambda: Ze().cli("show ospf te-database"),
+        lambda out: any(
+            token in out.lower() for token in ("router-address", "link-id", "te-metric")
+        ),
+        timeout=60,
+        what="show ospf te-database",
+    )
     low = ze_te.lower()
     if "router" not in low and "link" not in low:
         raise AssertionError("Ze did not decode FRR's TE opaque LSA:\n" + ze_te[:500])

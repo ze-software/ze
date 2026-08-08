@@ -18,7 +18,6 @@ B-Flag, and the FIB failover.
 Runs under the Linux Docker/QEMU interop harness ONLY; it CANNOT run on darwin.
 """
 
-import json
 import os
 import sys
 import time
@@ -31,28 +30,58 @@ from interop import (  # noqa: E402
     docker_exec_quiet,
     log_info,
     log_pass,
+    poll,
 )
 
 FRR_LOOPBACK = "172.30.255.3/32"
 PRIMARY_LINK = "eth0"
 
+# What ze.conf in this directory declares under `segment-routing`. The check
+# reads its own scenario's config back out of the daemon, so a value changed
+# there and not here fails loudly instead of passing over nothing.
+ZE_SRGB = (16000, 23999)
+ZE_PREFIX_SID = ("172.30.0.2/32", 200)
 
-def _sr_up():
-    """Ze has installed at least one SR MPLS label entry (Prefix-SID exchange)."""
-    out = docker_exec_quiet(
-        Ze().container, ["ze", "show", "ospf", "segment-routing", "--json"]
-    )
-    return "prefix-sid" in out.lower() or "16" in out
+
+def _sr_state():
+    """Ze's own SR state: SRGB, SRLB and Prefix-SIDs, as srSnapshot renders it.
+
+    (*engine).srSnapshot (internal/plugins/ospf/sr_snapshot.go) returns
+    Enabled=false with every list empty when SR is not programmed, and fills
+    SRGB / PrefixSIDs from the running config otherwise, so the fields below
+    separate "SR is up" from "SR never started".
+    """
+    return Ze().cli_json("show ospf segment-routing", want=dict)
+
+
+def _sr_programmed(state):
+    """SR is programmed with the SRGB and the Prefix-SID ze.conf declares.
+
+    The predicate this replaced was `"prefix-sid" in out.lower() or "16" in
+    out`, and BOTH halves matched unconditionally: "prefix-sids" is a JSON key
+    srSnapshot always emits (the field has no omitempty and is initialised to
+    []), and "16" matches any address octet, count or label anywhere in the
+    document. It answered true on the first call whatever SR was doing.
+    """
+    if not state.get("enabled"):
+        return False
+    lower, upper = ZE_SRGB
+    srgb = [
+        r
+        for r in state.get("srgb", [])
+        if r.get("lower-bound") == lower and r.get("upper-bound") == upper
+    ]
+    prefix, index = ZE_PREFIX_SID
+    sids = [
+        p
+        for p in state.get("prefix-sids", [])
+        if p.get("prefix") == prefix and p.get("index") == index
+    ]
+    return bool(srgb) and bool(sids)
 
 
 def _protected_backup(prefix):
-    out = docker_exec_quiet(
-        Ze().container, ["ze", "show", "ospf", "route", "fast-reroute", "--json"]
-    )
-    try:
-        rows = json.loads(out)
-    except (ValueError, TypeError):
-        return None
+    rows = Ze().cli_json("show ospf route fast-reroute", want=list)
     for row in rows:
         if row.get("prefix") != prefix:
             continue
@@ -74,21 +103,39 @@ def check():
     log_info("waiting for OSPF adjacency (two links) with SR...")
     frr.wait_adjacency(timeout=90)
 
-    log_info("waiting for the SR control plane to exchange labels...")
-    deadline = time.time() + 60
-    while time.time() < deadline:
-        if _sr_up():
-            break
-        time.sleep(2)
+    log_info("waiting for Ze to program its SRGB and node Prefix-SID...")
+    sr_state = poll(
+        _sr_state,
+        _sr_programmed,
+        timeout=60,
+        interval=2,
+        what="show ospf segment-routing",
+    )
+    # poll RETURNS the last result when the deadline passes with some call
+    # having succeeded, so discarding it turns "SR never came up" into a silent
+    # pass. Twelve of the thirteen poll sites assign and assert; this one did
+    # not, and the branch it dropped is the one poll exists to surface.
+    if not _sr_programmed(sr_state):
+        raise AssertionError(
+            "Ze did not program SR: enabled=%r srgb=%r prefix-sids=%r, want SRGB %s "
+            "and Prefix-SID %s from ze.conf"
+            % (
+                sr_state.get("enabled"),
+                sr_state.get("srgb"),
+                sr_state.get("prefix-sids"),
+                ZE_SRGB,
+                ZE_PREFIX_SID,
+            )
+        )
 
     log_info("waiting for Ze to pre-compute a ti-lfa fast-reroute backup...")
-    deadline = time.time() + 60
-    backup = None
-    while time.time() < deadline:
-        backup = _protected_backup(FRR_LOOPBACK)
-        if backup:
-            break
-        time.sleep(2)
+    backup = poll(
+        lambda: _protected_backup(FRR_LOOPBACK),
+        bool,
+        timeout=60,
+        interval=2,
+        what="show ospf route fast-reroute",
+    )
     if not backup:
         raise AssertionError(
             "Ze did not pre-compute a ti-lfa fast-reroute backup for %s" % FRR_LOOPBACK

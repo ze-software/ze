@@ -24,21 +24,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import (  # noqa: E402
     FRROSPF,
     Ze,
-    ZE_CONTAINER,
-    docker_exec_quiet,
     log_fail,
     log_info,
     log_pass,
+    poll,
 )
 
 ZE_ROUTER = "172.30.0.2"
 
 
 def _ze_opaque_as():
-    """Return Ze's `show ospf database opaque-as` text (empty string on failure)."""
-    return docker_exec_quiet(
-        ZE_CONTAINER, ["ze", "show", "ospf", "database", "opaque-as"]
-    )
+    """Return Ze's `show ospf database opaque-as` output. Raises on query failure."""
+    return Ze().cli("show ospf database opaque-as")
 
 
 def check():
@@ -51,17 +48,16 @@ def check():
     # 1. Ze must install its own Type-11 inter-AS TE LSA (Opaque type 6). The opaque-as
     #    Link State ID for Opaque type 6 begins with "6." (the high byte is the Opaque type).
     log_info("waiting for Ze to originate its Type-11 inter-AS TE LSA...")
-    deadline = time.time() + 90
-    originated = False
-    while time.time() < deadline:
-        db = _ze_opaque_as()
-        if "6." in db and ZE_ROUTER in db:
-            originated = True
-            break
-        time.sleep(2)
-    if not originated:
+    db = poll(
+        _ze_opaque_as,
+        lambda out: "6." in out and ZE_ROUTER in out,
+        timeout=90,
+        interval=2,
+        what="show ospf database opaque-as",
+    )
+    if "6." not in db or ZE_ROUTER not in db:
         log_fail("Ze did not originate a Type-11 inter-AS TE (Opaque type 6) LSA")
-        print(_ze_opaque_as()[:800])
+        print(db[:800])
         raise AssertionError("Ze AS-wide opaque store missing the inter-AS TE LSA")
     log_pass("Ze originated a Type-11 inter-AS TE LSA (Opaque type 6)")
 

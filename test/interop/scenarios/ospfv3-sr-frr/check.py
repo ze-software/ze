@@ -32,6 +32,7 @@ from interop import (  # noqa: E402
     docker_exec_quiet,
     log_info,
     log_pass,
+    poll,
 )
 
 ZE_ROUTER_ID = "172.30.0.2"
@@ -47,15 +48,12 @@ def check():
 
     # 2. Ze must render its own IPv6 SR state (SRGB + node Prefix-SID) via the SR snapshot.
     log_info("waiting for Ze to originate its IPv6 SR TLVs (SRGB + Prefix-SID)...")
-    deadline = time.time() + 60
-    ze_sr = ""
-    while time.time() < deadline:
-        ze_sr = docker_exec_quiet(
-            ZE_CONTAINER, ["ze", "show", "ospf", "ipv6", "segment-routing"]
-        )
-        if "16000" in ze_sr:
-            break
-        time.sleep(3)
+    ze_sr = poll(
+        lambda: Ze().cli("show ospf ipv6 segment-routing"),
+        lambda out: "16000" in out,
+        timeout=60,
+        what="show ospf ipv6 segment-routing",
+    )
     if "16000" not in ze_sr:
         raise AssertionError("Ze did not advertise its IPv6 SRGB / node Prefix-SID")
     log_pass(

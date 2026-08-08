@@ -22,10 +22,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import (  # noqa: E402
     FRROSPF,
     Ze,
-    ZE_CONTAINER,
-    docker_exec_quiet,
     log_info,
     log_pass,
+    poll,
 )
 
 
@@ -40,15 +39,12 @@ def check():
     # 2. Ze must render its own RI LSA with the informational capability TLV, and FRR must
     #    decode Ze's LSA as a Router Information LSA (Opaque type 4).
     log_info("waiting for Ze to originate/render its RI LSA...")
-    deadline = time.time() + 60
-    ze_ri = ""
-    while time.time() < deadline:
-        ze_ri = docker_exec_quiet(
-            ZE_CONTAINER, ["ze", "show", "ospf", "database", "router-information"]
-        )
-        if "informational-capabilities" in ze_ri or "router-information" in ze_ri:
-            break
-        time.sleep(3)
+    ze_ri = poll(
+        lambda: Ze().cli("show ospf database router-information"),
+        lambda out: "informational-capabilities" in out or "router-information" in out,
+        timeout=60,
+        what="show ospf database router-information",
+    )
     if "informational" not in ze_ri and "router-information" not in ze_ri:
         raise AssertionError("Ze did not originate/render its Router Information LSA")
     log_pass("Ze originated and rendered its Router Information LSA")

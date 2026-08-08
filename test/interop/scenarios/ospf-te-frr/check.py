@@ -22,11 +22,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import (  # noqa: E402
     FRROSPF,
     Ze,
-    ZE_CONTAINER,
-    docker_exec_quiet,
     log_fail,
     log_info,
     log_pass,
+    poll,
 )
 
 ZE_ROUTER = "172.30.0.2"
@@ -34,8 +33,8 @@ FRR_ROUTER = "172.30.0.3"
 
 
 def _ze_te_database():
-    """Return Ze's `show ospf te-database` text (empty string on failure)."""
-    return docker_exec_quiet(ZE_CONTAINER, ["ze", "show", "ospf", "te-database"])
+    """Return Ze's `show ospf te-database` output. Raises on query failure."""
+    return Ze().cli("show ospf te-database")
 
 
 def check():
@@ -49,17 +48,16 @@ def check():
     # 2. Ze must parse FRR's TE LSA into its TED: FRR's advertising router appears in
     #    `show ospf te-database` (the TED lists FRR's router-address and/or TE link).
     log_info("waiting for Ze to parse FRR's TE LSA into the TED (%s)..." % FRR_ROUTER)
-    deadline = time.time() + 90
-    parsed = False
-    while time.time() < deadline:
-        db = _ze_te_database()
-        if FRR_ROUTER in db:
-            parsed = True
-            break
-        time.sleep(2)
-    if not parsed:
+    db = poll(
+        _ze_te_database,
+        lambda out: FRR_ROUTER in out,
+        timeout=90,
+        interval=2,
+        what="show ospf te-database",
+    )
+    if FRR_ROUTER not in db:
         log_fail("Ze did not parse FRR's TE LSA into the TED")
-        print(_ze_te_database()[:800])
+        print(db[:800])
         raise AssertionError("Ze TED missing FRR's TE information")
     log_pass("Ze parsed FRR's TE LSA into the TED")
 

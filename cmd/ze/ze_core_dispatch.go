@@ -347,8 +347,12 @@ func zeDispatch(args []string) int {
 			p.WriteErr()
 			return 0
 		}
-		readOnly := command.IsReadOnlyVerb(arg)
-		code := cmdutil.RunCommand(args, readOnly, arg)
+		// RunCommand answers -1 only for `ze <verb> <format-keyword>`, where
+		// every word after the verb was yaml/json/table and no path is left to
+		// resolve. A BARE verb never reaches here: extractHelpPath above returns
+		// args unchanged when len(args) == 1, so `ze show` prints the verb help
+		// page and exits 0. The tail below is therefore never empty.
+		code := cmdutil.RunCommand(args, arg)
 		if code == -1 {
 			fmt.Fprintf(os.Stderr, "unknown %s command: %s\n", arg, textbuf.Join(args[1:], " "))
 			fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", arg)
@@ -407,7 +411,10 @@ func zeDispatch(args []string) int {
 		})
 	}
 
-	if handler, remaining := registry.LookupLocal(args); handler != nil {
+	// cli.IsDeclaredCommand keeps this root fallback under the same shadow rule
+	// as the verb dispatch (registry.LookupLocal): a handler registered at a
+	// short path must not answer a ze:command declared below it.
+	if handler, remaining := registry.LookupLocal(args, cli.IsDeclaredCommand); handler != nil {
 		return handler(remaining)
 	}
 

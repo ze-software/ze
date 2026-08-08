@@ -22,10 +22,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from interop import (  # noqa: E402
     FRROSPF6,
-    ZE_CONTAINER,
-    docker_exec_quiet,
+    Ze,
     log_info,
     log_pass,
+    poll,
 )
 
 
@@ -40,15 +40,12 @@ def check():
 
     # 2. Ze must originate/render its OSPFv3 RI LSA (function code 12).
     log_info("waiting for Ze to originate/render its OSPFv3 RI LSA...")
-    deadline = time.time() + 60
-    ze_ri = ""
-    while time.time() < deadline:
-        ze_ri = docker_exec_quiet(
-            ZE_CONTAINER, ["ze", "show", "ospf", "database", "router-information"]
-        )
-        if '"af": "v3"' in ze_ri or "informational-capabilities" in ze_ri:
-            break
-        time.sleep(3)
+    ze_ri = poll(
+        lambda: Ze().cli("show ospf database router-information"),
+        lambda out: '"af": "v3"' in out or "informational-capabilities" in out,
+        timeout=60,
+        what="show ospf database router-information",
+    )
     if "informational" not in ze_ri and '"v3"' not in ze_ri:
         raise AssertionError(
             "Ze did not originate/render its OSPFv3 Router Information LSA"

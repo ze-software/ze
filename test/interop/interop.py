@@ -48,6 +48,40 @@ SPEAKER2_IP = "172.30.0.11"
 # currently holds mastership, which is the whole point of the protocol.
 VRRP_VIP = "172.30.0.100"
 
+# CLI access to the Ze daemon inside the container.
+#
+# `ze cli` reaches the daemon over SSH, and the daemon starts NO SSH listener
+# unless the config asks for one (infraSetup, cmd/ze/hub/infra_setup.go). No
+# scenario ze.conf asked, so every CLI query answered "no credentials for
+# 127.0.0.1:2222" and the RIB helpers below could not run at all. The harness
+# appends the two blocks to the RENDERED copy of every ze.conf
+# (_render_scenario_dir), so no scenario carries boilerplate and none can
+# forget it. The same arrangement drives test/ipsec-interop/lab.py.
+#
+# The bcrypt hash is the published cost-4 hash the functional suite already uses
+# (test/plugin/authz-default.ci), so this adds no new secret.
+ZE_CLI_USER = "interop"
+ZE_CLI_PASSWORD = "testpass"
+ZE_CLI_CONFIG = """
+system {
+\tauthentication {
+\t\tuser interop {
+\t\t\tpassword "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+\t\t}
+\t}
+}
+
+environment {
+\tssh {
+\t\tenabled true
+\t\tserver main {
+\t\t\tip 127.0.0.1;
+\t\t\tport 2222;
+\t\t}
+\t}
+}
+"""
+
 # IPv6 link-local must be enabled in the container netns for the OSPFv3 (ospf-v6-frr)
 # scenario: OSPFv3 runs over ff02::5 on eth0. These sysctls are no-ops on hosts that
 # already default disable_ipv6=0 (the common case) and harmless to IPv4-only scenarios.
@@ -91,9 +125,71 @@ def log_debug(msg):
         print("  [debug] %s" % msg)
 
 
+# --- Polling ------------------------------------------------------------------
+
+
+def poll(probe, ready, timeout, interval=3, what="query"):
+    """Call probe() until ready(result) is true, and return the last result.
+
+    A retry loop must tell "not ready yet" from "cannot run at all", and only
+    the first of those is worth waiting out. probe() raising is the second kind:
+    Ze.cli raises for an auth refusal, an unreachable daemon and a rejected
+    command alike, and a loop written as `while time.time() < deadline: db =
+    Ze().cli(...)` dies on the first one instead of retrying to its deadline.
+
+    So one raise is TOLERATED and every tolerated raise is REPORTED. It is never
+    swallowed: the empty string that used to come back from docker_exec_quiet is
+    what let a harness fault read as an empty result, and the assertion that
+    followed blamed the protocol implementation.
+
+    | Outcome | What this does |
+    |---------|----------------|
+    | ready(result) is true | return that result |
+    | the deadline passes, some call succeeded | return the last successful result, so the caller's own assertion names the protocol fault |
+    | the deadline passes, EVERY call raised | raise, carrying the last error: nothing was ever measured, and no verdict about the protocol is available |
+
+    `what` names the probe in that last message. `ready` decides success; pass
+    `bool` when any truthy result will do.
+    """
+    deadline = time.time() + timeout
+    result = None
+    succeeded = False
+    tolerated = 0
+    last_error = None
+    while True:
+        try:
+            result = probe()
+            succeeded = True
+            if ready(result):
+                return result
+        except RuntimeError as exc:
+            tolerated += 1
+            last_error = exc
+            log_info("%s failed (attempt %d), retrying: %s" % (what, tolerated, exc))
+        if time.time() >= deadline:
+            break
+        time.sleep(interval)
+    if not succeeded:
+        log_fail(
+            "%s never ran: %d attempts in %ds, all failed" % (what, tolerated, timeout)
+        )
+        raise RuntimeError(
+            "%s never succeeded in %ds (%d attempts, all failed): %s "
+            "(harness failure, not a protocol result)"
+            % (what, timeout, tolerated, last_error)
+        )
+    if tolerated:
+        log_info(
+            "%s tolerated %d transient failure(s) before the deadline"
+            % (what, tolerated)
+        )
+    return result
+
+
 def _set_subnet_prefix(prefix):
-    """Update global peer IPs for the allocated /24."""
+    """Update global peer IPs for the allocated /24, both families."""
     global SUBNET_PREFIX, SUBNET_CIDR, ZE_IP, FRR_IP, BIRD_IP, GOBGP_IP, BMP_IP, RPKI_IP
+    global V6_SUBNET_CIDR, V6_SUBNET_PREFIX, ZE_IP6, FRR_IP6
     if not prefix.endswith("."):
         prefix += "."
     SUBNET_PREFIX = prefix
@@ -104,6 +200,10 @@ def _set_subnet_prefix(prefix):
     GOBGP_IP = "%s5" % prefix
     BMP_IP = "%s6" % prefix
     RPKI_IP = "%s7" % prefix
+    V6_SUBNET_CIDR = _v6_subnet_for(prefix)
+    V6_SUBNET_PREFIX = V6_SUBNET_CIDR.split("/")[0]
+    ZE_IP6 = _v6_for(ZE_IP)
+    FRR_IP6 = _v6_for(FRR_IP)
 
 
 def _candidate_subnet_prefixes():
@@ -149,13 +249,44 @@ def _v6_subnet_for(prefix):
     return "fd00:%x:%x::/64" % (b, c)
 
 
+def _v6_for(ip):
+    """Derive a container's IPv6 address on the dual-stack network from its IPv4 one.
+
+    ONE derivation, so a scenario file, `_set_subnet_prefix` and `docker_run` cannot
+    disagree about where a container sits. The IPv4 host octet is carried across as
+    text (`.3` -> `::3`), which is injective, so distinct IPv4 addresses stay distinct
+    -- it is a naming scheme, not an arithmetic conversion.
+    """
+    return V6_SUBNET_PREFIX + ip.rsplit(".", 1)[1]
+
+
+# IPv6 addresses on the test network, the mirror of the IPv4 block near the top of
+# this file. `_BASE_V6_PREFIX` is the token a scenario file writes; `_render_scenario_dir`
+# replaces it with `V6_SUBNET_PREFIX` exactly as it replaces `_BASE_SUBNET_PREFIX`, and
+# `_needs_ipv6_wire` reads a scenario naming the token as the request for a dual-stack
+# network. Both are DERIVED from the IPv4 base, so there is no second copy to drift.
+_BASE_V6_PREFIX = _v6_subnet_for(_BASE_SUBNET_PREFIX).split("/")[0]
+V6_SUBNET_CIDR = _v6_subnet_for(_BASE_SUBNET_PREFIX)
+V6_SUBNET_PREFIX = _BASE_V6_PREFIX
+ZE_IP6 = _v6_for(ZE_IP)
+FRR_IP6 = _v6_for(FRR_IP)
+
+# Whether the current lab network carries IPv6. `docker_run` reads it to decide
+# whether it can ask for a deterministic `--ip6`: docker rejects the flag on a
+# network with no IPv6 subnet, so it cannot simply be passed unconditionally.
+_DUAL_STACK = False
+
+
 def _create_network(dual_stack=False):
     """Create the Docker network, retrying on overlapping subnets.
 
     dual_stack adds an IPv6 ULA subnet (and --ipv6) so containers get an IPv6
-    link-local on eth0; required for OSPFv3, opt-in so IPv4-only scenarios are
-    unaffected.
+    link-local AND a global address on eth0; required for OSPFv3 and for any
+    scenario that names an IPv6 peer or next hop, opt-in so IPv4-only scenarios
+    are unaffected.
     """
+    global _DUAL_STACK
+    _DUAL_STACK = dual_stack
     last_error = ""
     forced = os.environ.get("ZE_INTEROP_SUBNET_PREFIX") or os.environ.get(
         "ZE_INTEROP_SUBNET_INDEX"
@@ -164,7 +295,7 @@ def _create_network(dual_stack=False):
         _set_subnet_prefix(prefix)
         create_args = ["docker", "network", "create", "--subnet=%s" % SUBNET_CIDR]
         if dual_stack:
-            create_args += ["--ipv6", "--subnet=%s" % _v6_subnet_for(prefix)]
+            create_args += ["--ipv6", "--subnet=%s" % V6_SUBNET_CIDR]
         create_args.append(NETWORK)
         result = subprocess.run(
             create_args,
@@ -190,7 +321,13 @@ def _create_network(dual_stack=False):
 
 
 def _render_scenario_dir(source_dir, name):
-    """Copy a scenario and replace the default Docker subnet prefix."""
+    """Copy a scenario, replace the Docker subnet prefix, enable CLI access.
+
+    ze.conf gets ZE_CLI_CONFIG appended so `ze cli` can reach the daemon. It is
+    done here, on the rendered copy, rather than in 115 scenario files: a
+    scenario that forgot the block would fail its RIB assertions for a reason
+    that has nothing to do with what it tests.
+    """
     target = os.path.join(_RENDER_ROOT, "%s-%s" % (name, _SUFFIX))
     shutil.rmtree(target, ignore_errors=True)
     for root, dirs, files in os.walk(source_dir):
@@ -212,6 +349,9 @@ def _render_scenario_dir(source_dir, name):
                     fh.write(data)
             else:
                 text = text.replace(_BASE_SUBNET_PREFIX, SUBNET_PREFIX)
+                text = text.replace(_BASE_V6_PREFIX, V6_SUBNET_PREFIX)
+                if rel == "." and fname == "ze.conf":
+                    text = text.rstrip("\n") + "\n" + ZE_CLI_CONFIG
                 with open(dst, "w", encoding="utf-8") as fh:
                     fh.write(text)
             shutil.copymode(src, dst)
@@ -221,11 +361,19 @@ def _render_scenario_dir(source_dir, name):
 # --- Docker helpers ----------------------------------------------------------
 
 
-def docker_exec(container, cmd):
-    """Run command in container, return stdout. Raises on failure."""
+def docker_exec(container, cmd, env=None):
+    """Run command in container, return stdout. Raises on failure.
+
+    `env` is a dict passed with `-e`, for a secret that must not appear in the
+    scenario's config or in the container's own environment.
+    """
+    args = ["docker", "exec"]
+    for key, value in (env or {}).items():
+        args.extend(["-e", "%s=%s" % (key, value)])
+    args.append(container)
     try:
         result = subprocess.run(
-            ["docker", "exec", container] + cmd,
+            args + cmd,
             capture_output=True,
             text=True,
             timeout=30,
@@ -270,6 +418,13 @@ def docker_run(
     waiting, and the red then surfaces two hops from its cause.
     """
     args = ["docker", "run", "-d", "--name", name, "--network", NETWORK, "--ip", ip]
+    # On a dual-stack network the container must sit at a KNOWN IPv6 address, the
+    # same way `--ip` pins the IPv4 one. Without this docker assigns from the ULA
+    # pool and a scenario that names a peer or a next hop by its IPv6 address is
+    # naming an address nothing guarantees. `--ip6` is rejected on a network with
+    # no IPv6 subnet, so it is passed only when `_create_network` made one.
+    if _DUAL_STACK:
+        args.extend(["--ip6", _v6_for(ip)])
     for cap in caps or []:
         args.extend(["--cap-add", cap])
     for vol in volumes or []:
@@ -339,7 +494,10 @@ def docker_rm(name, strict=False):
                 "docker rm -f %s timed out after 30s: a leftover container "
                 "would race this scenario" % name
             )
-        print("--- docker rm %s timed out after 30s, container can be left behind ---" % name)
+        print(
+            "--- docker rm %s timed out after 30s, container can be left behind ---"
+            % name
+        )
         return
     except OSError as exc:
         if strict:
@@ -347,7 +505,10 @@ def docker_rm(name, strict=False):
                 "docker rm -f %s could not run (%s): a leftover container "
                 "would race this scenario" % (name, exc)
             )
-        print("--- docker rm %s could not run (%s), container can be left behind ---" % (name, exc))
+        print(
+            "--- docker rm %s could not run (%s), container can be left behind ---"
+            % (name, exc)
+        )
         return
     if strict and result.returncode != 0:
         raise RuntimeError(
@@ -1305,25 +1466,111 @@ class Ze:
     def __init__(self, container=ZE_CONTAINER):
         self.container = container
 
-    def rib_count(self):
-        """Return the number of received routes in Ze's RIB, or 0 on failure.
+    def cli(self, command):
+        """Run one CLI command against the daemon and return its JSON output.
 
-        The verb is `show bgp rib status` (docs/architecture/api/commands.md).
-        It read `show rib status` until 2026-08-04, which the daemon answers
-        with `unknown command`, so docker_exec_quiet returned "" and this
-        returned 0 for every caller. Scenario 05 was red on it; the callers
-        asserting a LOWER bound are the ones that showed it.
+        THE ONLY WAY A SCENARIO QUERIES ZE. `ze cli -c` is the form that carries
+        credentials: --user and --format are its own flags, while the verb form
+        (`ze show ospf te-database`) has no slot for either. The SSH listener and
+        the account this authenticates against are appended to every rendered
+        ze.conf (ZE_CLI_CONFIG), and nothing writes a zefs identity into the
+        container, so the verb form resolves no username at all and dies with
+        "no credentials for 127.0.0.1:2222" (readCredentials,
+        internal/core/ssh/client/client.go).
+
+        This RAISES on every failure, through docker_exec. `ze cli -c` exits 1
+        for an auth refusal, an unreachable daemon and a command the daemon
+        rejects alike, so one raise covers all three. Nineteen scenario sites ran
+        the verb form through docker_exec_quiet until 2026-08-08, which answers
+        "" on failure: the query never ran, the check read an empty result, and
+        the assertion that followed blamed the protocol implementation for a
+        harness fault. One (ospf-opaque-frr) treated the empty answer as
+        inconclusive and PASSED.
         """
-        output = docker_exec_quiet(
-            self.container, ["ze", "show", "bgp", "rib", "status"]
+        return docker_exec(
+            self.container,
+            ["ze", "cli", "-c", command, "--user", ZE_CLI_USER, "--format", "json"],
+            env={"ZE_SSH_PASSWORD": ZE_CLI_PASSWORD},
         )
+
+    def cli_json(self, command, want=None):
+        """Run one CLI command and return its parsed JSON. Raises on failure.
+
+        A parse failure is a harness fault, never an empty result: every daemon
+        command answers valid JSON under --format json, and an empty collection
+        is spelled [] or {}.
+
+        `want` is the container type the caller is about to INDEX, and passing it
+        is how a caller that iterates rows says so. The docstring above names
+        both shapes, so a caller writing `for row in ...: row.get(...)` over a
+        document that decoded to an object gets a str back and raises
+        AttributeError from inside its own probe. poll() bounds itself to
+        RuntimeError on purpose -- a transport fault is worth retrying and a
+        programming error is not, and widening that bound would retry a typo for
+        the whole timeout and then return a stale result as if it had been
+        measured. So the shape is asserted HERE, where the command name is still
+        in hand, and it is raised as the same RuntimeError a transport fault
+        raises: an object where a list belongs is a daemon that answered
+        something other than the collection, which poll retries and then reports
+        as a harness failure rather than a protocol verdict.
+        """
+        output = self.cli(command)
+        try:
+            decoded = json.loads(output)
+        except ValueError as exc:
+            raise RuntimeError(
+                "`%s` in container %s did not answer JSON (harness failure, not "
+                "an empty result): %s: %r"
+                % (command, self.container, exc, output[:400])
+            )
+        if want is not None and not isinstance(decoded, want):
+            raise RuntimeError(
+                "`%s` in container %s answered %s, want %s (harness failure, not "
+                "an empty result): %r"
+                % (
+                    command,
+                    self.container,
+                    type(decoded).__name__,
+                    want.__name__,
+                    output[:400],
+                )
+            )
+        return decoded
+
+    def rib_count(self):
+        """Return the number of received routes in Ze's RIB. Raises on failure.
+
+        The command is `show bgp rib status` (docs/architecture/api/commands.md).
+
+        This RAISES rather than answering 0 when the query fails, because 0 is a
+        legitimate RIB size and a failed query is not (ai/rules/evidence.md: a
+        zero value must never be a valid-looking answer). It returned 0 on
+        failure until 2026-08-07, and three separate defects hid behind that 0:
+        the helper asked for `show rib status` when the command is `show bgp rib
+        status`; `ze` then resolved no verb at all from a shell argv; and the
+        daemon started no SSH listener for any client to reach. Every caller
+        read `Ze RIB has 0 received routes`, which named none of them.
+        """
+        try:
+            output = self.cli("show bgp rib status")
+        except RuntimeError as exc:
+            log_fail("Ze RIB query failed: %s" % exc)
+            raise RuntimeError(
+                "`show bgp rib status` failed in container %s: %s "
+                "(harness failure, not an empty RIB)" % (self.container, exc)
+            )
         m = re.search(r'"routes-in"\s*:\s*(\d+)', output)
-        if m:
-            return int(m.group(1))
-        return 0
+        if m is None:
+            log_fail("Ze RIB query returned no routes-in field")
+            raise RuntimeError(
+                "`show bgp rib status` in container %s answered without a "
+                '"routes-in" field (harness failure, not an empty RIB): %r'
+                % (self.container, output[:400])
+            )
+        return int(m.group(1))
 
     def rib_received(self, minimum):
-        """Assert RIB has >= minimum received routes."""
+        """Assert RIB has >= minimum received routes. Raises on query failure."""
         count = self.rib_count()
         if count >= minimum:
             log_pass(
@@ -1444,16 +1691,40 @@ class Scenario:
         self.name = os.path.basename(scenario_dir.rstrip("/"))
 
     def _needs_ipv6_wire(self):
-        """Report whether this scenario runs a protocol natively over IPv6 (OSPFv3),
-        so the Docker network must be dual-stack for the link-local adjacency. BGP-v6
-        rides an IPv4 TCP session and ISIS rides L2, so neither needs this."""
-        ze_conf = os.path.join(self.source_dir, "ze.conf")
-        try:
-            with open(ze_conf, "r", encoding="utf-8") as fh:
-                conf = fh.read()
-        except OSError:
-            return False
-        return "ospf" in conf and "address-family ipv6" in conf
+        """Report whether this scenario needs the Docker network to be dual-stack.
+
+        Two scenarios need it, for different reasons.
+
+        A protocol that runs natively over IPv6 (OSPFv3) needs the IPv6 link-local
+        on eth0 that docker only enables on an IPv6-capable network. ISIS rides L2
+        and a plain BGP-v6 session rides IPv4 TCP, so neither of those needs it.
+
+        A scenario that names an address in the lab's IPv6 range needs the range to
+        exist and its containers to sit at known addresses in it. That covers BGP
+        carrying an IPv6 next hop that must land on a locally connected subnet (RFC
+        2545 Section 3), where the whole point is that the address is real. The
+        trigger is the `_BASE_V6_PREFIX` token itself, in any file of the scenario,
+        so it is the scenario's own text that asks -- there is no list of names here
+        to keep in step with the directory.
+        """
+        for root, dirs, files in os.walk(self.source_dir):
+            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            for fname in files:
+                try:
+                    with open(os.path.join(root, fname), "r", encoding="utf-8") as fh:
+                        text = fh.read()
+                except (OSError, UnicodeDecodeError):
+                    continue
+                if _BASE_V6_PREFIX in text:
+                    return True
+                if (
+                    root == self.source_dir
+                    and fname == "ze.conf"
+                    and "ospf" in text
+                    and "address-family ipv6" in text
+                ):
+                    return True
+        return False
 
     def setup(self):
         """Create network, start containers based on which config files exist."""

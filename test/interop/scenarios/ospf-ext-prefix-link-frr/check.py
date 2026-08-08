@@ -24,10 +24,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import (  # noqa: E402
     FRROSPF,
     Ze,
-    ZE_CONTAINER,
-    docker_exec_quiet,
     log_info,
     log_pass,
+    poll,
 )
 
 
@@ -44,15 +43,12 @@ def check():
     # 2. Ze must render its own Extended Prefix / Extended Link LSAs decoded (Opaque type 7/8),
     #    not as raw hex.
     log_info("waiting for Ze to originate/render its Extended Prefix/Link LSAs...")
-    deadline = time.time() + 60
-    ze_db = ""
-    while time.time() < deadline:
-        ze_db = docker_exec_quiet(
-            ZE_CONTAINER, ["ze", "show", "ospf", "database", "opaque-area"]
-        )
-        if "extended-prefix" in ze_db or "extended-link" in ze_db:
-            break
-        time.sleep(3)
+    ze_db = poll(
+        lambda: Ze().cli("show ospf database opaque-area"),
+        lambda out: "extended-prefix" in out or "extended-link" in out,
+        timeout=60,
+        what="show ospf database opaque-area",
+    )
     if "extended-prefix" not in ze_db and "extended-link" not in ze_db:
         raise AssertionError(
             "Ze did not originate/render its Extended Prefix/Link LSAs"

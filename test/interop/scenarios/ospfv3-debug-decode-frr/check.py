@@ -14,11 +14,10 @@ proto 89 over ff02::5 + FRR ospf6d). It CANNOT run on darwin.
 
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from interop import FRROSPF6, ZE_CONTAINER, docker_exec_quiet, log_info, log_pass  # noqa: E402
+from interop import FRROSPF6, Ze, log_info, log_pass, poll  # noqa: E402
 
 
 def check():
@@ -27,15 +26,12 @@ def check():
     frr.wait_adjacency(timeout=90)
 
     log_info("waiting for Ze to decode FRR's base OSPFv3 LSAs...")
-    deadline = time.time() + 60
-    ze_db = ""
-    while time.time() < deadline:
-        ze_db = docker_exec_quiet(
-            ZE_CONTAINER, ["ze", "show", "ospf", "ipv6", "database", "detail"]
-        )
-        if '"router"' in ze_db and '"scope"' in ze_db and '"decoded"' in ze_db:
-            break
-        time.sleep(3)
+    ze_db = poll(
+        lambda: Ze().cli("show ospf ipv6 database detail"),
+        lambda out: '"router"' in out and '"scope"' in out and '"decoded"' in out,
+        timeout=60,
+        what="show ospf ipv6 database detail",
+    )
     if '"decoded"' not in ze_db or '"scope"' not in ze_db:
         raise AssertionError("Ze did not decode FRR's OSPFv3 LSAs:\n" + ze_db[:600])
     if '"router"' not in ze_db:

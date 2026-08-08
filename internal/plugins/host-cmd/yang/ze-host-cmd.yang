@@ -3,6 +3,7 @@ module ze-host-cmd {
     prefix hostcmd;
     import ze-extensions { prefix ze; }
     description "show host / show system kernel-log command tree. Owned by the host component because these handlers read hardware inventory (host.DetectSection) and kernel log (/dev/kmsg). See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-08 { description "Declared the bare 'show host' path as an alias of 'show host all'. Without it no wire method served the bare path, so the command worked with the daemon down (offline fallback) and answered 'unknown command' with it up."; }
     revision 2026-06-06 { description "Relocated show host and show system kernel-log out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -11,9 +12,11 @@ module ze-host-cmd {
 
         container host {
             config false;
+            ze:command "ze-show:host-all";
             description "Hardware inventory for this box.
 Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform.
-Use a subcommand for one section, or 'show host all' for everything.";
+Use a subcommand for one section, or 'show host all' for everything.
+The bare 'show host' is an alias of 'show host all'.";
 
             container cpu {
                 config false;

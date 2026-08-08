@@ -34,53 +34,181 @@ func RegisterLocalCommand(path string, handler LocalHandler) error {
 }
 
 // matchLocalHandler is a thin adapter over registry.LookupLocal that
-// re-applies the selector-as-trailing-arg convention used by RunCommand.
-func matchLocalHandler(words []string, selector string) (LocalHandler, []string) {
-	handler, args := registry.LookupLocal(words)
+// re-applies the values-as-trailing-args convention used by RunCommand.
+//
+// cli.IsDeclaredCommand is what lets the lookup refuse a handler registered
+// above a declared command (registry.LookupLocal, the shadow rule). The
+// registry cannot answer that itself: it is a leaf package by design and must
+// not import the CLI, so the caller that already knows both namespaces supplies
+// the answer.
+func matchLocalHandler(words, values []string) (LocalHandler, []string) {
+	handler, args := registry.LookupLocal(words, cli.IsDeclaredCommand)
 	if handler == nil {
 		return nil, nil
 	}
-	if selector != "" {
-		args = append(args, selector)
-	}
-	return handler, args
+	return handler, append(args, values...)
 }
 
-// RunCommand extracts flags, validates command words against the tree,
-// and delegates execution. Local handlers run in-process; daemon commands
-// go through cli.Run via SSH. The readOnly flag controls whether only
-// read-only commands are accepted. The cmdName is used in error/hint messages.
-func RunCommand(args []string, readOnly bool, cmdName string) int {
-	cmdWords := args
+// Resolution is what one argv resolves to against one verb's command tree.
+//
+// Every path field is ABSOLUTE, verb included, because the local-handler
+// registry, the offline-fallback registry and the daemon dispatcher are all
+// keyed on the absolute path. Relative holds the same command as the tree
+// spells it, which is the only form the tree can be walked with.
+type Resolution struct {
+	// Tree is the verb's command tree, built once and shared by every walk.
+	Tree *cli.Command
+	// Local is the path a local handler is looked up under. It keeps the
+	// output-format keyword, so a handler that takes `json` as an argument
+	// still receives it, and it keeps every trailing word, because
+	// registry.LookupLocal ends the path itself (extractLocalValues).
+	Local []string
+	// LocalValues are the values an INLINE selector was lifted out of Local
+	// into. A trailing value is not lifted: it stays in Local, where
+	// registry.LookupLocal's own longest-prefix match returns it as an argument.
+	LocalValues []string
+	// Path is the absolute command the daemon dispatches on.
+	Path []string
+	// Relative is Path as the verb-relative tree spells it.
+	Relative []string
+	// Values are the positional values lifted out of Path, in the order they
+	// were typed. Empty when the argv named a command and nothing else.
+	Values []string
+	// Format is the trailing yaml/json/table keyword, empty when none was typed.
+	Format string
+	// Valid reports that Relative names a node in Tree.
+	Valid bool
+	// Declared reports that a registered command declares Path exactly. False
+	// with children under Relative means a grouping container such as `show bgp`.
+	Declared bool
+}
 
-	if len(cmdWords) == 0 {
-		return -1 // signal caller to show usage
+// Dispatchable reports whether anything will answer Path.
+//
+// Two things can: a registered command that declares the path exactly, or an
+// offline fallback covering it. The second kind is the reason this is not just
+// Declared.
+//
+// NO PRODUCTION REGISTRATION REACHES THE SECOND BRANCH TODAY (checked
+// 2026-08-08). Both offline fallbacks cover a declared path: `show host`
+// (internal/plugins/host/register.go) declares ze-show:host-all and
+// `show crashes` (internal/plugins/crashes/register.go) declares
+// ze-show:crashes. The branch is kept for the next plugin that registers a
+// fallback before declaring its path, and
+// TestSyntheticOfflineFallbackBeatsGroupingContainer keeps it working from a
+// synthetic registration. `show host` was that case until it was declared: with
+// no ze:command and nine children it read as a bare grouping container, so
+// RunCommand printed a subcommand list, exited 1, and RunShow
+// (internal/plugins/host/host.go) was unreachable through `ze show host`.
+//
+// The fallback lookup is longest-prefix, matching registry.LookupLocal: a
+// fallback at `show host` also answers `show host cpu`, which is what lets an
+// operator read hardware inventory with no daemon running.
+func (r Resolution) Dispatchable() bool {
+	if r.Declared {
+		return true
 	}
-	_ = readOnly
+	handler, _ := registry.LookupOfflineFallback(r.Path)
+	return handler != nil
+}
 
-	tree := cli.BuildVerbCommandTree(cmdName)
+// ResolveCommand matches argv -- verb first, exactly as a shell hands it to
+// `ze` -- against that verb's command tree.
+//
+// argv carries the verb (`show bgp rib status`) while cli.BuildVerbCommandTree
+// is RELATIVE to it (`bgp rib status`). This function is where the two are
+// aligned, and where every absolute form is rebuilt with cli.AbsoluteVerbPath.
+// Walking the relative tree with absolute words made 56 of the 63 `ze show`
+// commands answer `unknown command`, and every other verb with them.
+//
+// RunCommand is the production caller. It is exported because RunCommand ends
+// in an SSH dispatch and cannot run without a daemon, so this is the seam a
+// test drives with a real argv to prove a declared verb still resolves.
+// ok is false when the verb was typed with nothing after it.
+func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
+	if len(args) == 0 {
+		return Resolution{}, false
+	}
+	verbWords := args
+	if args[0] == cmdName {
+		verbWords = args[1:]
+	}
+	if len(verbWords) == 0 {
+		return Resolution{}, false
+	}
 
-	// Extract inline selectors from command words when public grammar places a
-	// selector value between a resource token and a later action token, for
-	// example `show bgp peer edge1 detail`.
-	treeWords, selector := ExtractSelector(cmdWords, tree)
+	res := Resolution{Tree: cli.BuildVerbCommandTree(cmdName)}
 
-	// Check local handler registry first (offline commands like version, completion).
-	// Local handlers receive all remaining args including any format keywords.
-	// Try longest prefix match: "show bgp decode update hex" matches handler "show bgp decode"
-	// with remaining args ["update", "hex"].
-	if handler, handlerArgs := matchLocalHandler(treeWords, selector); handler != nil {
+	// Separate the command words from the positional values typed after or
+	// inside them, for example `show bgp peer edge1 detail`.
+	localRel, localValues := extractLocalValues(verbWords, res.Tree)
+	res.Local, _ = cli.AbsoluteVerbPath(cmdName, localRel)
+	res.LocalValues = localValues
+
+	// Extract the output format keyword (yaml/json/table) from the end of the
+	// command. Done after Local so format keywords are not silently stripped
+	// from commands that do not support them.
+	verbWords, res.Format = ExtractOutputFormat(verbWords)
+	if len(verbWords) == 0 {
+		return res, false // every word was the format keyword
+	}
+	res.Relative, res.Values = ExtractValues(verbWords, res.Tree, cmdName)
+	res.Path, res.Declared = cli.AbsoluteVerbPath(cmdName, res.Relative)
+	res.Valid = IsValidCommand(res.Relative, res.Tree)
+	return res, true
+}
+
+// DispatchString is the command line the daemon is asked to run: the absolute
+// path with the positional values put back after it.
+//
+// RunCommand is the production caller. It is a method rather than four lines
+// inside RunCommand because RunCommand ends in an SSH dispatch, so a test that
+// wants to assert what the daemon receives has no other way to read it, and a
+// test that rebuilt the string itself would assert against its own copy.
+//
+// The two extraction shapes end differently here, on purpose. A trailing value
+// (`show pki certificate name web`) comes back in the position it was typed. An
+// inline selector (`show bgp peer edge1 detail`) is REORDERED to sit after the
+// action word, which is the form the daemon is keyed on.
+func (r Resolution) DispatchString() string {
+	var tb textbuf.Buffer
+	tb.Join(r.Path, " ")
+	for _, value := range r.Values {
+		tb.Byte(' ').Str(value)
+	}
+	return tb.String()
+}
+
+// RunCommand resolves argv against the verb's command tree and delegates
+// execution. Local handlers run in-process; daemon commands go through cli.Run
+// via SSH. The cmdName is used in error/hint messages.
+//
+// Read-only filtering does NOT happen here. It is structural: verbContextPath
+// (internal/component/cli/client/verb_tree.go) admits a command into the `show`
+// tree only when it is rooted under `show` or pluginserver.IsReadOnlyPath says
+// so, and a path outside the tree never reaches this function with Valid set.
+// A readOnly parameter was carried here until 2026-08-08 and rejected nothing.
+func RunCommand(args []string, cmdName string) int {
+	res, ok := ResolveCommand(args, cmdName)
+
+	// Check the local handler registry first (offline commands like version,
+	// completion). Longest prefix match: "show bgp decode update hex" matches
+	// handler "show bgp decode" with remaining args ["update", "hex"].
+	//
+	// This runs BEFORE the resolution verdict on purpose. res.Local keeps the
+	// output-format keyword, and ResolveCommand answers ok=false when every word
+	// after the verb was one, so a handler registered at a path ending in
+	// `json`, `yaml` or `table` is reachable only from here.
+	//
+	// Running first does NOT make a local handler beat a declared command: the
+	// lookup itself refuses a match that would swallow one (registry.LookupLocal,
+	// the shadow rule), so the order decides only what happens when nothing is
+	// declared below the handler's path.
+	if handler, handlerArgs := matchLocalHandler(res.Local, res.LocalValues); handler != nil {
 		return handler(handlerArgs)
 	}
-
-	// Extract output format keyword (yaml/json/table) from end of command.
-	// Done after local handler check so format keywords don't get silently stripped
-	// from commands that don't support them.
-	cmdWords, format := ExtractOutputFormat(cmdWords)
-	treeWords, selector = ExtractSelector(cmdWords, tree)
-
-	if len(cmdWords) == 0 {
-		return -1 // signal caller to show usage (all words were format keyword)
+	if !ok {
+		return -1 // signal caller to show usage
 	}
 
 	// A command absent from this binary's local command tree may still be a
@@ -88,36 +216,34 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	// host). Route those to the daemon path below: cli.Run serves them from the
 	// daemon when reachable and from the in-process fallback when not, so they
 	// are never rejected as unknown and the fallback never shadows the daemon.
-	fallbackHandler, _ := registry.LookupOfflineFallback(cmdWords)
-	if !IsValidCommand(treeWords, tree) && fallbackHandler == nil {
-		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", textbuf.Join(cmdWords, " "))
-		if suggestion := SuggestFromTree(cmdWords[0], tree); suggestion != "" {
-			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
+	dispatchable := res.Dispatchable()
+	if !res.Valid && !dispatchable {
+		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", textbuf.Join(args, " "))
+		if suggestion := SuggestFromTree(res.Relative[0], res.Tree); suggestion != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean 'ze %s %s'?\n", cmdName, suggestion)
 		}
 		fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", cmdName)
 		return 1
 	}
 
-	// Group command (has children but no handler) — show subcommands.
-	if node := FindNode(treeWords, tree); node != nil && node.Description == "" && len(node.Children) > 0 {
-		fmt.Fprintf(os.Stderr, "%s subcommands:\n", textbuf.Join(treeWords, " "))
-		PrintChildren(node)
-		return 0
+	// Grouping container (`show bgp`): nothing declares this exact path and no
+	// offline fallback covers it, so there is nothing to dispatch. List its
+	// members and exit 1, the code ai/rules/cli.md gives an incomplete command.
+	if !dispatchable {
+		if node := FindNode(res.Relative, res.Tree); node != nil && len(node.Children) > 0 {
+			fmt.Fprintf(os.Stderr, "%s subcommands:\n", textbuf.Join(res.Path, " "))
+			PrintChildren(node)
+			return 1
+		}
 	}
 
-	// Build the run command: tree words + selector as trailing arg.
 	// The CLI resolves the structural command path, then passes the extracted
-	// selector as a regular handler argument.
-	var tb textbuf.Buffer
-	tb.Join(treeWords, " ")
-	if selector != "" {
-		tb.Byte(' ').Str(selector)
-	}
-	runCmd := tb.String()
+	// values as regular handler arguments.
+	runCmd := res.DispatchString()
 
 	var cliArgs []string
-	if format != "" {
-		cliArgs = append(cliArgs, "--format", format)
+	if res.Format != "" {
+		cliArgs = append(cliArgs, "--format", res.Format)
 	}
 	cliArgs = append(cliArgs, "-c", runCmd)
 
@@ -199,43 +325,144 @@ func CommandList(tree *cli.Command) []CommandEntry {
 	return entries
 }
 
-// ExtractSelector detects and removes an inline selector from command words.
-// Patterns:
-//   - "show bgp peer edge1 detail" -> treeWords=["show","bgp","peer","detail"], selector="edge1"
-//   - "peer 127.0.0.2 teardown"    -> treeWords=["peer","teardown"], selector="127.0.0.2"
+// ExtractValues splits command words into the words that name a node in the
+// tree and the positional values typed with them.
 //
-// This is driven by the command tree shape and ArgDefs, not by hardcoded
-// ownership of a specific command family.
-func ExtractSelector(words []string, tree *cli.Command) (treeWords []string, selector string) {
+// THE RULE IS THE DAEMON'S, TRANSPLANTED, NOT A HEURISTIC OF ITS OWN.
+// matchCommandTokens (internal/component/plugin/server/command.go) walks the
+// registered command keys longest-first and returns tokens[inIdx:] as the
+// handler's arguments, so on the daemon a DECLARED path is a prefix and every
+// word after it is a value. It never consults ArgDefs to find where the path
+// ends. Any rule here that answers differently ships as `unknown command` for a
+// line `ze cli -c` runs, which is the whole defect class this function has now
+// produced twice.
+//
+// Two shapes exist, and they differ in where the value sits:
+//
+//   - INLINE, tried first because the daemon tries it first: its longest-key
+//     walk consumes a selector mid-path rather than stopping short of the
+//     action word. The value sits between a resource token and a later action
+//     token, and a node further down the remaining path declares a mandatory
+//     argument for it: "show bgp peer edge1 detail" ->
+//     treeWords=["show","bgp","peer","detail"], values=["edge1"]. Only this
+//     shape reorders, and DispatchString is where the value goes back.
+//
+//   - TRAILING. The walk reaches a node that ENDS A DECLARED COMMAND and meets
+//     a word that is not one of its children, so that word and every word after
+//     it is one of its values: "show pki certificate name web" ->
+//     treeWords=["show","pki","certificate","name"], values=["web"].
+//     Keying this on ArgDefs was the second defect: 30 declared commands read
+//     args[0] in their handler while their YANG declares no leaf, so ArgDefs is
+//     empty for them and `ze show route lookup 1.2.3.4` answered `unknown
+//     command` while `ze cli -c "show route lookup 1.2.3.4"` ran. ArgDefs are
+//     derived from ze:command leaves, so a node that has them is declared:
+//     keying on declaration widens the rule without dropping a case.
+//
+// Taking every remaining word in the trailing shape, rather than one, is what
+// keeps a multi-value grammar (`show bgp irr check <peer> <prefix>`) and a
+// keyword-value tail (`show log recent count 5`) intact: DispatchString then
+// rebuilds exactly the typed line.
+//
+// THE TRADE, unchanged in kind by the widening: under a node that takes values,
+// a mistyped subcommand (`show capture rwa`) becomes a value and reaches the
+// daemon's positional matcher instead of SuggestFromTree, so the operator gets
+// an empty result rather than "did you mean". The daemon answers the same argv
+// the same way, so this is the two resolvers agreeing rather than a client-side
+// loss, and the alternative -- refusing a value because it could have been a
+// typo -- is the defect above.
+func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, values []string) {
+	return extractValues(words, tree, func(prefix []string) bool {
+		return endsDeclaredCommand(verb, prefix)
+	})
+}
+
+// extractLocalValues splits words for the LOCAL-HANDLER lookup, which is keyed
+// on a different registry and therefore ends its paths somewhere else.
+//
+// registry.LookupLocal already does a longest-prefix match over the words it is
+// handed and returns the rest as the handler's arguments, so the TRAILING split
+// is done, by the registry that owns those keys. Doing it here as well cuts the
+// path short: `ze show debug profile name default` is served by runShowProfile,
+// registered at `show debug profile` (internal/plugins/debug/register.go), while
+// `show debug` is a declared ze:command and `profile` is no node of the show
+// TREE. The daemon's boundary therefore ends the path at `show debug`, which no
+// local handler holds, and the command went to the daemon and answered `no
+// credentials` (test/ui/debug-enable-show.ci).
+//
+// The INLINE shape still applies here, because it REORDERS rather than trims: a
+// handler registered at `show bgp peer detail` is not reachable from the words
+// `show bgp peer edge1 detail` in the order they were typed.
+func extractLocalValues(words []string, tree *cli.Command) (treeWords, values []string) {
+	return extractValues(words, tree, nil)
+}
+
+// extractValues is the shared walk. endsCommand is the TRAILING boundary and is
+// nil for a caller that has its own.
+//
+// IT EXTRACTS AT MOST ONE GROUP AND RETURNS. The inline branch returns the
+// moment it lifts a selector instead of resuming the walk on the words after
+// it, so an inline selector followed by a further value would leave that value
+// in Relative and the client would answer `unknown command` for a line
+// matchCommandTokens accepts. No argv reaches that today: an inline target must
+// declare a mandatory leaf (hasImplicitSelectorArg), and every node in the tree
+// that does is childless, so nothing can follow it but the value the trailing
+// branch already takes whole. This is the walk's shape, not a live defect;
+// giving a mandatory-leaf node children is what would make it one.
+func extractValues(words []string, tree *cli.Command, endsCommand func(prefix []string) bool) (treeWords, values []string) {
 	if len(words) < 2 {
-		return words, ""
+		return words, nil
 	}
 
 	current := tree
 	for i, word := range words {
-		if current.Children == nil {
-			return words, ""
-		}
-		if _, ok := current.Children[word]; ok {
-			current = current.Children[word]
+		if child, ok := current.Children[word]; ok {
+			current = child
 			continue
 		}
-		if !shouldExtractSelector(current, words, i) {
-			return words, ""
+		if shouldExtractSelector(current, words, i) {
+			treeWords = make([]string, 0, len(words)-1)
+			treeWords = append(treeWords, words[:i]...)
+			treeWords = append(treeWords, words[i+1:]...)
+			return treeWords, words[i : i+1 : i+1]
 		}
-		treeWords = make([]string, 0, len(words)-1)
-		treeWords = append(treeWords, words[:i]...)
-		treeWords = append(treeWords, words[i+1:]...)
-		return treeWords, word
+		// i == 0 would leave no words naming a command at all, and RunCommand
+		// reads Relative[0] to build its suggestion.
+		if i > 0 && endsCommand != nil && endsCommand(words[:i]) {
+			return words[:i:i], words[i:]
+		}
+		return words, nil
 	}
-	return words, ""
+	return words, nil
 }
 
+// endsDeclaredCommand reports whether rel, verb-relative, names a command some
+// registered ze:command declares. It asks cli.AbsoluteVerbPath, which reads the
+// same two registrations the daemon's dispatcher is keyed on, so the client
+// cannot decide a path ends somewhere the daemon would not.
+func endsDeclaredCommand(verb string, rel []string) bool {
+	if len(rel) == 0 {
+		return false
+	}
+	_, declared := cli.AbsoluteVerbPath(verb, rel)
+	return declared
+}
+
+// shouldExtractSelector reports whether words[idx] is an INLINE selector: a
+// value with more command words after it, where those later words reach a node
+// declaring a mandatory argument the selector fills. It is asked before the
+// trailing shape because the daemon asks it first: matchBuiltinTokens sorts its
+// keys longest-first, so `show ospf neighbor 1.2.3.4 detail` binds to the
+// four-word key with a selector rather than to the three-word key with two
+// spare arguments.
+//
+// THE looksLikeSelector BRANCH DECIDES NOTHING. Its condition is a conjunction
+// whose second half is the very expression the next line returns, so both
+// outcomes of looksLikeSelector reach the same verdict. What the word LOOKS like
+// stopped mattering when the grammar became the test: a selector is whatever
+// fills a mandatory argument, address-shaped or not. looksLikeSelector has no
+// production caller outside TestLooksLikeSelector.
 func shouldExtractSelector(current *cli.Command, words []string, idx int) bool {
 	word := words[idx]
-	if len(current.ArgDefs) > 0 {
-		return true
-	}
 	if idx+1 >= len(words) || current.Children == nil {
 		return false
 	}

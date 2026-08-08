@@ -509,8 +509,9 @@ Show uses the verb syntax: `ze show interface`.
 ```
 ze show interface                  # List all interfaces (also via daemon SSH)
 ze show interface brief            # One-line-per-interface summary
-ze show interface detail <name>    # Show details for one interface
-ze show interface counters <name>  # Counters only for named interface
+ze show interface scan             # Discover and classify every OS interface
+ze show interface name <n> detail  # Show details for one interface
+ze show interface name <n> counters  # Counters only for named interface
 ze show interface type <type>      # Filter by type (ethernet, bridge, vxlan, wireguard, ...)
 ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
 ze show interface rate             # Per-second rate data for all interfaces
@@ -526,11 +527,22 @@ ze interface addr del <name> unit <id> <cidr>      # Remove IP address
 ze interface migrate ...           # Make-before-break migration (requires daemon)
 ```
 
-**`show interface detail <name>`** (and the standalone `ze interface show <name>`)
-shows the OS device name (`OS Name`) alongside the configured name, and the NIC's
-permanent/factory MAC (`Perm MAC`) alongside the operational MAC, so overriding an
-interface's MAC does not hide the device's stable hardware identity.
+**`show interface name <name> detail`** (and the standalone
+`ze interface show <name>`) shows the OS device name (`OS Name`) alongside the
+configured name, and the NIC's permanent/factory MAC (`Perm MAC`) alongside the
+operational MAC, so overriding an interface's MAC does not hide the device's
+stable hardware identity.
 <!-- source: internal/component/iface/cli/show.go -- showOne / formatInterfaceDetail -->
+
+**Every subcommand above goes to the daemon; only the bare `ze show interface`
+and `ze show interface <name>` are served in-process.** `show interface` is a
+local handler registered at two words
+(internal/component/iface/cli/register.go), and its own arguments are an
+interface name, not a keyword. registry.LookupLocal refuses it for any argv that
+reaches a declared command below it, so `brief`, `scan`, `type`, `errors`,
+`rate` and the two `name ...` forms are answered by the daemon. Before that rule
+existed, all seven reached the in-process handler and were read as interface
+names: `ze show interface brief` looked for an interface called "brief".
 
 **`show interface type <type>`** is case-insensitive; unknown types reject
 with the sorted list of types actually present on the system. Empty-Type

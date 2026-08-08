@@ -30,6 +30,24 @@ func TestHostCmdSchemaOwnsShowHost(t *testing.T) {
 	}
 }
 
+// TestHostCmdSchemaDeclaresBareShowHost pins the bare `show host` path as an
+// alias of `show host all`.
+//
+// VALIDATES: `container host` carries ze:command, so a wire method serves the
+// bare path and the daemon answers it.
+// REGRESSION: the container declared no ze:command, so nothing was keyed on
+// `show host`. The offline fallback in internal/plugins/host/register.go made
+// the path dispatchable, which took it past the grouping-container branch in
+// cmdutil.RunCommand and sent it to a daemon with no handler for it. The
+// command therefore succeeded with the daemon DOWN and answered `unknown
+// command` with it UP (test/ui/cli-verb-daemon-dispatch.ci, checks 5 and 7).
+func TestHostCmdSchemaDeclaresBareShowHost(t *testing.T) {
+	const decl = `ze:command "ze-show:host-all"`
+	if got := strings.Count(ZeHostCmdYANG, decl); got != 2 {
+		t.Errorf("ze-host-cmd.yang has %d %s declarations, want 2 (container host and container all)", got, decl)
+	}
+}
+
 func TestHostCmdSchemaOwnsSystemKernelLog(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:system-kernel-log"`,

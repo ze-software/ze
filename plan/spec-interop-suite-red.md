@@ -33,6 +33,43 @@ A suite with five unexplained reds trains its readers to discard it.
 `06` was re-run directly by the main thread and reproduced: BIRD established the
 session and exported 3 routes, and ze reported 0.
 
+### 2026-08-07: the RIB reds are fixed, and the fail-open helper with them
+
+`05` and `06` shared one cause after all (A-2 **confirmed**), and it was three
+faults stacked behind the single `0` this spec predicted would hide them:
+
+| Fault | Producer | Fix |
+|-------|----------|-----|
+| The verb form resolved nothing, for ANY verb. 56 of the 63 `ze show` subcommands answered `unknown command` on the HOST, and `clear` / `monitor` / `request` / `set` / `delete` with them | `RunCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`) walked the verb-RELATIVE tree from `cli.BuildVerbCommandTree` with the verb-INCLUSIVE argv | `ResolveCommand` aligns the words; `cli.AbsoluteVerbPath` (`internal/component/cli/client/verb_tree.go`) rebuilds every absolute form |
+| The interop daemon started no SSH listener, so no CLI client could reach it whatever the verb | `infraSetup` (`cmd/ze/hub/infra_setup.go`) starts one only when the config asks, and no scenario `ze.conf` asked | `ZE_CLI_CONFIG` appended to every RENDERED `ze.conf`, queried through `ze cli -c`, as `test/ipsec-interop/lab.py` already did |
+| `Ze.rib_count` returned 0 on failure, which is what made the two above indistinguishable | `Ze.rib_count` (`test/interop/interop.py`) | raises, naming the command and the container (AC-1 **met**) |
+
+It was NOT the `use bgp-rib` producer this spec named as the first thing to read.
+The plugin loads; nothing could ask it anything.
+
+`05` PASS (3 routes), `06` PASS (3), `13-graceful-restart-frr` PASS (1). `13` was
+not on the list above and was red for its own reason: its `frr.conf` advertised
+nothing at all, so `ze.rib_received(1)` could not pass on any run. It now
+advertises one prefix.
+
+R-1 fired exactly as written: making the helper fail closed revealed reds that a
+masked zero had been carrying. Their rows are below, and none was silenced.
+
+| Scenario | Symptom | Verified |
+|----------|---------|----------|
+| `35-srv6-frr` | Session never leaves Active over the 90s budget, so the RIB is never queried. Ze LISTENS (TCP connect to `172.30.0.2:179` from the FRR container succeeds) and logs nothing about the attempt, while FRR reports `remote router ID 0.0.0.0`. FRR also reports `Configuration file[/etc/frr/frr.conf] processing failure: 11`, so whether the fault is Ze's or the scenario's SRv6 config is OPEN | Reproduced with the config append disabled, so it predates this work and is not caused by it. The producer that should log an accepted connection has NOT been read |
+| `19-routes-gobgp` | `route_json returned no data`: `GoBGP.route_json` (`test/interop/interop.py`) answers None and the check raises BEFORE any RIB query | The failure is in the GoBGP-side helper, not the Ze-side one. `rib_count` is never reached |
+| `ospf-gr-frr` | **Ze never starts: its own scenario config does not parse.** `ze validate config test/interop/scenarios/ospf-gr-frr/ze.conf` answers `line 11: expected ';' after support value, got WORD`. Line 11 is `restarter { support planned restart-interval 120 }`: two leaves on one line with no separator, which `p.errorf` (`internal/component/config/parser.go`) refuses. The same line is in `ospf-gr-fib-retention`, `ospf-v6-gr-frr` and `ospf-v6-gr-fib-retention` | Reproduced against the UNMODIFIED file with a host `ze` build, so it is neither the container nor this work. **Which side is wrong is a real question, not bookkeeping**: either the four configs are missing `;` or the parser should accept the compact form. Answer it before editing either |
+
+**A trap waiting behind the `ospf-gr-frr` config fix.** Its check calls
+`Ze().rib_received(0)`, and that scenario configures no BGP at all. The call was
+a tautology (`count >= 0`) over a helper that answered 0 for a failed query, so
+it passed without asking anything. `rib_count` raises now, so whoever fixes the
+config meets a red on a BGP surface an OSPF scenario never configures. The
+replacement is an OSPF route-retention assertion, not a deleted line: the
+scenario's own comment already points at `ospf-gr-fib-retention` for the real
+property.
+
 ## The reporting defect is separable from the reds, and it is the reason they are hard to read
 
 `Ze.rib_count` (`test/interop/interop.py`) ends `return 0` when its command

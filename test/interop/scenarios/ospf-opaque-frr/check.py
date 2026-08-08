@@ -22,18 +22,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import (  # noqa: E402
     FRROSPF,
     Ze,
-    ZE_CONTAINER,
-    docker_exec_quiet,
     log_info,
     log_pass,
+    poll,
 )
 
 
 def _ze_opaque_database():
-    """Return Ze's opaque-area + opaque-as LSDB text (empty string on failure)."""
+    """Return Ze's opaque-area + opaque-as LSDB output. Raises on query failure."""
     out = ""
     for view in ("opaque-area", "opaque-as"):
-        out += docker_exec_quiet(ZE_CONTAINER, ["ze", "show", "ospf", "database", view])
+        out += Ze().cli("show ospf database " + view)
     return out
 
 
@@ -51,14 +50,13 @@ def check():
     log_info(
         "waiting for Ze to store FRR's opaque LSA (advertising router 172.30.0.3)..."
     )
-    deadline = time.time() + 60
-    stored = False
-    while time.time() < deadline:
-        db = _ze_opaque_database()
-        if "172.30.0.3" in db and "opaque" in db:
-            stored = True
-            break
-        time.sleep(3)
+    db = poll(
+        _ze_opaque_database,
+        lambda out: "172.30.0.3" in out and "opaque" in out,
+        timeout=60,
+        what="show ospf database opaque-area/opaque-as",
+    )
+    stored = "172.30.0.3" in db and "opaque" in db
     if not stored:
         # Fall back: FRR's own LSDB must at least carry the opaque (TE) LSA, proving FRR
         # originated one; if FRR's mpls-te did not originate one, the carrier assertion is

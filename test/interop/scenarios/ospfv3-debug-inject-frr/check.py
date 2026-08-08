@@ -19,7 +19,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from interop import FRROSPF6, ZE_CONTAINER, docker_exec_quiet, log_info, log_pass  # noqa: E402
+from interop import FRROSPF6, Ze, log_info, log_pass  # noqa: E402
 
 LINK_STATE_ID = "1"
 
@@ -30,25 +30,10 @@ def check():
     frr.wait_adjacency(timeout=90)
 
     log_info("enabling debug injection and injecting an area-scope v3 LSA...")
-    docker_exec_quiet(ZE_CONTAINER, ["ze", "debug", "ospf", "inject", "enable"])
-    docker_exec_quiet(
-        ZE_CONTAINER,
-        [
-            "ze",
-            "debug",
-            "ipv6",
-            "ospf",
-            "inject",
-            "lsa",
-            "scope",
-            "area",
-            "type",
-            "0x2009",
-            "id",
-            LINK_STATE_ID,
-            "hex",
-            "00000000",
-        ],
+    Ze().cli("debug ospf inject enable")
+    Ze().cli(
+        "debug ipv6 ospf inject lsa scope area type 0x2009 id %s hex 00000000"
+        % LINK_STATE_ID
     )
 
     log_info("waiting for FRR ospf6d to receive the injected LSA...")
@@ -63,23 +48,9 @@ def check():
         raise AssertionError("FRR never received the injected v3 LSA:\n" + seen[:600])
 
     log_info("withdrawing the injected LSA; the adjacency must not flap...")
-    docker_exec_quiet(
-        ZE_CONTAINER,
-        [
-            "ze",
-            "debug",
-            "ipv6",
-            "ospf",
-            "inject",
-            "lsa",
-            "scope",
-            "area",
-            "type",
-            "0x2009",
-            "id",
-            LINK_STATE_ID,
-            "withdraw",
-        ],
+    Ze().cli(
+        "debug ipv6 ospf inject lsa scope area type 0x2009 id %s withdraw"
+        % LINK_STATE_ID
     )
     time.sleep(8)
     if not frr.adjacency_full():
