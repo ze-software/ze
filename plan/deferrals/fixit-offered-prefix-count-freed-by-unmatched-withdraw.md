@@ -1,0 +1,11 @@
+# Deferrals: fixit-offered-prefix-count-freed-by-unmatched-withdraw
+
+One issue, recorded not fixed (owner instruction, 2026-08-08). The aggregate
+live backlog is folded on read from `plan/deferrals/` by `/ze-status`. Nothing
+stores it (`ai/rules/planning.md`).
+
+**Issue:** `count offered` lets an unmatched withdrawal free a slot ze is using
+
+| Date | Source | What | Reason | Destination | Status |
+|------|--------|------|--------|-------------|--------|
+| 2026-08-08 | spec-bgp-per-peer-received-counter, while replacing the `installed` mode's arithmetic | Under the DEFAULT `count offered`, a withdrawal lowers the count whatever prefix it names. `checkPrefixLimits` (`internal/component/bgp/reactor/session_prefix.go`) hands every withdrawn section to `applyPrefixDelta`, which calls `prefixCounts.add` with a negative delta and no test of whether the family ever held those prefixes. So a peer that withdraws N prefixes it never announced frees N slots ze is still using, and the Adj-RIB-In can then hold `maximum + N` routes. The count also clamps at 0, so the peer can repeat it. Measured on the replacement's test rig: with `maximum 2` and a set of 2 held routes, two unmatched withdrawals take `counts[ipv4/unicast]` to 0 while the RIB still holds both | PRE-EXISTING and untouched by the `installed` rewrite. `offered` was in scope only as the regression baseline this session had to preserve, and the operator instruction for the session was explicit: keep `offered` exactly as it is. The goal the session existed to achieve -- an `installed` mode that counts a set rather than wire events -- holds without this, which makes it separable rather than parked (`ai/rules/rule-precedence.md`). `installed` is already immune, because a withdrawal of a prefix absent from the set removes nothing. Fixing `offered` means giving it per-prefix identity too, which is the same set the `installed` mode now keeps and would erase the distinction between the two values the operator chose between. So the fix is a DESIGN question for Thomas, not a patch: does `offered` keep counting wire events, with this consequence documented (it is, in `docs/guide/configuration.md`), or does it become "every prefix the peer currently offers", a second set that also holds the prefixes enforcement refused | needs a destination spec | deferred |

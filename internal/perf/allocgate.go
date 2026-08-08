@@ -38,6 +38,19 @@ var AllocCeilings = map[string]int{
 	"BenchmarkEBGPWireCacheHitParallel": 0,
 	// rs-fastpath ForwardUpdatesDirect per-UPDATE path. Measured 5, +1 headroom.
 	"BenchmarkForwardDirect": 6,
+	// checkPrefixLimits per-UPDATE, default `count offered` family. Measured 0.
+	"BenchmarkCheckPrefixLimitsOffered": 0,
+	// checkPrefixLimits per-UPDATE, `count installed` family re-announcing an
+	// unchanged table. Measured 0: the steady state looks up the prefix set and
+	// inserts nothing. The set's four warm-up inserts amortize to zero only
+	// because ALLOC_GATE_BENCHTIME is 300x (mk/alloc-gate.mk); a shorter
+	// benchtime turns this red, which is the direction that fails closed.
+	"BenchmarkCheckPrefixLimitsInstalled": 0,
+	// checkPrefixLimits per-UPDATE, `count installed` family under churn. The
+	// ceiling is arithmetic, not a measurement with headroom: the benchmark
+	// alternates a four-prefix announce with its withdraw, so four map keys are
+	// allocated every two operations.
+	"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
 }
 
 // AllocResult is one parsed allocs/op sample from `go test -benchmem` output.

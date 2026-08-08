@@ -579,7 +579,16 @@ module ze-bgp-conf {
 
             leaf link-local {
                 type zt:ipv6-address;
-                description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
+                description
+                    "IPv6 link-local address to advertise AFTER the global next hop
+                     in the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf
+                     supplies the address. It does not decide that the address is
+                     sent: ze appends it only when this speaker shares a locally
+                     connected subnet with the peer AND with the entity named by the
+                     global next hop, which is the 'if and only if' condition of
+                     Section 3. In every other case the field carries the global
+                     address alone. Set it on a session that faces a peer on a shared
+                     link. It has no effect on any other session.";
             }
 
             // Address families
@@ -618,6 +627,18 @@ module ze-bgp-conf {
                         type boolean;
                         default true;
                         description "Tear down session when prefix maximum exceeded (false = warn only)";
+                    }
+                    leaf count {
+                        type enumeration {
+                            enum offered {
+                                description "Count every announcement the peer sends, the announcements of a dropped UPDATE included. A prefix announced twice counts twice.";
+                            }
+                            enum installed {
+                                description "Count the prefixes this family currently holds. A re-announced prefix is one prefix, a dropped UPDATE moves nothing, and a withdrawal of a prefix ze does not hold moves nothing.";
+                            }
+                        }
+                        default "offered";
+                        description "Which prefixes the count compared against maximum holds. offered counts wire events: every announcement raises the count and every withdrawal lowers it, so a peer that re-announces a prefix to change an attribute raises the count again although it holds the same route. The count can therefore sit above the maximum, and ze then drops every later announce of this family until the peer withdraws enough prefixes. installed counts the set of prefixes ze currently holds for this family, which no re-announcement and no unmatched withdrawal can move. installed keeps one entry per prefix for this family, so its memory is the size of what the peer sends up to the maximum. Neither value is the size of the RIB: import policy can reject a counted prefix.";
                     }
                     leaf idle-timeout {
                         type uint16;

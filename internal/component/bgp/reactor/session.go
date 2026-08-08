@@ -364,6 +364,14 @@ type Session struct {
 	// run on the session read goroutine, so it needs no lock.
 	prefixExceededFamily uint32
 
+	// prefixSetJournal records the changes one UPDATE makes to an installed
+	// family's prefix set, so a message the prefix maximum refuses can be undone
+	// whole (applyInstalledPrefixSections, session_prefix.go). It is reused
+	// across messages and holds views into the message payload only while that
+	// message is being checked. Empty for a peer with no installed family, and
+	// on the session read goroutine like prefixCounts.
+	prefixSetJournal []prefixSetChange
+
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics

@@ -207,13 +207,20 @@ type prefixCounts struct {
 	counts map[uint32]int64
 	warned map[uint32]bool // true once warning has been logged for a family (reset on drop below)
 
-	// dropped holds, per family, how many announced prefixes warn-only
-	// enforcement refused and never counted. Only a PrefixCountInstalled family
-	// gets an entry. The peer keeps a refused prefix in its own Adj-RIB-Out and
-	// withdraws it later, and planInstalledPrefixFamily spends the credit on
-	// that withdrawal so the count does not fall below the number of routes the
-	// session delivered. Lazily allocated: an offered-only peer never has one.
-	dropped map[uint32]int64
+	// sets holds, per PrefixCountInstalled family, the wire identity of every
+	// NLRI that family currently has in the session's Adj-RIB-In. counts[fk] is
+	// len(sets[fk]) for such a family, always: the installed count is the
+	// CARDINALITY OF A SET, never a tally of wire events.
+	//
+	// That is what the two reference implementations count. FRR reads
+	// peer->pcount[afi][safi], which bgp_pcount_adjust maintains on path add and
+	// delete. BIRD compares stats->imp_routes, which moves only when a route
+	// enters or leaves the table. Neither can be moved by a peer re-announcing
+	// one prefix, because neither counts the announcement.
+	//
+	// Nil unless a family asked for the mode, so a peer that states nothing
+	// carries no set and pays nothing.
+	sets map[uint32]map[string]struct{}
 
 	// installed holds the family keys whose `count` leaf asked for
 	// PrefixCountInstalled. Nil when no family did, which is the check every
@@ -225,11 +232,26 @@ type prefixCounts struct {
 
 // newPrefixCounts builds the per-session prefix tally from the peer settings.
 func newPrefixCounts(settings *PeerSettings) *prefixCounts {
-	return &prefixCounts{
+	pc := &prefixCounts{
 		counts:    make(map[uint32]int64),
 		warned:    make(map[uint32]bool),
 		installed: installedPrefixFamilies(settings),
 	}
+	if pc.installed != nil {
+		pc.sets = make(map[uint32]map[string]struct{}, len(pc.installed))
+	}
+	return pc
+}
+
+// setFor returns fk's installed set, building it on first use. Only a family in
+// prefixCounts.installed reaches here.
+func (pc *prefixCounts) setFor(fk uint32) map[string]struct{} {
+	set, ok := pc.sets[fk]
+	if !ok {
+		set = make(map[string]struct{})
+		pc.sets[fk] = set
+	}
+	return set
 }
 
 // installedPrefixFamilies returns the family keys that asked for
@@ -288,73 +310,73 @@ func ipv4AddPathReceive(neg *capability.Negotiated) bool {
 	return mode == capability.AddPathReceive || mode == capability.AddPathBoth
 }
 
-// prefixDelta is one family section's change to the prefix count, taken from one
-// UPDATE. checkPrefixLimits collects every section of a message before it counts
-// any of them: a PrefixCountInstalled family has to know whether the message
-// survives before the count moves.
-type prefixDelta struct {
-	fk    uint32
-	delta int64
+// prefixSection is one family section of one UPDATE: the raw NLRI bytes, the
+// family they belong to, and whether they are announced or withdrawn.
+// checkPrefixLimits collects every section of a message before it counts any of
+// them: a PrefixCountInstalled family has to know whether the message survives
+// before the count moves.
+type prefixSection struct {
+	fk       uint32
+	bytes    []byte
+	addPath  bool
+	announce bool
 }
 
-// maxPrefixDeltas is how many family sections one UPDATE can carry: IPv4 unicast
-// withdrawn and announced from the body, plus one MP_UNREACH and one MP_REACH
-// family. The array lives on the stack of checkPrefixLimits, so collecting the
-// sections allocates nothing on the wire path.
-const maxPrefixDeltas = 4
+// maxPrefixSections is how many family sections one UPDATE can carry: IPv4
+// unicast withdrawn and announced from the body, plus one MP_UNREACH and one
+// MP_REACH family. The array lives on the stack of checkPrefixLimits, so
+// collecting the sections allocates nothing on the wire path.
+const maxPrefixSections = 4
 
-// collectPrefixDeltas reads the NLRI counts of every family section of one
-// UPDATE into out, and returns how many entries it wrote. It changes no state.
+// collectPrefixSections points out at every family section of one UPDATE and
+// returns how many entries it wrote. It changes no state and copies no bytes:
+// each section is a view into the message payload.
 //
 // Withdrawals come first so that one UPDATE replacing prefixes (withdraw old,
-// announce new) never reads as an overflow. Every partial sum of the entries is
-// therefore at or below the final one, which is what lets the installed mode
-// judge a family on its net change and reach the same verdict the section by
-// section apply below would.
-func (s *Session) collectPrefixDeltas(wu *wireu.WireUpdate, out *[maxPrefixDeltas]prefixDelta) int {
+// announce new) never reads as an overflow. The installed mode depends on that
+// order too: it applies a family's withdrawals to the set before its
+// announcements, so a message that frees a slot and fills it is judged on the
+// set it leaves behind.
+func (s *Session) collectPrefixSections(wu *wireu.WireUpdate, out *[maxPrefixSections]prefixSection) int {
 	n := 0
 
 	// Determine ADD-PATH state for IPv4 unicast body NLRI parsing.
 	addPath := ipv4AddPathReceive(s.negotiated)
 	ipv4Key := familyKey(family.IPv4Unicast)
 
-	// Count IPv4 unicast body Withdrawn.
-	if withdrawn, err := countBodyWithdrawn(wu, addPath); err == nil && withdrawn > 0 {
-		out[n] = prefixDelta{fk: ipv4Key, delta: -int64(withdrawn)}
+	// IPv4 unicast body Withdrawn.
+	if withdrawn, err := wu.Withdrawn(); err == nil && len(withdrawn) > 0 {
+		out[n] = prefixSection{fk: ipv4Key, bytes: withdrawn, addPath: addPath}
 		n++
 	}
 
-	// Count MP_UNREACH_NLRI (non-IPv4 families).
+	// MP_UNREACH_NLRI (non-IPv4 families).
 	if mpUnreach, err := wu.MPUnreach(); err == nil && mpUnreach != nil {
 		fam := family.Family{
 			AFI:  family.AFI(mpUnreach.AFI()),
 			SAFI: family.SAFI(mpUnreach.SAFI()),
 		}
 		if wdBytes := mpUnreach.WithdrawnBytes(); len(wdBytes) > 0 {
-			if count := countPrefixEntries(wdBytes, s.mpAddPathReceive(fam)); count > 0 {
-				out[n] = prefixDelta{fk: familyKey(fam), delta: -int64(count)}
-				n++
-			}
+			out[n] = prefixSection{fk: familyKey(fam), bytes: wdBytes, addPath: s.mpAddPathReceive(fam)}
+			n++
 		}
 	}
 
-	// Count IPv4 unicast body NLRI (announced).
-	if announced, err := countBodyNLRI(wu, addPath); err == nil && announced > 0 {
-		out[n] = prefixDelta{fk: ipv4Key, delta: int64(announced)}
+	// IPv4 unicast body NLRI (announced).
+	if announced, err := wu.NLRI(); err == nil && len(announced) > 0 {
+		out[n] = prefixSection{fk: ipv4Key, bytes: announced, addPath: addPath, announce: true}
 		n++
 	}
 
-	// Count MP_REACH_NLRI (non-IPv4 families).
+	// MP_REACH_NLRI (non-IPv4 families).
 	if mpReach, err := wu.MPReach(); err == nil && mpReach != nil {
 		fam := family.Family{
 			AFI:  family.AFI(mpReach.AFI()),
 			SAFI: family.SAFI(mpReach.SAFI()),
 		}
 		if nlriBytes := mpReach.NLRIBytes(); len(nlriBytes) > 0 {
-			if count := countPrefixEntries(nlriBytes, s.mpAddPathReceive(fam)); count > 0 {
-				out[n] = prefixDelta{fk: familyKey(fam), delta: int64(count)}
-				n++
-			}
+			out[n] = prefixSection{fk: familyKey(fam), bytes: nlriBytes, addPath: s.mpAddPathReceive(fam), announce: true}
+			n++
 		}
 	}
 
@@ -367,10 +389,12 @@ func (s *Session) collectPrefixDeltas(wu *wireu.WireUpdate, out *[maxPrefixDelta
 //   - drop true: maximum exceeded, teardown=false. Caller skips plugin delivery (AC-27).
 //   - both nil/false: within limits, proceed normally.
 //
-// An `offered` family (the default) counts every announced prefix, a prefix of
-// an UPDATE this call then drops included, and its withdrawals are counted
-// whatever the outcome. An `installed` family is settled first, by
-// applyInstalledPrefixDeltas, and takes nothing from a dropped UPDATE.
+// An `offered` family (the default) counts wire events: every announced prefix
+// raises the count, a prefix of an UPDATE this call then drops included, and
+// every withdrawal lowers it whatever the outcome. An `installed` family is
+// settled first, by applyInstalledPrefixSections, against the SET of prefixes
+// that family holds, so a re-announcement of a prefix the peer already has
+// moves nothing.
 //
 // RFC 4486 Section 4: "Maximum Number of Prefixes Reached" -- Cease subcode 1.
 func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notification, drop bool) {
@@ -392,29 +416,36 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		}
 	}()
 
-	var buf [maxPrefixDeltas]prefixDelta
-	deltas := buf[:s.collectPrefixDeltas(wu, &buf)]
+	var buf [maxPrefixSections]prefixSection
+	sections := buf[:s.collectPrefixSections(wu, &buf)]
 
 	// Families that asked to count what ze installed are settled on the whole
 	// message, before any of it is counted. A peer whose families all keep the
 	// default never enters this branch.
 	if len(s.prefixCounts.installed) > 0 {
-		if n, d := s.applyInstalledPrefixDeltas(deltas, hasLimits); n != nil || d {
+		if n, d := s.applyInstalledPrefixSections(sections, hasLimits); n != nil || d {
 			return n, d
 		}
 	}
 
-	for _, pd := range deltas {
-		if s.prefixCounts.installed[pd.fk] {
+	for _, sec := range sections {
+		if s.prefixCounts.installed[sec.fk] {
 			continue // already applied above
+		}
+		delta := int64(countPrefixEntries(sec.bytes, sec.addPath))
+		if delta == 0 {
+			continue
+		}
+		if !sec.announce {
+			delta = -delta
 		}
 		// Withdrawals only decrement and never trigger enforcement.
 		// Without limits, applyPrefixDelta just counts for anomaly detection.
-		if pd.delta < 0 || !hasLimits {
-			s.applyPrefixDelta(pd.fk, pd.delta)
+		if delta < 0 || !hasLimits {
+			s.applyPrefixDelta(sec.fk, delta)
 			continue
 		}
-		if n, d := s.applyPrefixCheck(pd.fk, pd.delta); n != nil || d {
+		if n, d := s.applyPrefixCheck(sec.fk, delta); n != nil || d {
 			return n, d
 		}
 	}
@@ -422,134 +453,151 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 	return nil, false
 }
 
-// installedPrefixPlan is one PrefixCountInstalled family's whole change from one
-// UPDATE: what the count becomes, and how much of the withdrawal a refused
-// announce already paid for.
-type installedPrefixPlan struct {
-	fk     uint32
-	net    int64
-	absorb int64
+// prefixSetChange is one mutation an UPDATE made to an installed family's set.
+// entry is a VIEW into the message payload, so a change is only replayable while
+// that message is being checked. applyInstalledPrefixSections clears the journal
+// before it returns, which is exactly that window.
+type prefixSetChange struct {
+	fk    uint32
+	entry []byte
+	added bool
 }
 
-// applyInstalledPrefixDeltas settles every PrefixCountInstalled family of one
+// applyInstalledPrefixSections settles every PrefixCountInstalled family of one
 // UPDATE. It returns the same pair as applyPrefixCheck.
 //
-// The mode's whole content is here: a message this function refuses never moves
-// the count, exactly as it never reaches the RIB (processMessage,
-// session_read.go, returns before plugin delivery). So the families are judged
-// first, on their net change, and only a message that every one of them accepts
-// is counted.
+// The mode's whole content is here, and it is a SET, not a tally. Each installed
+// family holds the wire identity of every NLRI it currently has, and its count
+// is that set's size. So:
 //
-// A refusal credits the refused announcement to prefixCounts.dropped. Without
-// that credit the peer's later withdrawal of a prefix ze never counted would
-// take the count BELOW the number of routes ze holds, and the family would then
-// accept one more route past its maximum on every announce, drop, withdraw
-// cycle. The credit makes the limit hold: planInstalledPrefixFamily spends it
-// on that withdrawal instead.
+//   - a re-announcement of a prefix the peer already has moves nothing, which is
+//     what a BGP implicit withdraw (RFC 4271 Section 3.1) actually does to a RIB;
+//   - a withdrawal of a prefix ze never held moves nothing;
+//   - a route refresh that replays the peer's whole table moves nothing.
 //
-// A message mixing an installed family with an offered one is refused whole:
-// nothing is counted for either, and only the installed family is credited. The
-// message reached no family's RIB, so counting one of them would report
-// prefixes no reader can see.
-func (s *Session) applyInstalledPrefixDeltas(deltas []prefixDelta, hasLimits bool) (*message.Notification, bool) {
-	var planBuf [maxPrefixDeltas]installedPrefixPlan
-	plans := planBuf[:0]
+// None of that is true of an event tally, which is why this function counts what
+// FRR's pcount and BIRD's imp_routes count: the cardinality of the peer's routes,
+// maintained as they enter and leave.
+//
+// A message this function refuses never moves any set, exactly as it never
+// reaches the RIB (processMessage, session_read.go, returns before plugin
+// delivery). Refusal is therefore all-or-nothing across families: the sets are
+// mutated as the sections are read, and rollbackPrefixSets undoes every one of
+// them before the refusal is reported. A message mixing an installed family with
+// an offered one is refused whole; the message reached no family's RIB, so
+// counting one of them would report prefixes no reader can see.
+//
+// A family stops taking new prefixes the moment its set passes its maximum, so
+// one over-limit message can grow a set to maximum+1 and no further. Without
+// that bound a peer could make ze build a set the size of its message before ze
+// threw it away, and a Go map does not return its buckets when its entries go.
+// The count this reports is therefore maximum+1: the size at which the family
+// crossed its bound, not the size the whole message would have reached.
+func (s *Session) applyInstalledPrefixSections(sections []prefixSection, hasLimits bool) (*message.Notification, bool) {
+	defer func() {
+		clear(s.prefixSetJournal)
+		s.prefixSetJournal = s.prefixSetJournal[:0]
+	}()
 
-	for i, pd := range deltas {
-		if !s.prefixCounts.installed[pd.fk] || containsPrefixFamily(deltas[:i], pd.fk) {
+	for _, sec := range sections {
+		if !s.prefixCounts.installed[sec.fk] {
 			continue
 		}
-		plan := s.planInstalledPrefixFamily(deltas, pd.fk)
-		if !hasLimits {
-			plans = append(plans, plan)
+		maximum, over := s.applyInstalledPrefixSection(sec, hasLimits)
+		if !over {
 			continue
 		}
-		maximum, _, hasMax := s.prefixConfigLookup(pd.fk)
-		if !hasMax || plan.net+s.prefixCounts.counts[pd.fk] <= int64(maximum) {
-			plans = append(plans, plan)
-			continue
-		}
-		// This family goes past its maximum, so the whole message is refused.
-		famName := familyString(pd.fk)
-		current := s.prefixCounts.counts[pd.fk] + plan.net
-		notif, drop := s.reportPrefixExceeded(pd.fk, famName, current, maximum)
-		if drop {
-			s.creditDroppedPrefixes(deltas)
-		}
-		return notif, drop
+		current := int64(len(s.prefixCounts.sets[sec.fk]))
+		s.rollbackPrefixSets()
+		return s.reportPrefixExceeded(sec.fk, familyString(sec.fk), current, maximum)
 	}
 
-	for _, plan := range plans {
-		if plan.absorb > 0 {
-			s.prefixCounts.dropped[plan.fk] -= plan.absorb
+	// Every installed family accepted the message, so each one's count is now
+	// the size of its set. The delta is routed through the same two helpers the
+	// offered mode uses, so the warning threshold, its clear, and the
+	// ze_bgp_prefix_count gauge behave identically under both modes.
+	for i, sec := range sections {
+		if !s.prefixCounts.installed[sec.fk] || containsPrefixSectionFamily(sections[:i], sec.fk) {
+			continue
 		}
-		switch {
-		case plan.net < 0:
-			s.applyPrefixDelta(plan.fk, plan.net)
-		case plan.net > 0:
-			// The maximum was checked above on this same net change, so this
-			// call cannot refuse the message a second time. The answer is
-			// propagated rather than discarded: a refusal here would mean two
-			// readings of one number disagree, and enforcement wins over
-			// tidiness whenever they do.
-			if n, d := s.applyPrefixCheck(plan.fk, plan.net); n != nil || d {
-				return n, d
-			}
+		delta := int64(len(s.prefixCounts.sets[sec.fk])) - s.prefixCounts.counts[sec.fk]
+		if delta == 0 {
+			continue
+		}
+		if delta < 0 || !hasLimits {
+			s.applyPrefixDelta(sec.fk, delta)
+			continue
+		}
+		// The maximum was checked above on this same size, so this call cannot
+		// refuse the message a second time. The answer is propagated rather
+		// than discarded: a refusal here would mean two readings of one number
+		// disagree, and enforcement wins over tidiness whenever they do.
+		if n, d := s.applyPrefixCheck(sec.fk, delta); n != nil || d {
+			return n, d
 		}
 	}
 	return nil, false
 }
 
-// planInstalledPrefixFamily folds one family's sections of an UPDATE into the
-// single change the installed mode applies, and states how much of the
-// withdrawal the refused-announcement credit covers.
+// applyInstalledPrefixSection applies one section to its family's set, journals
+// every change it makes, and reports whether the family crossed its maximum.
 //
-// The credit is spent on the withdrawal before the announcement is added,
-// because the peer withdraws what ze refused earlier and what ze holds in the
-// same message shape, and only the count can tell them apart.
-func (s *Session) planInstalledPrefixFamily(deltas []prefixDelta, fk uint32) installedPrefixPlan {
-	var withdrawn, announced int64
-	for _, pd := range deltas {
-		if pd.fk != fk {
-			continue
-		}
-		if pd.delta < 0 {
-			withdrawn -= pd.delta
-			continue
-		}
-		announced += pd.delta
+// Announcing a prefix the set already holds and withdrawing one it does not both
+// journal nothing, which is what makes the count immune to a repeated
+// announcement and to an unmatched withdrawal.
+func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool) (maximum uint32, over bool) {
+	set := s.prefixCounts.setFor(sec.fk)
+
+	hasMax := false
+	if hasLimits && sec.announce {
+		maximum, _, hasMax = s.prefixConfigLookup(sec.fk)
 	}
 
-	absorb := min(s.prefixCounts.dropped[fk], withdrawn)
-	return installedPrefixPlan{fk: fk, net: announced - (withdrawn - absorb), absorb: absorb}
-}
-
-// creditDroppedPrefixes records every announcement a refused message carried,
-// per installed family, so the peer's later withdrawal of those prefixes is
-// absorbed instead of counted.
-func (s *Session) creditDroppedPrefixes(deltas []prefixDelta) {
-	for i, pd := range deltas {
-		if pd.delta <= 0 || !s.prefixCounts.installed[pd.fk] || containsPrefixFamily(deltas[:i], pd.fk) {
-			continue
+	forEachPrefixEntry(sec.bytes, sec.addPath, func(entry []byte) {
+		if over {
+			return
 		}
-		var announced int64
-		for _, other := range deltas {
-			if other.fk == pd.fk && other.delta > 0 {
-				announced += other.delta
+		if !sec.announce {
+			if _, held := set[string(entry)]; !held {
+				return
 			}
+			delete(set, string(entry))
+			s.prefixSetJournal = append(s.prefixSetJournal, prefixSetChange{fk: sec.fk, entry: entry})
+			return
 		}
-		if s.prefixCounts.dropped == nil {
-			s.prefixCounts.dropped = make(map[uint32]int64)
+		if _, held := set[string(entry)]; held {
+			return
 		}
-		s.prefixCounts.dropped[pd.fk] += announced
+		set[string(entry)] = struct{}{}
+		s.prefixSetJournal = append(s.prefixSetJournal, prefixSetChange{fk: sec.fk, entry: entry, added: true})
+		over = hasMax && int64(len(set)) > int64(maximum)
+	})
+
+	return maximum, over
+}
+
+// rollbackPrefixSets undoes every change this message made to an installed
+// family's set, newest first. The order matters: a message that withdraws a
+// prefix and announces it again journals a delete and then an insert over the
+// same identity, and only replaying backwards puts that prefix back.
+func (s *Session) rollbackPrefixSets() {
+	for i := len(s.prefixSetJournal) - 1; i >= 0; i-- {
+		c := s.prefixSetJournal[i]
+		set := s.prefixCounts.sets[c.fk]
+		if c.added {
+			delete(set, string(c.entry))
+			continue
+		}
+		set[string(c.entry)] = struct{}{}
 	}
 }
 
-// containsPrefixFamily reports whether fk already appears in deltas. The caller
-// uses it to settle each family once, on the first section that names it.
-func containsPrefixFamily(deltas []prefixDelta, fk uint32) bool {
-	for _, pd := range deltas {
-		if pd.fk == fk {
+// containsPrefixSectionFamily reports whether fk already appears in sections.
+// The caller uses it to settle each family once, on the first section that
+// names it.
+func containsPrefixSectionFamily(sections []prefixSection, fk uint32) bool {
+	for _, sec := range sections {
+		if sec.fk == fk {
 			return true
 		}
 	}
@@ -661,11 +709,15 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 func (s *Session) reportPrefixExceeded(fk uint32, famName string, current int64, maximum uint32) (*message.Notification, bool) {
 	teardown := s.settings.PrefixTeardownFor(famName)
 	s.incrPrefixExceededMetric(famName)
+	// The mode is on the line because the two modes report different numbers for
+	// the same peer, and nothing else on an operator surface says which one
+	// produced this one.
 	sessionLogger().Error("prefix count exceeded maximum",
 		"peer", s.settings.Address,
 		"family", famName,
 		"count", current,
 		"maximum", maximum,
+		"mode", s.settings.PrefixCountFor(famName).String(),
 		"teardown", teardown,
 	)
 
@@ -753,40 +805,26 @@ func buildPrefixNotification(fk, count uint32) *message.Notification {
 	return notif
 }
 
-// countBodyNLRI counts IPv4 unicast NLRI entries in the UPDATE body.
-func countBodyNLRI(wu *wireu.WireUpdate, addPath bool) (int, error) {
-	iter, err := wu.NLRIIterator(addPath)
-	if err != nil || iter == nil {
-		return 0, err
-	}
-	count := 0
-	for _, _, ok := iter.Next(); ok; _, _, ok = iter.Next() {
-		count++
-	}
-	return count, nil
-}
-
-// countBodyWithdrawn counts IPv4 unicast withdrawn entries in the UPDATE body.
-func countBodyWithdrawn(wu *wireu.WireUpdate, addPath bool) (int, error) {
-	iter, err := wu.WithdrawnIterator(addPath)
-	if err != nil || iter == nil {
-		return 0, err
-	}
-	count := 0
-	for _, _, ok := iter.Next(); ok; _, _, ok = iter.Next() {
-		count++
-	}
-	return count, nil
-}
-
-// countPrefixEntries counts prefix entries in raw NLRI bytes.
-// Works for families using standard prefix-length encoding (unicast, multicast).
-// For complex families (VPN, flowspec), the count may be inaccurate but is
-// bounded (cannot overcount due to prefix-length advancing).
-func countPrefixEntries(data []byte, addPath bool) int {
+// forEachPrefixEntry walks raw NLRI bytes and calls fn, when fn is non-nil, once
+// per entry with that entry's WHOLE wire encoding, the ADD-PATH path identifier
+// included. It returns how many entries it walked and stops at the first
+// truncated one. The slice fn receives is a view into data; do not retain it
+// past the message.
+//
+// Wire shape: RFC 4271 Section 4.3 for the length-then-value entry, RFC 7911
+// Section 3 for the 4-octet path identifier in front of it.
+//
+// The entry bytes ARE the identity the installed count keys on. Two NLRIs name
+// the same route when their encodings are equal, which is the only identity
+// available to a check that runs before any family-specific decoder. It is also
+// strictly finer than the count this function replaces: a family whose entries
+// this walk mis-measures (VPN, flowspec) had a wrong count before and now has a
+// wrong set, never a set that merges two distinct routes.
+func forEachPrefixEntry(data []byte, addPath bool, fn func(entry []byte)) int {
 	count := 0
 	offset := 0
 	for offset < len(data) {
+		start := offset
 		if addPath {
 			if offset+4 > len(data) {
 				break
@@ -796,17 +834,25 @@ func countPrefixEntries(data []byte, addPath bool) int {
 		if offset >= len(data) {
 			break
 		}
-		prefixLen := int(data[offset])
-		offset++ // Skip prefix-length byte
-		// Prefix bytes = ceil(prefixLen / 8)
-		prefixBytes := (prefixLen + 7) / 8
-		offset += prefixBytes
+		// Prefix bytes = ceil(prefixLen / 8), after the prefix-length byte.
+		offset += 1 + (int(data[offset])+7)/8
 		if offset > len(data) {
 			break // Truncated entry, stop counting
 		}
 		count++
+		if fn != nil {
+			fn(data[start:offset])
+		}
 	}
 	return count
+}
+
+// countPrefixEntries counts prefix entries in raw NLRI bytes.
+// Works for families using standard prefix-length encoding (unicast, multicast).
+// For complex families (VPN, flowspec), the count may be inaccurate but is
+// bounded (cannot overcount due to prefix-length advancing).
+func countPrefixEntries(data []byte, addPath bool) int {
+	return forEachPrefixEntry(data, addPath, nil)
 }
 
 // --- Prometheus metric helpers ---

@@ -7,8 +7,8 @@ package reactor
 
 import "fmt"
 
-// parsePrefixLimitFromFamily extracts prefix maximum, warning, teardown, idle-timeout,
-// and updated from a family entry's prefix block.
+// parsePrefixLimitFromFamily extracts prefix maximum, warning, teardown,
+// idle-timeout, reconnect, count and updated from a family entry's prefix block.
 // RFC 4486 Section 4: Maximum Number of Prefixes Reached.
 // Every non-disabled family MUST have a prefix maximum configured.
 //
@@ -71,6 +71,10 @@ func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *P
 		return err
 	}
 
+	if err := parsePrefixCount(familyKey, prefixMap, ps); err != nil {
+		return err
+	}
+
 	if v, ok := mapString(prefixMap, "updated"); ok {
 		if ps.PrefixUpdated == nil {
 			ps.PrefixUpdated = make(map[string]string)
@@ -78,6 +82,31 @@ func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *P
 		ps.PrefixUpdated[familyKey] = v
 	}
 
+	return nil
+}
+
+// parsePrefixCount reads the per-family `count` leaf, which states which
+// prefixes the count compared against `maximum` holds.
+//
+// An absent or empty value leaves the map alone, and PrefixCountFor
+// (peersettings.go) reads that as `offered`. The YANG default is `offered` too,
+// so a config that states nothing arrives here carrying it and gets the same
+// answer either way.
+func parsePrefixCount(familyKey string, prefixMap map[string]any, ps *PeerSettings) error {
+	raw, ok := mapString(prefixMap, "count")
+	if !ok || raw == "" {
+		return nil
+	}
+
+	mode, valid := ParsePrefixCountMode(raw)
+	if !valid {
+		return fmt.Errorf("family %s: prefix count %q is not one of offered, installed", familyKey, raw)
+	}
+
+	if ps.PrefixCount == nil {
+		ps.PrefixCount = make(map[string]PrefixCountMode)
+	}
+	ps.PrefixCount[familyKey] = mode
 	return nil
 }
 

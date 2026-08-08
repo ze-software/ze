@@ -1,0 +1,218 @@
+# Test: `prefix { count installed; }` is not moved by a re-announced prefix
+#
+# BGP has no explicit refresh of one route. A peer that changes an attribute of
+# a prefix it already advertises sends the SAME NLRI again, and that implicitly
+# withdraws the old path (RFC 4271 Section 3.1). The peer's route count does not
+# move, so a prefix limit's count must not move either.
+#
+# This is the defect that made `count installed` unusable and it is why the mode
+# now counts a SET. Counting announcements walked the number up one per
+# re-announcement until the family sat at its maximum over a RIB of ONE, and
+# refused everything after that. Neither reference implementation counts
+# announcements: FRR compares peer->pcount[afi][safi], which bgp_pcount_adjust
+# moves on a path add and a path delete, and BIRD compares stats->imp_routes,
+# which moves as a route enters or leaves the table.
+#
+# ipv4/unicast carries `maximum 2`, `teardown false` and `count installed`. The
+# peer advertises ONE prefix three times, then a second prefix once. Two
+# prefixes against a maximum of two is inside the limit, so NOTHING may be
+# refused and BOTH routes must reach the Adj-RIB-In.
+#
+# THE DISCRIMINATING ASSERTION is the REJECT of `prefix count exceeded maximum`.
+# Under an announcement tally the third advertisement of 10.0.0.0/24 reads as a
+# third prefix and fires that line, and the announcement of 10.0.1.0/24 fires it
+# again. Measured against the tally this replaces: both lines appear and this
+# test fails on the reject. The RIB assertion is the other half -- a limit that
+# refused nothing but installed nothing would pass the reject alone.
+#
+# EACH ADVERTISEMENT CARRIES ITS OWN NEXT-HOP, which is what makes the three
+# advertisements of 10.0.0.0/24 three separate UPDATEs. readAndProcessCoalesced
+# (internal/component/bgp/reactor/session_coalesce.go) appends consecutive
+# ipv4/unicast NLRIs only when their attribute bytes are identical, so a
+# repeated prefix with a repeated next-hop would be folded into one message and
+# the test would prove nothing. A changing next-hop is also exactly the churn an
+# operator sees in production.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# Hold the session open after the expectations complete: a closed peer is a
+# session-down event, which withdraws its routes and empties the RIB the plugin
+# is about to read.
+option=linger:value=true
+option=asn:value=65001
+# ONE prefix, advertised three times, each time with a different next-hop. The
+# peer holds one route throughout and every message after the first implicitly
+# withdraws the path before it.
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.2
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.3
+# A genuinely second prefix. Two routes against a maximum of two fits.
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.4
+# ze's own configured route comes back the other way. It gives the peer a
+# deterministic message to wait for before EOR. origin=IGP, as-path [65000]
+# (eBGP, so ze prepends its ASN and sends no LOCAL_PREF), next-hop 10.0.0.1,
+# nlri 192.168.1.0/24.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE84003040A00000118C0A801
+# EOR from ze. A Cease NOTIFICATION would arrive in its place if the family were
+# torn down.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=prefix-count-reannounce.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Prove both prefixes reached the Adj-RIB-In under a re-announcing peer."""
+
+import json
+import sys
+
+from ze_api import API, result_text_data, runtime_fail
+
+# The peer advertises two DISTINCT prefixes. Both fit inside `maximum 2`, so
+# both must be installed. Under the announcement tally that this mode replaced,
+# the second one was refused because three advertisements of the first had
+# already filled the count.
+EXPECTED = 2
+
+# The one RIB scope this test reads. `count` answers {"count": N}.
+RECEIVED_QUERY = 'show bgp rib received count'
+
+
+def rib_count(result):
+    """Return the route count from a dispatch result, or None when unreadable."""
+    if result.get('status') != 'done':
+        return None
+    try:
+        payload = json.loads(result_text_data(result))
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict) or 'count' not in payload:
+        return None
+    return int(payload['count'])
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # POSITIVE CONTROL, and it runs FIRST. Until one route is counted, a zero
+    # from this scope says nothing about the limit: a RIB plugin that never
+    # started reads zero too.
+    control = api.dispatch_until(
+        RECEIVED_QUERY,
+        lambda res: (rib_count(res) or 0) >= 1,
+        attempts=60, delay=0.25)
+    installed = rib_count(control)
+    if installed is None:
+        runtime_fail('bgp-rib did not answer %s: %r' % (RECEIVED_QUERY, control))
+    if installed < 1:
+        runtime_fail(
+            'no route reached the RIB at all: a number at or under the maximum '
+            'cannot be believed without this floor')
+    print('OK control: the RIB answers, %d routes received' % installed,
+          file=sys.stderr)
+
+    # THE ASSERTION. Both distinct prefixes must be installed. This polls up to
+    # the expected number, so a route delivered late still counts.
+    received = api.dispatch_until(
+        RECEIVED_QUERY,
+        lambda res: (rib_count(res) or 0) >= EXPECTED,
+        attempts=40, delay=0.25)
+    installed = rib_count(received)
+    if installed is None:
+        runtime_fail('%s stopped answering: %r' % (RECEIVED_QUERY, received))
+    if installed != EXPECTED:
+        runtime_fail(
+            'a re-announced prefix must not consume a slot: %d routes received, '
+            'wanted exactly %d. Three advertisements of 10.0.0.0/24 are one '
+            'route, and 10.0.1.0/24 is the second.' % (installed, EXPECTED))
+
+    print('OK reannounce: %d routes installed, the re-announced prefix took one '
+          'slot' % installed, file=sys.stderr)
+
+    api._call_engine('ze-plugin-engine:dispatch-command',
+                     {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external prefix-count-reannounce {
+		run ./prefix-count-reannounce.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						teardown false
+						count installed
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# ze's own route. It gives the peer a deterministic message to wait for
+		# before EOR.
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+
+# The plugin read the RIB and found both prefixes.
+expect=stderr:contains=the re-announced prefix took one slot
+# THE DISCRIMINATOR. Two prefixes fit inside a maximum of two, so no message may
+# be refused. An announcement tally fires this line twice.
+reject=stderr:pattern=prefix count exceeded maximum
+# And no teardown, under any reading.
+reject=stderr:pattern=Maximum Number of Prefixes Reached

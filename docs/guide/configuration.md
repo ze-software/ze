@@ -517,6 +517,63 @@ value uses the default.
 | `teardown` | Per family | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, and the UPDATE that crossed the maximum is dropped whole, not NLRI by NLRI. |
 | `idle-timeout` | Per family | `0` | Seconds to wait before reconnect after this family stopped the session. 0 keeps the peer down. |
 | `reconnect` | Per family | derived | `never`, `backoff` or `timer`. No value means `timer` when `idle-timeout` is above 0, and `never` when it is 0. |
+| `count` | Per family | `offered` | Which prefixes the count compared against `maximum` holds. See below. |
+
+#### What the count holds: `offered` or `installed`
+
+The two values count different things. `offered` counts wire events, and
+`installed` counts prefixes. RFC 4271 Section 6.7 does not say whether a prefix
+limit governs what the peer offered or what the receiver kept, so this is an
+operator choice rather than a fixed answer.
+
+```
+peer transit-a {
+    family {
+        ipv4/unicast {
+            prefix {
+                maximum 1000000
+                teardown false
+                count installed
+            }
+        }
+    }
+}
+```
+
+| Value | What the count holds | What a re-announced prefix does |
+|-------|---------------------|--------------------------------|
+| `offered` | Every announcement the peer sends, the announcements of a dropped UPDATE included. It rises on an announcement and falls on a withdrawal, whatever prefix each one names | Raises the count again. The peer holds the same route, and the count says it holds two |
+| `installed` | The set of prefixes this family currently holds. The count is that set's size | Nothing. The prefix is already in the set |
+
+The difference shows up on a peer with route churn, which is every transit
+session. BGP has no way to refresh one route: a peer changing an attribute sends
+the same prefix again, and that replaces the path it sent before (RFC 4271
+Section 3.1). `offered` reads that second announcement as a second prefix.
+`installed` reads it as the prefix it already has.
+
+Pick `offered` to bound how much a peer may SEND you, announcement by
+announcement, and accept that a peer which re-announces will reach the bound
+without ever holding that many routes. Pick `installed` to bound how many
+prefixes that peer may HOLD, which is the number `show bgp summary` reports and
+the one the two other implementations compare (FRR's `pcount`, BIRD's
+`imp_routes`).
+
+Neither value is the size of the RIB: import policy can reject a prefix the
+count holds, and the count is taken before that policy runs. Neither value
+changes enforcement, either: both drop the same UPDATE whole, and both send the
+same NOTIFICATION under `teardown true`.
+
+`installed` keeps one entry per prefix for that family, so it costs memory in
+proportion to what the peer sends, bounded by `maximum` when one is configured.
+`offered` keeps a number.
+
+> **`offered` can be driven below the routes Ze holds.** A withdrawal for a
+> prefix the peer never announced still lowers the count, so a peer sending N of
+> them frees N slots that Ze is still using and the Adj-RIB-In can then pass the
+> maximum. `installed` is immune: a withdrawal of a prefix that is not in the set
+> removes nothing. This is recorded in
+> `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` and is not yet
+> fixed.
 
 #### After a prefix teardown, the peer stays down
 

@@ -14,8 +14,10 @@ import (
 	"testing"
 )
 
-// sampleBenchOutput mimics `go test -benchmem` output for the four registered
-// hot-path benchmarks, all within their ceilings (0/0/0/5 vs 0/0/0/6).
+// sampleBenchOutput mimics `go test -benchmem` output for every registered
+// hot-path benchmark, all within their ceilings. A name registered in
+// perf.AllocCeilings and absent here is a Missing violation by design
+// (fail-closed), so this fixture gains a line whenever the map gains an entry.
 const sampleBenchOutput = `goos: linux
 goarch: amd64
 pkg: github.com/ze-software/ze/internal/component/bgp/reactor
@@ -24,6 +26,9 @@ BenchmarkForwardDirect-4              	    3000	      4466 ns/op	     477 B/op	 
 BenchmarkBufMuxGetReturn-4            	    3000	       105.3 ns/op	     175 B/op	       0 allocs/op
 BenchmarkFwdPoolTryDispatch-4         	    3000	       270.3 ns/op	     192 B/op	       0 allocs/op
 BenchmarkEBGPWireCacheHitParallel-4   	    3000	        36.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCheckPrefixLimitsOffered-4   	    3000	       198.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCheckPrefixLimitsInstalled-4 	    3000	       237.2 ns/op	       2 B/op	       0 allocs/op
+BenchmarkCheckPrefixLimitsInstalledChurn-4	    3000	       418.1 ns/op	      10 B/op	       2 allocs/op
 PASS
 ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.081s
 `
@@ -105,10 +110,13 @@ func TestAllocGateMissingFailsClosed(t *testing.T) {
 func TestParseAllocsPerOp(t *testing.T) {
 	got := ParseAllocsPerOp(sampleBenchOutput)
 	want := map[string]int{
-		"BenchmarkForwardDirect":            5,
-		"BenchmarkBufMuxGetReturn":          0,
-		"BenchmarkFwdPoolTryDispatch":       0,
-		"BenchmarkEBGPWireCacheHitParallel": 0,
+		"BenchmarkForwardDirect":                   5,
+		"BenchmarkBufMuxGetReturn":                 0,
+		"BenchmarkFwdPoolTryDispatch":              0,
+		"BenchmarkEBGPWireCacheHitParallel":        0,
+		"BenchmarkCheckPrefixLimitsOffered":        0,
+		"BenchmarkCheckPrefixLimitsInstalled":      0,
+		"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("parsed %d results, want %d: %+v", len(got), len(want), got)

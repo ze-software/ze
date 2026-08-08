@@ -5,7 +5,57 @@
 | Status | design |
 | Depends | spec-bgp-filtered-route-storage (for the received-vs-accepted gap to be attributable) |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-08 |
+
+## The offered-versus-installed question is ANSWERED (2026-08-07)
+
+`plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` routed one question
+here and told whoever took this spec to put it to Thomas before changing the
+counter: does a prefix limit count what the peer OFFERED or what ze INSTALLED?
+RFC 4271 Section 6.7 does not say.
+
+**Thomas ruled: "offer the selection/option at configuration level and let user
+pick what is best for them."** It landed the same day, one layer down, as the
+per-family `prefix { count offered|installed; }` leaf
+(`internal/component/bgp/yang/ze-bgp-conf.yang`). The default is `offered`,
+which is what the counter did before, so nothing this spec measured has moved.
+
+→ Decision: the wire tally has no ONE meaning any more. It has a per-family
+meaning the operator selects, and `Session.prefixCounts` is now read through
+`applyInstalledPrefixSections` (`internal/component/bgp/reactor/session_prefix.go`,
+named `applyInstalledPrefixDeltas` until 2026-08-08) under whichever mode the
+family asked for. Any surface this spec adds MUST say
+which mode produced the number, or the operator cannot tell a peer that overshot
+from a peer that is at its limit. That is a new labelling obligation on the
+`PeerInfo` field and the summary row, not a new number.
+
+→ Constraint: this does NOT unblock the spec, and the reason narrowed on
+2026-08-08 rather than going away. As written here the claim was that A-4's drift
+holds under BOTH modes. That is now true of `offered` ONLY. `installed` was given
+the per-prefix identity this paragraph said no mode had, so it no longer drifts.
+The spec stays blocked because its Task is a PRE-POLICY RECEIVED count, and
+neither mode is one: `offered` counts announcements rather than prefixes, and
+`installed` counts prefixes ze delivered rather than prefixes the peer sent.
+
+→ Constraint (REWRITTEN 2026-08-08, and this one narrows the spec rather than
+widening it): the `installed` mode no longer keeps a second map of refused
+announcements. `prefixCounts.dropped` was measured broken four ways and is
+DELETED. The mode now holds `prefixCounts.sets`, one set per installed family
+keyed on each NLRI's wire encoding, and `counts[fk]` is that set's size
+(`applyInstalledPrefixSections`, `internal/component/bgp/reactor/session_prefix.go`).
+A snapshot of `counts` is therefore complete on its own: there is no second
+number the enforcement path reads. The evidence and the four measured breakages
+are in `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md`.
+
+→ Decision: A-4 is now MODE-DEPENDENT, and the spec's central premise survives
+only for `installed`. Under `offered` (the default) the tally still counts wire
+events, so it still drifts upward under implicit withdraw exactly as A-4 says.
+Under `installed` it does not drift at all: a re-announced prefix is already in
+the set. What `installed` counts is the set of prefixes DELIVERED TO PLUGINS and
+not since withdrawn, which is taken before import policy runs and is therefore
+neither the Adj-RIB-In size nor FRR's `pcount` (post-install) nor BIRD's
+`imp_routes` (post-import-filter). A surface built on it must say so, and must
+say which mode produced the number.
 
 Correction (2026-07-22 plan review): the BLOCKED note's reason #2 below (the
 Depends spec is "superseded" by a Phase-B pre-policy store that "probably
@@ -151,7 +201,19 @@ implement it deliberately rather than half-land it.
 | A-1 | `prefixCounts` is genuinely pre-policy | `session_prefix.go` counts from the wire UPDATE before the reject gate at `reactor_notify.go` | The exposed number would be a duplicate of accepted, not a new signal | re-read producer + race-detector `.ci` that rejects a route via import policy and shows received > accepted | **confirmed** (2026-07-16): `session_read.go` calls `checkPrefixLimits` on the raw wire UPDATE under the comment "Check prefix limits BEFORE delivering to plugins"; plugin dispatch happens later at `session_read.go` via `onMessageReceived`, and the import-filter reject gate is downstream at `reactor_notify.go` (`if !res.accept { return false }`). The tally is strictly pre-policy. |
 | A-2 | Per-family atomic snapshot removes the race | `reactor_api.go` reads under `r.mu.RLock`; writer takes no lock | Data race persists | `go test -race` on a reactor test injecting concurrent UPDATEs | unvalidated (no code written). The RACE PREMISE is confirmed: `session.go` documents `prefixCounts` as "Only accessed from session's read goroutine (no synchronization needed)" and `add()` (`session_prefix.go`) mutates the map with no lock, so a read from `Peers()` would race. |
 | A-3 | LG consumers tolerate `routes_received` becoming pre-policy | `lg/handler_api.go` already reads the keys; birdwatcher semantics expect received >= imported | Downstream dashboards misreport | LG `.ci` asserting received (pre) >= imported (post) | unvalidated -- and THREATENED by R-3: for VPN/flowspec families the tally can UNDER-count, so `received >= imported` is not guaranteed for all families. |
-| A-4 | The tally is an accurate count of what the peer advertised | Spec Task section assumed the number only needed safe exposure | The exposed number is misleading in production; the whole spec premise collapses | read the producer's data structure and every mutation site | **BROKEN** (2026-07-16): `prefixCounts` (`session_prefix.go`) holds only `counts map[uint32]int64` + `warned map[uint32]bool` -- NO per-prefix identity -- and `add()` (line 196) does an unconditional `pc.counts[fk] += delta`. The only decrements are explicit withdrawals: `countBodyWithdrawn` (line 254) and `MP_UNREACH` (line 267); `applyPrefixDelta`/`applyPrefixCheck` are called ONLY from `checkPrefixLimits`. LSP `findReferences` on `prefixCounts.add` returns exactly 3 hits -- the definition (196:25) plus `applyPrefixDelta` (349:28) and `applyPrefixCheck` (371:28) -- so there is NO third mutation path in the codebase and nothing can decrement on implicit replace. Therefore a re-announced prefix (BGP implicit withdraw, the normal attribute-update path) increments the tally AGAIN while the Adj-RIB-In replaces in place. Under route churn `received` climbs away from reality and never recovers. Acceptable for prefix-limit enforcement (fails safe: over-counts only), NOT acceptable as an operator-facing "routes the peer sent". |
+| A-4 | The tally is an accurate count of what the peer advertised (PARTIALLY REPAIRED 2026-08-08 -- see the note under the row) | Spec Task section assumed the number only needed safe exposure | The exposed number is misleading in production; the whole spec premise collapses | read the producer's data structure and every mutation site | **BROKEN** (2026-07-16): `prefixCounts` (`session_prefix.go`) holds only `counts map[uint32]int64` + `warned map[uint32]bool` -- NO per-prefix identity -- and `add()` (line 196) does an unconditional `pc.counts[fk] += delta`. The only decrements are explicit withdrawals: `countBodyWithdrawn` (line 254) and `MP_UNREACH` (line 267); `applyPrefixDelta`/`applyPrefixCheck` are called ONLY from `checkPrefixLimits`. LSP `findReferences` on `prefixCounts.add` returns exactly 3 hits -- the definition (196:25) plus `applyPrefixDelta` (349:28) and `applyPrefixCheck` (371:28) -- so there is NO third mutation path in the codebase and nothing can decrement on implicit replace. Therefore a re-announced prefix (BGP implicit withdraw, the normal attribute-update path) increments the tally AGAIN while the Adj-RIB-In replaces in place. Under route churn `received` climbs away from reality and never recovers. Acceptable for prefix-limit enforcement (fails safe: over-counts only), NOT acceptable as an operator-facing "routes the peer sent". |
+
+
+**A-4 note (2026-08-08).** The row below is the state of the WIRE TALLY, and it
+still describes `count offered`, which is the default and is unchanged. It no
+longer describes `count installed`: that mode holds `prefixCounts.sets`, a set
+per family keyed on each NLRI's wire encoding, and `counts[fk]` is that set's
+size (`applyInstalledPrefixSections`,
+`internal/component/bgp/reactor/session_prefix.go`). A re-announced prefix is
+already in the set, so the unbounded upward drift the row names cannot happen
+under `installed`. What it counts is the prefixes ze delivered to plugins and has
+not since withdrawn, taken before import policy, so it is still not the number
+this spec's Task asks for.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
