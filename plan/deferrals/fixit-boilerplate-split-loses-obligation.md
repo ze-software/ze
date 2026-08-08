@@ -1,0 +1,11 @@
+# Deferrals: fixit-boilerplate-split-loses-obligation
+
+One issue, recorded not fixed (owner instruction, 2026-08-08). The aggregate
+live backlog is folded on read from `plan/deferrals/` by `/ze-status`. Nothing
+stores it (`ai/rules/planning.md`).
+
+**Issue:** the RFC boilerplate splitter can drop an obligation
+
+| Date | Source | What | Reason | Destination | Status |
+|------|--------|------|--------|-------------|--------|
+| 2026-08-08 | ad-hoc (closing review of the RFC boilerplate splitter) | `_split_off_boilerplate` (`scripts/dev/rfc_requirements.py`) loses an obligation when the fused chunk carries no `[.!?]` followed by whitespace after the boilerplate match: `_BOILERPLATE_END_RE.search` returns None, the chunk is returned whole, and the obligation leaves with the exclusion. A key-words paragraph line-wrapped with no terminator, obligation on the next line, yields `obligation_keywords=0` and `sites=[]`. The mirror case is also open: an obligation BEFORE the boilerplate is never cut away, because the splitter only searches after `m.end()` | ZERO occurrences in the corpus of 184 sources, proven by an independent sha over every site id and quote for both registers. The under-count direction makes it worth fixing eventually, but the goal this change exists to achieve (a gate that stops counting RFC 2119 boilerplate as obligations) holds without it. The reviewer names a fix that stays inert: when `end is None`, fall back to cutting at `m.end()` ONLY IF the tail carries a MUST-level keyword, which is false for all 331 exclusions today and cannot promote the four rfc2890-class paragraphs whose keywords precede the match. The preceding-head case is genuinely hard and collides with those same four | needs a destination spec | deferred |
