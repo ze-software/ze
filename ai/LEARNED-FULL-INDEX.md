@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 940 summaries
+Total: 941 summaries
 
 ## 400-499
 
@@ -998,4 +998,5 @@ Total: 940 summaries
 | 1362 | Reading the first half of a producer is reading the caller | `plan/learned/1362-partial-producer-read.md` |
 | 1363 | A gate with two ends must derive both from one source, or it manufactures its own evidence | `plan/learned/1363-gate-contract-two-ends.md` |
 | 1364 | A gate's error message must name only routes its code implements | `plan/learned/1364-gate-message-names-a-route-it-lacks.md` |
+| 1365 | A guard must know what is not yet its subject | `plan/learned/1365-guard-must-know-what-is-not-yet-its-subject.md` |
 | 1366 | A Problem You Find Gets A Spec, Not A Fix | `plan/learned/1366-found-problem-spec-first.md` |

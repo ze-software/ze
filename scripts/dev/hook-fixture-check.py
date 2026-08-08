@@ -2194,6 +2194,61 @@ def run_draft_incubator(results: Results) -> None:
     r = deletion("rm test/draft/plugin/wip.ci test/plugin/live.ci", None)
     results.check("mixed-rm-still-needs-approval", r is not None and r[0] == 2, repr(r))
 
+    # The incubator root is a draft too, or the one directory an agent may fill
+    # stays the one it may never empty. This is the boundary the matcher has to
+    # keep while it normalizes: `test/draft/` normalizes to `test/draft`, which
+    # is not under `test/draft/`.
+    r = deletion("rm -r test/draft/", None)
+    results.check("draft-root-rm-recursive-needs-no-approval", r is None, repr(r))
+
+    r = deletion("rm test/draft/a.ci test/draft/b.ci", None)
+    results.check("draft-pair-rm-needs-no-approval", r is None, repr(r))
+
+    # A Go test carries no `test/` segment, so it is the shape a `test/`-only
+    # matcher cannot see. Alone it blocked anyway, because an empty target list
+    # is not a draft list; beside a draft it did not, and that was the defect.
+    r = deletion("rm internal/x/y_test.go", None)
+    results.check(
+        "live-go-test-rm-still-needs-approval", r is not None and r[0] == 2, repr(r)
+    )
+
+    r = deletion("rm test/draft/a.ci internal/x/y_test.go", None)
+    results.check(
+        "mixed-go-test-rm-still-needs-approval", r is not None and r[0] == 2, repr(r)
+    )
+
+    # The block is raised over the whole command line, so the exemption is read
+    # over the whole command line: a second segment is not a second command.
+    r = deletion("rm test/draft/a.ci && rm internal/x/y_test.go", None)
+    results.check(
+        "draft-then-live-go-test-rm-still-needs-approval",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    r = deletion("rm test/draft/a.ci\nrm -r test/encode", None)
+    results.check(
+        "draft-then-live-newline-rm-still-needs-approval",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    r = deletion("rm -r test/draft/a.ci test/plugin/", None)
+    results.check(
+        "mixed-recursive-rm-still-needs-approval", r is not None and r[0] == 2, repr(r)
+    )
+
+    r = deletion("git rm test/draft/a.ci test/plugin/live", None)
+    results.check(
+        "mixed-git-rm-still-needs-approval", r is not None and r[0] == 2, repr(r)
+    )
+
+    # A path is matched by where it lands, not by the prefix it is spelled with.
+    r = deletion("rm test/draft/../plugin/live.ci", None)
+    results.check(
+        "draft-traversal-rm-still-needs-approval", r is not None and r[0] == 2, repr(r)
+    )
+
 
 def run_mark_source_read(results: Results) -> None:
     """T-4 (AC-6): reading the .py/.sh/.yang/Makefile a spec is ABOUT must satisfy

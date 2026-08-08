@@ -389,6 +389,12 @@ DRAFT_DIR = "test/draft/"
 def _draft_only(cmd):
     """True when every test path `cmd` names sits in the draft incubator.
 
+    A test path is a token that carries a `test/` segment or a `_test.go` name,
+    and it is normalized before it is matched. So `internal/x/y_test.go` counts
+    with no `test/` directory above it, and `test/draft/../plugin/live.ci` counts
+    as the live test it reaches. The incubator root is itself a draft, which
+    keeps `rm -r test/draft/` free of approval.
+
     `test/draft/` is gitignored and invisible to every repo-wide gate, so what
     lives there is not a test yet: it earns no coverage and proves no obligation.
     The workflow that creates a draft ends in exactly two moves, promote it or
@@ -399,10 +405,12 @@ def _draft_only(cmd):
     test still blocks, because the real one is the reason this guard exists.
     """
     targets = [
-        t[2:] if t.startswith("./") else t
-        for t in re.findall(r"[^\s'\"]*test/[^\s'\"]*", cmd)
+        os.path.normpath(t)
+        for t in re.findall(r"[^\s'\"]*(?:test/|_test\.go)[^\s'\"]*", cmd)
     ]
-    return bool(targets) and all(t.startswith(DRAFT_DIR) for t in targets)
+    return bool(targets) and all(
+        t == "test/draft" or t.startswith(DRAFT_DIR) for t in targets
+    )
 
 
 # ze point: testing/directives/write-the-test-first-and-never-weaken-it

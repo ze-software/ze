@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 2/2 |
 | Deferral shard | - |
 | Updated | 2026-08-08 |
 
@@ -21,13 +21,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 The draft-incubator carve-out committed in `9f6cada32` turns an already-raised
-block into a pass on a substring match over the same command line, so a LIVE
-test can be deleted or weakened by naming a draft path beside it. Three
-independent routes reach that state. Each was found by an independent review and
-confirmed against the producing function.
+block into a pass, and one shape of command reaches that state with a LIVE test
+in its argument list.
 
-**Route 1: a Go test is invisible to the all-must-be-drafts rule.**
-`_draft_only` (`.claude/hooks/pretool-bash.py`) collects targets with
+**A Go test is invisible to the all-must-be-drafts rule.** `_draft_only`
+(`.claude/hooks/pretool-bash.py`) collects targets with
 `re.findall(r"[^\s'\"]*test/[^\s'\"]*", cmd)`, which requires the literal
 `test/`. A Go test path carries `_test.go` and usually no `test/` segment, so it
 is never collected, `all()` sees only the draft, and the command clears. The
@@ -39,33 +37,12 @@ draft."
 `check_test_deletion` returns `None`, which is ALLOW. Before `9f6cada32` that
 command blocked.
 
-**Route 2: the matcher reads the command line, not the deleting verb's
-arguments.** `check_test_deletion` calls `_draft_only(cmd)` on the whole string,
-so a draft named in a trailing comment or in a second command clears the block.
-Each of these is ALLOW today:
-
-    rm internal/x/y_test.go  # cleanup of test/draft/
-    git rm internal/x/y_test.go && ls test/draft/
-    git checkout -- internal/x/y_test.go ; ls test/draft/
-
-The third also defeats the `git checkout` branch, which the carve-out was never
-meant to reach.
-
-**Route 3: neither matcher normalizes the path.** `_draft_only` tests
-`t.startswith(DRAFT_DIR)` and `_is_draft` (`.claude/hooks/pretool-writeedit.py`)
-tests `norm.startswith(DRAFT_SEGMENT) or "/" + DRAFT_SEGMENT in norm`, both over
-raw text. So `rm test/draft/../plugin/live.ci` is ALLOW, and
-`_is_draft("/repo/test/draft/../plugin/live.ci")` is `True`. `c_test_weakening`
-returns on it as its FIRST statement, before `_carries_rfc_tag` and before the
-weakening heuristic, so a tagged live test is editable under a draft-looking
-path. `ctx["fp"]` is the raw tool input: no `normpath`, no `realpath`.
-
-Two narrower findings ride with them. The two matchers disagree on what a draft
-is: `_is_draft` matches `*/test/draft/` at any depth while `_draft_only` matches
-the repo root only, and `.gitignore` covers the repo root, so the writeedit
-carve-out is wider than the fact both docstrings rest on. And neither resolves
-symlinks, so a link created inside the gitignored incubator points the carve-out
-at a live test by name.
+Two consequences of the same miss ride with it, and one line closes all three.
+A draft named outside the deleting verb's arguments (a trailing comment, a
+second segment of an `&&` chain) also cleared the block, because the live path
+beside it was the invisible Go test. And a traversal path
+(`rm test/draft/../plugin/live.ci`) matched `startswith("test/draft/")` on raw
+text, so the incubator prefix bought the removal of the live test it reaches.
 
 The goal: the carve-out passes a draft and nothing else, and a fixture fails if
 it is ever widened again.
@@ -88,8 +65,9 @@ held back for a reason other than its own content.
 
 **Key insights:** (minimal context to resume after compaction)
 - The carve-out is fail-open by construction: it converts a raised block into a
-  pass on attacker-controlled text in the same command line.
-- The three routes are independent. Closing one leaves the other two open.
+  pass on text in the same command line.
+- The whole fix is what the matcher COLLECTS. Once a Go test path is a target
+  and every target is normalized, the all-must-be-drafts rule does the rest.
 
 ## Current Behavior (MANDATORY)
 
@@ -107,27 +85,29 @@ held back for a reason other than its own content.
 - Deleting or editing a real draft under `test/draft/` needs no approval. That
   is the point of the carve-out, and `9f6cada32` landed it correctly for the
   shapes its fixtures cover.
-- `test/drafts/`, `test/plugin/draft-x.ci`, `TEST/DRAFT/` and `.//test/draft/`
-  already behave correctly and must keep doing so.
+- `test/drafts/`, `test/plugin/draft-x.ci` and `TEST/DRAFT/` are not the
+  incubator and keep blocking.
+- The incubator root stays deletable, with or without its trailing slash.
 
 **Behavior to change:**
 - A command that names any non-draft test path blocks, whatever else it names.
-- The carve-out reads the deleting verb's arguments, not the command line.
-- Both matchers normalize before they match, and agree on what a draft is.
+- A test path is any token carrying a `test/` segment or a `_test.go` name, so a
+  Go test is one whether or not a `test/` directory sits above it.
+- Every collected token is normalized before it is matched, so
+  `test/draft/../plugin/live.ci` is judged as the live test it reaches.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A `Bash` tool call carrying `rm`, `git rm` or `git checkout`, dispatched to
   `check_test_deletion` (`.claude/hooks/pretool-bash.py`).
-- A `Write`, `Edit` or `MultiEdit` tool call carrying a `file_path`, dispatched
-  to `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`).
 
 ### Transformation Path
-1. The dispatcher builds `ctx` and passes the raw command string or raw
-   `file_path` through with no normalization.
-2. The check raises its block.
-3. The carve-out tests the raw text and can drop that block.
+1. The dispatcher builds `ctx` and passes the raw command string through.
+2. `check_test_deletion` raises its block over the whole command line.
+3. `_draft_only` collects every test-shaped token of that same command line,
+   normalizes each one, and drops the block only when every one of them is the
+   incubator or sits under it. An empty target list leaves the block standing.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -141,25 +121,25 @@ held back for a reason other than its own content.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | the exemption reads the same command line the block is raised over (`check_test_deletion`, `.claude/hooks/pretool-bash.py`) |
+| No unintended coupling (components stay isolated) | Yes | `_draft_only` gained one call to `os.path.normpath`; the hook takes on no new import and no new file |
+| No duplicated functionality (extends existing, does not recreate) | Yes | the existing matcher was corrected in place; no second matcher, no new module |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | no wire or buffer code |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | N-A | no registry surface; the hooks are dispatched by `.claude/settings.json` |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The two matchers can share one definition of a draft | both encode the same `.gitignore` fact | two definitions stay and each needs its own fixtures | reading both call sites | unvalidated |
-| A-2 | The deleting verb's arguments can be extracted from the command string well enough to guard on | `check_test_deletion` already parses the verb with a regex | argument extraction is unreliable, and the carve-out must instead require EVERY test-shaped token to be a draft | one fixture per shell form | unvalidated |
+| A-1 | Correcting what the matcher COLLECTS closes the defect, with no shell parsing and no second module | the block is raised over the whole command line, so a rule over every test-shaped token of that line is the same scope | the carve-out would have to read each verb's arguments per shell segment | the 14-case probe from `check_test_deletion` (all 14 correct, 3 red at HEAD) | confirmed |
+| A-2 | Normalizing each token is enough to defeat a traversal spelling | `os.path.normpath` is lexical and needs no filesystem | a resolved path would be needed, and a link inside the incubator would still name its target | `draft-traversal-rm-still-needs-approval` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A stricter carve-out re-blocks legitimate draft deletion, which is the friction `9f6cada32` removed | an agent cannot empty `test/draft/` | keep the six existing fixtures green; they pin the permitted direction |
-| R-2 | Closing the matcher without scoping the arguments leaves route 2 open | the comment-form fixture still passes | one fixture per route, each red before its own fix |
+| R-1 | A stricter carve-out re-blocks legitimate draft deletion, which is the friction `9f6cada32` removed | an agent cannot empty `test/draft/` | the six existing fixtures plus `draft-root-rm-recursive-needs-no-approval` and `draft-pair-rm-needs-no-approval` pin the permitted direction. The root fixture is RED against a normalize-only matcher, because `test/draft/` normalizes to `test/draft` and is not under `test/draft/` |
+| R-2 | A `.ci` test outside every `test/` directory is not a test-shaped token, so a draft named beside it would clear the block | such a file appears in the tree | none needed today: every `.ci` in the repository sits under a `test/` directory (`find . -name '*.ci' -not -path './test/*'` returns only worktree copies, which carry `test/` in their own path, and one `tmp/` scratch file) |
 
 ## Blast Radius
 
@@ -173,22 +153,29 @@ held back for a reason other than its own content.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a `Bash` tool call naming a draft and a Go test | → | `check_test_deletion` (`.claude/hooks/pretool-bash.py`) | `mixed-rm-go-test-still-needs-approval` |
-| a `Bash` tool call naming a draft outside the rm arguments | → | `check_test_deletion` | `rm-live-with-draft-in-comment-still-blocks` |
-| a `Write` tool call on a traversal path | → | `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`) | `draft-traversal-edit-still-blocks` |
+| a `Bash` tool call naming a draft and a Go test | → | `check_test_deletion` (`.claude/hooks/pretool-bash.py`) | `mixed-go-test-rm-still-needs-approval` |
+| a `Bash` tool call naming a draft in a second shell segment | → | `check_test_deletion` | `draft-then-live-go-test-rm-still-needs-approval` |
+| a `Bash` tool call on a traversal path | → | `check_test_deletion` | `draft-traversal-rm-still-needs-approval` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `rm test/draft/p/wip.ci internal/component/bgp/reactor/peer_test.go` | Blocked. A Go test path is a test path whether or not it carries a `test/` segment |
-| AC-2 | `rm internal/x/y_test.go  # cleanup of test/draft/` | Blocked. A draft named outside the deleting verb's arguments clears nothing |
-| AC-3 | `git rm internal/x/y_test.go && ls test/draft/` and `git checkout -- internal/x/y_test.go ; ls test/draft/` | Blocked, both |
-| AC-4 | `rm test/draft/../plugin/live.ci`, and a `Write` to `/repo/test/draft/../plugin/live.ci` carrying an `RFC requirement:` tag | Blocked, both. The path is normalized before it is matched |
-| AC-5 | `_is_draft` and `_draft_only` given the same path | The same verdict. One definition of a draft, matching `.gitignore` |
-| AC-6 | A symlink under `test/draft/` pointing at a live test, deleted or edited | Blocked. The link target decides, not the link name |
-| AC-7 | `rm test/draft/p/wip.ci`, `rm -r test/draft/p/`, and an edit of an `RFC requirement:` tagged draft | Allowed, unchanged. The six fixtures of `9f6cada32` stay green |
-| AC-8 | Each of AC-1 to AC-6 re-run against the code as `9f6cada32` left it | RED. Every new fixture discriminates |
+| AC-1 | `rm test/draft/a.ci internal/x/y_test.go` | Blocked. A Go test path is a test path whether or not it carries a `test/` segment |
+| AC-2 | `rm test/draft/a.ci && rm internal/x/y_test.go`, and the same chain written with a newline | Blocked. The exemption is read over the same command line the block is raised over, so a second segment buys nothing |
+| AC-3 | `rm -r test/draft/a.ci test/plugin/` and `git rm test/draft/a.ci test/plugin/live` | Blocked, both. `git rm` and the recursive form reach the same rule |
+| AC-4 | `rm test/draft/../plugin/live.ci` | Blocked. Each token is normalized before it is matched, so the path is judged where it lands |
+| AC-5 | `rm test/draft/wip.ci`, `rm -r test/draft/plugin/`, `rm test/draft/a.ci test/draft/b.ci`, `rm -r test/draft/` and an edit of an `RFC requirement:` tagged draft | Allowed. The six fixtures of `9f6cada32` stay green, and the incubator ROOT stays deletable with or without its trailing slash |
+| AC-6 | `rm internal/x/y_test.go` alone | Blocked. An empty target list is not a draft list, and a carve-out that drops an already-raised block returns False on every miss path |
+| AC-7 | AC-1, AC-2 (the `&&` form) and AC-4 re-run against the code as `9f6cada32` left it | RED, all three. AC-3, AC-5 and AC-6 are controls: they pass in both worlds, and the root case of AC-5 is RED against a normalize-only matcher that drops the incubator-root clause |
+
+## Design Decisions
+
+| Decision | Reason |
+|----------|--------|
+| The two guards keep their own draft matchers. No shared `is_draft` module | The `pretool-writeedit.py` matcher is not part of this defect: `c_test_weakening` takes ONE `file_path`, so no live test can ride into it beside a draft. Sharing a predicate would be a second module and a second load path bought for a symmetry nobody reads, and the fix here is one line in the matcher that IS wrong |
+| The path is normalized (`os.path.normpath`), not resolved (`os.path.realpath`) | A link planted under `test/draft/` is not the failure this hook exists to catch. The hook guards an agent against deleting a live test by accident, and an agent that first creates a link to a live test inside the incubator has already decided to delete it. Resolution also costs a filesystem call on a path that need not exist, which normalization does not |
+| The carve-out stays a rule over the whole command line, with no shell parsing | The block is raised over the whole command line, so the exemption is computed over the same text. Extracting each verb's arguments per segment would add a parser, a quoting failure mode, and its own miss paths, to reach the same verdict on every shape tested here |
 
 ## 🧪 TDD Test Plan
 
@@ -205,13 +192,19 @@ held back for a reason other than its own content.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `mixed-rm-go-test-still-needs-approval` | `scripts/dev/hook-fixture-check.py` | an agent deletes a live Go test beside a draft | |
-| `rm-live-with-draft-in-comment-still-blocks` | `scripts/dev/hook-fixture-check.py` | an agent names a draft in a trailing comment | |
-| `rm-live-with-draft-after-and-still-blocks` | `scripts/dev/hook-fixture-check.py` | an agent chains a draft listing after the delete | |
-| `git-checkout-live-with-draft-still-blocks` | `scripts/dev/hook-fixture-check.py` | an agent reverts a live test with a draft named after it | |
-| `draft-traversal-rm-still-blocks` | `scripts/dev/hook-fixture-check.py` | an agent deletes through `test/draft/..` | |
-| `draft-traversal-edit-still-blocks` | `scripts/dev/hook-fixture-check.py` | an agent edits a tagged live test through `test/draft/..` | |
-| `draft-symlink-edit-still-blocks` | `scripts/dev/hook-fixture-check.py` | an agent edits a live test through a link inside the incubator | |
+All nine live in `run_draft_incubator` (`scripts/dev/hook-fixture-check.py`).
+
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `mixed-go-test-rm-still-needs-approval` | `run_draft_incubator` | an agent deletes a live Go test beside a draft (AC-1). RED at HEAD | done |
+| `draft-then-live-go-test-rm-still-needs-approval` | `run_draft_incubator` | the same two deletes chained with `&&` (AC-2). RED at HEAD | done |
+| `draft-traversal-rm-still-needs-approval` | `run_draft_incubator` | an agent deletes through `test/draft/..` (AC-4). RED at HEAD | done |
+| `draft-then-live-newline-rm-still-needs-approval` | `run_draft_incubator` | the same chain written with a newline (AC-2) | done |
+| `mixed-recursive-rm-still-needs-approval` | `run_draft_incubator` | `rm -r` over a draft and a live directory (AC-3) | done |
+| `mixed-git-rm-still-needs-approval` | `run_draft_incubator` | the same argument list under `git rm` (AC-3) | done |
+| `live-go-test-rm-still-needs-approval` | `run_draft_incubator` | a Go test deleted alone, with no draft named (AC-6) | done |
+| `draft-root-rm-recursive-needs-no-approval` | `run_draft_incubator` | an agent empties the incubator root (AC-5). RED against a normalize-only matcher | done |
+| `draft-pair-rm-needs-no-approval` | `run_draft_incubator` | an agent deletes two drafts in one command (AC-5) | done |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -219,13 +212,13 @@ held back for a reason other than its own content.
 | n/a | n/a | n/a | Scope is tooling; no protocol peer is involved | n/a |
 
 ## Files to Modify
-- `.claude/hooks/pretool-bash.py` - `_draft_only` and its call site in
-  `check_test_deletion`: normalize, scope to the verb's arguments, and see a Go
-  test path
-- `.claude/hooks/pretool-writeedit.py` - `_is_draft` and the skip in
-  `c_test_weakening`: normalize, resolve links, and agree with `_draft_only`
-- `scripts/dev/hook-fixture-check.py` - `run_draft_incubator`: the seven
-  fixtures above, each red against the code as `9f6cada32` left it
+- `.claude/hooks/pretool-bash.py` - `_draft_only`: the collecting regex sees a
+  `_test.go` name, every token is normalized, and the incubator root stays a
+  draft. `check_test_deletion` is untouched
+- `scripts/dev/hook-fixture-check.py` - `run_draft_incubator`: the nine fixtures
+  above
+- `ai/rules/points/testing/draft-a-functional-test-before-it-is-live-blocking/a-draft-is-promoted-or-deleted-never-left.md`
+  (rendered into `ai/rules/testing.md`) - names what a test path is
 
 ## Files to Create
 - none
@@ -258,53 +251,46 @@ held back for a reason other than its own content.
 | 7 | Wire format changed? | No | no wire code |
 | 8 | Plugin SDK/protocol changed? | No | no SDK code |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | no protocol code |
-| 10 | Test infrastructure changed? | Yes | `.claude/hooks/README.md` if the draft workflow's description changes |
+| 10 | Test infrastructure changed? | Yes | done: the `ai/rules/testing.md` draft-workflow point now names what a test path is |
 | 11 | Affects daemon comparison? | No | no daemon behavior |
 | 12 | Internal architecture changed? | No | no component boundary moves |
 | 13 | Route metadata keys added/changed? | No | no route metadata |
 | 14 | Prometheus counters added/changed? | No | no metric |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | no registration |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` and `ai/` for anchors naming the two hook files |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | done: `ai/rules/testing.md` is the one anchor naming `check_test_deletion`, and it now states which paths that guard counts |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | no examples cover the hooks |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- write the seven fixtures RED
-   - Tests: the seven names in the Functional Tests table
+1. **Phase: Wiring (MANDATORY FIRST)** -- write the nine fixtures, three RED
+   - Tests: the nine names in the Functional Tests table
    - Files: `scripts/dev/hook-fixture-check.py`
-   - Verify: each fixture fails against the code as `9f6cada32` left it. A
-     fixture that passes before the fix proves nothing (AC-8)
-2. **Phase: one definition of a draft** -- normalize, resolve, and share it
-   - Tests: `draft-traversal-rm-still-blocks`, `draft-traversal-edit-still-blocks`,
-     `draft-symlink-edit-still-blocks`
-   - Files: both hook files
-   - Verify: `_is_draft` and `_draft_only` agree on every probe path (AC-4, AC-5, AC-6)
-3. **Phase: scope the carve-out to the deleting verb's arguments** -- and see a
-   Go test path
-   - Tests: `mixed-rm-go-test-still-needs-approval`,
-     `rm-live-with-draft-in-comment-still-blocks`,
-     `rm-live-with-draft-after-and-still-blocks`,
-     `git-checkout-live-with-draft-still-blocks`
+   - Verify: run the section against the hooks as `9f6cada32` left them. The
+     three AC-1/AC-2/AC-4 fixtures fail there; the six controls pass in both
+     worlds and say so (AC-7)
+2. **Phase: correct what `_draft_only` collects**
+   - Tests: all nine
    - Files: `.claude/hooks/pretool-bash.py`
-   - Verify: AC-1 to AC-3 block, AC-7 still passes
+   - Verify: the section is green, and every control that was green stays green
+     (AC-1 to AC-6)
 
 ### Critical Review Checklist
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has a fixture, and every fixture is red before its own fix |
-| Feature completeness | The three routes are independent; check each is closed on its own |
+| Completeness | Every AC-N has a fixture, and the three defect fixtures are red before the fix |
+| Feature completeness | Each of the three defect shapes is checked on its own, not only in combination |
 | Correctness | The carve-out passes a draft and nothing else. Name the miss path and the value it returns |
-| Naming | One name for the draft predicate across both hooks |
-| Data flow | Normalization happens before matching, at every entry point |
-| Rule: `ai/rules/evidence.md` | The guard fails closed: an unparseable command blocks rather than clears |
+| Simplicity | The diff is the smallest one that makes every fixture pass. Name what was NOT built and why (Design Decisions) |
+| Data flow | Normalization happens before matching, on every collected token |
+| Rule: `ai/rules/evidence.md` | The guard fails closed: an empty target list leaves the block standing |
 
 ### Deliverables Checklist
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Seven new fixtures | `python3 scripts/dev/hook-fixture-check.py` names them and reports all green |
-| Each fixture discriminates | re-run each against the `9f6cada32` version of the two hook files and observe RED |
+| The new fixtures | `python3 scripts/dev/hook-fixture-check.py` names them and reports all green (section `draft-incubator`, 15 fixtures) |
+| The three defect fixtures discriminate | re-run the section against the `9f6cada32` version of `pretool-bash.py` and observe 3 RED of 15 |
 | The six existing fixtures still pass | the same run reports `run_draft_incubator` fully green |
 | `plan/learned/1365-*.md` can land | `/ze-review` re-run returns clean and `review_gate.py record` succeeds |
 
