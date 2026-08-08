@@ -11,10 +11,19 @@
 **You may not claim work is done, complete, ready to commit, or ready for review while any in-scope acceptance criterion remains unimplemented.**
 
 **When a defect blocks a goal the current work exists to achieve, you FIX the defect.** You do not park it, move it to `tmp/`, file it as a deferral, or offer to drop the deliverable.
+**This point covers the BLOCKING defect only, and the next one covers every other defect you find.** A defect the current goal does not depend on is separable: it gets a spec, the work in hand closes first, and Thomas decides whether the spec runs.
+
+**A problem you FIND while working on something else gets a SPEC, not a fix.** Write the spec the moment you find it, return to the work in hand and close that, then ask Thomas whether he wants the new spec implemented. Do not implement it unasked, not in this session and not in the next one.
+**The cut is the goal, and it is the one `rule-precedence.md` already uses: does the goal this work exists to achieve still hold if I leave this?** If it does not hold, the defect BLOCKS you, and "Fix a defect that blocks your goal" (above) governs: fix it now, because you cannot close the work at hand around it. If it holds, this point governs: spec it, close, ask.
+**The new spec and its deferral row ride commit A of the closure (`planning.md`, "Spec Closure"), never commit B, and the fix rides a commit of its own.** Commit B carries only the spec removal and the shard removals "Spec Closure" names. The new spec belongs to commit A because it is part of what the work in hand found; the fix is a different logical change and `git-safety.md` gives it its own commit. Holding the spec back for the fix's commit is how it fails to land at all.
+**Your row goes into the CLOSING spec's own shard, so commit B may no longer remove that shard, and on the mandated one-script route no gate will tell you.** `deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`) reads the shard with `git show HEAD:<path>`, and both `create` calls run before either commit does, so HEAD still holds the all-terminal version. A `--remove` of that shard passes the BLOCK and deletes the live row one commit after you wrote it. Drop the shard from commit B yourself.
+**Writing that spec is the first step of the fix, never a substitute for one.** It is a `plan/TEMPLATE.md` file at Status `skeleton` whose `## Task` names the defect, the command that reproduces it, the producing function, and the work that surfaced it, plus its row in `plan/deferrals/<source>.md` per `planning.md`. A sentence in a report, a `tmp/` note, and a `plan/known-failures/` shard are none of those and stay banned.
+**Then ASK, in this exact line, and STOP there: `New spec: plan/<file>. Implement it? (yes / not now)`, one line per spec you wrote.** The form is load-bearing rather than cosmetic. `.claude/hooks/block-premature-stop.sh` refuses a stop on permission-seeking phrasing, this wording matches none of it, and two fixtures keep that true. Paraphrase it into "would you like me to implement..." and the gate refuses your turn, correctly. The question ends the session's mandate, silence is not consent, and an unanswered ask leaves the spec on disk for a later session rather than starting the work.
 
 **Interoperability and correctness are never "optional" and never a scope-reduction candidate.** A network daemon that another implementation rejects has failed at its only job.
 
-**Recording a problem is not addressing it. Fix the root cause, always.** Writing a failure down (in `plan/known-failures/`, a spec, a learned summary, a deferral row, or a report to the user) changes nothing about the product. A record is a step *toward* a fix and never a substitute for one. When you find a red test, a hang, a wrong result, or a silent misbehavior, the deliverable is the FIX.
+**Recording a problem is not addressing it. Fix the root cause, always.** Writing a failure down (in `plan/known-failures/`, a learned summary, a deferral row, or a report to the user) changes nothing about the product. A record is a step *toward* a fix and never a substitute for one. When you find a red test, a hang, a wrong result, or a silent misbehavior, the deliverable is the FIX.
+**A SPEC is the one exception, and only on the route "A problem you FIND" (above) sets out: spec it, close the work in hand, ask.** The spec differs from every record above in what it produces: work somebody can start, homed at a destination, with the owner asked. A spec written and never put to Thomas is a record wearing a spec's filename, and it is banned like the rest.
 
 **Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first.** Editing to silence the symptom before the root cause is named is the defect, not the fix.
 
@@ -27,6 +36,7 @@
 **Before marking any spec done, complete a line-by-line audit comparing spec to implementation.**
 
 **Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work.** Finish the task first, then report what was done.
+**One ask is mandated rather than banned, and it comes AFTER the work is complete: the one line that names a spec you wrote for a problem you found and asks whether to implement it.** This ban is about the work you were already asked to do. It never reaches work Thomas has not commissioned yet.
 
 **When you catch yourself explaining why a test, a gate, or a completion standard does not apply this time, the answer is always "no."**
 
@@ -125,13 +135,12 @@ with items remaining, that is the signal to keep working, not to ship.
 
 ## Recording is not fixing (owner directive, 2026-07-23)
 
-**"ALWAYS" is literal.** Encountering a defect while doing something else is not a
-reason to catalogue it and move on. It is the reason you are now the one who fixes it.
+**"ALWAYS" is literal.** Encountering a defect while doing something else is not a reason to catalogue it and move on. It is the reason you are now the one who SPECS it, closes the work in hand, and asks Thomas whether that spec runs. Only the defect that BLOCKS your goal is the one you fix on the spot.
 
 | What you are about to do | Do this instead |
 |---|---|
 | Add a `plan/known-failures/` entry for a test that fails deterministically | Diagnose it (see "Diagnosis Before Fix" below) and fix the root cause |
-| Write "pre-existing, tracked in known-failures" in a report | Fix it. "Pre-existing" describes when it started, not whose it is |
+| Write "pre-existing, tracked in known-failures" in a report | It is yours: "pre-existing" describes when it started, not whose it is. Blocks your goal, fix it now; does not, spec it, close, ask |
 | List failures in an Executive Summary as though listing were the deliverable | Every listed failure is either fixed, or has a named reason you are blocked on it |
 | Note that a tool is broken and work around it | Fix the tool. You just proved it does not work |
 | Record an inert config surface, a dead registration, or an unwired symbol | Wire it, delete it, or reject the config: pick one and do it |
@@ -173,14 +182,14 @@ future work. It is NOT a hatch for a blocker. Decide with one question:
 
 | Situation | Verdict |
 |-----------|---------|
-| The goal still works; this is a distinct, larger, separable feature | Deferral is legitimate. Home it per `planning.md`. |
+| The goal still works; this is a distinct, larger, separable feature | Deferral is legitimate. Home it in a spec per `planning.md`, close the work in hand, then ask Thomas whether that spec runs. |
 | The goal does not work / a peer rejects the output / a required test cannot pass | NOT a deferral. Fix it now. Parking it is an invisible scope reduction with a polite name. |
 
 If you are unsure which side you are on, you are on the "fix it" side. The cost
 of over-fixing is some extra work; the cost of parking a real blocker is
 shipping something that does not do what it claims.
 
-**A defect you own is not a defect you fix this minute. When it does not block the goal, the order is: close the work in hand, then fix it.** "ALWAYS" governs WHETHER you fix it, never WHEN. Fixing it first is how finished work fails to land: the closing commit loses its single focus, the review loses its scope, and the gates that were green run again. Name it, home it per `planning.md`, close, then come back for it (`ai/rules/rule-precedence.md`).
+**A defect you own is not a defect you fix. When it does not block the goal, the order is: spec it, close the work in hand, ask Thomas whether that spec runs, stop.** "ALWAYS" governs WHETHER it gets fixed, never who fixes it or when. Fixing it yourself is how finished work fails to land: the closing commit loses its single focus, the review loses its scope, and the gates that were green run again. Write the spec, home it per `planning.md`, close, then put the question to Thomas (`ai/rules/rule-precedence.md`).
 
 ## Banned moves
 
@@ -271,7 +280,7 @@ one.
 |--------------|-----|
 | a shard for anything that reproduces, or that load explains | fix it |
 | a shard as the outcome of a session | fix it, and delete the shard if one existed |
-| "pre-existing" anywhere as a reason | fix it. It says when it started, not whose it is |
+| "pre-existing" anywhere as a reason | it is yours: the word says when it started, not whose it is. Blocks your goal, fix it now; does not, spec it, close, ask |
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
 Enforced: `check_known_failure_load_excuses` in `scripts/dev/verify_wiring_docs.py`
@@ -317,12 +326,11 @@ Rationale: `ai/rationale/anti-rationalization.md`
 | "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Fix it. "Pre-existing" says when it started, not whose it is. You are the entry point that reached it |
+| "Pre-existing issue" | It is yours: "pre-existing" says when it started, not whose it is, and you are the entry point that reached it. Blocks your goal, fix it now; does not, spec it, close, ask |
 
-**Every test failure gets FIXED. BLOCKING.** Logging is not an alternative outcome (owner directive 2026-07-23; see "Recording is not fixing" above). A `plan/known-failures/` shard is the running record of an investigation you are still driving, never a place to leave a defect.
+**Every test failure gets FIXED, by you when it blocks your goal, and by the spec-close-ask route when it does not, which is where the decision to fix it is Thomas's. BLOCKING either way.** Logging is not an alternative outcome (owner directive 2026-07-23; see "Recording is not fixing" above). A `plan/known-failures/` shard is the running record of an investigation you are still driving, never a place to leave a defect.
 
-1. **Fix it** as a separate commit (not mixed with feature work). Do not block current work on a
-   failure you didn't cause, but DO fix it in the same session after completing the primary task.
+1. **Spec it, close the work in hand, then ask ("A problem you FIND while working on something else gets a SPEC", above). Do not block current work on a failure you did not cause, and do not fix it in this session either: the fix runs when Thomas answers, as its own spec and its own commit, never mixed with the feature work you were closing.**
 2. **A shard is allowed for ONE case only: a failure whose MECHANISM you could not
    determine.** Deterministic reds, structural gates, anything with a reproduction
    command, and anything host load explains are fixed, never sharded. When the exception
@@ -331,9 +339,9 @@ Rationale: `ai/rationale/anti-rationalization.md`
    reproduction attempt and its result, evidence gathered, and the next step. Label a
    root cause you have not verified against source a HYPOTHESIS, so the next agent does
    not inherit it as fact.
-3. **Mechanical check before session end:** every failure your session encountered is
-   fixed, or is a non-reproducible one whose shard names the next step. An unfixed
-   deterministic failure is a violation regardless of what was written down.
+3. **Mechanical check before session end:** every failure your session encountered is fixed, or
+   carries a spec that was put to Thomas, or is a non-reproducible one whose shard names the next
+   step. A failure that is none of the three is a violation regardless of what was written down.
 
 | Banned | Why |
 |--------|-----|

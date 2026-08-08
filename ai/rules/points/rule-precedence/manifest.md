@@ -11,7 +11,7 @@ directives ## Directives
   end-the-phase-and-report-it-is-not-asking-permission
   ask-how-to-fix-it-never-whether-to-skip-it
   tell-deferral-from-parking-by-whether-the-goal-holds
-  close-the-work-first-then-fix-the-unrelated-defect
+  close-the-work-first-then-ask-about-the-unrelated-defect
   record-only-what-you-tried-and-failed-to-reproduce
   never-let-the-ladder-override-a-rule-s-subject-matter
   say-which-reading-you-took-when-the-ladder-cannot-decide

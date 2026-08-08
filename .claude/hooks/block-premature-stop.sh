@@ -227,6 +227,23 @@ if [ "$OPEN_WORK" = 1 ]; then
     SCAN_PATTERNS+=("${COMPLETION_PHRASES[@]}")
 fi
 
+# ai/rules/completion.md MANDATES one ask after the work in hand closes: `New spec:
+# <path>. Implement it? (yes / not now)`, for a problem found while doing something
+# else. It needs NO exemption here, and must not get one. It matches no pattern in
+# either list, so it already ends a turn.
+#
+# An exemption was written and removed the same day. It filtered the mandated LINE
+# out before the scan, which swallowed anything else on that line: `New spec: ...
+# Implement it? Would you like me to run the tests?` ended the turn. It also defeated
+# the unbalanced-backtick and all-markup fallbacks above, whose whole purpose is to
+# scan MORE. Two fixtures in scripts/dev/hook-fixture-check.py pin the property the
+# rule actually needs -- stop-phrase-mandated-spec-ask-allowed, and
+# stop-phrase-mandated-ask-does-not-cover-a-second-request, whose banned phrase shares
+# the mandated PHYSICAL LINE. On its own line it would block with or without a filter,
+# and would pin nothing.
+# If a future pattern catches the mandated form, reword the pattern or the rule --
+# never filter the scan's input.
+
 # STOP_RETRY bounds this scan and nothing else. The closure gate above already
 # ran, and it keeps its block on a retry.
 if [ "$STOP_RETRY" = false ]; then

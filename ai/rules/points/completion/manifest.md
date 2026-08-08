@@ -8,6 +8,7 @@ directives ## Directives
   this-rule-is-at-the-level-of-git-safety
   never-claim-done-while-an-ac-is-unimplemented
   fix-a-defect-that-blocks-your-goal
+  spec-a-found-problem-close-then-ask
   interoperability-and-correctness-are-never-optional
   recording-a-problem-is-not-addressing-it-fix-the-root-cause
   write-the-diagnosis-before-silencing-a-symptom
@@ -57,7 +58,7 @@ the-distinction-from-legitimate-deferral ## The distinction from legitimate defe
   the-question-that-separates-deferral-from-parking
   when-a-deferral-is-legitimate
   when-unsure-you-are-on-the-fix-it-side
-  close-the-work-in-hand-then-fix-the-defect-you-own
+  spec-the-defect-you-own-close-then-ask
 banned-moves ## Banned moves
   moves-that-reduce-scope-invisibly
 when-you-genuinely-cannot-finish ## When you genuinely cannot finish

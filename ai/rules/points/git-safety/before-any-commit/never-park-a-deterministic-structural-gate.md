@@ -3,9 +3,10 @@ kind: note
 level:
 stage:
 ---
-The item-2 "log to `plan/known-failures/`" path is for **non-deterministic**
-failures only -- flaky or environmental TEST reds (load-sensitive races,
-GC-pressure pool flakes, host-specific listener probes). A **deterministic
+The pre-commit checklist's "write its spec, finish this commit, ask" branch, and
+its `plan/known-failures/` shard, are for **non-deterministic** failures only.
+Those are flaky or environmental TEST reds: load-sensitive races, GC-pressure pool
+flakes, host-specific listener probes ("Before Any Commit", above). A **deterministic
 structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
 `ze-vet-evidence`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
 `ze-regen-check-readonly`, `ze-verify-wiring-docs`, and `ze-tracked-build-check`

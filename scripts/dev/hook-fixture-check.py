@@ -95,6 +95,14 @@ def _load_pretool_writeedit():
     return mod
 
 
+def _load_pretool_bash():
+    path = os.path.join(HOOKS, "pretool-bash.py")
+    spec = importlib.util.spec_from_file_location("pretool_bash", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def run_format_alloc(results: Results) -> None:
     print("format-alloc:")
     mod = _load_pretool_writeedit()
@@ -2120,6 +2128,73 @@ def _run_mark_source_read(file_path: str, response=_UNSET) -> set:
         shutil.rmtree(work, ignore_errors=True)
 
 
+def run_draft_incubator(results: Results) -> None:
+    """`test/draft/` holds work that is not a test yet, so the test guards skip it.
+
+    A draft is gitignored and invisible to every repo-wide gate: it claims no
+    evidence and proves no RFC obligation. Guarding it made the incubator the one
+    directory an agent could fill and never empty, which is the opposite of a
+    workflow whose only two endings are promote or delete
+    (ai/rules/testing.md, "A draft is not a test yet").
+
+    Both halves are pinned here, and so is the boundary: the same edit and the
+    same deletion must still be refused for a LIVE test, or the exemption has
+    eaten the rule it carves out of.
+    """
+    print("draft-incubator:")
+    cw = _load_pretool_writeedit().c_test_weakening
+    deletion = _load_pretool_bash().check_test_deletion
+
+    tagged = (
+        "# RFC requirement: RFC9552-5.2-1 positive - unknown NLRI preserved.\n"
+        "expect=bgp:conn=2:seq=1:contains=DEADBEEF\n"
+    )
+    draft = "/repo/test/draft/plugin/wip.ci"
+    live = "/repo/test/plugin/live.ci"
+
+    def edit(path):
+        return cw(
+            {
+                "tool": "Edit",
+                "ti": {
+                    "old_string": tagged,
+                    "new_string": tagged.replace("DEADBEEF", "CAFE"),
+                },
+                "fp": path,
+            }
+        )
+
+    # An `RFC requirement:` tag inside a draft is worth nothing until the file is
+    # live, so the guard that protects the proof has no proof to protect.
+    results.check(
+        "draft-edit-rfc-tagged-passes", edit(draft) is None, repr(edit(draft))
+    )
+
+    # The boundary: promotion is what turns the tag into proof, so the identical
+    # edit on a live test still blocks. Without this the case above proves only
+    # that the guard is off.
+    r = edit(live)
+    results.check(
+        "live-edit-rfc-tagged-still-blocks",
+        r is not None and r[0] == 2 and "RFC-tagged test" in r[1],
+        repr(r),
+    )
+
+    r = deletion("rm test/draft/plugin/wip.ci", None)
+    results.check("draft-rm-needs-no-approval", r is None, repr(r))
+
+    r = deletion("rm -r test/draft/plugin/", None)
+    results.check("draft-rm-recursive-needs-no-approval", r is None, repr(r))
+
+    r = deletion("rm test/plugin/live.ci", None)
+    results.check("live-rm-still-needs-approval", r is not None and r[0] == 2, repr(r))
+
+    # A command naming both is refused. The live test is the reason the guard
+    # exists, and one draft in the argument list must not buy its removal.
+    r = deletion("rm test/draft/plugin/wip.ci test/plugin/live.ci", None)
+    results.check("mixed-rm-still-needs-approval", r is not None and r[0] == 2, repr(r))
+
+
 def run_mark_source_read(results: Results) -> None:
     """T-4 (AC-6): reading the .py/.sh/.yang/Makefile a spec is ABOUT must satisfy
     the spec-write gate -- the marker is written for those, not only for Go, so an
@@ -3095,6 +3170,40 @@ def run_delegation(results: Results) -> None:
             f"rc={rc} {err}",
         )
 
+        # ai/rules/completion.md MANDATES this exact line for a problem found while
+        # doing something else: spec it, close the work in hand, ask. Refusing it
+        # would order a sentence and then refuse the turn that carries it. It needs
+        # no exemption -- it matches no pattern in either list -- and this fixture
+        # is what keeps that true: a future PHRASES entry that swallowed it goes red
+        # here. Filtering the scan's input to protect it is banned; see the comment
+        # above SCAN_PATTERNS in the hook for what that cost when it was tried.
+        rc, err = _run_stop_hook(
+            work,
+            "Closed and committed. New spec: `plan/bgp-med-strip.md`. "
+            "Implement it? (yes / not now)",
+        )
+        results.check(
+            "stop-phrase-mandated-spec-ask-allowed",
+            rc == 0,
+            f"rc={rc} {err}",
+        )
+
+        # The mandated ask licenses no OTHER request. This is the fixture that fails
+        # if anybody reintroduces a line filter for the mandated form.
+        # The banned phrase sits on the SAME physical line as the mandated ask, which
+        # is precisely what a line filter would swallow. A separate line would pass
+        # this assertion with or without such a filter and would pin nothing.
+        rc, err = _run_stop_hook(
+            work,
+            "New spec: `plan/bgp-med-strip.md`. Implement it? (yes / not now) "
+            "Would you like me to run the tests first?",
+        )
+        results.check(
+            "stop-phrase-mandated-ask-does-not-cover-a-second-request",
+            rc == 2 and "would you like me to" in err,
+            f"rc={rc} {err}",
+        )
+
         # An UNPAIRED backtick must not delete the request. A left-to-right strip
         # pairs the stray tick with the OPENING tick of the later legitimate span
         # and removes everything between, which is where the request sits. A
@@ -3885,6 +3994,7 @@ SECTIONS = {
     "commit-gate": run_commit_gate,
     "session-id": run_session_id,
     "rfc-test-guard": run_rfc_test_guard,
+    "draft-incubator": run_draft_incubator,
     "mark-source-read": run_mark_source_read,
     "design-gate": run_design_gate,
     "delegation": run_delegation,

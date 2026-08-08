@@ -67,14 +67,30 @@
 - If you are genuinely blocked: say so plainly with evidence, keep the spec OPEN, and
   reach for the fix before asking. Ask "which way do I fix it", never "may I skip it."
 - **RECORDING A PROBLEM IS NOT ADDRESSING IT. FIX THE ROOT CAUSE, ALWAYS.** Writing a
-  failure into `plan/known-failures/`, a spec, a learned summary, or a report changes
-  nothing about the product. A record is a step toward a fix, never a substitute.
-  Finding a defect while doing something else is not permission to catalogue it and
-  move on; it is the reason you are now the one who fixes it. The ONLY thing that may
-  be recorded instead of fixed is a failure you actively tried and FAILED to
-  reproduce, and its shard must carry the reproduction attempt and the next step.
-  Anything deterministic or reproducible gets fixed.
+  failure into `plan/known-failures/`, a learned summary, or a report changes nothing
+  about the product. A record is a step toward a fix, never a substitute. The ONLY
+  thing that may be recorded instead of fixed is a failure you actively tried and
+  FAILED to reproduce, and its shard must carry the reproduction attempt and the next
+  step. Anything deterministic or reproducible gets fixed or gets a spec.
 - Full rule: `ai/rules/completion.md`
+
+## A problem you FIND gets a SPEC, not a fix (owner decision, 2026-08-08)
+- A defect you walk into while working on something else is NOT fixed in that session.
+  Write its spec at the moment you find it, go back and CLOSE the work in hand, then
+  ask Thomas whether he wants that spec implemented. Stop there: silence is not consent.
+- The one exception is the defect that BLOCKS the goal your work exists to achieve.
+  You cannot close the work in hand around it, so the section above governs: FIX IT.
+- The spec is the first step of the fix, never a substitute. It is a `plan/TEMPLATE.md`
+  file at Status `skeleton` naming the defect, its reproduction command, the producing
+  function, and the work that surfaced it, plus its `plan/deferrals/<source>.md` row.
+  A `tmp/` note, a report line, and a `plan/known-failures/` shard remain banned.
+- Ask in this exact line, one per spec you wrote, and stop:
+  `New spec: plan/<file>. Implement it? (yes / not now)`
+- This ask is MANDATED, not the banned "would you like me to". It comes after the work
+  you were asked to do is complete, and it is about work Thomas has not commissioned yet.
+  `.claude/hooks/block-premature-stop.sh` refuses a stop on permission-seeking phrasing
+  and that exact wording matches none of it, so a paraphrase is refused an end to the turn.
+- Full rule: `ai/rules/completion.md`, `ai/rules/rule-precedence.md`
 
 ## On violation: STOP immediately
 "The task requires it" is not valid. Nothing overrides these prohibitions.
@@ -293,7 +309,7 @@ means "no rule applies".
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/repo-maintenance.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/interop-and-goal-validation.md` |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/completion.md` -- implement missing behavior at the source; never weaken the test |
-| Hit a blocker, a red test, a hang, or ANY defect (yours or not) | `ai/rules/completion.md` -- FIX THE ROOT CAUSE, ALWAYS. Recording it (`plan/known-failures/`, a spec, a report) is not addressing it. Never park it, move it to `tmp/`, or offer to drop the deliverable. "Pre-existing" says when it started, not whose it is. Reducing coverage to reach green is banned. Only a failure you tried and could not reproduce may be recorded instead of fixed |
+| Hit a blocker, a red test, a hang, or ANY defect (yours or not) | `ai/rules/completion.md` -- ROOT-CAUSE IT, ALWAYS. Blocks your goal: FIX IT NOW. Does not block it: write its SPEC, close the work in hand, ask Thomas whether that spec runs, stop. Recording it (`plan/known-failures/`, a `tmp/` note, a report) is not addressing it either way. Never park it or offer to drop the deliverable. "Pre-existing" says when it started, not whose it is. Reducing coverage to reach green is banned. Only a failure you tried and could not reproduce may be recorded instead |
 | Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- conformance is not negotiable. When full compliance AND full testing of it is reachable, that IS the answer: IMPLEMENT it and prove it with a tagged test, and do NOT ask Thomas to choose between it and something narrower. Ask only when you are about to do LESS (`{gap}`, `{not-applicable}`, "partial", untested MUST, deferral), and then ask which way to fix it, never whether to skip it. Every earlier answer pointing away from full compliance is VOID (2026-07-27) and must be re-raised, not cited |
 | Write linux-only code | `ai/rules/platform-linux.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |

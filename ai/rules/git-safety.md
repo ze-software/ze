@@ -65,7 +65,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
 2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
    `--append` adds a later commit block to a script you already prepared. Pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a known-red logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. Lesson learned check: the helper asks whether the commit ADDS content to an agent-workflow, rule, tooling, verification, or discovery surface, or only relocates it. Content earns a summary: include `plan/learned/NNN-<name>.md` in `--file`. A move, a rename, or a reformat does not, and passes untouched. When the change adds content but taught nothing reusable, say so with `--lesson-not-needed "<reason>"`; `--lesson-required` is the operator demanding one regardless (`ai/rules/planning.md`, "Writing Learned Summaries").
    Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes)+1 and creates the file immediately, so concurrent sessions **sharing one working tree** cannot allocate the same number. Never hand-pick a number.
@@ -273,14 +273,15 @@ under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 ```
 [ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-verify` or `make ze-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
 [ ] 1. `make ze-verify` (foreground, largest timeout your harness allows, never killed early) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
-[ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures/` (one `<make-target>-<test-name>.md` shard per failure).
+[ ] 2. Failure from current work, or any failure that blocks this commit's goal: fix + re-run. Any other failure, and never a deterministic structural gate, which is fixed before any commit (see "Structural Gates Are Never Known-Red" below): write its spec, finish this commit, ask Thomas whether that spec runs (`ai/rules/completion.md`). A `plan/known-failures/` shard is for a failure you tried and could not reproduce, and it carries the reproduction attempt and the next step.
 ```
 
 ### Structural Gates Are Never Known-Red (BLOCKING)
 
-The item-2 "log to `plan/known-failures/`" path is for **non-deterministic**
-failures only -- flaky or environmental TEST reds (load-sensitive races,
-GC-pressure pool flakes, host-specific listener probes). A **deterministic
+The pre-commit checklist's "write its spec, finish this commit, ask" branch, and
+its `plan/known-failures/` shard, are for **non-deterministic** failures only.
+Those are flaky or environmental TEST reds: load-sensitive races, GC-pressure pool
+flakes, host-specific listener probes ("Before Any Commit", above). A **deterministic
 structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
 `ze-vet-evidence`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
 `ze-regen-check-readonly`, `ze-verify-wiring-docs`, and `ze-tracked-build-check`
@@ -535,7 +536,7 @@ files is.** Before preparing the commit script:
 
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
 exists for exactly this: a full-tree gate whose red belongs to somebody else's
-in-flight work. Its own text names the owner override and a logged known-red;
+in-flight work. Its own text names the owner override and a failure you tried and could not reproduce;
 concurrent-session interference is the third case, and the reason has to say so.
 
 **A deterministic STRUCTURAL gate is still never waved through** (see "Structural

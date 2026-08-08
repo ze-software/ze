@@ -11,7 +11,7 @@ stage:
 - **Wrapper struct pattern** (alloc-4). Pass raw bytes + existing iterators. Never wrap data in accessor types.
 - **Tests-pass != done** (RECURRING). Tests are step 10 of 12. Continue to docs/spec/summary/audit. `ai/rules/quality.md`.
 - **Mechanism-not-behavior test** (prefix-limit). Assert the AC, not a code-path proxy. No-op passes = wrong test. `ai/rules/testing.md`.
-- **"Pre-existing" failures** (RESOLVED). Fix in-session after primary task; log to `plan/known-failures/` if >10 min. `ai/rules/completion.md`.
+- **"Pre-existing" failures** (RESOLVED). Blocks your goal: fix now. Does not: spec it, close the work in hand, ask Thomas whether that spec runs. `ai/rules/completion.md`.
 - **Plugin placement anchor bias** (jsonrpc). "Delete the folder" test. Cross-cutting -> `internal/component/`. Domain -> `bgp/plugins/`. Infra -> `internal/core/`.
 - **Docs from assumption** (RECURRING). Read source before any factual claim. `ai/rules/writing.md` Source Anchors.
 - **Spec deleted without committing** (lg-overhaul, ZERO TOL). TWO commits: (A) code+spec, (B) `git rm` spec + add summary. `ai/rules/planning.md`.
