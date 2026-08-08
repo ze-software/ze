@@ -74,7 +74,19 @@ func TestGRStateManagerTimerExpiry(t *testing.T) {
 		mu.Unlock()
 	})
 
-	cap := testCap(0, famIPv4) // restart-time=0 for immediate expiry
+	// rfc-test-change-approved: 2026-08-08 Thomas approved fixing the race in this
+	// test after seeing the mechanism below. The restart time changes from 0 to
+	// 120; no assertion is added, removed or weakened, and the requirement stays
+	// proven by the same call.
+	//
+	// The restart time must be long enough that the real timer never fires while
+	// the test runs. onSessionDown arms time.AfterFunc unconditionally, so a
+	// restart time of 0 puts a second caller into handleTimerExpired concurrently
+	// with the simulated one below. Whichever call wins clears the peer, the loser
+	// takes the not-found early return without firing the callback, and the winner
+	// fires it only after releasing the lock. The assertion below can therefore
+	// read `expired` while it is still nil. That raced 4 times in 30 runs.
+	cap := testCap(120, famIPv4)
 	mgr.onSessionDown(testPeer, cap, nil, false)
 	require.True(t, mgr.peerActive(testPeer))
 
