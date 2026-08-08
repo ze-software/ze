@@ -483,3 +483,55 @@ func writeJSON(t *testing.T, path string, data map[string]any) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 }
+
+// VALIDATES: Root separates "this root does not exist" from "this root exists
+// and holds nothing". Get answers both with an empty map and a nil error, so a
+// caller reading configuration out of that map cannot tell them apart.
+// PREVENTS: a lost root reading as an operator's own configuration. The hub's
+// live user list is derived from the `system` root, and a guard that cannot see
+// the difference reports "no users are configured" for a root the daemon
+// dropped (ai/rules/evidence.md).
+func TestProviderRootReportsAbsence(t *testing.T) {
+	p := config.NewProvider()
+
+	if tree, ok := p.Root("system"); ok || len(tree) != 0 {
+		t.Fatalf("a root that was never set must not exist: got %v, %v", tree, ok)
+	}
+
+	p.SetRoot("system", map[string]any{})
+	if tree, ok := p.Root("system"); !ok || len(tree) != 0 {
+		t.Fatalf("a root set to an empty tree must exist and be empty: got %v, %v", tree, ok)
+	}
+
+	p.SetRoot("system", map[string]any{"authentication": map[string]any{}})
+	if tree, ok := p.Root("system"); !ok || len(tree) != 1 {
+		t.Fatalf("a populated root must come back populated: got %v, %v", tree, ok)
+	}
+
+	p.DeleteRoot("system")
+	if _, ok := p.Root("system"); ok {
+		t.Fatal("a deleted root must stop existing")
+	}
+}
+
+// VALIDATES: Get keeps its contract while answering from Root.
+// PREVENTS: the two readers drifting apart. Get is the ze.ConfigProvider method
+// every writer uses; Root is the same lookup with the presence bit kept.
+func TestProviderGetAnswersFromRoot(t *testing.T) {
+	p := config.NewProvider()
+
+	got, err := p.Get("system")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("a missing root is not an error for Get: got %v, %v", got, err)
+	}
+
+	p.SetRoot("system", map[string]any{"authentication": map[string]any{"user": "alice"}})
+	got, err = p.Get("system")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	want, ok := p.Root("system")
+	if !ok || len(got) != len(want) {
+		t.Fatalf("Get and Root must describe the same root: got %v, want %v", got, want)
+	}
+}

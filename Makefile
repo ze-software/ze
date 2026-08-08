@@ -406,7 +406,7 @@ ze-unit-test-changed: ze-ensure-links
 ze-hook-test:
 	@echo "Hook dispatcher parity (golden exit codes)..."
 	@python3 scripts/dev/hook-parity-check.py
-	@echo "Hook behavioural fixtures (format-alloc / validate-spec / commit-gate)..."
+	@echo "Hook behavioural fixtures (format-alloc / validate-spec / design-gate / commit-gate)..."
 	@python3 scripts/dev/hook-fixture-check.py
 
 # ─── Composite verification targets ────────────────────────────────────────
@@ -928,6 +928,7 @@ help-test:
 	@echo "    ze-qemu-integration-test  Integration tests in QEMU Alpine VM"
 	@echo "    ze-qemu-l2tp-ppp-test     L2TP PPP/NCP in QEMU with gokrazy kernel"
 	@echo "    ze-qemu-pppoe-accel-test  PPPoE client vs accel-ppp AC in QEMU"
+	@echo "    ze-qemu-pppoe-test        PPPoE access-concentrator .ci suite in QEMU (netns + runtime kernel)"
 	@echo "    ze-qemu-traffic-usage-test  traffic-usage eBPF TCX accounting in QEMU"
 	@echo "    ze-qemu-ldp-frr-test      LDP interop against FRR ldpd in QEMU"
 	@echo "    ze-qemu-isis-frr-test     IS-IS interop against FRR isisd in QEMU"
