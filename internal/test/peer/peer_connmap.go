@@ -172,6 +172,14 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 		if err != nil {
 			select {
 			case <-ctx.Done():
+				// Cancellation is the timeout and the operator-interrupt path, so
+				// it must not report a pass unless the checker actually finished
+				// its expectations. Reporting success unconditionally made a run
+				// that proved nothing indistinguishable from one that proved
+				// everything (`ai/rules/evidence.md`: fail closed or say something).
+				if !p.checker.Completed() {
+					return nil, Result{Success: false, Error: errors.New("accept canceled before the checker completed its expectations")}, true
+				}
 				return nil, Result{Success: true}, true
 			default:
 				return nil, Result{Success: false, Error: fmt.Errorf("accept: %w", err)}, true

@@ -75,10 +75,20 @@ func TestSortConnBatchRouterID(t *testing.T) {
 	}
 }
 
-// newBatchTestPeer builds the minimal Peer that acceptConnMapBatch needs: it
-// only ever touches config, output and the checker-free handshake path.
-func newBatchTestPeer(out io.Writer) *Peer {
-	return &Peer{config: &Config{}, output: out}
+// newBatchTestPeer builds the minimal Peer that acceptConnMapBatch needs.
+//
+// The checker is real and never nil. acceptConnMapBatch consults
+// Completed() on the cancel path, so a nil checker here would reintroduce
+// the fail-open shape these tests exist to pin. With no expectations the
+// checker reports completed, which is the state a passing run ends in.
+func newBatchTestPeer(t testing.TB, out io.Writer, expect ...string) *Peer {
+	t.Helper()
+	checker, err := NewChecker(expect)
+	if err != nil {
+		t.Fatalf("NewChecker(%v): %v", expect, err)
+	}
+	checker.Init()
+	return &Peer{config: &Config{}, checker: checker, output: out}
 }
 
 // TestAcceptConnMapBatchUnblocksOnCancel pins the cancel path of a mapped
@@ -98,7 +108,7 @@ func TestAcceptConnMapBatchUnblocksOnCancel(t *testing.T) {
 	defer ln.Close() //nolint:errcheck // test cleanup
 
 	sig := &connectSignal{seen: make(chan struct{})}
-	p := newBatchTestPeer(sig)
+	p := newBatchTestPeer(t, sig)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -144,6 +154,60 @@ func TestAcceptConnMapBatchUnblocksOnCancel(t *testing.T) {
 	}
 }
 
+// TestCanceledAcceptReportsFailureUntilCheckerCompletes pins guard 1 of
+// plan/spec-fixit-test-harness-fail-open-guards.md (AC-1, AC-2, AC-6).
+//
+// VALIDATES: an accept that fails with the context already done reports
+// success only when the checker finished its expectations.
+// PREVENTS: a run ended by the runner timeout or an operator interrupt
+// reporting a pass it never earned. Cancellation is exactly the path where a
+// false green costs most, and it was unconditionally green before
+// (`ai/rules/evidence.md`: a zero value must never read as a valid answer).
+func TestCanceledAcceptReportsFailureUntilCheckerCompletes(t *testing.T) {
+	pending := newBatchTestPeer(t, io.Discard, "expect=bgp:conn=1:seq=1:ordered=180A0000")
+	if pending.checker.Completed() {
+		t.Fatal("checker reports completed with an expectation outstanding: this test would prove nothing")
+	}
+	settled := newBatchTestPeer(t, io.Discard)
+	if !settled.checker.Completed() {
+		t.Fatal("checker reports incomplete with no expectations: this test would prove nothing")
+	}
+
+	cases := []struct {
+		name        string
+		peer        *Peer
+		wantSuccess bool
+	}{
+		{name: "expectation outstanding", peer: pending, wantSuccess: false},
+		{name: "expectations satisfied", peer: settled, wantSuccess: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var lc net.ListenConfig
+			ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatalf("listen: %v", err)
+			}
+			// A closed listener fails Accept at once, and the context is already
+			// done, which is precisely the branch guard 1 owns.
+			ln.Close() //nolint:errcheck // the failing Accept is the point of the test
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			_, result, done := tc.peer.acceptConnMapBatch(ctx, ln, 1)
+			if !done {
+				t.Fatal("done = false, want true: a failed accept ends the batch")
+			}
+			if result.Success != tc.wantSuccess {
+				t.Fatalf("result.Success = %v, want %v (error: %v)", result.Success, tc.wantSuccess, result.Error)
+			}
+			if !tc.wantSuccess && result.Error == nil {
+				t.Fatal("result.Error = nil: a refused batch must name its reason")
+			}
+		})
+	}
+}
+
 // TestAcceptConnMapBatchNamesFailedHandshake pins the diagnosis a failed
 // handshake produces.
 //
@@ -159,7 +223,7 @@ func TestAcceptConnMapBatchNamesFailedHandshake(t *testing.T) {
 	}
 	defer ln.Close() //nolint:errcheck // test cleanup
 
-	p := newBatchTestPeer(io.Discard)
+	p := newBatchTestPeer(t, io.Discard)
 
 	type outcome struct {
 		result Result
