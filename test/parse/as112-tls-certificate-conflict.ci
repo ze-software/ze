@@ -33,5 +33,10 @@ EOF_REF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=conflict
 expect=exit:code=1
+# The exit code alone does not say WHY the config was rejected -- any parse
+# error would produce it. The message is the discriminator: it comes from the
+# mutual-exclusion check itself (internal/core/dnsserver/secure.go, secure).
+expect=stdout:contains=mutually exclusive
 cmd=foreground:seq=2:exec=ze config validate -:stdin=refonly
 expect=exit:code=0
+expect=stdout:contains=configuration valid

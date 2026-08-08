@@ -24,3 +24,11 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
+expect=stdout:contains=configuration valid
+# Validation says the file parsed. It does not say the reference reached the
+# web listener's own node, so read it back: `config show` prints the tree the
+# rest of the system consumes, and the assertion fails if the certificate leaf
+# stops landing under environment.web.
+cmd=foreground:seq=2:exec=ze config show - environment web:stdin=config
+expect=exit:code=0
+expect=stdout:contains=certificate lan
