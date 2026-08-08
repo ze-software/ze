@@ -279,3 +279,124 @@ func TestDefaultOriginateRawGuardIgnoresMalformedRef(t *testing.T) {
 	assert.False(t, rejected, "malformed ref must be left to the caller's colon check")
 	assert.Empty(t, info.gotPlugin, "no lookup should happen on a malformed ref")
 }
+
+// newDefaultOriginatePeer returns a peer with IPv6 default-originate enabled and
+// an Established session recording what reaches the wire.
+//
+// peerAddr decides the peer half of RFC 2545 Section 3's condition, and
+// localAddress is both the session's local endpoint and the default route's next
+// hop (defaultRouteForAFI, peer_initial_sync.go).
+func newDefaultOriginatePeer(t *testing.T, peerAddr, localAddress, linkLocal string) (*Peer, *recordingConn) {
+	t.Helper()
+	settings := &PeerSettings{
+		Connection:       ConnectionBoth,
+		Address:          netip.MustParseAddr(peerAddr),
+		LocalAddress:     netip.MustParseAddr(localAddress),
+		LinkLocal:        netip.MustParseAddr(linkLocal),
+		LocalAS:          65000,
+		PeerAS:           65001,
+		RouterID:         0x01020301,
+		DefaultOriginate: map[string]bool{"ipv6/unicast": true},
+	}
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+
+	nc := &NegotiatedCapabilities{families: map[family.Family]bool{family.IPv6Unicast: true}}
+	peer.negotiated.Store(nc)
+
+	session := NewSession(settings)
+	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
+	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
+	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+	require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
+
+	conn := &recordingConn{}
+	session.mu.Lock()
+	session.conn = conn
+	session.bufWriter = bufio.NewWriterSize(conn, 4096)
+	session.mu.Unlock()
+
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+
+	// setEncodingContexts (peer.go) refreshes the link scope at establishment.
+	peer.refreshLinkScope()
+	peer.sendingInitialRoutes.Store(1)
+	return peer, conn
+}
+
+// mpReachIPv6Attr builds the MP_REACH_NLRI attribute a conforming encoder writes
+// for an IPv6 unicast route with the given NLRI bytes and next-hop addresses.
+//
+// RFC 2545 Section 3 wire form: AFI(2) SAFI(1) Length(1) address(es) Reserved(1)
+// NLRI. The Length octet is 16 for one address and 32 for two, and the global
+// address is always first.
+func mpReachIPv6Attr(t *testing.T, nlriBytes []byte, addrs ...string) []byte {
+	t.Helper()
+	var nh []byte
+	for _, a := range addrs {
+		b := netip.MustParseAddr(a).As16()
+		nh = append(nh, b[:]...)
+	}
+	value := []byte{0x00, 0x02, 0x01, byte(len(nh))}
+	value = append(value, nh...)
+	value = append(value, 0x00) // Reserved
+	value = append(value, nlriBytes...)
+	return append([]byte{0x80, 0x0E, byte(len(value))}, value...)
+}
+
+// defaultRouteNLRI is ::/0 on the wire: a prefix length of zero and no address
+// octets.
+var defaultRouteNLRI = []byte{0x00}
+
+// TestDefaultOriginateAppendsLinkLocalWhenSection3Holds drives RFC 2545 Section 3
+// through the default-originate rail, from sendInitialRoutes to the socket.
+//
+// RFC requirement: RFC2545-3-1 positive -- the Next Hop field of the originated
+// default route carries the global IPv6 address of the next hop followed by the
+// link-local IPv6 address of the next hop.
+//
+// RFC requirement: RFC2545-3-2 positive -- the Length of Next Hop Network Address
+// octet is 32 (0x20) because a link-local address is also included.
+//
+// RFC requirement: RFC2545-3-3 positive -- both halves of the condition hold: the
+// speaker shares the loopback subnet with the entity named by the global next hop
+// (::1) and with the peer the route is advertised to (::1).
+//
+// VALIDATES: the originated ::/0 leaves with the 32-octet form, global first.
+// PREVENTS: the default-originate rail emitting the 16-octet form in a case
+// Section 3 requires the second address, which no other test covers -- the
+// exabgp-compat pair drives the STATIC route rail.
+func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
+	peer, conn := newDefaultOriginatePeer(t, "::1", "::1", "fe80::1")
+
+	peer.sendInitialRoutes()
+
+	assert.Contains(t, string(conn.written()), string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1", "fe80::1")),
+		"RFC 2545 Section 3: global address first, link-local second, length octet 0x20")
+}
+
+// TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink is the other polarity.
+//
+// RFC requirement: RFC2545-3-3 negative -- the peer half of the condition fails
+// (2001:db8:dead:beef::2 sits on no locally connected subnet), so the link-local
+// address is NOT included even though the leaf names one.
+//
+// RFC requirement: RFC2545-3-4 positive -- "in all other cases" the speaker
+// advertises only the global address and sets the length octet to 16.
+//
+// VALIDATES: the same rail emits the 16-octet form when Section 3 excludes the
+// second address. Without this row an encoder that always appended would pass the
+// positive test above.
+func TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
+	peer, conn := newDefaultOriginatePeer(t, "2001:db8:dead:beef::2", "::1", "fe80::1")
+
+	peer.sendInitialRoutes()
+
+	written := string(conn.written())
+	assert.Contains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1")),
+		"RFC 2545 Section 3: the global address alone, length octet 0x10")
+	assert.NotContains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1", "fe80::1")),
+		"no link-local may be appended when the peer shares no subnet with the speaker")
+}

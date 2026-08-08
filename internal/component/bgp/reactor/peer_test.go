@@ -431,8 +431,13 @@ func TestPeerShouldQueue(t *testing.T) {
 	// Not established → should queue
 	require.True(t, peer.ShouldQueue(), "should queue when not established")
 
-	// Simulate established state
+	// Simulate established state. setState closes the initial-sync gate as it
+	// publishes Established (peer.go), so the peer queues until its sync ends.
 	peer.setState(PeerStateEstablished)
+	require.True(t, peer.ShouldQueue(), "should queue while the initial sync is still owed")
+
+	// What sendInitialRoutes does when its drain and End-of-RIB are done.
+	peer.sendingInitialRoutes.Store(0)
 	require.False(t, peer.ShouldQueue(), "should not queue when established with empty queue")
 
 	// Queue has items → should queue (preserves insertion order)
