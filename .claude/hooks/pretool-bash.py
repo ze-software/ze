@@ -383,6 +383,28 @@ def check_system_tmp(cmd, _ctx):
     return None
 
 
+DRAFT_DIR = "test/draft/"
+
+
+def _draft_only(cmd):
+    """True when every test path `cmd` names sits in the draft incubator.
+
+    `test/draft/` is gitignored and invisible to every repo-wide gate, so what
+    lives there is not a test yet: it earns no coverage and proves no obligation.
+    The workflow that creates a draft ends in exactly two moves, promote it or
+    delete it (ai/rules/testing.md), and guarding the delete leaves the incubator
+    the one directory an agent can fill but never empty.
+
+    Requires EVERY named path to be a draft. A command mixing a draft with a real
+    test still blocks, because the real one is the reason this guard exists.
+    """
+    targets = [
+        t[2:] if t.startswith("./") else t
+        for t in re.findall(r"[^\s'\"]*test/[^\s'\"]*", cmd)
+    ]
+    return bool(targets) and all(t.startswith(DRAFT_DIR) for t in targets)
+
+
 # ze point: testing/directives/write-the-test-first-and-never-weaken-it
 def check_test_deletion(cmd, _ctx):
     """block-test-deletion.sh (Bash branch): guard rm/checkout of test files."""
@@ -397,7 +419,7 @@ def check_test_deletion(cmd, _ctx):
     if re.search(r"git checkout.*(_test\.go|\.ci)", cmd):
         if re.search(r"git checkout (--|[.])", cmd):
             errors.append(f"Attempting to discard test file changes: {cmd}")
-    if not errors:
+    if not errors or _draft_only(cmd):
         return None
     lines = [f"{YELLOW}{BOLD}❓ Test deletion - user approval required{RESET}", ""]
     lines += [f"  → {e}" for e in errors]

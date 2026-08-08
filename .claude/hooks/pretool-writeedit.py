@@ -2390,10 +2390,30 @@ def _carries_rfc_tag(fp):
         return False
 
 
+DRAFT_SEGMENT = "test/draft/"
+
+
+def _is_draft(fp):
+    """True when `fp` sits in the draft incubator.
+
+    `test/draft/` is gitignored and skipped by every repo-wide gate, so what
+    lives there is not a test yet: it claims no evidence, proves no RFC
+    obligation, and appears in no coverage ledger. Neither the weakening
+    heuristic nor the RFC-tag guard has anything to protect there, and the
+    draft workflow ends in exactly two moves, promote it or delete it
+    (ai/rules/testing.md). Guarding a draft makes the incubator the one
+    directory an agent can fill and never empty.
+    """
+    norm = fp.replace(os.sep, "/")
+    return norm.startswith(DRAFT_SEGMENT) or "/" + DRAFT_SEGMENT in norm
+
+
 # ze point: testing/directives/write-the-test-first-and-never-weaken-it
 # ze point: testing/fix-code-not-tests/fix-the-code-when-a-test-fails-not-the-test
 def c_test_weakening(ctx):
     fp = ctx["fp"]
+    if _is_draft(fp):
+        return None
     is_test = bool(
         re.search(r"_test\.go$", fp) or (fp.endswith(".ci") and "/test/" in fp)
     )

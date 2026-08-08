@@ -32,6 +32,7 @@ draft-a-functional-test-before-it-is-live-blocking ## Draft a Functional Test Be
   never-draft-or-edit-a-ci-test-in-the-live-suite
   the-commands-of-the-draft-workflow
   the-incubator-is-gitignored-and-gated-by-nothing
+  a-draft-is-promoted-or-deleted-never-left
   promote-early-because-the-checks-start-when-live
 fix-code-not-tests ## Fix Code, Not Tests
   fix-the-code-when-a-test-fails-not-the-test
