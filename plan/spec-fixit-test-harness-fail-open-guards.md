@@ -2,20 +2,25 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | guard 3 of 4 done; guards 1, 2 and 4 not started |
 | Deferral shard | `-` |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**Two guards in the functional test harness fail OPEN. One reports success for a
-run that was cancelled. The other can never fire, because a shorter timeout always
-wins first.**
+**Four guards in the test harness fail OPEN. One reports success for a run that
+was cancelled. One can never fire, because a shorter timeout always wins first.
+The third answers 0 for a query that failed, and 0 is a legitimate RIB size. The
+fourth is missing outright: nothing stops a new scenario writing the same
+swallowed call the third one hid behind.**
+
+Guard 3 is DONE (2026-08-07). Guards 1, 2 and 4 are untouched and this spec stays
+open for them.
 
 Found on 2026-08-02 by the independent review of
 `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record is `plan/learned/1307-rfc-evidence-tier-vacuity.md`), while closing
@@ -52,11 +57,69 @@ still denies a broken run, so the coverage is real, but the failure it reports i
 The same arithmetic applies to any `.ci` whose timeout is under 30 seconds. This
 spec must survey them rather than fix the one instance found.
 
+### Guard 3: a RIB query that failed answers 0 (DONE 2026-08-07)
+
+Homed here by `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md`.
+
+`Ze.rib_count` (`test/interop/interop.py`) ran its query through
+`docker_exec_quiet`, which returns "" on any non-zero exit, then returned 0 when
+the regex found nothing. A failed query and an empty RIB were the same number.
+
+**This guard cost three days and hid three separate faults**, which is the
+clearest evidence in the repo for why a fail-open reader is worse than none:
+
+| Fault | Producer | Fixed by |
+|-------|----------|----------|
+| `ze <verb> ...` resolved almost nothing. 56 of the 63 `ze show` subcommands answered `unknown command` on the host, and every other YANG verb with them | `RunCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`) walked the verb-RELATIVE tree from `cli.BuildVerbCommandTree` (`bgp rib status`) with the verb-INCLUSIVE argv (`show bgp rib status`) | `ResolveCommand` aligns the two and `cli.AbsoluteVerbPath` (`internal/component/cli/client/verb_tree.go`) rebuilds the absolute path the registries and the daemon are keyed on |
+| The interop daemon started no SSH listener, so no CLI client could reach it whatever the verb | `infraSetup` (`cmd/ze/hub/infra_setup.go`) starts one only when the config asks, and no scenario `ze.conf` asked | `ZE_CLI_CONFIG` appended to every RENDERED `ze.conf`, queried through `ze cli -c` |
+| The helper itself | `Ze.rib_count` | raises, naming the command and the container |
+
+The verb fault was invisible to every other gate: `make ze-cli-grammar-check`
+checks how commands are DECLARED, and the `.ci` suite and the interactive CLI
+both resolve through the daemon dispatcher, which was never broken.
+`TestDeclaredCommandsResolveFromArgv`
+(`cmd/ze/internal/cmdutil/cmdutil_test.go`) is the gate that was missing: it
+drives `ResolveCommand` with a real argv for every declared `ze:command`. Mutating
+the alignment back fails it on 305 paths.
+
+### Guard 4: nothing stops a new scenario writing the swallowed call again
+
+Homed here on 2026-08-08 from `plan/deferrals/ad-hoc-2026-08-08-031d68b3.md`,
+while `ze show host` was repaired (`internal/plugins/host-cmd/yang/ze-host-cmd.yang`).
+
+Guard 3 raised `Ze.rib_count`. It did not close the CLASS. `docker_exec_quiet`
+(`test/interop/interop.py`) still returns `""` on any non-zero exit, and 80 call
+sites read that return value. A scenario that runs the bare `ze <verb> ...` form
+inside a container gets `no credentials` from `readCredentials`
+(`internal/core/ssh/client/client.go`), which is turned into `""` and then into a
+passing assertion over nothing. Nineteen instances were fixed BY HAND on
+2026-08-07. Nothing refuses the twentieth.
+
+**A mechanical guard is what closes it.** The shape is a `scripts/dev/` lint with
+a sibling `_test.py`, wired into a make target and routed onto the verify path by
+`scripts/dev/verify_wiring_docs.py` when a scenario file changes. It reads the
+same population `ci_dispatch_commands` reads for `.ci` emitters
+(`scripts/checks/ci_dispatch_commands.go`), which is the precedent to follow
+rather than reinvent: fail closed on a string it cannot evaluate statically.
+
+Two things it must decide, and neither is obvious enough to leave to the
+implementer without a ruling:
+
+| Question | Why it needs an answer before code |
+|----------|------------------------------------|
+| Does the lint ban the bare `ze <verb>` form inside a container, or does it require every `docker_exec_quiet` return value to be checked? | The first is narrow and catches today's nineteen. The second catches the class and touches all 80 sites |
+| Does `docker_exec_quiet` keep its fail-open contract at all? | Its docstring promises "empty string on failure", so callers are written against it. Making it raise is a one-line change with an 80-site blast radius, and it may be the correct fix rather than the lint |
+
+This is new tool + make target + docs + rules wiring, which is why it was homed
+here rather than folded into the `ze show host` repair.
+
 ## Required Reading
 
 | Document | Why |
 |----------|-----|
-| `ai/rules/evidence.md` | The rule both guards break, and the shape of the repair |
+| `ai/rules/evidence.md` | The rule all four guards break, and the shape of the repair |
+| `scripts/checks/ci_dispatch_commands.go` | Guard 4's precedent: a checker over test call sites that fails closed on what it cannot read |
+| `test/interop/interop.py` | Guard 4's producing function, `docker_exec_quiet` |
 | `ai/rules/testing.md` | Observer-exit antipattern, and how a harness hides a broken production path |
 | `internal/test/peer/peer_connmap.go` | Guard 1's producing function |
 | `test/scripts/ze_api.py` | Guard 2's producing function and its timeout contract |
@@ -151,6 +214,10 @@ here may expose tests that were passing for the wrong reason, which is the point
 | AC-4 | Every `.ci` invoking `run_rs_observer` | Surveyed, and none leaves the diagnostic unreachable |
 | AC-5 | The full functional suite, before and after | Same set of passing tests, or a named test whose green was false, with the evidence |
 | AC-6 | Guard 1 mutated to return success unconditionally | `TestCancelledAcceptDoesNotReportSuccess` turns red |
+| AC-7 | `show bgp rib status` fails, or answers without a `routes-in` field | `Ze.rib_count` raises and names the container and the command. It never returns 0. **MET** |
+| AC-8 | Any `ze:command` a built-in declares, typed as a shell argv with its verb | resolves, and dispatches on that same absolute path. **MET**, `TestDeclaredCommandsResolveFromArgv` |
+| AC-9 | The word alignment in `ResolveCommand` mutated back | `TestDeclaredCommandsResolveFromArgv` turns red. **MET**, 305 paths red on the mutation |
+| AC-10 | `make ze-interop-test INTEROP_SCENARIO=05-routes-from-frr` | passes on a real received-route count. **MET**, 3 routes; `06` 3, `13` 1 |
 
 ## End-to-End User Stories
 
@@ -187,6 +254,13 @@ here may expose tests that were passing for the wrong reason, which is the point
 - `test/scripts/ze_api.py` - guard 2
 - `docs/functional-tests.md` - the observer's timeout contract, once AC-3 settles how the two budgets relate
 - any `.ci` the AC-4 survey names
+
+Guard 3, done 2026-08-07:
+- `test/interop/interop.py` - `Ze.rib_count` raises; `Ze.cli`; `ZE_CLI_CONFIG` appended to every rendered `ze.conf`; `docker_exec` takes `env`
+- `cmd/ze/internal/cmdutil/cmdutil.go` - `ResolveCommand` aligns argv with the verb-relative tree
+- `internal/component/cli/client/verb_tree.go` - the verb tree and `AbsoluteVerbPath`, split out of `main.go`
+- `cmd/ze/internal/cmdutil/cmdutil_test.go` - `TestDeclaredCommandsResolveFromArgv` and three named cases
+- `test/interop/scenarios/13-graceful-restart-frr/frr.conf` - a prefix for FRR to advertise
 
 Note for a future reader: every file above lives in the test harness, and the
 `validate-spec.sh` feature-integration check reads that as a tests-only spec. The

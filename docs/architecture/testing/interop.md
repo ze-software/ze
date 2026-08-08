@@ -124,6 +124,33 @@ All classes (`FRR`, `BIRD`, `GoBGP`, `Ze`) are defined in `interop.py`. Each wra
 daemon's native CLI (`vtysh`, `birdc`, `gobgp`, `ze`) via `docker exec`. Start with an
 existing scenario (e.g., `01-ebgp-ipv4-frr/check.py`) as a template.
 
+### Querying Ze
+
+`Ze.cli(command)` is the only way to ask the Ze daemon anything. It runs
+`ze cli -c <command> --user ... --format json` inside the container.
+
+Two properties of that line are load-bearing and neither is obvious.
+
+`ze cli -c` rather than the verb form `ze show bgp rib status`: `--user` and
+`--format` are flags of `ze cli`, and the verb form has no slot for either.
+
+The daemon starts an SSH listener only when its config asks for one
+(`infraSetup`, `cmd/ze/hub/infra_setup.go`), and `ze cli` reaches the daemon over
+SSH. No scenario `ze.conf` asks. The harness appends `ZE_CLI_CONFIG` -- the
+listener plus the account it authenticates against -- to the RENDERED copy of
+every `ze.conf` (`_render_scenario_dir`), so no scenario carries the boilerplate
+and none can forget it. A scenario that forgot it would fail its assertions for a
+reason unrelated to what it tests. `test/ipsec-interop/lab.py` does the same thing
+for the IPsec lab.
+
+**A Ze helper never converts a failed query into a plausible number.**
+`Ze.rib_count` raises when the command fails or answers without a `routes-in`
+field, because 0 is a legitimate RIB size and a failed query is not
+(`ai/rules/evidence.md`). It returned 0 on failure until 2026-08-07 and three
+separate faults hid behind that one number for three days
+(`plan/spec-fixit-test-harness-fail-open-guards.md`, guard 3). Write new Ze
+helpers the same way.
+
 All session waiters poll with a configurable timeout (default 90s, override via `SESSION_TIMEOUT` env var).
 The harness passes that value into the Ze container as `SESSION_TIMEOUT`, so a process
 plugin can size its own barriers against the harness budget instead of repeating a
