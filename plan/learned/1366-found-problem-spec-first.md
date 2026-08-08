@@ -68,6 +68,11 @@ same-session fix that delays the work it was found during.
   A reader who stops at the general statement is the one the corpus misleads.
   `make ze-rules-gate-map` fails when the named point does not exist, so the link
   cannot rot silently.
+- **A summary needs a `## Files` section even when its subject is prose.**
+  `scripts/dev/learned_staleness.py` counts a missing one as a finding, so this summary
+  shipped without it and took the corpus one over the ceiling in
+  `plan/.learned-staleness-baseline`. That made `make ze-doc-test` red at HEAD for
+  everybody until the heading was added.
 - **Rendering in a shared checkout carries other sessions' unlanded rule text.** Two
   concurrent sessions held uncommitted point edits under `testing/` and
   `rfc-compliance/`. `make ze-rules-render` reads the working tree, so the tree's
@@ -76,3 +81,17 @@ same-session fix that delays the work it was found during.
   (`docs/contributing/rule-authoring.md`, "Committing"), and the scratch tree needs
   `rules_lint.py`, `rules_router.py` and `plan/` beside the three generators or they
   fail on import.
+
+## Files
+
+- `ai/rules/completion.md`
+- `ai/rules/rule-precedence.md`
+- `ai/rules/rfc-compliance.md`
+- `ai/rules/git-safety.md`
+- `ai/rules/planning.md`
+- `ai/rules/repo-maintenance.md`
+- `ai/INSTRUCTIONS.md`
+- `.claude/hooks/block-premature-stop.sh`
+- `docs/contributing/rule-authoring.md`
+- `scripts/dev/rules_lint.py`
+- `scripts/dev/rules_router.py`
