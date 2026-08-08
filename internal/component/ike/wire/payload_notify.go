@@ -125,13 +125,18 @@ func NotifyTypeRecognized(t uint16) bool {
 	return ok
 }
 
+// notifyTypeUnrecognized is the name NotifyTypeName returns for a type the
+// registry does not hold. It is named because the tests that pin the
+// fail-closed behavior compare against it.
+const notifyTypeUnrecognized = "UNRECOGNIZED"
+
 // NotifyTypeName returns the RFC name of a notify message type for log text, or
-// "UNRECOGNIZED" when the registry holds no entry.
+// notifyTypeUnrecognized when the registry holds no entry.
 func NotifyTypeName(t uint16) string {
 	if name, ok := notifyTypeNames[t]; ok {
 		return name
 	}
-	return "UNRECOGNIZED"
+	return notifyTypeUnrecognized
 }
 
 // PayloadNotify is the Notify payload (type 41).

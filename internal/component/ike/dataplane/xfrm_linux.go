@@ -608,10 +608,20 @@ func zeXFRMMode(kernelMode uint8) (uint8, bool) {
 
 func (b *xfrmBackend) Close() error { return b.espForms.Close() }
 
+// Kernel transform names, spelled as the kernel's algorithm registry spells
+// them (net/xfrm/xfrm_algo.c). Each of the three is both a mapped result and
+// the fallback its own switch returns for an unknown algorithm, so each is
+// named once here rather than written twice.
+const (
+	xfrmEncAESCBC  = "cbc(aes)"
+	xfrmAEADAESGCM = "rfc4106(gcm(aes))"
+	xfrmAuthSHA256 = "hmac(sha256)"
+)
+
 func xfrmEncName(algo string) string {
 	switch algo {
 	case "aes128", "aes256":
-		return "cbc(aes)"
+		return xfrmEncAESCBC
 	case "3des":
 		return "cbc(des3_ede)"
 	case "null":
@@ -622,25 +632,25 @@ func xfrmEncName(algo string) string {
 		// accepted string on the appliance kernel in QEMU (cannot be exercised here).
 		return "ecb(cipher_null)"
 	default:
-		return "cbc(aes)"
+		return xfrmEncAESCBC
 	}
 }
 
 func xfrmAEADName(algo string) string {
 	switch algo {
 	case "aes128gcm", "aes256gcm":
-		return "rfc4106(gcm(aes))"
+		return xfrmAEADAESGCM
 	case "chacha20poly1305":
 		return "rfc7539esp(chacha20,poly1305)"
 	default:
-		return "rfc4106(gcm(aes))"
+		return xfrmAEADAESGCM
 	}
 }
 
 func xfrmAuthName(algo string) string {
 	switch algo {
 	case "sha256":
-		return "hmac(sha256)"
+		return xfrmAuthSHA256
 	case "sha384":
 		return "hmac(sha384)"
 	case "sha512":
