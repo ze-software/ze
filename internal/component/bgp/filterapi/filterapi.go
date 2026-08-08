@@ -162,9 +162,11 @@ type ModAccumulator struct {
 	// append the single largest allocation source on the filter-delta path
 	// (spec-perf-next-2-filter-delta-alloc, Phase B).
 	//
-	// Reset re-slices ops to zero length and does NOT re-zero this array, for
-	// the reason Reset's doc gives: the entries are unreachable at length zero
-	// and zeroing would make Reset scale with capacity.
+	// Reset re-slices ops to zero length AND re-zeroes this array. Length zero
+	// makes the entries unreadable, but an AttrOp holds Buf, so leaving them set
+	// keeps the previous destination's payload alive for the whole of the next
+	// one. The array is a fixed eight entries, so the clear is constant and
+	// Reset does not scale with capacity.
 	opsArr [opsInline]AttrOp
 
 	// gens holds the value generators recorded for this destination, addressed by
@@ -220,11 +222,19 @@ func (a *ModAccumulator) HasModifications() bool {
 //
 // Reset clears every field a later destination can read: the operation count,
 // the withdraw flag, both NLRI rewrites and the arena offset. It deliberately
-// does NOT re-zero the inline array or the operations backing array. Both are
-// unreachable once the offset and the length are zero, and zeroing either would
-// make Reset scale with capacity -- which is the whole cost the hoist removes,
-// and which grows as the arena grows.
+// does NOT re-zero the inline arena. That arena is unreachable once the offset
+// is zero, and zeroing it would make Reset scale with capacity -- which is the
+// whole cost the hoist removes, and which grows as the arena grows.
 func (a *ModAccumulator) Reset() {
+	// Operations MUST be re-zeroed rather than merely re-sliced, for the reason
+	// spelled out below for generators: an AttrOp holds Buf, a window into the
+	// previous destination's payload. Both clears are bounded. clear(a.ops)
+	// runs over the LENGTH, and clear over opsArr runs over eight entries
+	// whatever the length, which is what closes the overflow case: once a
+	// destination exceeds opsInline the slice moves to the heap and the inline
+	// array keeps the first eight operations it was grown out of.
+	clear(a.ops)
+	clear(a.opsArr[:])
 	a.ops = a.ops[:0]
 	a.withdraw = false
 	a.nlriRewrite = nil
