@@ -22,6 +22,47 @@ cd "$repo"
 # (ze-kernel-overlay) test relies on. This test now touches no shared global path.
 mkdir -p "$work/fakebin" "$work/cache"
 
+# ze writes its own diagnostics to files so the greps below can read stdout.
+# Print both when the script fails, or the runner reports only "Client produced
+# no output" and the reader has to reproduce the run to learn the reason.
+dump_ze_output() {
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		echo "--- ze stdout ---" >&2
+		[ -f "$work/stdout" ] && cat "$work/stdout" >&2
+		echo "--- ze stderr ---" >&2
+		[ -f "$work/stderr" ] && cat "$work/stderr" >&2
+	fi
+	exit "$rc"
+}
+trap dump_ze_output EXIT
+
+# The fake resolved .config is DERIVED from the authoritative sources, never
+# hand-listed. enforceKernelRequirements (internal/appliance/kernelreq.go) reads
+# the require manifests of the runtime profile plus the Go floor
+# runtimeKernelRequirements, so a copy of that set in this file is a duplicate
+# that goes stale the day a symbol is added. It did: commit b38706464 pinned the
+# netfilter surface in gokrazy/kernel/kernel.require and this test went red with
+# "CONFIG_NF_TABLES did not resolve to =y" and no output.
+#
+# The union below covers both readers. Every *.require symbol is what the check
+# enforces; every *.config "=y" request covers the Go floor, which must be
+# requested in a fragment for any real build to satisfy it either.
+#
+# The shared includes are collected with find, not a glob: a glob that matches
+# nothing expands to itself, and cat would then fail on a literal path under
+# set -e for no reason a reader could see.
+kernel_config=$work/fake-kernel-config
+cat gokrazy/kernel/kernel.require gokrazy/kernel/runtime.require \
+	gokrazy/kernel/kernel.config gokrazy/kernel/runtime.config \
+	$(find tools/kernel-builder/common -name '*.require') |
+	sed 's/#.*//' |
+	tr -d ' \t' |
+	sed 's/=.*//' |
+	grep '^CONFIG_' |
+	sort -u |
+	sed 's/$/=y/' > "$kernel_config"
+
 cat > "$work/fakebin/docker" <<'EOF_DOCKER'
 #!/bin/sh
 set -eu
@@ -35,30 +76,15 @@ if [ "$1" = run ]; then
 					mkdir -p "$out/lib/modules/7.1.1-ze"
 					printf 'runtime-vmlinuz\n' > "$out/vmlinuz"
 					printf '' > "$out/lib/modules/7.1.1-ze/modules.dep"
-					# This fake kernel config must satisfy enforceKernelRequirements:
-					# every symbol in gokrazy/kernel/runtime.require and the runtime
-					# floor (internal/appliance/kernelreq.go runtimeKernelRequirements)
-					# must appear here as =y. Adding a symbol to runtime.require (e.g.
-					# CONFIG_HUGETLBFS for VPP) requires adding it here too, or this
-					# test fails with "<SYMBOL> did not resolve to =y".
-					cat > "$out/config" <<'EOF_CONFIG'
-CONFIG_IP_PNP_DHCP=y
-CONFIG_EXT4_FS=y
-CONFIG_BLK_DEV_INITRD=y
-CONFIG_DEVTMPFS_MOUNT=y
-CONFIG_MODULES=y
-CONFIG_PPP=y
-CONFIG_PPPOE=y
-CONFIG_L2TP=y
-CONFIG_PPPOL2TP=y
-CONFIG_L2TP_V3=y
-CONFIG_VETH=y
-CONFIG_MACVLAN=y
-CONFIG_BPF_SYSCALL=y
-CONFIG_BPF_JIT=y
-CONFIG_VIRTIO_NET=y
-CONFIG_HUGETLBFS=y
-EOF_CONFIG
+					# test-relax: the 16 hand-listed CONFIG_ lines here are
+					# REPLACED, not dropped. They were a copy of the require
+					# manifests, and a copy goes stale: commit b38706464 pinned
+					# the netfilter surface in gokrazy/kernel/kernel.require and
+					# this test went red on CONFIG_NF_TABLES. run.sh now derives
+					# the same file from those manifests plus the config
+					# fragments, which is a SUPERSET of the old list (all 16
+					# appear in it) and cannot drift again.
+					cp "$ZE_FAKE_KERNEL_CONFIG" "$out/config"
 					;;
 			esac
 		fi
@@ -71,6 +97,7 @@ chmod +x "$work/fakebin/docker"
 PATH="$work/fakebin:$PATH" \
 XDG_CACHE_HOME="$work/cache" \
 ZE_KERNEL_TEST_OUTPUT_DIR="$work/out" \
+ZE_FAKE_KERNEL_CONFIG="$kernel_config" \
 "$ze_bin" appliance kernel --target runtime --arch amd64 --builder docker >"$work/stdout" 2>"$work/stderr"
 
 grep -q 'via run.py' "$work/stdout"
