@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 27 rules
+Total: 28 rules
 
 | Rule | When to read | Severity | File |
 |------|--------------|----------|------|
@@ -33,6 +33,7 @@ Total: 27 rules
 | RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements | blocking | `ai/rules/rfc-compliance.md` |
 | Rule File Format | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment | blocking | `ai/rules/rule-format.md` |
 | Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |
+| Simplest Correct Solution | choosing how to fix a defect or build a feature, and whenever a change adds an abstraction, an option, or a layer the problem in hand does not need | blocking | `ai/rules/simplicity.md` |
 | No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
 | Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |
 | Testing | writing, changing, or deleting any test, and before writing implementation code for new behavior | blocking | `ai/rules/testing.md` |

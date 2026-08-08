@@ -177,7 +177,22 @@ phase itself.
     Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `performance.md`.
 
 15. **Plugin traversal + config-surface check:** If config structure changed, grep for all code reading the old structure. When the diff nests a config container, adds a plugin `show`/RPC command, registers a wire method, or adds a plugin-loading `.ci`, also apply the **Config-Surface & Command-Tree Checks** section (golden-snapshot sync, merged-node description parity, nested-ConfigRoot unwrap, needs-linux for dependency-pulling `.ci`).
-16. **Altitude check:** For each change, ask: is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
+16. **Altitude and simplicity check:** For each change, ask two questions. Both are about the amount of machinery, and they fail in opposite directions.
+
+    **Too shallow (altitude):** is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
+
+    **Too much (simplicity, `ai/rules/simplicity.md`):** is this the simplest FULLY CORRECT answer? For every construct in the table below that the diff adds, name the requirement or the second use case behind it. When neither exists, report as ISSUE, naming the construct and the simpler shape.
+
+    | Construct in the diff | Report unless |
+    |-----------------------|---------------|
+    | New interface, or a new generic mechanism | A second implementation or a second call site exists in this diff or in the tree |
+    | New config option, flag, or function parameter | A caller needs a different value, or an operator asked for the choice |
+    | New wrapper, adapter, or layer | It transforms something (type conversion, error wrapping, defaults) |
+    | New branch, guard, or error path | An input can actually produce that state |
+    | New retry, cache, pool, or worker | A measurement, not an expectation, showed the problem |
+    | A rewrite where a small change restores correctness | The small change was tried and does not restore it |
+
+    **A simplicity finding never asks for less correctness.** Cutting an acceptance criterion, an RFC MUST, a test, or a guard is the opposite failure. It is already a BLOCKER under steps 2, 13, and 20. Quality is 0% compromise, and this step cuts machinery only.
 17. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 13-14 above cover logic and performance specifically; this step covers structural and convention rules):
 
 | Changed code touches | Check against |
@@ -189,6 +204,7 @@ phase itself.
 | CLI handler | `cli.md` -- flag.NewFlagSet, exit codes, stderr for errors, tab-completion |
 | Config parsing | `config.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `architecture.md` -- lazy over eager, no identity wrappers |
+| Any new abstraction, option, layer, or parameter | `simplicity.md` -- the simplest fully correct answer, and nothing beyond it |
 
 18. **Filter false positives:** Before reporting, discard findings that match any of these:
 
@@ -198,7 +214,7 @@ phase itself.
 | Linter/compiler-catchable (imports, types, formatting) | `make ze-lint` catches these separately |
 | Issue on unmodified lines, when the goal does not depend on it | This review does not cover it. Never discard an always-in-scope class this way (`ai/rules/planning.md`, "Bounding the loop", which owns the list). An absence sits on no changed line, so this row would otherwise swallow every one of them |
 | Intentional behavioral change clearly related to the broader diff | Not a bug, it is the point |
-| General quality concern not tied to a specific bug | Too vague to act on |
+| General quality concern not tied to a specific bug | Too vague to act on. A simplicity finding from step 16 is NOT this: it names the construct, the file, and the simpler shape |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
     **Never discard wiring, functional-test, removed-behavior, logic, altitude, or hot-path performance findings.** An unwired symbol is dead code in production. A missing functional test is a coverage gap. A lost invariant from deleted code is a correctness regression. A logic bug (wrong condition, wrong variable, off-by-one) is a correctness defect. A bandaid fix at the wrong depth compounds maintenance cost. A hot-path allocation is measurable overhead. These always survive this filter.

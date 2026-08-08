@@ -8,7 +8,7 @@ in hand, READ that rule's file before acting. A row marked `always-on` is
 already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away at the path in its row.
 
-Rules: 27 (27 blocking, 0 advisory). Always-on: 8.
+Rules: 28 (28 blocking, 0 advisory). Always-on: 8.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
@@ -35,6 +35,7 @@ Rules: 27 (27 blocking, 0 advisory). Always-on: 8.
 | `ai/rules/rfc-compliance.md` | blocking, always-on | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements |
 | `ai/rules/rule-format.md` | blocking | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment |
 | `ai/rules/rule-precedence.md` | blocking, always-on | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue |
+| `ai/rules/simplicity.md` | blocking | choosing how to fix a defect or build a feature, and whenever a change adds an abstraction, an option, or a layer the problem in hand does not need |
 | `ai/rules/spec-no-code.md` | blocking | writing or editing a spec |
 | `ai/rules/stale-comments.md` | blocking, always-on | when changing code behavior |
 | `ai/rules/testing.md` | blocking | writing, changing, or deleting any test, and before writing implementation code for new behavior |

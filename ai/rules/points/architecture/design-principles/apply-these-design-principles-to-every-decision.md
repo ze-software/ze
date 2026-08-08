@@ -6,6 +6,7 @@ stage:
 | Principle | Rule |
 |-----------|------|
 | YAGNI | Don't build what's not immediately needed |
+| Simplest correct solution | The simplest answer that is FULLY correct, and nothing beyond it. It cuts machinery, never correctness. `ai/rules/simplicity.md` owns this and is BLOCKING |
 | Simplicity | Boring code that obviously works > clever code |
 | No identity wrappers | Wrapper must transform (type conversion, error wrapping, defaults). A struct holding raw data + accessor methods is an identity wrapper, pass the data, use existing type methods |
 | Single responsibility | One thing per function/struct/package. "And" in name = split |

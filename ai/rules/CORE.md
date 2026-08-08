@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 8 of 27. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 8 of 28. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -466,6 +466,8 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 **The route is fixed and it has four steps: spec the defect, close the work in hand, ask Thomas whether to implement that spec, stop.** You do not fix it after closing either, and silence is not consent (`completion.md`, "A problem you FIND while working on something else gets a SPEC"). The one defect you fix on the spot is the one that BLOCKS the goal, because there is no closing the work in hand around it.
 **Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`completion.md`).
 **A spec is not a record, so this question decides WHAT you write, never WHETHER the fix happens.** A reproducible defect that does not block the work in hand still gets a spec and an ask rather than a same-session fix (the point above); the shard route stays reserved for the failure you could not reproduce.
+**Simplest-correct-solution sits UNDER rungs 2 and 3, never beside them.** `ai/rules/simplicity.md` requires the simplest fully correct answer, and "fully correct" is what rungs 2 and 3 already own. It cuts machinery: an abstraction with one user, an option nobody asked for, a layer that transforms nothing. It never cuts correctness, conformance, a test, a guard, or an error path, and quality is 0% compromise.
+**The simplest design is usually the HARDEST to find. "This was the pragmatic option under time pressure" is the tell that a lower rung is being read as a license.** Not seeing the simple design is a reason to think longer, or to ask which way. It is never a reason to ship the complicated answer or the incomplete one.
 **A rule's own subject matter is never overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
 **If the ladder genuinely does not resolve a conflict, say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
 

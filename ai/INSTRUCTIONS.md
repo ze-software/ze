@@ -294,6 +294,7 @@ means "no rule applies".
 | Start a session | `.claude/rules/session-start.md` |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/architecture.md` -- grep ze before proposing, never default to trained instincts |
+| Choose the shape of a fix, or add an abstraction, option, layer, or parameter | `ai/rules/simplicity.md` -- the fix MUST be the simplest FULLY CORRECT answer. Simplicity cuts machinery, never correctness: quality is 0% compromise. The simplest design is usually the hardest to find, so budget the thinking. Another problem you see gets its own spec, never an extra branch here |
 | Start a planning, implementation, or review phase | `ai/rules/planning.md` -- review runs on Opus 5 and is INDEPENDENT of the author; implementation carries no model requirement |
 | Work on ANY spec (research, design, implement, review, close) | `ai/rules/planning.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
 | Make a behavioral claim about code, or recommend work based on one | `ai/rules/evidence.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |

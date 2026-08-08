@@ -27,6 +27,7 @@ and gated fresh, so they never lie about the current code.
 | Choose internal/core vs internal/component vs internal/plugins for a new package | `ai/rules/architecture.md` | Tier = dependency direction; engine placement gated by `make ze-tier-check` (`scripts/dev/dep_audit.py --check`) |
 | Test linux-only code (QEMU) | `ai/rules/platform-linux.md` | `ai/rules/testing.md` (Linux-Only Tests section) |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/completion.md` | Implement the missing behavior at the source, never route around it |
+| Decide how much machinery a fix or feature needs (KISS, MVP, over-engineering) | `ai/rules/simplicity.md` | The simplest FULLY CORRECT answer, nothing beyond it. Cuts machinery, never correctness. A second problem gets its own spec, never an extra branch in this fix |
 | Modify wire encoding | `ai/rules/performance.md` | `docs/architecture/buffer-architecture.md` |
 | Add route processing | `ai/rules/architecture.md` | `docs/architecture/core-design.md` |
 | Detect and auto-mitigate a DDoS flood | `docs/guide/ddos-mitigation.md` | `ddos-detect` characterizes the attack (family + vector) from `traffic-usage`/`flow-export`; `ddos-local`/`ddos-flowspec` install surgical rules; `show flow recent` inspects the flow ring |
