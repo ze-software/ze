@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -361,19 +360,26 @@ func runEngine(conn net.Conn) int {
 			}
 		}
 
+		// The listen host of BOTH sockets. It is computed once, outside the two
+		// blocks below, because the engine listens at ONE address and its two
+		// sockets must agree on which. They did not: the NAT-T socket took the
+		// wildcard whenever no interface was configured, so it claimed port 4500
+		// for the whole host while the IKE socket was bound to one address.
+		ifaceHost := ""
+		if cfg.Interface != "" {
+			ifaceHost, _ = resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // the OnConfigure branch above already reported this failure
+		}
+		peerLocal := ""
+		for name := range cfg.Peers {
+			if la := cfg.Peers[name].LocalAddress; la != "" {
+				peerLocal = la
+				break
+			}
+		}
+		listenHost := ikeListenHost(ifaceHost, peerLocal)
+
 		if tr == nil && len(cfg.Peers) > 0 {
-			ifaceHost := ""
-			if cfg.Interface != "" {
-				ifaceHost, _ = resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // the OnConfigure branch above already reported this failure
-			}
-			peerLocal := ""
-			for name := range cfg.Peers {
-				if la := cfg.Peers[name].LocalAddress; la != "" {
-					peerLocal = la
-					break
-				}
-			}
-			listenAddr := ikeAddr(ikeListenHost(ifaceHost, peerLocal))
+			listenAddr := ikeAddr(listenHost)
 			var tErr error
 			tr, tErr = transport.NewUDPTransport(listenAddr, log)
 			if tErr != nil {
@@ -386,17 +392,17 @@ func runEngine(conn net.Conn) int {
 
 		// RFC 3948: start NAT-T listener on port 4500 for UDP-encapsulated IKE and ESP.
 		if trNATT == nil && len(cfg.Peers) > 0 {
-			nattAddr := "0.0.0.0:4500"
-			if cfg.Interface != "" {
-				// The OnConfigure branch above already reported a lookup failure.
-				ip, _ := resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // reported above
-				if ip != "" {
-					nattAddr = textbuf.HostPort(ip, 4500)
-				}
-			}
 			var nErr error
-			trNATT, nErr = transport.NewNATTTransport(nattAddr, log)
+			trNATT, nErr = transport.NewNATTTransport(nattAddr(listenHost), log)
 			if nErr != nil {
+				// Recorded, not only logged. Without the socket ze receives no
+				// UDP-encapsulated ESP at all, which is a stronger failure than the
+				// UDP_ENCAP one below, and the doctor check read an unset state as
+				// "no NAT-T listener was ever asked for" and said nothing. A guard
+				// that goes quiet on the worse failure fails open
+				// (ai/rules/evidence.md).
+				setUDPEncapFailure(nErr)
+				countUDPEncapFailure()
 				log.Warn("ike: failed to start NAT-T transport", "error", nErr)
 			} else {
 				// RFC 7296 Section 2.23 MUST: "all devices MUST be able to receive and

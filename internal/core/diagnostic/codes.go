@@ -503,13 +503,15 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:  "doctor-ipsec-udp-encap",
-		Title: "IPsec UDP encapsulation not enabled",
-		Description: "The IKE NAT-T socket on UDP port 4500 does not carry the UDP_ENCAP option, " +
-			"so the kernel will not decapsulate ESP that arrives inside UDP. RFC 7296 Section 2.23 " +
-			"requires an implementation that supports NAT traversal to process UDP-encapsulated ESP " +
-			"at any time. A tunnel through a NAT will establish and then carry no traffic. On Linux " +
-			"this usually means the setsockopt call was refused. On another platform it means the " +
-			"host has no IPsec dataplane at all.",
+		Title: "IPsec UDP encapsulation not available",
+		Description: "ze cannot receive UDP-encapsulated ESP on the IKE NAT-T port 4500. Either the " +
+			"socket would not bind, so ze does not hold that port, or it bound and does not carry " +
+			"the UDP_ENCAP option, so the kernel will not decapsulate ESP that arrives inside UDP. " +
+			"RFC 7296 Section 2.23 requires an implementation that supports NAT traversal to process " +
+			"UDP-encapsulated ESP at any time. A tunnel through a NAT will establish and then carry " +
+			"no traffic. A bind failure usually means another process holds port 4500. On Linux a " +
+			"UDP_ENCAP failure usually means the setsockopt call was refused. On another platform it " +
+			"means the host has no IPsec dataplane at all.",
 		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-udp-encap"},
 	},
 	{
