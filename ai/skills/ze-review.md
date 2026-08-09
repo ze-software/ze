@@ -253,6 +253,8 @@ phase itself.
     - **ISSUE:** Logic error, performance problem on hot path, missing test, edge case not handled
     - **NOTE:** Suggestion or minor observation
 
+    A defect in TEST-ONLY code (a helper, a fixture builder, a `.ci` or `.et` script, a runner under `test/`) that cannot reach the product is a NOTE, whatever it would score in shipped code. It keeps its severity when it leads to NO TESTING (the test never runs, the harness never reaches the code, the assertion is swallowed, the fixture builds the wrong scenario), when it changes what the test PROVES, or when it stops a gate refusing what that gate exists to refuse (`ai/rules/planning.md`, "A defect in test-only code is not a finding in the product", and `ai/rules/testing.md`, "Test Code Is Held to One Standard").
+
 ## Edge Case Techniques (MANDATORY)
 
 Apply each technique to every changed component. These find bugs that happy-path review misses.

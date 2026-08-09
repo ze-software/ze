@@ -497,6 +497,8 @@ For each remaining finding, classify it as one of:
 - **PLAUSIBLE:** The scenario is realistic but depends on runtime state. Keep these.
 - **REFUTED:** Provably impossible from the code. Quote the guard, cite the type constraint, or show the invariant that prevents it. Or: factually wrong about what the code does.
 
+**A finding in TEST-ONLY code that cannot reach the product is a Low/Note, whatever it would score in shipped code.** Helpers, fixture builders, `.ci` and `.et` scripts and the runners under `test/` ship in no binary. Such a finding keeps its severity when it leads to NO TESTING (the test never runs, the harness never reaches the code, the assertion is swallowed, the fixture builds the wrong scenario), when it changes what the test PROVES, or when it stops a gate refusing what that gate exists to refuse (`ai/rules/planning.md`, "A defect in test-only code is not a finding in the product").
+
 **PLAUSIBLE is the default.** Do not refute a finding for being "speculative" or "depends on runtime state" when the state is realistic: concurrency races, nil on a rare-but-reachable path (error handler, cold cache, missing optional field), falsy-zero treated as missing, off-by-one on a boundary the code does not exclude, retry storms, partial failures, regex that lost an anchor. Only refute when you can construct the proof from the code itself.
 
 Drop REFUTED findings. Keep CONFIRMED and PLAUSIBLE.

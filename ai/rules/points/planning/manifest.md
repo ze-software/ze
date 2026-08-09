@@ -94,6 +94,7 @@ critical-review-is-the-central-deliverable ## Critical Review Is the Central Del
   bounding-the-loop
   how-each-review-round-is-scoped-and-when-it-ends
   a-finding-in-the-record-is-not-a-finding-in-the-product
+  a-defect-in-test-only-code-is-not-a-finding-in-the-product
   state-the-review-effort-before-you-spend-it
   announce-the-pass-count-and-lenses-before-spawning
   enforcement-critical-review-structural-a-hook-not-discipline
@@ -115,6 +116,7 @@ spec-closure-blocking ## Spec Closure (BLOCKING)
   what-each-reference-gate-reads
   what-a-design-only-grep-cost-twice-in-one-day
   re-read-what-a-bulk-repoint-produced
+  baseline-a-citation-only-when-it-is-a-historical-record
   resolve-rows-pointing-at-the-spec-during-closure
   why-closure-must-resolve-rows-that-name-the-spec
   never-resolve-a-row-to-a-record-that-omits-the-item
@@ -197,6 +199,7 @@ executive-summary-report ## Executive Summary Report
   the-purpose-of-each-executive-summary-section
 documentation-update-checklist-blocking ## Documentation Update Checklist (BLOCKING)
   where-the-canonical-documentation-checklist-lives
+  a-new-page-or-a-changed-claim-owes-an-independent-reader
 writing-journal-rows ## Writing Journal Rows
   write-a-row-only-when-the-work-taught-something
   what-each-journal-row-cell-holds

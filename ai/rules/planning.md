@@ -457,6 +457,11 @@ reviewers caught on the same diff minutes later.
   the one nobody can write when the loop is auditing its own bookkeeping, which is
   what makes it the right toll.
 
+- **The same cut applies to TEST-ONLY code: a defect there that cannot reach the product is a NOTE, and a NOTE never re-opens a round.** Test helpers, fixture builders, `.ci` and `.et` scripts, the runners under `test/`, and the harness code that drives them ship in no binary an operator runs. An error branch nothing reaches, an edge case no caller has, a handle left open in a process that is about to exit: report it once if it is free to fix, and it earns no round, no spec, and no hold on a closure. Test code that runs and does its job is finished.
+- **A bug in test code that leads to NO TESTING is load-bearing, and it is fixed.** The test does not run, the runner skips it and reports green, the harness never reaches the code under test, the fixture builds the wrong scenario, the assertion is swallowed, the `.ci` observer exits before it checks: nothing is being tested and the suite says otherwise. That is a silent loss of coverage, which is the failure mode the always-in-scope list exists for, so it is a BLOCKER or an ISSUE like any other.
+- **The rest of the exception is the same cut one step on: a test defect keeps its severity when it changes what the test PROVES, or when it stops a gate refusing what that gate exists to refuse.** A test that cannot fail, one that passes while the behavior under test is broken, one that asserts the wrong value, an RFC-tagged test that no longer pins its requirement, a fixture that encodes a violation, a hook check that now lets its own class of mistake through: each damages the product's evidence rather than the harness, so the always-in-scope list above is unchanged.
+- **Two readings, and the one that governs.** "Test code must be valid and correct" asks for a harness that runs and that tells the truth about the product. It does not ask for the product's own bar on the harness itself (`ai/rules/testing.md`, "Test Code Is Held to One Standard"). A round spent on an unreachable branch in a fixture builder found nothing the product can feel.
+
 ### State the review effort before you spend it
 
 - **Name the pass count and the lenses BEFORE the first agent is spawned, so the operator can stop you.** An unannounced fan-out is a decision taken on the operator's behalf.
@@ -566,6 +571,14 @@ inside". Grep the new path next to `that spec`,
 `this spec`, `the pilot`, `owns`, `active` and `Depends`, and rewrite what reads
 wrong. Naming the spec WITHOUT its `plan/` path is the way to keep a true sentence
 about a file that is gone: the citation gate matches the path, not the name.
+
+**A spec-to-spec citation has three repairs, and the baseline is the last of them.**
+Repoint the citation at the durable document that replaced the spec. Restate the
+fact inline. Add the stem to `plan/.citation-baseline` when the citation is a
+historical record of the closed spec. All three ride on commit A, because commit
+B removes a spec and adds nothing. `spec-citation-check.py --write-baseline` is
+banned at closure: it regenerates the whole list from the current tree, so it
+grandfathers a citation that a repoint must fix.
 
 **Closure resolves the spec's deferral rows.** Before commit B, grep
 `plan/deferrals/` for this spec's filename (a row naming it as Destination may live in
@@ -935,6 +948,10 @@ narrative (`ai/rules/writing.md`).
 
 See `ai/rules/writing.md` for the canonical 12-row checklist.
 Every row must be answered Yes/No. Every Yes must name the file and what to add.
+
+- **A spec that CREATES a `docs/architecture/` page, or CHANGES a claim one of those pages makes about the code, MUST run `/ze-review-docs` over that page before it closes.** Record the pass in the spec's Pre-Commit Verification "Documentation Verified" table, which `/ze-close` already fills: name the page, the reviewing session, and the claims it checked.
+- **A new page or a changed claim is the whole trigger. A typo, a link repair, a heading move, a rename and a formatting pass owe no reader**, because none of them states anything new about the code.
+- **No gate discharges this.** A gate checks that a path resolves and that a named symbol is declared; a sentence that is WRONG about a symbol that exists passes every one of them, and the resolving anchor under it makes the sentence look checked. Only a reader can falsify prose.
 
 ## Writing Journal Rows
 

@@ -34,6 +34,8 @@ draft-a-functional-test-before-it-is-live-blocking ## Draft a Functional Test Be
   the-incubator-is-gitignored-and-gated-by-nothing
   a-draft-is-promoted-or-deleted-never-left
   promote-early-because-the-checks-start-when-live
+test-code-is-held-to-one-standard ## Test Code Is Held to One Standard
+  test-code-must-run-and-must-be-correct-about-the-product
 fix-code-not-tests ## Fix Code, Not Tests
   fix-the-code-when-a-test-fails-not-the-test
   never-change-test-data-to-make-a-test-pass
