@@ -18,8 +18,10 @@ and deletions, and is independent of staging state.
 
 Usage:
   review_gate.py hash   --files F...                 # print per-file hashes
-  review_gate.py record --spec STEM --verdict {clean|findings} --files F...
+  review_gate.py record --spec STEM --verdict {clean|findings} --rounds N
+                        --files F...
                         [--reviewers TEXT] [--findings-file PATH]
+                        [--rounds-reason TEXT]  # required past ROUND_CAP rounds
   review_gate.py check  --spec STEM --files F...      # exit 0 pass / 3 block
 
 Exit codes: 0 pass; 2 usage error; 3 gate BLOCK (missing/stale/dirty review).
@@ -36,6 +38,18 @@ import sys
 from pathlib import Path
 
 ARTIFACT_DIR = Path("tmp/review")
+
+# Round 1 reviews the whole diff, round 2 the fixes, round 3 the fixes to those
+# (ai/rules/planning.md, "How each review round is scoped and when it ends"). A
+# fourth round means the fixes are themselves producing findings, and the loop is
+# no longer converging on the product. On 2026-08-09 a test-only change took seven
+# passes: the code was clean after pass 1 and every later finding was a false
+# statement in the spec's own closure prose, so each round's prose fix gave the
+# next round fresh prose to audit (plan/learned/1368-vacuous-eor-family-tests.md).
+# The cap is not a ban -- a genuinely defective implementation can need more. It
+# costs one sentence naming what the extra round found in the PRODUCT, which is
+# the sentence nobody can write when the loop is auditing its own bookkeeping.
+ROUND_CAP = 3
 HEADER_RE = re.compile(
     r"<!--\s*ze-review\s+spec=(?P<spec>\S+)\s+verdict=(?P<verdict>\S+).*?-->"
 )
@@ -213,6 +227,28 @@ def cmd_record(args: argparse.Namespace) -> int:
     if verdict not in ("clean", "findings"):
         print("review_gate: --verdict must be clean|findings", file=sys.stderr)
         return 2
+    rounds = int(args.rounds)
+    rounds_reason = str(getattr(args, "rounds_reason", "") or "").strip()
+    if rounds < 1:
+        print(
+            "review_gate: --rounds must be at least 1; an artifact claiming zero "
+            "passes is a review that never ran",
+            file=sys.stderr,
+        )
+        return 2
+    if rounds > ROUND_CAP and not rounds_reason:
+        print(
+            f"review_gate: {rounds} review rounds needs --rounds-reason "
+            f"(the cap is {ROUND_CAP}).\n"
+            "  Name the PRODUCT defect a round past the cap found: wrong behavior, "
+            "a missing test, an unwired symbol, a guard that fails open.\n"
+            "  A false statement in the spec's own closure prose is NOT one. Fix "
+            "those in one edit and stop the loop; they ship nothing.\n"
+            "  See ai/rules/planning.md, 'How each review round is scoped and when "
+            "it ends'.",
+            file=sys.stderr,
+        )
+        return 2
     findings = ""
     if args.findings_file:
         fp = Path(args.findings_file)
@@ -223,7 +259,7 @@ def cmd_record(args: argparse.Namespace) -> int:
     out = artifact_path(args.spec)
     stem = args.spec.removeprefix("spec-").removesuffix(".md")
     lines = [
-        f"<!-- ze-review spec={stem} verdict={verdict} reviewers={args.reviewers or 'unspecified'} model={_running_model() or 'unknown'} ts={ts} -->",
+        f"<!-- ze-review spec={stem} verdict={verdict} rounds={rounds} reviewers={args.reviewers or 'unspecified'} model={_running_model() or 'unknown'} ts={ts} -->",
         f"# Independent review — {stem}",
         "",
         "files:",
@@ -232,6 +268,8 @@ def cmd_record(args: argparse.Namespace) -> int:
         lines.append(f"  {file_hash(f)}  {f}")
     if override:
         lines += ["", f"model-override: {override}"]
+    if rounds_reason:
+        lines += ["", f"rounds-reason: {rounds_reason}"]
     lines += ["", "## Findings", "", findings or "(none recorded)", ""]
     out.write_text("\n".join(lines), encoding="utf-8")
     print(f"review_gate: wrote {out} ({len(files)} files, verdict={verdict})")
@@ -341,6 +379,19 @@ def main(argv: list[str]) -> int:
     r.add_argument("--files", nargs="+", required=True)
     r.add_argument("--reviewers")
     r.add_argument("--findings-file")
+    r.add_argument(
+        "--rounds",
+        required=True,
+        type=int,
+        help="how many independent review passes ran. Written into the artifact. "
+        f"More than {ROUND_CAP} needs --rounds-reason",
+    )
+    r.add_argument(
+        "--rounds-reason",
+        default="",
+        help=f"required past round {ROUND_CAP}: the PRODUCT defect a later round "
+        "found. A finding in the spec's own closure prose is not one",
+    )
     r.add_argument(
         "--model-override",
         default="",

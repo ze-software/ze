@@ -53,6 +53,8 @@ class ReviewGateCase(unittest.TestCase):
     def test_record_then_check_passes(self):
         run_gate(
             "record",
+            "--rounds",
+            "1",
             "--spec",
             "demo",
             "--verdict",
@@ -69,6 +71,8 @@ class ReviewGateCase(unittest.TestCase):
     def test_edit_after_review_blocks_stale(self):
         run_gate(
             "record",
+            "--rounds",
+            "1",
             "--spec",
             "demo",
             "--verdict",
@@ -87,6 +91,8 @@ class ReviewGateCase(unittest.TestCase):
     def test_findings_verdict_blocks(self):
         run_gate(
             "record",
+            "--rounds",
+            "1",
             "--spec",
             "demo",
             "--verdict",
@@ -106,6 +112,8 @@ class ReviewGateCase(unittest.TestCase):
         other.write_text("package a\n")
         run_gate(
             "record",
+            "--rounds",
+            "1",
             "--spec",
             "demo",
             "--verdict",
@@ -133,6 +141,8 @@ class ReviewGateCase(unittest.TestCase):
         doc.write_text("# x\n")
         run_gate(
             "record",
+            "--rounds",
+            "1",
             "--spec",
             "demo",
             "--verdict",
@@ -162,6 +172,8 @@ class ReviewGateCase(unittest.TestCase):
         gate(
             "sessionA",
             "record",
+            "--rounds",
+            "1",
             "--spec",
             "demo",
             "--verdict",
@@ -250,6 +262,96 @@ class SpecStemAcceptsEverySpelling(unittest.TestCase):
         p = rg.artifact_path("plan/spec-gokrazy-init-bump.md")
         self.assertEqual(p.parent, rg.ARTIFACT_DIR)
         self.assertTrue(p.name.startswith("gokrazy-init-bump-"), p.name)
+
+
+class RoundCapCase(unittest.TestCase):
+    """The review loop's round cap.
+
+    VALIDATES: `record` demands the round count, writes it into the artifact, and
+    refuses more than ROUND_CAP rounds unless the operator names the PRODUCT defect
+    a later round found.
+    PREVENTS: the failure this cap was added for. On 2026-08-09 a test-only change
+    took seven review passes; the code was clean after pass 1 and all eleven later
+    findings were false statements in the spec's own closure prose. Each round's
+    fixes were prose, so each next round had fresh prose to audit and the loop had
+    no state in which it stopped (plan/learned/1368-vacuous-eor-family-tests.md).
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        (self.root / "tmp" / "review").mkdir(parents=True)
+        self.code = self.root / "pkg" / "a.go"
+        self.code.parent.mkdir()
+        self.code.write_text("package a\nfunc A() {}\n")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def record(self, *extra):
+        return run_gate(
+            "record",
+            "--spec",
+            "demo",
+            "--verdict",
+            "clean",
+            "--files",
+            "pkg/a.go",
+            *extra,
+            cwd=self.root,
+        )
+
+    def artifact(self):
+        (only,) = (self.root / "tmp" / "review").glob("demo-*.md")
+        return only.read_text()
+
+    def test_rounds_is_required(self):
+        r = self.record()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--rounds", r.stderr)
+
+    def test_rounds_under_the_cap_records_and_is_written_down(self):
+        r = self.record("--rounds", "3")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("rounds=3", self.artifact())
+
+    def test_over_the_cap_is_refused_without_a_reason(self):
+        r = self.record("--rounds", "4")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--rounds-reason", r.stderr)
+        # The refusal must say what a valid reason IS, or the next agent writes
+        # "the review found more issues", which is the thing being refused.
+        self.assertIn("product", r.stderr.lower())
+
+    def test_over_the_cap_records_when_a_product_defect_is_named(self):
+        r = self.record(
+            "--rounds",
+            "5",
+            "--rounds-reason",
+            "round 4 found the retry loop drops the last error",
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        art = self.artifact()
+        self.assertIn("rounds=5", art)
+        self.assertIn("round 4 found the retry loop drops the last error", art)
+
+    def test_a_blank_reason_does_not_lift_the_cap(self):
+        r = self.record("--rounds", "4", "--rounds-reason", "   ")
+        self.assertEqual(r.returncode, 2)
+
+    def test_zero_rounds_is_refused(self):
+        # An artifact claiming zero passes is a review that never ran.
+        r = self.record("--rounds", "0")
+        self.assertEqual(r.returncode, 2)
+
+    def test_check_accepts_an_artifact_that_predates_the_cap(self):
+        # Artifacts recorded before --rounds existed carry no rounds= field, and
+        # `check` must not start failing on them: the cap governs RECORDING.
+        self.record("--rounds", "1")
+        (only,) = (self.root / "tmp" / "review").glob("demo-*.md")
+        only.write_text(only.read_text().replace(" rounds=1", ""))
+        r = run_gate("check", "--spec", "demo", "--files", "pkg/a.go", cwd=self.root)
+        self.assertEqual(r.returncode, 0, r.stderr)
 
 
 if __name__ == "__main__":

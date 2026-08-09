@@ -51,6 +51,22 @@ different layer. The defence is the same too: name the command, run it, paste wh
 it printed. Writing a closure section from recollection while the terminal is one
 call away is where the cost lands.
 
+**Thomas ruled on 2026-08-09 that the rules must PREVENT this, not just record
+it, so two things changed the same day.** `scripts/dev/review_gate.py record` now
+requires `--rounds N` and refuses more than three without `--rounds-reason`
+naming the PRODUCT defect a later round found; the count lands in the artifact
+header, so a closure's review cost is auditable. Be precise about what that gate
+can do: `cmd_record` runs ONCE, after every pass is already spent, so it cannot
+stop a fourth round from running. It works by anticipation, and by making the
+cost visible afterwards. The count is also self-reported and unverifiable, which
+is why the hook table says "claiming". And `ai/rules/planning.md` now
+says what a finding IS: a false statement in the spec's own closure record is a
+NOTE, it never re-opens a round, and a round whose findings are all record
+defects is the last round. The one exception keeps its severity, because it
+misleads about the code: a record claim asserting a PRODUCT property that is
+false. `ai/rules/evidence.md` carries the prevention at the source: write the
+command or paste what it printed, never a sentence describing output.
+
 Redundant producers make a daemon robust and make functional tests blunt. Where two
 code paths can emit the same frame, a `.ci` cannot attribute it, so a claim about
 one producer needs a test at that producer's level. Neither test is the whole

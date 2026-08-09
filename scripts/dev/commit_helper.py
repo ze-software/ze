@@ -2722,7 +2722,10 @@ def review_gate_problems(
         "  fix findings, loop to zero, and record with:\n"
         "    python3 scripts/dev/review_gate.py record --spec "
         + stem
-        + " --verdict clean --files <code files>\n"
+        + " --verdict clean --rounds <N> --files <code files>\n"
+        "  --rounds is the pass count. Past 3 it needs --rounds-reason naming the\n"
+        "  PRODUCT defect a later round found; a false statement in the spec's own\n"
+        "  closure prose is not one.\n"
         '  Owner override: --review-override "<reason>".'
     ]
 

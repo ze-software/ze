@@ -16,6 +16,7 @@ no-fabrication ## No Fabrication
   verify-runtime-behavior-against-the-producing-code
   read-the-decision-record-before-asserting-intent
   a-self-consistent-story-is-a-hypothesis-not-a-finding
+  paste-the-command-output-never-a-prose-summary-of-it
   the-bgp-reconnect-flap-non-problem
   citation
   verification-and-citation-are-separate-decisions

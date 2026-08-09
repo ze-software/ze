@@ -93,6 +93,7 @@ critical-review-is-the-central-deliverable ## Critical Review Is the Central Del
   what-makes-a-review-pass-real
   bounding-the-loop
   how-each-review-round-is-scoped-and-when-it-ends
+  a-finding-in-the-record-is-not-a-finding-in-the-product
   state-the-review-effort-before-you-spend-it
   announce-the-pass-count-and-lenses-before-spawning
   enforcement-critical-review-structural-a-hook-not-discipline

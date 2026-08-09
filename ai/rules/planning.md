@@ -434,6 +434,30 @@ reviewers caught on the same diff minutes later.
 - **Two readings, and the one that governs.** "Fresh eyes on every pass, the full diff each time" asks a pass to see the whole change. "Loop until a pass finds nothing" asks the loop to converge. Applied to every round at once they contradict, and the agent that tries to satisfy both cannot close its work. Round 1 owns the whole-diff reading. Rounds 2 and later own convergence.
 - **Write the round's scope down BEFORE the round runs, in the spec's Review Gate section.** Unwritten, "what those fixes touched" is chosen after the findings are known, and shrinks to whatever produces a clean round. Written first, it holds when the reviewer is tired, invested, or wrong about severity. It includes the sibling call sites of every changed function (`ai/rules/quality.md`, question 8), not only the edited hunks.
 
+- **The review's subject is the PRODUCT. A false statement in the spec's own
+  closure record is a NOTE, and a NOTE never re-opens a round.** Wrong arithmetic
+  in an Audit Summary, a pasted command output that was condensed, a status word
+  that contradicts the shard, a count nobody can reproduce: each is worth fixing
+  and none of them ships. Collect every one of them, fix them in ONE edit, and do
+  not spend a round confirming the fix.
+- **The one exception is precise: a record defect is an ISSUE when it asserts a
+  PRODUCT property that is false.** "This test discriminates" when it does not,
+  "the guard fails closed" when it does not, "an interop test covers this" when
+  none exists. Those are `ai/rules/evidence.md` false-safety-claim findings, they
+  mislead the next reader about the code, and they keep their severity.
+- **A round whose findings are ALL record defects is the last round.** The loop
+  has stopped converging on the product: each prose fix is new prose, so the next
+  round has fresh text to audit and there is no state in which it stops. On
+  2026-08-09 a test-only change took seven passes this way. The code was clean
+  after pass 1; all eleven later findings were false statements in the spec's own
+  closure prose.
+- **`scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than
+  three without `--rounds-reason`, which must name the PRODUCT defect a later
+  round found.** The cap is not a ban: a genuinely defective implementation can
+  need a fourth round and gets one for the cost of a sentence. That sentence is
+  the one nobody can write when the loop is auditing its own bookkeeping, which is
+  what makes it the right toll.
+
 ### State the review effort before you spend it
 
 - **Name the pass count and the lenses BEFORE the first agent is spawned, so the operator can stop you.** An unannounced fan-out is a decision taken on the operator's behalf.

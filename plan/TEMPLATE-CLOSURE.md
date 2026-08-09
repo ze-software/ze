@@ -102,7 +102,11 @@
      reasoning about code you just wrote.
 
      The machine-checked artifact is the deliverable, not this table:
-     scripts/dev/review_gate.py record --spec <spec> ... then check.
+     scripts/dev/review_gate.py record --spec <spec> --rounds <N> ... then check.
+     --rounds is the pass count and is required; more than three needs
+     --rounds-reason naming the PRODUCT defect a later round found. A false
+     statement in this record is a NOTE, never a reason for another round
+     (ai/rules/planning.md).
      commit_helper.py runs `review_gate.py check` on the closure commit and
      refuses without a fresh, hash-pinned, CLEAN artifact. Record the artifact
      first; this table exists only to carry what was FOUND and FIXED forward
@@ -112,6 +116,7 @@
 |-------|-------|
 | Artifact | [path printed by `review_gate.py record`] |
 | `review_gate.py check` | [clean / not run] |
+| Rounds | [N, and for N>3 the product defect that earned each extra round] |
 | Reviewer lenses used | [e.g. logic+wiring, security+edge-cases, feature risk area] |
 
 ### Findings fixed
