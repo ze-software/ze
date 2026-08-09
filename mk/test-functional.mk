@@ -341,3 +341,29 @@ ze-ospfv3-test: ze-functional-warm $(ZE_TEST_DEPS)
 
 ze-vrrp-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) vrrp --all
+
+# Fail-open call-site ratchet over this suite's own Python. `docker_exec_quiet`
+# (test/interop/interop.py) returns "" on ANY non-zero exit, so a caller that does
+# not test the value for emptiness turns a command that FAILED into a passing
+# assertion over nothing (ai/rules/evidence.md). The flagged set is DERIVED to a
+# fixpoint -- a function that returns a fail-open call is itself fail-open -- so a
+# new wrapper is covered the day it is written, which is what a seed-name-only
+# lint would have missed: scenarios call the 19 wrappers, not the seed. The floor
+# in test/health/docker-exec-baseline.json may only go DOWN. --selftest runs
+# first and proves every verdict fires on a known fixture, so the gate cannot
+# pass vacuously.
+#
+# The floor is enforced on the verify path WITHOUT this target: TestRepoRatchet
+# in scripts/dev/docker_exec_checked_test.py runs the real scan, and
+# scripts/dev/python_tests_test.go globs every *_test.py, so `make ze-unit-test`
+# already refuses a rise. Changed-file routing through verify_wiring_docs.py is
+# written and tested but held out of this commit: another session's in-flight
+# refactor has interleaved 12 lines into that file, and committing it would
+# carry their half-finished work.
+#
+# It lives here rather than in mk/inventory.mk because its whole population is
+# test/**/*.py, the functional harness this file owns.
+.PHONY: ze-docker-exec-check
+ze-docker-exec-check:
+	@python3 scripts/dev/docker_exec_checked.py --selftest
+	@python3 scripts/dev/docker_exec_checked.py

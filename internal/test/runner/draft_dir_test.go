@@ -90,6 +90,7 @@ func TestDraftDirIsInvisibleToRepoGates(t *testing.T) {
 		{"scripts/checks/ci_dispatch_commands.go", "draftTestDir", "dispatch-command check"},
 		{"scripts/dev/verify_wiring_docs.py", "real_ci_files(root)", "ci-sleep ratchet"},
 		{"scripts/dev/ci_observer_recover_check.py", `!= ("draft",)`, "observer-recover check"},
+		{"scripts/dev/docker_exec_checked.py", `== (DRAFT_DIR,)`, "fail-open call-site ratchet"},
 		{"scripts/dev/rfc_requirements.py", "rel.startswith(DRAFT_PREFIX)", "RFC requirement coverage gate"},
 	} {
 		raw, err := os.ReadFile(filepath.Join(repo, g.file)) //nolint:gosec // repo-relative fixed path
@@ -134,6 +135,7 @@ func TestDraftReadmeNamesEveryGate(t *testing.T) {
 		"ci_observer_recover_check.py",
 		"ci_dispatch_commands.go",
 		"inert_tests.go",
+		"docker_exec_checked.py",
 	} {
 		require.Containsf(t, body, producer,
 			"test/draft/README.md no longer names %s in its gate table", producer)

@@ -56,7 +56,8 @@ Replacing an existing test is the same move: draft alongside it under
 ## The gates that skip this directory
 
 Each of these walks `test/` recursively and explicitly skips `draft`. If you add
-another repo-wide `.ci` scanner, skip it there too, and add a case to
+another repo-wide scanner over `test/`, whatever it reads, skip it there too,
+and add a case to
 `TestDraftDirIsInvisibleToRepoGates`
 (`internal/test/runner/draft_dir_test.go`) so the omission fails a test rather
 than surfacing as a mystery red in someone else's session.
@@ -69,6 +70,7 @@ than surfacing as a mystery red in someone else's session.
 | observer-recover check | `scripts/dev/ci_observer_recover_check.py` |
 | dispatch-command check | `scripts/checks/ci_dispatch_commands.go` |
 | inert-test check | `scripts/checks/inert_tests.go` |
+| fail-open call-site ratchet | `scripts/dev/docker_exec_checked.py` |
 
 ## What a draft does NOT get
 

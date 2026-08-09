@@ -5,8 +5,8 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | guards 1, 2 and 3 done; guard 4 needs the owner ruling below |
-| Deferral shard | `-` |
+| Phase | guards 1, 2, 3 and 4 implemented; closure pending |
+| Deferral shard | `plan/deferrals/fixit-test-harness-fail-open-guards.md` |
 | Updated | 2026-08-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -124,6 +124,106 @@ implementer without a ruling:
 
 This is new tool + make target + docs + rules wiring, which is why it was homed
 here rather than folded into the `ze show host` repair.
+
+### Guard 4: the ruling, and what the tree actually holds (2026-08-09)
+
+**Thomas ruled: the lint requires every return value to be checked.** Not the
+narrow ban on the bare `ze <verb>` form. `docker_exec_quiet` keeps its fail-open
+contract; the lint is what closes the class.
+
+**The population is bigger than this spec assumed, measured with an AST walk over
+every `*.py` outside `tmp/` and `.claude/worktrees/`:**
+
+| Measure | Count |
+|---------|-------|
+| Fail-open FUNCTIONS, not one | 20 |
+| Call sites across that set | 255 |
+| Unchecked call sites | 114, across 46 files |
+| Unchecked sites inside `test/interop/interop.py` alone | 36 |
+
+The set is transitive and that is the load-bearing part: a function whose body
+`return`s a fail-open call is itself fail-open, so `docker_exec_quiet` drags in
+`_vtysh_quiet`, `_birdc_quiet`, `_gobgp_quiet`, `_swanctl`, `frr_log`, `vtysh`,
+`xfrm_state`, `xfrm_policy`, `ze_xfrm_state`, `ze_xfrm_policy`, `ze_ppp_addr`,
+`accel_show_sessions`, `list_sas`, `ospf_summary`, `ospf6_summary`,
+`isis_summary`, `link_lsa_dump`, `inter_area_prefix_dump` and `_wait_bird_route`.
+Scenarios call the WRAPPERS, not the seed. A lint that knew only the seed name
+would report a handful of sites and miss the class it exists to close.
+
+**A worked true positive, so the lint is designed against a real defect rather
+than a category.** `FRR.is_dis` (`test/interop/interop.py`) binds
+`out = self._vtysh_quiet("show isis interface detail")` and returns
+`"DIS" in out or "Designated" in out`. When the command fails, `out` is `""`,
+both membership tests are False, and the method answers "no Designated IS
+elected" -- indistinguishable from a real negative answer, which is exactly the
+zero-is-a-valid-looking-answer shape `ai/rules/evidence.md` names. Its neighbours
+`has_isis_route` and `has_isis_route_v6` have the identical shape.
+
+**A worked FALSE positive, which is why the lint needs an opt-out.** The same
+class prints `self._vtysh_quiet("show isis neighbor")[:500]` in the failure path
+of `wait_adjacency`, immediately after `log_fail` and immediately before it
+raises. It is diagnostic output on a run that has already failed, and requiring a
+check there buys nothing.
+
+### Guard 4: the design
+
+Follows `scripts/checks/ci_dispatch_commands.go`, which the Required Reading
+already names as the precedent: a checker over test call sites that resolves
+against the real thing, fails closed on what it cannot read statically, offers an
+explicit marker for the genuinely dynamic case, and ships a `--selftest` and a
+sibling test.
+
+| Piece | Decision |
+|-------|----------|
+| Detector | `scripts/dev/docker_exec_checked.py`. Computes the transitive fail-open set to a fixpoint, then classifies every call site of any member |
+| Checked | The value is bound and the bound name is tested for emptiness in the same function, or the call is the function's own `return` (the obligation moves to its callers, who are themselves call sites and get classified) |
+| Unchecked | Bound and never tested, or used inline with no test: `f(x)[:5]`, `"s" in f(x)`, `json.loads(f(x))` |
+| Discarded | A bare-statement call is fire-and-forget and not flagged. It asserts nothing, so it cannot pass an assertion over nothing |
+| Opt-out | `# fail-open-ok: <reason>` on or above the line, auditable with one grep, same shape as `// test-relax:` and `rfc-test-change-approved:` |
+| Turning it on | A committed count in `test/health/docker-exec-baseline.json` that may only go DOWN, following `test/health/sensitivity-baseline.json`. This refuses the twentieth site on the day it lands, which is what guard 4 is FOR, without a 114-site edit in one commit |
+
+### Guard 4: what landed, and why the floor is 168 rather than 114
+
+`scripts/dev/docker_exec_checked.py` reproduces the survey exactly on the two
+DERIVED numbers: 20 fail-open functions and 255 call sites. It differs on the
+verdict split, and the difference is one rule.
+
+**A membership test is not an emptiness test.** `if prefix in out` is False on
+`""`, so it is the fail-open shape rather than a guard against it. That is not a
+refinement of the survey, it is what the survey's own worked true positive
+demands: `FRR.is_dis` reads `"DIS" in out or "Designated" in out` and must be
+flagged. Applying the rule consistently reclassifies 54 sites the survey counted
+as checked, so the measured split is 55 checked, 32 discarded, 168 unchecked.
+
+The floor committed in `test/health/docker-exec-baseline.json` is therefore 168.
+It is a measurement, not a target, and it may only fall.
+
+**Landed at 171, not 168 or 114, and the number is a measurement of the
+CHECKER.** Review round 1 found `_emptiness_tested` walked the whole function
+with no position comparison, so any emptiness test on a same-named variable
+marked EVERY assignment of that name checked. Three live sites rode out on a
+guard belonging to an earlier call, and the worst was `FRR.route_count`
+(`test/interop/interop.py`): its JSON call is guarded, its text fallback is not,
+`splitlines()` on `""` is empty, and it answers 0 prefixes for a vtysh that
+FAILED. That is guard 3's `Ze.rib_count` shape surviving inside guard 4, which is
+the one outcome this checker may not have. The rule is now positional, two tests
+pin it, and the floor rose 168 to 171 because the detector got more correct.
+
+**Two files are written, tested, and HELD OUT of the landing commit.**
+`scripts/dev/verify_wiring_docs.py` and its test carry the changed-file routing.
+Another session's `plan/learned` to `plan/journal` refactor interleaved 12 lines
+into that file between the implementation and the commit, so committing it would
+carry their half-finished work. The floor is enforced without it: `TestRepoRatchet`
+runs the real scan and `scripts/dev/python_tests_test.go` globs every `*_test.py`,
+so `make ze-unit-test` already refuses a rise. Routing is a changed-file
+optimisation, not the guard. Its row is in this spec's deferral shard.
+
+**Why the ratchet rather than fixing all 114 now.** Guard 4's stated defect is
+"nothing refuses the twentieth". A ratchet refuses it immediately. Landing 114
+mechanical edits across 46 interop files in the same change would put a large
+diff, most of it unrunnable without Docker, between the defect and its guard, and
+the guard is the deliverable. The count is the backlog, in the open, and it can
+only fall.
 
 ## Required Reading
 
