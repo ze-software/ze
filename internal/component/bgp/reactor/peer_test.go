@@ -644,76 +644,19 @@ func TestRouteFamilyVPNv6(t *testing.T) {
 	require.Equal(t, family.SAFI(128), fam.SAFI, "SAFI should be MPLS-VPN (128)")
 }
 
-// TestFamiliesSentTracking verifies that family tracking produces correct EOR set.
-//
-// VALIDATES: Mixed route families result in correct familiesSent map.
-//
-// PREVENTS: EOR being sent for families without routes, or missing for families with routes.
-func TestFamiliesSentTracking(t *testing.T) {
-	// Simulate the familiesSent tracking logic from sendInitialRoutes
-	familiesSent := make(map[family.Family]bool)
-
-	// Routes of various types
-	routes := []StaticRoute{
-		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},               // IPv4 Unicast
-		{Prefix: netip.MustParsePrefix("192.0.2.128/25"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},             // IPv4 Unicast (same family)
-		{Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1"))},           // IPv6 Unicast
-		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"}, // VPNv4
-	}
-
-	// Track families as sendInitialRoutes does
-	for _, route := range routes {
-		familiesSent[routeFamily(&route)] = true
-	}
-
-	// Verify correct families are tracked
-	require.True(t, familiesSent[family.IPv4Unicast], "IPv4 Unicast should be tracked")
-	require.True(t, familiesSent[family.IPv6Unicast], "IPv6 Unicast should be tracked")
-	require.True(t, familiesSent[family.Family{AFI: family.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
-
-	// Verify families without routes are NOT tracked
-	require.False(t, familiesSent[family.Family{AFI: family.AFIIPv6, SAFI: 128}], "VPNv6 should NOT be tracked")
-	require.False(t, familiesSent[family.Family{AFI: 1, SAFI: 5}], "MVPN should NOT be tracked")
-
-	// Verify exactly 3 families (no duplicates from same-family routes)
-	require.Equal(t, 3, len(familiesSent), "Should track exactly 3 unique families")
-}
-
-// TestFamiliesSentEmpty verifies empty routes produce no EOR.
-//
-// VALIDATES: No routes results in empty familiesSent map.
-//
-// PREVENTS: Spurious EOR messages when no routes are configured.
-func TestFamiliesSentEmpty(t *testing.T) {
-	familiesSent := make(map[family.Family]bool)
-
-	// No routes sent - familiesSent should be empty
-	require.Empty(t, familiesSent, "No routes should mean no EOR families")
-}
-
-// TestFamiliesSentOnlyVPN verifies VPN-only routes track correct family.
-//
-// VALIDATES: VPN routes don't pollute unicast EOR.
-//
-// PREVENTS: VPN routes triggering unicast EOR.
-func TestFamiliesSentOnlyVPN(t *testing.T) {
-	familiesSent := make(map[family.Family]bool)
-
-	// Only VPN routes
-	routes := []StaticRoute{
-		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"},
-		{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:101"},
-	}
-
-	for _, route := range routes {
-		familiesSent[routeFamily(&route)] = true
-	}
-
-	// Only VPNv4 should be tracked
-	require.Equal(t, 1, len(familiesSent), "Should track exactly 1 family")
-	require.True(t, familiesSent[family.Family{AFI: family.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
-	require.False(t, familiesSent[family.IPv4Unicast], "IPv4 Unicast should NOT be tracked")
-}
+// test-relax: three End-of-RIB "families sent" tests stood here until 2026-08-09.
+// Each built a local map, filled it inline, and asserted on its own fill; none
+// called production code, so all three were green against any implementation while
+// their names and VALIDATES comments claimed RFC 4724 coverage they did not have.
+// One session read them as proof that ze sends End-of-RIB only for families that
+// carried routes, and was about to escalate a conformance violation that does not
+// exist. Coverage is REPLACED, not dropped: the behavior they named is now driven
+// from sendInitialRoutes and asserted on the bytes that reach the wire, by
+// TestInitialSyncEORCountedOncePerFamilyOnTheWire (both families silent) and
+// TestInitialSyncEORReachesTheSilentFamilyToo (one family carries a route, the
+// other does not) in peer_initial_sync_test.go. Both go red when the End-of-RIB
+// loop is disabled, and red again when it is narrowed to route-carrying families,
+// which is the reading the deleted tests encoded.
 
 // =============================================================================
 // ADD-PATH Tests (RFC 7911)

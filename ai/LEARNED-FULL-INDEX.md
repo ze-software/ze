@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 942 summaries
+Total: 943 summaries
 
 ## 400-499
 
@@ -1001,3 +1001,4 @@ Total: 942 summaries
 | 1365 | A guard must know what is not yet its subject | `plan/learned/1365-guard-must-know-what-is-not-yet-its-subject.md` |
 | 1366 | A Problem You Find Gets A Spec, Not A Fix | `plan/learned/1366-found-problem-spec-first.md` |
 | 1367 | A review round that audits an over-engineered change ratifies it | `plan/learned/1367-process-proportional-to-the-change.md` |
+| 1368 | A Test That Re-Implements The Logic It Names | `plan/learned/1368-vacuous-eor-family-tests.md` |

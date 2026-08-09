@@ -90,6 +90,7 @@ back-fill-new-test-types-blocking ## Back-Fill New Test Types (BLOCKING)
   the-steps-of-a-back-fill
 test-sensitivity-ratchets-blocking ## Test Sensitivity Ratchets (BLOCKING)
   a-test-that-cannot-fail-reads-as-coverage
+  a-test-that-re-implements-the-logic-it-names
   the-ratchet-that-counts-them-and-only-goes-down
   what-each-detector-fires-on-and-how-to-fix-it
   why-benchmarks-and-fuzz-targets-are-exempt

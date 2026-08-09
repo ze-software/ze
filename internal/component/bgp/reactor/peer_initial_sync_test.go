@@ -2,7 +2,11 @@ package reactor
 
 import (
 	"bufio"
+	"bytes"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -78,6 +83,80 @@ func TestInitialSyncEORCountedOncePerFamilyOnTheWire(t *testing.T) {
 	assert.Equal(t, want, conn.written(),
 		"both negotiated families' End-of-RIB markers must reach the wire, AFI order")
 	assert.Equal(t, uint32(2), peer.Stats().EORSent, "one counted EOR per family sent")
+}
+
+// TestInitialSyncEORReachesTheSilentFamilyToo pins the clause that decides WHICH
+// families get a marker: the loop walks the NEGOTIATED families, not the families
+// that happened to carry a route. One family announces a prefix here and the other
+// announces nothing, and both still get their End-of-RIB.
+//
+// RFC requirement: RFC4724-4-1 positive -- "The End-of-RIB marker MUST be sent by a
+// BGP speaker to its peer once it completes the initial routing update (including
+// the case when there is no update to send) for an address family after the BGP
+// session is established" (RFC 4724 Section 4). ipv6/unicast is the parenthesised
+// case: it has no update to send and its marker is owed all the same.
+// RFC requirement: RFC4724-4.2-9 positive -- the same frame satisfies the Receiving
+// Speaker's obligation to mark the end of its initial update per address family.
+//
+// VALIDATES: the End-of-RIB loop in sendInitialRoutes iterates nc.Families().
+// PREVENTS: the reading three deleted tests in peer_test.go asserted on -- that a
+// family is owed a marker only when a route was sent for it. Those tests populated
+// their own local map and never called production code, so they were green against
+// any implementation, and one session read them as proof of a conformance gap.
+func TestInitialSyncEORReachesTheSilentFamilyToo(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
+	peer.settings.StaticRoutes = []StaticRoute{{
+		Prefix:  netip.MustParsePrefix("192.0.2.0/24"),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+	}}
+
+	peer.sendInitialRoutes()
+
+	markers := append(eorWire(family.IPv4Unicast), eorWire(family.IPv6Unicast)...)
+	written := conn.written()
+	assert.True(t, bytes.HasSuffix(written, markers),
+		"both negotiated families' markers must close the initial update, the silent one included")
+	assert.Greater(t, len(written), len(markers),
+		"the ipv4 route UPDATE must precede the markers, or the fixture sent no route and the "+
+			"silent-family case is not the one under test")
+	assert.Equal(t, uint32(2), peer.Stats().EORSent, "one counted EOR per negotiated family")
+}
+
+// TestNoTestBuildsItsOwnFamiliesSentMap refuses the return of the three tests the
+// two above replaced: a test that re-implements the End-of-RIB family tracking in a
+// local map and then asserts on its own copy.
+//
+// VALIDATES: the End-of-RIB family set is asserted from production code, never
+// simulated inside the test that names it.
+// PREVENTS: the reason those tests survived for so long -- they DO assert, so the
+// assert-nothing detector (`make ze-test-sensitivity-check`) never saw them, and
+// their names read as coverage of RFC 4724.
+//
+// Two limitations, stated rather than hidden. It greps ONE identifier, so the same
+// defect written with a different variable name is invisible to it. And
+// filepath.Glob resolves against the package directory, so its reach is THIS
+// package and no other -- which is where the three tests lived, and is all the
+// claim it makes. No gate in this repository catches the general class
+// (`ai/rules/testing.md`, "A test that re-implements the logic it names").
+func TestNoTestBuildsItsOwnFamiliesSentMap(t *testing.T) {
+	// Split so the guard does not match its own source.
+	needle := "families" + "Sent"
+
+	files, err := filepath.Glob("*_test.go")
+	require.NoError(t, err)
+	require.NotEmpty(t, files,
+		"the glob saw no test file, so this guard would pass while checking nothing")
+
+	for _, name := range files {
+		src, err := os.ReadFile(name)
+		require.NoError(t, err)
+		// The NotContains form of this check prints the whole file as its haystack,
+		// leaving the reader to hunt for the one line that matched.
+		assert.False(t, strings.Contains(string(src), needle),
+			"%s re-implements the End-of-RIB family tracking in a local map. Drive "+
+				"sendInitialRoutes and assert on the wire instead: see "+
+				"TestInitialSyncEORReachesTheSilentFamilyToo", name)
+	}
 }
 
 // TestInitialSyncEORNotCountedWhenSessionLeftEstablished is the failure half: when

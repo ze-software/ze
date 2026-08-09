@@ -1,0 +1,82 @@
+# End-of-RIB for a family that carried no route.
+#
+# VALIDATES: RFC 4724 Section 4 -- "The End-of-RIB marker MUST be sent by a BGP
+#            speaker to its peer once it completes the initial routing update
+#            (including the case when there is no update to send) for an address
+#            family after the BGP session is established". ipv4/unicast carries a
+#            route here and ipv6/unicast carries none; both get their marker.
+# PREVENTS:  the reading that ze sends End-of-RIB only for families that carried
+#            routes. test/plugin/eor.ci proves the two-family case with NO routes
+#            at all, where every family is silent and the two readings agree. This
+#            is the fixture that tells them apart.
+#
+# WHAT THIS DOES NOT PROVE, measured rather than assumed: it does not isolate WHICH
+# producer emitted the ipv6 marker. sendInitialRoutes is one; AnnounceEOR
+# (internal/component/bgp/reactor/reactor_api_forward.go) is another, and its
+# suppression only holds while the peer is still draining its initial route sync.
+# Narrowing the sendInitialRoutes loop to route-carrying families leaves this test
+# GREEN across three consecutive runs, because the second path still delivers the
+# marker. The test that pins the producer is the unit one:
+# TestInitialSyncEORReachesTheSilentFamilyToo in
+# internal/component/bgp/reactor/peer_initial_sync_test.go, which asserts on the
+# bytes sendInitialRoutes itself puts on the socket and goes red under exactly that
+# narrowing. Read the two together; neither is the whole claim.
+#
+# Marker hex: ipv4/unicast is a minimum-length UPDATE; every other family is an
+# UPDATE carrying only MP_UNREACH_NLRI for its <AFI, SAFI> (RFC 4724 Section 2).
+# Both are copied from test/plugin/eor.ci, which derives them from exabgp.
+#
+# The route frame at seq=1, field by field: 16 marker octets, length 0x0031 = 49,
+# type 02 = UPDATE, withdrawn-routes-length 0x0000, path-attribute-length 0x0015 =
+# 21, then ORIGIN IGP (40 01 01 00), an empty AS_PATH (40 02 00), NEXT_HOP 10.0.0.1
+# (40 03 04 0A000001) and LOCAL_PREF 100 (40 05 04 00000064) = 4+3+7+7 = 21, then
+# the NLRI 193.0.2.1/32 (20 C1000201) = 5. 16+2+1+2+2+21+5 = 49.
+
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040A0000014005040000006420C1000201
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 193.0.2.1/32
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
