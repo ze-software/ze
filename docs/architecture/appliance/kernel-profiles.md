@@ -46,9 +46,24 @@ same builder.
 - **Assert the absence of the old shell driver, not only the presence of the new
   one.** A Docker or QEMU argv test that checks for `build.py` still passes when
   a stale `build.sh` path survives beside it.
+- **A test profile goes in a scratch repository root, never in
+  `tools/installer-kernel/`.** The registry is a directory scan, so a
+  `<name>.config` plus `<name>.require` pair in the tracked directory IS a
+  buildable profile for as long as it sits on disk, and an EXIT trap does not
+  survive SIGKILL. Both resolvers follow a root the test controls:
+  `kernelInstallerConfigDir` is the relative `tools/installer-kernel`, so Go
+  follows the process working directory, and `repo_root` in
+  `tools/kernel-builder/run.py` walks up from `run.py` to the first `go.mod`.
+  Copy the builder directory into the scratch root. A symlink resolves back to
+  the real repository through `Path(__file__).resolve()` and defeats the
+  isolation.
 - `ze-validate` flags an exported symbol in a changed Go file that has no
   cross-package caller, even when the symbol predates the change. Appliance-only
   helpers stay unexported for that reason.
+
+<!-- source: internal/appliance/cmd_kernel.go -- kernelInstallerConfigDir -->
+<!-- source: tools/kernel-builder/run.py -- repo_root -->
+<!-- source: internal/appliance/kernelreg_test.go -- TestRegisteredKernelProfilesShippedSet -->
 
 ## Related
 

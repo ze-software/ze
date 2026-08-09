@@ -9,15 +9,16 @@ A profile is valid when both files exist in `tools/installer-kernel/`:
 - `<name>.config` contains Kconfig fragments merged after `kernel.config`.
 - `<name>.require` lists required symbols, one `CONFIG_*` per line. `CONFIG_FOO` and `CONFIG_FOO=y` are equivalent.
 
-Profile names are safe tokens: lowercase letters, digits, and dashes, starting with a letter or digit. Examples: `qemu`, `hardware`, `hardware-kms`, `n100`.
+Profile names are safe tokens: lowercase letters, digits, and dashes, starting with a letter or digit. `qemu`, `hardware`, `hardware-kms` and `n100` are all valid name forms; the shipped set is the one below.
 
-This directory holds exactly the profiles the repository ships. A `.config` and
-`.require` pair placed here registers as a real profile. A test that needs its
-own profile writes the pair into a scratch directory the test creates.
+This directory holds exactly the profiles the repository ships: `qemu`,
+`hardware` and `hardware-kms`. A `.config` and `.require` pair placed here
+registers as a real profile. A test that needs its own profile writes the pair
+into a scratch directory the test creates.
 `TestRegisteredKernelProfilesShippedSet` in
 `internal/appliance/kernelreg_test.go` fails on any other pair. Adding a shipped
-profile means adding its two files, a paragraph on this page, and its name in
-that test.
+profile means adding its two files, its name in the sentence above, and its name
+in that test.
 
 A profile may extend one base profile with a header in its `.config` file:
 

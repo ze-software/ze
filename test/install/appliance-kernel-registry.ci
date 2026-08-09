@@ -12,8 +12,11 @@
 # directory. repo_root in tools/kernel-builder/run.py walks up from run.py to
 # the first directory that holds go.mod.
 #
-# This test writes nothing under the repository, so it carries no cleanup trap
-# and a killed run leaves nothing behind.
+# This test writes nothing into the tracked tree, so it carries no cleanup trap.
+# Everything it creates goes under the harness work directory, which sits below
+# the gitignored tmp/ (DefaultScratchRoot in
+# internal/test/sessionpath/sessionpath.go). A killed run therefore leaves no
+# profile behind for registeredKernelProfiles to find.
 
 option=timeout:value=20s
 

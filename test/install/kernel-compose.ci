@@ -166,7 +166,7 @@ EOF_CONFIG
 fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
-# test-relax: no assertion is changed, removed, or lowered in this file. The 12
+# test-relax: no assertion is changed, removed, or lowered in this file. The
 # deleted lines are shared-state scaffolding, not coverage: `orig_image` and
 # `orig_config` saved and restored repo-root build/kernel/Image and
 # build/kernel/config around a build that now runs in the scratch root, and the
