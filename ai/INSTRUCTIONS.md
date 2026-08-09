@@ -74,22 +74,24 @@
   step. Anything deterministic or reproducible gets fixed or gets a spec.
 - Full rule: `ai/rules/completion.md`
 
-## A problem you FIND gets a SPEC, not a fix (owner decision, 2026-08-08)
-- A defect you walk into while working on something else is NOT fixed in that session.
-  Write its spec at the moment you find it, go back and CLOSE the work in hand, then
-  ask Thomas whether he wants that spec implemented. Stop there: silence is not consent.
-- The one exception is the defect that BLOCKS the goal your work exists to achieve.
-  You cannot close the work in hand around it, so the section above governs: FIX IT.
-- The spec is the first step of the fix, never a substitute. It is a `plan/TEMPLATE.md`
-  file at Status `skeleton` naming the defect, its reproduction command, the producing
-  function, and the work that surfaced it, plus its `plan/deferrals/<source>.md` row.
-  A `tmp/` note, a report line, and a `plan/known-failures/` shard remain banned.
-- Ask in this exact line, one per spec you wrote, and stop:
-  `New spec: plan/<file>. Implement it? (yes / not now)`
-- This ask is MANDATED, not the banned "would you like me to". It comes after the work
-  you were asked to do is complete, and it is about work Thomas has not commissioned yet.
-  `.claude/hooks/block-premature-stop.sh` refuses a stop on permission-seeking phrasing
-  and that exact wording matches none of it, so a paraphrase is refused an end to the turn.
+## A problem you FIND gets a JOURNAL ROW (owner directive, 2026-08-10)
+- This REPLACES the 2026-08-08 spec-first route. Writing a spec for a defect you
+  walked into is now BANNED, and so is asking Thomas whether to implement one.
+- A defect you walk into while working on something else gets ONE row in
+  `plan/journal/<class>.md`: `| Date | Spec | Surface | Symptom | Fix |`.
+  Then close the work in hand and stop. No spec, no deferral row, no ask.
+- Two finds are FIXED on the spot, and only these two: a defect that stops a test
+  or a gate from passing, and a test that is wrong about what it asserts.
+- FIX IT anyway when the fix is small enough not to derail the work in hand, and
+  still write the row. A small fix needs no spec to authorise it.
+- The defect that BLOCKS the goal your work exists to achieve is governed by the
+  section above: FIX IT. There is no closing the work in hand around it.
+- DO NOT characterise the find beyond the row. Reproducing it, tracing its
+  producer, sizing its blast radius and drafting options are uncommissioned work.
+  They cost this session and every session that later reads what it wrote.
+- Grep `plan/journal/` before adding a row. Many sessions share this checkout and
+  meet the same defect. A class file that collects rows is what earns a fix, in a
+  deliberate pass over the journal, not by whoever tripped over it.
 - Full rule: `ai/rules/completion.md`, `ai/rules/rule-precedence.md`
 
 ## On violation: STOP immediately
