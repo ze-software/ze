@@ -1,9 +1,13 @@
 # Runtime kernel fragment composition: tracked fragments must carry the required
 # gokrazy, L2TP/PPP, virtio, and module options without removed Kconfig symbols.
 #
-# Build output lives at repo-root build/kernel/ (Makefile OUT := ../../build/kernel,
-# run.py --out-dir build/kernel), consolidated from the old tools/installer-kernel/
-# build/ by commit d8d371d4d. Assertions unchanged; only the output paths follow.
+# The fragment assertions read the tracked files in place. The build half runs
+# against a SCRATCH repository root under the harness work directory, so this
+# test writes no profile fragment into tools/installer-kernel/ and no build
+# output into repo-root build/kernel/. Both are shared state: the profile
+# registry (registeredKernelProfiles in internal/appliance/kernelreg.go) lists
+# every <name>.config / <name>.require pair it finds in the tracked directory,
+# and a concurrent kernel build owns build/kernel/.
 
 option=timeout:value=20s
 
@@ -20,22 +24,17 @@ runtime=gokrazy/kernel/runtime.config
 [ -f "$base" ] || { echo "missing $base" >&2; exit 1; }
 [ -f "$runtime" ] || { echo "missing $runtime" >&2; exit 1; }
 
-orig_image=
-orig_config=
 combined=$(mktemp)
+# The trap removes only the temporary concatenation. It used to restore
+# repo-root build/kernel/Image and build/kernel/config and delete the
+# compose-fixture pair from tools/installer-kernel/, and the build half writes
+# neither of those now (the audit record is on the make invocation below). A
+# trap that restores shared state is load-bearing: SIGKILL or a harness timeout
+# skips it and leaves a working profile behind for registeredKernelProfiles
+# (internal/appliance/kernelreg.go) to list as a shipped one.
 cleanup() {
 	set +e
-	rm -f "$combined" tools/installer-kernel/compose-fixture.config tools/installer-kernel/compose-fixture.require
-	if [ -n "$orig_image" ]; then
-		cp "$orig_image" build/kernel/Image
-	else
-		rm -f build/kernel/Image
-	fi
-	if [ -n "$orig_config" ]; then
-		cp "$orig_config" build/kernel/config
-	else
-		rm -f build/kernel/config
-	fi
+	rm -f "$combined"
 }
 trap cleanup EXIT
 # The runtime profile pulls in the shared efi-console fragment via # ze-include,
@@ -108,21 +107,29 @@ for opt in \
 	require_absent "$opt"
 done
 
-mkdir -p "$work/fakebin" build/kernel
-if [ -f build/kernel/Image ]; then
-	orig_image="$work/original-image"
-	cp build/kernel/Image "$orig_image"
-fi
-if [ -f build/kernel/config ]; then
-	orig_config="$work/original-config"
-	cp build/kernel/config "$orig_config"
-fi
-rm -f build/kernel/Image build/kernel/config
-cat > tools/installer-kernel/compose-fixture.config <<'EOF_CONFIG'
+# The build half runs against a SCRATCH repository root under the harness work
+# directory. repo_root() in tools/kernel-builder/run.py walks up from that
+# file's OWN resolved path to the first directory that holds go.mod, and main()
+# joins --src-dir, --out-dir, --builder-dir, --common-dir and
+# internal/appliance/kernel.version against that root. A copy of the two tool
+# trees under a scratch root therefore keeps fragment resolution, the version
+# read and the build output inside the scratch tree. COPY, never symlink:
+# Path(__file__).resolve() follows a symlink back to the real repository and
+# defeats the isolation.
+scratch=$work/scratch-root
+mkdir -p "$scratch/tools"
+mkdir -p "$scratch/internal/appliance"
+mkdir -p "$scratch/build/kernel"
+mkdir -p "$work/fakebin"
+: > "$scratch/go.mod"
+cp -R tools/installer-kernel "$scratch/tools/installer-kernel"
+cp -R tools/kernel-builder "$scratch/tools/kernel-builder"
+cp internal/appliance/kernel.version "$scratch/internal/appliance/kernel.version"
+cat > "$scratch/tools/installer-kernel/compose-fixture.config" <<'EOF_CONFIG'
 # ze-base: qemu
 CONFIG_COMPOSE_FIXTURE=y
 EOF_CONFIG
-printf 'CONFIG_COMPOSE_FIXTURE\n' > tools/installer-kernel/compose-fixture.require
+printf 'CONFIG_COMPOSE_FIXTURE\n' > "$scratch/tools/installer-kernel/compose-fixture.require"
 # // test-relax: run.py passes the profile to build.py as `--profile <name>` rather
 # than the old `-e PROFILE=<name>` docker env, so the fake docker detects it from
 # the --profile argument now.
@@ -159,16 +166,26 @@ EOF_CONFIG
 fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
-PATH="$work/fakebin:$PATH" make -C tools/installer-kernel PROFILE=qemu BUILDER=docker ARCH=amd64 > "$work/make-qemu.out"
-if grep -q '^CONFIG_COMPOSE_FIXTURE=y$' build/kernel/config; then
+# test-relax: no assertion is changed, removed, or lowered in this file. The 12
+# deleted lines are shared-state scaffolding, not coverage: `orig_image` and
+# `orig_config` saved and restored repo-root build/kernel/Image and
+# build/kernel/config around a build that now runs in the scratch root, and the
+# trap deleted a compose-fixture pair that is now written into the scratch copy
+# of tools/installer-kernel/. Every assertion below is the one it was, against
+# the scratch paths, and one assertion is ADDED (the provenance sidecar).
+PATH="$work/fakebin:$PATH" make -C "$scratch/tools/installer-kernel" PROFILE=qemu BUILDER=docker ARCH=amd64 > "$work/make-qemu.out"
+if grep -q '^CONFIG_COMPOSE_FIXTURE=y$' "$scratch/build/kernel/config"; then
 	echo "qemu profile unexpectedly used compose fixture" >&2
 	exit 1
 fi
-PATH="$work/fakebin:$PATH" make -C tools/installer-kernel PROFILE=compose-fixture BUILDER=docker ARCH=amd64 > "$work/make-fixture.out"
+PATH="$work/fakebin:$PATH" make -C "$scratch/tools/installer-kernel" PROFILE=compose-fixture BUILDER=docker ARCH=amd64 > "$work/make-fixture.out"
 grep -q 'profile=compose-fixture' "$work/make-fixture.out"
-grep -q '^CONFIG_COMPOSE_FIXTURE=y$' build/kernel/config
-rm -f build/kernel/Image
-if PATH="$work/fakebin:$PATH" make -q -C tools/installer-kernel PROFILE=compose-fixture BUILDER=docker ARCH=amd64; then
+grep -q '^CONFIG_COMPOSE_FIXTURE=y$' "$scratch/build/kernel/config"
+# write_provenance() in run.py writes this sidecar into --out-dir, so the line
+# pins the build output to the scratch out-dir rather than to any other path.
+grep -q '^profile=compose-fixture$' "$scratch/build/kernel/kernel.version"
+rm -f "$scratch/build/kernel/Image"
+if PATH="$work/fakebin:$PATH" make -q -C "$scratch/tools/installer-kernel" PROFILE=compose-fixture BUILDER=docker ARCH=amd64; then
 	echo "missing build/Image unexpectedly considered up to date" >&2
 	exit 1
 fi

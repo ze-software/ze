@@ -1,4 +1,19 @@
 # Test: ze appliance kernel resolves open profiles and enforces required Kconfig symbols in Go.
+#
+# The fixture profiles live in a scratch repository root under the harness work
+# directory, never in the tracked tree. registeredKernelProfiles in
+# internal/appliance/kernelreg.go scans a real directory. A fixture pair written
+# into tools/installer-kernel/ is therefore a resolvable kernel profile for as
+# long as it sits on disk.
+#
+# Both resolvers follow a root this test controls. kernelTargetFor in
+# internal/appliance/cmd_kernel.go gives the installer target the relative
+# "tools/installer-kernel", so the Go side follows the process working
+# directory. repo_root in tools/kernel-builder/run.py walks up from run.py to
+# the first directory that holds go.mod.
+#
+# This test writes nothing under the repository, so it carries no cleanup trap
+# and a killed run leaves nothing behind.
 
 option=timeout:value=20s
 
@@ -7,15 +22,22 @@ tmpfs=run.sh:terminator=EOF_SH
 set -eu
 work=$PWD
 repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
 
-cleanup() {
-	rm -f tools/installer-kernel/fixture.config tools/installer-kernel/fixture.require tools/installer-kernel/missing.config
-	rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
-}
-trap cleanup EXIT
+# The scratch root holds go.mod for repo_root, the profile directory both
+# resolvers read, and the builder directory run.py imports build.py from.
+# Copy the builder directory, never link it: run.py takes
+# Path(__file__).resolve(), and a symlink resolves back into the real
+# repository. kernel.version keeps the root a faithful minimal repository,
+# although defaultKernelBuild always passes --version.
+root=$work/root
+mkdir -p "$root/tools" "$root/internal/appliance"
+: > "$root/go.mod"
+cp -R "$repo/tools/installer-kernel" "$root/tools/installer-kernel"
+cp -R "$repo/tools/kernel-builder" "$root/tools/kernel-builder"
+cp "$repo/internal/appliance/kernel.version" "$root/internal/appliance/kernel.version"
+cd "$root"
+
 mkdir -p "$work/fakebin" "$work/cache" "$work/out"
-rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
 
 cat > tools/installer-kernel/fixture.config <<'EOF_CONFIG'
 # ze-base: qemu
