@@ -7,19 +7,19 @@
         "not-applicable": 841,
         "single-polarity": 371
       },
-      "detail": "41.0% carry both polarities. Of the remaining 1740: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
+      "detail": "41.1% carry both polarities. Of the remaining 1740: 841 not-applicable (ze deliberately does not do it, so no test is owed), 528 known gap (unimplemented, genuinely untested), and 371 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by a positive+negative test pair",
       "proof_density": {
-        "denominator": 2950,
-        "numerator": 1210,
-        "percent": 41.0
+        "denominator": 2954,
+        "numerator": 1214,
+        "percent": 41.1
       },
       "question": "Q2",
-      "rfcs_total": 167,
+      "rfcs_total": 168,
       "rfcs_without_any_proof": 36,
       "status": "ok",
-      "value": "1210 / 2950",
+      "value": "1214 / 2954",
       "worst": [
         {
           "gated": 38,
@@ -71,9 +71,9 @@
       "question": "Q2",
       "status": "warn",
       "unproven": {
-        "denominator": 167,
+        "denominator": 168,
         "numerator": 36,
-        "percent": 21.6
+        "percent": 21.4
       },
       "unproven_rfcs": [
         "rfc2003",
@@ -113,13 +113,13 @@
         "rfc9319",
         "rfc9514"
       ],
-      "value": "36 / 167"
+      "value": "36 / 168"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 21953,
+        "denominator": 22209,
         "numerator": 135,
         "percent": 0.6
       },
@@ -127,7 +127,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "135 / 21953 (floor 135)",
+      "value": "135 / 22209 (floor 135)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -218,19 +218,19 @@
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
-        "bench_funcs": 134,
-        "ci_files": 1576,
+        "bench_funcs": 137,
+        "ci_files": 1597,
         "et_files": 164,
         "fuzz_funcs": 78,
-        "test_files": 2975,
-        "test_funcs": 21983
+        "test_files": 3009,
+        "test_funcs": 22240
       },
-      "detail": "2975 Go test files, 78 fuzz targets, 134 benchmarks, 1576 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "3009 Go test files, 78 fuzz targets, 137 benchmarks, 1597 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "21983 test functions"
+      "value": "22240 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -308,13 +308,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2975,
-        "numerator": 1011,
-        "percent": 34.0
+        "denominator": 3009,
+        "numerator": 1030,
+        "percent": 34.2
       },
       "question": "Q2",
       "status": "ok",
-      "value": "1011 / 2975",
+      "value": "1030 / 3009",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -389,7 +389,7 @@
         },
         "2026": {
           "packages": 495,
-          "with_ci": 30,
+          "with_ci": 31,
           "with_fuzz": 31,
           "with_rfc_tag": 94
         }
