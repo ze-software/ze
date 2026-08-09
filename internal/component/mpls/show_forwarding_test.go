@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-1-kernel.md -- `show mpls forwarding` handler tests
+// Design: docs/architecture/mpls/mpls-kernel.md -- `show mpls forwarding` handler tests
 package mpls
 
 import (

@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- MPLS forwarding-entry dispatch tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- MPLS forwarding-entry dispatch tests
 package fibkernel
 
 import (

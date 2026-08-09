@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-7-flooding.md -- fixture pin for test/isis/isis-flooding.ci
+// Design: docs/architecture/isis/isis-7-flooding.md -- fixture pin for test/isis/isis-flooding.ci
 package packet
 
 import (

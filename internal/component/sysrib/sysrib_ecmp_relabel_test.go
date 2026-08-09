@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md -- sysrib ECMP relabel detection.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- sysrib ECMP relabel detection.
 //
 // VALIDATES: when an ECMP member is relabeled (same next-hops, new MPLS label
 // stack) sysrib emits a fresh BestChange carrying the new label stack, so the

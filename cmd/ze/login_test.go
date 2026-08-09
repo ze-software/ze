@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-login-shell.md -- serial console login tests
+// Design: docs/architecture/appliance-serial-login.md -- serial console login tests
 // VALIDATES: AC-1 (argv[0] dispatch), AC-2 (valid creds), AC-3 (invalid creds),
 //            AC-4 (missing ZeFS), AC-6 (non-terminal), AC-9 (fallback path)
 // PREVENTS: unauthenticated serial console access on gokrazy appliance

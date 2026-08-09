@@ -1,6 +1,6 @@
 //go:build ze_web
 
-// Design: plan/spec-pki-full-chain.md -- hub web TLS material selection tests
+// Design: docs/architecture/pki/tls-listeners.md -- hub web TLS material selection tests
 
 package hub
 

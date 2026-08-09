@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md TDD plan -- Dijkstra, ECMP, overload,
+// Design: docs/architecture/isis/isis-9-spf-rib.md TDD plan -- Dijkstra, ECMP, overload,
 // metric width, and debounce.
 //
 // VALIDATES: Compute (Dijkstra) matches hand-computed shortest paths and

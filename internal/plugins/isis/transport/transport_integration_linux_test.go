@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-isis-3-l2-transport.md -- raw L2 QEMU integration tests
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw L2 QEMU integration tests
 //
 // These exercise the real AF_PACKET/SOCK_RAW backend on a veth pair inside a
 // dedicated network namespace. They require CAP_NET_ADMIN (to create the netns

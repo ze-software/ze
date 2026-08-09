@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- own-LSP origination tests.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- own-LSP origination tests.
 //
 // VALIDATES: own LSP built with TLV 1/129/22/132/135/137, valid sequence +
 // Fletcher checksum (TestISISOriginateOnAdjacencyUp); full regen + sequence

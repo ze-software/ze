@@ -1,4 +1,4 @@
-// Design: plan/spec-cos-dynamic.md -- AccessInterface propagation test
+// Design: docs/architecture/traffic/cos-dynamic.md -- AccessInterface propagation test
 // VALIDATES: AC-10 -- AccessInterface propagated from L2TP session-up to subscriber.Session
 
 package l2tp

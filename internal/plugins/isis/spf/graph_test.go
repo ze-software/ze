@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md TDD plan -- TestISISGraphBuild.
+// Design: docs/architecture/isis/isis-9-spf-rib.md TDD plan -- TestISISGraphBuild.
 //
 // VALIDATES: the SPF graph builder turns LSDB records into vertices (System IDs +
 // pseudo-nodes), TLV 22 edges weighted by the 24-bit wide metric (pseudo-node

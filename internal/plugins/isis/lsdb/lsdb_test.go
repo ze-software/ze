@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- LSDB store/freshness/flags/snapshot tests.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- LSDB store/freshness/flags/snapshot tests.
 //
 // VALIDATES: store/retrieve with per-level isolation (TestISISLSDBStoreRetrieve);
 // the freshness compare newer/equal/older (TestISISLSDBReceiveNewer); verbatim

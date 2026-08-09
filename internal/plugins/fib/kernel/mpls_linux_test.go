@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-1-kernel.md -- MPLS label validation tests
+// Design: docs/architecture/mpls/mpls-kernel.md -- MPLS label validation tests
 
 //go:build linux
 

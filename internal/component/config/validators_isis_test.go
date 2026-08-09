@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-4-component-config.md -- IS-IS NET / system-id validators
+// Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS NET / system-id validators
 //
 // VALIDATES: TestISISNETValidator -- the isis-net custom validator accepts valid
 // NETs and rejects bad hex / NSEL / length, including the 8..20-octet length

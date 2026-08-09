@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-4-component-config.md -- config resolution unit tests
+// Design: docs/architecture/isis/isis-4-component-config.md -- config resolution unit tests
 //
 // VALIDATES: the `isis` config subtree (root-wrapped, string-typed leaves, keyed
 // lists) parses into typed Config with YANG defaults applied; NET-only config

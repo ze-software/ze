@@ -1,4 +1,4 @@
-// Design: rs-fastpath-3 AC-9 -- per-UPDATE in-process hot path throughput.
+// Design: docs/architecture/core-design.md -- Forwarding Path (section 9): per-UPDATE in-process hot path throughput.
 // Related: forward_update_test.go -- functional tests of the fast path.
 
 package reactor

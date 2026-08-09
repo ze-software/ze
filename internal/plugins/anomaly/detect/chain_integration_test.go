@@ -1,4 +1,4 @@
-// Design: plan/spec-anomaly-4-interop-harness.md -- facts->judgment->response end to end.
+// Design: docs/architecture/anomaly/anomaly-4-interop-harness.md -- facts->judgment->response end to end.
 package detect
 
 import (

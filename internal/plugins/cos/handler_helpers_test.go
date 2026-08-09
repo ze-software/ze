@@ -1,4 +1,4 @@
-// Design: plan/spec-cos-dynamic.md -- test helpers for CoS handler tests
+// Design: docs/architecture/traffic/cos-dynamic.md -- test helpers for CoS handler tests
 
 //go:build ze_l2tp
 

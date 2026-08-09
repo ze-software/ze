@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-10-auth.md -- engine authentication wiring tests.
+// Design: docs/architecture/isis/isis-10-auth.md -- engine authentication wiring tests.
 //
 // These tests exercise the engine-level sign/verify hooks end to end on raw PDU
 // bytes (no transport): the per-level signer (LSP/CSNP/PSNP), the per-interface

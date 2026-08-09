@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- two-engine adjacency wiring test.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- two-engine adjacency wiring test.
 //
 // VALIDATES (Wiring Test, AC-3): two IS-IS engines on an in-memory broadcast
 // circuit exchange LAN IIHs through the spec-isis-4 PDU dispatcher and the

@@ -1,4 +1,4 @@
-// Design: plan/spec-cos-dynamic.md -- CoS Filter-Id parser tests
+// Design: docs/architecture/traffic/cos-dynamic.md -- CoS Filter-Id parser tests
 // VALIDATES: AC-1, AC-6, AC-7 -- Filter-Id parsing via core/cos
 
 package cos

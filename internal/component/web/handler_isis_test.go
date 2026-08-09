@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- IS-IS web view tests.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS web view tests.
 // Related: handler_isis.go -- the neighbor/database handlers under test.
 //
 // VALIDATES: the IS-IS web handlers dispatch the right show command, return the

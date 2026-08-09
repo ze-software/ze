@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-7-flooding.md -- flooding/SNP Prometheus metrics (owner isis-7).
+// Design: docs/architecture/isis/isis-7-flooding.md -- flooding/SNP Prometheus metrics (owner isis-7).
 //
 // VALIDATES: this spec registers EXACTLY the umbrella canonical rows it owns
 // (ze_isis_lsps_received_total, ze_isis_lsps_transmitted_total,

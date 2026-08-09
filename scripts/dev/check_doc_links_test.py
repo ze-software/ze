@@ -52,6 +52,16 @@ def run(repo: Path) -> subprocess.CompletedProcess:
     )
 
 
+def run_design(repo: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--design-only"],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 class DocLinksGateTest(unittest.TestCase):
     def _repo(self, corpus: str, gitignore: str = IGNORED_PATHS) -> Path:
         d = tempfile.mkdtemp(prefix="doc-links-")
@@ -114,7 +124,7 @@ class InRepo:
         os.chdir(REPO)
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *_exc):
         os.chdir(self.prev)
         return False
 
@@ -285,6 +295,50 @@ class DeadNameLintTest(unittest.TestCase):
         ):
             self.assertIn(name, defs, f"{name} must resolve from the lint set")
 
+    def test_check_source_filename_resolves(self) -> None:
+        """A check's OWN file name is a live reference, not a dead one.
+
+        VALIDATES: `check_doc_links.py` resolves. `SH_TOKEN` never sees it (it
+                   is not a `.sh`), and `CHECK_TOKEN` matches the stem inside
+                   it, so the stem must be in the set `CHECK_TOKEN` resolves
+                   against.
+        PREVENTS:  the gate row in
+                   `ai/rules/points/repo-maintenance/discovery-updates/`
+                   having to omit the file that holds `check_ignore_reasons`
+                   to keep the lint green.
+        """
+        with InRepo():
+            _, checks, errors = cdl.known_names()
+            self.assertEqual(errors, [])
+            self.assertIn("check_doc_links", checks)
+            files = self._doc(
+                "`check_ignore_reasons` in `check_doc_links.py` gates it.\n"
+            )
+            self.assertEqual(cdl.check_hook_names(files), [])
+
+    def test_unknown_check_name_still_dead(self) -> None:
+        """The negative control: widening the set resolved nothing else."""
+        with InRepo():
+            files = self._doc("The gate `check_nonexistent_thing` reads it.\n")
+            found = cdl.check_hook_names(files)
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("check_nonexistent_thing", found[0])
+
+    def test_check_py_outside_the_check_sources_still_dead(self) -> None:
+        """The accepted population is check SOURCES, not every tracked file.
+
+        `test/interop/testdata/check_except_probe.py` is tracked and its name
+        matches `CHECK_TOKEN`, but `python_check_sources` does not read it. A
+        rule naming it is naming an unrelated script, and must still fail.
+        """
+        with InRepo():
+            sources = cdl.python_check_sources()
+            self.assertNotIn("test/interop/testdata/check_except_probe.py", sources)
+            files = self._doc("The gate `check_except_probe.py` reads it.\n")
+            found = cdl.check_hook_names(files)
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("check_except_probe", found[0])
+
     def test_sources_are_parsed_never_executed(self) -> None:
         """A doc check must not run hook code (spec Security Review)."""
         src = SCRIPT.read_text(encoding="utf-8")
@@ -305,6 +359,217 @@ class DeadNameLintTest(unittest.TestCase):
         self.assertIn("no_such_check.py", errors[0])
 
 
+class IgnoreMarkerTest(unittest.TestCase):
+    """The `doc-links: ignore` marker: its grammar and its mandatory reason.
+
+    VALIDATES: AC-4 of spec doc-claims-are-checked-not-just-resolved -- a
+               marker with no reason fails the gate and names its line, over
+               every TRACKED file rather than over the walked corpus.
+    PREVENTS:  the silent allowlist. 98 dead citations sat behind markers no
+               gate read, and three more survived inside `ai/rules/` itself,
+               each hiding a path deleted by the problem-journal migration.
+    """
+
+    def _repo(self, corpus: str, path: str = "ai/rules/sample.md") -> Path:
+        d = tempfile.mkdtemp(prefix="ignore-marker-")
+        self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
+        repo = Path(d)
+        subprocess.run(
+            ["git", "init", "-q"], cwd=str(repo), check=True, capture_output=True
+        )
+        (repo / ".gitignore").write_text(IGNORED_PATHS, encoding="utf-8")
+        doc = repo / path
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        doc.write_text(corpus, encoding="utf-8")
+        # The sweep reads TRACKED files, so the fixture has to be tracked.
+        # A throwaway repo under tempfile: no shared index is touched.
+        subprocess.run(
+            ["git", "add", "-A"], cwd=str(repo), check=True, capture_output=True
+        )
+        return repo
+
+    def test_ignore_marker_without_a_reason_fails(self) -> None:
+        """AC-4: the gate fails and names the line."""
+        repo = self._repo("Gone: `ai/rules/absent.md`. <!-- doc-links: ignore -->\n")
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("ai/rules/sample.md:1", res.stdout)
+        self.assertIn("states no reason", res.stdout)
+        # It excuses nothing meanwhile: the reference it hid is reported too.
+        self.assertIn("ai/rules/absent.md", res.stdout)
+
+    def test_reasoned_marker_still_suppresses(self) -> None:
+        """The negative control: the marker keeps working when it says why."""
+        repo = self._repo(
+            "Gone: `ai/rules/absent.md`. "
+            "<!-- doc-links: ignore (negative example, deliberately absent) -->\n"
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+    def test_empty_parentheses_are_not_a_reason(self) -> None:
+        """`()` is the shape that would make the requirement free to satisfy."""
+        repo = self._repo("Gone: `ai/rules/absent.md`. <!-- doc-links: ignore () -->\n")
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("states no reason", res.stdout)
+
+    def test_prose_mention_does_not_suppress(self) -> None:
+        """The marker is HTML-comment grammar, never a bare substring.
+
+        VALIDATES: a document that MENTIONS the marker in prose no longer
+                   silences its own line.
+        PREVENTS:  the one document that could never be checked being the one
+                   that describes the marker.
+        """
+        repo = self._repo(
+            "A line carrying `doc-links: ignore` used to be skipped, so "
+            "`ai/rules/absent.md` went unseen.\n"
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("ai/rules/absent.md", res.stdout)
+        # A mention is not a marker, so it is not an unreasoned one either.
+        self.assertNotIn("states no reason", res.stdout)
+
+    def test_marker_outside_the_walked_corpus_is_still_swept(self) -> None:
+        """`docs/` is in no `MD_GLOBS` pattern, and its markers are audited.
+
+        VALIDATES: the sweep enumerates tracked files, not `MD_GLOBS`.
+        PREVENTS:  the hole that made this worth writing -- a marker nobody
+                   reads suppresses nothing and rots unseen, so scoping the
+                   audit to the walked corpus would leave it open.
+        """
+        repo = self._repo(
+            "Gone: `ai/rules/absent.md`. <!-- doc-links: ignore -->\n",
+            path="docs/architecture/sample.md",
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("docs/architecture/sample.md:1", res.stdout)
+        # `check_markdown` never walks docs/, so the marker is the only finding.
+        self.assertNotIn("broken path reference", res.stdout)
+
+    def test_backticked_marker_is_an_example_not_a_marker(self) -> None:
+        """A code span showing the syntax must not suppress its own line.
+
+        VALIDATES: `ai/INDEX.md` can document the marker on the same line as
+                   the paths it names, and those paths stay checked.
+        PREVENTS:  rebuilding the prose-mention hole by writing the
+                   documentation for the grammar that closed it.
+        """
+        repo = self._repo(
+            "Write it as `<!-- doc-links: ignore (why) -->`; "
+            "`ai/rules/absent.md` is still checked.\n"
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("ai/rules/absent.md", res.stdout)
+        # An example excuses nothing, so there is no exemption to audit either.
+        self.assertNotIn("states no reason", res.stdout)
+
+    def test_unreadable_file_is_a_finding(self) -> None:
+        """Fail closed: a file the sweep cannot read is never a silent pass."""
+        found = cdl.check_ignore_reasons(files=("no/such/file.md",))
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("cannot read", found[0])
+
+
+class DesignRefTest(unittest.TestCase):
+    """`// Design:` targets in Go, test files included.
+
+    VALIDATES: AC-1, AC-3, AC-4 of spec fixit-dead-design-pointers-in-tests --
+               a `_test.go` is read like any other Go file, and inside one a
+               `plan/spec-` target is refused even when the spec exists.
+    PREVENTS:  the class regrowing. Spec closure deletes the spec
+               (ai/rules/planning.md, "Spec Closure"), so a live spec pointer
+               in a test dies on an unrelated author's closure commit. 133 dead
+               pointers accumulated behind the `_test.go` exclusion in
+               `go_files()`, which no gate ever read.
+    """
+
+    def _repo(self, files: dict[str, str]) -> Path:
+        d = tempfile.mkdtemp(prefix="design-ref-")
+        self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
+        repo = Path(d)
+        subprocess.run(
+            ["git", "init", "-q"], cwd=str(repo), check=True, capture_output=True
+        )
+        (repo / ".gitignore").write_text(IGNORED_PATHS, encoding="utf-8")
+        for rel, body in files.items():
+            p = repo / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(body, encoding="utf-8")
+        # `go_files()` reads `git ls-files`, so the fixture has to be tracked.
+        subprocess.run(
+            ["git", "add", "-A"], cwd=str(repo), check=True, capture_output=True
+        )
+        return repo
+
+    def test_design_ref_in_a_test_file_is_checked(self) -> None:
+        """AC-1: a dead target in a `_test.go` is reported."""
+        repo = self._repo(
+            {
+                "internal/x/foo_test.go": (
+                    "// Design: docs/architecture/absent.md\npackage x\n"
+                )
+            }
+        )
+        res = run_design(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("internal/x/foo_test.go:1", res.stdout)
+        self.assertIn("docs/architecture/absent.md", res.stdout)
+
+    def test_design_ref_to_a_live_spec_is_refused_in_a_test_file(self) -> None:
+        """AC-3: existence is not enough. The message names the rule."""
+        repo = self._repo(
+            {
+                "plan/spec-live.md": "# Spec: live\n",
+                "internal/x/foo_test.go": "// Design: plan/spec-live.md\npackage x\n",
+            }
+        )
+        self.assertTrue((repo / "plan" / "spec-live.md").exists())
+        res = run_design(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("internal/x/foo_test.go:1", res.stdout)
+        self.assertIn("plan/spec-live.md", res.stdout)
+        # The finding must teach the rule, not just print the path.
+        self.assertIn("durable", res.stdout)
+        self.assertIn("ai/rules/planning.md", res.stdout)
+        self.assertNotIn("broken Design reference", res.stdout)
+
+    def test_design_ref_to_a_live_spec_is_allowed_outside_a_test_file(self) -> None:
+        """AC-4: the ban is scoped to test files.
+
+        The negative control for the check above: 21 live `plan/` pointers sit
+        in non-test Go today, and refusing those would be a false red.
+        """
+        repo = self._repo(
+            {
+                "plan/spec-live.md": "# Spec: live\n",
+                "internal/x/foo.go": "// Design: plan/spec-live.md\npackage x\n",
+            }
+        )
+        res = run_design(repo)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+    def test_design_ref_outside_a_test_file_still_reports_a_dead_target(self) -> None:
+        """The gate keeps the job it already did.
+
+        Widening the file list and adding the spec refusal must not cost the
+        original behavior: a non-test `.go` naming a target that does not
+        exist is still a finding. Nothing else in this file pins it, so a
+        later change that scoped the whole check to test files would pass.
+        """
+        repo = self._repo(
+            {"internal/x/foo.go": "// Design: docs/architecture/absent.md\npackage x\n"}
+        )
+        res = run_design(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("internal/x/foo.go:1", res.stdout)
+        self.assertIn("broken Design reference", res.stdout)
+
+
 class RealCorpusTest(unittest.TestCase):
     """AC-4: after the fixes, the lint exits 0 against the real tree."""
 
@@ -316,6 +581,37 @@ class RealCorpusTest(unittest.TestCase):
             )
         with InRepo():
             self.assertEqual(cdl.check_hook_names(), [])
+
+    def test_real_corpus_has_no_unreasoned_marker(self) -> None:
+        """Every surviving marker in the tree states why (spec A-3).
+
+        The second assertion is what makes the first mean anything: a sweep
+        over a tree with no markers at all would be green and prove nothing.
+        It counts reasoned markers rather than pinning a number, so removing
+        one never reds this test.
+        """
+        with InRepo():
+            self.assertEqual(cdl.check_ignore_reasons(), [])
+            reasoned = 0
+            for path in cdl.tracked_files():
+                raw = Path(path).read_bytes()
+                if cdl.MARKER_BYTES not in raw:
+                    continue
+                for line in raw.decode("utf-8", errors="replace").splitlines():
+                    reasoned += sum(
+                        1
+                        for tail in cdl.ignore_markers(line)
+                        if cdl.marker_reason(tail)
+                    )
+        self.assertGreater(reasoned, 0, "no marker was read: the sweep proves nothing")
+
+    def test_the_sweep_excludes_its_own_implementation(self) -> None:
+        """The checker and its fixtures own the marker; they are not corpus."""
+        with InRepo():
+            tracked = set(cdl.tracked_files())
+        self.assertNotIn("scripts/dev/check_doc_links.py", tracked)
+        self.assertNotIn("scripts/dev/check_doc_links_test.py", tracked)
+        self.assertIn("ai/rules/repo-maintenance.md", tracked)
 
     def test_design_history_is_scanned(self) -> None:
         """AC-6: the exemption is gone, so a stale path in it fails the gate.

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-3-l2-transport.md -- MTU expose + neighbor inference
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- MTU expose + neighbor inference
 
 package transport
 

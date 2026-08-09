@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-iface-resolve-2-resolver.md -- resolver os-name remapping.
+// Design: docs/architecture/iface/logical-name-resolution.md -- resolver os-name remapping.
 //
 // VALIDATES: spec-iface-resolve-2 AC-1/AC-2/AC-3 end-to-end against the real
 // netlink backend: the os-name selector resolves a LOGICAL interface name to a

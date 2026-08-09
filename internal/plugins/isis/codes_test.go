@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- IS-IS diagnostic code ownership tests.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS diagnostic code ownership tests.
 //
 // VALIDATES: the IS-IS component OWNS and registers its two config-sanity
 // diagnostic codes (doctor-isis-net-missing, doctor-isis-system-id-mismatch) from

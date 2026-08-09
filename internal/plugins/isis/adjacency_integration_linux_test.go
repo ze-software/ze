@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-isis-5-adjacency.md -- adjacency QEMU integration test.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- adjacency QEMU integration test.
 //
 // VALIDATES (AC-1/AC-3, Wiring Test "two engines on a veth"): two real IS-IS
 // engines, each on one end of a veth pair inside a dedicated network namespace,

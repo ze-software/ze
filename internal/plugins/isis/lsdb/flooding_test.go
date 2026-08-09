@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-7-flooding.md -- flooding receive algorithm + periodic SRM TX tests.
+// Design: docs/architecture/isis/isis-7-flooding.md -- flooding receive algorithm + periodic SRM TX tests.
 //
 // VALIDATES: (lsdb-package unit level, fake tx + circuit set)
 //   - the freshness-to-flag mapping for every ISO/IEC 10589 clause 7.3.15 outcome

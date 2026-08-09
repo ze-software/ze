@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-4-component-config.md -- engine/server + PDU dispatcher tests
+// Design: docs/architecture/isis/isis-4-component-config.md -- engine/server + PDU dispatcher tests
 //
 // VALIDATES: the PDU-type receive dispatcher routes each 5-bit PDU type to its
 // registered handler and drops unknown types without panicking

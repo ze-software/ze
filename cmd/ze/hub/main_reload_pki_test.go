@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- reload ordering (AC-10) and rollback (R-3)
+// Design: docs/architecture/pki/tls-listeners.md -- reload ordering (AC-10) and rollback (R-3)
 
 package hub
 

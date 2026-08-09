@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- SPF-log ring boundary tests.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- SPF-log ring boundary tests.
 // Related: spflog.go -- the bounded SPF-run history under test.
 
 package spf

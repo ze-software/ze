@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- LSP aging / purge / grace tests.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- LSP aging / purge / grace tests.
 //
 // VALIDATES: the 1s decrement (TestISISLSDBAgeDecrement); lifetime-0 ->
 // purged-not-deleted, deleted after the ZeroAgeLifetime grace

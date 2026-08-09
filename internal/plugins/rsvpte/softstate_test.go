@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- RSVP-TE soft-state expiry (F8) test
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE soft-state expiry (F8) test
 package rsvpte
 
 import (

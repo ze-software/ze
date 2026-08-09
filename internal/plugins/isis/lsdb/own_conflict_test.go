@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- own-LSP sequence conflicts.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- own-LSP sequence conflicts.
 //
 // VALIDATES: ISO/IEC 10589 clause 7.3.16.1 and clause 7.3.16.4 c) at the store /
 // originator layer: another system's claim on one of this system's own LSP IDs is

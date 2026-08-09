@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- core TLV round-trip + boundary tests
+// Design: docs/architecture/wire/isis.md -- core TLV round-trip + boundary tests
 package packet
 
 import (

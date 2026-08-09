@@ -5,7 +5,8 @@ inline on every unit. A BNG with hundreds of VLAN subscribers sharing one 802.1p
 mapping needs a named profile instead.
 
 The `class-of-service` plugin owns the profile definitions and binds them to
-interfaces. The iface component keeps the low-level mechanism.
+interfaces. The iface component keeps the low-level mechanism, documented in
+[`../iface/vlan-qos-map.md`](../iface/vlan-qos-map.md).
 
 The RADIUS-driven half is [cos-dynamic](cos-dynamic.md).
 

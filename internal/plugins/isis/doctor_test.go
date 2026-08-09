@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- IS-IS doctor check unit tests.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS doctor check unit tests.
 // Related: doctor.go -- the config-sanity check under test
 // Related: register_doctor.go -- the init() registration of the check
 //

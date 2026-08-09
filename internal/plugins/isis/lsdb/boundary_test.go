@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- boundary tests for the numeric LSDB inputs.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- boundary tests for the numeric LSDB inputs.
 //
 // VALIDATES the spec "Boundary Tests" table at the LSDB layer:
 //   - LSP sequence number 1..0xFFFFFFFF (1 first, 0 reserved, wrap triggers purge)

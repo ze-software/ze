@@ -1,20 +1,35 @@
 #!/usr/bin/env python3
 """Check that path references in the instruction corpus resolve.
 
-Three checks:
+Four checks:
   1. Markdown corpus: backtick path references and markdown links in the
      normative agent-instruction files (ai/, .claude/rules/, plan/ meta docs)
      must point at files/dirs that exist. Historical records (plan/handover/)
      are NOT checked: they describe the tree as it was at the time.
-  2. Go sources: the target of every `// Design:` comment must exist
-     (`(none ...)` placeholders are allowed).
+  2. Go sources, `_test.go` included: the target of every `// Design:` comment
+     must exist (`(none ...)` placeholders are allowed). Inside a test file a
+     `plan/spec-` target is refused even when it exists -- spec closure deletes
+     the spec, so a test cites a durable document instead.
   3. Dead names: a backticked `*.sh` filename or `c_*`/`check_*` function name
      in the hook-describing documents must name something in the tree. Check 1
      cannot see these: a bare `foo.sh` carries no `/`, so `candidate_paths`
      drops it, and a function name is not a path at all.
+  4. Suppression reasons: every `doc-links: ignore` marker in a TRACKED file
+     must carry a reason. Checks 1 and 3 are the only readers of the marker,
+     and between them they walk `MD_GLOBS` and `NAME_LINT_FILES` -- a small
+     fraction of the tree. A marker anywhere else was decoration no gate read.
 
-A line containing `doc-links: ignore` is skipped (use for deliberate
-references to removed paths, e.g. negative examples).
+A line is skipped by checks 1 and 3 when it carries the marker inside an HTML
+comment AND that marker states a reason:
+
+    <!-- doc-links: ignore (why this path cannot resolve) -->
+
+Use it for a deliberate reference to a path that is not in the tree, such as a
+negative example or a sibling repository. Two properties are load-bearing. The
+marker counts only inside an HTML comment, so a document that MENTIONS the
+words in prose no longer silences its own line. The reason is mandatory and
+check 4 reports a marker without one, so a suppression is auditable: an
+unreasoned marker is a silent allowlist, and 98 dead citations sat behind one.
 
 A path that git IGNORES is never reported missing: `.gitignore` is where this
 repo declares "generated or local-state artifact" (CLAUDE.md, AGENTS.md,
@@ -117,6 +132,60 @@ LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
 SYMBOL_COLON = re.compile(r":[A-Za-z_][\w.]*$")
 SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
 DESIGN = re.compile(r"^// Design:\s*(.+)$")
+# A `// Design:` target under this prefix is refused inside a `_test.go`.
+SPEC_PREFIX = "plan/spec-"
+
+# --- The suppression marker -------------------------------------------------
+# `<!-- doc-links: ignore (reason) -->`. The HTML comment is part of the
+# grammar, not decoration: the old test was `"doc-links: ignore" in line`, so a
+# sentence naming the marker suppressed its own line, and the document that
+# DESCRIBES the marker was the one document that could never be checked.
+# `(?:(?!-->).)*` keeps the match inside one comment, so a comment that opens
+# after an unrelated one on the same line cannot borrow its `-->`.
+IGNORE_MARKER = re.compile(r"<!--(?:(?!-->).)*?doc-links:\s*ignore((?:(?!-->).)*)-->")
+IGNORE_REASON = re.compile(r"\(([^)]*)\)")
+# Cheap pre-filter for the tracked-file sweep: the bytes every marker contains.
+MARKER_BYTES = b"doc-links: ignore"
+# This checker and its tests OWN the marker: their occurrences are the
+# implementation and its fixtures, never suppressions of a reference.
+MARKER_SWEEP_EXCLUDE = frozenset(
+    {
+        "scripts/dev/check_doc_links.py",
+        "scripts/dev/check_doc_links_test.py",
+    }
+)
+
+
+def ignore_markers(line: str) -> list[str]:
+    """The text between `ignore` and `-->` for every marker on `line`.
+
+    Code spans are blanked first, so a backticked marker is read as the syntax
+    EXAMPLE it is. `ai/INDEX.md` documents the marker on the same line as the
+    paths it names, and without this that one line would suppress its own
+    checks -- the failure the HTML-comment grammar exists to remove, rebuilt
+    by writing the documentation for it.
+
+    A backticked marker therefore excuses nothing and is audited by nothing,
+    which is the fail-closed pairing: no suppression, so no exemption to read.
+    """
+    return [m.group(1) for m in IGNORE_MARKER.finditer(BACKTICK.sub(" ", line))]
+
+
+def marker_reason(tail: str) -> str:
+    """One marker's parenthesised reason, or `""` when it states none."""
+    m = IGNORE_REASON.search(tail)
+    return m.group(1).strip() if m else ""
+
+
+def suppressed(line: str) -> bool:
+    """True when `line` carries a marker that states a reason.
+
+    An unreasoned marker excuses nothing. The reason is what makes the
+    suppression auditable, so a marker without one is a finding (check 4)
+    rather than a licence, and the references on its line stay checked.
+    """
+    return any(marker_reason(tail) for tail in ignore_markers(line))
+
 
 # --- Check 3: dead hook and check names -------------------------------------
 NAME_LINT_FILES = (
@@ -228,7 +297,7 @@ def check_markdown(verbose: bool) -> list[tuple[str, str]]:
             continue
         with open(md, encoding="utf-8") as fh:
             for lineno, line in enumerate(fh, 1):
-                if "doc-links: ignore" in line:
+                if suppressed(line):
                     continue
                 tokens = BACKTICK.findall(line) + MD_LINK.findall(line)
                 for raw in tokens:
@@ -245,13 +314,19 @@ def check_markdown(verbose: bool) -> list[tuple[str, str]]:
 
 
 def go_files() -> list[str]:
+    """Every tracked Go source, `_test.go` included.
+
+    Test files were excluded until 2026-08-09, and `check_design_refs()` is the
+    only caller, so the exclusion meant one thing: no `// Design:` pointer in a
+    test was ever checked. 133 of them had died by then.
+    """
     out = subprocess.run(
         ["git", "ls-files", "internal/", "cmd/", "pkg/", "scripts/", "*.go"],
         capture_output=True,
         text=True,
         check=True,
     ).stdout.splitlines()
-    return [f for f in out if f.endswith(".go") and not f.endswith("_test.go")]
+    return [f for f in out if f.endswith(".go")]
 
 
 def check_design_refs(verbose: bool) -> list[tuple[str, str]]:
@@ -276,7 +351,22 @@ def check_design_refs(verbose: bool) -> list[tuple[str, str]]:
             # to the referencing file's own directory.
             if "/" not in target and not os.path.exists(target):
                 target = os.path.join(os.path.dirname(go), target)
-            if not path_resolves(target):
+            if go.endswith("_test.go") and target.startswith(SPEC_PREFIX):
+                # Existence is not enough in a test. Spec closure removes the
+                # spec (ai/rules/planning.md, "Spec Closure"), so this pointer
+                # dies on an unrelated author's commit. Non-test files keep the
+                # plain existence check: 21 live spec pointers sit in them.
+                errors.append(
+                    (
+                        (
+                            f"{go}:{lineno}: a test must cite a durable "
+                            "document, never a spec deleted at closure "
+                            "(ai/rules/planning.md)"
+                        ),
+                        target,
+                    )
+                )
+            elif not path_resolves(target):
                 errors.append((f"{go}:{lineno}: broken Design reference", target))
             elif verbose:
                 print(f"ok {go}:{lineno}: {target}")
@@ -296,12 +386,18 @@ def python_check_sources() -> list[str]:
 
 
 def known_names() -> tuple[set[str], set[str], list[str]]:
-    """(script basenames, top-level def names, errors) the lint resolves against.
+    """(script basenames, check names, errors) the lint resolves against.
 
-    Names resolve against every top-level `def`, never against the `CHECKS`
-    registry tuples: a check can be reached through a helper that no tuple
-    names. Sources are PARSED, never imported -- a doc check must not execute
-    hook code.
+    A `c_*`/`check_*` reference resolves against every top-level `def`, and
+    also against the module stem of a tracked check SOURCE: `check_doc_links.py`
+    is matched by `CHECK_TOKEN`, never by `SH_TOKEN`, so a document naming a
+    check's own file had no set to resolve against and read as dead. The stems
+    come from `python_check_sources` alone, so naming an unrelated tracked
+    script still fails.
+
+    Names never resolve against the `CHECKS` registry tuples: a check can be
+    reached through a helper that no tuple names. Sources are PARSED, never
+    imported -- a doc check must not execute hook code.
     """
     errors: list[str] = []
     tracked = subprocess.run(
@@ -311,6 +407,7 @@ def known_names() -> tuple[set[str], set[str], list[str]]:
 
     defs: set[str] = set()
     sources = python_check_sources()
+    defs.update(os.path.basename(src)[: -len(".py")] for src in sources)
     for required in NAME_LINT_SOURCES:
         if required not in sources:
             # Fail closed: losing a source silently turns its live checks dead.
@@ -416,7 +513,7 @@ def check_hook_names(
             continue
         excused = retired_lines(text)
         for lineno, line in enumerate(text.splitlines(), 1):
-            if "doc-links: ignore" in line:
+            if suppressed(line):
                 continue
             for span in BACKTICK.findall(line):
                 dead = [t for t in SH_TOKEN.findall(span) if t not in scripts]
@@ -428,10 +525,65 @@ def check_hook_names(
                         continue
                     findings.append(
                         f"{md}:{lineno}: dead name reference: {token} -- names "
-                        f"no tracked script and no check function under "
-                        f"scripts/ or .claude/hooks/; correct it to the live "
-                        f"name, or move the entry under '## Retired'"
+                        f"no tracked script, no check source file, and no "
+                        f"check function under scripts/ or .claude/hooks/; "
+                        f"correct it to the live name, or move the entry "
+                        f"under '## Retired'"
                     )
+    return findings
+
+
+def tracked_files() -> list[str]:
+    """Every tracked path the marker sweep reads."""
+    out = subprocess.run(
+        ["git", "ls-files"], capture_output=True, text=True, check=True
+    ).stdout.splitlines()
+    return [f for f in out if f and f not in MARKER_SWEEP_EXCLUDE]
+
+
+def check_ignore_reasons(
+    files: tuple[str, ...] | None = None, verbose: bool = False
+) -> list[str]:
+    """Report every `doc-links: ignore` marker that states no reason.
+
+    The sweep covers every TRACKED file, not the `MD_GLOBS` corpus. A marker
+    outside that corpus suppresses nothing today, which is exactly why it is
+    worth reading: nobody audits it, and the reference under it rots unseen.
+    Scoping this check to the walked corpus would leave that hole open.
+
+    Reading is a two-step: the raw bytes are searched for `MARKER_BYTES`
+    first, so a binary or vendored file costs one read and no decode.
+    """
+    findings: list[str] = []
+    for path in tracked_files() if files is None else files:
+        try:
+            with open(path, "rb") as fh:
+                raw = fh.read()
+        except OSError as err:
+            # Fail closed: an unreadable file is a finding, never a skip. A
+            # marker it carries would otherwise pass by being unreadable.
+            findings.append(
+                f"{path}: cannot read for the ignore-marker sweep: {err} -- "
+                f"every marker it carries would go unaudited"
+            )
+            continue
+        if MARKER_BYTES not in raw:
+            continue
+        for lineno, line in enumerate(
+            raw.decode("utf-8", errors="replace").splitlines(), 1
+        ):
+            for tail in ignore_markers(line):
+                reason = marker_reason(tail)
+                if reason:
+                    if verbose:
+                        print(f"reasoned {path}:{lineno}: {reason}")
+                    continue
+                findings.append(
+                    f"{path}:{lineno}: doc-links: ignore marker states no "
+                    f"reason -- write it as `<!-- doc-links: ignore (why this "
+                    f"path cannot resolve) -->`, or delete the marker and fix "
+                    f"the reference it hides"
+                )
     return findings
 
 
@@ -460,13 +612,14 @@ def main() -> int:
 
     if not args.design_only:
         errors += check_hook_names(verbose=args.verbose)
+        errors += check_ignore_reasons(verbose=args.verbose)
 
     for err in errors:
         print(err)
     if errors:
         print(
-            f"{len(errors)} broken reference(s) -- fix the reference or "
-            f"mark the line with doc-links: ignore",
+            f"{len(errors)} broken reference(s) -- fix the reference, or mark "
+            f"the line `<!-- doc-links: ignore (reason) -->`",
             file=sys.stderr,
         )
         return 1

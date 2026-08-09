@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-followup-subsystem.md AC-6 -- SLAAC address lifecycle
+// Design: docs/features/interfaces.md AC-6 -- SLAAC address lifecycle
 // tracking. ze observes kernel-autoconfigured addresses and classifies them.
 //
 // This test exercises the classifier against the REAL kernel netlink stack in

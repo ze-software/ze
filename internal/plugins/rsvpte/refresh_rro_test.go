@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- RESV refresh (AC-5) and ERO/RRO (AC-9) tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RESV refresh (AC-5) and ERO/RRO (AC-9) tests
 package rsvpte
 
 import (

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-8-dis-broadcast.md -- DIS election unit tests.
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- DIS election unit tests.
 //
 // VALIDATES: the pure DIS election (ISO/IEC 10589 clause 8.4.5):
 //   - highest DIS priority wins (TestDISElectionPriority);

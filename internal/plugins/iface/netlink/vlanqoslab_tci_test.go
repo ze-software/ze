@@ -1,4 +1,4 @@
-// Design: plan/spec-vlan-qos-lab.md -- 802.1Q TCI decode/build helpers
+// Design: docs/architecture/iface/vlan-qos-map.md -- 802.1Q TCI decode/build helpers
 
 package ifacenetlink
 

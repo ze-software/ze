@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- the canonical ze_isis_* metric
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- the canonical ze_isis_* metric
 // set assertion (AC-10), extended to the OPERATOR-FACING documentation.
 // Related: metrics_test.go -- TestISISMetricsRegistered asserts the code registers
 //   the canonical set; THIS file asserts docs/plugin-development/metrics.md

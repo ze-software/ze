@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-8-dis-broadcast.md -- pseudo-node LSP origination tests.
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- pseudo-node LSP origination tests.
 //
 // VALIDATES: the DIS-originated pseudo-node LSP (ISO/IEC 10589 clause 8.4.5):
 //   - it has a NON-ZERO pseudonode LAN ID and lists every member as a TLV 22

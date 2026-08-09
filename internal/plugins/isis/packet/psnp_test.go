@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- PSNP round-trip tests
+// Design: docs/architecture/wire/isis.md -- PSNP round-trip tests
 package packet
 
 import (

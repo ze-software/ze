@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- circuit RX dispatch + lifecycle.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- circuit RX dispatch + lifecycle.
 //
 // VALIDATES: a received LAN IIH whose TLV 6 echoes our SNPA drives the adjacency
 // to Up via the circuit's Receive path (codec -> FSM -> table); the stored TLV

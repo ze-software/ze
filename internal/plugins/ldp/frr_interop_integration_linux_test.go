@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-mpls-2-ldp.md -- AC-10 interop with FRR ldpd.
+// Design: docs/architecture/ldp/mpls-ldp.md -- AC-10 interop with FRR ldpd.
 //
 // This is handover item #3 (FRR interop), which could not be run on darwin. It
 // stands up a real FRR (zebra + ldpd) peer in a child network namespace, connected

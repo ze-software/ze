@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-4-component-config.md -- IS-IS event namespace test
+// Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS event namespace test
 //
 // VALIDATES: the IS-IS event namespace registers its session up/down and
 // LSP-change event types without collision (TestISISEventNamespace), and the

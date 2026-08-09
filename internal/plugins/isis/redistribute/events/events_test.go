@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-11-redistribution.md -- producer wiring test (AC-11).
+// Design: docs/architecture/isis/isis-11-redistribution.md -- producer wiring test (AC-11).
 //
 // VALIDATES: spec-isis-11 producer wiring -- RegisterProducer(spf.ProtocolID())
 //            ran, so IS-IS is in redistevents.Producers() and the orchestrator

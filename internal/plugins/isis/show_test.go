@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- engine render + clear unit tests.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- engine render + clear unit tests.
 // Related: show.go -- the hostname/interface/spf-log render and clear actions under test.
 //
 // VALIDATES: `show isis hostname` maps System ID -> TLV 137 name (RFC 5301);

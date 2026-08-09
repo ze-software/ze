@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- decode/iterator/round-trip fuzz targets
+// Design: docs/architecture/wire/isis.md -- decode/iterator/round-trip fuzz targets
 package packet
 
 import (

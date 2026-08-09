@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- the canonical ze_isis_* metric
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- the canonical ze_isis_* metric
 // set assertion (AC-10). isis-13 registers NO metric series itself; it asserts
 // that the full umbrella "Metrics (canonical)" table is registered by its owning
 // subsystems (isis-3 transport, isis-5/6/7/8/9/10/11 engine subsystems) with the

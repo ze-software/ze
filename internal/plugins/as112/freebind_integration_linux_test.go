@@ -1,4 +1,4 @@
-// Design: plan/spec-as112-2-dns-server.md -- AC-11 / finding B2: IP_FREEBIND wiring proof
+// Design: docs/architecture/dns/as112.md -- AC-11 / finding B2: IP_FREEBIND wiring proof
 
 //go:build integration && linux
 

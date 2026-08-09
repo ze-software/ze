@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md / plan/spec-isis-11-redistribution.md -- SPF OnChange seam.
+// Design: docs/architecture/isis/isis-9-spf-rib.md / plan/spec-isis-11-redistribution.md -- SPF OnChange seam.
 //
 // VALIDATES: the redistribution read seam (spec-isis-11) -- SetOnChange installs a
 //            callback the Computer fires after a Run that changed the route set,

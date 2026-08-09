@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-7-flooding.md -- CSNP/PSNP build, receive, and pending-request tests.
+// Design: docs/architecture/isis/isis-7-flooding.md -- CSNP/PSNP build, receive, and pending-request tests.
 //
 // VALIDATES: (lsdb-package unit level, fake tx + circuit set)
 //   - CSNP build carries a TLV 9 entry per LSP over the start/end range and splits

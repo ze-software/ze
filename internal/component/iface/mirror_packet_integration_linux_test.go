@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-followup-subsystem.md AC-6 -- prove the tc mirror copies
+// Design: docs/features/interfaces.md AC-6 -- prove the tc mirror copies
 // traffic at the PACKET level, not just that the qdisc/filter installs. A frame
 // injected on a veth peer ingresses the mirror source and must appear, copied,
 // on the mirror destination captured via AF_PACKET. Requires CAP_NET_ADMIN

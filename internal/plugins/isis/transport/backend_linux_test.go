@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-isis-3-l2-transport.md -- Linux AF_PACKET backend unit tests
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- Linux AF_PACKET backend unit tests
 //
 // These cover the platform backend's pure helpers (no privileged socket). The
 // real raw send/receive on a veth pair is in transport_integration_linux_test.go

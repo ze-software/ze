@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- LDP port-646 readiness doctor check tests
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP port-646 readiness doctor check tests
 
 package ldp
 

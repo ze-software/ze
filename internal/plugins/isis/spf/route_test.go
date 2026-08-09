@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md TDD plan -- prefix attach, L1/L2 leaking
+// Design: docs/architecture/isis/isis-9-spf-rib.md TDD plan -- prefix attach, L1/L2 leaking
 // preference (RFC 5308 sec 5 up/down order), and the route diff.
 //
 // VALIDATES: BuildRoutes attaches TLV 135 prefixes at (node distance + prefix

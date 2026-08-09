@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-8-dis-broadcast.md -- engine-layer DIS wiring tests.
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- engine-layer DIS wiring tests.
 //
 // VALIDATES (Wiring Test, the umbrella isis-8 row), on darwin via the in-memory
 // lossless wire (no raw socket):

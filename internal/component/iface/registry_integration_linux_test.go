@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-as112-1-iface-address-registry.md -- generic
+// Design: docs/architecture/core-design.md -- Interface Management (section 14): generic
 // plugin-to-iface address-ownership registry, real-kernel proof
 // Related: config_apply_test.go's TestReconcileOnRegistryChange_AppliesAddressToBackend
 // -- the same scenario against a fake backend; this file is the real-netlink

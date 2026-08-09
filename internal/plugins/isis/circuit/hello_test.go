@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- IIH origination + padding + hold time.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- IIH origination + padding + hold time.
 //
 // VALIDATES: the advertised hold time = hello-interval * hold-multiplier
 // (clamped to the 16-bit range, boundary cases included); the originated LAN IIH

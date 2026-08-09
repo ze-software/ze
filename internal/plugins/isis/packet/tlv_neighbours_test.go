@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- TLV 6 SNPA round-trip + TLV 2 decode-only tests
+// Design: docs/architecture/wire/isis.md -- TLV 6 SNPA round-trip + TLV 2 decode-only tests
 package packet
 
 import (

@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-4-rsvp-te-fast-reroute.md -- Fast Reroute tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md -- Fast Reroute tests
 // RFC: rfc/short/rfc4090.md
 //
 // VALIDATES: RFC 4090 Fast Reroute end to end -- FAST_REROUTE/SESSION_ATTRIBUTE

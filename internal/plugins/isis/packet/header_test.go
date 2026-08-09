@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- common header + PDU constant tests
+// Design: docs/architecture/wire/isis.md -- common header + PDU constant tests
 package packet
 
 import (

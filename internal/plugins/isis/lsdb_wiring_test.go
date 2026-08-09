@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- engine<->LSDB wiring tests (Wiring Test table).
+// Design: docs/architecture/isis/isis-6-lsdb.md -- engine<->LSDB wiring tests (Wiring Test table).
 //
 // VALIDATES the end-to-end wiring this spec owns at the engine layer:
 //   - an adjacency reaching Up fires origination, the own LSP is stored, and SRM

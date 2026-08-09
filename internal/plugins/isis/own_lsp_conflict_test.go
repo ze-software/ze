@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- engine reaction to a claim on an own LSP ID.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- engine reaction to a claim on an own LSP ID.
 //
 // VALIDATES: the end-to-end engine wiring for ISO/IEC 10589 clause 7.3.16.4 c),
 // which the lsdb-package unit tests cover only in pieces. A purge of this node's

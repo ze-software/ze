@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- fixture pin for test/isis-wire/isis-pdu-1.ci
+// Design: docs/architecture/wire/isis.md -- fixture pin for test/isis-wire/isis-pdu-1.ci
 package packet
 
 import (

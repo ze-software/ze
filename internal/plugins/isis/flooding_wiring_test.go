@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-7-flooding.md -- engine-layer flooding wiring tests (Wiring Test table).
+// Design: docs/architecture/isis/isis-7-flooding.md -- engine-layer flooding wiring tests (Wiring Test table).
 //
 // VALIDATES: the end-to-end glue this spec owns at the engine layer, on darwin
 // via the in-memory wire (no raw socket):

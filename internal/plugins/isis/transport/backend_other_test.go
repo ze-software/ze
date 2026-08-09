@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/spec-isis-3-l2-transport.md -- non-Linux backend stub test
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- non-Linux backend stub test
 
 package transport
 

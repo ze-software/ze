@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/spec-mpls-3-rsvp-te.md -- raw-socket probe test (non-Linux)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- raw-socket probe test (non-Linux)
 
 package rsvpte
 

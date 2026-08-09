@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-3-l2-transport.md -- raw-socket doctor check tests
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw-socket doctor check tests
 
 package transport
 

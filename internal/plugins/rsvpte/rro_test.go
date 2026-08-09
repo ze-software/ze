@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- RRO collection + ERO/RRO display helpers
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RRO collection + ERO/RRO display helpers
 
 package rsvpte
 

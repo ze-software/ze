@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-mpls-1-kernel.md, plan/spec-mpls-2-ldp.md -- live-kernel MPLS
+// Design: docs/architecture/mpls/mpls-kernel.md, plan/spec-mpls-2-ldp.md -- live-kernel MPLS
 // dataplane verification. Exercises the real netlink backend (mplsentry_linux.go,
 // nexthop_linux.go) against the QEMU Alpine kernel: program push (IP route + label
 // encap), swap (AF_MPLS in->out via next-hop) and pop (AF_MPLS disposition), then

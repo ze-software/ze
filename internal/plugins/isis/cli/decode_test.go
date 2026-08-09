@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- offline decode CLI unit test
+// Design: docs/architecture/wire/isis.md -- offline decode CLI unit test
 package cli
 
 import (

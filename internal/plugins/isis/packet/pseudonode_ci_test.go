@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-8-dis-broadcast.md -- fixture pin for test/isis/isis-dis.ci.
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- fixture pin for test/isis/isis-dis.ci.
 //
 // VALIDATES: the DIS pseudo-node LSP fixture used by the functional test decodes
 // through DecodePDU into an L1 LSP whose LSP ID carries a NON-ZERO pseudonode

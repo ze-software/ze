@@ -1,4 +1,4 @@
-// Design: plan/spec-as112-2-dns-server.md -- end-to-end DNS-serving proof against the real privileged port 53
+// Design: docs/architecture/dns/as112.md -- end-to-end DNS-serving proof against the real privileged port 53
 //
 // Requires CAP_NET_BIND_SERVICE / root: binding UDP/TCP port 53 needs
 // elevated privilege on Linux (and everywhere else). This is why these

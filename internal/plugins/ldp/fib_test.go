@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- ldpFIB emit tests (AC-4/AC-5)
+// Design: docs/architecture/ldp/mpls-ldp.md -- ldpFIB emit tests (AC-4/AC-5)
 package ldp
 
 import (

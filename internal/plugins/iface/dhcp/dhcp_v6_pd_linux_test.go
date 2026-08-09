@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-followup-subsystem.md AC-6 -- DHCPv6-PD lease flow. This is
+// Design: docs/features/interfaces.md AC-6 -- DHCPv6-PD lease flow. This is
 // the native lease-flow test: a synthetic DHCPv6 Reply carrying an IA_PD prefix
 // drives handleV6Reply (the producing function for the lease event), so the
 // prefix-delegation lease flow is exercised in CI without a DHCPv6 server or

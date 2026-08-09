@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- link-failure -> PathErr (AC-6) tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- link-failure -> PathErr (AC-6) tests
 package rsvpte
 
 import (

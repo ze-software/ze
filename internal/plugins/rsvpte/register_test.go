@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- tunnel reconciliation on config reload
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- tunnel reconciliation on config reload
 package rsvpte
 
 import (

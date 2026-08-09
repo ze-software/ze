@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- make-before-break reroute tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- make-before-break reroute tests
 package rsvpte
 
 import (

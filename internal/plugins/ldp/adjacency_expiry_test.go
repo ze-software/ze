@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- adjacency expiry tears the session (F6) test
+// Design: docs/architecture/ldp/mpls-ldp.md -- adjacency expiry tears the session (F6) test
 package ldp
 
 import (

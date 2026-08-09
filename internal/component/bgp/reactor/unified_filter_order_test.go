@@ -1,4 +1,4 @@
-// Design: plan/spec-unify-filters.md -- unified stage-ordered filter pipeline
+// Design: docs/architecture/core-design.md -- Ingress Filter Pipeline (section 9): unified stage-ordered filter pipeline
 // Characterization + order tests for the merged ingress/egress passes. The
 // cross-system behavioral outcome (policy chain runs after OTC on a live UPDATE)
 // is guarded end-to-end by the filter .ci suite; these tests lock the ORDER of

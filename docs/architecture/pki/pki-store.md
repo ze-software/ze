@@ -5,6 +5,9 @@ loaded from config, validated at load time, and served to any consumer that
 needs X.509 material. IPsec is the first consumer; TLS, SSH host certificates
 and managed-device authentication can use the same store.
 
+A TLS listener that serves one of these certificates with its full chain is
+[`tls-listeners.md`](tls-listeners.md).
+
 <!-- source: internal/component/pki/store.go -- Load, Validate, GetCA, GetCertificate, CertCN, CAPool, IntermediatePool, ExportPEM, CleanupPEM -->
 <!-- source: internal/component/pki/config.go -- ParseConfig, parseCACert, parseDeviceCert, parsePrivateKey, verifyKeyMatchesCert -->
 <!-- source: internal/component/pki/types.go -- CACertEntry, CertificateEntry, PKIConfig, CertSummary -->

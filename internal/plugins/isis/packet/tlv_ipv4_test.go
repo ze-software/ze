@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- IPv4 TLV round-trip + prefix/metric boundary tests
+// Design: docs/architecture/wire/isis.md -- IPv4 TLV round-trip + prefix/metric boundary tests
 package packet
 
 import (

@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-mpls-1-kernel.md -- BGP labeled-unicast -> kernel MPLS route,
+// Design: docs/architecture/mpls/mpls-kernel.md -- BGP labeled-unicast -> kernel MPLS route,
 // the F1 end-to-end path. The deep review found BGP best-paths flow through the
 // unified Loc-RIB, whose Path dropped the label stack, so a labeled-unicast route
 // installed a plain IP route instead of an MPLS label push. F1 carried the labels

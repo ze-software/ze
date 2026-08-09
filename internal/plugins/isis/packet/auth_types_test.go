@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-10-auth.md -- tests for the auth type/algorithm helpers.
+// Design: docs/architecture/isis/isis-10-auth.md -- tests for the auth type/algorithm helpers.
 //
 // These pin the pure per-algorithm helpers in auth_types.go: the on-wire
 // digest length (RFC 5304 / RFC 5310), the Key-ID width per family, and the

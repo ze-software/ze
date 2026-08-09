@@ -1,4 +1,4 @@
-// Design: plan/spec-fixit-appliance-evidence-config.md — template becomes effective config
+// Design: docs/architecture/core-design.md -- Appliance Config Loading Priority (section 21): template becomes effective config
 
 //go:build ze_core
 

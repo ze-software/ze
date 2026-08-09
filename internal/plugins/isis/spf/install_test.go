@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md TDD plan -- Loc-RIB insertion + wiring.
+// Design: docs/architecture/isis/isis-9-spf-rib.md TDD plan -- Loc-RIB insertion + wiring.
 //
 // VALIDATES: the SPF result is INSERTED into the shared Loc-RIB as
 // locrib.Path{Source = IS-IS ProtocolID, Instance (per ECMP next-hop),

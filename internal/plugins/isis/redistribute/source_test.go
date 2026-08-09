@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-11-redistribution.md -- IS-IS redistribution source tests.
+// Design: docs/architecture/isis/isis-11-redistribution.md -- IS-IS redistribution source tests.
 //
 // VALIDATES: spec-isis-11 producer side (AC-1, AC-2, AC-7, AC-8, AC-9) -- the
 //            single config source "isis" is registered (idempotent, no per-level

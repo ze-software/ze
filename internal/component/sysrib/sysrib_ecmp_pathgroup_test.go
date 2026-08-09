@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md -- sysrib/locrib path-group ECMP expansion.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- sysrib/locrib path-group ECMP expansion.
 //
 // VALIDATES: intra-source equal-cost siblings carried on a Loc-RIB-sourced
 // best-change (BestChangeEntry.ECMPNextHops, populated at Loc-RIB emit from

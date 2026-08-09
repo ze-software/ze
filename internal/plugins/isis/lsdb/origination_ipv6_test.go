@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-12-ipv6.md -- IPv6 origination tests.
+// Design: docs/architecture/isis/isis-12-ipv6.md -- IPv6 origination tests.
 //
 // VALIDATES: own LSP carries TLV 236 entries for local non-link-local IPv6
 // prefixes and a fe80::/10 link-local prefix is excluded (RFC 5308 sec 2,

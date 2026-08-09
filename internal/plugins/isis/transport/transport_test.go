@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-3-l2-transport.md -- transport orchestrator + lifecycle
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- transport orchestrator + lifecycle
 
 package transport
 

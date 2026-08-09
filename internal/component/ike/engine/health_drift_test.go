@@ -3,7 +3,7 @@
 // PREVENTS: the false green this spec exists to remove -- every other arm of the
 // health check reads engine belief, so a tunnel the kernel dropped stays healthy.
 //
-// Design: plan/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: health_drift.go -- driftingPeers, driftDetail
 
 package engine

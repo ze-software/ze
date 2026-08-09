@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-10-auth.md -- IS-IS authentication key store tests.
+// Design: docs/architecture/isis/isis-10-auth.md -- IS-IS authentication key store tests.
 //
 // These tests exercise chain resolution (per-level area/domain, per-interface
 // circuit), active-key selection, hitless rotation via send/accept lifetimes,

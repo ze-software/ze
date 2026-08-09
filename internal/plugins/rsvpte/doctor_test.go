@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- raw-socket readiness doctor check tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- raw-socket readiness doctor check tests
 
 package rsvpte
 

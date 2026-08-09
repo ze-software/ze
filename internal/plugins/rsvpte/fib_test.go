@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- busFIB emit tests
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- busFIB emit tests
 package rsvpte
 
 import (

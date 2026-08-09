@@ -8,7 +8,7 @@ engine state and touches no kernel or network code.
 <!-- source: internal/component/ike/cmd/ipsec.go -- clear vpn ipsec sa -->
 <!-- source: internal/component/ike/cmd/monitor_ipsec.go -- monitor vpn ipsec streaming handler -->
 <!-- source: internal/component/ike/engine/health.go -- IPsec health check -->
-<!-- source: internal/component/ike/engine/metrics.go -- sa_count, tunnel_up, rekey_total -->
+<!-- source: internal/component/ike/engine/metrics.go -- IPsecMetrics, ze_ipsec_sa_count, ze_ipsec_tunnel_up, ze_ipsec_rekey_total -->
 <!-- source: internal/component/web/page_vpn_ipsec.go -- the VPN IPsec table page -->
 
 ## Decisions
@@ -54,9 +54,13 @@ would miss them.
 held in engine memory and it resets when the engine restarts. A true counter
 needs persistence.
 
-**Byte counters are absent on purpose.** `ipsec_bytes_in_total` and
-`ipsec_bytes_out_total` need XFRM SA statistic queries, which is kernel
-interaction this layer excludes.
+**Byte counters come from the kernel, not from this layer.** The engine never
+sees ESP payload, so a count kept here would report zero forever. `show vpn
+ipsec sa` reads them from the kernel SAD and renders null, never zero, when the
+SAD cannot be read. See
+[`ipsec-dataplane-inspection.md`](ipsec-dataplane-inspection.md).
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- sadCounters, readSADCounters -->
 
 ## Traps this code exists to avoid
 

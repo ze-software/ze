@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- local FEC origination tests (AC-3)
+// Design: docs/architecture/ldp/mpls-ldp.md -- local FEC origination tests (AC-3)
 package ldp
 
 import (

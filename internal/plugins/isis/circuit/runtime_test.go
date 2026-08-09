@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- circuit RX dispatch + P2P IIH signing.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- circuit RX dispatch + P2P IIH signing.
 //
 // VALIDATES: a P2P IIH is signed with the chain of the NEGOTIATED adjacency
 // level, not the circuit's first configured level. On an L1L2 P2P circuit

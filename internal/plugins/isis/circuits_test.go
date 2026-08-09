@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- per-circuit goroutine lifecycle.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- per-circuit goroutine lifecycle.
 //
 // VALIDATES: the per-circuit hello+sweep goroutine launched by
 // launchCircuitGoroutine is bound to the circuit's lifetime, not the engine's.

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- Fletcher checksum vector + corruption tests
+// Design: docs/architecture/wire/isis.md -- Fletcher checksum vector + corruption tests
 package packet
 
 import (

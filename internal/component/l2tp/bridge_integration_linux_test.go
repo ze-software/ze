@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/spec-followup-l2tp-call.md -- AC-3 / A-4 LAC bridge integration
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 / A-4 LAC bridge integration
 //
 // EXECUTION IS ENVIRONMENT-BLOCKED in the dev sandbox: PPPIOCBRIDGECHAN /
 // PPPIOCGCHAN require CAP_NET_ADMIN and a /dev/ppp node, neither available

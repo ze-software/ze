@@ -1,4 +1,4 @@
-// Design: plan/spec-vlan-qos-lab.md -- VLAN QoS wire-level lab tests
+// Design: docs/architecture/iface/vlan-qos-map.md -- VLAN QoS wire-level lab tests
 
 //go:build integration && linux
 

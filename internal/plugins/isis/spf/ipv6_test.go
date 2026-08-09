@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-12-ipv6.md TDD plan -- IPv6 leaf extraction + next-hop
+// Design: docs/architecture/isis/isis-12-ipv6.md TDD plan -- IPv6 leaf extraction + next-hop
 // over the shared SPF tree, the link-local next-hop, IPv6-family Loc-RIB insert,
 // and the MAX_V6_PATH_METRIC filter.
 //

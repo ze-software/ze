@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-10-auth.md -- IS-IS authentication backend tests.
+// Design: docs/architecture/isis/isis-10-auth.md -- IS-IS authentication backend tests.
 //
 // These tests exercise the crypto backend on raw PDU bytes: per-algorithm,
 // per-PDU-class sign/verify round-trips, the RFC 5304 sec 1 first-TLV rule, the

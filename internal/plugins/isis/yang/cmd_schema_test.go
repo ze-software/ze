@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- owner-presence half of the
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- owner-presence half of the
 // plugin-self-containment both-halves invariant for `show isis ...` / `clear isis ...`.
 // Related: ze-isis-cmd.yang -- the owner command tree these tests assert.
 //

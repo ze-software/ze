@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | done |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Deferral shard | `plan/deferrals/fixit-dead-design-pointers-in-tests.md` |
 | Updated | 2026-08-09 |
 
@@ -64,7 +64,10 @@ The two questions this spec must answer, in order:
 - Spec closure keeps removing the spec file. The dead pointer is the defect, not the removal.
 
 **Behavior to change:**
-- To be decided by this spec: whether test `// Design:` pointers are repointed at `docs/architecture/`, dropped, or checked and required to resolve.
+- `check_design_refs()` reads `_test.go` files, and REFUSES a `plan/spec-` target
+  in one. A test must cite a durable document.
+- Every `plan/spec-` pointer in a test file is repointed at the durable document
+  for its subject. Where no such document exists, the document is written.
 
 ## Data Flow (MANDATORY)
 
@@ -87,9 +90,9 @@ The two questions this spec must answer, in order:
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The refusal is one branch inside `check_design_refs()`, ahead of the existing `path_resolves()` call. Findings still leave through `drop_generated()` |
 | No unintended coupling (components stay isolated) | N-A | one script |
-| No duplicated functionality (extends existing, does not recreate) | No | |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `go_files()` is the one file list and `DESIGN` is the one parser. No second checker was added. `check_design_refs()` remains the sole caller of `go_files()` |
 | Zero-copy preserved where applicable | N-A | no wire path |
 | Registration over hardcoding | N-A | no plugin surface |
 
@@ -98,12 +101,13 @@ The two questions this spec must answer, in order:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Including `_test.go` in the gate reports 133 findings and no more | the reproduction command above | the fix is larger than one filter change | run the gate with the filter removed, before changing anything else | unvalidated |
+| A-1 | Including `_test.go` in the gate reports 133 findings and no more | the reproduction command above | the fix is larger than one filter change | run the gate with the filter removed, before changing anything else | broken: the true population is 145. The reproduction matched `// Design: plan/`, so a slash-free stem was invisible to it. See the Mistake Log |
+| A-2 | Every `// Design:` line in a test file sits inside the 4096-byte head window `check_design_refs()` reads | the function reads `fh.read(4096)` and breaks at the first match | widening the file list would still miss pointers, and the gate would report a false zero | replay the gate's own parse over every `_test.go` | confirmed: 144 of 144 in the head window, 0 deeper |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Widening the gate turns 133 silent references into a hard red nobody can land through | `make ze-doc-test` goes red on unrelated commits | repoint or drop all 133 in the same change that widens the gate |
+| R-1 | Widening the gate turns 133 silent references into a hard red nobody can land through | `make ze-doc-test` goes red on unrelated commits | retired: all 145 are repointed in the same change that widens the gate, and `make ze-doc-test` exits 0 |
 
 ## Blast Radius
 
@@ -124,27 +128,37 @@ The two questions this spec must answer, in order:
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A `_test.go` carries a `// Design:` pointer to a file that does not exist | `check_doc_links.py` reports it as a broken Design reference |
-| AC-2 | The repo as it stands | the gate reports zero broken Design references, because all 133 were repointed or dropped first |
+| AC-2 | The repo as it stands | the gate reports zero Design findings, because all 145 pointers in test files were repointed first: the 144 `plan/spec-` ones, plus `forward_update_bench_test.go`'s slash-free `rs-fastpath-3` (a closed spec's stem, invisible to a `plan/` grep) |
+| AC-3 | A `_test.go` carries a `// Design:` pointer to a `plan/spec-*.md` that DOES exist | the gate refuses it, naming the durable-document rule. Existence is not enough |
+| AC-4 | A non-test `.go` carries a `// Design:` pointer to a `plan/spec-*.md` that exists | the gate accepts it. The ban is scoped to test files |
+| AC-5 | Every target a repointed test now cites | the document exists and describes that test's subject |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `test_design_ref_in_a_test_file_is_checked` | `scripts/dev/check_doc_links_test.py` | AC-1 | |
+| `test_design_ref_in_a_test_file_is_checked` | `scripts/dev/check_doc_links_test.py` | AC-1 | passing (failed first against the unwidened gate) |
+| `test_design_ref_to_a_live_spec_is_refused_in_a_test_file` | `scripts/dev/check_doc_links_test.py` | AC-3 | passing (failed first against the unwidened gate) |
+| `test_design_ref_to_a_live_spec_is_allowed_outside_a_test_file` | `scripts/dev/check_doc_links_test.py` | AC-4 | passing (fails against an unscoped refusal) |
+| `test_design_ref_outside_a_test_file_still_reports_a_dead_target` | `scripts/dev/check_doc_links_test.py` | the gate keeps its original job | passing (fails against a mutant whose `go_files()` returns only `_test.go`: real gate exits 1, mutant exits 0) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `make ze-doc-test` | `Makefile` | an agent cannot land a dead Design pointer in a test | |
+| `make ze-doc-test` | `Makefile` | an agent cannot land a dead Design pointer in a test | passing: exit 0. Before the repoint the same target reported 145 findings |
 
 ## Files to Modify
-- `scripts/dev/check_doc_links.py` - `go_files()`, or a separate list for the Design check
-- `scripts/dev/check_doc_links_test.py` - the new case
-- 133 `_test.go` files - repointed or the pointer dropped, per this spec's answer to question 1
+- `scripts/dev/check_doc_links.py` - `go_files()` keeps `_test.go`; `check_design_refs()` refuses `SPEC_PREFIX` inside one
+- `scripts/dev/check_doc_links_test.py` - four cases (three new ACs, plus the regression control)
+- 145 `_test.go` files - one `// Design:` line each, repointed at a durable document
+- `docs/architecture/ike/ipsec-10-cli-diag.md` - a stale claim the new IPsec document would have contradicted
 
 ## Files to Create
-- none expected
+Three architecture documents, each written because the subject had no durable home:
+- `docs/architecture/pki/tls-listeners.md` - `pki.ServerTLSMaterial` has six non-test callers and was undocumented
+- `docs/architecture/ike/ipsec-dataplane-inspection.md` - the install side was documented, reading the kernel back was not
+- `docs/architecture/iface/vlan-qos-map.md` - `cos-plugin.md` defers the low-level mechanism to iface, which had no page
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -185,13 +199,17 @@ The two questions this spec must answer, in order:
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- the gate can see test files
-   - Tests: `test_design_ref_in_a_test_file_is_checked`
-   - Files: `scripts/dev/check_doc_links.py`, `check_doc_links_test.py`
-   - Verify: the new test fails, then passes, and the repo-wide run reports the full 133
-2. **Phase: Resolve the 133** -- repoint or drop, per the answer to question 1
-   - Files: the `_test.go` files
-   - Verify: `make ze-doc-test` green
+1. **Phase 1: Wiring (MANDATORY FIRST)** -- the gate sees test files and refuses `plan/spec-`
+   - Tests: `test_design_ref_in_a_test_file_is_checked`, `test_design_ref_to_a_live_spec_is_refused_in_a_test_file`, `test_design_ref_to_a_live_spec_is_allowed_outside_a_test_file`
+   - Files: `scripts/dev/check_doc_links.py`, `scripts/dev/check_doc_links_test.py`
+   - Verify: the new tests fail, then pass, and the repo-wide run reports all 144
+2. **Phase 2: Destinations** -- every one of the 31 targets gets a durable document
+   - Files: `docs/architecture/**` (new documents only where none exists)
+   - Verify: each destination exists and covers the subject its tests exercise
+3. **Phase 3: Repoint** -- apply the 145 edits
+   - Files: the 145 `_test.go` files (144 `plan/spec-` pointers, plus
+     `internal/component/bgp/reactor/forward_update_bench_test.go`)
+   - Verify: `make ze-doc-test` green, `go build` of every touched package clean
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -232,10 +250,25 @@ The two questions this spec must answer, in order:
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| (to be filled at design time) | | |
+| A test file may not carry a `// Design:` pointer to `plan/spec-*.md` at all. The gate refuses the prefix, it does not only check existence | Existence check alone, the same rule non-test files carry | Existence alone fixes the 133 and leaves the 11 live pointers legal. Each one dies at its spec's closure commit, so the gate would go red later on an unrelated commit by an unrelated author. Refusing the prefix stops the class at authoring time, which is what question 2 asks for (owner decision, 2026-08-09) |
+| Every pointer is repointed at the durable document. Where none exists, the document is written from the deleted spec's content in git history | Dropping the pointer where no document exists | A dropped pointer loses the design record the test was written against, and the missing document is the real gap the dead pointer was pointing at (owner decision, 2026-08-09) |
+| The rule lives in `check_design_refs()`, over a widened file list | A second checker for test files | `ai/rules/simplicity.md`: one parser, one list. A second copy of the Design parser is the failure mode the Critical Review Checklist names |
 
 ## Known Limitations
-- None recorded yet. This is a skeleton.
+- **The rule is asymmetric.** A non-test `.go` may still cite a `plan/spec-*.md`,
+  and 21 pointers do. Each dies at its spec's closure commit, and the gate then
+  goes red for whoever is committing at the time. The class is caught there
+  rather than prevented, which is the weaker half of what this spec does for
+  tests. Widening the ban would be a separate change: AC-4 pins the current
+  scope, so it is a deliberate boundary rather than an oversight.
+- **Five pointers land on `docs/architecture/core-design.md`, which is 87 KB.**
+  The subject really is in that file for each of them, and each pointer names
+  its section in trailing prose, because `path_resolves()` cannot resolve an
+  `#anchor` fragment. A reader still opens a large document and searches.
+- `plan/spec-fixit-appliance-evidence-config.md` has the weakest destination.
+  Its subject, `bootstrapConfigFromTemplate` in `cmd/ze/ze_core_start.go`, is one
+  table cell in `core-design.md`. The topical page `appliance/device-config.md`
+  defers the mechanism to that section and never mentions the template.
 
 ## Checklist
 
@@ -261,3 +294,159 @@ The two questions this spec must answer, in order:
 - [ ] Journal row written for anything this spec teaches
 - [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-fixit-dead-design-pointers-in-tests.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `go_files()` in `scripts/dev/check_doc_links.py` keeps `_test.go`. The exclusion was the whole defect, and `check_design_refs()` is its only caller, so no other consumer changed meaning.
+- `check_design_refs()` gained one branch ahead of the existence check: inside a `_test.go`, a target under `SPEC_PREFIX` is refused and the message names `ai/rules/planning.md`.
+- 145 `// Design:` pointers in test files repointed at durable documents.
+- Three architecture documents written where the subject had no durable home.
+
+### Bugs Found/Fixed
+- The gate found a pointer the spec's own reproduction command could not see: `internal/component/bgp/reactor/forward_update_bench_test.go` cites the slash-free stem `rs-fastpath-3`. The reproduction matched `// Design: plan/`, so the real count was 145, not 133. Covered by `test_design_ref_in_a_test_file_is_checked`.
+- `docs/architecture/ike/ipsec-10-cli-diag.md` claimed byte counters are absent on purpose. `readSADCounters` in `internal/component/ike/cmd/show_ipsec.go` reads them from the kernel SAD. Corrected.
+- Review round: nothing pinned the gate's original job. Added `test_design_ref_outside_a_test_file_still_reports_a_dead_target`.
+
+### Documentation Updates
+- Created `docs/architecture/pki/tls-listeners.md`, `docs/architecture/ike/ipsec-dataplane-inspection.md`, `docs/architecture/iface/vlan-qos-map.md`.
+- Cross-links added to `pki-store.md` and `traffic/cos-plugin.md`. Source anchor added to `ipsec-10-cli-diag.md` naming `sadCounters, readSADCounters`.
+- `make ze-doc-test` exit 0.
+
+### Deviations from Plan
+- The spec said 133 pointers "repointed or dropped". The owner ruled out dropping, so all 145 are repointed and three documents were written.
+- The spec expected no new files. Three were needed.
+- Phases went from two to three: the destination decision was separated from the mechanical repoint.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The reproduction command in the Task section was treated as the full population, giving 133 | 145. A `// Design:` target needs no `plan/` prefix and no slash to be dead | The widened gate reported one more finding than the audit predicted | Counted with the gate's own parser, not a grep. A-2 was added to record that the parse, not the grep, is the measurement |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Answer whether a test may cite a spec | Done | Key Design Decisions | Owner decision: it may not |
+| `check_design_refs()` stops being blind to test files | Done | `scripts/dev/check_doc_links.py`, `go_files()` | |
+| The class cannot regrow silently | Done | `check_design_refs()`, `SPEC_PREFIX` branch | Refused at authoring time, not caught later |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test_design_ref_in_a_test_file_is_checked` | |
+| AC-2 | Done | `check_doc_links.py --design-only` exit 0 | 145 findings before the repoint |
+| AC-3 | Done | `test_design_ref_to_a_live_spec_is_refused_in_a_test_file` | |
+| AC-4 | Done | `test_design_ref_to_a_live_spec_is_allowed_outside_a_test_file` | 21 live non-test pointers stay green |
+| AC-5 | Done | Existence machine-checked by the gate. Subject match is judgment, spot-checked on `wire/isis.md` and the `core-design.md` `rs-fastpath-3` section | Weakest row recorded in Known Limitations |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `test_design_ref_in_a_test_file_is_checked` | Done | `scripts/dev/check_doc_links_test.py` | Fails against the unwidened gate |
+| `test_design_ref_to_a_live_spec_is_refused_in_a_test_file` | Done | same | Fails against the unwidened gate |
+| `test_design_ref_to_a_live_spec_is_allowed_outside_a_test_file` | Done | same | Fails against an unscoped refusal |
+| `test_design_ref_outside_a_test_file_still_reports_a_dead_target` | Done | same | Added at review. Fails against a `_test.go`-only mutant |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `scripts/dev/check_doc_links.py` | Done | |
+| `scripts/dev/check_doc_links_test.py` | Done | Four cases, not one |
+| 145 `_test.go` | Done | Plan said 133 |
+| 3 architecture documents | Changed | Plan expected none |
+
+### Audit Summary
+- **Total items:** 15
+- **Done:** 14
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the three new documents, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The 133 dead pointers are gone | functional | `python3 scripts/dev/check_doc_links.py --design-only` exit 0. The same command reported 145 before the repoint |
+| The gate is no longer blind to test files | functional | `make ze-doc-test` exit 0, and it now fails on a dead pointer in a `_test.go`: `test_design_ref_in_a_test_file_is_checked` |
+| The class cannot regrow silently | functional | `test_design_ref_to_a_live_spec_is_refused_in_a_test_file`. A pointer at a spec that still exists is refused, so closure can no longer manufacture a dead one |
+| The gate keeps its original job | functional | `test_design_ref_outside_a_test_file_still_reports_a_dead_target`, proven to fail against a mutant whose `go_files()` returns only `_test.go` (real gate exit 1, mutant exit 0) |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| 133 dead `// Design:` pointers behind the `go_files()` exclusion | done | This spec. Gate exit 0 |
+| `ze-spec-citation-check` red with 12 dangling citations at HEAD | deferred | `plan/spec-fixit-spec-closure-leaves-dangling-spec-citations.md`. Pre-existing, in `plan/` prose, none from this work |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | none: owner override |
+| `review_gate.py check` | not run |
+| Rounds | 1 inline round by the supervising thread, which is NOT an independent review |
+| Reviewer lenses used | the spec's Critical Review Checklist (completeness, correctness, data flow, simplicity) |
+
+Thomas instructed closure without the independent review on 2026-08-09: several
+sessions are editing this checkout, a clean pass is unreachable, and a follow-up
+agent takes any problems found later. The one round below was run by the thread
+that supervised the implementation, so it does not satisfy the independence
+requirement in `ai/rules/planning.md`.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | No test pinned the gate's original job. A later change scoping the check to test files only would have passed every test in the file | `scripts/dev/check_doc_links_test.py`, `DesignRefTest` | `test_design_ref_outside_a_test_file_still_reports_a_dead_target`, proven against a mutant |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `docs/architecture/pki/tls-listeners.md` | Yes | 4000 bytes |
+| `docs/architecture/ike/ipsec-dataplane-inspection.md` | Yes | 4557 bytes |
+| `docs/architecture/iface/vlan-qos-map.md` | Yes | 3136 bytes |
+| All 32 destinations in the mapping | Yes | Loop over `tmp/design-pointer-destinations.tsv` reported no missing target |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A dead target in a test file is reported | `check_doc_links_test.py`, 29 tests OK |
+| AC-2 | The repo reports zero Design findings | `check_doc_links.py --design-only` exit 0, output `all corpus path references resolve` |
+| AC-3 | A live spec target in a test file is refused | Same suite. The finding carries `durable` and `ai/rules/planning.md`, and NOT `broken Design reference` |
+| AC-4 | A live spec target outside a test file is accepted | Same suite, and the repo-wide run reports zero findings from the 21 live non-test pointers |
+| AC-5 | Every destination exists | Gate exit 0 is the machine check |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-doc-test` | none: this gate is Python, so the wiring test is `check_doc_links_test.py` driven through the real entry point by subprocess | Yes: `make ze-doc-test` exit 0, and it reported 145 findings before the repoint |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, then corrected | Predicted 133 and no more. The true population is 145: the reproduction grep could not see a slash-free stem |
+| A-2 | confirmed | 144 of 144 `// Design:` lines sit inside the 4096-byte head window, 0 deeper |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Item 10, test infrastructure changed | The pointer convention changed, and the rule is enforced by the gate rather than by prose | Yes |
+| Item 15, verification surface changed | `check_design_refs()` refuses a new class. Journal row filed at `plan/journal/gate-excludes-part-of-its-population.md` | Yes |
+| `ipsec-10-cli-diag.md` byte-counter claim | `readSADCounters` in `internal/component/ike/cmd/show_ipsec.go` reads `BytesCurrent` from the kernel SAD | Yes: read the producer |
+| Items 1 to 9 and 11 to 14, 16, 17 | No user-facing feature, config, CLI, API, plugin, wire format, RFC behavior, or counter changed. The diff is 145 comment lines, one Python gate, and architecture prose | Yes |
+
+## Core Insight
+
+Two correct conventions manufactured the defect between them. Spec closure
+deletes the spec, which is right. The gate skipped test files, which looked like
+a scoping choice. Neither is wrong alone. Together one of them creates dead
+references at a steady rate and the other guarantees nobody sees them. The fix
+that only widens the gate would have caught the class one closure later, on an
+unrelated author's commit. Refusing the pointer at authoring time is what stops
+the production, rather than improving the detection.

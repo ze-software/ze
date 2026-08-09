@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- ze-to-ze RSVP-TE signaling interop
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- ze-to-ze RSVP-TE signaling interop
 // Related: engine.go -- the engine under test; transport.go -- the Transport seam
 // Related: engine_test.go -- reuses fakeFIB and the single-engine harness
 //

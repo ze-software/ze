@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- SHARED EXPLICIT admission (RFC 3209 6.1)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- SHARED EXPLICIT admission (RFC 3209 6.1)
 package rsvpte
 
 import (

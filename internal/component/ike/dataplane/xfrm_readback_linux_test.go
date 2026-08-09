@@ -5,7 +5,7 @@
 // PREVENTS: a dropped, mis-scaled or offset-by-one field reaching the operator as
 // a confident wrong number, and a dump failure rendering as an empty table.
 //
-// Design: plan/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: xfrm_linux.go -- saInfoFromState, policyInfoFromKernel
 
 //go:build linux

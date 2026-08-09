@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-mpls-1-kernel.md -- MPLS-in-use gating for the doctor check (F15)
+// Design: docs/architecture/mpls/mpls-kernel.md -- MPLS-in-use gating for the doctor check (F15)
 package doctor
 
 import (

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- adjacency FSM transition tests.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- adjacency FSM transition tests.
 //
 // VALIDATES: the ISO/IEC 10589 section 8.2 state machine -- Down/Init/Up
 // transitions, the LAN three-way check (our SNPA echoed in the neighbor's TLV

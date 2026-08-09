@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- IIH round-trip tests
+// Design: docs/architecture/wire/isis.md -- IIH round-trip tests
 package packet
 
 import (

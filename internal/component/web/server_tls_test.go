@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- web TLS chain + rotation tests
+// Design: docs/architecture/pki/tls-listeners.md -- web TLS chain + rotation tests
 
 package web
 

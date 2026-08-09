@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-11-redistribution.md -- IS-IS redistribution consumer tests.
+// Design: docs/architecture/isis/isis-11-redistribution.md -- IS-IS redistribution consumer tests.
 //
 // VALIDATES: spec-isis-11 consumer side (AC-3..AC-6, AC-10) -- InjectRoute turns a
 //            connected/static/BGP RouteEntry into a TLV 135 reachability entry in

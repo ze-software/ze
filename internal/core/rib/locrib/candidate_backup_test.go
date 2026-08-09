@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-ext-6-ti-lfa.md -- Path backup carry-through (AC-13,
+// Design: docs/architecture/ospf/ospf-ext-6-ti-lfa.md -- Path backup carry-through (AC-13,
 // A-2, R-10). The fast-reroute backup next-hop + repair labels are carry-through
 // metadata: excluded from the arbitration key and from best-path selection
 // (AdminDistance then Metric), but compared by Equal so a backup-only change

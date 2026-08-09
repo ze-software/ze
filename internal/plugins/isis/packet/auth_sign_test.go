@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-10-auth.md -- tests for the sign-side helpers.
+// Design: docs/architecture/isis/isis-10-auth.md -- tests for the sign-side helpers.
 //
 // These pin the lower-level sign machinery in auth_sign.go (prependTLV ordering
 // and tlvRegionStart per PDU type) that the round-trip tests in

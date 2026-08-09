@@ -4,7 +4,7 @@
 // PREVENTS: a dump rendering "no SAs installed" when the truth is that nobody
 // asked the kernel.
 //
-// Design: plan/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: show_dataplane.go -- the handlers these tests drive
 
 package cmd

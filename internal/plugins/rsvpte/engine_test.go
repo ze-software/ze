@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-3-rsvp-te.md -- signaling engine tests (fake transport)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- signaling engine tests (fake transport)
 package rsvpte
 
 import (

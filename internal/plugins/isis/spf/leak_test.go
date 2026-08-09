@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-9-spf-rib.md step 5 -- the ORIGINATION side of L1<->L2
+// Design: docs/architecture/isis/isis-9-spf-rib.md step 5 -- the ORIGINATION side of L1<->L2
 // inter-level leaking (RFC 2966). The receiving-side preference is in
 // route_test.go (TestISISLeakUpDownBit); this file validates which prefixes an
 // L1L2 router RE-ORIGINATES into each level and with which up/down state.

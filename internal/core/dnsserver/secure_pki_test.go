@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- DoT/DoH PKI certificate reference tests
+// Design: docs/architecture/pki/tls-listeners.md -- DoT/DoH PKI certificate reference tests
 
 package dnsserver
 

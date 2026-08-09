@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-3-l2-transport.md -- multicast MAC selection tests
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- multicast MAC selection tests
 
 package transport
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-12-ipv6.md TDD plan -- IPv6 redistribution both ways.
+// Design: docs/architecture/isis/isis-12-ipv6.md TDD plan -- IPv6 redistribution both ways.
 //
 // VALIDATES: the consumer turns AFI=2 imports into TLV 236 entries with the
 // external bit set and link-local rejected (AC-6, RFC 5308 sec 2); the source

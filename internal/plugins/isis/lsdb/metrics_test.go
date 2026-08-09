@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-6-lsdb.md -- LSDB Prometheus metrics (owner isis-6).
+// Design: docs/architecture/isis/isis-6-lsdb.md -- LSDB Prometheus metrics (owner isis-6).
 //
 // VALIDATES: this spec registers EXACTLY the umbrella canonical rows it owns
 // (ze_isis_lsps, ze_isis_lsp_fragments, ze_isis_lsp_originations_total,

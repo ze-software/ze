@@ -7,7 +7,7 @@
 // object this test installed, and asserts a TRANSITION (absent, present, absent)
 // rather than a state (ai/rules/interop-and-goal-validation.md).
 //
-// Design: plan/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: xfrm_readback_linux_test.go -- the same mapping driven from fixtures
 
 //go:build integration && linux

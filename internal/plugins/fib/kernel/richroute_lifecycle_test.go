@@ -1,4 +1,4 @@
-// Design: plan/spec-fib-depth.md -- rich route programming
+// Design: docs/architecture/core-design.md -- FIB Kernel (section 16): rich route programming
 // Related: richroute.go -- RichRoute and the richRouteBackend interface
 // Related: nexthop_linux.go -- the netlink backend that implements it
 //

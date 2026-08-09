@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- discovery interface resolution tests
+// Design: docs/architecture/ldp/mpls-ldp.md -- discovery interface resolution tests
 package ldp
 
 import (

@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-mpls-1-kernel.md -- MPLS operation classifier tests
+// Design: docs/architecture/mpls/mpls-kernel.md -- MPLS operation classifier tests
 package mpls
 
 import (

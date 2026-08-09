@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-2-ldp.md -- dynamic interface reload (AC-9) tests
+// Design: docs/architecture/ldp/mpls-ldp.md -- dynamic interface reload (AC-9) tests
 package ldp
 
 import (

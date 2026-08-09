@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- TLV 10 (Authentication) codec test
+// Design: docs/architecture/wire/isis.md -- TLV 10 (Authentication) codec test
 package packet
 
 import (

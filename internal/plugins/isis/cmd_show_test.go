@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-13-cli-diag-interop.md -- `show isis ...` / `clear isis
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- `show isis ...` / `clear isis
 // ...` proxy registration + contract tests.
 // Related: cmd_show.go -- the proxy handlers under test.
 //

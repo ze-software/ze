@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-12-ipv6.md -- IIH TLV 232 (IPv6 link-local) origination.
+// Design: docs/architecture/isis/isis-12-ipv6.md -- IIH TLV 232 (IPv6 link-local) origination.
 //
 // VALIDATES: a dual-stack circuit advertises NLPID 0x8E in TLV 129 and carries
 // the IPv6 LINK-LOCAL address in the IIH TLV 232 (RFC 5308 sec 3: a Hello carries

@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-2-wire.md -- unknown-TLV passthrough tests
+// Design: docs/architecture/wire/isis.md -- unknown-TLV passthrough tests
 package packet
 
 import (

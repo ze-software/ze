@@ -1,4 +1,4 @@
-// Design: plan/spec-pki-full-chain.md -- server TLS material tests
+// Design: docs/architecture/pki/tls-listeners.md -- server TLS material tests
 
 package pki
 

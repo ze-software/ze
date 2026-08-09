@@ -1,4 +1,4 @@
-// Design: plan/spec-mpls-1-kernel.md -- Loc-RIB label pass-through (F1) test
+// Design: docs/architecture/mpls/mpls-kernel.md -- Loc-RIB label pass-through (F1) test
 package sysrib
 
 import (

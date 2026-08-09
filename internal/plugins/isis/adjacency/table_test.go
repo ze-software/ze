@@ -1,4 +1,4 @@
-// Design: plan/spec-isis-5-adjacency.md -- neighbor table keying + snapshot.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- neighbor table keying + snapshot.
 //
 // VALIDATES: the per-circuit table keys by (System ID, level) so two LAN
 // neighbors and one P2P adjacency are tracked correctly; the snapshot returns
