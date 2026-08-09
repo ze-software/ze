@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- IKE control-plane bypass policies
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- IKE control-plane bypass policies
 // Related: child.go -- the Child SA policies this exemption outranks
 // RFC: rfc/short/rfc4301.md -- SPD dispositions, BYPASS (Section 4.4.1)
 

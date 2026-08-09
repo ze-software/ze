@@ -1,4 +1,4 @@
-// Design: plan/learned/745-ipsec-10-cli-diag.md -- IPsec health check tests
+// Design: docs/architecture/ike/ipsec-10-cli-diag.md -- IPsec health check tests
 
 package engine
 

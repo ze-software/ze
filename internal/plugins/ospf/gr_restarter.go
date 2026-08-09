@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- GR restarting-router state machine.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- GR restarting-router state machine.
 // Related: gr.go (grManager), gr_nvs.go (restart fact), origination_v6.go (v6 self-LSA gate).
 // RFC: rfc/short/rfc3623.md sec 2 (in-restart suppression), sec 2.1 (originate Grace-LSAs,
 //

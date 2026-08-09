@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md — runtime FD limit adjustment
+// Design: docs/architecture/host/inventory.md -- runtime FD limit adjustment
 
 //go:build linux
 

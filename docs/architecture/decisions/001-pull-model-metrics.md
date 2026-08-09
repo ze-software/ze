@@ -112,13 +112,13 @@ None of these is clearly right today. The answer should be decided by the plugin
 
 Flow export does not reopen this decision. sFlow, NetFlow v9, and IPFIX are protocol export paths for interface counters, packet samples, and flow records. They are not alternate exporters for the same Ze Prometheus metric surface.
 
-<!-- source: plan/learned/820-flow-export-0-umbrella.md - Task and Data Flow -->
-<!-- source: plan/learned/818-flow-export-1-counter-export.md - Data Flow -->
+<!-- source: docs/architecture/flowexport/flow-export-0-umbrella.md - Task and Data Flow -->
+<!-- source: docs/architecture/flowexport/flow-export-1-counter-export.md - Data Flow -->
 
 The flow-export component should use raw interface snapshots from `iface.rateTracker` or another explicit data path, and it should use `metrics.Registry` only for its own health counters such as datagrams, bytes, and errors.
 
 <!-- source: internal/component/iface/rate.go - rateTracker.collect -->
-<!-- source: plan/learned/818-flow-export-1-counter-export.md - Acceptance Criteria AC-11 -->
+<!-- source: docs/architecture/flowexport/flow-export-1-counter-export.md - Acceptance Criteria AC-11 -->
 
 ## Revisit Triggers
 

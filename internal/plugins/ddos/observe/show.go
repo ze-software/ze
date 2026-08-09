@@ -1,4 +1,4 @@
-// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- show ddos surface
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- show ddos surface
 //
 // The observe plugin runs in-process (plugins are goroutines), so the show
 // handlers read the live incident ring directly from the process-global store

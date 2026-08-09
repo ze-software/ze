@@ -1,4 +1,4 @@
-// Design: plan/learned/768-doctor-health-checks.md -- BGP session anomaly detection
+// Design: docs/architecture/doctor-and-health-checks.md -- BGP session anomaly detection
 // Overview: peer.go -- Peer struct and FSM state machine
 // Related: session_prefix.go -- existing report bus usage pattern
 

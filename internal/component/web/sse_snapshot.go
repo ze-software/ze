@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- shared read-only SSE snapshot loop.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- shared read-only SSE snapshot loop.
 // Related: handler_isis.go, handler_ospf.go -- the IS-IS/OSPF live views that use it.
 //
 // The IS-IS and OSPF web views are identical read-only streams over dispatched engine

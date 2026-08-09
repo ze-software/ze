@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- `show ospf graceful-restart` renderer.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- `show ospf graceful-restart` renderer.
 // Related: gr.go (grManager state), cmd_show.go + register.go (command wiring).
 // RFC: rfc/short/rfc3623.md (restarter + helper state), rfc/short/rfc5187.md (OSPFv3).
 package ospf

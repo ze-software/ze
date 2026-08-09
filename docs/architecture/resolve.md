@@ -54,6 +54,33 @@ a subpackage of `irr` precisely so it can import `peeringdb` without a cycle:
 `peeringdb --> irr` and `irr` never imports the store, so
 `store --> peeringdb --> irr` stays acyclic.
 
+## PeeringDB Prefix Data
+
+<!-- source: internal/component/resolve/peeringdb/client.go -- PeeringDB HTTP client -->
+
+`ze bgp peer * prefix update` fills each peer's prefix maximum from PeeringDB
+and applies a margin, default 10%.
+
+- **Query PeeringDB at runtime.** The first design built a data pipeline:
+  embedded routing data, a ZeFS store, build scripts and a source-url config
+  leaf. Querying the service directly removes all four.
+- **The settings live in `system { peeringdb { } }`, not under `bgp`.**
+  PeeringDB is an external service, not a BGP concept, and another subsystem
+  can use it later.
+- **One hidden `updated` leaf per peer, not one per family.** The update
+  command refreshes every family of a peer in one call, so a per-family
+  timestamp would record the same instant several times.
+- **Staleness is fixed at 180 days.** Six months is a defensible interval for
+  every operator, and a configurable threshold is one more knob to explain.
+
+`ze bgp peer X detail` reports `prefix-updated` and `prefix-stale`, the
+`ze_bgp_prefix_ratio` and `ze_bgp_prefix_stale` gauges follow the same data,
+and startup logs a warning per peer with stale data.
+
+`PeerInfo.PrefixUpdated` is populated from `PeerSettings.PrefixUpdated` in the
+reactor API adapter. The peer detail handler computes staleness inline, because
+it cannot import the reactor package.
+
 ## IRR Prefix Store
 
 <!-- source: internal/component/resolve/irr/store/store.go -- PrefixStore -->
@@ -76,6 +103,26 @@ prerequisite for the firewall-irr consumer).
 On `Open`, a legacy single-blob cache (`meta/bgp/irr-cache`, keyed by ASN) is
 migrated once into per-entry keys, and the legacy key is removed only after
 every per-entry key is written.
+
+Three properties of the store keep one bad entry from taking the shared file
+down. Each one is a guard, not a convention.
+
+- A name of `.`, or a name that contains `..`, poisons the whole store.
+  `irr.ValidateASSetName` permits `.`, so a refresh under that name writes the
+  key `meta/irr/.`. The zefs decoder rejects that key and fails the whole file,
+  so every other consumer's entries go with it. `validateName` rejects both
+  names before they reach a key.
+  <!-- source: internal/component/resolve/irr/store/store.go -- validateName -->
+  <!-- source: pkg/zefs/store.go -- decode key validation -->
+- `Open` keys the in-memory map by the on-disk zefs key segment, never by the
+  entry's self-reported JSON `Name`. The file is shared, so a tampered blob
+  under `meta/irr/AS13335` that claims `"name":"AS99999"` would otherwise land
+  in the AS99999 slot. A segment that disagrees with the name is skipped with a
+  warning.
+- `Open` reads without a zefs write lock. It takes one only when a legacy blob
+  must be migrated. A write lock on every configure delayed the first refresh of
+  the BGP filter, and the filter then lost a race against an incoming UPDATE.
+  <!-- source: internal/component/resolve/irr/store/store.go -- Open, migrate -->
 
 ## CLI
 

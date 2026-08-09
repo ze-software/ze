@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- LSType (with embedded flooding scope) + LSAKey.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- LSType (with embedded flooding scope) + LSAKey.
 // RFC: rfc/short/rfc5340.md (§A.4.2.1 LS type, U/S2/S1 bits and function codes),
 // rfc/short/rfc7770.md (§2.2 Router Information LSA, function code 12, U-bit set)
 //

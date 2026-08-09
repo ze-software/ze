@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- opt-in raw byte capture for pcap export
+// Design: docs/architecture/diagnostics/packet-capture.md -- opt-in raw byte capture for pcap export
 
 package l2tp
 

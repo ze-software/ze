@@ -1,4 +1,4 @@
-// Design: plan/learned/965-ospf-11-stub-nssa.md -- Type 7 NSSA-LSA origination.
+// Design: docs/architecture/ospf/ospf-11-stub-nssa.md -- Type 7 NSSA-LSA origination.
 // RFC: rfc/short/rfc3101.md -- sec 2 Type 7 NSSA-LSA (P-bit, forwarding address)
 
 package lsdb

@@ -296,7 +296,7 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 // command is the only caller, launching a registered engine plugin's own
 // RunEngine as a genuine external subprocess to prove its
 // IsInternal()-guarded refuse/warn behavior actually fires outside a
-// synthetic net.Pipe() unit test (plan/learned/1045-plugin-process-boundary.md).
+// synthetic net.Pipe() unit test.
 // Production external plugins should be built as standalone binaries using
 // pkg/plugin (see examples/plugin/go/main.go), not this generic launcher.
 func DialTLSEnvRaw(name string) (net.Conn, error) {

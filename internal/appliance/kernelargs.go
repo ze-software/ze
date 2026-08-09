@@ -1,4 +1,4 @@
-// Design: plan/learned/1105-vpp-host-tuning.md -- host-side hugepage reservation via the
+// Design: docs/architecture/vpp-host-tuning.md -- host-side hugepage reservation via the
 // appliance kernel cmdline. This file is the single kernel-argument assembly
 // seam for the appliance image build. spec-vpp-host-tuning emits the hugepage
 // arguments here; spec-vpp-isolated-cpus adds its isolcpus argument to the same

@@ -2,7 +2,6 @@
 kind: directive
 level: MUST
 stage:
-rationale: plan/learned/1368-vacuous-eor-family-tests.md
 ---
 **When a claim's evidence is what a command printed, write the command or paste
 what it printed. Never write a sentence describing the output.** "`git grep -n

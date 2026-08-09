@@ -11,8 +11,8 @@ and gated fresh, so they never lie about the current code.
 | What does package X do? (one line each, all ~590 packages) | `ai/PACKAGE-MAP.md` |
 | Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
-| Every past decision / trap by number | `ai/LEARNED-FULL-INDEX.md` (complete); `ai/LEARNED-INDEX.md` (curated by topic) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
+| Which problems recur? | `plan/journal/` (one file per class; `make ze-journal` prints classes with 2+ rows) |
 | Which rule covers a topic? | `ai/rules/INDEX.md` |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
 | Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `make ze-digest-check` |
@@ -65,10 +65,10 @@ and gated fresh, so they never lie about the current code.
 | Attribute | **`ai/patterns/bgp-family.md`** (BLOCKING) | `docs/architecture/wire/attributes.md` | `docs/architecture/encoding-context.md` |
 | Functional test | `ai/patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` | `ai/rules/testing.md` for format selection (.ci vs .et vs Go) |
 | Editor test | `ai/rules/testing.md` (Editor Tests section) | `test/editor/` existing examples | |
-| Telemetry/metrics | `plan/learned/653-netdata-os-collectors.md` | `plan/learned/736-iface-rate.md` | Registration in loader_create.go |
-| Observation feed, traffic observation, multi-subscriber fan-out | `docs/architecture/observation-feed.md` | `plan/learned/1016-observation-feed.md` | `internal/core/observation/` (Feed, Observation); `iface/rate.go` (SubscribeCollectNotify) |
+| Telemetry/metrics | `docs/guide/monitoring.md` | `ai/digests/observation-telemetry.md` | Registration in loader_create.go |
+| Observation feed, traffic observation, multi-subscriber fan-out | `docs/architecture/observation-feed.md` | `ai/digests/observation-telemetry.md` | `internal/core/observation/` (Feed, Observation); `iface/rate.go` (SubscribeCollectNotify) |
 | Debug flags for a plugin | `ai/patterns/debug-registration.md` | `internal/component/bgp/yang/register_debug.go` (example) | One file per plugin: `register_debug.go` in yang/ |
-| Diagnostic command | `plan/learned/727-diag-core.md` | `plan/learned/755-ze-doctor.md` | `ai/rules/repo-maintenance.md` |
+| Diagnostic command | `docs/guide/production-diagnostics.md` | `internal/core/diagnostic/codes.go` | `ai/rules/repo-maintenance.md` |
 | Agent-facing command/tool | `ai/rules/cli.md` | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` | `ai/rules/repo-maintenance.md` for indexes and verification |
 | Verification/self-check gate | `ai/rules/repo-maintenance.md` | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` | `mk/inventory.mk` for doc/inventory targets |
 | EventBus event | `ai/rules/plugins.md` (EventBus Typed Payloads) | `pkg/ze/eventbus.go` | Use `events.Register[T]`, not raw `bus.Subscribe` |
@@ -83,7 +83,7 @@ and gated fresh, so they never lie about the current code.
 | Task | Read first | Then use |
 |---|---|---|
 | Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it with `bash` and the path its `script=` line prints. if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
-| Duplicate learned numbers after a merge or rebase | `ai/rules/git-safety.md` (learned-next does not span branches) | `make ze-learned-numbers-check` to detect, `make ze-learned-numbers-fix` to resolve; then `make ze-discovery-index` |
+| Record a problem the work uncovered | `ai/rules/planning.md` ("Writing Journal Rows") | Append a row to `plan/journal/<class>.md`, then `--file` it on commit A; `make ze-journal` prints every class that repeated |
 
 ### Modifying Existing Code
 
@@ -92,7 +92,7 @@ and gated fresh, so they never lie about the current code.
 | Reactor / session | `docs/architecture/core-design.md` sections 1-5 | `ai/rules/goroutine-lifecycle.md`, `make ze-race-reactor` required |
 | Wire encoding/decoding | `ai/rules/performance.md`, `ai/rules/performance.md` | No `make()`, no `append()`, `WriteTo(buf, off) int`, caller-owned buffers |
 | RIB / route storage | `docs/architecture/route-types.md`, `docs/architecture/rib-transition.md` | Pool dedup, lazy iterators |
-| Route selection | `docs/architecture/route-selection.md` | `ai/LEARNED-INDEX.md` (RIB/Routing section) |
+| Route selection | `docs/architecture/route-selection.md` | `plan/learned/DESIGN-HISTORY.md` ("BGP engine: wire encoding and RIB") |
 | Config pipeline | `docs/architecture/config/yang-config-design.md` | File -> Tree -> ResolveBGPTree -> map[string]any |
 | Plugin SDK | `ai/rules/plugins.md` (SDK Is Generic) | No plugin-specific code in SDK |
 | Hub / engine | `docs/architecture/hub-architecture.md` | Protocol-agnostic, Coordinator pattern |
@@ -125,13 +125,13 @@ and gated fresh, so they never lie about the current code.
 
 ### Working with IPsec / IKE
 
-Read in order: `plan/learned/734` (data model), `plan/learned/739` (crypto),
-`plan/learned/740` (engine), `plan/learned/742` (child SA), `plan/learned/744` (EAP/NAT-T).
+Read `ai/digests/ipsec-ike.md`: it carries the data model, the crypto, the engine,
+the child SA and the EAP/NAT-T paths with their file and symbol anchors.
 
 ### Working with CPE / Subscriber
 
-Read: `plan/learned/760` (subscriber session model), `plan/learned/725` (DHCP ranges),
-`plan/learned/746` (firewall global options).
+Read `ai/digests/subscriber.md` for the session model, `ai/digests/iface.md` for the
+DHCP ranges, and `ai/digests/firewall.md` for the firewall global options.
 
 ### Writing Tests (Which Type?)
 
@@ -159,7 +159,7 @@ Use keyword search in `ai/INDEX.md`. If the keyword isn't there:
 
 ```
 grep -rn "keyword" docs/architecture/ --include="*.md" -l
-grep -rn "keyword" plan/learned/ --include="*.md" -l
+grep -rn "keyword" plan/journal/ --include="*.md" -l
 grep -rn "keyword" ai/rules/ --include="*.md" -l
 ```
 
@@ -195,24 +195,20 @@ artifact type. Check them whenever your work touches the described concern.
 
 | Tool | Location | Purpose |
 |------|----------|---------|
-| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable commit scripts that Claude runs itself, one script per prepared commit at the path the `script=` line prints. Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
+| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable commit scripts that Claude runs itself, one script per prepared commit at the path the `script=` line prints. Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a `plan/journal/` row or an explicit no-lesson reason for workflow/tooling/rule changes. |
 | `session-scratch.sh` | `scripts/dev/` | Print (and create) this session's private scratch dir `tmp/s/<session-id>/`. Use for ad-hoc command output instead of fixed names at the `tmp/` root, which collide between concurrent sessions. Removed at session end by `.claude/hooks/session-end-scratch.sh` (24h backstop in `session-start.sh`), which also sweeps this session's suffixed binaries `bin/*-<session-id>`. See `ai/rules/commands.md`. |
 | `make ze-path` | `mk/session.mk` | Print THIS session's `ze` binary path. Under an AI session every canonical binary is built as `bin/<name>-<session-id>` (`ZE_BIN_SUFFIX`), so a sibling session's `make ze` cannot overwrite the binary you are testing against; off-session the name is the plain `bin/ze` it always was. **Never hardcode `bin/ze`** in a command, script, or doc -- use `$(make ze-path)`. Test binaries instead go to a private `bin/` subdir under `$(ZE_SCRATCH_DIR)` (`tmp/s/<id>/`), because `.ci` tests exec them by bare name. See `ai/rules/commands.md` "Your Binaries Are Session-Suffixed". |
-| `learned_numbers.py` | `scripts/dev/` | Keep `plan/learned/NNN-*.md` numbering sound: no two summaries share a number, and each H1 number matches its filename. `learned-next` allocates max(existing prefixes)+1 against the local tree only, so parallel branches collide and only a merge or rebase reveals it. `--check` (gate: `make ze-learned-numbers-check`, folded into `make ze-doc-test` and `ze-regen-check`); `--fix` (`make ze-learned-numbers-fix`) keeps the most-referenced summary at the contested number, renumbers the rest above the highest, and rewrites references. Run after any merge/rebase touching `plan/learned/`. |
+| `journal.py` | `scripts/dev/` | Read `plan/journal/*.md` at git HEAD and report problem classes with 2+ rows. Each class file is one problem pattern, each row one occurrence. `make ze-journal` prints the class, its row count, and the date span. Folded into `make ze-doc-test`. |
 | `digest_check.py` | `scripts/dev/` | Validate the `file:line` anchors in `ai/digests/*.md`: each resolves to a real file (subsystem-relative via the digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests honest as code moves. Gate: `make ze-digest-check`, folded into `make ze-doc-test`. |
-| `learned_staleness.py` | `scripts/dev/` | Detect decay in `plan/learned/`: every path a summary lists in its `## Files` section still resolves, and every `plan/learned/NNN` citation still names a summary. Reads `## Files` AND every `## Files <qualifier>` section, so a summary spelling it `## Files Modified` is checked rather than skipped. A summary with no `## Files` section, or one that cannot be read, is a FINDING, never a silent pass. A `..` token or a symlink leaving the tree is reported, never resolved. Counted against the shrink-only ceiling `plan/.learned-staleness-baseline` (the `plan/.citation-baseline` idiom): more fails, fewer rewrites it down. Gate: `make ze-learned-staleness`, folded into `make ze-doc-test`. |
-| `learned_normalise.py` | `scripts/dev/` | Normalise the section headings of `plan/learned/NNN-*.md` to the names `ai/rules/planning.md` gives them. A reader and `learned_staleness.py` then find `## Files` under one name. `--check` (`make ze-learned-normalise-check`) reports. `--fix` (`make ze-learned-normalise-fix`) rewrites in place. It sits outside `make ze-doc-test` on purpose. Heading drift breaks nothing, and a gate that reddens on a colleague's in-flight summary is soon disabled. |
-| `learned_repath.py` | `scripts/dev/` | Repair the dead `## Files` paths that `learned_staleness.py` reports, for the common case where the code MOVED rather than went away. Three resolvers run, strongest evidence first: a git-recorded rename, a directory move collapsed from many such renames, and a unique three-segment path suffix. A path with several plausible successors, and a path with none, are both LEFT ALONE and counted. A citation repointed at the wrong file reads as true, and a dead one stays visible to the gate. The dead-path set comes from `learned_staleness.check` itself, so the tool and the gate cannot disagree about which citation is dead. `make ze-learned-repath-check` reports. `make ze-learned-repath-apply` writes. |
-| `learned_retire.py` | `scripts/dev/` | **A completed one-shot with no make target, on purpose.** Band 1-400 is retired, so every future run selects nothing or is refused. It removed the numbered summaries of that band after `plan/learned/DESIGN-HISTORY.md` absorbed their surviving knowledge. `RETIREMENT_CEILING` is a module constant no argument raises. `ai/rules/never-destroy-work.md` requires operator permission to delete user-visible files, and that permission covered band 1-400 alone (2026-08-01). Three guards call `enforce_ceiling`, not one, so the ceiling is a property of the module and not of its argument parser. It never runs `git rm`. It unlinks in the working tree and prints the paths for `commit_helper.py --remove` to name. Read it before you write another corpus-pruning tool. Do not run it on a new band without fresh permission. |
-| `check_doc_links.py` | `scripts/dev/` | Four checks over the instruction corpus. (1) Every backticked path and markdown link in `ai/`, `.claude/rules/` and the `plan/` meta documents resolves. `plan/learned/DESIGN-HISTORY.md` is scanned, not exempt. (2) Every `// Design:` target resolves. (3) Every `ai/LEARNED-INDEX.md` entry stays under the 120-character pointer budget (`ai/rules/writing.md`). (4) Every backticked `*.sh` filename and `c_*`/`check_*` function name in the hook-describing documents names something in the tree. Those names resolve against top-level `def` names, not against the `CHECKS` registry. Gate: `make ze-doc-links`, folded into `make ze-doc-test` and `ze-regen-check`. |
-| `spec-closure-check.py` | `scripts/dev/` | Detect specs implemented but never closed. `--list` shows the backlog in two tiers (high-confidence vs NEEDS VERIFICATION); `--spec <s>` exits 3 only for high-confidence (committed `plan/learned/NNN-<slug>.md` whose slug exactly equals the spec stem, spec `in-progress`, not an umbrella). Backs the Stop-hook closure gate. See `ai/rules/planning.md` "Closure Enforcement". |
+| `check_doc_links.py` | `scripts/dev/` | Three checks over the instruction corpus. (1) Every backticked path and markdown link in `ai/`, `.claude/rules/` and the `plan/` meta documents resolves. `plan/learned/DESIGN-HISTORY.md` is scanned, not exempt. (2) Every `// Design:` target resolves. (3) Every backticked `*.sh` filename and `c_*`/`check_*` function name in the hook-describing documents names something in the tree. Those names resolve against top-level `def` names, not against the `CHECKS` registry. Gate: `make ze-doc-links`, folded into `make ze-doc-test` and `ze-regen-check`. |
+| `spec-closure-check.py` | `scripts/dev/` | Detect specs implemented but never closed. `--list` shows the backlog in two tiers (high-confidence vs NEEDS VERIFICATION); `--spec <s>` exits 3 only for high-confidence (a committed `plan/journal/<class>.md` row whose Spec cell equals the spec stem, spec `in-progress`, not an umbrella). Backs the Stop-hook closure gate. See `ai/rules/planning.md` "Closure Enforcement". |
 | `ci_observer_recover_check.py` | `scripts/dev/` | Guard the `.ci` observer fail-closed property: no engine-touching call may sit inside a **recovering** `except` handler, because an exception unwinding through the observer's `finally` shutdown lands its sentinel on a stderr nothing relays -- the ordering defect that let real RPC errors pass as green in 332 of 346 observer files. The flagged call set is DERIVED (transitive closure over `ze_api.py` to `_call_engine`/`wait_for_shutdown`), so a new engine-touching helper is covered the day it is written. Its Go test runs the real scan and asserts zero, so `make ze-unit-test` enforces it with no make target to forget. See `ai/rules/testing.md` "Observer-Exit Antipattern". |
+| `docker_exec_checked.py` | `scripts/dev/` | Refuse the next test-harness call site that reads a fail-open return value without testing it. `docker_exec_quiet` (`test/interop/interop.py`) returns `""` on ANY non-zero exit, so `"DIS" in ""` answers False and a command that FAILED reads as a passing assertion over nothing. The flagged set is DERIVED to a fixpoint (a function that `return`s a fail-open call is itself fail-open), which is what covers the WRAPPERS scenarios actually call: 20 functions, 255 call sites. A bare-statement call is discarded, not flagged. Opt out with `# fail-open-ok: <reason>`; a bare marker with no reason does not count. The floor in `test/health/docker-exec-baseline.json` may only go DOWN. Gate: `make ze-docker-exec-check`, routed onto the verify path when a `test/**/*.py` scenario or lab changes, and re-run by `TestRepoRatchet` in `scripts/dev/docker_exec_checked_test.py`. |
 | `ste_check.py` | `scripts/dev/` | Review the repository's writing against ASD-STE100 Simplified Technical English, rule one (`ai/rules/writing.md`). It finds the six banned habits: synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, and phrasal verbs. Surfaces are Markdown, Go comments, YANG descriptions, and piped text. `make ze-ste-review` prints every finding with its `file:line` and the replacement. `make ze-ste-review-changed` limits that to changed files. `make ze-ste-check` compares each changed file against its own HEAD version and fails when a habit grew, printing the file and only the new findings. The BLOCKING form is `ste_problems` in `commit_helper.py`, scoped to the files of one commit. No baseline file exists to re-bless, so the one way to green is to rewrite the prose. |
 | `go_extract.go` | `scripts/dev/` | Move Go symbols between files |
 | `replace.py` | `scripts/dev/` | Bulk find-and-replace with diff preview (run without `--apply` to review, then `--apply` to write). Supports `--regex` and `--all`. |
 | `yang_move.py` | `scripts/dev/` | Format-aware YANG path refactoring. When YANG nodes move, updates slash paths, set commands, brace blocks, and GetContainer chains across the codebase. `remove <seg> --under <path>`, `rename <old> <new> --under <path>`, `move <src> <dst>`. Preview by default, `--apply` to write. Run `--test` for self-tests. |
 | `stress-repro.py` | `scripts/dev/` | Reproduce load-dependent / flaky-in-full-verify test failures WITHOUT the full suite: CPU+GC burners oversubscribe every core while many concurrent `ze-test <suite>` runs loop, capturing the first failure's untruncated output (`GOTRACEBACK=all`; optional `--race`). `<suite>` and `--test` are whitespace-split, so `"bgp plugin" --test 97` works. Add `--any-failure` for assertion flakes (a missed `expect=` never carries a crash signature, so the default crash-only mode reports "not reproduced" and discards the evidence). Honours `ZE_TEST_NO_BUILD`, so rebuild `bin/ze` after changing daemon source or the verdict is against a stale binary. Writes `tmp/stress-repro/<slug>-<ts>.log`. See `ai/rules/testing.md`. |
-| `rebase_learned.py` | `scripts/dev/` | Drive an in-progress rebase that keeps re-conflicting on the generated learned index (`ai/LEARNED-FULL-INDEX.md`): regenerates that derivable file mechanically at each stop and halts on anything needing judgment. Judgment flags `--take-theirs/--take-ours PATH`, `--accept-incoming-delete` (all logged). The human starts/aborts the rebase; the script only resolves. See `ai/rules/git-safety.md` "Rebase Onto Diverged main". |
 | `rename_module_path.py` | `scripts/dev/` | Rename the Go module path repo-wide: every import, `go.mod`/`replace` target, goimports `local-prefixes`, build config, AND the directories whose names mirror the module path (`gokrazy/ze/builddir/<module>/`). Re-sorts import groups with `goimports -format-only -local <new>` because the module-local group is keyed by the module path. REFUSES `*.pb.go` (the rawDesc encodes `go_package` with a varint length prefix, so a textual rewrite corrupts it silently) and points at `make ze-proto-gen`; reports, never silently drops, occurrences that are not module paths (an absolute checkout path) and leftover references to the old HOST (hosting URLs, history). Re-stamps the `rfc/audit/*.json` verdict fingerprints the rename staled (they hash the whole enclosing test file, so one rewritten import line invalidates a verdict about untouched assertions), re-sealing ONLY where it can prove per file that HEAD's content under the rename equals the current content, and refusing anything else. Dry-run by default, `--apply` to execute; does no git operations. |
 | `make ze-proto-gen` | `Makefile` | Regenerate `api/proto/*.pb.go` from `api/proto/ze.proto` using the vendored `protoc-gen-go` / `protoc-gen-go-grpc` (versions pinned by `go.mod`; needs `protoc` on PATH). Required after a module-path rename. |
 | `bundle-html.py` | `gh-pages: presentations/tools/` | Inline local images, slides.md, and embeds into HTML as a self-contained file. Output: `<name>-inlined.html`. Accepts multiple files. |
@@ -265,8 +261,8 @@ Mechanical recipes for creating common artifacts. Read before coding.
 
 ## Learned Summaries (Curated)
 
-Structural decisions, patterns, and gotchas extracted from 500+ completed specs.
-Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
+Structural decisions, patterns, and gotchas. Recurrence data: `plan/journal/` (`make ze-journal`).
+Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/learned/RECURRING-PATTERNS.md`.
 
 ## Architecture Docs
 
@@ -381,7 +377,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | pool, memory, dedup, zero-copy, lifecycle | `ai/rules/performance.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
 | textbuf, string building, AppendTo, alloc-free | `ai/rules/performance.md`, `ai/rules/performance.md`, `internal/core/textbuf/` |
 | error message, actionable error, corrective action, remediation, fail closed | `ai/rules/cli.md`, `ai/rules/protocol.md`, `ai/rules/evidence.md` |
-| guard, fail open, fail closed, silent no-op, zero value, valid-looking zero, bare map read, permissive default, inert constraint, dead guard | `ai/rules/evidence.md`, `plan/learned/1157-fail-open-auth-empty-profiles.md` |
+| guard, fail open, fail closed, silent no-op, zero value, valid-looking zero, bare map read, permissive default, inert constraint, dead guard | `ai/rules/evidence.md`, `ai/digests/aaa-auth.md` (the authorizer chokepoint and its fail-open bootstrap window) |
 | sync.Pool, buffer pool, ring buffer, peerPool | `ai/rules/performance.md`, `forward-congestion-pool.md` |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md`, `plugin/rib-storage-design.md` |
@@ -419,7 +415,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | RFC audit verdict, rfc/audit schema, enforced/weak/wrong/unimplemented/not-applicable, no_code_path, upgrade_reason, units map, code map, SHIFTED verdict, stale audit verdict, ze-rfc-reseal, audit coverage | `ai/skills/ze-rfc-audit.md` (the verdict vocabulary and the four freshness states), `make ze-rfc-reseal`, `ai/RFC-REQUIREMENTS.md` (Audit coverage), `scripts/dev/rfc_tagged_scope.py` (the one definition of "the tagged unit"), `ai/rules/rfc-compliance.md` (a verdict is never authority) |
 | payload-predicate waits, sleep elimination, ci-sleep ratchet, ci-sleep justification, time.sleep comment, wait_until, dispatch_until, wait_for_event predicate, engine-step predicates (matches=/absent=/json=) | `docs/functional-tests.md` ("Payload-predicate waits"), `docs/architecture/testing/ci-format.md` ("Engine Steps"), `ai/rules/testing.md` (Observer API), `ai/rules/testing.md`, `test/scripts/ze_api.py`, `internal/test/runner/engine_steps.go` |
 | poll loop, wait loop, waiting for a background command, watcher, pgrep loop, waiting for a QEMU boot, until/while + sleep blocked | `ai/rules/commands.md`, `ai/rules/repo-maintenance.md` (poll-loop), `.claude/hooks/pretool-bash.py` (`check_poll_loop`) |
-| netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `docs/features.md`, `plan/learned/653-netdata-os-collectors.md` |
+| netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `docs/features.md`, `ai/digests/observation-telemetry.md` |
 | DHCP, dhcp-server, lease, pool | `internal/plugins/dhcpserver/` (plugin), `ze-dhcp-server-conf.yang` |
 | NTP, time sync | `internal/plugins/ntp/` (plugin), `ze-ntp-conf.yang` |
 | AS112, anycast DNS, EMPTY.AS112.ARPA, reverse DNS sink, RFC 7534, RFC 7535 | `internal/plugins/as112/` (plugin), `internal/core/dnsserver/` (shared DNS harness), `internal/component/iface/address_owner.go` (address-ownership registry), `ze-as112-conf.yang`, `docs/guide/as112.md` |
@@ -432,41 +428,41 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | conntrack, connection tracking | `internal/component/config/system/conntrack.go`, `ze-system-conf.yang` |
 | archive, config backup, revision | `internal/component/config/archive/`, `ze-system-conf.yang` |
 | SSH, authentication, user, public-key | `internal/component/ssh/`, `ze-ssh-conf.yang` |
-| IPsec, IKE, IKEv2, SA, child SA | `plan/learned/734` (data model), `plan/learned/739` (crypto), `plan/learned/740` (engine), `plan/learned/742` (child SA) |
-| EAP, NAT-T, MOBIKE | `plan/learned/744` (EAP/NAT-T), `plan/learned/737` (EAP extension) |
-| XFRM, xfrm interface, VTI | `plan/learned/735` (XFRM interfaces) |
-| subscriber, session, PPPoE, L2TP | `plan/learned/760-subscriber-session-model.md`, `internal/component/l2tp/pppoe/` |
+| IPsec, IKE, IKEv2, SA, child SA | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
+| EAP, NAT-T, MOBIKE | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
+| XFRM, xfrm interface, VTI | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
+| subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
-| diagnostic, doctor, health, readiness | `plan/learned/755-ze-doctor.md`, `ai/rules/repo-maintenance.md`, `plan/learned/727-diag-core.md` |
+| diagnostic, doctor, health, readiness | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
 | EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `ai/rules/plugins.md` (EventBus Typed Payloads), `internal/core/events/typed.go` |
 | DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `ai/rules/plugins.md` (DirectBridge), `plan/learned/DESIGN-HISTORY.md` "Plugin system: architecture" |
 | BFD, bidirectional forwarding | `docs/architecture/bfd.md` |
 | resolve, origin, pipe, pipe operator | `docs/architecture/resolve.md`, `ai/rules/cli.md` |
 | MCP, model context protocol | `docs/architecture/mcp/`, `internal/component/mcp/` |
-| self-update, manifest, auto-update | `plan/learned/748-cpe-6-self-update.md` |
-| ASPA, path verification, RTR | `plan/learned/721-bgp-2-aspa.md`, `plan/learned/722-spec-bgp-4-aspa-policy.md` |
-| BMP, monitoring protocol | `plan/learned/574-bgp-4-bmp.md`, `plan/learned/647-bmp-5-sender-compliance.md` |
-| docker, container, scratch | `plan/learned/753-docker-go126.md`, `docs/guide/docker.md` |
-| chaos, fault injection, scheduler | `plan/learned/723-chaos-actions-v2.md`, `docs/architecture/chaos-web-dashboard.md` |
+| self-update, manifest, auto-update | `docs/architecture/appliance/self-update.md`, `docs/guide/self-update.md` |
+| ASPA, path verification, RTR | `docs/guide/rpki.md` (ASPA Path Verification), `internal/component/bgp/plugins/rpki/`, `docs/features/rfc-status.md` (draft-ietf-sidrops-aspa-verification) |
+| BMP, monitoring protocol | `docs/guide/bmp.md`, `internal/component/bgp/plugins/bmp/`, `docs/architecture/api/commands.md` (bmp-sessions, bmp-peers) |
+| docker, container, scratch | `docs/guide/docker.md` |
+| chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
 | commit, commit script, commit message, lesson learned, verified commit, verify freshness, owner override, commit no test | `scripts/dev/commit_helper.py`, `scripts/dev/verify-status.sh`, `ai/rules/git-safety.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, gh-pages changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `../gh-pages/AI.md`, `../gh-pages/tools/render-index.py`, `scripts/zeledon/STYLE.md` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `mk/inventory.mk` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
-| command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `make ze-cli-grammar-check`, `plan/learned/829-command-verb-first.md` |
-| DispatchCommandArgs, typed inter-plugin dispatch, tokenizer bypass | `plan/learned/830-typed-inter-plugin-dispatch.md`, `ai/rules/plugins.md` |
-| RawMessage, double marshal, callback passthrough, SDK callback | `plan/learned/826-ipc-dispatch-data-raw.md`, `plan/learned/827-dispatch-response-passthrough.md`, `plan/learned/828-codec-callback-passthrough.md` |
-| pipe first, pipe last, pipe metadata | `ai/rules/cli.md`, `plan/learned/822-pipe-first-last.md` |
-| RIB dump, bounded dump, replay batching, update cursor | `plan/learned/823-rib-show-bounded-dump.md`, `plan/learned/824-rib-feed-replay-batch.md` |
-| plugin internal keyword, in-process plugin config | `plan/learned/1145-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
-| appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/authz/`, `internal/component/aaa/` |
+| command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `make ze-cli-grammar-check`, `docs/architecture/cli/root-namespace-grammar.md` |
+| DispatchCommandArgs, typed inter-plugin dispatch, tokenizer bypass | `docs/architecture/api/process-protocol.md`, `ai/digests/plugin-transport.md`, `ai/rules/plugins.md` |
+| RawMessage, double marshal, callback passthrough, SDK callback | `docs/architecture/api/process-protocol.md`, `ai/digests/api-ipc.md` |
+| pipe first, pipe last, pipe metadata | `ai/rules/cli.md` (The Rule (pipes)), `docs/guide/command-reference.md`, `docs/features/formatting.md` |
+| RIB dump, bounded dump, replay batching, update cursor | `docs/architecture/bgp/replay-cursor.md`, `ai/digests/rib.md` |
+| plugin internal keyword, in-process plugin config | `docs/guide/plugins.md` (the `internal` keyword), `ai/patterns/plugin.md` |
+| appliance auth, local admin, bootstrap auth, RBAC | `docs/guide/operator-access-rbac.md`, `ai/digests/aaa-auth.md`, `internal/component/authz/`, `internal/component/aaa/` |
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `scripts/evidence/effective-install-iso-qemu.py`, `mk/test-integration.mk` |
 | Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/platform-linux.md`, `mk/gokrazy.mk` (`ze-gokrazy-deps`), `.github/dependabot.yml` |
 | installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `scripts/evidence/effective-install-scenarios-qemu.py`, `scripts/evidence/effective-install-ventoy-qemu.py`, `internal/install/disk/fault_linux.go`, `mk/test-integration.mk` (`ze-install-scenarios-qemu-test`, `ze-install-ventoy-qemu-test`), `docs/functional-tests.md` |
 | VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `scripts/evidence/effective-vpp-hugepages-qemu.py`, `mk/test-integration.mk` (`ze-vpp-hugepages-qemu-test`), `docs/guide/vpp.md`, `docs/guide/appliance.md` |
 | VPP semantics, linux-cp, LCP, LCP netns, lcp_itf_pair_create, default netns, binapi, lcp.ba.go, foreign system semantics | `third_party/vpp-linux-cp/` -- vendored VPP C (v25.10, read-only reference). Read this BEFORE claiming what VPP does; the generated stub `vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go` says a field exists, never what VPP does with it (`ai/rules/evidence.md`) |
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, ze-gokrazy-deps prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go` |
-| test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `plan/learned/1275-fixit-ci-green.md`, `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
+| test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
 | mutation testing, gomu, mutation score, mutant | `mk/test-mutation.mk`, `ai/rules/testing.md` (Mutation Testing section) |
 | test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `scripts/dev/testing_health.py`, `scripts/checks/inert_tests.go`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |

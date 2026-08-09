@@ -1,4 +1,4 @@
-// Design: plan/learned/750-zefs-integrity.md -- corruption detection and recovery
+// Design: docs/architecture/zefs-format.md -- corruption detection and recovery
 // Overview: store.go -- BlobStore format and decode logic
 
 package zefs

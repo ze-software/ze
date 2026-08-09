@@ -1,4 +1,4 @@
-// Design: plan/learned/688-web-4-interfaces.md -- IP Routes page
+// Design: docs/architecture/web-workbench-pages.md -- IP Routes page
 // Related: workbench_table.go -- Reusable table component
 // Related: page_ip_addresses.go -- IP Addresses page (sibling)
 

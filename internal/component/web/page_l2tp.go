@@ -1,4 +1,4 @@
-// Design: plan/learned/691-web-7-system-services.md -- L2TP workbench pages
+// Design: docs/architecture/web-workbench-pages.md -- L2TP workbench pages
 // Related: handler_l2tp.go -- Existing L2TP handlers (preserved, not modified)
 // Related: workbench_table.go -- Table component
 // Related: workbench_form.go -- Form component

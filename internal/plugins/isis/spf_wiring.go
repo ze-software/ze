@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md -- engine <-> SPF wiring (LSDB read, next-hop, install).
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- engine <-> SPF wiring (LSDB read, next-hop, install).
 // Related: server.go -- the engine struct + lifecycle this extends
 // Related: lsdb_wiring.go -- the LSDB the SPF Source reads and the change points that Trigger SPF
 // Related: internal/plugins/isis/spf -- the graph/Dijkstra/route/install package

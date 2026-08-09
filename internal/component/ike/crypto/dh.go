@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- DH key exchange groups
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- DH key exchange groups
 // RFC: rfc/short/rfc7296.md -- Key Exchange payload, public value length (Section 3.4)
 // RFC: rfc/full/rfc5903.txt -- ECP public value encoding, X || Y (Section 7); no short summary exists
 

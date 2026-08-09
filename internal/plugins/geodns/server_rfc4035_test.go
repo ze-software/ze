@@ -1,4 +1,4 @@
-// Design: plan/learned/993-geodns-2-server.md -- geodns answer policy; the
+// Design: docs/architecture/dns/geodns.md -- geodns answer policy; the
 // dnsserver harness owns the reply's authoritative shape
 // RFC: rfc/short/rfc4035.md -- DNSSEC protocol modifications, authoritative
 // name-server side (a DS query at a zone cut, and the absence of any DNSSEC

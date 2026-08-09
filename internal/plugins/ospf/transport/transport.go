@@ -1,4 +1,4 @@
-// Design: plan/learned/957-ospf-3-ip-transport.md -- OSPFv2 raw IPv4 transport orchestrator
+// Design: docs/architecture/ospf/ospf-3-ip-transport.md -- OSPFv2 raw IPv4 transport orchestrator
 // Related: backend_linux.go -- Linux AF_INET/SOCK_RAW backend
 
 package transport

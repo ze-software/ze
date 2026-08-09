@@ -1,4 +1,4 @@
-// Design: plan/learned/936-isis-11-redistribution.md -- IS-IS redistribution source (producer).
+// Design: docs/architecture/isis/isis-11-redistribution.md -- IS-IS redistribution source (producer).
 // Related: internal/plugins/isis/redistribute/events -- the redistevents producer wiring.
 // Related: internal/component/bgp/redistribute -- the source-registration template (sync.Once).
 // RFC: rfc/short/rfc5305.md -- connected/redistributed prefixes are TLV 135 entries

@@ -1,4 +1,4 @@
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- RFC 4552 IPsec readiness doctor check.
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- RFC 4552 IPsec readiness doctor check.
 // Related: ipsec_install.go -- the installer whose kernel dependency this check probes.
 // Related: register.go -- registerOSPFIPsecDoctor wires this into the doctor runner.
 // RFC: rfc/short/rfc4552.md -- OSPFv3 IPsec (needs CAP_NET_ADMIN + kernel XFRM).

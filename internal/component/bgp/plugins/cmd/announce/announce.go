@@ -1,4 +1,4 @@
-// Design: plan/learned/1008-cp-survival-4-on-demand-origination-design.md -- on-demand route origination CLI verbs
+// Design: docs/architecture/bgp/on-demand-origination.md -- on-demand route origination CLI verbs
 // RFC: rfc/short/rfc2545.md -- the next-hop value must be a global IPv6 address (handleAnnounceUnicast)
 
 package announce

@@ -1,4 +1,4 @@
-// Design: plan/learned/977-traffic-usage.md -- traffic-usage config parsing & validation
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage config parsing & validation
 
 package trafficusage
 

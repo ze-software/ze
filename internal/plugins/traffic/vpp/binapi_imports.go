@@ -1,4 +1,4 @@
-// Design: plan/learned/627-fw-7-traffic-vpp.md -- Phase 0 vendor pinning
+// Design: docs/architecture/traffic/fw-7-traffic-vpp.md -- Phase 0 vendor pinning
 
 // Anchor file that keeps the GoVPP binapi packages in the module's import
 // graph on EVERY platform, so `go mod vendor` retains them under

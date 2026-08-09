@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- Linux raw-socket probe for the doctor check
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- Linux raw-socket probe for the doctor check
 //
 // rawSocketAvailable opens and immediately closes an AF_INET/SOCK_RAW socket for
 // protocol 112, the exact rx capability the VRRP transport needs. EPERM (no

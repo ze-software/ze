@@ -1,7 +1,7 @@
 // Design: ai/rules/plugins.md -- process-boundary guard
 //
 // plugin_process_boundary enforces an invariant discovered during the
-// AS112/cos advisory-doctor-check review (plan/learned/1032-as112-review-hardening.md):
+// AS112/cos advisory-doctor-check review:
 // a plugin calling another in-process package's plain exported function
 // directly -- bypassing DirectBridge/DispatchCommand -- for a SAME-PROCESS-
 // EFFECT operation (one that only reaches the engine's real, shared package

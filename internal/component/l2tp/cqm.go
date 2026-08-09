@@ -1,4 +1,4 @@
-// Design: plan/learned/660-l2tp-9-observer.md -- CQM bucket aggregation
+// Design: docs/architecture/l2tp/l2tp-9-observer.md -- CQM bucket aggregation
 // Related: observer.go -- observer owns sample rings, calls addEcho
 
 package l2tp

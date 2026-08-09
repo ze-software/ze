@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- common header tests
+// Design: docs/architecture/ospf/ospf-2-wire.md -- common header tests
 
 package packet
 

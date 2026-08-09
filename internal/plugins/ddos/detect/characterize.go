@@ -1,4 +1,4 @@
-// Design: plan/learned/1015-cp-survival-5-detect-5-characterization.md -- Stage-2 characterization.
+// Design: docs/architecture/ddos/cp-survival-5-detect-5-characterization.md -- Stage-2 characterization.
 // Related: doctor.go -- warns when neither flow source these queries use is configured.
 // Related: metrics.go -- per-family and fallback counters incremented here.
 // On the rate-trigger active transition the detector (off the onRate hot path)

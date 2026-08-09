@@ -1,4 +1,4 @@
-// Design: plan/learned/958-ospf-4-component-config.md -- OSPFv2 plugin registration
+// Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPFv2 plugin registration
 // Related: config.go -- typed config resolution
 // Related: instance.go -- engine orchestration and packet dispatcher
 package ospf

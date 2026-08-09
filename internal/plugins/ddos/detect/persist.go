@@ -1,4 +1,4 @@
-// Design: plan/learned/1108-ddos-detect-enhancements.md -- baseline persistence across restart.
+// Design: docs/architecture/ddos/ddos-detect-enhancements.md -- baseline persistence across restart.
 // Restoring the rolling baseline on startup skips the BaselineWindow re-warm (and
 // the StartupGrace blind window) that an in-memory-only baseline suffers after every
 // restart, update, or reconfigure. The snapshot is a versioned JSON blob persisted

@@ -1,4 +1,4 @@
-// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- RFC 5392 inter-AS TE sub-TLVs.
+// Design: docs/architecture/ospf/ospf-ext-2-traffic-engineering.md -- RFC 5392 inter-AS TE sub-TLVs.
 // RFC: rfc/short/rfc5392.md -- OSPF Extensions for Inter-AS MPLS/GMPLS TE.
 //
 // RFC 5392 adds NO top-level TLV: the Inter-AS-TE-v2 LSA (Opaque type 6) carries the same

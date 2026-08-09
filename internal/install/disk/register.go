@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- ze install disk registration
+// Design: docs/architecture/appliance/on-device-installer.md -- ze install disk registration
 
 package disk
 

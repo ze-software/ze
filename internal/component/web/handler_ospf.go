@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- OSPF web neighbor + database views.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- OSPF web neighbor + database views.
 // Related: snapshot_views.go -- the generic read-only live-view implementation wrapped here.
 //
 // The OSPF engine runs as a managed plugin subprocess, so the web layer reaches it the

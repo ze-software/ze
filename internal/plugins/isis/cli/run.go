@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- offline `ze isis decode` subcommand entry
+// Design: docs/architecture/wire/isis.md -- offline `ze isis decode` subcommand entry
 //
 // Package cli provides the offline IS-IS tooling that ships with the
 // internal/plugins/isis codec. In the isis-2 (wire codec) slice the only verb

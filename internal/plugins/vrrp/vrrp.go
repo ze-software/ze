@@ -1,7 +1,7 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 (default for both address families)
 // RFC: rfc/short/rfc3768.md -- VRRPv2 (opt-in per IPv4 group)
 //
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- vrrp plugin package doc, logger, show views
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- vrrp plugin package doc, logger, show views
 //
 // Package vrrp implements the Virtual Router Redundancy Protocol on ze
 // interfaces: RFC 9568 (VRRPv3, the default for both address families) and RFC

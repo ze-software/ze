@@ -1,4 +1,4 @@
-// Design: plan/learned/516-healthcheck-0-umbrella.md -- IP management via iface
+// Design: docs/architecture/bgp/healthcheck-plugin.md -- IP management via iface
 // Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE signaling engine
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE signaling engine
 // RFC: rfc/short/rfc3209.md
 // RFC: rfc/short/rfc2205.md
 // Related: transport.go -- Transport seam the engine sends/receives over

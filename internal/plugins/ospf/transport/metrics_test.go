@@ -1,4 +1,4 @@
-// Design: plan/learned/957-ospf-3-ip-transport.md -- metric series registration tests
+// Design: docs/architecture/ospf/ospf-3-ip-transport.md -- metric series registration tests
 
 package transport
 

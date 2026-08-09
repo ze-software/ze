@@ -852,29 +852,52 @@ _DEFERRALS_HEADER = (
     "|------|--------|------|--------|-------------|--------|\n"
 )
 
+# Five-column layout matching a real plan/journal/<class>.md (Date | Spec |
+# Surface | Symptom | Fix); the closure gates read the Spec cell by index.
+_JOURNAL_HEADER = "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
 
-def _seed_learned_repo(repo: str, extra_generators: tuple[str, ...] = ()) -> None:
+
+def _journal_row(spec: str) -> str:
+    """One well-formed journal row naming `spec` in its Spec cell."""
+    return f"| 2026-08-09 | {spec} | surface | symptom | fix |\n"
+
+
+def _design_go(topic: str) -> str:
+    """A Go file whose `// Design:` header is a DOCS-TO-CODE source row."""
+    return f"// Design: docs/{topic}.md -- {topic}\npackage {topic}\n"
+
+
+def _seed_index_repo(repo: str, extra_generators: tuple[str, ...] = ()) -> None:
     """A fixture repo the discovery-index gate can actually run in.
 
-    By default only ONE generator is copied (learned_index.py, plus
+    By default only ONE generator is copied (docs_to_code.py, plus
     discovery_sources.py which it imports): every consumer skips a generator that
-    is not present, so PACKAGE-MAP and DOCS-TO-CODE stay out and the fixture needs
-    no Go tree. Pass `extra_generators` when a case must distinguish "verify every
-    index" from "verify the ones this commit feeds" -- one generator cannot.
+    is not present, so PACKAGE-MAP stays out and exactly one index is judgeable.
+    Pass `extra_generators` when a case must distinguish "verify every index"
+    from "verify the ones this commit feeds" -- one generator cannot.
+
+    The source it seeds is a `// Design:` Go file, which is what DOCS-TO-CODE is
+    built from. It used to be a `plan/learned/NNN-*.md` summary feeding a learned
+    index; that corpus and its generator are gone (plan/spec-problem-journal.md).
+    The journal that replaced the corpus generates NO index by design, so no
+    `plan/journal/` file can stand in here: what these cases exercise is index
+    FRESHNESS, and an index is what the journal deliberately does not have. The
+    journal's own commit-gate coverage is the spec-audit and closure-stem cases
+    above, which need no generator at all.
     """
     gens = (
-        "scripts/dev/learned_index.py",
+        "scripts/dev/docs_to_code.py",
         "scripts/dev/discovery_sources.py",
     ) + extra_generators
     for rel in gens:
         dst = os.path.join(repo, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(os.path.join(DEV, os.path.basename(rel)), dst)
-    _write(repo, "plan/learned/0001-a.md", "# 0001 -- a\n")
+    _write(repo, "internal/alpha/a.go", _design_go("alpha"))
     os.makedirs(os.path.join(repo, "ai"), exist_ok=True)
-    _regen_learned_index(repo)
-    _git(repo, "add", "scripts", "plan", "ai")
-    _git(repo, "commit", "-q", "-m", "seed learned index")
+    _regen_docs_to_code(repo)
+    _git(repo, "add", "scripts", "internal", "ai")
+    _git(repo, "commit", "-q", "-m", "seed docs-to-code index")
 
 
 def _regen(repo: str, generator: str) -> None:
@@ -886,8 +909,8 @@ def _regen(repo: str, generator: str) -> None:
     )
 
 
-def _regen_learned_index(repo: str) -> None:
-    _regen(repo, "learned_index.py")
+def _regen_docs_to_code(repo: str) -> None:
+    _regen(repo, "docs_to_code.py")
 
 
 def run_commit_gate(results: Results) -> None:
@@ -1067,7 +1090,7 @@ def run_commit_gate(results: Results) -> None:
             "commit-gate-spec-audit-no-claim-skips", not problems, repr(problems)
         )
 
-        # A commit that does NOT add this spec's learned summary is not a closure
+        # A commit that does NOT add this spec's closure artifact is not a closure
         # commit, so the gate does not fire even with an unfilled section.
         _write(repo, "plan/spec-fixture.md", empty_pcv)
         problems = ch.spec_audit_problems(
@@ -1075,6 +1098,149 @@ def run_commit_gate(results: Results) -> None:
         )
         results.check(
             "commit-gate-spec-audit-non-closure-skips", not problems, repr(problems)
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- spec-audit through the JOURNAL, which is the live closure artifact ---
+    # ai/skills/ze-close.md step 6a writes a plan/journal/<class>.md row, not a
+    # learned summary, and plan/learned/ is gone. Keyed on the learned path alone
+    # this gate could no longer fire on ANY closure. The cases below drive the
+    # journal branch, and the last two are what make them discriminating: a row
+    # naming ANOTHER spec, and a row already at HEAD, must both leave it silent.
+    repo = _init_repo()
+    try:
+        _write(repo, "plan/spec-fixture.md", empty_pcv)
+        _write(repo, "plan/journal/a-class.md", _JOURNAL_HEADER)
+        _git(repo, "add", "plan")
+        _git(repo, "commit", "-q", "-m", "seed journal class")
+
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + _journal_row("fixture"),
+        )
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/journal/a-class.md",), "spec-fixture.md"
+        )
+        results.check(
+            "commit-gate-spec-audit-journal-row-blocks", bool(problems), repr(problems)
+        )
+
+        _write(repo, "plan/spec-fixture.md", filled_pcv)
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/journal/a-class.md",), "spec-fixture.md"
+        )
+        results.check(
+            "commit-gate-spec-audit-journal-filled-ok", not problems, repr(problems)
+        )
+
+        # A row naming a DIFFERENT spec is somebody else's closure.
+        _write(repo, "plan/spec-fixture.md", empty_pcv)
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + _journal_row("other-spec"),
+        )
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/journal/a-class.md",), "spec-fixture.md"
+        )
+        results.check(
+            "commit-gate-spec-audit-journal-other-spec-skips",
+            not problems,
+            repr(problems),
+        )
+
+        # A row this spec's stem already owns AT HEAD is not added by this commit,
+        # so it is not this commit's closure signal.
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + _journal_row("fixture"),
+        )
+        _git(repo, "add", "plan")
+        _git(repo, "commit", "-q", "-m", "commit the row")
+        problems = ch.spec_audit_problems(
+            Path(repo), ("plan/journal/a-class.md",), "spec-fixture.md"
+        )
+        results.check(
+            "commit-gate-spec-audit-journal-row-at-head-skips",
+            not problems,
+            repr(problems),
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- journal-row: a MALFORMED added row BLOCKS, through create() ---
+    # `_journal_added_spec_stems` skips a row it cannot parse. When the row is the
+    # only closure artifact that leaves `spec_closure_stem` None, so
+    # `review_gate_problems` returns [] and a closure commit carrying code lands
+    # unreviewed: the miss path returned the permissive answer
+    # (ai/rules/evidence.md). Driven from create(), because that is where the
+    # commit is refused and where the ordering (this gate before the review gate)
+    # is what makes the skip safe.
+    repo = _init_repo()
+    try:
+        _write(repo, "plan/journal/a-class.md", _JOURNAL_HEADER)
+        _git(repo, "add", "plan")
+        _git(repo, "commit", "-q", "-m", "seed journal class")
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + "| 2026-08-09 | fixture | surface | symptom |\n",
+        )
+        with contextlib.redirect_stderr(io.StringIO()):
+            rc = ch.main(
+                [
+                    "--repo",
+                    repo,
+                    "create",
+                    "--session",
+                    "cafe1234",
+                    "--subject",
+                    "add a journal row missing a cell",
+                    "--file",
+                    "plan/journal/a-class.md",
+                ]
+            )
+        script_exists = bool(
+            glob.glob(os.path.join(repo, "tmp", "commit-cafe1234-*.sh"))
+        )
+        results.check(
+            "commit-gate-journal-malformed-row-blocks-via-create",
+            rc == 2 and not script_exists,
+            f"rc={rc} script={script_exists}",
+        )
+
+        # The same commit with the fifth cell present is accepted, so the block
+        # above is the row's shape and not the path.
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + _journal_row("fixture"),
+        )
+        with contextlib.redirect_stderr(io.StringIO()):
+            rc = ch.main(
+                [
+                    "--repo",
+                    repo,
+                    "create",
+                    "--session",
+                    "cafe5678",
+                    "--subject",
+                    "add a well-formed journal row",
+                    "--file",
+                    "plan/journal/a-class.md",
+                ]
+            )
+        # create() names each script with a random suffix, so glob rather than
+        # spell it: the negative cases above assert "no script at all" and a
+        # literal name is enough for them.
+        scripts = glob.glob(os.path.join(repo, "tmp", "commit-cafe5678-*.sh"))
+        results.check(
+            "commit-gate-journal-wellformed-row-passes",
+            rc == 0 and bool(scripts),
+            f"rc={rc} scripts={scripts}",
         )
     finally:
         shutil.rmtree(repo, ignore_errors=True)
@@ -1103,7 +1269,9 @@ def run_commit_gate(results: Results) -> None:
                     "fixture integration test for the deferral gate",
                 ]
             )
-        script_exists = os.path.isfile(os.path.join(repo, "tmp", "commit-abcd1234.sh"))
+        script_exists = bool(
+            glob.glob(os.path.join(repo, "tmp", "commit-abcd1234-*.sh"))
+        )
         results.check(
             "commit-gate-create-blocks-deferral",
             rc == 2 and not script_exists,
@@ -1114,23 +1282,21 @@ def run_commit_gate(results: Results) -> None:
 
     # --- discovery-index: own staleness blocks, a concurrent session's does not ---
     # The gate judges the tree the commit PRODUCES (HEAD + adds - removes), not the
-    # working tree, so an untracked summary belonging to another session cannot
+    # working tree, so an untracked source belonging to another session cannot
     # force a commit to either block or cross-commit that session's index row.
     repo = _init_repo()
     try:
-        _seed_learned_repo(repo)
+        _seed_index_repo(repo)
         # The cases below run in sequence against ONE repo and each depends on the
         # state the previous one left. The order is load-bearing; inserting a case
         # changes what the ones after it test.
         #
-        # A: this commit adds a summary and omits the regenerated index -> block.
+        # A: this commit adds a source and omits the regenerated index -> block.
         # Asserts the MESSAGE, not merely that something blocked: the pre-change
         # implementation also blocked here, by a different branch.
-        _write(repo, "plan/learned/0002-b.md", "# 0002 -- b\n")
+        _write(repo, "internal/beta/b.go", _design_go("beta"))
         with contextlib.redirect_stderr(io.StringIO()):
-            problems = ch.discovery_index_problems(
-                Path(repo), ("plan/learned/0002-b.md",)
-            )
+            problems = ch.discovery_index_problems(Path(repo), ("internal/beta/b.go",))
         results.check(
             "commit-gate-index-own-staleness-blocks",
             bool(problems) and "omitted:" in "".join(problems),
@@ -1138,7 +1304,7 @@ def run_commit_gate(results: Results) -> None:
         )
 
         # D (runs here deliberately): at THIS state the working tree is stale from
-        # the summary A left, so an unrelated commit is the case that proves a
+        # the source A left, so an unrelated commit is the case that proves a
         # concurrent session's staleness does not block. Run after B or C, where
         # the tree is fresh again, it would assert on a branch that returns early
         # and would pass with the whole change reverted.
@@ -1149,28 +1315,28 @@ def run_commit_gate(results: Results) -> None:
             "commit-gate-index-unrelated-commit-passes", not problems, repr(problems)
         )
 
-        # B: same commit, index regenerated to match HEAD + its own summary, while a
-        # concurrent session leaves an UNTRACKED summary in the tree -> no block.
-        _regen_learned_index(repo)
-        _write(repo, "plan/learned/0003-foreign.md", "# 0003 -- foreign\n")
+        # B: same commit, index regenerated to match HEAD + its own source, while a
+        # concurrent session leaves an UNTRACKED source in the tree -> no block.
+        _regen_docs_to_code(repo)
+        _write(repo, "internal/foreign/f.go", _design_go("foreign"))
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
                 Path(repo),
-                ("plan/learned/0002-b.md", "ai/LEARNED-FULL-INDEX.md"),
+                ("internal/beta/b.go", "ai/DOCS-TO-CODE.md"),
             )
         results.check(
             "commit-gate-index-foreign-staleness-passes", not problems, repr(problems)
         )
 
         # C: the index is regenerated WITH the concurrent session's untracked
-        # summary and then committed -> it would publish a row for a file absent
+        # source and then committed -> it would publish a row for a file absent
         # from HEAD. This is how plan/learned/1282-*.md reached HEAD's committed
         # index, and a working-tree check calls this state "fresh".
-        _regen_learned_index(repo)
+        _regen_docs_to_code(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
                 Path(repo),
-                ("plan/learned/0002-b.md", "ai/LEARNED-FULL-INDEX.md"),
+                ("internal/beta/b.go", "ai/DOCS-TO-CODE.md"),
             )
         results.check(
             "commit-gate-index-foreign-row-included-blocks",
@@ -1189,7 +1355,7 @@ def run_commit_gate(results: Results) -> None:
     # index" and "verify the fed ones" are indistinguishable.
     repo = _init_repo()
     try:
-        _seed_learned_repo(repo, extra_generators=("scripts/dev/package_map.py",))
+        _seed_index_repo(repo, extra_generators=("scripts/dev/package_map.py",))
         _write(
             repo,
             "internal/existing/a.go",
@@ -1200,21 +1366,27 @@ def run_commit_gate(results: Results) -> None:
         _git(repo, "commit", "-q", "-m", "seed package map")
 
         # The new file feeds DOCS-TO-CODE only (no `// Package`), yet it adds a
-        # PACKAGE-MAP row. The author regenerated PACKAGE-MAP but did not --file it,
-        # so the working tree is FRESH and only the commit view can see the drift.
+        # PACKAGE-MAP row. The author regenerated BOTH indexes and --file'd only
+        # DOCS-TO-CODE, the one this commit visibly feeds, so the working tree is
+        # FRESH and only the commit view can see the PACKAGE-MAP drift. Both
+        # generators regenerate on purpose: leaving DOCS-TO-CODE stale as well
+        # would let the assertion pass on the fed index's own drift.
         _write(
             repo,
             "internal/newpkg/thing.go",
             "// Design: docs/x.md -- thing\npackage newpkg\n",
         )
         _regen(repo, "package_map.py")
+        _regen_docs_to_code(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
-                Path(repo), ("internal/newpkg/thing.go",)
+                Path(repo), ("internal/newpkg/thing.go", "ai/DOCS-TO-CODE.md")
             )
         results.check(
             "commit-gate-index-unfed-index-still-verified",
-            bool(problems) and "PACKAGE-MAP" in "".join(problems),
+            bool(problems)
+            and "PACKAGE-MAP" in "".join(problems)
+            and "DOCS-TO-CODE" not in "".join(problems),
             repr(problems),
         )
     finally:
@@ -1226,27 +1398,27 @@ def run_commit_gate(results: Results) -> None:
     # generator calls the index coherent, and a stale index ships.
     repo = _init_repo()
     try:
-        _seed_learned_repo(repo)
-        _write(repo, "plan/learned/0002-b.md", "# 0002 -- b\n")
-        _regen_learned_index(repo)
-        _git(repo, "add", "plan", "ai")
-        _git(repo, "commit", "-q", "-m", "add 0002")
-        os.remove(os.path.join(repo, "plan/learned/0002-b.md"))
+        _seed_index_repo(repo)
+        _write(repo, "internal/beta/b.go", _design_go("beta"))
+        _regen_docs_to_code(repo)
+        _git(repo, "add", "internal", "ai")
+        _git(repo, "commit", "-q", "-m", "add beta")
+        os.remove(os.path.join(repo, "internal/beta/b.go"))
 
-        # E1: removal committed, index left listing the removed summary -> block.
+        # E1: removal committed, index left listing the removed source -> block.
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
-                Path(repo), (), ("plan/learned/0002-b.md",)
+                Path(repo), (), ("internal/beta/b.go",)
             )
         results.check(
             "commit-gate-index-removal-stale-blocks", bool(problems), repr(problems)
         )
 
         # E2: same removal with the regenerated index riding along -> passes.
-        _regen_learned_index(repo)
+        _regen_docs_to_code(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
-                Path(repo), ("ai/LEARNED-FULL-INDEX.md",), ("plan/learned/0002-b.md",)
+                Path(repo), ("ai/DOCS-TO-CODE.md",), ("internal/beta/b.go",)
             )
         results.check(
             "commit-gate-index-removal-regenerated-passes", not problems, repr(problems)
@@ -1260,12 +1432,12 @@ def run_commit_gate(results: Results) -> None:
     # reaches it (ai/rules/evidence.md).
     repo = _init_repo()
     try:
-        _seed_learned_repo(repo)
-        _write(repo, "plan/learned/0002-b.md", "# 0002 -- b\n")
-        _regen_learned_index(repo)
-        _git(repo, "add", "plan", "ai")
-        _git(repo, "commit", "-q", "-m", "add 0002")
-        os.remove(os.path.join(repo, "plan/learned/0002-b.md"))
+        _seed_index_repo(repo)
+        _write(repo, "internal/beta/b.go", _design_go("beta"))
+        _regen_docs_to_code(repo)
+        _git(repo, "add", "internal", "ai")
+        _git(repo, "commit", "-q", "-m", "add beta")
+        os.remove(os.path.join(repo, "internal/beta/b.go"))
         with contextlib.redirect_stderr(io.StringIO()):
             rc = ch.main(
                 [
@@ -1275,14 +1447,16 @@ def run_commit_gate(results: Results) -> None:
                     "--session",
                     "beef1234",
                     "--subject",
-                    "remove a summary without refreshing the index",
+                    "remove a source without refreshing the index",
                     "--remove",
-                    "plan/learned/0002-b.md",
+                    "internal/beta/b.go",
                     "--lesson-not-needed",
                     "fixture for the removal path of the discovery-index gate",
                 ]
             )
-        script_exists = os.path.isfile(os.path.join(repo, "tmp", "commit-beef1234.sh"))
+        script_exists = bool(
+            glob.glob(os.path.join(repo, "tmp", "commit-beef1234-*.sh"))
+        )
         results.check(
             "commit-gate-index-removal-blocks-via-create",
             rc == 2 and not script_exists,
@@ -3833,11 +4007,17 @@ def run_phase_gates(results: Results) -> None:
             "clean",
             "--files",
             "scripts/dev/running_model.py",
+            # Required since the review-rounds cap landed. Omitted, argparse
+            # exits 2 for a missing argument -- the SAME code the model block
+            # uses -- so the block case passed without the block ever running
+            # and the override case could not pass at all.
+            "--rounds",
+            "1",
         ]
         r = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=ROOT)
         results.check(
             "review-model-record-blocked-off-opus-5",
-            r.returncode == 2,
+            r.returncode == 2 and "planning.md" in (r.stdout + r.stderr),
             repr(r.stdout + r.stderr),
         )
         r = subprocess.run(

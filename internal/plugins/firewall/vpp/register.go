@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- Backend registration
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- Backend registration
 
 package firewallvpp
 

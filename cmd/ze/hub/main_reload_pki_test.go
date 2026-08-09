@@ -258,8 +258,8 @@ func TestReloadWebCertificateReadsSettingsNotAddresses(t *testing.T) {
 	// VALIDATES: the reload reads environment.web.certificate as a SETTING, so a
 	// listener started by --web or ze.web.enabled still rotates onto the
 	// operator's certificate.
-	// PREVENTS: plan/learned/1327-enabled-gate-discards-service-settings.md on
-	// the reload path, where the same gate would silently strand the reference.
+	// PREVENTS: an `enabled` gate that discards the certificate SETTING on the
+	// reload path, where it would silently strand the operator's reference.
 	tree := map[string]any{
 		"environment": map[string]any{
 			"web": map[string]any{

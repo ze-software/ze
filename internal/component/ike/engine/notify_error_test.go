@@ -382,7 +382,7 @@ var ntfNotifyLiteral = regexp.MustCompile(`NotifyMsgType:\s*(\d+)`)
 // Add the peer-understanding check the RFC requires.
 func TestNtfNotifyVocabularyIsRFCDefined(t *testing.T) {
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	// The scan reads the working tree with os.ReadFile, which no build overlay reaches.
 	// A mutation of the ike source therefore cannot reach the assertion, and the test
 	// was unfalsifiable.
@@ -405,7 +405,7 @@ func TestNtfNotifyVocabularyIsRFCDefined(t *testing.T) {
 			t.Error("an unregistered constant name resolved, so the registry check is vacuous")
 		}
 		// rfc-test-change-approved: 2026-07-31 owner standing approval for
-		// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+		// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 		// The registry check below loops over names that are all registered today.
 		// It stayed green when NotifyTypeRecognized was mutated to answer true for
 		// everything. This asserts the registry can still say no.

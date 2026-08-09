@@ -1,4 +1,4 @@
-// Design: plan/learned/936-isis-11-redistribution.md -- engine <-> redistribution wiring.
+// Design: docs/architecture/isis/isis-11-redistribution.md -- engine <-> redistribution wiring.
 // Related: server.go -- the engine struct (prefixes / redistPrefixes) this extends
 // Related: lsdb_wiring.go -- levelState merges connected + redistributed prefixes
 // Related: spf_wiring.go -- the SPF Computer whose OnChange feeds the producer

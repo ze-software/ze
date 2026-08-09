@@ -1,4 +1,4 @@
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- RFC 4552 manual IPsec (IPv6 family).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- RFC 4552 manual IPsec (IPv6 family).
 // Related: config.go -- parseInterface calls parseIPsec; validateConfigAF calls the checks.
 // RFC: rfc/short/rfc4552.md -- OSPFv3 IPsec AH/ESP; rfc/short/rfc4303.md -- ESP SPI/keys.
 //

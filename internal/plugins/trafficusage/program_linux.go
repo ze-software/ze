@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/977-traffic-usage.md -- pure-Go eBPF TCX accounting programs (asm.Instructions)
+// Design: docs/architecture/traffic/traffic-usage.md -- pure-Go eBPF TCX accounting programs (asm.Instructions)
 
 package trafficusage
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- NetFlow v9 flow-record encoder adapter
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- NetFlow v9 flow-record encoder adapter
 // Related: flow_data.go -- WriteFlowDataFlowSet / FlowRecord
 // Related: flow_template.go -- BuildFlowTemplate / FlowTemplateID (v4 + v6)
 // Related: register.go -- registers newNetflow9FlowEncoder as the flow-record factory

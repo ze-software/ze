@@ -1,4 +1,4 @@
-// Design: plan/learned/745-ipsec-10-cli-diag.md -- clear vpn ipsec sa handler
+// Design: docs/architecture/ike/ipsec-10-cli-diag.md -- clear vpn ipsec sa handler
 
 package cmd
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- LSPID (SourceID + LSP number), CSNP range ordering
+// Design: docs/architecture/isis/isis-1-types.md -- LSPID (SourceID + LSP number), CSNP range ordering
 
 package types
 

@@ -361,8 +361,6 @@ This is runtime IPC, not compile-time registration. Filter fields are stored in
 | `filters[].on-error` | enum | reject (fail-closed) or accept (fail-open) |
 | `filters[].overrides` | []string | Default filters this filter replaces |
 
-See `plan/learned/479-redistribution-filter.md` for the full design.
-
 ### Non-CIDR Families (BLOCKING for filter plugin authors)
 
 | Family set | Text protocol emits | Filter plugin requirement |
@@ -401,7 +399,7 @@ locations is incomplete by definition.
 | Dispatch keys | `dispatchCommand("bgp gr ...")`, command prefix matching | `"bgp gr"` |
 | Test fixtures | `test/**/*.ci`, `test/**/*.conf`, env vars in tests | `option=env:var=ze.log.bgp.gr` |
 | Documentation | `docs/`, `<!-- source: -->` anchors | text references |
-| Learned summaries | `plan/learned/*.md` | text references |
+| Problem journal | `plan/journal/*.md` | text references |
 
 **Mechanical check before committing the rename:**
 
@@ -609,9 +607,8 @@ Generic command plumbing carries **selector scope**, not command spelling.
 The dispatcher may extract a typed selector value because a YANG `ArgDef`
 declares it (`internal/component/plugin/server/command.go`), but it must not
 contain the words `peer`, `bgp`, `bfd`, or any plugin's grammar. The
-classification rule from `plan/learned/844-command-grammar-ownership-first.md`:
-shared dispatch may carry selector scope; it must not own a plugin's command
-spelling.
+classification rule is ownership before grammar: shared dispatch may carry
+selector scope; it must not own a plugin's command spelling.
 
 ### Finding the Owner: follow the code, not the wire-method namespace
 
@@ -994,5 +991,4 @@ the single historic `all_<tag>.go` file.
 ## Related Rules
 
 - `ai/patterns/cli-command.md`: owner-owned command registration.
-- `ai/rules/cli.md`: typed selectors, command grammar ownership.
-- `plan/learned/844-command-grammar-ownership-first.md`: ownership-before-grammar.
+- `ai/rules/cli.md`: typed selectors, command grammar ownership, ownership before grammar.

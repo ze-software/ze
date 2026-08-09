@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- per-key rolling window and rate derivation
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- per-key rolling window and rate derivation
 //
 // The per-key accumulation (windowed bytes -> rate, reset, idle eviction, bounded
 // history) is provided by the shared internal/core/stats.Window primitive; this

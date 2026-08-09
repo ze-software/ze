@@ -1,4 +1,4 @@
-// Design: plan/learned/664-diag-5-active-probes.md -- ICMP ping from the router
+// Design: docs/architecture/diagnostics/active-probes.md -- ICMP ping from the router
 // Related: stream.go -- streaming ping session; ICMP helpers in internal/core/probe
 
 package cmd

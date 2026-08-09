@@ -46,8 +46,8 @@ EOF_PEER
 //
 // VALIDATES: AC-2 — parser rejects option=env inside peer block with
 // an actionable error referencing the directive text.
-// PREVENTS: The silent-drop that masked broken tests for months
-// (see plan/learned/545-debug-plugin-test-cluster.md).
+// PREVENTS: the silent drop of option=env inside a stdin=peer block, which
+// masked broken tests for months.
 func TestParseAndAdd_EnvVarInsidePeerBlockRejected(t *testing.T) {
 	ResetNickCounter()
 

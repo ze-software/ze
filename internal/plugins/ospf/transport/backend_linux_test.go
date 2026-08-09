@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/957-ospf-3-ip-transport.md -- Linux backend resolver and drop regressions
+// Design: docs/architecture/ospf/ospf-3-ip-transport.md -- Linux backend resolver and drop regressions
 
 package transport
 

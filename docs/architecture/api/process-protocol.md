@@ -183,7 +183,6 @@ The runtime uses the declaration to choose raw payload delivery, validate modify
 deltas against declared attributes, and pick fail-open or fail-closed behavior on
 filter RPC errors.
 
-<!-- source: plan/learned/479-redistribution-filter.md -- filter declaration design -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC filters -->
 <!-- source: internal/component/plugin/server/server.go -- FilterInfo and FilterOnError -->
@@ -359,7 +358,6 @@ handler calls `show.Enrich()` (mode "detail") or `show.EnrichBrief()` (mode "bri
 Plugin responds accept, reject, or modify (delta-only changed attributes).
 Includes filter name so the plugin can dispatch to the correct handler.
 
-<!-- source: plan/learned/479-redistribution-filter.md -- filter-update RPC design -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filter-update caller -->
@@ -427,7 +425,8 @@ events are delivered as a batch of 1.
 ```
 
 The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleDeliverBatch -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackDeliverBatch -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- the callbackDeliverBatch handler -->
 
 ### Subscription Namespace
 
@@ -494,6 +493,36 @@ Plugins that register both `OnStructuredEvent` and `OnEvent` receive structured 
 via the former and text events via the latter. The delivery pipeline (`deliverMixedBatch`)
 routes each event to the appropriate handler based on whether `Event` or `Output` is set.
 <!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch -->
+
+### Text Event Formatting: the scratch discipline
+
+A plugin without a structured handler receives text, and the engine builds that
+text on the delivery path. Four rules keep the path free of allocations, and the
+comments in `internal/component/bgp/server/events.go` name this section rather
+than restate them.
+
+1. **No format strings.** No `fmt.Sprintf`, no `fmt.Fprintf`, no `fmt.Appendf`.
+   Reflection defeats escape analysis even when the output size is trivial. Use
+   `strconv.AppendUint`, `netip.Addr.AppendTo`, `hex.AppendEncode`, and
+   `append(buf, "literal"...)`.
+2. **No intermediate string lists.** Never build a `[]string` and `strings.Join`
+   it. Write the element, write the separator byte, repeat. No `strings.Builder`,
+   no `strings.ReplaceAll`, no `strings.Replacer`.
+3. **One `string(scratch)` per named boundary.** Every other code path stays on
+   `[]byte`. In the event path the boundary is the per-encoding format cache and
+   the RPC payload; each is one conversion per distinct encoding, not one per
+   subscriber.
+4. **Scratch is stack-local to the outer caller.** `var scratchArr [N]byte`
+   lives on the goroutine stack of the event function that owns the loop. It is
+   never a struct field, never a `sync.Pool`, and never per-peer. Output larger
+   than `N` spills to the heap through `append` growth for that one call, which
+   is correct and costs one allocation in the pathological case: the array size
+   is chosen to cover the realistic maximum, not every input.
+
+The formatters this path calls take the `AppendXxx(buf []byte, ...) []byte`
+shape, so they append into the caller's scratch and never allocate a string of
+their own.
+<!-- source: internal/component/bgp/server/events.go -- formatMessageForSubscription, onPeerStateChange, onEORReceived, onPeerCongestionChange -->
 
 ### Event Subscription
 
@@ -726,7 +755,8 @@ between SDK bridge activation and engine readiness. After bridge activation, the
 is fully shut down -- the MuxConn readLoop exits, and all engine-to-plugin callbacks
 flow through `bridge.CallbackCh()`.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
-<!-- source: internal/component/plugin/server/startup.go -- handleProcessStartupRPC, SetBridge -->
+<!-- source: internal/component/plugin/server/startup.go -- handleProcessStartupRPC -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- SetBridge -->
 
 **Engine-side dispatch registry:** all three transports for a plugin-to-engine RPC
 (the socket JSON path, the in-process Direct path, and the typed `DirectBridge`

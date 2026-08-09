@@ -1,4 +1,4 @@
-// Design: plan/learned/937-isis-13-cli-diag-interop.md -- IS-IS web neighbor + database views.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS web neighbor + database views.
 // Related: snapshot_views.go -- the generic read-only live-view implementation wrapped here.
 //
 // The IS-IS engine runs as a managed plugin subprocess, so the web layer reaches it the

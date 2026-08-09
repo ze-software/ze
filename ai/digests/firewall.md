@@ -229,9 +229,5 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 
 ## See also
 - `docs/architecture/core-design.md`, firewall plugin engine (SDK 5-stage), backend abstraction
-- `plan/learned/913-firewall-irr.md`, IRR-based dynamic address-group design
-- `plan/learned/684-policy-routing.md`, policy-route config → nftables/ip-rule translation
-- `plan/learned/786-backend-command-dispatch.md`, nft backend show/health command dispatch
-- `plan/learned/768-doctor-health-checks.md`, firewall drift detection (`AuditTables`)
 - `rfc/short/rfc8955.md`, BGP FlowSpec NLRI component types and traffic filtering actions
 - `ai/rules/architecture.md`, one-page component map and boundaries

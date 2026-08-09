@@ -13,4 +13,4 @@ stage:
 | Dispatch keys | `dispatchCommand("bgp gr ...")`, command prefix matching | `"bgp gr"` |
 | Test fixtures | `test/**/*.ci`, `test/**/*.conf`, env vars in tests | `option=env:var=ze.log.bgp.gr` |
 | Documentation | `docs/`, `<!-- source: -->` anchors | text references |
-| Learned summaries | `plan/learned/*.md` | text references |
+| Problem journal | `plan/journal/*.md` | text references |

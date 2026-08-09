@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- the Link-State Database store.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- the Link-State Database store.
 // ISO/IEC 10589 clause 7.3: the LSDB is the per-level record of every LSP the
 // node knows. It is held separately for Level 1 and Level 2.
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/923-isis-8-dis-broadcast.md -- pseudo-node LSP origination on a
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- pseudo-node LSP origination on a
 // broadcast LAN where the local node is the elected DIS.
 //
 // RFC: rfc/short/rfc5305.md -- TLV 22 (Extended IS Reachability, 24-bit metric); the pseudo-node lists each member at metric 0

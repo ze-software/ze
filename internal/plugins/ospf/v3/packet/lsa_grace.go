@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- OSPFv3 Grace-LSA body codec.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- OSPFv3 Grace-LSA body codec.
 // RFC: rfc/short/rfc5187.md (§2.2 grace-LSA format: LS Type 0x000B, two mandatory TLVs).
 //
 // The OSPFv3 Grace-LSA is a native link-scope LSA (function code 11), unlike the OSPFv2

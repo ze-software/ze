@@ -529,7 +529,7 @@ Destinations are peer addresses (`netip.AddrPort`). Port-0 entries match any pee
 Per-source ordering, egress filter chains, AS-PATH prepend, next-hop policy, replay-on-new-peer, and every other forwarding invariant are preserved. Only the transport differs from the text-RPC path.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
-<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
 
 ### Log Commands (Ze)
 
@@ -848,7 +848,8 @@ aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP
 split /<len>                     # Ze: prefix expansion (see below)
 ```
-<!-- source: internal/component/bgp/types/types.go -- RouteSpec, PathAttributes -->
+<!-- source: internal/component/bgp/types/types.go -- RouteSpec, FlowSpecRoute -->
+<!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop -->
 
 ### Keyword Aliases
 
@@ -989,7 +990,8 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 Response: `{"action":"accept"}`, `{"action":"reject"}`, or
 `{"action":"modify","update":"<delta>"}` with only changed fields.
 
-<!-- source: plan/learned/479-redistribution-filter.md -- filter-update RPC design -->
+<!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
 
 ---
 

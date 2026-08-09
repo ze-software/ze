@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- gokrazy first-boot auto-init fallback
+// Design: docs/architecture/appliance/on-device-installer.md -- gokrazy first-boot auto-init fallback
 
 //go:build ze_core
 

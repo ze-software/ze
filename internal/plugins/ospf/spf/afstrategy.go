@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- Phase 4: the AF prefix-strategy seam.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- Phase 4: the AF prefix-strategy seam.
 //
 // RFC 5340 keeps OSPF's algorithms identical across address families and changes
 // only the encodings and the prefix model. OSPFv2 carries prefixes inside the

@@ -105,7 +105,7 @@ Two coverage limits are worth stating outright. A Remaining cell that spells its
 <!-- source: docs/architecture/wire/nlri-bgpls.md -- BGP-LS NLRI wire format -->
 <!-- source: internal/component/bgp/plugins/nlri/ -- per-family register.go files hold family registrations and RFC metadata -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/config.go -- MVPN config route parser -->
-<!-- source: plan/learned/776-srv6-prefix-sid.md -- SRv6 Prefix-SID implementation closure and doc conflict -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- SRv6 Service TLV and SID Structure extraction from the Prefix-SID attribute -->
 
 ## BGP operations, telemetry, RPKI, and BFD-adjacent standards
 
@@ -177,9 +177,9 @@ Two coverage limits are worth stating outright. A Remaining cell that spells its
 <!-- source: docs/architecture/wire/ospfv3.md -- OSPFv3 wire and extension behavior -->
 <!-- source: internal/plugins/ospf/config_ipsec.go -- RFC 4552 OSPFv3 IPsec config validation -->
 <!-- source: internal/plugins/ospf/ipsec_install.go -- RFC 4552 OSPFv3 IPsec XFRM installer -->
-<!-- source: plan/learned/920-mpls-ldp.md -- LDP learned closure -->
-<!-- source: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE learned closure -->
-<!-- source: plan/learned/925-mpls-rsvp-te-fast-reroute.md -- RSVP-TE FRR learned closure -->
+<!-- source: internal/plugins/ldp/session.go -- LDP session FSM and label distribution -->
+<!-- source: internal/plugins/rsvpte/engine.go -- RSVP-TE PATH/RESV signaling and soft state -->
+<!-- source: internal/plugins/rsvpte/frr.go -- RSVP-TE fast reroute facility backup -->
 
 ## First-hop redundancy
 

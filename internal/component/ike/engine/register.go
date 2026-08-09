@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE engine component registration
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE engine component registration
 // Related: cookie.go -- the COOKIE challenge that gates the half-open slot in tryResponderSAInit
 // Related: notify_error.go -- the unprotected sender answering a datagram that matched no SA
 package engine

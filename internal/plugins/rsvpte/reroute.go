@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- make-before-break reroute (AC-7)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- make-before-break reroute (AC-7)
 // RFC: rfc/short/rfc3209.md
 // RFC: rfc/short/rfc2205.md
 // Related: engine.go -- sends the new PATH and tears the old LSP once up

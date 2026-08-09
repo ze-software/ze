@@ -1,4 +1,4 @@
-// Design: plan/learned/937-isis-13-cli-diag-interop.md -- engine-side render + clear for
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- engine-side render + clear for
 // `show isis hostname/interface/spf-log` and `clear isis adjacency/counters`.
 // Related: register.go -- OnExecuteCommand dispatches these commands here
 // Related: lsdb_wiring.go -- databaseSnapshot/neighborSnapshot this complements

@@ -1,4 +1,4 @@
-// Design: plan/learned/929-isis-3-l2-transport.md -- transport Prometheus metrics
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- transport Prometheus metrics
 // Related: transport.go -- send/receive/open paths increment these
 //
 // This spec OWNS and registers the transport rows of the umbrella Metrics

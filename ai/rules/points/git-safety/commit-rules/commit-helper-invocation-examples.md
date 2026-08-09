@@ -28,10 +28,10 @@ scripts/dev/commit_helper.py create \
   --subject "spec: close spec-widget" \
   --remove plan/spec-widget.md
 
-# With a learned summary:
+# With a journal row:
 scripts/dev/commit_helper.py create \
   --replace \
   --subject "rules: add goroutine lifecycle rule" \
   --file ai/rules/goroutine-lifecycle.md \
-  --file plan/learned/NNN-goroutine-lifecycle.md
+  --file plan/journal/<class>.md
 ```

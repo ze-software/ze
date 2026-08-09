@@ -1,4 +1,4 @@
-// Design: plan/learned/1054-anomaly-4-interop-harness.md -- in-process test composition seam.
+// Design: docs/architecture/anomaly/anomaly-4-interop-harness.md -- in-process test composition seam.
 package shape
 
 import (

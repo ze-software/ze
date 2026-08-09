@@ -1,4 +1,4 @@
-// Design: plan/learned/666-bng-1-radius-attributes.md -- RADIUS attribute extraction
+// Design: docs/architecture/l2tp/bng-1-radius-attributes.md -- RADIUS attribute extraction
 // Related: handler.go -- doRADIUS calls extractAuthMetadata on Access-Accept
 
 package l2tpauthradius

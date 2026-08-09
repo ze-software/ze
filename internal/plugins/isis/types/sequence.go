@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- SequenceNumber (32-bit, reserved-zero semantics)
+// Design: docs/architecture/isis/isis-1-types.md -- SequenceNumber (32-bit, reserved-zero semantics)
 
 package types
 

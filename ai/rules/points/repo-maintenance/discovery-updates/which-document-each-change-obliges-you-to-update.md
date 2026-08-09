@@ -15,5 +15,5 @@ stage:
 | New test runner or format | `ai/rules/testing.md`, `ai/patterns/functional-test.md` if `.ci`, and the relevant `docs/architecture/testing/` page |
 | New runtime dependency | The "Doctor Checks" section below, diagnostic code registration, and a `ze doctor` unit plus functional test |
 | New registration or generated inventory | `ai/rules/evidence.md`, `ai/patterns/registration.md`, and registry-backed inventory checks |
-| Structural decision or recurring trap | `plan/learned/NNN-*.md`; add `ai/LEARNED-INDEX.md` when the lesson is structural, not task-only |
+| Recurring trap | `plan/journal/<class>.md` -- one row per occurrence; recurrence is the row count |
 | New task category or search keyword | `ai/INDEX.md` (task navigation + keyword map) |

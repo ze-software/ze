@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md — host command registration
+// Design: docs/architecture/host/inventory.md -- host command registration
 
 package cmd
 

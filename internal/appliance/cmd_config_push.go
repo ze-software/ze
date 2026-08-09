@@ -1,4 +1,4 @@
-// Design: plan/learned/677-appliance-2-remote.md — config push to device via SSH
+// Design: docs/architecture/appliance/remote-operations.md -- config push to device via SSH
 
 package appliance
 

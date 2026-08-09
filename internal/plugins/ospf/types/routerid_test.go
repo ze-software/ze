@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- RouterID parse, format, and wire tests
+// Design: docs/architecture/ospf/ospf-1-types.md -- RouterID parse, format, and wire tests
 
 package types
 

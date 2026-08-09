@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- ISO 8473 Fletcher checksum, two-step adjustment
+// Design: docs/architecture/wire/isis.md -- ISO 8473 Fletcher checksum, two-step adjustment
 // ISO/IEC 10589 clause 7.3.11: LSP checksum over the octets following the
 // Remaining Lifetime field, with the checksum field participating in its own
 // computation (the two-step adjustment).

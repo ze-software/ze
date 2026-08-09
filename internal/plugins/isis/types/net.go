@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- NET and AreaID (variable-length addressing)
+// Design: docs/architecture/isis/isis-1-types.md -- NET and AreaID (variable-length addressing)
 
 package types
 

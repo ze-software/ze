@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- MD4 for MS-CHAPv2 NtPasswordHash
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- MD4 for MS-CHAPv2 NtPasswordHash
 // RFC: rfc/short/rfc2759.md -- NtPasswordHash requires MD4 (Section 8)
 
 package eap

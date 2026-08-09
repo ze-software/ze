@@ -1,4 +1,4 @@
-// Design: plan/learned/1072-ipsec-14-responder.md -- IKE responder handshake
+// Design: docs/architecture/ike/ipsec-14-responder.md -- IKE responder handshake
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT notify (Section 2.21, Section 3)
 //
 // VALIDATES: sendSAInitNotify bounds its fixed 512-byte buffer: an oversized

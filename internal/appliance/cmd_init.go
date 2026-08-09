@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — appliance init wizard
+// Design: docs/architecture/appliance/builder.md -- appliance init wizard
 
 package appliance
 

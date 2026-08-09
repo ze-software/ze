@@ -1,4 +1,4 @@
-// Design: plan/learned/786-backend-command-dispatch.md -- nft firewall health check
+// Design: docs/architecture/firewall/backend-command-dispatch.md -- nft firewall health check
 
 package firewallnft
 

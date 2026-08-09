@@ -1,4 +1,4 @@
-// Design: plan/learned/959-ospf-5-interface-ism.md -- RFC 2328 DR/BDR election
+// Design: docs/architecture/ospf/ospf-5-interface-ism.md -- RFC 2328 DR/BDR election
 // RFC 2328 Section 9.4: "The Backup Designated Router is calculated first. Then the Designated Router is calculated."
 
 package iface

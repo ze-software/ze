@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- as112 plugin registration, OnConfigure
+// Design: docs/architecture/dns/as112.md -- as112 plugin registration, OnConfigure
 // RFC: rfc/short/rfc7534.md Section 2.3, rfc/short/rfc7535.md Section 2 -- the four fixed anycast addresses
 
 package as112

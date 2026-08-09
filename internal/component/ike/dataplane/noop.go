@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- dataplane backend registry
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- dataplane backend registry
 //
 // The noop backend accepts every install/remove and reports no state. Test
 // infrastructure only: unprivileged control-plane .ci tests select it via

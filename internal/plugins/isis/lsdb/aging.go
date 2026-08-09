@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- LSP aging, refresh, and zero-age purge.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- LSP aging, refresh, and zero-age purge.
 // ISO/IEC 10589 clause 7.3.16/7.3.17: Remaining Lifetime decrements once per
 // second; an LSP that reaches 0 is a purge -- re-flooded and retained for
 // ZeroAgeLifetime, NOT deleted at once -- so a node that missed the purge cannot

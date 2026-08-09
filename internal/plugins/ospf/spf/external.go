@@ -1,4 +1,4 @@
-// Design: plan/learned/964-ospf-10-as-external-asbr.md -- RFC 2328 sec 16.4 AS-External routes.
+// Design: docs/architecture/ospf/ospf-10-as-external-asbr.md -- RFC 2328 sec 16.4 AS-External routes.
 // RFC: rfc/short/rfc2328.md -- sec 16.4 (E1/E2 cost, forwarding address), trap #7 (E1 > E2)
 
 package spf

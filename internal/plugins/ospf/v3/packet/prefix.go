@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 IPv6 prefix encode/decode (both carriage forms).
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 IPv6 prefix encode/decode (both carriage forms).
 // RFC: rfc/short/rfc5340.md (§A.4.1 IPv6 prefix representation)
 
 package packet

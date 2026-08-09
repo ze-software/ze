@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/learned/937-isis-13-cli-diag-interop.md -- IS-IS interop with FRR isisd.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS interop with FRR isisd.
 //
 // This is the on-the-wire interop validation that could not run on darwin. It
 // stands up a real FRR (zebra + isisd) IS-IS peer in a child network namespace,

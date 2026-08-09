@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: docs/architecture/rib/unified-locrib.md -- per-family NLRI split
 //
 // Package nlrisplit holds a registry of family-specific NLRI splitters.
 // Concatenated NLRI wire bytes arrive from the peer; each family has its

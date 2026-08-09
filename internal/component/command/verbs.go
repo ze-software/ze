@@ -26,8 +26,8 @@ const (
 // internal/component/plugin/server/command_registry.go) derive their verb set from
 // this map -- there is no second hardcoded list (ai/rules/evidence.md).
 //
-// The vocabulary was agreed in plan/learned/829-command-verb-first.md (show, monitor,
-// clear, set, request, resolve, commit, update) plus the engine mutation verb delete,
+// The vocabulary was agreed as verb-first: show, monitor, clear, set, request,
+// resolve, commit and update, plus the engine mutation verb delete,
 // the runtime cache verb, the runtime-lifecycle verb create, and the diagnostic verb
 // debug. Adding a verb here is a deliberate vocabulary decision, not a convenience:
 // a small, learnable verb set is the point.

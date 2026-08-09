@@ -1,4 +1,4 @@
-// Design: plan/learned/930-isis-4-component-config.md -- IS-IS component registration
+// Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS component registration
 // Related: config.go -- typed config resolution
 // Related: server.go -- engine orchestration + PDU dispatcher
 // Related: events.go -- event namespace + typed handles

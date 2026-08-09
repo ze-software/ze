@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- OSPFv3 (IPv6) self-origination.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- OSPFv3 (IPv6) self-origination.
 // RFC: rfc/short/rfc5340.md (App A.4.3 Router-LSA, A.4.4 Network-LSA, A.4.10 Intra-Area-Prefix-LSA)
 //
 // originateSelfLSAs routes the IPv6 family here instead of the OSPFv2

@@ -28,8 +28,7 @@ func checkWebTLSCertificate(ctx diagnostic.DoctorCheckContext) []diagnostic.Diag
 //
 // Settings, not addresses: the check does NOT require the block to say
 // `enabled true`, because --web, ze.web.listen, and ze.web.enabled all start the
-// listener without it, and each of those would still serve this certificate
-// (plan/learned/1327-enabled-gate-discards-service-settings.md).
+// listener without it, and each of those would still serve this certificate.
 func webTLSDiagnostic(tree *zeconfig.Tree, now time.Time) []diagnostic.Diagnostic {
 	if tree == nil {
 		return nil

@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- shared /dev/ppp setup for L2TP and PPPoE
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- shared /dev/ppp setup for L2TP and PPPoE
 
 //go:build linux
 

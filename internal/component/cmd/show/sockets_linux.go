@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- TCP/UDP socket state from /proc/net (ss replacement)
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- TCP/UDP socket state from /proc/net (ss replacement)
 // Related: fd_linux.go -- existing /proc reading pattern
 //
 //go:build linux

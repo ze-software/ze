@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- packet sampling lifecycle
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- packet sampling lifecycle
 // Related: sampling/tc_linux.go -- SetupSampling / RemoveSampling (tc sample action)
 // Related: sampling/psample_linux.go -- PsampleReader (generic netlink reception)
 

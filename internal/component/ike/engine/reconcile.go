@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- config reconciliation
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- config reconciliation
 // RFC: rfc/short/rfc7296.md -- Section 1.4 (Delete), Section 2.4 (state sync / re-init)
 package engine
 

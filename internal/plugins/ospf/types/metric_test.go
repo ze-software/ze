@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- Metric range and default-cost derivation
+// Design: docs/architecture/ospf/ospf-1-types.md -- Metric range and default-cost derivation
 
 package types
 

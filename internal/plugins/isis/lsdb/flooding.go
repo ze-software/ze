@@ -1,4 +1,4 @@
-// Design: plan/learned/933-isis-7-flooding.md -- LSP flooding (receive-side algorithm + periodic SRM-driven TX).
+// Design: docs/architecture/isis/isis-7-flooding.md -- LSP flooding (receive-side algorithm + periodic SRM-driven TX).
 // ISO/IEC 10589 clause 7.3.14-17: reliable flooding disseminates LSPs so every
 // router in a level converges on the same LSDB. isis-6 owns the LSDB store, the
 // freshness compare (LSDB.Receive) and the per-circuit SRM/SSN flag storage;

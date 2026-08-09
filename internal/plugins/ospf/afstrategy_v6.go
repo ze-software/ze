@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- Phase 5: the OSPFv3 AF prefix strategy.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- Phase 5: the OSPFv3 AF prefix strategy.
 // RFC: rfc/short/rfc5340.md (App A.4 LSA formats, sec 16 SPF)
 //
 // v6Strategy is the engine-side implementation of spf.AFPrefixStrategy for the IPv6

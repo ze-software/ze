@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE component registration
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE component registration
 // Related: wire.go -- RSVP message codec
 // Related: fsm.go -- per-LSP state machine
 // Related: admission.go -- bandwidth admission control

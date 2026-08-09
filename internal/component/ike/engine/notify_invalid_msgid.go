@@ -1,4 +1,4 @@
-// Design: plan/learned/1069-ipsec-13-rekey-wire.md -- RFC 7296 Section 2.3 message-ID handling
+// Design: docs/architecture/ike/ipsec-13-rekey-wire.md -- RFC 7296 Section 2.3 message-ID handling
 // RFC: rfc/short/rfc7296.md -- INVALID_MESSAGE_ID (Section 2.3)
 // Related: inbound.go -- the out-of-window arm that calls this emitter
 // Related: notify_error.go -- the token bucket this emitter reuses, and the two senders it is NOT

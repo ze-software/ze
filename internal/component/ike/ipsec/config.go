@@ -1,4 +1,4 @@
-// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec config parser
+// Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec config parser
 // Related: algorithm_support.go -- which algorithms this build implements
 
 package ipsec

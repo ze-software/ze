@@ -26,7 +26,7 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
    `pkg/zefs/keys.go`. `meta/instance/admin-disabled`
    (`pkg/zefs/keys.go`) can disable this account on every surface. Appliance
    image builds write the same keys via `internal/appliance/cmd_assemble.go` and
-   `internal/plugins/imageserver/handler.go` (see `plan/learned/831-appliance-auth-hardening.md`).
+   `internal/plugins/imageserver/handler.go`.
 2. **Config load reaches the infra hook.** Parsing a config with a `bgp {}` block
    extracts the authz store and SSH config, then calls the hub-registered hook
    (`internal/component/bgp/config/loader_create.go`,
@@ -197,8 +197,8 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 - **Two disjoint local-admin key namespaces.** `meta/auth/local/*` (bootstrap
   super-admin, consumed only by `usersFromZefsDB`) is intentionally separate
   from `meta/ssh/*` (outbound remote-client selection used by the `ze` CLI to
-  reach a remote daemon). Per `plan/learned/831-appliance-auth-hardening.md`,
-  reusing `meta/ssh/*` for local bootstrap auth was rejected; do not conflate
+  reach a remote daemon). Reusing `meta/ssh/*` for local bootstrap auth was
+  rejected during the appliance auth hardening; do not conflate
   the two when touching zefs auth keys.
 - **`usersFromZefsDB` fails closed.** Missing username or empty password hash
   is an error, not an empty-but-valid user (`cmd/ze/hub/main_servers.go`);
@@ -241,9 +241,6 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 - `docs/guide/authentication.md` - user-facing guide: bootstrap vs. YANG users, public keys, password hashing rules
 - `docs/guide/authorization.md` - RBAC profile syntax, prefix/regex matching, fail-closed semantics
 - `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" - original RBAC design history (390, retired); the fail-open chokepoint invariant is in that section's Load-bearing invariants
-- `plan/learned/601-tacacs.md` - TACACS+ integration history
-- `plan/learned/780-rbac-audit.md` - RBAC/audit hardening history
-- `plan/learned/831-appliance-auth-hardening.md` - appliance bootstrap hardening this digest traces
 - `ai/digests/cli-editor.md` - what happens after SSH auth succeeds: session model, editor, dispatch
 - `ai/digests/plugin-transport.md` - typed inter-plugin dispatch that `isAuthorizedCommandArgs` guards
 - `ai/rules/architecture.md` - one-page component map and boundaries

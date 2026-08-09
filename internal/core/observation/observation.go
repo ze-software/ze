@@ -1,4 +1,4 @@
-// Design: plan/learned/1016-observation-feed.md -- shared traffic-observation feed
+// Design: docs/architecture/observation-feed.md -- shared traffic-observation feed
 
 package observation
 

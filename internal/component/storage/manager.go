@@ -1,4 +1,4 @@
-// Design: plan/learned/808-smart-management.md — SMART disk health management
+// Design: docs/architecture/storage/smart-health.md -- SMART disk health management
 // Related: config.go — Config struct for SMART management
 
 package storage

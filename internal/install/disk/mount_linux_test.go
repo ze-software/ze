@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- mount/umount wrapper tests
+// Design: docs/architecture/appliance/installer-initrd.md -- mount/umount wrapper tests
 
 //go:build linux
 

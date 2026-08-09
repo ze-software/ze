@@ -1,4 +1,4 @@
-// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- Flowtriq reporter config
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- Flowtriq reporter config
 
 package flowtriq
 

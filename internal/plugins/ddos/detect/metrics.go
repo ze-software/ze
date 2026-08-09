@@ -1,4 +1,4 @@
-// Design: plan/learned/1015-cp-survival-5-detect-5-characterization.md -- Stage-2 metrics.
+// Design: docs/architecture/ddos/cp-survival-5-detect-5-characterization.md -- Stage-2 metrics.
 // Related: characterize.go -- increments incCharacterize/incFallback on the emit paths.
 // Characterization observability: per-family outcome counts and a fallback count
 // (characterization attempted but no flow source / no usable data). Registered

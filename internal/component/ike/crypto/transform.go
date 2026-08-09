@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- IKEv2 transform type registry
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- IKEv2 transform type registry
 
 package crypto
 

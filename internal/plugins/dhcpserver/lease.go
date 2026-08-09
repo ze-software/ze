@@ -1,4 +1,4 @@
-// Design: plan/learned/706-cpe-2-dhcp-server.md -- DHCP lease tracking with expiry
+// Design: docs/architecture/provisioning/dhcp-server.md -- DHCP lease tracking with expiry
 
 package dhcpserver
 

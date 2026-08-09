@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- service locator for CLI access
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- service locator for CLI access
 
 package pppoe
 

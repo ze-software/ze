@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE engine readiness checks
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE engine readiness checks
 // RFC: rfc/short/rfc7296.md -- Hash and URL certificate lookup (Section 3.6)
 // Related: doctor.go -- the sibling ike readiness checks and their registration
 // Related: certurl.go -- the fetcher whose bound this check reports against

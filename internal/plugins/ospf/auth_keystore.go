@@ -1,4 +1,4 @@
-// Design: plan/learned/966-ospf-12-auth.md -- OSPFv2 authentication key store.
+// Design: docs/architecture/ospf/ospf-12-auth.md -- OSPFv2 authentication key store.
 // Related: internal/plugins/ospf/packet -- the Sign/Verify crypto backend.
 // RFC: rfc/short/rfc2328.md (App D), rfc/short/rfc5709.md, rfc/short/rfc7474.md
 
@@ -144,7 +144,7 @@ func loadOSPFBootCount(store bootCountStore) uint32 {
 // in-process sync.RWMutex (pkg/zefs/lock.go) that cannot serialize across
 // processes -- so opening that shared database.zefs put 64 functional-test
 // daemons on one file. That contention is what produced the SIGBUS behind
-// test/ospf/ospf-ldp-sync-restore.ci (plan/learned/1293).
+// test/ospf/ospf-ldp-sync-restore.ci.
 //
 // Unpinned, both callers degrade exactly as they already do when no store can be
 // found: the boot count falls back to the hashed clock seed, and GR restart facts

@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- IPv4 opaque-LSA deep decode.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- IPv4 opaque-LSA deep decode.
 // RFC: rfc/short/rfc5250.md (Section 3 / App A.2: Opaque Type/ID split, generic TLVs),
 // rfc/short/rfc2328.md (Section A.4.1: LSA header fields the detail view renders).
 //

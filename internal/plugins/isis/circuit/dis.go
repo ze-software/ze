@@ -1,4 +1,4 @@
-// Design: plan/learned/923-isis-8-dis-broadcast.md -- Designated IS (DIS) election on
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- Designated IS (DIS) election on
 // broadcast circuits, with per-level state and election damping.
 //
 // ISO/IEC 10589 clause 8.4.5: on a broadcast (multi-access LAN) circuit one IS

@@ -232,13 +232,36 @@ The config storage layer self-heals on top of these. When `storage.NewBlob` open
 
 CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
 <!-- source: pkg/zefs/check.go -- Check, Repair, MoveAside -->
+
+### Integrity design decisions
+
+- **Per-record CRC in the header, not a whole-file checksum under a key.** The
+  container is itself a netcapstring, so one mechanism gives both entry-level
+  pinpointing and whole-file coverage. A checksum stored as an entry would give
+  neither.
+- **CRC32c, not SHA-256.** The threat model is accidental corruption and bit
+  rot, not an adversary rewriting the store. CRC32c is hardware-accelerated on
+  arm64 and amd64.
+- **In-place pwrite is not atomic, and that is the accepted trade.** A crash
+  mid-write leaves corruption the CRC detects, which is a weaker durability
+  guarantee than temp and rename. It is accepted because detection plus
+  `Repair` is a recovery path, and because it finally uses the capacity design
+  the format was built for.
+- **The container CRC is written twice.** It covers the entry bytes, so it
+  cannot be known before they exist. The encoder writes a placeholder, writes
+  the entries, then patches the CRC.
+- **Repair never writes over the source.** The caller keeps the damaged file
+  for a post-mortem.
+<!-- source: pkg/zefs/store.go -- flushInPlace, flushFull, container CRC patching -->
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- check, repair and encode commands -->
 <!-- source: internal/component/config/storage/blob.go -- NewBlob corrupt-store self-heal -->
 <!-- source: internal/plugins/init/main.go -- moveAsideDB uses zefs.MoveAside -->
 
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.
-<!-- source: pkg/zefs/store.go -- Store, ReadLock, WriteLock -->
+<!-- source: pkg/zefs/store.go -- BlobStore, Create, Open -->
+<!-- source: pkg/zefs/lock.go -- ReadLock, WriteLock -->
 <!-- source: pkg/zefs/tree.go -- in-memory tree representation -->
 <!-- source: pkg/zefs/check.go -- Check, Repair, CheckReport, RepairReport -->
 <!-- source: pkg/zefs/pwrite_unix.go -- pwrite for in-place writes -->

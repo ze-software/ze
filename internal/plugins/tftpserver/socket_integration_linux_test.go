@@ -1,4 +1,4 @@
-// Design: plan/learned/807-install-2-tftpserver.md -- integration coverage for SO_BINDTODEVICE
+// Design: docs/architecture/provisioning/tftp-server.md -- integration coverage for SO_BINDTODEVICE
 //
 // These tests pin socket_linux.go (listenTFTP): they exercise the real
 // SO_BINDTODEVICE syscall and a real RRQ/DATA/ACK transfer over UDP, plus the

@@ -1,4 +1,4 @@
-// Design: plan/learned/1070-forked-route-install.md -- forked route install via Loc-RIB RPC
+// Design: docs/architecture/forked-route-install.md -- forked route install via Loc-RIB RPC
 //
 // Package routeinstall provides the RouteSink a FORKED route-installing plugin
 // (OSPF, IS-IS) uses in place of a direct Loc-RIB write. In-process, an installer

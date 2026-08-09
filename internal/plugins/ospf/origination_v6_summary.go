@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- OSPFv3 (IPv6) ABR inter-area summary origination.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- OSPFv3 (IPv6) ABR inter-area summary origination.
 // RFC: rfc/short/rfc5340.md (App A.4.5/A.4.6, sec 3.5), rfc/short/rfc2328.md (sec 12.4.3)
 //
 // v6OriginateSummaries is the IPv6 side of RFC 2328 sec 12.4.3 / RFC 5340 sec 3.5: an area

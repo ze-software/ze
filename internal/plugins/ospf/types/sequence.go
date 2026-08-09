@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- LSSequenceNumber signed freshness value
+// Design: docs/architecture/ospf/ospf-1-types.md -- LSSequenceNumber signed freshness value
 // Related: lsakey.go -- sequence is excluded from LSAKey identity
 
 package types

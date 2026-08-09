@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- remote identity policy
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- remote identity policy
 // RFC: rfc/short/rfc7296.md -- Identification payloads (Section 3.5)
 
 package engine

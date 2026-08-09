@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- conntrack destroy-event parser
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- conntrack destroy-event parser
 // Related: destroy_linux.go -- NFNLGRP_CONNTRACK_DESTROY multicast listener
 
 package conntrack

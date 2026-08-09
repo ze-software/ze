@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- shared read-only protocol live views.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- shared read-only protocol live views.
 // Related: handler_isis.go, handler_ospf.go -- the IS-IS/OSPF adapters that wrap this.
 //
 // The IS-IS and OSPF web surfaces are the same read-only neighbor + database live views

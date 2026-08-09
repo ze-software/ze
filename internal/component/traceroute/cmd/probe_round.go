@@ -1,4 +1,4 @@
-// Design: plan/learned/729-diag-traceroute.md -- batch probe round (show probe-round RPC)
+// Design: docs/architecture/diagnostics/active-probes.md -- batch probe round (show probe-round RPC)
 // Related: traceroute.go -- shared ICMP helpers (ttlSetter, embeddedICMPOffset, addrFromNetAddr)
 
 package cmd

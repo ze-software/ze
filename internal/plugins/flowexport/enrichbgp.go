@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- BGP RIB enrichment wiring
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- BGP RIB enrichment wiring
 // Related: enrich/enricher.go -- atomic radix tree the builder feeds
 // Related: enrich/radix.go -- prefix-to-AS tree rebuilt from RIB updates
 
@@ -45,7 +45,7 @@ type bgpEnrichBuilder struct {
 // MB for a full BGP table). BGP convergence settles over tens of seconds, so a
 // few-second debounce trades minor enrichment staleness for a large drop in GC
 // pressure under route churn. An incremental/persistent-trie rebuild is the
-// longer-term follow-up (see plan/learned/819).
+// longer-term follow-up (see docs/architecture/flowexport/flow-export-2-flow-records.md).
 const enrichRebuildInterval = 5 * time.Second
 
 func newBGPEnrichBuilder(e *enrich.Enricher) *bgpEnrichBuilder {

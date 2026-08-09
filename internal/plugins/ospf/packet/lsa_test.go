@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- LSA header and body tests
+// Design: docs/architecture/ospf/ospf-2-wire.md -- LSA header and body tests
 
 package packet
 

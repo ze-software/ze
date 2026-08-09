@@ -1,4 +1,4 @@
-// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- the TE opaque consumer.
+// Design: docs/architecture/ospf/ospf-ext-2-traffic-engineering.md -- the TE opaque consumer.
 // RFC: rfc/short/rfc3630.md (TE LSA), rfc/short/rfc5392.md (inter-AS TE), rfc/short/rfc5250.md
 // sec 5 (Type-11 reachability).
 //

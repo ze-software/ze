@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- PID-1 entry point for installer initrd
+// Design: docs/architecture/appliance/installer-initrd.md -- PID-1 entry point for installer initrd
 
 //go:build linux && ze_installer
 

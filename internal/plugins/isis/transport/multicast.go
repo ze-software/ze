@@ -1,4 +1,4 @@
-// Design: plan/learned/929-isis-3-l2-transport.md -- ISO multicast MAC selection
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- ISO multicast MAC selection
 //
 // IS-IS on a LAN (and, per the umbrella Frame-addressing contract, also on
 // point-to-point circuits) addresses PDUs to ISO/IEC 10589 reserved multicast

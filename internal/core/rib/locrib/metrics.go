@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 4 (per-shard locrib metrics)
+// Design: docs/architecture/rib/unified-locrib.md -- per-shard Loc-RIB metrics
 // Related: manager.go -- counters incremented from RIB.insert / RIB.Remove
 
 package locrib

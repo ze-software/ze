@@ -1,4 +1,4 @@
-// Design: plan/learned/817-install-7c-vendor-updater.md — push tests with updater protocol
+// Design: docs/architecture/appliance/ota-push.md -- push tests with updater protocol
 
 package appliance
 

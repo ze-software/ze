@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- non-Linux backend stub test
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- non-Linux backend stub test
 
 package transport
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE SA table
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE SA table
 // RFC: rfc/short/rfc7296.md -- IKE SA identified by SPI pair (Section 2.6)
 package engine
 

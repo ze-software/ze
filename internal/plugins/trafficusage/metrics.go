@@ -1,4 +1,4 @@
-// Design: plan/learned/977-traffic-usage.md -- traffic-usage Prometheus metric families & helpers
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage Prometheus metric families & helpers
 
 package trafficusage
 

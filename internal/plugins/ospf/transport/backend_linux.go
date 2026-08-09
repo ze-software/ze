@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/957-ospf-3-ip-transport.md -- Linux AF_INET/SOCK_RAW backend
+// Design: docs/architecture/ospf/ospf-3-ip-transport.md -- Linux AF_INET/SOCK_RAW backend
 // Related: transport.go -- orchestrator; SendPacketRouted uses SendRouted for virtual links
 
 package transport

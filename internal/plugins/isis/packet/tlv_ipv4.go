@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- TLV 132 (IP Interface Address), TLV 135 (Extended IP Reachability)
+// Design: docs/architecture/wire/isis.md -- TLV 132 (IP Interface Address), TLV 135 (Extended IP Reachability)
 // RFC: rfc/short/rfc5305.md -- TLV 135 entry layout (sec 4): metric, control octet, packed prefix, sub-TLVs
 // RFC: rfc/short/rfc1195.md -- TLV 132 (IP Interface Address), list of 4-octet IPv4 addresses
 

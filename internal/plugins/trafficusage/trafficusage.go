@@ -1,4 +1,4 @@
-// Design: plan/learned/977-traffic-usage.md -- traffic-usage plugin identity, logger, namespace
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage plugin identity, logger, namespace
 
 // Package trafficusage implements the `traffic-usage` system plugin: eBPF TCX
 // per-(port,protocol) and (opt-in) per-IP byte accounting on operator-selected

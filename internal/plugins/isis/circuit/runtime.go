@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- circuit RX dispatch, Hello send, sweep.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- circuit RX dispatch, Hello send, sweep.
 // ISO/IEC 10589 section 8.2 (adjacency), section 8.2.3 (hold-timer timeout),
 // clause 9.5/9.6 (IIH decode).
 //

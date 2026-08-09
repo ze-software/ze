@@ -1,4 +1,4 @@
-// Design: plan/learned/811-install-3-image-server.md -- image server plugin registration
+// Design: docs/architecture/provisioning/image-server.md -- image server plugin registration
 
 package imageserver
 

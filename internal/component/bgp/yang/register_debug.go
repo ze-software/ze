@@ -1,4 +1,4 @@
-// Design: plan/learned/891-granular-debug.md -- BGP debug flag registration
+// Design: docs/architecture/diagnostics/debug-filtering.md -- BGP debug flag registration
 // Related: register.go -- config YANG registration in same package
 
 package yang

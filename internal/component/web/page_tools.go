@@ -1,4 +1,4 @@
-// Design: plan/learned/692-web-8-tools-logs.md -- Tool page handlers
+// Design: docs/architecture/web-workbench-pages.md -- Tool page handlers
 // Related: handler_tools.go -- Related-tool overlay handler (separate from these)
 // Related: handler_admin.go -- CommandDispatcher type
 // Related: workbench_pages.go -- Page dispatch (renderPageContent)

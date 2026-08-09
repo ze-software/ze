@@ -12,8 +12,8 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-points-roundtrip ze-rules-render ze-rules-render-check ze-rules-gate-map ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
-.PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-points-roundtrip ze-rules-render ze-rules-render-check ze-rules-gate-map ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy ze-discovery-index ze-discovery-index-check ze-digest-check ze-consistency
+.PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands ze-journal
 .PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
 ze-spec-status:
@@ -33,6 +33,7 @@ ze-spec-status-json:
 # baseline with `scripts/dev/spec-citation-check.py --write-baseline`.
 ze-spec-citation-check:
 	@python3 scripts/dev/spec-citation-check.py
+
 
 ze-inventory:
 	@$(GO_RUN) scripts/inventory/inventory.go
@@ -122,20 +123,16 @@ ze-doc-test:
 	echo "  -> Rules digest (ai/rules/TRIGGERS.md + CORE.md fresh)..."; \
 	python3 scripts/dev/rules_condensed.py --check || FAIL=1; \
 	echo ""; \
-	echo "  -> Discovery indexes (package map, docs-to-code, learned index fresh)..."; \
+	echo "  -> Discovery indexes (package map, docs-to-code fresh)..."; \
 	python3 scripts/dev/package_map.py --check || FAIL=1; \
 	python3 scripts/dev/docs_to_code.py --check || FAIL=1; \
-	python3 scripts/dev/learned_index.py --check || FAIL=1; \
 	python3 scripts/dev/rfc_requirements.py --check-fresh || FAIL=1; \
 	echo ""; \
-	echo "  -> Learned numbering (no duplicate NNN, H1 matches filename)..."; \
-	python3 scripts/dev/learned_numbers.py --check || FAIL=1; \
+	echo "  -> Problem journal (classes with 2+ rows)..."; \
+	python3 scripts/dev/journal.py || FAIL=1; \
 	echo ""; \
 	echo "  -> Digest anchors (ai/digests/*.md file:line references resolve)..."; \
 	python3 scripts/dev/digest_check.py --check || FAIL=1; \
-	echo ""; \
-	echo "  -> Learned staleness (plan/learned/*.md cited paths and NNN citations resolve)..."; \
-	python3 scripts/dev/learned_staleness.py --check || FAIL=1; \
 	echo ""; \
 	if [ $$FAIL -ne 0 ]; then \
 		echo "Documentation tests FAILED -- see output above."; \
@@ -251,8 +248,8 @@ ze-rules-gate-map:
 ze-rules-payload:
 	@python3 scripts/dev/rules_condensed.py --payload
 
-# Trigger-routing coverage: over every past task description in plan/ (learned
-# summaries' Context, open specs' Task), which rules the trigger index would
+# Trigger-routing coverage: over every task description in plan/ (each open
+# spec's Task section), which rules the trigger index would
 # surface, and which BLOCKING rules no task surfaces at all. The second set is
 # what the always-on core exists to protect, and the generator derives the core
 # from it -- so a rule listed here has already been made eager.
@@ -284,8 +281,8 @@ ze-rules-lint:
 	@python3 scripts/dev/rules_lint.py
 
 # Generated discovery indexes: what each package does (PACKAGE-MAP), which files
-# implement a design doc (DOCS-TO-CODE), and every learned summary by number
-# (LEARNED-FULL-INDEX). Sourced from the tree; a stale index fails ze-doc-test.
+# implement a design doc (DOCS-TO-CODE). Sourced from the tree; a stale
+# index fails ze-doc-test.
 #
 # `--check` exit codes: 0 = fresh, 3 = STALE (discovery_sources.STALE_EXIT),
 # 1 = the generator itself failed. Every caller here only needs pass/fail, so
@@ -296,46 +293,10 @@ ze-rules-lint:
 ze-discovery-index:
 	@python3 scripts/dev/package_map.py
 	@python3 scripts/dev/docs_to_code.py
-	@python3 scripts/dev/learned_index.py
 
 ze-discovery-index-check:
 	@python3 scripts/dev/package_map.py --check
 	@python3 scripts/dev/docs_to_code.py --check
-	@python3 scripts/dev/learned_index.py --check
-	@python3 scripts/dev/learned_numbers.py --check
-
-# Learned-summary numbering: no two plan/learned/NNN-*.md share a number and
-# each H1 number matches its filename. Duplicates are not caught by learned-next
-# (it allocates max(existing prefixes)+1 against the local tree only), so two
-# branches collide and only merging reveals it. `--fix` renumbers the colliding
-# summaries and rewrites their references.
-ze-learned-numbers-check:
-	@python3 scripts/dev/learned_numbers.py --check
-
-ze-learned-numbers-fix:
-	@python3 scripts/dev/learned_numbers.py --fix
-
-# Learned-summary section headings: every plan/learned/NNN-*.md spells its
-# sections the way `ai/rules/planning.md` names them, so a reader and a tool
-# find `## Files` under one name. `--check` reports, `--fix` rewrites in place.
-# Not folded into ze-doc-test: heading drift is not a correctness defect, and a
-# heading gate that reddens a colleague's in-flight summary gets switched off.
-ze-learned-normalise-check:
-	@python3 scripts/dev/learned_normalise.py --check
-
-ze-learned-normalise-fix:
-	@python3 scripts/dev/learned_normalise.py --fix
-
-# Dead `## Files` paths that name code which MOVED rather than code which went
-# away. It repoints such a citation at the successor path, and leaves alone any
-# path with several plausible successors or none: a citation rewritten to the
-# wrong file reads as true, while a dead one stays visible to
-# ze-learned-staleness. This is the repair tool for that gate's findings.
-ze-learned-repath-check:
-	@python3 scripts/dev/learned_repath.py --check
-
-ze-learned-repath-apply:
-	@python3 scripts/dev/learned_repath.py --apply
 
 # Digest anchor validity: every `file:line` reference in ai/digests/*.md resolves
 # to a real file and an in-range line. The digests are hand-maintained, so this
@@ -343,15 +304,11 @@ ze-learned-repath-apply:
 ze-digest-check:
 	@python3 scripts/dev/digest_check.py
 
-# Learned-summary decay: every path a plan/learned/NNN-*.md cites in its
-# `## Files` section still exists, and every `plan/learned/NNN` citation names a
-# summary that was not retired. The summaries are hand-written and never
-# regenerated, so their references rot silently as code moves and old summaries
-# are deleted. Dead references are compared against the shrink-only baseline
-# plan/.learned-staleness-baseline (the plan/.citation-baseline idiom): more
-# than the baseline fails, fewer rewrites it. Runs inside ze-doc-test.
-ze-learned-staleness:
-	@python3 scripts/dev/learned_staleness.py
+# Problem journal detector: print every problem class with 2+ occurrences,
+# its row count, and the span between first and last date.  When every class
+# has 1 row it prints nothing and exits 0.
+ze-journal:
+	@python3 scripts/dev/journal.py
 
 ze-consistency:
 	@echo "Running consistency checks..."

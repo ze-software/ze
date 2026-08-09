@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- kernel XFRM drop stats (Linux).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- kernel XFRM drop stats (Linux).
 // RFC: rfc/short/rfc4552.md (§3/§4 silent discard of unprotected/failed packets).
 //
 // /proc/net/xfrm_stat exposes node-global XFRM SNMP-style counters. The relevant

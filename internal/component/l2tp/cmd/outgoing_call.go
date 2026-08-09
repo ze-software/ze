@@ -1,4 +1,4 @@
-// Design: plan/learned/1100-followup-l2tp-call.md -- AC-4 request l2tp outgoing-call
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-4 request l2tp outgoing-call
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 10.4 (LNS-side outgoing call)
 // Related: ../outgoing_call.go -- Subsystem.PlaceOutgoingCall drives the dial
 

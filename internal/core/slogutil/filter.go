@@ -1,4 +1,4 @@
-// Design: plan/learned/891-granular-debug.md -- slog handler that filters on flag and scope attributes
+// Design: docs/architecture/diagnostics/debug-filtering.md -- slog handler that filters on flag and scope attributes
 // Related: slogutil.go -- ConfigureFilter, ClearFilter, filterRegistry
 
 package slogutil

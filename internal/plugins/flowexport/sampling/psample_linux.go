@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- psample generic netlink reader
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- psample generic netlink reader
 
 //go:build linux
 

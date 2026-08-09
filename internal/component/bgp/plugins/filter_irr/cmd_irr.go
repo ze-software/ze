@@ -1,4 +1,4 @@
-// Design: plan/learned/896-filter-irr.md -- YANG command forwarding for IRR filter plugin.
+// Design: docs/architecture/bgp/filter-irr.md -- YANG command forwarding for IRR filter plugin.
 // Owned by bgp-filter-irr so removing the plugin removes these command nodes.
 
 package filter_irr

@@ -1,4 +1,4 @@
-// Design: plan/learned/891-granular-debug.md -- debug RPC command registration
+// Design: docs/architecture/diagnostics/debug-filtering.md -- debug RPC command registration
 
 package cmd
 

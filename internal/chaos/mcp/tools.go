@@ -1,4 +1,4 @@
-// Design: plan/learned/679-chaos-ai.md -- Chaos MCP tools for AI queries
+// Design: docs/architecture/chaos-web-dashboard.md -- Chaos MCP tools for AI queries
 
 package mcp
 

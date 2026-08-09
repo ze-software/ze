@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- non-Linux backend stub (ospf backend_other.go model)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- non-Linux backend stub (ospf backend_other.go model)
 //
 // VRRP's raw proto-112 sockets, AF_PACKET GARP, and raw ICMPv6 NA senders are
 // Linux-only. Off Linux the backend returns a typed error so `make ze-verify`

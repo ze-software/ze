@@ -1,4 +1,4 @@
-// Design: plan/learned/728-diag-netlink-monitor.md -- non-Linux stub for netlink monitor
+// Design: docs/architecture/iface/netlink-monitor.md -- non-Linux stub for netlink monitor
 // Related: monitor_netlink_linux.go -- full implementation
 //
 //go:build !linux

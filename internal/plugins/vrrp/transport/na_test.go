@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- golden-byte NA message tests (darwin-safe)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- golden-byte NA message tests (darwin-safe)
 
 package transport
 

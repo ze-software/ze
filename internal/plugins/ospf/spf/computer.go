@@ -1,4 +1,4 @@
-// Design: plan/learned/962-ospf-8-spf-rib.md -- SPF trigger, throttle, run state, metrics.
+// Design: docs/architecture/ospf/ospf-8-spf-rib.md -- SPF trigger, throttle, run state, metrics.
 // The Computer ties LSDB changes to graph build, Dijkstra, route selection, and
 // Loc-RIB installation. It owns the SPF metrics surfaced by later CLI work.
 

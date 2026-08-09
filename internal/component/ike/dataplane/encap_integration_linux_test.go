@@ -183,7 +183,7 @@ func encapKernelVerdict(t *testing.T, spi uint32, encapsulated bool) string {
 //
 // This is the measurement behind the MEASURED KERNEL CONSTRAINT comment in
 // engine/child.go. It is also the evidence behind the open owner question OR-WP8-4
-// in plan/learned/1313-rfcgate-1b-rfc7296-pilot.md.
+// in docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md.
 //
 // RFC 7296 Section 2.23 asks an implementation to receive BOTH forms at any time.
 // One XFRM state per SPI cannot. Two states on one SPI do not help either. The state

@@ -181,7 +181,7 @@ os-specific-tests ## OS-Specific Tests
   a-darwin-fail-from-an-unsupported-stub-is-a-setup-bug
 common-flaky-test-causes ## Common Flaky Test Causes
   the-root-cause-behind-each-flake-symptom
-  where-the-flake-shape-catalogue-lives
+  the-flake-shapes-to-check-first
 reproducing-load-dependent-flaky-in-full-verify-failures ## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
   why-a-load-dependent-failure-hides-in-a-single-suite
   use-the-stress-reproducer-not-the-full-suite

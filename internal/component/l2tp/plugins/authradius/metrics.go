@@ -1,4 +1,4 @@
-// Design: plan/learned/661-l2tp-10-metrics.md -- RADIUS Prometheus metrics
+// Design: docs/architecture/l2tp/l2tp-10-metrics.md -- RADIUS Prometheus metrics
 // Related: handler.go -- auth request/response call sites
 // Related: acct.go -- accounting start/stop/interim call sites
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- dataplane abstraction for SA/SP installation
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- dataplane abstraction for SA/SP installation
 // RFC: rfc/short/rfc7296.md -- Child SA keying material (Section 2.17)
 // RFC: rfc/short/rfc4301.md -- SAD/SPD architecture
 

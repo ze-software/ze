@@ -55,7 +55,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 
 1. ASK the user what feature/task they want to spec (if not provided as argument)
 2. Search `plan/spec-*.md` for related active specs
-3. Search `plan/learned/*.md` for completed related work
+3. Search `plan/journal/*.md` for problems already recorded in this area
 4. Check `ai/INDEX.md` for relevant architecture docs
 5. Present:
    - Related specs found (if any)

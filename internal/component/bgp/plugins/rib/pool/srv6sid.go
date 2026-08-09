@@ -1,4 +1,4 @@
-// Design: plan/learned/1113-fib-depth-4-srv6.md -- SRv6 SID extraction from PrefixSID attribute
+// Design: docs/architecture/fib/fib-depth-4-srv6.md -- SRv6 SID extraction from PrefixSID attribute
 // RFC: rfc/short/rfc9252.md -- SRv6 SID Information Sub-TLV and transposition scheme
 
 package pool

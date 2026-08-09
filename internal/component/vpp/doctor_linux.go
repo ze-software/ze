@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/1105-vpp-host-tuning.md -- ze doctor check for the boot-time
+// Design: docs/architecture/vpp-host-tuning.md -- ze doctor check for the boot-time
 // hugepage reservation VPP depends on. Reads sysfs/procfs behind overridable
 // roots so it is unit-testable against fixtures. Registered from the vpp
 // component (owning package) via register_linux.go.

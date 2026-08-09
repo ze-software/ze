@@ -1,4 +1,4 @@
-// Design: plan/learned/1015-cp-survival-5-detect-5-characterization.md -- flow-source readiness.
+// Design: docs/architecture/ddos/cp-survival-5-detect-5-characterization.md -- flow-source readiness.
 // Related: register.go -- DoctorChecks registration (ddos-detect-flow-source)
 // Related: characterize.go -- the trafficusage / flow-export queries this guards
 //

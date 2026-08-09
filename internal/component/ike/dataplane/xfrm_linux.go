@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
 // RFC: rfc/short/rfc4303.md -- ESP SA parameters
 // Related: policy_owner.go -- who owns a policy selector, since the kernel cannot say
 

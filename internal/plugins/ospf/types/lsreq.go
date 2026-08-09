@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- the LS Request body is an AF-neutral list of
+// Design: docs/architecture/ospf/ospf-af-unify.md -- the LS Request body is an AF-neutral list of
 // (type, link-state-id, advertising-router) triples, so it lives in the shared types leaf
 // and both wire codecs produce/consume it. Only the wire encode/decode is version-specific.
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1031-ospf-ext-3-router-information.md -- native-LSA-by-type body query.
+// Design: docs/architecture/ospf/ospf-ext-3-router-information.md -- native-LSA-by-type body query.
 // RFC: rfc/short/rfc5340.md (OSPFv3 native LSAs), rfc/short/rfc7770.md (RI LSA function code 12).
 //
 // OpaqueLSAsByType (opaque_as.go) serves OSPFv2 consumers that decode opaque bodies by

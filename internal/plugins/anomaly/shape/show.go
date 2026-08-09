@@ -1,4 +1,4 @@
-// Design: plan/learned/1049-anomaly-2-shape.md -- show anomaly-shape responder status
+// Design: docs/architecture/anomaly/anomaly-2-shape.md -- show anomaly-shape responder status
 //
 // The responder runs in-process, so the show handler reads its live status
 // (mode, armed sources) from the process-global responder.

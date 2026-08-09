@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- LSType known, opaque, and out-of-scope values
+// Design: docs/architecture/ospf/ospf-1-types.md -- LSType known, opaque, and out-of-scope values
 
 package types
 

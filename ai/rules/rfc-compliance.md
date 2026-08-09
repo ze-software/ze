@@ -16,8 +16,9 @@ never traded away for convenience, for a green test, or for expedience.
 
 **Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
 
-When he does authorise one, record it in `plan/learned/` with the RFC section and
-the reason, so the next reader finds a decision rather than a bug.
+When he does authorise one, record it as a row in `plan/journal/<class>.md` with
+the RFC section and the reason, so the next reader finds a decision rather than a
+bug.
 
 | Situation | What you MUST do |
 |-----------|------------------|
@@ -41,7 +42,7 @@ Rationale: `ai/rationale/rfc-compliance.md`
 
 **Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
 
-**Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule** (`plan/learned/1314-rule-heading-inverted-its-directive.md`).
+**Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule.**
 
 | You are about to ... | Do instead |
 |----------------------|------------|

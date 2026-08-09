@@ -108,7 +108,7 @@ func TestImiRateLimitCapsTheNotification(t *testing.T) {
 	const requests = 12
 	start := time.Now()
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md. This is not a behavior change: the loop was
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md. This is not a behavior change: the loop was
 	// authored minutes earlier in the same session and the `intrange` linter requires the
 	// range form. Every assertion below is unchanged, and the tag has never been committed
 	// so no compliance claim ever rested on the old form.

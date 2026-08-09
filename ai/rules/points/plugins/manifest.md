@@ -80,7 +80,6 @@ family-registration-blocking ## Family Registration (BLOCKING)
 runtime-filter-declaration-planned-stage-1-wire-protocol ## Runtime Filter Declaration (planned -- stage 1 wire protocol)
   declare-route-filters-at-stage-1
   the-filter-declaration-fields
-  pointer-to-the-redistribution-filter-design
   non-cidr-families-blocking-for-filter-plugin-authors
   what-each-family-set-emits-to-a-filter
   pointer-to-the-non-cidr-filter-contract

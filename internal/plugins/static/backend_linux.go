@@ -1,4 +1,4 @@
-// Design: plan/learned/650-static-routes.md -- Linux netlink backend with multipath
+// Design: docs/architecture/static-routes.md -- Linux netlink backend with multipath
 // Related: doctor.go -- pre-flight readiness check for interface-only next-hops
 
 //go:build linux

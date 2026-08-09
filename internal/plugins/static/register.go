@@ -1,4 +1,4 @@
-// Design: plan/learned/650-static-routes.md -- plugin registration and lifecycle
+// Design: docs/architecture/static-routes.md -- plugin registration and lifecycle
 
 package static
 

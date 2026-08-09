@@ -1,4 +1,4 @@
-// Design: plan/learned/959-ospf-5-interface-ism.md -- NBMA + point-to-multipoint ISM/Hello tests.
+// Design: docs/architecture/ospf/ospf-5-interface-ism.md -- NBMA + point-to-multipoint ISM/Hello tests.
 package iface
 
 import (

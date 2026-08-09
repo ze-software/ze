@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- NSM transition and DD tests
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- NSM transition and DD tests
 package neighbor
 
 import (

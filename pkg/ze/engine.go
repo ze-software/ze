@@ -1,4 +1,4 @@
-// Design: plan/learned/425-arch-0-system-boundaries.md — Engine interface
+// Design: docs/architecture/plugin/component-boundaries.md -- Engine interface
 
 package ze
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1034-as112-3-bgp-integration.md -- AS112 layering rule:
+// Design: docs/architecture/bgp/as112-coordination.md -- AS112 layering rule:
 // as112 never reads bgp config; it emits a generic named redistribute source and
 // BGP imports "as112" the same way it imports "static".
 // Related: internal/plugins/as112/events/events.go -- typed EventBus handle + ProtocolID

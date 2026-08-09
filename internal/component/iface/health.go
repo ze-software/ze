@@ -1,4 +1,4 @@
-// Design: plan/learned/768-doctor-health-checks.md -- interface error counter monitoring
+// Design: docs/architecture/doctor-and-health-checks.md -- interface error counter monitoring
 // Related: backend.go -- GetStats for counter reads
 // Related: iface.go -- InterfaceStats with RxErrors/TxErrors fields
 

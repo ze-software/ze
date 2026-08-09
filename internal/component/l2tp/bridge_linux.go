@@ -1,4 +1,4 @@
-// Design: plan/learned/1100-followup-l2tp-call.md -- AC-3 / A-4 LAC data-plane bridge
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 / A-4 LAC data-plane bridge
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 2 (LAC forwards PPP; no local termination)
 
 //go:build linux

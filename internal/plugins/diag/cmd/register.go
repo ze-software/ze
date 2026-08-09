@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- diag component RPC registration
+// Design: docs/architecture/diagnostics/production-diagnostics.md -- diag component RPC registration
 
 package cmd
 

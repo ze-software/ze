@@ -1,4 +1,4 @@
-// Design: plan/learned/977-traffic-usage.md -- show traffic-usage command handler.
+// Design: docs/architecture/traffic/traffic-usage.md -- show traffic-usage command handler.
 // Owned by the traffic-usage plugin so removing it removes the command, its
 // schema (yang/ze-traffic-usage-cmd.yang), and this handler together. See
 // ai/rules/plugins.md.

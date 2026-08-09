@@ -1,4 +1,4 @@
-// Design: plan/learned/885-cos-dynamic.md -- dynamic CoS event handler
+// Design: docs/architecture/traffic/cos-dynamic.md -- dynamic CoS event handler
 // Related: session_state.go -- per-session state for revert
 
 //go:build ze_l2tp

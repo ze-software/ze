@@ -1,4 +1,4 @@
-// Design: plan/learned/964-ospf-10-as-external-asbr.md -- OSPF redistribution source (producer).
+// Design: docs/architecture/ospf/ospf-10-as-external-asbr.md -- OSPF redistribution source (producer).
 // Related: internal/plugins/ospf/redistribute/events -- the redistevents producer wiring.
 // Related: internal/plugins/isis/redistribute -- the source-registration template (sync.Once).
 //

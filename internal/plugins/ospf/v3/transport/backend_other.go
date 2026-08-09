@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- non-Linux backend stub
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- non-Linux backend stub
 // RFC: rfc/short/rfc5340.md (§2.9 raw IPv6 transport is a Linux kernel capability)
 
 package transport

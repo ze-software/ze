@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- loop device ioctl tests
+// Design: docs/architecture/appliance/installer-initrd.md -- loop device ioctl tests
 
 //go:build linux
 

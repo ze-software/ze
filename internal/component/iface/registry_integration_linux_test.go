@@ -4,9 +4,8 @@
 // plugin-to-iface address-ownership registry, real-kernel proof
 // Related: config_apply_test.go's TestReconcileOnRegistryChange_AppliesAddressToBackend
 // -- the same scenario against a fake backend; this file is the real-netlink
-// counterpart plan/learned/1028-as112-1-iface-address-registry.md deferred to
-// "the first spec with a real plugin consumer" and that consumer
-// (spec-as112-2) never built.
+// counterpart that spec-as112-1 deferred to "the first spec with a real plugin
+// consumer" and that consumer (spec-as112-2) never built.
 
 package iface
 

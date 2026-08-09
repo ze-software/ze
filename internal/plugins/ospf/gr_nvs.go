@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- GR restart-fact non-volatile storage.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- GR restart-fact non-volatile storage.
 // Related: auth_keystore.go -- the pkg/zefs blob-store pattern this reuses.
 // RFC: rfc/short/rfc3623.md sec 2.1 (store the restart fact + grace period in NVS),
 //

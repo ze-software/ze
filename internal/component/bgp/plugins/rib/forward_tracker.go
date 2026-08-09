@@ -1,4 +1,4 @@
-// Design: plan/learned/784-rib-rs-fastpath.md -- first production Change.Forward consumer
+// Design: docs/architecture/rib/forward-handle.md -- first production Change.Forward consumer
 // Related: forward_observer.go -- the debug-only nil-check observer this complements
 // Related: forward_handle.go -- ribForwardHandle is the producer side (AddRef/Release/Bytes)
 // Related: rib.go -- SetLocRIB creates and wires the tracker
@@ -43,7 +43,8 @@ type forwardTrackItem struct {
 // nil-checks and debug-logs, this AddRefs the handle under the RIB write lock
 // (the bounded "copy out under lock"), then a worker reads the UPDATE wire
 // bytes off-lock, records per-prefix forwarding state, and Releases the
-// handle -- proving the producer wiring (plan/learned/784) end-to-end with a
+// handle -- proving the producer wiring (docs/architecture/rib/forward-handle.md)
+// end-to-end with a
 // strict AddRef/Release lifecycle and no buffer-pool leak.
 //
 // It is inert until Enable() is called: onChange is a single atomic load

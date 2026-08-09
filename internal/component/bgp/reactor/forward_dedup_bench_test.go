@@ -19,7 +19,7 @@ import (
 // up there as nothing at all. This benchmark is the only evidence for or against
 // the fan-out dedup, and A-1 of the wire-edit-5-fanout-dedup spec was settled by
 // its numbers rather than by argument. That spec is closed; its record is
-// plan/learned/1321-wire-edit-5-fanout-dedup.md.
+// docs/architecture/bgp/fanout-dedup.md.
 //
 // Read ns/dest, not ns/op: the whole point is per-destination cost, and ns/op
 // scales with n by construction. materializations/op is the mechanism -- it must

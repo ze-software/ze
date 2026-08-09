@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- MS-CHAPv2 crypto primitives
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- MS-CHAPv2 crypto primitives
 // RFC: rfc/short/rfc2759.md -- NtPasswordHash, ChallengeResponse, AuthenticatorResponse, MPPE keys
 
 package eap

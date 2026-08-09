@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- Phase 5: the OSPFv3 send (encode) path.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- Phase 5: the OSPFv3 send (encode) path.
 //
 // The Codec seam decodes incoming packets; the interface's Hello SEND goes through
 // iface.Encoder. v6Encoder is the OSPFv3 Hello encoder the engine injects into a v6

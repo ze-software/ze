@@ -1,4 +1,4 @@
-// Design: plan/learned/992-geodns-1-config.md -- geodns resolver state (atomic snapshot)
+// Design: docs/architecture/dns/geodns.md -- geodns resolver state (atomic snapshot)
 
 package geodns
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/933-isis-7-flooding.md -- engine <-> flooding wiring (handlers, timers, P2P initial CSNP).
+// Design: docs/architecture/isis/isis-7-flooding.md -- engine <-> flooding wiring (handlers, timers, P2P initial CSNP).
 // Related: server.go -- the engine struct, dispatcher, and lifecycle this extends
 // Related: lsdb_wiring.go -- the LSDB instance + SRM arming this flooding drains
 // Related: circuits.go -- the adjacency circuits whose Up event triggers the P2P initial CSNP

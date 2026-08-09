@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc5036.md -- Section 3.5.2 Hello Hold Time defaults
-// Design: plan/learned/920-mpls-ldp.md -- LDP discovery (UDP hello)
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP discovery (UDP hello)
 // Related: wire.go -- HelloMessage encoding/decoding
 //
 // RFC 5036 Section 2.4.1: Basic Discovery uses UDP multicast Hello messages

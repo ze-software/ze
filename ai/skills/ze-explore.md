@@ -43,7 +43,7 @@ phase itself.
    | Source code | `internal/`, `pkg/`, `cmd/` |
    | Tests | `*_test.go`, `test/` (`.ci`, `.et`) |
    | Specs | `plan/spec-*` |
-   | Learned summaries | `plan/learned/` |
+   | Problem journal | `plan/journal/` |
    | Docs | `docs/` |
    | Config/YANG | `schema/`, `*.yang` |
    | Rules | `.claude/rules/` |

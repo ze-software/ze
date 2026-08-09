@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- non-Linux raw IPv6 socket probe stub
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- non-Linux raw IPv6 socket probe stub
 
 package transport
 

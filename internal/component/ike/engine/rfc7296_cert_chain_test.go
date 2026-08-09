@@ -440,7 +440,7 @@ func TestChuBothHashAndURLFormatsAreConfigurable(t *testing.T) {
 // advertises no HTTP_CERT_LOOKUP_SUPPORTED, drops a received encoding-12 payload at the
 // shared collection gate, and refuses to resolve one at the funnel.
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation M13 (delete the
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation M13 (delete the
 // hash-and-url gate inside resolveCertPayloads) left this test GREEN. The funnel assertion
 // pointed at an unresolvable host, so the fetch failed on DNS and the refusal proved
 // nothing about policy. The URL now names a live server whose bytes match the hash, with
@@ -495,7 +495,7 @@ func TestChuHashAndURLIsOffByDefault(t *testing.T) {
 	// than fetching, so a gate that lived only in the collection loops is not enough.
 	//
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation M13 (delete the
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation M13 (delete the
 	// hash-and-url gate inside resolveCertPayloads) left the previous form of this
 	// assertion GREEN. It named an unresolvable host, so the fetch failed on DNS and the
 	// refusal proved nothing about policy.
@@ -553,7 +553,7 @@ func TestChuHashAndURLIsOffByDefault(t *testing.T) {
 // RFC requirement: RFC7296-3.6-3 negative -- a scheme other than http is refused before any
 // I/O, and bytes whose SHA-1 does not match the payload are refused before any parser sees them.
 // rfc-test-change-approved: 2026-08-01 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The lookup no longer runs on
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The lookup no longer runs on
 // the caller's goroutine (certurl.go, certURLFetcher), so the first call reports the object
 // as pending and the RETRANSMISSION resolves it. This test now proves both halves: that the
 // first call performs no fetch of its own, and that the object still arrives.
@@ -582,7 +582,7 @@ func TestChuHashURLLookupUsesHTTPAndVerifiesTheHash(t *testing.T) {
 	sa.PeerCfg.Auth.CertificateURLAllow = loopback
 
 	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	//
 	// The first delivery finds nothing cached. It starts a worker and reports the object
 	// as pending. It fetches NOTHING on this goroutine. An inline fetch here runs on the
@@ -669,7 +669,7 @@ func TestChuHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 
 	t.Run("the metadata address is refused before connect", func(t *testing.T) {
 		// rfc-test-change-approved: 2026-08-01 owner standing approval for
-		// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+		// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 		//
 		// This row and the one below asserted err != nil only. 169.254.169.254 is
 		// unroutable on a build host, and a loopback port can refuse a connection. Both

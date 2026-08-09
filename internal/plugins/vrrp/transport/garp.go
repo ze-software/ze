@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc9568.md -- Section 8.1.2 (gratuitous ARP on Master transition)
 // RFC: errata 7947/7949 -- gratuitous ARP target link-layer = Virtual Router MAC
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- pure GARP frame builder (testable on darwin)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- pure GARP frame builder (testable on darwin)
 //
 // garp.go builds the gratuitous-ARP Ethernet frame VRRP broadcasts when a router
 // becomes Master, so bridges relearn the virtual MAC's port and hosts repoint

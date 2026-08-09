@@ -1,4 +1,4 @@
-// Design: plan/learned/961-ospf-7-lsdb-flooding.md -- per-area OSPFv2 LSDB store.
+// Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- per-area OSPFv2 LSDB store.
 // RFC 2328 Section 12: LSA identity and area scoping.
 
 package lsdb

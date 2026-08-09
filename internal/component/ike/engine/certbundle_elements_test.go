@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- IKEv2 certificate payload handling
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- IKEv2 certificate payload handling
 // RFC: rfc/short/rfc7296.md -- the X.509 bundle ASN.1 for Hash and URL (Section 3.6)
 
 package engine

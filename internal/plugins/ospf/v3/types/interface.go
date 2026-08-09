@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- InterfaceID 32-bit router-local interface id.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- InterfaceID 32-bit router-local interface id.
 // RFC: rfc/short/rfc5340.md (§A.3.2 Hello, §A.4.3 Router-LSA -- Interface ID)
 //
 // OSPFv3 identifies each local interface by a 32-bit Interface ID, not by its IP subnet

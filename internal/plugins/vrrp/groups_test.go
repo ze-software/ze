@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP config extraction + verification tests
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP config extraction + verification tests
 
 package vrrp
 

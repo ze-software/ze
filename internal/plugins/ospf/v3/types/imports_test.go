@@ -5,7 +5,7 @@
 // PREVENTS: the leaf package growing a reverse dependency on runtime code.
 //
 // The v6 leaves were nested under internal/plugins/ospf/v3/ so the single OSPF plugin is
-// self-contained (plan/learned/972-ospf-af-unify.md); the leaf-purity discipline is
+// self-contained (docs/architecture/ospf/ospf-af-unify.md); the leaf-purity discipline is
 // unchanged: this types package still reaches nothing inside the OSPF tree.
 package types
 

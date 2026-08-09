@@ -720,8 +720,6 @@ ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-s
 #   arch_map.py       -> arch lists in ai/INSTRUCTIONS.md    -> ze-arch-map-check
 #   package_map.py    -> ai/PACKAGE-MAP.md                   \
 #   docs_to_code.py   -> ai/DOCS-TO-CODE.md                   > ze-discovery-index-check
-#   learned_index.py  -> ai/LEARNED-FULL-INDEX.md            /
-#   learned_numbers.py-> plan/learned numbering              /
 #
 # TWO DELIBERATE EXCLUSIONS, both would break CI or duplicate an earlier stage:
 #
@@ -748,9 +746,9 @@ ze-regen-check-readonly: ze-plugin-imports-check ze-yang-glue-check ze-feature-t
 	@echo "All generated files are up to date"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md ai/LEARNED-FULL-INDEX.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
@@ -761,8 +759,6 @@ ze-regen-check: ze-regen
 	@python3 scripts/dev/arch_map.py --check
 	@python3 scripts/dev/package_map.py --check
 	@python3 scripts/dev/docs_to_code.py --check
-	@python3 scripts/dev/learned_index.py --check
-	@python3 scripts/dev/learned_numbers.py --check
 	@scripts/dev/skill_sync.sh --check
 	@python3 scripts/dev/check_doc_links.py --md-only
 	@echo "All generated files are up to date"

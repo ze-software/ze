@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- loop device attach/detach via ioctls
+// Design: docs/architecture/appliance/installer-initrd.md -- loop device attach/detach via ioctls
 
 //go:build linux
 

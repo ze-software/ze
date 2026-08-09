@@ -1,4 +1,4 @@
-// Design: plan/learned/1070-forked-route-install.md -- forked route install via Loc-RIB RPC
+// Design: docs/architecture/forked-route-install.md -- forked route install via Loc-RIB RPC
 //
 // The forked route-install/route-remove RPC handlers
 // (internal/component/plugin/server/dispatch_route.go applyRouteInstall /

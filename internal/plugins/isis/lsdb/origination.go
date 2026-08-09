@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- own-LSP origination from live state.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- own-LSP origination from live state.
 // ISO/IEC 10589 clause 7.3.12 (origination triggers), 7.3.16.1 (sequence numbers
 // / wraparound / raising an own sequence above another system's claim), 7.3.16.4
 // (a received purge of an own LSP), 9.8 (LSP type block / overload). Wide metrics

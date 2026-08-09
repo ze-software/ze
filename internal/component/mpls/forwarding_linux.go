@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/919-mpls-kernel.md -- kernel AF_MPLS table reader
+// Design: docs/architecture/mpls/mpls-kernel.md -- kernel AF_MPLS table reader
 // Related: show_forwarding.go -- handler and forwardingEntry type
 //
 // dumpMPLSRoutes reads the kernel's AF_MPLS routing table via netlink. Each

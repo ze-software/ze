@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/695-host-3-smart.md — SMART health via direct ioctl
+// Design: docs/architecture/host/smart.md -- SMART health via direct ioctl
 // Related: storage_linux.go — DetectStorage calls detectSMART per device
 
 package host

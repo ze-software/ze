@@ -1,4 +1,4 @@
-// Design: plan/learned/964-ospf-10-as-external-asbr.md -- OSPF redistevents producer wiring.
+// Design: docs/architecture/ospf/ospf-10-as-external-asbr.md -- OSPF redistevents producer wiring.
 // Related: internal/plugins/ospf/spf -- ProtocolID() (the single "ospf" identity).
 //
 // Package ospfredistevents is the redistevents PRODUCER wiring for OSPF. It is the

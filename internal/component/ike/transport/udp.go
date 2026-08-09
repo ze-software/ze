@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE UDP transport
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE UDP transport
 // RFC: rfc/short/rfc7296.md -- IKE uses UDP port 500 (Section 2.1)
 package transport
 

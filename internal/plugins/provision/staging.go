@@ -1,4 +1,4 @@
-// Design: plan/learned/851-install-10-pxe-staging.md -- PXE artifact staging and validation
+// Design: docs/architecture/provisioning/pxe-staging.md -- PXE artifact staging and validation
 
 package provision
 

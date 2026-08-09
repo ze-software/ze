@@ -21,7 +21,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | 2 | Deferrals | Every LIVE row (Status not `done`/`cancelled`/`resolved`) that this spec still owes is homed at a spec that exists. A live row homed ELSEWHERE is not owed and does not hold the gate: see step 5 for the exact two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
 | 4 | Commit A | `make ze-verify` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
-| 5 | Commit B (closure) | `plan/learned/NNN-<spec-stem>.md` is committed AND `plan/spec-<name>.md` has been removed via `git rm` in the same commit |
+| 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/spec-<name>.md` has been removed via `git rm` in the same commit |
 
 A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpoints, not endpoints.
 
@@ -51,9 +51,9 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
-   - Does `plan/learned/NNN-<spec-stem>.md` exist? If not, allocate NNN and create it with `python3 scripts/dev/commit_helper.py learned-next <spec-stem>`.
+   - Does a committed journal row in `plan/journal/<class>.md` name this spec stem in its Spec column? If not, append a row to the matching class file.
    - Is `plan/spec-<name>.md` still tracked by git (`git ls-files plan/spec-<name>.md`)?
-   - If the learned summary is missing OR the spec file is still tracked: STAGE = 5. Go to step 9.
+   - If no journal row names this spec OR the spec file is still tracked: STAGE = 5. Go to step 9.
    - Otherwise: STAGE = done.
 9. **Report** using the format below.
 
@@ -94,8 +94,8 @@ Or: "No deferral is owed by this spec: every live row is homed elsewhere."
 - Uncommitted files in spec scope: [list, or "none"]
 - `make ze-verify`: [PASS (Nh ago) / FAIL / not run recently]
 
-### Commit B (closure -- spec -> learned)
-- `plan/learned/NNN-<stem>.md`: [present / missing (next NNN = ###)]
+### Commit B (closure -- spec -> journal)
+- Journal row naming this spec: [present in plan/journal/<class>.md / missing]
 - `plan/spec-<name>.md`: [still tracked / removed]
 
 ### Next Action
@@ -114,7 +114,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 | 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | A deferral cannot silently VANISH at closure. It may survive it: a row homed at another spec stays live, and its shard outlives this spec (`ai/rules/planning.md`). Homing it clears stage 2 -- do not treat a live homed row as unfinished closure work |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
-| 5 | Write `plan/learned/NNN-<stem>.md`, stage `git rm plan/spec-<name>.md` + the new learned file, then `/ze-commit` | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
+| 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, stage `git rm plan/spec-<name>.md` + the journal file, then `/ze-commit` | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
 | done | "Spec complete. `/ze-spec` to pick the next one." | Nothing pending |
 
 ## Rules

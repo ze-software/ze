@@ -1,4 +1,4 @@
-// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP-TLS in-memory handshake harness
+// Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS in-memory handshake harness
 // RFC: rfc/short/rfc5216.md -- EAP-TLS mutual authentication, MSK derivation, cert validation
 //
 // This file wires the real EAP-TLS authenticator (tlsMethod via NewSession) and

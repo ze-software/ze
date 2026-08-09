@@ -1,4 +1,4 @@
-// Design: plan/learned/1342-tracked-build-gate.md -- compile what git holds
+// Design: docs/architecture/testing/tracked-build-gate.md -- compile what git holds
 //
 // tracked_build COMPILES the repository as git holds it, which is the one
 // population no other check in this repository compiles.

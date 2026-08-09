@@ -1,4 +1,4 @@
-// Design: plan/learned/748-cpe-6-self-update.md -- update system firmware CLI handlers
+// Design: docs/architecture/appliance/self-update.md -- update system firmware CLI handlers
 // Relocated from internal/component/cmd/update/firmware.go (plugin self-containment).
 
 package cmd

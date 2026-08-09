@@ -1,4 +1,4 @@
-// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- show ddos flowspec surface
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- show ddos flowspec surface
 //
 // The flowspec responder runs in-process (plugins are goroutines), so the show
 // handler reads its live announcement state directly from the process-global

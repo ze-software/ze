@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- VPP dataplane trace via CLI socket
+// Design: docs/architecture/diagnostics/production-diagnostics.md -- VPP dataplane trace via CLI socket
 
 //go:build linux
 

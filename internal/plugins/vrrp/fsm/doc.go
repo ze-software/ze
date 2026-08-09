@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP instance state machine and timers
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP instance state machine and timers
 // RFC: rfc/short/rfc9568.md (VRRPv3) and rfc/short/rfc3768.md (VRRPv2)
 //
 // Package fsm implements the per-group VRRP instance state machine and timer

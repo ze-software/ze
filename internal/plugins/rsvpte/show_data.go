@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- `show rsvp-te ...` data builders
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- `show rsvp-te ...` data builders
 // RFC: rfc/short/rfc4090.md
 // Related: register.go -- OnExecuteCommand dispatches these
 // Related: cmd_show.go -- the show RPC proxies that front them

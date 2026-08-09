@@ -1,4 +1,4 @@
-// Design: plan/learned/930-isis-4-component-config.md -- IS-IS config resolution
+// Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS config resolution
 // Related: yang/ze-isis-conf.yang -- the schema this resolves from
 //
 // Config flows file -> YANG schema -> validated tree -> the SDK delivers the

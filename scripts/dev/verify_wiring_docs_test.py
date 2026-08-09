@@ -204,47 +204,76 @@ class KnownFailureLoadExcuseTest(unittest.TestCase):
         self.assertEqual(out, "")
 
 
-class LearnedStalenessRoutingTest(unittest.TestCase):
-    """Changed-file routing for the learned-summary staleness gate.
+class RoutedTargetsExistTest(unittest.TestCase):
+    """Every routed target must have a rule in Makefile or mk/.
 
-    Wiring row: a changed plan/learned/**.md must select ze-learned-staleness,
-    so `make ze-verify-changed` runs the gate exactly when a summary's cited
-    paths or NNN citations could have gone dangling.
+    The router runs `make <target>` for each selected name, so a name whose rule
+    was deleted turns a routed change into "No rule to make target". That state
+    survived the removal of the learned-summary staleness gate: MAKE_TARGETS and
+    TARGET_ORDER still named ze-learned-staleness after its recipe was gone, and
+    nothing read the two lists against the build files.
+    """
+
+    def test_every_make_target_has_a_rule(self):
+        repo = Path(__file__).resolve().parents[2]
+        rules: set[str] = set()
+        for path in [repo / "Makefile"] + sorted((repo / "mk").glob("*.mk")):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line or line[0].isspace() or line.startswith("#"):
+                    continue
+                name, sep, _ = line.partition(":")
+                # A rule head is one bare token; skip assignments and recipes.
+                if sep and name and "=" not in name and " " not in name.strip():
+                    rules.add(name.strip())
+        self.assertEqual(sorted(MAKE_TARGETS - rules), [])
+
+    def test_every_make_target_is_ordered(self):
+        # A target in MAKE_TARGETS but absent from TARGET_ORDER is selected and
+        # then dropped by the ordering filter, which fails open silently.
+        self.assertEqual(MAKE_TARGETS - set(TARGET_ORDER), set())
+
+
+class DockerExecRoutingTest(unittest.TestCase):
+    """Changed-file routing for the fail-open call-site ratchet.
+
+    Wiring row: a changed test/**/*.py must select ze-docker-exec-check, so
+    `make ze-verify-changed` runs the gate exactly when a scenario or a lab
+    could have added an unchecked read of a fail-open return value.
     """
 
     def _root(self) -> Path:
-        d = tempfile.mkdtemp(prefix="learned-routing-")
+        d = tempfile.mkdtemp(prefix="docker-exec-routing-")
         self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
         return Path(d)
 
-    def test_learned_change_selects_staleness_target(self):
+    def test_a_scenario_or_lab_change_selects_the_target(self):
         root = self._root()
-        self.assertIn(
-            "ze-learned-staleness",
-            selected_targets(root, ["plan/learned/0999-example.md"]),
-        )
+        for path in (
+            "test/interop/interop.py",
+            "test/interop/scenarios/05-routes-from-frr/check.py",
+            "test/ipsec-interop/lab.py",
+        ):
+            with self.subTest(path=path):
+                self.assertIn("ze-docker-exec-check", selected_targets(root, [path]))
 
     def test_checker_and_baseline_select_the_target(self):
         root = self._root()
         for path in (
-            "scripts/dev/learned_staleness.py",
-            "plan/.learned-staleness-baseline",
+            "scripts/dev/docker_exec_checked.py",
+            "test/health/docker-exec-baseline.json",
         ):
             with self.subTest(path=path):
-                self.assertIn("ze-learned-staleness", selected_targets(root, [path]))
+                self.assertIn("ze-docker-exec-check", selected_targets(root, [path]))
 
-    def test_unrelated_change_does_not_select_it(self):
+    def test_a_draft_and_an_unrelated_change_do_not_select_it(self):
         root = self._root()
-        self.assertNotIn(
-            "ze-learned-staleness",
-            selected_targets(root, ["docs/guide/monitoring.md"]),
-        )
+        for path in ("test/draft/plugin/wip.py", "test/plugin/api-peer.ci"):
+            with self.subTest(path=path):
+                self.assertNotIn("ze-docker-exec-check", selected_targets(root, [path]))
 
     def test_target_is_runnable_and_ordered(self):
-        # A target in MAKE_TARGETS but absent from TARGET_ORDER is selected and
-        # then dropped by the ordering filter, which fails open silently.
-        self.assertIn("ze-learned-staleness", MAKE_TARGETS)
-        self.assertIn("ze-learned-staleness", TARGET_ORDER)
+        self.assertIn("ze-docker-exec-check", MAKE_TARGETS)
+        self.assertIn("ze-docker-exec-check", TARGET_ORDER)
 
 
 if __name__ == "__main__":

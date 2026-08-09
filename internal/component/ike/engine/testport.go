@@ -1,4 +1,4 @@
-// Design: plan/learned/745-ipsec-10-cli-diag.md -- IKE engine addressing seam
+// Design: docs/architecture/ike/ipsec-10-cli-diag.md -- IKE engine addressing seam
 // RFC: rfc/short/rfc3948.md -- UDP encapsulation of ESP uses port 4500 (Section 2.1)
 //
 // ze.test.ike.port is a runtime-only env var for the test infrastructure,

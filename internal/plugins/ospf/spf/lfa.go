@@ -1,4 +1,4 @@
-// Design: plan/learned/1051-ospf-ext-6-ti-lfa.md -- OSPF LFA / TI-LFA fast reroute.
+// Design: docs/architecture/ospf/ospf-ext-6-ti-lfa.md -- OSPF LFA / TI-LFA fast reroute.
 // RFC 5286 base LFA selection: per-neighbor SPFs give D_opt(N,*), and each
 // primary next-hop is protected by the loop-free alternate that best satisfies
 // the Section 3.1 / 3.2 / 1.1 inequalities under the Section 3.6 preference

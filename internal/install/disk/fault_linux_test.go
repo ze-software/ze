@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- R-6 fault-injection hook tests
+// Design: docs/architecture/appliance/installer-initrd.md -- R-6 fault-injection hook tests
 
 //go:build linux && ze_installer && ze_installer_fault
 

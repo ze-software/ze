@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- the Hello body is shared via the types leaf as a
+// Design: docs/architecture/ospf/ospf-af-unify.md -- the Hello body is shared via the types leaf as a
 // superset of the OSPFv2 and OSPFv3 fields; the version-specific wire encode/decode lives
 // in the codec. OSPFv2 uses NetworkMask + IP-address DR/BDR; OSPFv3 uses InterfaceID +
 // Router-ID DR/BDR (RFC 5340 sec A.3.2). The engine's neighbor FSM reads the common fields

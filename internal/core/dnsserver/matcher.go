@@ -1,4 +1,4 @@
-// Design: plan/learned/1027-dns-server-harness.md -- CIDR longest-prefix matcher
+// Design: docs/architecture/dns/server-harness.md -- CIDR longest-prefix matcher
 // (secondary extraction; the host-set/label semantics stay with the consumer).
 
 package dnsserver

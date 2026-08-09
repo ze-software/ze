@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- LinkStateID 4-byte LSA identifier
+// Design: docs/architecture/ospf/ospf-1-types.md -- LinkStateID 4-byte LSA identifier
 // Related: format.go -- dotted-quad parse and append helpers
 // Related: lsakey.go -- LinkStateID participates in the LSDB key
 package types

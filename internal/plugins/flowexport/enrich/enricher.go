@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- BGP enrichment coordinator
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- BGP enrichment coordinator
 
 package enrich
 

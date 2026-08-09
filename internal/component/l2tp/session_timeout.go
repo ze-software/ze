@@ -1,4 +1,4 @@
-// Design: plan/learned/666-bng-1-radius-attributes.md -- RADIUS session/idle timeout
+// Design: docs/architecture/l2tp/bng-1-radius-attributes.md -- RADIUS session/idle timeout
 // Related: reactor.go -- handleSessionUp starts timers, teardown cancels them
 // Related: session.go -- L2TPSession holds cancel funcs
 // Related: session_metadata.go -- AuthMetadata carries timeout values

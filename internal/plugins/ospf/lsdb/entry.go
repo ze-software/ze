@@ -1,4 +1,4 @@
-// Design: plan/learned/961-ospf-7-lsdb-flooding.md -- lazy raw-byte LSDB entry.
+// Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- lazy raw-byte LSDB entry.
 // RFC 2328 Section 13.1: LSA freshness comparison.
 
 package lsdb

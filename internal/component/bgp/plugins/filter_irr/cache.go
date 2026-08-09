@@ -1,4 +1,4 @@
-// Design: plan/learned/912-irr-prefix-store.md -- shared PrefixStore wiring for the IRR filter plugin
+// Design: docs/architecture/bgp/filter-irr.md -- shared PrefixStore wiring for the IRR filter plugin
 
 package filter_irr
 

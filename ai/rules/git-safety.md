@@ -66,10 +66,8 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 2. Use `scripts/dev/commit_helper.py create` to write one message file and one commit script. Pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
    `--append` adds a later commit block to a script you already prepared. Pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
-   It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`, `ai/LEARNED-FULL-INDEX.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header, a `plan/learned/*.md`) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
-4. Lesson learned check: the helper asks whether the commit ADDS content to an agent-workflow, rule, tooling, verification, or discovery surface, or only relocates it. Content earns a summary: include `plan/learned/NNN-<name>.md` in `--file`. A move, a rename, or a reformat does not, and passes untouched. When the change adds content but taught nothing reusable, say so with `--lesson-not-needed "<reason>"`; `--lesson-required` is the operator demanding one regardless (`ai/rules/planning.md`, "Writing Learned Summaries").
-   Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes)+1 and creates the file immediately, so concurrent sessions **sharing one working tree** cannot allocate the same number. Never hand-pick a number.
-   **This does not extend across branches.** `learned_next` (`scripts/dev/commit_helper.py`) scans the local filesystem, so it cannot see a number allocated on a branch you have not merged yet. Two branches routinely allocate the same number and the duplicate only appears when they meet: the 2026-07-16 rebase of 12 local commits onto 25 upstream ones produced five collisions at once (1120-1124). Do not treat a duplicate as misconduct; it is structural, exactly like the shared-file cross-commit above. `make ze-learned-numbers-check` detects duplicates (it runs inside `ze-doc-test` and `ze-regen-check`) and `make ze-learned-numbers-fix` resolves them, keeping the most-referenced summary at the contested number and renumbering the rest. Run the check after any merge or rebase that brings in `plan/learned/`.
+   It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
+4. Lesson learned check: the helper asks whether the commit ADDS content to an agent-workflow, rule, tooling, verification, or discovery surface, or only relocates it. Content earns a journal row: include `plan/journal/<class>.md` in `--file`. A move, a rename, or a reformat does not, and passes untouched. When the change adds content but taught nothing reusable, say so with `--lesson-not-needed "<reason>"`; `--lesson-required` is the operator demanding one regardless (`ai/rules/planning.md`, "Writing Journal Rows").
 5. If the helper cannot express the commit shape, hand-write the same script pattern and `chmod +x` it. Give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
 7. Run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. Then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
@@ -114,18 +112,18 @@ scripts/dev/commit_helper.py create \
   --subject "spec: close spec-widget" \
   --remove plan/spec-widget.md
 
-# With a learned summary:
+# With a journal row:
 scripts/dev/commit_helper.py create \
   --replace \
   --subject "rules: add goroutine lifecycle rule" \
   --file ai/rules/goroutine-lifecycle.md \
-  --file plan/learned/NNN-goroutine-lifecycle.md
+  --file plan/journal/<class>.md
 ```
 
 Key flags: `--replace` for the first commit in a session, `--append`
 for subsequent commits. `--file` per path to add, `--remove` per
 tracked path to delete. `--lesson-not-needed "<reason>"` when no
-learned summary applies; `--lesson-required` to enforce one.
+journal row applies; `--lesson-required` to enforce one.
 Body lines are wrapped to 72 characters. Subjects are single-line and
 must be at most 72 characters.
 
@@ -145,7 +143,7 @@ git commit -F tmp/commit-msg-<SESSION>-a.txt
 ```
 
 **Never suggest / ask / hint at committing.** Complete ALL work first
-(testing, spec, docs, learned summary), then report. User decides.
+(testing, spec, docs, journal row), then report. User decides.
 Banned phrases: "ready to commit?", "shall I commit?", "we could
 commit now", "want me to commit?".
 
@@ -502,7 +500,7 @@ deterministic either, so even one machine gives a spread rather than a figure.
 seconds for the machine you are on, and `tmp/*` is gitignored, so that file is
 the only per-machine record there is. Read it as an expectation, never as a
 threshold: a run past it is a slow run, not a failed one
-(`plan/learned/1359-rules-corpus-paraphrase-drift.md`).
+(`plan/learned/1359-rules-corpus-paraphrase-drift.md`).  <!-- doc-links: ignore -->
 
 **A slow run can outlast the lock's own break threshold: raise `ZE_VERIFY_MAX_LOCK_AGE` rather than lose the pass.**
 When a second invocation is waiting, `verify-lock.sh` breaks a lock whose holder
@@ -643,7 +641,7 @@ gates, run the full pass once, and commit.
 
 ```
 [ ] 3. Spec completion gate (if driven by a plan/ spec):
-      [ ] Learned summary written to plan/learned/NNN-<name>.md (NNN from `commit_helper.py learned-next <slug>`)
+      [ ] Journal row appended to plan/journal/<class>.md, its Spec cell naming the spec stem
       [ ] Spec file staged for deletion (git rm)
       Not done -> STOP.
 [ ] 4. Executive Summary Report (rules/planning.md). What was done, what is left.
@@ -684,27 +682,20 @@ via `git rebase <branch>`, never `git merge`. Linear history.
 
 ## Rebase Onto Diverged main: driving the bookkeeping conflicts
 
-A rebase of local commits onto a diverged `origin/main` re-conflicts on
-`ai/LEARNED-FULL-INDEX.md` at nearly every learned-touching commit -- the
-cross-branch learned-number collision covered in "Commit Rules" step 4 and
-`plan/learned/1155`. That file is derivable, so drive the rebase with
-`scripts/dev/rebase_learned.py`: the human starts (and, if needed, aborts) the
-rebase; the script regenerates the index (via `learned_index.py`) at each stop
-and HALTS on any other unmerged path. Resolve that file, then re-run with
-`--take-theirs PATH` / `--take-ours PATH` / `--accept-incoming-delete` (each
-logged, never silent). `--help` documents the flags and exit codes.
+A rebase of local commits onto a diverged `origin/main` can re-conflict on
+derivable bookkeeping files (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`).
+Regenerate with `make ze-discovery-index` at each rebase stop and continue.
 
-Finish the rebase first, then fix numbering -- never mid-rebase. Afterwards run
-`make ze-learned-numbers-fix` (renumbers colliding summaries and rewrites their
-references) and recompute any derived ratchet the rebase loosened (e.g.
-`test/.ci-sleep-baseline` = actual `time.sleep(` count in `test/**/*.ci`).
+Finish the rebase first, then repair bookkeeping -- never mid-rebase. Afterwards
+regenerate the derived indexes with `make ze-discovery-index` and recompute any
+derived ratchet the rebase loosened (e.g. `test/.ci-sleep-baseline` = actual
+`time.sleep(` count in `test/**/*.ci`).
 
 Gotcha: `git rebase --continue` refuses with a MISLEADING "You must edit all
 merge conflicts" whenever there are unstaged tracked changes, not only when
 index entries are unmerged (`builtin/rebase.c` ACTION_CONTINUE checks
-`has_unstaged_changes()`). rebase_learned.py detects this and names the real
-files. The behavior is pinned by `TestRebaseContinueMessageIsMisleading` in
-`scripts/dev/rebase_learned_test.py`, so believe the test, not the message.
+`has_unstaged_changes()`). Read `git status` for the unstaged tracked files and
+stage or discard them; the message names conflicts you do not have.
 Per "Branch Changes Are Forbidden" above, the AI never runs `git rebase`
 itself; the script only resolves conflicts within a rebase the user started.
 

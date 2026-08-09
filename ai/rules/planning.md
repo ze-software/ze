@@ -219,7 +219,7 @@ present options and wait. Never edit files until explicitly approved.
 
 - **Style:** Tables and prose, never code (`ai/rules/spec-no-code.md`)
 - **Editing:** Append-only. Strikethrough + reason for superseded content.
-- **Deletion allowed:** Writing summary to learned, user requests, typo fixes only.
+- **Deletion allowed:** writing the journal row, user requests, typo fixes only.
 - **Research capture (MUST DO):** All findings from RESEARCH phase go in spec exhaustively -- file surveys, function lists, split decisions, reasons for NOT splitting. Spec is single source of truth. Implementation sessions execute from spec alone.
 
 ## Risks & Assumptions (BLOCKING for new specs)
@@ -232,7 +232,7 @@ tables, not just spoken at the gate -- gate conversation does not survive the se
 | Table | Captures | Lifecycle |
 |-------|----------|-----------|
 | Assumptions (A-N) | Beliefs the design depends on, with Basis and a validation method | `unvalidated` → `confirmed` or `broken`. Validate cheap ones (grep/read) during the /ze-implement audit, before coding. |
-| Risks (R-N) | Failure modes that exist even if assumptions hold, with early signal + mitigation | Reviewed at each phase; surviving risks copy forward to the Executive Summary and learned summary. |
+| Risks (R-N) | Failure modes that exist even if assumptions hold, with early signal + mitigation | Reviewed at each phase; surviving risks copy forward to the Executive Summary and, when one is owed, to the journal row. |
 
 Rules:
 
@@ -250,7 +250,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 | Naming | `spec-<prefix>-<N>-<name>.md` |
 | Umbrella | `spec-utp-0-umbrella.md` |
 | Children | `spec-utp-1-event-format.md`, `spec-utp-2-command-format.md` |
-| Done path | `plan/learned/NNN-<prefix>-<N>-<name>.md` |
+| Done path | journal row in `plan/journal/<class>.md` naming the spec in the Spec column |
 
 - **Prefix:** short mnemonic for the effort (e.g., `utp` = unified text protocol)
 - **Number:** 0 = umbrella, 1+ = children in execution order
@@ -319,7 +319,7 @@ A spec that stays in `design` during implementation is lying about its state.
 
 ## Retroactive Specs
 
-If a spec describes work that is **already implemented**, run the full Completion Checklist immediately -- audit, write summary to `plan/learned/`, include in the same commit as the code. Never commit a spec in `plan/` for work that's already done.
+If a spec describes work that is **already implemented**, run the full Completion Checklist immediately -- audit, append the journal row to `plan/journal/<class>.md`, include it in the same commit as the code. Never commit a spec in `plan/` for work that's already done.
 
 ## Completion Checklist
 
@@ -352,18 +352,17 @@ After all tests pass, complete IN ORDER:
 [ ] 6. Critical Review (BLOCKING -- rules/quality.md)
 [ ] 7. Review Mistake Log -- check MEMORY.md, promote if seen before
 [ ] 7. Update spec -- Implementation Summary, Documentation Updates, Deviations
-[ ] 7. Write learned summary: plan/learned/NNN-<name>.md (allocate NNN with `scripts/dev/commit_helper.py learned-next <slug>`)
+[ ] 7. Write journal row: append a row to `plan/journal/<class>.md` naming the spec in the Spec column
 [ ] 7. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report -- present to user with what was done and what is left (including deferred).
-        BLOCKING: learned summary (step 10) must exist. Name the file in the report.
+        BLOCKING: journal row (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
 [ ] 7. Commit (when user says so) -- ONE helper-generated script, TWO commits (per Spec Closure below):
         - **Commit A:** `scripts/dev/commit_helper.py create --replace` with `--file` for all implementation files (code, tests, docs, schema)
-          + `--file plan/learned/NNN-<name>.md` + `--file plan/spec-<name>.md` (preserves edits)
-          + include `--file ai/LEARNED-INDEX.md` if updated
+          + `--file plan/journal/<class>.md` + `--file plan/spec-<name>.md` (preserves edits)
         - **Commit B:** `scripts/dev/commit_helper.py create --append --remove plan/spec-<name>.md` (spec closure)
         Run the generated script yourself and the work is done. There is no
-        second step. If spec closure or learned summary is missing, it never happens.
+        second step. If spec closure or the journal row is missing, it never happens.
         Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
 ```
 
@@ -466,7 +465,7 @@ reviewers caught on the same diff minutes later.
 ### Enforcement (critical review, structural: a hook, not discipline)
 
 `scripts/dev/commit_helper.py` refuses a spec-closure commit (one that adds a
-`plan/learned/NNN-*.md` or removes a `plan/spec-*.md`) unless `review_gate.py
+`plan/journal/*.md` row naming the spec, or removes a `plan/spec-*.md`) unless `review_gate.py
 check` passes: a CLEAN artifact exists, covers every reviewable file in the commit
 (the ze-close closure commits all of a spec's code in commit A, so that is
 full coverage), and its hashes still match (any edit after the review invalidates
@@ -510,7 +509,7 @@ review.
 
 **A spec that passes its Review Gate is not done until it is deleted from `plan/`.**
 
-The lifecycle is: `in-progress` -> Review Gate clean -> write learned summary -> `git rm` spec.
+The lifecycle is: `in-progress` -> Review Gate clean -> write journal row -> `git rm` spec.
 Leaving a completed spec in `plan/` causes every future session to count it as open work.
 
 **TWO commits, ONE script.** The spec is edited during implementation (design notes,
@@ -520,7 +519,7 @@ deletion, the design work is lost from git history forever.
 
 The helper-generated commit script MUST produce two commits:
 1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
-   with `--file` for all code, tests, docs, learned summary, LEARNED-INDEX,
+   with `--file` for all code, tests, docs, journal row,
    AND the spec file itself (with all edits from implementation).
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
    If the spec has a deferral shard AND every row in it is terminal,
@@ -541,8 +540,9 @@ final state is already committed.
 
 **EVERY reference survives closure, not only `// Design:`.** Before commit B, grep
 the WHOLE PATH `plan/spec-<stem>.md` across the tree, not the `// Design:` prefix,
-and rewrite every hit to the learned summary (`plan/learned/NNN-<name>.md`)
-inside commit A.
+and rewrite every hit to the appropriate destination (an `ai/rules/` file, a
+`docs/architecture/` page, or one of the three `plan/learned/` aggregates:
+`DESIGN-HISTORY.md`, `HOOK-FRICTION.md`, `RECURRING-PATTERNS.md`) inside commit A.
 
 Three gates read three different reference kinds, and greping for one leaves the
 other two red:
@@ -551,7 +551,6 @@ other two red:
 |------|-------|-------------------------------------|
 | `check_doc_links.py --design-only` | `// Design:` lines in `.go` | no |
 | `spec-citation-check.py` | ANY `plan/spec-*.md` string inside a `plan/spec-*.md` | YES -- spec-to-spec citations |
-| `learned_staleness.py` | cited paths inside `plan/learned/*.md` | YES -- a summary naming the spec |
 
 MEASURED twice in one day. The wire-edit and knowledge sets closed on 2026-08-02
 leaving 31 spec-to-spec citations and 28 dead learned-summary paths, which reddened
@@ -560,9 +559,10 @@ those then closed its OWN spec hours later and left 158 more, because it greped
 `// Design:` exactly as this clause used to say.
 
 **Then re-read what the substitution produced.** A bulk repoint turns a sentence
-ABOUT the spec into a sentence about a summary, and some of those become false: a
-learned summary does not "own rows", is not "active", has no "phase 2b", and is not
-somewhere work can be "implemented inside". Grep the new path next to `that spec`,
+ABOUT the spec into a sentence about its destination, and some of those become
+false: a rule page, an architecture page and a journal row do not "own rows", are
+not "active", have no "phase 2b", and are not somewhere work can be "implemented
+inside". Grep the new path next to `that spec`,
 `this spec`, `the pilot`, `owns`, `active` and `Depends`, and rewrite what reads
 wrong. Naming the spec WITHOUT its `plan/` path is the way to keep a true sentence
 about a file that is gone: the citation gate matches the path, not the name.
@@ -570,8 +570,8 @@ about a file that is gone: the citation gate matches the path, not the name.
 **Closure resolves the spec's deferral rows.** Before commit B, grep
 `plan/deferrals/` for this spec's filename (a row naming it as Destination may live in
 any source's shard, not only this spec's own). Every row naming it as **Destination**
-must be resolved inside commit A: set Status `done` and Destination to the learned
-summary (`plan/learned/NNN-<name>.md`), which is where the knowledge now lives. This
+must be resolved inside commit A: set Status `done` and Destination to the journal
+class file (`plan/journal/<class>.md`), which is where the knowledge now lives. This
 is separate from the shard removal in commit B, above: this resolves rows that POINT
 AT the spec, which closure must do because it is deleting their destination. It does
 NOT retire the rows the spec SOURCED. Those are governed by commit B's condition:
@@ -589,12 +589,12 @@ neither side was written down: "destination must exist" and "closure deletes the
 spec" are both right, and closure is the side that must give.
 
 Resolving the row is not a claim that the deferred work was implemented. It records
-that the deferral has a permanent home. If the learned summary does NOT record the
-item (check, do not assume: a Review Gate NOTE on a deleted spec evaporates, and a
-summary with no Known Limitations section records nothing), then the row has no home:
-keep it live and give it a real destination spec per "Choosing the Destination Spec",
-below. Never resolve a row to a summary that does not mention it: that is the
-fail-open the gate exists to catch (`ai/rules/evidence.md`).
+that the deferral has a permanent home. If the record you resolve it to does NOT
+carry the item (check, do not assume: a Review Gate NOTE on a deleted spec
+evaporates, and a journal row states one symptom and one fix, nothing else), then
+the row has no home: keep it live and give it a real destination spec per "Choosing
+the Destination Spec", below. Never resolve a row to a record that does not mention
+it: that is the fail-open the gate exists to catch (`ai/rules/evidence.md`).
 
 **Never `git rm -f` a spec without committing it first.** The `-f` flag silently
 discards uncommitted edits. If the spec was modified during implementation (it
@@ -605,7 +605,7 @@ almost always is), those modifications must be committed before deletion.
 | "I'll close it later" | Later never comes. Other sessions see it as in-progress. |
 | `git rm` a spec while a deferral row still names it as Destination | The row dangles forever. Nothing blocks: the gate is advisory, so it is reported and ignored. Resolve it in commit A. |
 | `git rm` a deferral shard that still holds a live row | Deletes the record AND silences every observer of it, because they all fold over the directory. `deferral_shard_removal_problems` blocks this one ("Central Log", below). |
-| Resolving a row to a learned summary that never mentions the item | Fail-open bookkeeping: the row goes quiet and the knowledge is lost. Verify the summary records it. |
+| Resolving a row to a record that never mentions the item | Fail-open bookkeeping: the row goes quiet and the knowledge is lost. Verify the record carries it. |
 | "The user will handle it" | The user asked us to implement. Closure is part of implementation. |
 | `git rm` in the same commit as implementation | Spec edits are lost from history. Two commits required. |
 | `git rm -f` without a prior commit of the spec | Destroys uncommitted design work. |
@@ -620,9 +620,9 @@ gates exist for it, and all three run. The `Stop` array in
 
 | Gate | Where | Fires when |
 |------|-------|-----------|
-| Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** `plan/learned/NNN-<slug>.md` whose slug **exactly equals** the spec stem while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates (child/sibling/predecessor summaries) are listed under NEEDS VERIFICATION and must be audited before closing: they are usually false positives. Only the high-confidence set triggers the `--spec` block. |
+| Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** journal row in `plan/journal/*.md` whose Spec cell exactly equals the spec stem, or a `plan/learned/NNN-<slug>.md` whose slug exactly equals the stem, while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates are listed under NEEDS VERIFICATION. Only the high-confidence set triggers the `--spec` block. |
 | Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session CLAIMED a spec, the detector exits 3 for it, and no ack exists. The hook refuses the session an end (exit 2). Escape: record why the spec is genuinely open in `tmp/session/.closure-ack-<stem>`. A session that claimed no spec is never asked to close one. The gate carries no retry bound on purpose: a refused stop leaves it armed next turn, and it has two escapes of its own (run commit B, or write the ack). |
-| Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
+| Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a journal row or learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
 
 Run `scripts/dev/spec-closure-check.py --list` any time to see the backlog.
 
@@ -632,11 +632,11 @@ Rationale: `ai/rationale/spec-preservation.md`
 
 **Discard:** Audit tables, checklists, post-compaction instructions, BLOCKING markers, status columns, template scaffolding.
 
-The original spec in `plan/` is deleted after the summary is written, but the completed spec MUST be committed to git first so it is preserved in history.
+The original spec in `plan/` is deleted after the journal row is written, but the completed spec MUST be committed to git first so it is preserved in history.
 
 Never delete the spec without committing it first. A spec that was never committed is lost forever -- its audit tables, verification evidence, and design decisions cannot be reviewed.
 
-Principle: transform scaffolding into knowledge. See `plan/learned/METHODOLOGY.md` for the extraction recipe and "Writing Learned Summaries" below for the summary format.
+Principle: transform scaffolding into knowledge. See "Writing Journal Rows" below for what a row holds and when one is owed.
 
 ## Verify Specs Against Code (BLOCKING)
 
@@ -740,7 +740,7 @@ Destination of every row whose Status is NOT terminal. The terminal set is
 | `open` | Live: synonym of `deferred`. Prefer `deferred` | YES |
 | `done` | Terminal. The work landed, or the row was superseded | no |
 | `cancelled` | Terminal. User decided not to do it | no |
-| `resolved` | Terminal. Closed with evidence (learned summary) | no |
+| `resolved` | Terminal. Closed with evidence (a journal row, or the commit that landed the work) | no |
 
 **A homed row stays live.** The status answers "is this work still outstanding",
 NOT "does it have a home". Homing is mandatory, so a live row is the NORMAL,
@@ -862,7 +862,7 @@ not silently lost.
 ### Verify Before Deferring (BLOCKING)
 
 Never claim "requires infrastructure that doesn't exist" without grepping for it first.
-Before writing "deferred -- requires X" in any spec or summary, grep for X. If it exists,
+Before writing "deferred -- requires X" in any spec or journal row, grep for X. If it exists,
 implement it. If genuinely missing, name the specific thing that is missing and where it
 would need to be added.
 
@@ -936,51 +936,34 @@ narrative (`ai/rules/writing.md`).
 See `ai/rules/writing.md` for the canonical 12-row checklist.
 Every row must be answered Yes/No. Every Yes must name the file and what to add.
 
-## Writing Learned Summaries
+## Writing Journal Rows
 
-**A summary is written only when the work produced a lesson. It is a record of knowledge, never an artifact of closing a spec.** Decide this BEFORE allocating a number: a spec that rejected no alternative, discovered no constraint, and hit no trap writes no file, and `plan/learned/` does not grow. 229 of 1,285 summaries carried no gotcha and 77 said in words that they carried none, because closure created the file unconditionally.
+**A journal row is written only when the work produced a lesson. It is a record of knowledge, never an artifact of closing a spec.** Decide this BEFORE you write: a spec that rejected no alternative, discovered no constraint, and hit no trap appends no row. 229 of the 1,285 summaries this journal replaced carried no gotcha and 77 said in words that they carried none, because closure created a file unconditionally.
 - **Write one when any of these holds:** a decision was made and something else was rejected; a constraint was found that the code does not state; something failed in a way the next session would repeat; an interface, a gate, or a default changed and the reason is not in the code.
-- **Write none when the change only relocated content:** a move, a file rename, a reformat, or a rename applied everywhere. Same words, different place, nothing to explain (`plan/learned/METHODOLOGY.md`, "When No Summary Is Written").
-- **When there is one, allocate with `scripts/dev/commit_helper.py learned-next <slug>`:** it takes max(existing `plan/learned/NNNN-*.md` prefixes) + 1 and creates the file immediately, so concurrent sessions in one tree cannot collide. Include the created file in the Commit A helper command.
-- **When there is none, pass `--lesson-not-needed "<reason>"` on commit A and never `--lesson-required`.** Never run `learned-next` to "see the number": it allocates and writes on the spot, leaving an empty summary behind.
-- **The helper asks the same question of the diff, so an honest no costs one flag.** `lesson_worthy` (`scripts/dev/commit_helper.py`) refuses commit A when the change adds content rather than moving it and neither a summary nor a reason is staged. It reads what changed, not whether it is worth knowing, so a hollow gotcha written to satisfy it satisfies nothing.
-- **A summary is useful only if it helps future software development, explains past design, or prevents a past mistake from being repeated (owner directive, 2026-08-03). If it does none of the three, it is not useful and does not get written or kept.** The tests are the sections themselves: `Consequences` helps future work when it states what someone touching the area next cannot learn from the code; `Decisions` explains past design when it names what was chosen AND what was rejected; `Gotchas` prevents a repeat when it names a trap a future session would otherwise hit.
-- **The third test carries its own weight and is not a restatement of the first.** Measured 2026-08-03 over 903 summaries, 65 qualify on `Gotchas` alone: under a two-test reading they would have been deleted, and each one is a trap somebody already paid for.
-- **Usefulness is a property of the content, not of whether anything cites it.** Of the same 903, 63 fail all three tests, and 445 pass while nothing in the tree points at them. An uncited summary carrying a real constraint is a ROUTING failure, so route it. Only the 40 that fail the content test AND are uncited are waste.
-- **ROUTE the lesson to where it governs behaviour, and write a summary only when it fits nowhere else yet.** A recurring trap belongs in a rule under `ai/rules/`, a design decision in `docs/architecture/`, a subsystem's data flow in `ai/digests/`, a protocol obligation in `rfc/short/`, an abandoned approach in `plan/learned/DESIGN-HISTORY.md`, hook or tooling friction in `plan/learned/HOOK-FRICTION.md`. `plan/learned/` is a staging queue, not an archive (`plan/spec-knowledge-routing.md`).
-- **`lesson_comment` accepts a route exactly as it accepts a summary**, so putting the lesson in its canonical home and passing that path with `--file` satisfies commit A. A destination that is ALSO lesson-worthy does not count on its own: a commit touching only `ai/rules/` cannot satisfy itself, or the gate degrades into never asking.
+- **Write none when the change only relocated content:** a move, a file rename, a reformat, or a rename applied everywhere. Same words, different place, nothing to explain.
+- **When there is one, append a row to `plan/journal/<class>.md`** (create the file when the class is new). Include the journal file in the Commit A `--file` list.
+- **When there is none, pass `--lesson-not-needed "<reason>"` on commit A and never `--lesson-required`.**
+- **The file name is the PROBLEM class in kebab-case, never the subsystem.** Recurrence is the row count, so a repeat is countable only when two sessions writing the same failure pick the same file. The corpus this replaced counted nothing because its titles clustered on `plugin` (31), `config` (27) and `ospf` (16). `plan/journal/README.md` holds the format, and the directory listing is the class vocabulary.
+- **Fill the `Spec` cell with the spec stem, or `-` when the work ran outside a spec.** `spec_closure_stem` (`scripts/dev/commit_helper.py`) reads that cell to recognise commit A as a spec closure and hands the stem to `review_gate_problems`, so a row that leaves it empty drops the review gate off the commit that carries the code.
+- **The helper asks the same question of the diff, so an honest no costs one flag.** `lesson_worthy` (`scripts/dev/commit_helper.py`) refuses commit A when the change adds content rather than moving it and neither a row nor a reason is staged. It reads what changed, not whether it is worth knowing, so a hollow row written to satisfy it satisfies nothing.
+- **A row is useful only if it helps future software development, explains past design, or prevents a past mistake from being repeated (owner directive, 2026-08-03). If it does none of the three, it is not useful and does not get written or kept.** The cells are the test: `Symptom` prevents a repeat when it names the trap in the words a future session would recognise, and `Fix` explains past design when it names what was done rather than that something was done.
+- **Usefulness is a property of the content, not of whether anything cites it.** An uncited row carrying a real constraint is a ROUTING failure, so route it. Only a row that fails the content test AND is uncited is waste.
+- **ROUTE the lesson to where it governs behaviour, and write a row only when it fits nowhere else yet.** A recurring trap belongs in a rule under `ai/rules/`, a design decision in `docs/architecture/`, a subsystem's data flow in `ai/digests/`, a protocol obligation in `rfc/short/`, an abandoned approach in `plan/learned/DESIGN-HISTORY.md`, hook or tooling friction in `plan/learned/HOOK-FRICTION.md`.
+- **`lesson_comment` accepts a route exactly as it accepts a row**, so putting the lesson in its canonical home and passing that path with `--file` satisfies commit A. A destination that is ALSO lesson-worthy does not count on its own: a commit touching only `ai/rules/` cannot satisfy itself, or the gate degrades into never asking.
 - **Measured 2026-08-03 over 903 summaries: 13 were referenced by a rule or a hook.** The other 890 reached nothing that governs behaviour. A gate that demands a document produces an archive; one that demands a destination produces guidance.
-- **This governs records of COMPLETED WORK, and it says nothing about records of DEFECTS.** A `plan/known-failures/` shard, a `plan/deferrals/` row, and an open red are governed by `ai/rules/completion.md` and `ai/rules/completion.md`, which forbid recording a defect INSTEAD of fixing it and equally forbid making one disappear. Nothing in this section, and nothing in the retirement of an old summary, is permission to prune a defect record: the two directions look alike and are opposite. A summary nobody needs is noise; a defect record nobody kept is a bug that returns.
+- **This governs records of COMPLETED WORK, and it says nothing about records of DEFECTS.** A `plan/known-failures/` shard, a `plan/deferrals/` row, and an open red are governed by `ai/rules/completion.md` and `ai/rules/completion.md`, which forbid recording a defect INSTEAD of fixing it and equally forbid making one disappear. Nothing in this section is permission to prune a defect record: the two directions look alike and are opposite. A row nobody needs is noise; a defect record nobody kept is a bug that returns.
 
-**The learned-staleness ceiling is drained, never removed and never widened.** A session that meets the number in `plan/.learned-staleness-baseline` will propose ending the tax: delete the gate, or turn `plan/learned/` into an ungated append-only archive. That proposal was made on 2026-08-07, measured, and rejected. The reasons are here so the next session does not re-derive the same wrong conclusion from the same data (`plan/learned/1356-learned-corpus-drain-over-archive.md`).
-- **The ceiling is shrink-only by construction, and its own header states the intent: "grandfather the known rot, refuse to let it grow".** It went from 1,856 dead references to 318 that way. `write_baseline` (`scripts/dev/learned_staleness.py`) refuses a raise that carries no written reason.
-- **When the tax reads as permanent, ARM THE DRAIN.** `plan/.learned-staleness-drain` carries a start date and a rate, ships at rate 0, and only Thomas arms it. It is the mechanism that answers "this never ends". Deleting the gate is not that answer, and neither is raising the ceiling.
-- **Removing the gate from an uncited corpus converts "uncited but retrievable" into "uncited and quietly wrong".** Of 931 summaries, 428 are cited outside `plan/learned/` and outside the two generated indexes, so 503 of them, 54%, are cited nowhere else. That half is the half nobody opens, so nobody sees its references rot. The gate is the only reader it has.
-- **Citation count measures RETRIEVAL, never worth.** A summary that carries a real constraint and that nothing points at is a routing failure, and the fix is to route it. The same error in mirror image made "17 of 27 rules carry a hook" read as two-thirds coverage, when the real figure was 3% per instruction.
-- **`plan/learned/` is the rationale layer for hooks and code, not for rules.** Measured 2026-08-07: `.claude/` cites it 1,247 times and `internal/` 1,180 times, against 13 citations from a rule or a point, now 15 because this work added the `rationale:` links. `ai/rationale/` is per-rule and holds 45 files, so it cannot carry what a hook comment needs. Retiring the corpus retires the explanation behind 2,427 hook and code citations.
+| Cell | Content |
+|------|---------|
+| `Date` | The date the problem was found, as `YYYY-MM-DD` |
+| `Spec` | The stem of the spec that found it, or `-` when the work ran outside a spec |
+| `Surface` | The subsystem the symptom appeared in |
+| `Symptom` | What went wrong, in the words a future session would recognise |
+| `Fix` | What was done about it |
 
-The summary is 25 to 35 lines and uses this fixed 5-section format. The budget is
-real: summaries averaged 27 lines in the first hundred and 93 in the last hundred.
-Over budget means cut, never a second file (`ai/rules/writing.md`).
-
-| Section | Content |
-|---------|---------|
-| `# NNN -- Name` | Title from spec filename |
-| `## Context` | Short paragraph (3-5 sentences): what problem existed, what was the symptom, what was the goal |
-| `## Decisions` | Bullet points: what was decided, what was rejected, and why |
-| `## Consequences` | Bullet points: what this enables, constrains, or changes going forward |
-| `## Gotchas` | Bullet points: what surprised, failed, or trapped (never skip) |
-| `## Files` | Key files modified/created |
-
-**Context** replaces Objective. It preserves the spec's Task section: the problem, the symptom, the goal. Quality check: "Could a future reader reconstruct *why this work was worth doing* from this section alone?"
-
-**Decisions** must include "over" clauses when alternatives were considered: "chose X over Y because Z."
-
-**Consequences** captures forward-looking impact: capabilities unlocked, constraints accepted, future work this interacts with. Quality check: "If someone touches this area next, what do they need to know that the code alone won't tell them?"
-
-General quality check: "If I deleted this entry, would a future session miss something that code alone cannot tell them?"
-Source: extract from Task, Implementation Summary, Design Insights, Mistake Log, and Deviations sections of the spec.
-Include the summary in the same commit as code changes.
+General quality check: "If I deleted this row, would a future session repeat the problem it records?"
+Source: extract from the Task, Design Insights, Mistake Log, and Deviations sections of the spec.
+Include the journal file in the same commit as the code changes.
 
 ## Session Handoff
 
@@ -1034,7 +1017,7 @@ When a handoff must survive beyond the chat (multi-session work, work picked
 up days later), write it to `plan/handover/NN-<slug>.md` using the same template.
 
 - `NN` = highest existing number in `plan/handover/` plus one. Check with `ls plan/handover/` first; never reuse a number (collisions like two `13-*.md` defeat ordering).
-- One handover per file, and only under `plan/handover/`. Do not scatter handover documents elsewhere in `plan/` (the rest of `plan/` is specs + learned summaries).
+- One handover per file, and only under `plan/handover/`. Do not scatter handover documents elsewhere in `plan/` (the rest of `plan/` is specs, journal classes, deferral shards and known-failure shards).
 - The receiving session follows `.claude/rules/session-start.md` "Receiving a Handoff": enumerate every outstanding item before planning.
 - Delete the handover file in the commit that completes its last item.
 

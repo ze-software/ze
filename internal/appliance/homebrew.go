@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — Homebrew prefix resolution for the macOS build host
+// Design: docs/architecture/appliance/builder.md -- Homebrew prefix resolution for the macOS build host
 
 package appliance
 

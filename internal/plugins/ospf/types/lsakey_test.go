@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- LSAKey extraction, equality, and ordering
+// Design: docs/architecture/ospf/ospf-1-types.md -- LSAKey extraction, equality, and ordering
 
 package types
 

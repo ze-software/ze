@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- own-LSP origination and sequence state.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- own-LSP origination and sequence state.
 // Related: lsdb_wiring.go -- originate(), the coalescing guard this file bypasses
 // Related: dis_wiring.go -- the pseudo-node origination this file re-arms
 // Related: lsdb/lsdb.go -- ownConflictResult, which detects the conflict

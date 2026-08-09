@@ -71,9 +71,9 @@ func subnetMsg(qname string, qtype uint16, subnet string) *dns.Msg {
 }
 
 // test-relax: TestClientIPSourceModes unit-tested the package-local clientIP
-// function directly. plan/learned/1027-dns-server-harness.md moved that
-// function to dnsserver.ClientIP and explicitly directs the unit test to be
-// "ported" there -- it now lives, verbatim in scenario coverage, as
+// function directly. The shared DNS harness moved that function to
+// dnsserver.ClientIP (docs/architecture/dns/server-harness.md) and the unit
+// test was ported with it: it now lives, verbatim in scenario coverage, as
 // TestClientIP_EDNS0AndPacket in internal/core/dnsserver/client_test.go.
 // geodns has no local function left to unit-test directly; the equivalent
 // client-IP-driven source selection is still proven end-to-end over the wire

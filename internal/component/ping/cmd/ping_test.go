@@ -1,4 +1,4 @@
-// Design: plan/learned/664-diag-5-active-probes.md -- ping argument parsing tests
+// Design: docs/architecture/diagnostics/active-probes.md -- ping argument parsing tests
 
 package cmd
 

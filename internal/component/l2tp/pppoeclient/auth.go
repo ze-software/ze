@@ -1,4 +1,4 @@
-// Design: plan/learned/705-cpe-1-pppoe-client.md -- client-mode PPP authentication
+// Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- client-mode PPP authentication
 
 package pppoeclient
 

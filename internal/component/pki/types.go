@@ -1,4 +1,4 @@
-// Design: plan/learned/733-pki-store.md -- PKI certificate store types
+// Design: docs/architecture/pki/pki-store.md -- PKI certificate store types
 
 package pki
 

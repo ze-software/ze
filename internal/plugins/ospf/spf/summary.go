@@ -1,4 +1,4 @@
-// Design: plan/learned/963-ospf-9-inter-area-abr.md -- Type 3/4 Summary-LSA origination.
+// Design: docs/architecture/ospf/ospf-9-inter-area-abr.md -- Type 3/4 Summary-LSA origination.
 // RFC: rfc/short/rfc2328.md (sec 12.4.3 Summary-LSA origination + area ranges)
 //
 // ABRs originate Summary-LSAs for inter-area destinations, aggregate configured area ranges,

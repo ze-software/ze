@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP framework and method dispatch
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP framework and method dispatch
 // RFC: rfc/short/rfc3748.md -- EAP packet format, exchange model (Sections 2, 4)
 
 package eap

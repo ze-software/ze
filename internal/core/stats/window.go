@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- shared traffic-analysis stats primitives
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- shared traffic-analysis stats primitives
 //
 // Package stats holds the domain-NEUTRAL statistical primitives shared by the
 // traffic-analysis layers (trafficstat, trafficfeature) and the detection plugins

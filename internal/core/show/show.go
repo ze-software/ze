@@ -1,4 +1,4 @@
-// Design: plan/learned/894-show-enricher.md -- show enricher registry
+// Design: docs/architecture/show-enricher.md -- show enricher registry
 
 package show
 

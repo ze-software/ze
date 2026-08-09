@@ -1,4 +1,4 @@
-// Design: plan/learned/966-ospf-12-auth.md -- engine glue for OSPFv2 authentication.
+// Design: docs/architecture/ospf/ospf-12-auth.md -- engine glue for OSPFv2 authentication.
 // Related: internal/plugins/ospf/transport -- the TX path the signer hooks into.
 // RFC: rfc/short/rfc2328.md (App D), rfc/short/rfc5709.md, rfc/short/rfc7474.md
 

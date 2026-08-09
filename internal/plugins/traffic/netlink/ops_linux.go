@@ -1,4 +1,4 @@
-// Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore
+// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- tc original-qdisc restore
 // Related: backend_linux.go -- tc backend using this operation seam
 
 //go:build linux

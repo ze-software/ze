@@ -1,4 +1,4 @@
-// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec data model types
+// Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec data model types
 // RFC: rfc/short/rfc7296.md -- Identification payloads (Section 3.5), conformance set (Section 4)
 // Related: types.go -- AuthConfig, which carries the parsed RemoteIDType
 // Related: validate.go -- the commit-time identity checks that read these names

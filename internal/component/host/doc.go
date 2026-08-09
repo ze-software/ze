@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md — hardware inventory detection
+// Design: docs/architecture/host/inventory.md -- hardware inventory detection
 //
 // Package host reads the physical hardware inventory from sysfs, procfs,
 // and netlink. It is read-only and stateless: every Detect call returns

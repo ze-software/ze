@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- RunInitrd wiring test
+// Design: docs/architecture/appliance/installer-initrd.md -- RunInitrd wiring test
 
 //go:build linux && ze_installer
 

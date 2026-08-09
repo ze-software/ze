@@ -1,4 +1,4 @@
-// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec cross-reference validation
+// Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec cross-reference validation
 // RFC: rfc/short/rfc7296.md -- Section 2.16, EAP responder public-key authentication
 // Related: identity.go -- the remote-id-type name-to-number mapping these checks read
 

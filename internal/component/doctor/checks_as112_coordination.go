@@ -1,4 +1,4 @@
-// Design: plan/learned/1034-as112-3-bgp-integration.md -- AC-10/AC-11
+// Design: docs/architecture/bgp/as112-coordination.md -- AS112 advisory coordination checks
 // advisory doctor checks (H2/R-4, M5/R-3), built after the closed
 // as112-3 spec deferred them pending a doctor-check "home" decision.
 // Detail: checks_as112_coordination_test.go -- unit tests for both checks

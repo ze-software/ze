@@ -141,7 +141,8 @@ type AdjRIBInManager struct {
 	//
 	// Both used to fire. bgp-rs does NOT withhold a replaying peer from its
 	// forward targets (rs/server_forward.go selectForwardTargets keys on peer.Up
-	// alone -- a deliberate decision, plan/learned/630-rs-fastpath-3-passthrough.md),
+	// alone -- deliberate: a duplicate UPDATE is idempotent at the receiver,
+	// while excluding a replaying peer loses routes when peers connect together),
 	// so with both running, a route learned just before a peer established went
 	// out twice: once from this plugin's self-replay and once from bgp-rs.
 	// Standing down leaves exactly one replay owner.

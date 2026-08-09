@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 from discovery_sources import (
     DOCS_TO_CODE,
     GENERATORS,
-    LEARNED_INDEX,
     OUTPUTS,
     PACKAGE_MAP,
     indexes_fed_by,
@@ -28,8 +27,8 @@ class TestDiscoverySources(unittest.TestCase):
         self.assertTrue(is_discovery_source("Makefile"))
         self.assertTrue(is_discovery_source("mk/inventory.mk"))
 
-    def test_learned_summary(self):
-        self.assertTrue(is_discovery_source("plan/learned/1067-topic.md"))
+    def test_learned_summary_not_a_source(self):
+        self.assertFalse(is_discovery_source("plan/learned/1067-topic.md"))
         self.assertFalse(is_discovery_source("plan/spec-topic.md"))
 
     def test_register_go(self):
@@ -61,10 +60,8 @@ class TestIndexesFedBy(unittest.TestCase):
     index", so the commit gate can demand only the indexes a commit's sources
     actually feed."""
 
-    def test_learned_summary_feeds_only_learned_index(self):
-        self.assertEqual(
-            indexes_fed_by("plan/learned/1067-topic.md"), frozenset({LEARNED_INDEX})
-        )
+    def test_learned_summary_feeds_nothing(self):
+        self.assertEqual(indexes_fed_by("plan/learned/1067-topic.md"), frozenset())
 
     def test_design_header_feeds_only_docs_to_code(self):
         self.assertEqual(

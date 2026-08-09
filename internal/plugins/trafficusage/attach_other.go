@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/977-traffic-usage.md -- traffic-usage non-Linux stub attacher
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage non-Linux stub attacher
 
 package trafficusage
 

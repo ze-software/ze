@@ -1,4 +1,4 @@
-// Design: plan/learned/666-bng-1-radius-attributes.md -- RADIUS attribute metadata store
+// Design: docs/architecture/l2tp/bng-1-radius-attributes.md -- RADIUS attribute metadata store
 // Related: handler.go -- AuthMetadata struct, AuthHandler types
 
 package l2tp

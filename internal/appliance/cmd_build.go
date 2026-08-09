@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — full image build (assemble + gok + ext4)
+// Design: docs/architecture/appliance/builder.md -- full image build (assemble + gok + ext4)
 
 package appliance
 

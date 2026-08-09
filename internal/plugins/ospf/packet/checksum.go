@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- packet and LSA checksum application
+// Design: docs/architecture/ospf/ospf-2-wire.md -- packet and LSA checksum application
 // RFC 2328 Appendix A.3.1: packet checksum excludes Authentication bytes.
 // RFC 2328 Section 12.1.7: LSA checksum excludes LS Age.
 

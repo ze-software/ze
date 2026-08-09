@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- `show ospf ...` under the
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- `show ospf ...` under the
 // top-level show grammar.
 // Related: register.go -- runOSPFEngine registers the matching CommandDecl set and the
 // OnExecuteCommand render dispatch.

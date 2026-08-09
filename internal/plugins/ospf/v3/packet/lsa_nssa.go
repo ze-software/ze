@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 NSSA-LSA body codec (reuses the external body).
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 NSSA-LSA body codec (reuses the external body).
 // RFC: rfc/short/rfc5340.md (§A.4.8 NSSA-LSA)
 
 package packet

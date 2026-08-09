@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- as112 config parse + validation
+// Design: docs/architecture/dns/as112.md -- as112 config parse + validation
 // RFC: rfc/short/rfc7534.md -- address-family single-stack option (Section 3.4)
 
 package as112

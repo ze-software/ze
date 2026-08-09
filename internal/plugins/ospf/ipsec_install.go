@@ -1,4 +1,4 @@
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- RFC 4552 IPsec installer (IPv6 family).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- RFC 4552 IPsec installer (IPv6 family).
 // Related: config_ipsec.go -- the validated per-interface IPsec block this consumes.
 // Related: v3/transport/transport.go -- InterfaceSource supplies the link-local + ifindex.
 // RFC: rfc/short/rfc4552.md -- OSPFv3 IPsec AH/ESP; rfc/short/rfc4303.md -- ESP SPI/keys.

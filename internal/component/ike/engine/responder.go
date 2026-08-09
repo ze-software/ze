@@ -1,4 +1,4 @@
-// Design: plan/learned/1072-ipsec-14-responder.md -- IKE responder handshake (mirror of the initiator)
+// Design: docs/architecture/ike/ipsec-14-responder.md -- IKE responder handshake (mirror of the initiator)
 // Related: ts_narrow.go -- RFC 7296 Section 2.9 narrowing of the initiator's traffic selectors
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT / IKE_AUTH responder (Sections 1.2, 2.4, 2.15)
 

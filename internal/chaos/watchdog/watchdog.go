@@ -1,4 +1,4 @@
-// Design: plan/learned/679-chaos-ai.md -- Watchdog consumer for anomaly detection
+// Design: docs/architecture/chaos-web-dashboard.md -- Watchdog consumer for anomaly detection
 
 package watchdog
 

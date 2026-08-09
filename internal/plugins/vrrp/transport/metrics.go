@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- transport-owned Prometheus metrics
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- transport-owned Prometheus metrics
 //
 // The transport OWNS the five ze_vrrp_* series and is their single writer: the
 // codec-validation reasons the engine (spec-vrrp-5) discovers are fed back through

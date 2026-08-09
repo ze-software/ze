@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- UDP encapsulation readiness
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- UDP encapsulation readiness
 // RFC: rfc/short/rfc7296.md -- receive UDP-encapsulated ESP at any time (Section 2.23)
 // Related: register.go -- the NAT-T listener that applies the socket option
 // Related: doctor.go -- the sibling IPsec readiness check

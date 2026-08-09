@@ -355,8 +355,10 @@ one question. Neither can inherit the other's meaning.
 **Why it recurs.** The second instance was written by someone who had read the
 first, recorded in the same spec file, one screen above the code being changed.
 The gate reads correctly at the call site; the loss is invisible unless you ask
-what a caller does with `ok=false`. Full detail:
-`plan/learned/1327-enabled-gate-discards-service-settings.md`.
+what a caller does with `ok=false`. The shape lives in
+`internal/component/config/loader_extract.go`: `ExtractMCPSettings` and
+`ExtractLGSettings` answer "what is configured", `ExtractMCPConfig` and
+`ExtractLGConfig` answer "is it enabled".
 
 **Detection.** The unit test asserts on a block that is deliberately NOT enabled
 and checks the settings survived. A functional test that starts the service from

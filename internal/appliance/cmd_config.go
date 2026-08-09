@@ -1,4 +1,4 @@
-// Design: plan/learned/677-appliance-2-remote.md — config preview (merged base + overlay)
+// Design: docs/architecture/appliance/remote-operations.md -- config preview (merged base + overlay)
 
 package appliance
 

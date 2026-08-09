@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- common 20-byte LSA header and lazy LSA view
+// Design: docs/architecture/ospf/ospf-2-wire.md -- common 20-byte LSA header and lazy LSA view
 // RFC 2328 Appendix A.4.1: LSA header.
 
 package packet

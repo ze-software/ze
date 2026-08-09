@@ -209,8 +209,13 @@ class ReportTest(unittest.TestCase):
             self.assertEqual(code, 0)
 
     def test_live_corpus_is_not_empty(self):
-        """The live tree: the report has real tasks to measure against."""
-        corpus = rules_router.load_corpus(ROOT / "plan" / "learned")
+        """The live tree: the report has real tasks to measure against.
+
+        The corpus is `plan/spec-*.md` alone since the learned corpus became
+        `plan/journal/` (plan/spec-problem-journal.md): a journal row records a
+        problem class, not a task description.
+        """
+        corpus = rules_router.load_corpus(ROOT / "plan")
         self.assertGreater(len(corpus), 50)
         for task in corpus[:5]:
             self.assertTrue(task["text"].strip())

@@ -1,4 +1,4 @@
-// Design: plan/learned/706-cpe-2-dhcp-server.md -- RFC 2131 conformance coverage
+// Design: docs/architecture/provisioning/dhcp-server.md -- RFC 2131 conformance coverage
 //
 // These tests bind the DHCP server's behavior to the MUST-level requirements of
 // RFC 2131 (rfc/short/rfc2131.md). Each assertion that enforces a requirement

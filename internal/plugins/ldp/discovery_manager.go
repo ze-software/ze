@@ -1,4 +1,4 @@
-// Design: plan/learned/920-mpls-ldp.md -- dynamic LDP interface reload (AC-9)
+// Design: docs/architecture/ldp/mpls-ldp.md -- dynamic LDP interface reload (AC-9)
 // Related: register.go -- OnStarted seeds it, OnConfigure reconciles on reload
 // Related: discovery.go -- discoverOnInterface is the per-interface worker
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Path.Equal label handling (F1) test
+// Design: docs/architecture/rib/unified-locrib.md -- Path.Equal label handling (F1) test
 package locrib
 
 import (

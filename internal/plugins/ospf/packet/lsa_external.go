@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- AS-External and NSSA LSA body codec
+// Design: docs/architecture/ospf/ospf-2-wire.md -- AS-External and NSSA LSA body codec
 // RFC 2328 Appendix A.4.5: AS-External-LSA. RFC 3101: Type 7 NSSA uses the same body.
 
 package packet

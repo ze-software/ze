@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — clone config (not secrets)
+// Design: docs/architecture/appliance/builder.md -- clone config (not secrets)
 
 package appliance
 

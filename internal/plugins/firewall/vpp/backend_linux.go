@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- VPP firewall backend
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- VPP firewall backend
 // Related: timeout_linux.go -- the reply deadline and the typed timeout error
 
 //go:build linux

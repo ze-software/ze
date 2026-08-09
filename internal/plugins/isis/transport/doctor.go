@@ -1,4 +1,4 @@
-// Design: plan/learned/929-isis-3-l2-transport.md -- raw-socket readiness doctor check
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw-socket readiness doctor check
 // Related: doctor_linux.go -- the AF_PACKET raw-socket probe this check runs
 // Related: doctor_other.go -- non-Linux probe stub
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck

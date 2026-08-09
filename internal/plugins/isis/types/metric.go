@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- Metric (24-bit TLV 22) and PrefixMetric (32-bit TLV 135/236)
+// Design: docs/architecture/isis/isis-1-types.md -- Metric (24-bit TLV 22) and PrefixMetric (32-bit TLV 135/236)
 // RFC: rfc/short/rfc5305.md -- wide IS-reachability metric (TLV 22, 24-bit) and IP prefix metric (TLV 135, 32-bit)
 // RFC: rfc/short/rfc5308.md -- IPv6 reachability prefix metric (TLV 236, 32-bit)
 

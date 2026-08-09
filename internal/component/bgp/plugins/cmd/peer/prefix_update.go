@@ -1,4 +1,4 @@
-// Design: plan/learned/904-update-bgp-prefix.md -- PeeringDB prefix update command
+// Design: docs/architecture/bgp/peeringdb-prefix-update.md -- PeeringDB prefix update command
 // Overview: peer.go -- BGP peer lifecycle and introspection handlers
 
 package peer

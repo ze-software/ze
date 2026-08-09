@@ -1,4 +1,4 @@
-// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec data model types
+// Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec data model types
 // RFC: rfc/short/rfc7296.md -- certificate payloads (Section 3.6), conformance set (Section 4)
 // Related: config.go -- parseAuthConfig, which calls both parsers here
 // Related: identity.go -- the remote-id-type name-to-number mapping these read

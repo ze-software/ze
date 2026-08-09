@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- engine-arm helpers for the v6
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- engine-arm helpers for the v6
 // database views and the shared debug enablement, keeping register.go's switch thin.
 
 package ospf

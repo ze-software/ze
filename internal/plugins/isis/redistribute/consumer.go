@@ -1,4 +1,4 @@
-// Design: plan/learned/936-isis-11-redistribution.md -- IS-IS redistribution consumer.
+// Design: docs/architecture/isis/isis-11-redistribution.md -- IS-IS redistribution consumer.
 // Related: internal/component/bgp/redistribute -- the consumer template this mirrors.
 // RFC: rfc/short/rfc5305.md -- TLV 135 Extended IP Reachability (no external bit; up/down + sub-TLV-present control octet)
 // RFC: rfc/short/rfc2966.md -- up/down bit set only on down-level leak (loop prevention)

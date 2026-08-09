@@ -258,15 +258,6 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
   removes exactly its rows.
 
 ## See also
-- `plan/learned/926-isis-0-umbrella.md`, the umbrella spec: shared contracts (PDU dispatcher,
-  next-hop derivation, route install vs redistribution)
-- `plan/learned/931-isis-5-adjacency.md`, adjacency FSM + circuit design
-- `plan/learned/932-isis-6-lsdb.md`, `933-isis-7-flooding.md`, LSDB store/origination and
-  reliable-flooding design
-- `plan/learned/923-isis-8-dis-broadcast.md`, DIS election + pseudo-node design
-- `plan/learned/934-isis-9-spf-rib.md`, SPF/Dijkstra/route-install design
-- `plan/learned/935-isis-10-auth.md`, `936-isis-11-redistribution.md`, `924-isis-12-ipv6.md`, 
-  authentication, redistribution, IPv6 extensions
 - `docs/architecture/wire/isis.md`, wire-format architecture notes
 - `docs/guide/isis.md`, operator-facing configuration guide
 - `docs/research/isis-implementation-guide.md`, `docs/research/isis-frr-reference.md`, 

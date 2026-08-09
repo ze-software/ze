@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- OSPFv3 (IPv6) Link-LSA + Network Intra-Area-Prefix origination.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- OSPFv3 (IPv6) Link-LSA + Network Intra-Area-Prefix origination.
 // RFC: rfc/short/rfc5340.md (App A.4.9 Link-LSA, A.4.10 Intra-Area-Prefix-LSA)
 package ospf
 

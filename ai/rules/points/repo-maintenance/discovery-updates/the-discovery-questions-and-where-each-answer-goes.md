@@ -8,4 +8,4 @@ stage:
 3. **What source of truth prevents drift?** Use a registry, generated inventory, YANG schema, or live binary output. Do not copy static lists.
 4. **What verification proves it?** Name the make target, unit test, functional test, hook, or doc validator that catches drift.
 5. **What docs explain usage?** Name the exact file and section. Add source anchors for factual `docs/` claims.
-6. **What learned record preserves the decision?** Update `ai/LEARNED-INDEX.md` if the learned summary changes future design choices.
+6. **What journal record preserves the decision?** Append a row to the matching `plan/journal/<class>.md` when a recurring trap was hit.

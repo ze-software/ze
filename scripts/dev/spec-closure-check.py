@@ -12,9 +12,11 @@ by the /ze-status skill (model judgement) or advisory prose, so it was routinely
 forgotten. This script makes it mechanical so hooks can enforce it.
 
 The decisive signal is a *committed* learned summary whose slug carries the
-spec's stem. Committed (not merely on disk) matters: `commit_helper.py
-learned-next` creates the file early, mid-implementation, so an on-disk-only
-learned file is not evidence of completion.
+spec's stem, or a committed journal row whose Spec cell names the stem AND a
+finished Review Gate in the spec itself. Committed (not merely on disk)
+matters: an on-disk-only file is not evidence of completion. The second signal
+needs the Review Gate because a journal row is written when a problem is FOUND,
+not at closure, so the row alone says the spec is being worked on.
 
 Modes:
   (default) / --list   Print every completed-but-not-closed spec (triage view).
@@ -29,7 +31,7 @@ a month. Check the Stop array in .claude/settings.json before you describe this 
 enforced.
 
 The Stop-hook use is the one that must never false-positive, so --spec stays
-strict (committed learned summary required) and honours an ack escape hatch, read
+strict (a committed closure artifact required) and honours an ack escape hatch, read
 by cmd_spec below:
   tmp/session/.closure-ack-<stem>   (spec genuinely still open; do not block)
 
@@ -46,6 +48,13 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# One journal row parser, in journal.py. The copy that lived here returned None
+# for a malformed row, so closure evidence skipped rows the journal gate names.
+from journal import MALFORMED as JOURNAL_MALFORMED  # noqa: E402
+from journal import journal_row_cells  # noqa: E402
 
 PLAN_DIR = Path("plan")
 LEARNED_DIR = PLAN_DIR / "learned"
@@ -76,10 +85,10 @@ def _is_sublist(needle: list[str], haystack: list[str]) -> bool:
 def _committed_learned(repo: Path) -> set[str]:
     """Relpaths of learned summaries tracked in git (one call, memoizable).
 
-    Tracked ~ committed here: `commit_helper learned-next` leaves a new summary
-    UNtracked until commit A stages+commits it atomically, so a tracked learned
-    file is proof commit A ran. git unavailable -> empty set (fail-open: the
-    Stop hook must never wedge the session on a tooling error).
+    Tracked ~ committed here: a new summary may exist on disk before commit A
+    stages+commits it, so a tracked learned file is proof commit A ran.
+    git unavailable -> empty set (fail-open: the Stop hook must never wedge
+    the session on a tooling error).
     """
     try:
         out = subprocess.run(
@@ -112,6 +121,73 @@ def _learned_files(repo: Path) -> list[tuple[str, str, list[str]]]:
     return result
 
 
+JOURNAL_DIR = PLAN_DIR / "journal"
+
+
+def _journal_evidence(repo: Path) -> dict[str, str]:
+    """Map {spec-stem: journal-relpath} from committed journal files.
+
+    Reads committed files via `git ls-files` and `git show`, so a journal row
+    on disk but not yet committed does not count (same rule as learned summaries).
+
+    README.md is skipped: its fenced example is a row, and reading it as
+    evidence names whatever spec the example happens to use.
+
+    A malformed row is NAMED on stderr rather than skipped in silence, because
+    a row this reader cannot parse is a row it cannot honour. It does not fail
+    the run: the Stop hook consumes this and must not wedge a session.
+    """
+    result: dict[str, str] = {}
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "--", JOURNAL_DIR.as_posix()],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return result
+    if out.returncode != 0:
+        return result
+    for relpath in out.stdout.splitlines():
+        relpath = relpath.strip()
+        if not relpath or not relpath.endswith(".md"):
+            continue
+        if relpath.endswith("/README.md"):
+            continue
+        try:
+            content = subprocess.run(
+                ["git", "show", f"HEAD:{relpath}"],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if content.returncode != 0:
+            continue
+        named_malformed = False
+        for line in content.stdout.splitlines():
+            cells = journal_row_cells(line)
+            if cells is None:
+                continue
+            if cells == [JOURNAL_MALFORMED]:
+                if not named_malformed:
+                    print(
+                        f"warning: malformed journal row in {relpath} "
+                        "(run `make ze-journal`)",
+                        file=sys.stderr,
+                    )
+                    named_malformed = True
+                continue
+            spec = cells[1]
+            if spec and spec != "-" and spec not in result:
+                result[spec] = relpath
+    return result
+
+
 def _status(content: str) -> str:
     # Only the metadata table (first lines) is authoritative; take the first hit.
     head = "\n".join(content.splitlines()[:12])
@@ -139,6 +215,7 @@ class SpecReport:
         learned: list[tuple[str, str, list[str]]],
         all_stems: set[str],
         committed: set[str],
+        journal_evidence: dict[str, str] | None = None,
     ):
         self.path = path
         try:
@@ -167,8 +244,7 @@ class SpecReport:
         #   stem   stem is a token-run inside the slug (weak: may be a child's,
         #          e.g. fib-depth <- fib-depth-2-ecmp)
         #   ref    spec body cites a learned path (weak: often a predecessor's)
-        # Only committed summaries count: `commit_helper learned-next` creates
-        # the file early, mid-implementation, so on-disk alone proves nothing.
+        # Only committed summaries count: on-disk alone proves nothing.
         self.learned_exact: str | None = None
         self.learned_stem: str | None = None
         for rel, slug, slug_tokens in learned:
@@ -186,19 +262,39 @@ class SpecReport:
                 self.learned_ref = ref
                 break
 
+        # A committed journal row whose Spec cell names this stem is a closure
+        # signal equivalent to a learned summary (plan/spec-problem-journal.md).
+        je = journal_evidence or {}
+        self.journal_match: str | None = je.get(self.stem)
+
         self.gate_present = "## Review Gate" in content
         self.unchecked_close = bool(UNCHECKED_CLOSE_RE.search(content))
 
     @property
+    def gate_finished(self) -> bool:
+        """The spec's own Review Gate says the work is finished.
+
+        The section is appended at closure (plan/TEMPLATE-CLOSURE.md), and an
+        unticked "before closing" box inside it says it is not finished yet.
+        """
+        return self.gate_present and not self.unchecked_close
+
+    @property
     def completed_not_closed(self) -> bool:
-        # Decisive, low-false-positive: the spec's OWN committed learned summary
-        # exists (slug == stem) and it is not an umbrella. This is the only
-        # signal the Stop-hook block acts on, so it must almost never misfire.
-        return (
-            self.status == "in-progress"
-            and self.learned_exact is not None
-            and not self.is_umbrella
-        )
+        # Decisive, low-false-positive: this is the only signal the Stop-hook
+        # block acts on, so it must almost never misfire.
+        #
+        # A learned summary whose slug IS the stem was written AT closure, so it
+        # is evidence on its own. A journal row is not: a row is written when a
+        # problem is FOUND, mid-work, and the Spec cell names the spec that found
+        # it. Acting on the row alone blocked every stop for the rest of the
+        # session from the moment the first row was written. The row therefore
+        # counts only alongside the spec's own finished Review Gate.
+        if self.status != "in-progress" or self.is_umbrella:
+            return False
+        if self.learned_exact is not None:
+            return True
+        return self.journal_match is not None and self.gate_finished
 
     @property
     def needs_verification(self) -> bool:
@@ -211,7 +307,12 @@ class SpecReport:
 
     @property
     def evidence(self) -> str | None:
-        return self.learned_exact or self.learned_stem or self.learned_ref
+        return (
+            self.learned_exact
+            or self.journal_match
+            or self.learned_stem
+            or self.learned_ref
+        )
 
     def to_dict(self) -> dict:
         return {
@@ -223,6 +324,7 @@ class SpecReport:
             "is-umbrella": self.is_umbrella,
             "evidence-learned": self.evidence,
             "learned-exact": self.learned_exact,
+            "journal-match": self.journal_match,
             "learned-stem": self.learned_stem,
             "learned-ref": self.learned_ref,
             "review-gate-present": self.gate_present,
@@ -234,11 +336,14 @@ def _load_all(repo: Path) -> list[SpecReport]:
     learned = _learned_files(repo)
     all_stems = _all_stems(repo)
     committed = _committed_learned(repo)
+    je = _journal_evidence(repo)
     reports: list[SpecReport] = []
     for path in sorted((repo / PLAN_DIR).glob("spec-*.md")):
         if path.name == "spec-template.md":
             continue
-        reports.append(SpecReport(repo, path, learned, all_stems, committed))
+        reports.append(
+            SpecReport(repo, path, learned, all_stems, committed, journal_evidence=je)
+        )
     return reports
 
 
@@ -260,7 +365,14 @@ def cmd_spec(repo: Path, spec: str) -> int:
         # Nothing to close if the spec is gone (e.g. already git-rm'd).
         return 0
     learned = _learned_files(repo)
-    report = SpecReport(repo, path, learned, _all_stems(repo), _committed_learned(repo))
+    report = SpecReport(
+        repo,
+        path,
+        learned,
+        _all_stems(repo),
+        _committed_learned(repo),
+        journal_evidence=_journal_evidence(repo),
+    )
     if not report.completed_not_closed:
         return 0
     ack = repo / "tmp" / "session" / f".closure-ack-{report.stem}"
@@ -269,7 +381,7 @@ def cmd_spec(repo: Path, spec: str) -> int:
         return 0
     print(
         f"Spec '{report.rel}' is COMPLETED BUT NOT CLOSED.\n"
-        f"  Evidence: committed learned summary {report.evidence} exists,\n"
+        f"  Evidence: committed closure artifact {report.evidence} exists,\n"
         f"  but the spec is still in plan/ with Status=in-progress.\n"
         f"  Close it (ai/rules/planning.md Spec Closure):\n"
         f"    1. Finalize the Review Gate (0 BLOCKER, 0 ISSUE) via /ze-review.\n"
@@ -296,7 +408,7 @@ def cmd_report(repo: Path, as_json: bool) -> int:
         print(f"Completed but not closed ({len(flagged)}) -- high confidence:\n")
         for r in flagged:
             print(f"  {r.rel}")
-            print(f"      evidence: own learned summary {r.learned_exact}")
+            print(f"      evidence: own closure artifact {r.evidence}")
         print(
             "\nClose each via ai/rules/planning.md Spec Closure (finalize gate, git rm spec)."
         )

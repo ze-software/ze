@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP framework (RFC 3748)
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP framework (RFC 3748)
 // RFC: rfc/short/rfc3748.md -- EAP packet format and exchange model
 //
 // RFC 3748 (EAP) enrollment coverage for the framework logic ze's `eap` package

@@ -1,4 +1,4 @@
-// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- show ddos local surface
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- show ddos local surface
 //
 // The local responder runs in-process (plugins are goroutines), so the show
 // handler reads its live mitigation state directly from the process-global

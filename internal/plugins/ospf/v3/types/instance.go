@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- InstanceID 8-bit link-local instance selector.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- InstanceID 8-bit link-local instance selector.
 // RFC: rfc/short/rfc5340.md (§A.3.1 common header Instance ID)
 //
 // OSPFv3 carries an 8-bit Instance ID in the common header with link-local significance;

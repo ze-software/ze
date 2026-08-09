@@ -18,6 +18,35 @@ Architecture documents describe how the current implementation is wired. Prefer 
 | Pools and buffers | `pool-architecture.md`, `buffer-architecture.md` | `internal/component/bgp/attrpool/`, `internal/core/bufpool/` |
 | Web and UI | `web-interface.md`, `web-components.md` | `internal/component/web/` |
 | Testing architecture | `testing/` | `internal/test/cli/*.go`, `internal/test/`, `test/` |
+| Session and signal behavior | `behavior/` | `internal/component/bgp/fsm/`, `internal/plugins/signal/` |
+| BGP plugin behavior | `bgp/` | `internal/component/bgp/plugins/`, `internal/component/bgp/reactor/` |
+| Local RIB internals | `rib/` | `internal/core/rib/locrib/`, `internal/core/bgp/nlri/nlrisplit/` |
+| Protocol edge cases | `edge-cases/` | `internal/component/bgp/` |
+| Route metadata keys | `meta/` | `internal/component/bgp/plugins/role/` |
+| IGP routing protocols | `isis/`, `ospf/` | `internal/plugins/isis/`, `internal/plugins/ospf/` |
+| MPLS label switching | `mpls/`, `ldp/`, `rsvpte/`, `fib/` | `internal/component/mpls/`, `internal/plugins/ldp/`, `internal/plugins/rsvpte/`, `internal/plugins/fib/` |
+| First-hop redundancy | `vrrp/` | `internal/plugins/vrrp/` |
+| IKE and IPsec | `ike/` | `internal/component/ike/` |
+| Subscriber access | `l2tp/` | `internal/component/l2tp/` |
+| Interfaces | `iface/` | `internal/component/iface/` |
+| Firewall | `firewall/` | `internal/component/firewall/`, `internal/plugins/firewall/` |
+| Policy routing | `policyroute/` | `internal/plugins/policyroute/` |
+| Traffic control and accounting | `traffic/` | `internal/plugins/traffic/`, `internal/plugins/trafficusage/`, `internal/core/stats/` |
+| Flow export | `flowexport/` | `internal/plugins/flowexport/` |
+| Anomaly and DDoS response | `anomaly/`, `ddos/` | `internal/plugins/anomaly/`, `internal/plugins/ddos/` |
+| DNS services | `dns/` | `internal/core/dnsserver/`, `internal/plugins/as112/`, `internal/plugins/geodns/` |
+| Diagnostics and crash capture | `diagnostics/` | `internal/core/crashlog/`, `internal/core/procfs/`, `internal/plugins/diag/` |
+| Host hardware | `host/` | `internal/component/host/`, `internal/plugins/host/` |
+| Storage health | `storage/` | `internal/component/storage/`, `internal/core/smart/` |
+| Appliance, install, and update | `appliance/` | `internal/appliance/`, `internal/install/disk/`, `cmd/ze-installer/` |
+| Provisioning services | `provisioning/` | `internal/plugins/dhcpserver/`, `internal/plugins/tftpserver/`, `internal/plugins/imageserver/` |
+| Certificate store | `pki/` | `internal/component/pki/` |
+| Credential masking | `ssh/` | `internal/component/ssh/`, `internal/core/redact/` |
+| MCP server | `mcp/` | `internal/component/mcp/` |
+| Plugin boundaries and RIB storage | `plugin/` | `internal/component/plugin/`, `pkg/ze/` |
+| Plugin test tools | `debugging/` | `internal/component/plugin/cli/`, `internal/test/plugins/` |
+| CLI surface | `cli/` | `cmd/ze/`, `internal/component/command/` |
+| Memory lifetime contracts | `memory/` | `internal/core/memguard/` |
 | Decisions | `decisions/` | Decision records tied to current implementation |
 
 ## Reading Order

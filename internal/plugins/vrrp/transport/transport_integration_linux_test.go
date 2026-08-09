@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- QEMU integration: raw proto-112 sockets,
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- QEMU integration: raw proto-112 sockets,
 // macvlan tx identity, GARP/NA on-wire, rx delivery (veth + netns).
 //
 // These tests build a veth pair and a bridge-mode macvlan (carrying the virtual

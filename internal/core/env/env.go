@@ -136,7 +136,7 @@ func SetBool(key string, value bool) error {
 // process: a message written to the pipe and followed by os.Exit is never read,
 // so the operator sees an exit code and nothing else. crashlog calls
 // SetFatalOutput with the descriptor it saved before the redirect, which stays
-// the real stderr. Full case: plan/learned -- ze start aborted on an
+// the real stderr. The case that produced this: ze start aborted on an
 // unregistered key and reported no reason (2026-08-05).
 var (
 	fatalOut   io.Writer = os.Stderr

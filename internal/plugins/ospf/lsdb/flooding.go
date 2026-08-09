@@ -1,4 +1,4 @@
-// Design: plan/learned/961-ospf-7-lsdb-flooding.md -- RFC 2328 Section 13 flooding.
+// Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- RFC 2328 Section 13 flooding.
 // RFC: rfc/short/rfc2328.md -- Section 13 flooding; rfc/short/rfc5250.md -- opaque scope.
 // RFC 2328 Section 13.3: flood out eligible interfaces and retransmit until acked.
 

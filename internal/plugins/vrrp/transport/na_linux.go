@@ -1,7 +1,7 @@
 //go:build linux
 
 // RFC: rfc/short/rfc9568.md -- Section 6.4.1/6.4.2 / 8.2.2 (unsolicited NA)
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- raw ICMPv6 unsolicited-NA sender on the macvlan
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- raw ICMPv6 unsolicited-NA sender on the macvlan
 // Related: backend_linux.go -- socket-set lifecycle; owns the linuxInstance this extends
 //
 // The unsolicited-NA announce socket is a raw AF_INET6/IPPROTO_ICMPV6 socket bound

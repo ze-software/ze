@@ -1,4 +1,4 @@
-// Design: plan/learned/710-gap-2-static-route-enhancements.md -- config parsing
+// Design: docs/architecture/static-routes.md -- config parsing
 
 package static
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1099-iface-resolve-0-umbrella.md -- AC-U1 no-direct-resolution guard
+// Design: docs/architecture/iface/logical-name-resolution.md -- AC-U1 no-direct-resolution guard
 //
 // iface_resolution enforces the interface-resolution invariant from the
 // iface-resolve umbrella (sub-spec 7): no Ze code may resolve a configured
@@ -48,7 +48,7 @@ var allowlist = map[string]string{
 	"internal/plugins/fib/kernel/mplsentry_linux.go":       "resolves the literal \"lo\" loopback device, not a config-sourced name.",
 	"internal/plugins/provision/":                          "one-shot bootstrap CLI (ze provision) run at PXE/DHCP provisioning time; no iface backend is loaded and no logical-name config mapping exists yet, so --interface is a raw kernel device.",
 	"internal/plugins/imageserver/register.go":             "install/provision image server resolves through iface.Addresses first; when no iface backend is loaded it falls back to the configured raw kernel name, matching the pre-iface bootstrap path.",
-	"internal/install/disk/":                               "the disk installer engine (ze-installer initrd PID 1 and `ze install disk`); a self-contained bootstrap context with no iface backend loaded and no logical-name config -- it pins the boot NIC by ze.mac via sysfs (ifaceForMAC) and brings links up via netlink directly, like the provision bootstrap above (plan/learned/1024-installer-initrd-pure-go.md).",
+	"internal/install/disk/":                               "the disk installer engine (ze-installer initrd PID 1 and `ze install disk`); a self-contained bootstrap context with no iface backend loaded and no logical-name config -- it pins the boot NIC by ze.mac via sysfs (ifaceForMAC) and brings links up via netlink directly, like the provision bootstrap above (docs/architecture/appliance/installer-initrd.md).",
 	"internal/plugins/diag/cmd/capture_interface_linux.go": "post-resolution: net.InterfaceByName(binding.OsName) after iface.Resolve, to obtain the *net.Interface the AF_PACKET capture socket needs.",
 	"internal/plugins/ldp/register.go":                     "post-resolution: net.InterfaceByName(b.OsName) after iface.Resolve, to obtain the *net.Interface the multicast socket needs.",
 	"internal/component/doctor/":                           "one-shot root CLI (ze doctor) with no iface backend loaded; a resolver call would error on every check. Honors no selectors by design.",

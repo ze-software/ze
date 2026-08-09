@@ -1,4 +1,4 @@
-// Design: plan/learned/925-mpls-rsvp-te-fast-reroute.md -- RSVP-TE Fast Reroute
+// Design: docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md -- RSVP-TE Fast Reroute
 // RFC: rfc/short/rfc4090.md
 // Related: wire.go -- base object codecs and the protection-flag constants
 // Related: build.go -- composes FAST_REROUTE/SESSION_ATTRIBUTE into PATH

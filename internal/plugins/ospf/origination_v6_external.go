@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- OSPFv3 (IPv6) AS-External origination (ASBR redistribution).
+// Design: docs/architecture/ospf/ospf-af-unify.md -- OSPFv3 (IPv6) AS-External origination (ASBR redistribution).
 // RFC: rfc/short/rfc5340.md (App A.4.7 AS-External-LSA), rfc/short/rfc2328.md (sec 12.4.4)
 //
 // The IPv6 side of redistribution: when a redistributed IPv6 route is injected, this router

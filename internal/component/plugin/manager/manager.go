@@ -1,5 +1,5 @@
-// Design: plan/learned/425-arch-0-system-boundaries.md — PluginManager implementation
-// Design: docs/architecture/plugin-manager-wiring.md — two-phase startup
+// Design: docs/architecture/plugin/component-boundaries.md -- PluginManager implementation
+// Design: docs/architecture/plugin-manager-wiring.md -- two-phase startup
 // Related: ../server/startup.go — Server calls SpawnMore/GetProcessManager during handshake
 // Related: ../acceptor.go — NewHubAcceptor, the shared TLS acceptor lifecycle ensureAcceptor uses
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- Metric 24-bit OSPFv3 route metric.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- Metric 24-bit OSPFv3 route metric.
 // RFC: rfc/short/rfc5340.md (§A.4.4 Inter-Area-Prefix / §A.4.7 AS-External metric)
 //
 // OSPFv3 carries a 24-bit metric in the prefix and external LSAs (interface cost users may

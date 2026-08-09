@@ -127,7 +127,8 @@ Updated every second via SSE `tick` event.
 | Manual trigger | Dropdown (action type) + button | Execute on selected peer(s) from table |
 | New seed | Text input + button | Stop current run, restart with new seed |
 | Stop | Button | Graceful shutdown |
-<!-- source: internal/chaos/web/dashboard.go -- Config.Control, ControlCommand -->
+<!-- source: internal/chaos/web/dashboard.go -- Config.Control -->
+<!-- source: internal/chaos/web/state.go -- ControlCommand -->
 
 ## Peer Table
 
@@ -636,12 +637,39 @@ The `--mcp :PORT` flag starts an MCP JSON-RPC server that exposes chaos state to
 The MCP server reads from `DashboardState` (via `RWMutex`) and the `Watchdog` consumer. It shares the same JSON-RPC protocol layer as the ze daemon's MCP server (`internal/component/mcp`), parameterized by the `ToolProvider` interface.
 
 Implementation: `internal/chaos/mcp/tools.go`.
+<!-- source: internal/chaos/mcp/tools.go -- ToolProvider implementation for chaos -->
+
+`ToolProvider` (`ServerName()`, `Tools()`, `CallTool()`) is what lets both MCP
+servers share one JSON-RPC layer instead of duplicating the HTTP and JSON-RPC
+plumbing. The handler takes a `ToolProvider` value, not a factory: it has no
+external caller other than the streamable path, and the chaos tools need no
+per-request state. The streamable path keeps using the server struct directly.
+
+`--mcp` requires `--web`. The MCP tools read `DashboardState`, which the web
+dashboard owns. A standalone state would duplicate the tracking, so the flag
+combination is refused with a named error rather than starting a server that
+reports nothing.
 
 ### Watchdog Consumer
 
 The Watchdog is a `report.Consumer` that detects anomalies in the event stream and prints structured `PROBLEM:` lines to stderr. It tracks four stateful anomalies (peer-stuck-down, route-plateau, route-regression, convergence-stall) and four instant anomalies (error, dropped-events, extra-routes, property-violation). Output is rate-limited per (anomaly-type, peer-index).
 
 Implementation: `internal/chaos/watchdog/watchdog.go`.
+<!-- source: internal/chaos/watchdog/watchdog.go -- anomaly detection and rate limiting -->
+
+Three properties are load-bearing:
+
+- The watchdog is always on. The `PROBLEM:` lines are useful with no MCP
+  server attached, and the detector costs nothing while no anomaly fires.
+- Route regression is detected on `EventRouteWithdrawn`, against a high-water
+  mark. The receive counter increments monotonically, so a check on
+  `EventRouteReceived` can never fire: it was dead code until the high-water
+  mark moved it to the withdraw event.
+- The problem list is capped at 10000. A long chaos run produces thousands of
+  problems, and an uncapped list is a memory leak.
+
+The rate-limit key is the pair (anomaly type, peer index), so the same anomaly
+on two peers prints twice.
 
 ### Per-Family Convergence
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- OSPFv2 neighbor record
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- OSPFv2 neighbor record
 // RFC 2328 Section 10.1: "The state of a neighbor can be: Down, Attempt, Init, 2-Way, ExStart, Exchange, Loading or Full."
 
 package neighbor

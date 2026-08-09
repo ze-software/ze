@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- GR helper (restart-aid) state machine.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- GR helper (restart-aid) state machine.
 // Related: gr.go (grManager), instance.go (lsdbTopology injects helped neighbors).
 // RFC: rfc/short/rfc3623.md sec 3 (keep advertising X, keep X as DR), sec 3.1 (entry checks),
 //

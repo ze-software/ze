@@ -1,11 +1,11 @@
 package engine
 
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Every tag in this file is
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Every tag in this file is
 // NEW in this package; the edits below build it, they never relax an existing proof.
 //
 // rfc-test-change-approved: 2026-08-01 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The RFC7296-2.9-2 sweep asked
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The RFC7296-2.9-2 sweep asked
 // the production predicate coveredBy whether the answer was a subset of the proposal, which
 // is the implementation grading itself. netip carries the file's own oracle, and coveredBy
 // is now pinned separately in both directions.
@@ -119,7 +119,7 @@ func TestNarrowingIncludesFirstChoice(t *testing.T) {
 			got[0].I.Net, got[0].R.Net)
 	}
 	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	//
 	// Never wider than the proposal. The oracle is tsWithinAny, written in this file over
 	// netip. It is NOT the production coveredBy this sweep used to call.
@@ -240,7 +240,7 @@ func TestRekeyFloorIsNotNarrowed(t *testing.T) {
 	}
 
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. This ADDS the missing
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This ADDS the missing
 	// negative polarity; it relaxes nothing.
 	//
 	// RFC requirement: RFC7296-2.9.2-1 negative -- the discriminator. A rekey proposing
@@ -383,7 +383,7 @@ func TestPortEncodingFollowsSection3131(t *testing.T) {
 	}
 
 	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The block below was
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The block below was
 	// deliberately untagged while an owner decision was open. The owner ruled on
 	// 2026-08-01 that the row LANDS as encoder-proven. The tags are added, and nothing
 	// else moves.
@@ -452,7 +452,7 @@ func TestNarrowedSelectorsReachTheInstalledPolicy(t *testing.T) {
 	}
 
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is NEW and it
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is NEW and it
 	// RE-BINDS RFC4301-4.4.2-1 from TestNarrowTS, whose subject (narrowTS) had no
 	// non-test caller, onto the narrowing engine that the responder actually calls.
 	sa := testSA()
@@ -461,7 +461,7 @@ func TestNarrowedSelectorsReachTheInstalledPolicy(t *testing.T) {
 	sa.NegotiatedTSr = narrowed[0].R.Net
 	dp := &mockDP{}
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	child, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 7, dp, slogutil.DiscardLogger())
 	if err != nil {
 		t.Fatalf("createFirstChildSA: %v", err)

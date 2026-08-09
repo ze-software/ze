@@ -1,4 +1,4 @@
-// Design: plan/learned/706-cpe-2-dhcp-server.md -- DHCP server plugin registration
+// Design: docs/architecture/provisioning/dhcp-server.md -- DHCP server plugin registration
 
 package dhcpserver
 

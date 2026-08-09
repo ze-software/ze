@@ -1,4 +1,4 @@
-// Design: plan/learned/1027-dns-server-harness.md -- geodns consumes the EDNS0
+// Design: docs/architecture/dns/server-harness.md -- geodns consumes the EDNS0
 // client-subnet ADDRESS via dnsserver.ClientIP for source selection; this file
 // pins geodns's RFC 7871 response-side behavior at the answerQuery entry point.
 // RFC: rfc/short/rfc7871.md -- EDNS0 Client Subnet

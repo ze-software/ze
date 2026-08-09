@@ -1,4 +1,4 @@
-// Design: plan/learned/958-ospf-4-component-config.md -- OSPFv2 engine skeleton + dispatcher
+// Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPFv2 engine skeleton + dispatcher
 // Related: transport/transport.go -- raw IPv4 transport consumed here
 // RFC: rfc/short/rfc2328.md -- OSPFv2; rfc/short/rfc3101.md -- NSSA translator stability
 package ospf

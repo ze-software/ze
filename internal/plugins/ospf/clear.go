@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- `clear ospf ...` runtime resets.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- `clear ospf ...` runtime resets.
 // These reset runtime state without reconfiguring: neighbors re-form from the next Hello
 // and SPF re-runs. The wire methods (ze-clear:ospf-*) are registered in cmd_show.go and
 // the command tree in yang/ze-ospf-cmd.yang; OnExecuteCommand (register.go) dispatches here.

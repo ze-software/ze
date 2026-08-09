@@ -1,4 +1,4 @@
-// Design: plan/learned/818-flow-export-1-counter-export.md -- exporter lifecycle
+// Design: docs/architecture/flowexport/flow-export-1-counter-export.md -- exporter lifecycle
 // Related: flowtypes.go -- FlowSample / ConntrackFlow dispatched by exportFlowSample / exportFlows
 
 package flowexport

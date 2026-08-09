@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- RFC 3623 Grace-LSA body codec (IPv4).
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- RFC 3623 Grace-LSA body codec (IPv4).
 // RFC: rfc/short/rfc3623.md -- the OSPFv2 Grace-LSA: a link-local (Type 9) Opaque LSA with
 // Opaque Type 3 and Opaque ID 0, whose body is a TLV stream (RFC 3630 sec 2.3 4-byte-aligned
 // format). This file codes the Grace-LSA body ON TOP of the generic opaque_tlv.go

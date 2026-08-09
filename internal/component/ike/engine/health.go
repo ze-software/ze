@@ -1,4 +1,4 @@
-// Design: plan/learned/745-ipsec-10-cli-diag.md -- IPsec health check
+// Design: docs/architecture/ike/ipsec-10-cli-diag.md -- IPsec health check
 // Related: health_drift.go -- the kernel-versus-belief drift signal this check folds in
 
 package engine

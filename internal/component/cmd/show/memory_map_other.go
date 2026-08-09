@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- non-Linux stub for show system memory (OS view)
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- non-Linux stub for show system memory (OS view)
 // Overview: memory_map_linux.go -- Linux implementation
 //
 //go:build !linux

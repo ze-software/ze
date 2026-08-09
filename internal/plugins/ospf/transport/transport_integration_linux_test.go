@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/learned/957-ospf-3-ip-transport.md -- Linux raw OSPF multicast integration
+// Design: docs/architecture/ospf/ospf-3-ip-transport.md -- Linux raw OSPF multicast integration
 
 package transport
 

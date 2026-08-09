@@ -1,4 +1,4 @@
-// Design: plan/learned/964-ospf-10-as-external-asbr.md -- OSPF redistribution consumer.
+// Design: docs/architecture/ospf/ospf-10-as-external-asbr.md -- OSPF redistribution consumer.
 // Related: internal/plugins/isis/redistribute -- the consumer template this mirrors.
 // RFC: rfc/short/rfc2328.md -- sec 12.4.4 AS-External-LSA origination (Type 5)
 //

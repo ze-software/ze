@@ -1,4 +1,4 @@
-// Design: plan/learned/1169-cli-root-namespace-grammar.md -- isis root namespace (decode member)
+// Design: docs/architecture/cli/root-namespace-grammar.md -- isis root namespace (decode member)
 //
 // Owner package: the offline IS-IS PDU decode tool lives with the
 // internal/plugins/isis codec, not under cmd/ze. It registers the `isis` root

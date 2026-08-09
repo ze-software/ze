@@ -1,4 +1,4 @@
-// VALIDATES: plan/learned/973-ospfv3-6-interop-coverage.md -- OSPFv3 stub-area ABR default
+// VALIDATES: docs/architecture/ospf/ospfv3-6-interop-coverage.md -- OSPFv3 stub-area ABR default
 // origination. A v6 ABR attached to a stub area injects exactly one Inter-Area-Prefix
 // default (::/0) into the stub at the configured default-cost (RFC 5340 sec 3.5 / RFC 2328
 // sec 3.6), never injects an Inter-Area-Router-LSA into the stub, and (totally-stubby)

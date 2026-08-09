@@ -1,4 +1,4 @@
-// Design: plan/learned/660-l2tp-9-observer.md -- observer, event ring, ring pool
+// Design: docs/architecture/l2tp/l2tp-9-observer.md -- observer, event ring, ring pool
 // Related: cqm.go -- CQM bucket types and sample ring
 // Related: events/events.go -- typed event handles subscribed by observer
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- shared fixed-width wire helpers
+// Design: docs/architecture/ospf/ospf-2-wire.md -- shared fixed-width wire helpers
 
 package packet
 

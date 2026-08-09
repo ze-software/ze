@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md -- per-level Dijkstra over the LSDB graph.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- per-level Dijkstra over the LSDB graph.
 // ISO/IEC 10589 clause 7.2 (the Decision Process): a shortest-path-first
 // computation rooted at the local node over the directed graph of nodes and
 // adjacencies, yielding the distance and first-hop(s) to every reachable node.

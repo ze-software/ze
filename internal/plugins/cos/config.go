@@ -1,4 +1,4 @@
-// Design: plan/learned/884-cos-plugin.md -- CoS profile config parsing
+// Design: docs/architecture/traffic/cos-plugin.md -- CoS profile config parsing
 
 package cos
 

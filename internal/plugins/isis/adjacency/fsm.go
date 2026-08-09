@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- adjacency finite state machine.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- adjacency finite state machine.
 // ISO/IEC 10589 section 8.2 (Down/Initializing/Up), section 8.2.2 (L1 area
 // match), section 8.2.3 (hold-timer timeout).
 //

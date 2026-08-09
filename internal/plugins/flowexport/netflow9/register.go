@@ -1,4 +1,4 @@
-// Design: plan/learned/818-flow-export-1-counter-export.md -- NetFlow v9 encoder registration
+// Design: docs/architecture/flowexport/flow-export-1-counter-export.md -- NetFlow v9 encoder registration
 
 package netflow9
 

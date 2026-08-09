@@ -1,4 +1,4 @@
-// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP-TLS fragment reassembly guards
+// Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS fragment reassembly guards
 // RFC: rfc/short/rfc5216.md -- Section 2.1.5 fragmentation, Section 3 flags
 //
 // VALIDATES: the EAP-TLS reassembly buffer is bounded whatever flags a peer

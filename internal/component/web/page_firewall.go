@@ -1,4 +1,4 @@
-// Design: plan/learned/690-web-6-firewall.md -- Firewall workbench pages
+// Design: docs/architecture/web-workbench-pages.md -- Firewall workbench pages
 // Related: workbench_table.go -- Reusable table component
 // Related: page_bgp_peers.go -- Sibling page (pattern reference)
 

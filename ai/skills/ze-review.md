@@ -120,7 +120,7 @@ phase itself.
     | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze --plugins` output |
     | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
     | Metrics | Telemetry docs list metric names and labels |
-    | New feature, tool, make target, or verification gate | `ai/INDEX.md` keyword + task rows updated; `ai/LEARNED-INDEX.md` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
+    | New feature, tool, make target, or verification gate | `ai/INDEX.md` keyword + task rows updated; `docs/architecture/` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
 
     Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
 

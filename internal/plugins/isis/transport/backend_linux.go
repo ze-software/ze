@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/929-isis-3-l2-transport.md -- Linux AF_PACKET/SOCK_RAW backend
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- Linux AF_PACKET/SOCK_RAW backend
 // Related: frame.go -- 802.3 + LLC frame build/parse
 // Related: multicast.go -- ISO multicast groups joined on each circuit
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/1100-followup-l2tp-call.md -- AC-4 operator-initiated outgoing call
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-4 operator-initiated outgoing call
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 7.9 (OCRQ), Section 10.4 (LNS outgoing call)
 // Related: reactor_dial.go -- PlaceOutgoingCallSync drives the dial + OCRQ
 // Related: cmd/l2tp.go -- the request l2tp outgoing-call RPC handler

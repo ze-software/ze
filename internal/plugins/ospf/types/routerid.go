@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- RouterID 4-byte OSPF router identifier
+// Design: docs/architecture/ospf/ospf-1-types.md -- RouterID 4-byte OSPF router identifier
 // Related: format.go -- dotted-quad parse and append helpers
 package types
 

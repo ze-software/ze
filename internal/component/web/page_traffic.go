@@ -1,4 +1,4 @@
-// Design: plan/learned/688-web-4-interfaces.md -- Traffic monitoring page
+// Design: docs/architecture/web-workbench-pages.md -- Traffic monitoring page
 // Related: page_interfaces.go -- Interface table page (sibling)
 // Related: workbench_table.go -- Reusable table component
 

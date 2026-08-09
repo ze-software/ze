@@ -1,4 +1,4 @@
-// Design: plan/learned/1051-ospf-ext-6-ti-lfa.md -- the engine's SRResolver: the read-only
+// Design: docs/architecture/ospf/ospf-ext-6-ti-lfa.md -- the engine's SRResolver: the read-only
 // seam the SPF package's TI-LFA repair-list builder uses to resolve ext-5's
 // Segment Routing labels. PrefixSIDLabel resolves a P-node's node Prefix-SID
 // through its advertised SRGB (RFC 8665 Section 3.2/5); AdjSIDLabel resolves the

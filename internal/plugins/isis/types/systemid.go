@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- SystemID 6-byte router identifier
+// Design: docs/architecture/isis/isis-1-types.md -- SystemID 6-byte router identifier
 
 package types
 

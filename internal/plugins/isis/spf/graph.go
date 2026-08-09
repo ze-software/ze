@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md -- SPF graph build from the synced LSDB.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- SPF graph build from the synced LSDB.
 // ISO/IEC 10589 clause 7.2 (the decision process / SPF) builds a directed graph
 // over the link-state database: vertices are nodes (System IDs and LAN
 // pseudo-nodes, isis-8), edges are the adjacencies each node advertises.

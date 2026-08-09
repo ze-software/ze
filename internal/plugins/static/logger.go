@@ -1,4 +1,4 @@
-// Design: plan/learned/710-gap-2-static-route-enhancements.md -- logger
+// Design: docs/architecture/static-routes.md -- logger
 
 package static
 

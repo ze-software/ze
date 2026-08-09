@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- the OSPFv3 Codec adapter over ospfv3/packet. It
+// Design: docs/architecture/ospf/ospf-af-unify.md -- the OSPFv3 Codec adapter over ospfv3/packet. It
 // satisfies the SAME engine Codec interface as the v4 adapter, proving the wire codec is
 // pluggable per address family: the engine decodes the common header and verifies the
 // checksum through Codec regardless of version. Dependency direction is engine ->

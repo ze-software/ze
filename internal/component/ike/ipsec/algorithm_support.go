@@ -1,4 +1,4 @@
-// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec data model types
+// Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec data model types
 // Related: types.go -- the algorithm enums these predicates decide
 // Related: config.go -- the parser that refuses an algorithm no build implements
 

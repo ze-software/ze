@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- common OSPFv2 packet header and dispatch
+// Design: docs/architecture/ospf/ospf-2-wire.md -- common OSPFv2 packet header and dispatch
 // RFC 2328 Appendix A.3.1: OSPF packet header.
 // RFC 6549 Section 2 / 3.1: OSPFv2 Multi-Instance splits the former 16-bit
 // Authentication Type field into an 8-bit Instance ID (the high octet, offset 14) and

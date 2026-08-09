@@ -1,4 +1,4 @@
-// Design: plan/learned/710-gap-2-static-route-enhancements.md -- BFD integration and active NH tracking
+// Design: docs/architecture/static-routes.md -- BFD integration and active NH tracking
 // Related: doctor.go -- checkRouteSkipped reads routeManager.skipped + activeRouteManager
 
 package static

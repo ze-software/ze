@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- show/clear command tests
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- show/clear command tests
 //
 // VALIDATES: AC-8 (show payload shapes + interface selector), AC-9 (clear
 // resets counters without touching state).

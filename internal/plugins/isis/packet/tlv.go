@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- generic TLV iterator + encode helper
+// Design: docs/architecture/wire/isis.md -- generic TLV iterator + encode helper
 // ISO/IEC 10589 clause 9: TLVs are Type (1 octet) + Length (1 octet) + Value
 // (Length octets). The same framing nests as sub-TLVs (RFC 5305 sec 2).
 //

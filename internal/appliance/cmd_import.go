@@ -1,4 +1,4 @@
-// Design: plan/learned/676-appliance-3-recovery.md — bastion disaster recovery import
+// Design: docs/architecture/appliance/disaster-recovery.md -- bastion disaster recovery import
 
 package appliance
 

@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 virtual router identity (Sections 1.2, 7.3)
 //
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- instance manager: config diff + lifecycle
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- instance manager: config diff + lifecycle
 //
 // The engine owns the set of running instances, keyed (interface, unit, family,
 // vrid). Applying config is a diff: create what is new, reconfigure what changed

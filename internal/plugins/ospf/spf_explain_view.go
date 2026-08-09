@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- the AF-tagged SPF-explain view.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- the AF-tagged SPF-explain view.
 // RFC: rfc/short/rfc2328.md (Section 16.4 path preference), rfc/short/rfc5838.md (Section 2:
 // AF identity of the OSPFv3 result).
 //

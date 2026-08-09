@@ -30,6 +30,13 @@ from discovery_sources import STALE_EXIT as DISCOVERY_STALE_EXIT
 from discovery_sources import indexes_fed_by as _indexes_fed_by
 from discovery_sources import is_discovery_source as _is_discovery_source
 
+# The journal row parser has ONE implementation, in journal.py, imported the way
+# deferral_orphans.py imports _deferral_row_cells from here. Three copies had
+# already diverged: spec-closure-check.py's returned None where the others
+# returned a malformed marker, so closure evidence skipped malformed rows.
+from journal import MALFORMED as JOURNAL_MALFORMED
+from journal import journal_row_cells
+
 SESSION_RE = re.compile(r"^[0-9a-f]{8}$")
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 LEARNED_RE = re.compile(r"^plan/learned/[0-9]{3,}-.+\.md$")
@@ -134,7 +141,6 @@ LESSON_WORTHY_PREFIXES = (
 LESSON_WORTHY_FILES = {
     "Makefile",
     "ai/INDEX.md",
-    "ai/LEARNED-INDEX.md",
     "ai/INSTRUCTIONS.md",
 }
 
@@ -346,8 +352,8 @@ def next_tag(repo: Path, session: str) -> str:
     agents of ONE Claude session (they share the session fingerprint, so they
     share this namespace) both read the same free letter inside that window and
     the second message file overwrote the first. The reservation is an O_EXCL
-    create of the empty message file, the idiom `learned_next` already uses, so
-    the winner is decided by the filesystem rather than by timing.
+    create of the empty message file, so the winner is decided by the
+    filesystem rather than by timing.
 
     The reservation is released by `create` when the run fails or is a dry run
     (`release_tag_reservation`), so a refused commit does not burn a letter.
@@ -617,6 +623,7 @@ ROUTE_PREFIXES = (
     "ai/digests/",  # how data flows through a subsystem today
     "docs/architecture/",  # a design decision, why the code is shaped this way
     "rfc/short/",  # a protocol obligation
+    "plan/journal/",  # a problem class with countable recurrence
 )
 
 ROUTE_FILES = frozenset(
@@ -639,22 +646,43 @@ SPEC_PATH_RE = re.compile(r"^plan/spec-.+\.md$")
 
 
 def closure_reminder(
-    add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+    repo: Path | None = None,
 ) -> str | None:
-    """Warn when a commit adds a learned summary but closes no spec.
+    """Warn when a commit adds a closure artifact but closes no spec.
 
-    The two-commit spec closure is: commit A adds plan/learned/NNN-*.md (this
-    commit), commit B does `git rm plan/spec-<stem>.md`. Commit B is the step
-    that gets dropped, orphaning the spec in plan/ with Status=in-progress. If
-    this commit adds a learned summary and removes no spec, nudge the caller to
-    prepare the closure commit next. See ai/rules/planning.md "Spec Closure".
+    The two-commit spec closure is: commit A adds the closure artifact (a
+    plan/learned/NNN-*.md or a plan/journal/*.md row naming the spec), commit B
+    does `git rm plan/spec-<stem>.md`. Commit B is the step that gets dropped,
+    orphaning the spec in plan/ with Status=in-progress. If this commit adds a
+    closure artifact and removes no spec, nudge the caller to prepare the
+    closure commit next. See ai/rules/planning.md "Spec Closure".
+
+    A journal row counts only when the row this commit ADDS names a spec. A row
+    is written when a problem is FOUND, so a mid-work commit carrying a `-` row
+    is not closing anything and must not be nudged as though it were.
+
+    A row naming a spec that closed EARLIER does not count either, for the same
+    reason `spec_closure_stem` filters it: editing an old row is not closing the
+    spec it names. Without the filter this nudge tells the caller to prepare a
+    commit B for a spec whose file git removed months ago.
     """
-    if not learned_paths(add_paths):
+    has_learned = bool(learned_paths(add_paths))
+    has_journal = bool(
+        repo is not None
+        and [
+            stem
+            for stem in _journal_added_spec_stems(repo, add_paths, remove_paths)
+            if not _spec_closed_earlier(repo, stem)
+        ]
+    )
+    if not has_learned and not has_journal:
         return None
     if any(SPEC_PATH_RE.match(path) for path in remove_paths):
         return None
     return (
-        "closure-reminder: this commit adds a learned summary but removes no "
+        "closure-reminder: this commit adds a closure artifact but removes no "
         "spec.\n"
         "  If it completes a spec, prepare the closure commit next:\n"
         "    git rm plan/spec-<stem>.md   (ai/rules/planning.md Spec Closure)\n"
@@ -701,13 +729,16 @@ def lesson_comment(
     if learned:
         return "Lesson: " + ", ".join(learned)
     if required:
+        # The journal row is the artifact that replaced the summary, so it
+        # satisfies the operator's demand exactly as a summary does. The message
+        # already offered it; only this branch did not accept it.
+        journal = journal_paths(add_paths)
+        if journal:
+            return "Lesson: " + ", ".join(journal)
         raise UsageError(
-            "--lesson-required was passed and no learned summary is staged.\n"
-            "  expected: one plan/learned/NNN-<name>.md among the --file paths\n"
-            "  next: allocate it with `scripts/dev/commit_helper.py learned-next "
-            "<stem>`,\n"
-            "        write it per plan/learned/METHODOLOGY.md, and pass it with "
-            "--file"
+            "--lesson-required was passed and no closure artifact is staged.\n"
+            "  expected: a plan/learned/NNN-<name>.md or a plan/journal/<class>.md\n"
+            "            among the --file paths"
         )
     if lesson_worthy(paths, changes):
         # A route satisfies the demand exactly as a summary does: the lesson
@@ -1353,11 +1384,10 @@ def extract_head_into(repo: Path, dest: Path) -> None:
     """Materialize HEAD (minus `vendor/`) into `dest`.
 
     `vendor/` is excluded: every discovery generator skips it (`SKIP_DIRS` in
-    package_map.py and docs_to_code.py; learned_index.py only reads
-    plan/learned/), and it is a third of the archive -- ~138MB of extraction
-    becomes ~98MB. `dest` MUST be empty -- `tar -x` overwrites archived paths but
-    never removes extras, so anything already there survives into the view and can
-    make an incoherent index look coherent.
+    package_map.py and docs_to_code.py), and it is a third of the archive --
+    ~138MB of extraction becomes ~98MB. `dest` MUST be empty -- `tar -x`
+    overwrites archived paths but never removes extras, so anything already
+    there survives into the view and can make an incoherent index look coherent.
     """
     if not rev_parse_head_exists(repo):
         raise FileNotFoundError("HEAD does not exist (repository has no commits)")
@@ -2452,6 +2482,16 @@ def ste_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     return []
 
 
+def spec_stem(claimed: str) -> str:
+    """The bare stem of a claimed spec basename: `spec-foo.md` -> `foo`.
+
+    One spelling of the transform, because two gates key on it: the closure
+    artifact `spec_audit_problems` looks for, and the review artifact
+    `spec_closure_stem` names.
+    """
+    return re.sub(r"\.md$", "", re.sub(r"^spec-", "", claimed))
+
+
 def claimed_spec(repo: Path) -> str:
     """This session's claimed spec basename via spec-session.sh, or '' if none."""
     script = repo / "scripts" / "dev" / "spec-session.sh"
@@ -2526,22 +2566,44 @@ def pre_commit_verification_gaps(spec_text: str) -> list[str] | None:
 
 
 def spec_audit_problems(
-    repo: Path, add_paths: tuple[str, ...], claimed: str
+    repo: Path,
+    add_paths: tuple[str, ...],
+    claimed: str,
+    remove_paths: tuple[str, ...] = (),
 ) -> list[str]:
     """Block a spec-closure commit whose spec has an unfilled verification.
 
     Ported from the never-wired pre-commit-spec-audit.sh, keyed to the LIVE
     per-session marker (its old tmp/session/selected-spec substrate was removed
     in 276d72c99). Fires ONLY when this commit adds the claimed spec's own
-    learned summary -- i.e. the closure commit of the claiming session -- so it
+    CLOSURE ARTIFACT -- i.e. the closure commit of the claiming session -- so it
     never blocks unrelated commits or other sessions (the historic umbrella-spec
     false-positive mode). No spec claimed -> no gate.
+
+    Two artifacts spell a closure, and both are read here. The learned-summary
+    path (`plan/learned/NNN-<stem>.md`) is the historic one. The live one since
+    `ai/skills/ze-close.md` step 6a is a NEW `plan/journal/<class>.md` row whose
+    Spec cell names the stem, and reading only the first left this gate unable
+    to fire on ANY closure: `plan/learned/` is gone, so the pattern below can no
+    longer match. `_journal_added_spec_stems` is what answers "which row did
+    this commit add", and it is the reader `spec_closure_stem` uses too.
+
+    The two call sites read it differently, and that is deliberate rather than a
+    drift. `spec_closure_stem` filters the stems through `_spec_closed_earlier`,
+    because it must pick ONE stem and an already-closed one is the wrong pick.
+    This gate needs no filter: it asks whether the CLAIMED spec is among the
+    added stems, and the `if not claimed` guard above plus the claimed spec's own
+    file being on disk already exclude a spec that closed earlier. Adding the
+    filter here would cost a subprocess per stem and change no answer.
     """
     if not claimed:
         return []
-    stem = re.sub(r"\.md$", "", re.sub(r"^spec-", "", claimed))
+    stem = spec_stem(claimed)
     pattern = re.compile(rf"^plan/learned/[0-9]+-{re.escape(stem)}\.md$")
-    if not any(pattern.match(p) for p in add_paths):
+    closes = any(pattern.match(p) for p in add_paths) or stem in (
+        _journal_added_spec_stems(repo, add_paths, remove_paths)
+    )
+    if not closes:
         return []  # not this spec's closure commit
     spec_path = repo / "plan" / claimed
     if not spec_path.is_file():
@@ -2552,7 +2614,7 @@ def spec_audit_problems(
     if gaps is None:
         return [
             f"spec {claimed} has no '## Pre-Commit Verification' section, but this"
-            " commit adds its learned summary (closure).\n"
+            " commit adds its closure artifact.\n"
             "  Add and fill it from plan/TEMPLATE-CLOSURE.md before closing"
             " (ai/rules/planning.md)."
         ]
@@ -2560,7 +2622,7 @@ def spec_audit_problems(
         return [
             f"spec {claimed} '## Pre-Commit Verification' has no evidence rows in:"
             f" {', '.join(gaps)}.\n"
-            "  This commit adds its learned summary (closure). Each table is a"
+            "  This commit adds its closure artifact. Each table is a"
             " separate obligation: re-verify independently and paste the evidence"
             " for EVERY one (plan/TEMPLATE-CLOSURE.md, ai/rules/planning.md)."
         ]
@@ -2574,7 +2636,8 @@ def commit_gate_problems(
     problems: list[str] = []
     problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
     problems += deferral_shard_removal_problems(repo, add_paths, remove_paths)
-    problems += spec_audit_problems(repo, add_paths, claimed_spec(repo))
+    problems += journal_row_problems(repo, add_paths, remove_paths)
+    problems += spec_audit_problems(repo, add_paths, claimed_spec(repo), remove_paths)
     problems += ste_problems(repo, add_paths)
     return problems
 
@@ -2601,6 +2664,138 @@ def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
 
 _LEARNED_STEM_RE = re.compile(r"^plan/learned/[0-9]{3,}-(?P<stem>.+)\.md$")
 _SPEC_STEM_RE = re.compile(r"^plan/spec-(?P<stem>.+)\.md$")
+
+
+def is_journal_class_file(path: str) -> bool:
+    """A plan/journal/ class file, which README.md is not."""
+    return (
+        path.startswith("plan/journal/")
+        and path.endswith(".md")
+        and not path.endswith("/README.md")
+    )
+
+
+def journal_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(path for path in paths if is_journal_class_file(path))
+
+
+def journal_row_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """BLOCK a commit that adds a journal row this repo's parser cannot read.
+
+    A malformed row is not a cosmetic defect here: `_journal_added_spec_stems`
+    reads the SAME rows to derive the closure stem, and a row it cannot parse
+    yields no stem, so `spec_closure_stem` returns None and
+    `review_gate_problems` returns [] -- a closure commit carrying code lands
+    with no independent review. Skipping the row was the fail-open answer
+    (`ai/rules/evidence.md`): the miss path returned the permissive verdict.
+
+    Blocking is the right severity because the author is holding the fix. The
+    row is in this commit, the message names the file and the text, and one
+    edit clears it.
+
+    The other two readers of the same parser already refuse to be silent:
+    `journal.py` `report()` exits 1 and `spec-closure-check.py`
+    `_journal_evidence()` warns on stderr. Neither can cover this one: both read
+    HEAD, and the bad row is only visible BEFORE the commit that lands it.
+    """
+    journal = journal_paths(add_paths)
+    if not journal:
+        return []
+    scope = set(journal)
+    bad: list[str] = []
+    for path, line in _prospective_added_lines(repo, add_paths, remove_paths):
+        if path not in scope:
+            continue
+        if journal_row_cells(line[1:]) == [JOURNAL_MALFORMED]:
+            bad.append(f"  {path}: {line[1:].strip()!r}")
+    if not bad:
+        return []
+    return [
+        "this commit adds journal row(s) that do not hold the five cells\n"
+        "  | Date | Spec | Surface | Symptom | Fix |, starting with `|`:\n"
+        + "\n".join(bad)
+        + "\n  A row this parser cannot read carries no Spec cell, so the closure\n"
+        "  stem is unknown and the review gate stops firing on the commit that\n"
+        "  holds the code. Fix the row (plan/journal/README.md)."
+    ]
+
+
+def _journal_added_spec_stems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """EVERY Spec cell of the journal rows this commit ADDS, in path order.
+
+    EVERY, because one commit can add more than one row. Returning the first was
+    the fail-open shape one case narrower: a commit that EDITS an older row (a
+    typo in a Symptom cell) and appends the closure row emits two surviving `+`
+    lines, and diff order is file order, so the edited older row answered first
+    and the closure stem was months old. `spec_audit_problems` tests membership,
+    so the Pre-Commit Verification gate then did not fire on the closure at all.
+    The caller picks which stem it means; this function states what it found.
+
+    ADDS is the load-bearing word. A class file is multi-row by design, so its
+    first row names whatever spec closed through that class FIRST -- often
+    months ago and already closed. Reading the file from the working tree and
+    taking the first non-`-` Spec cell therefore hands `review_gate_problems()`
+    a stale stem from the second closure through a class onward, and the review
+    gate then blocks or passes on a spec nobody is closing. This is the journal
+    form of the `_tracked_at_head()` newness test the learned branch already
+    has: the row must be new to this commit.
+
+    A MALFORMED added row is skipped here and REFUSED by `journal_row_problems`,
+    which `commit_gate_problems` runs before the review gate and before
+    `lesson_comment`. That ordering is what makes the skip safe: no commit
+    reaches this function carrying a row the parser could not read, so the skip
+    can no longer silence the review gate. Drop that gate and this becomes a
+    fail-open branch again.
+
+    A row is compared by its CELLS, not by its diff line. The shards are
+    unpadded today, so appending one row emits one `+` line; column-pad a class
+    file and every row re-emits as added, the first of them naming a spec that
+    closed months ago. `journal_row_cells` strips each cell, so a re-pad produces
+    a `+` whose cells match a `-` exactly, and matching the two sides removes it.
+    What survives is the row whose CONTENT is new, which is the question this
+    function is asked. An EDIT is not cancelled by that comparison, and must not
+    be: its cells differ from the `-` side, so its content IS new to this commit.
+    That is why the answer is a list rather than the first survivor.
+
+    A stem appears once. Two rows naming the same spec are one closure, and the
+    duplicate would make `spec_closure_stem`'s "more than one" test read as an
+    ambiguity that is not there.
+    """
+    journal = journal_paths(add_paths)
+    if not journal:
+        return []
+    changes = _prospective_line_changes(
+        repo, add_paths, remove_paths, "--diff-filter=AM"
+    )
+    scope = set(journal)
+    added: dict[str, list[list[str]]] = {}
+    removed: dict[str, set[tuple[str, ...]]] = {}
+    for path, sign, text in changes:
+        if path not in scope or text == "":
+            continue
+        cells = journal_row_cells(text)
+        if cells is None or cells == [JOURNAL_MALFORMED]:
+            continue
+        if sign == "+":
+            added.setdefault(path, []).append(cells)
+        elif sign == "-":
+            removed.setdefault(path, set()).add(tuple(cells))
+    stems: list[str] = []
+    for path in journal:
+        gone = removed.get(path, set())
+        for cells in added.get(path, []):
+            if tuple(cells) in gone:
+                continue  # the same row, reformatted: not new content
+            spec = cells[1]
+            if spec and spec != "-" and spec not in stems:
+                stems.append(spec)
+    return stems
+
+
 # Kept in sync with review_gate.py CODE_SUFFIXES / CODE_BASENAMES: prose (.md) and
 # the spec/learned records go to other gates; everything logic-bearing (including
 # hand-written build/template files) is reviewable.
@@ -2643,6 +2838,34 @@ def _tracked_at_head(repo: Path, path: str) -> bool:
     )
 
 
+def _spec_closed_earlier(repo: Path, stem: str) -> bool:
+    """Whether plan/spec-<stem>.md is GONE from the tree, having once existed.
+
+    Spec closure is two commits and commit B is `git rm plan/spec-<stem>.md`
+    (ai/rules/planning.md "Spec Closure"). So at commit A the spec file is still
+    on disk, and for any spec that closed earlier it is not. That is the fact
+    that separates "this row names the spec closing now" from "this row names a
+    spec that closed months ago", and it needs no new state: the two-commit rule
+    already guarantees it.
+
+    BOTH halves are load-bearing. Gone-from-disk alone would also drop a Spec
+    cell naming a path git has never held -- a typo, or a spec not yet written --
+    and that stem must be KEPT, because a misspelled cell on a real closure
+    commit would otherwise disarm the review gate silently. Only a path git once
+    held and no longer holds is a closed spec.
+    """
+    path = f"plan/spec-{stem}.md"
+    if (repo / path).exists():
+        return False
+    res = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", path],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    return res.returncode == 0 and res.stdout.strip() != ""
+
+
 def spec_closure_stem(
     add_paths: tuple[str, ...],
     remove_paths: tuple[str, ...],
@@ -2650,9 +2873,15 @@ def spec_closure_stem(
 ) -> str | None:
     """The spec-stem this commit closes, or None if it is not a closure commit.
 
-    Closure = commit A adds a NEW plan/learned/NNN-<stem>.md, or commit B removes
-    plan/spec-<stem>.md (ai/rules/planning.md "Spec Closure"). The <stem> is the
-    key the review artifact (tmp/review/<stem>-<session-id>.md) is written under.
+    Closure = commit A adds a NEW plan/learned/NNN-<stem>.md or a NEW journal row
+    naming the spec, or commit B removes plan/spec-<stem>.md (ai/rules/planning.md
+    "Spec Closure"). The <stem> is the key the review artifact
+    (tmp/review/<stem>-<session-id>.md) is written under.
+
+    The removed spec is read BEFORE the journal, because `git rm
+    plan/spec-<stem>.md` states which spec closes and a Spec cell only names one.
+    Commit B carries no code and often carries a journal edit; reading the
+    journal first made it derive the wrong spec.
 
     NEW is the load-bearing word, and `repo` is what makes it checkable. A commit
     may carry a learned summary for a reason that is not a closure: repointing a
@@ -2665,6 +2894,36 @@ def spec_closure_stem(
     With `repo` omitted the old behaviour stands, so a caller that cannot reach git
     still fails CLOSED (every learned path counts) rather than silently letting a
     real closure through unreviewed.
+
+    One commit CAN add rows naming two specs (an edit to an older row beside the
+    closure row, or two classes touched at once), and only then is this session's
+    claim consulted: the artifact says a closure happened, the claim says which
+    one is this session's. It is a tie-break and never an override, because a
+    commit prepared with no claim, or by a session claiming another spec, must
+    still be recognised as the closure it is. With no claim among the stems the
+    first still answers, so the gate fires on SOMETHING rather than nothing.
+
+    A stem whose spec CLOSED EARLIER is dropped before any of that
+    (`_spec_closed_earlier`). The claim tie-break only runs on two stems or more,
+    so it never reached the shape that matters most: a commit that only EDITS one
+    older row -- the typo fix `_journal_added_spec_stems` cites -- yields exactly
+    ONE stem, months old, and the fallback returned it. An ordinary code-free
+    journal typo fix was then refused in the name of a spec nobody was closing.
+
+    The filter can only REMOVE stems, so it arms the gate nowhere it was not
+    armed already. That is what settles the question the next reader will ask:
+    a MID-WORK commit that carries code and adds a row naming the still-OPEN
+    claimed spec is read as a closure and demands a review artifact, and that
+    behaviour is untouched here -- it predates this filter, which cannot reach
+    it. `spec-closure-check.py` `completed_not_closed` met the same shape and
+    reconciled it by counting a row only alongside the spec's own finished
+    Review Gate. That reconciliation does NOT port into this gate: it is an
+    ADVISORY detector, and a conjunct that costs it a nag costs this gate its
+    block. Deleting the `## Review Gate` section from the spec would become the
+    cheapest route to landing a closure with no review on record, and a BLOCK
+    gate may not depend on a section the committed spec controls. Whether the
+    mid-work demand is friction worth its own fix is a live question; weakening
+    this gate is not the answer to it.
     """
     for p in add_paths:
         m = _LEARNED_STEM_RE.match(p)
@@ -2674,6 +2933,18 @@ def spec_closure_stem(
         m = _SPEC_STEM_RE.match(p)
         if m:
             return m.group("stem")
+    if repo is not None:
+        stems = [
+            stem
+            for stem in _journal_added_spec_stems(repo, add_paths, remove_paths)
+            if not _spec_closed_earlier(repo, stem)
+        ]
+        if len(stems) > 1:
+            claimed = spec_stem(claimed_spec(repo))
+            if claimed in stems:
+                return claimed
+        if stems:
+            return stems[0]
     return None
 
 
@@ -2980,7 +3251,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             "  once the tree is coherent and commit the fix.",
             file=sys.stderr,
         )
-    reminder = closure_reminder(add_paths, remove_paths)
+    reminder = closure_reminder(add_paths, remove_paths, repo)
     if reminder:
         print(reminder, file=sys.stderr)
     # Commit-time WARN gates (plugin .go without .ci, doc drift). Advisory:
@@ -2994,53 +3265,6 @@ def print_session(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     print(session_id(repo, args.session))
     return 0
-
-
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-
-
-LEARNED_NEXT_RETRIES = 8
-
-
-def learned_next(args: argparse.Namespace) -> int:
-    """Allocate the next learned-summary number collision-free.
-
-    The plan/learned/NNNN-slug.md filenames ARE the record, so the next number
-    is max(existing prefixes) + 1 -- no separate .counter cache. The file is
-    created with an exclusive O_EXCL open, so any later session in the same tree
-    sees it and allocates past it. If a concurrent session wins the same number
-    in the window between the glob and the create, the O_EXCL fails; we re-glob
-    (the winner's file now raises the floor) and retry a bounded number of
-    times, always landing on the next free number rather than crashing.
-
-    Duplicate numbers across BRANCHES cannot be prevented here (two trees, no
-    shared filesystem); scripts/dev/learned_numbers.py --check is the backstop.
-    """
-    repo = repo_root(args.repo)
-    slug = args.slug
-    if not SLUG_RE.match(slug):
-        raise UsageError(f"slug {slug!r} must be lower-kebab-case")
-    learned_dir = repo / "plan" / "learned"
-    for _ in range(LEARNED_NEXT_RETRIES):
-        highest = 0
-        for entry in learned_dir.glob("[0-9]*-*.md"):
-            prefix = entry.name.split("-", 1)[0]
-            if prefix.isdigit():
-                highest = max(highest, int(prefix))
-        number = highest + 1
-        path = learned_dir / f"{number:03d}-{slug}.md"
-        try:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        except FileExistsError:
-            continue  # a concurrent session won this number; re-glob and retry
-        with os.fdopen(fd, "w") as fh:
-            fh.write(f"# {slug}\n\n<!-- write the learned summary here -->\n")
-        print(path.relative_to(repo).as_posix())
-        return 0
-    raise UsageError(
-        f"could not allocate a learned number after {LEARNED_NEXT_RETRIES} "
-        f"attempts; concurrent allocation contention for slug {slug!r}"
-    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -3060,15 +3284,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--session", help="set the reusable session id, mainly for tests"
     )
     session.set_defaults(func=print_session)
-
-    learned_cmd = sub.add_parser(
-        "learned-next",
-        help="allocate the next plan/learned number and create the file",
-    )
-    learned_cmd.add_argument(
-        "slug", help="lower-kebab-case summary name (no NNN- prefix)"
-    )
-    learned_cmd.set_defaults(func=learned_next)
 
     create_cmd = sub.add_parser(
         "create",

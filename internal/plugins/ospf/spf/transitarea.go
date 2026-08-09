@@ -1,4 +1,4 @@
-// Design: plan/learned/1043-ospf-ext-7-virtual-links.md -- the shared transit-area SPF side of
+// Design: docs/architecture/ospf/ospf-ext-7-virtual-links.md -- the shared transit-area SPF side of
 // OSPF virtual links.
 // RFC 2328 Section 16.1: a virtual neighbor's reachability, cost, and next hop come from
 // the transit area's intra-area shortest-path tree; the virtual link is down when the

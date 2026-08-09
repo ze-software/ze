@@ -1,4 +1,4 @@
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- OSPFv3 IPv6 multicast groups
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- OSPFv3 IPv6 multicast groups
 // RFC: rfc/short/rfc5340.md (§2.9 AllSPFRouters ff02::5 / AllDRouters ff02::6)
 
 package transport

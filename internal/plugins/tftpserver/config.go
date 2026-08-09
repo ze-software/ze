@@ -1,4 +1,4 @@
-// Design: plan/learned/807-install-2-tftpserver.md -- TFTP server config parsing
+// Design: docs/architecture/provisioning/tftp-server.md -- TFTP server config parsing
 
 package tftpserver
 

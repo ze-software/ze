@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- unified Loc-RIB best-change consumption.
+// Design: docs/architecture/rib/unified-locrib.md -- unified Loc-RIB best-change consumption.
 //
 // VALIDATES: a Loc-RIB best switching from protocol A to protocol B arrives as a
 // single FromLocRIB ChangeUpdate carrying only B; processEvent REPLACES the whole

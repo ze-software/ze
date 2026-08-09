@@ -1,4 +1,4 @@
-// Design: plan/learned/891-granular-debug.md -- granular debug with named profiles
+// Design: docs/architecture/diagnostics/debug-filtering.md -- granular debug with named profiles
 // Related: profile.go -- profile storage, show.go -- structured display, register.go -- CLI registration
 //
 // Grammar is verb-first (set/delete/show/clear), matching VyOS syslog-level

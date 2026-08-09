@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3e (process-wide Loc-RIB)
+// Design: docs/architecture/rib/unified-locrib.md -- the process-wide Loc-RIB
 // Related: manager.go -- the RIB type returned by Default
 
 package locrib

@@ -1,4 +1,4 @@
-// Design: plan/learned/913-firewall-irr.md -- firewall IRR plugin entry point
+// Design: docs/architecture/firewall/firewall-irr.md -- firewall IRR plugin entry point
 //
 // Package irr implements IRR-based prefix-list filtering for firewall rules.
 // It resolves ASN and AS-SET references to prefix lists via the shared

@@ -1,4 +1,4 @@
-// Design: plan/learned/1095-followup-subsystem.md AC-3 -- shared DoT/DoH certificate
+// Design: docs/architecture/dns/secure-transports.md -- shared DoT/DoH certificate
 // validity check, reused by the as112 and geodns doctor checks so both report
 // missing / malformed / expired cert material identically
 // (ai/rules/repo-maintenance.md: "New service with TLS -> Certificate validity +

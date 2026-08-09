@@ -1472,7 +1472,7 @@ case to land in `scripts/dev/ste_check_test.py` in the same change.
 `.claude/hooks/pretool-writeedit.py`, called from `c_test_weakening` and
 reading scope through `_enclosing_tagged_scope`.
 
-**Seen.** 2026-07-31, WP-1 of `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`.
+**Seen.** 2026-07-31, WP-1 of the RFC 7296 gate pilot (rfcgate-1b).
 
 **What happened.** A session wrote a new `_test.go` file carrying
 `RFC requirement:` tags. The file held one typo, an undefined identifier, so the

@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/819-flow-export-2-flow-records.md -- conntrack destroy listener stub
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- conntrack destroy listener stub
 // Related: destroy.go -- ctnetlink event parser (shared, platform-independent)
 
 package conntrack

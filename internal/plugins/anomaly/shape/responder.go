@@ -1,4 +1,4 @@
-// Design: plan/learned/1049-anomaly-2-shape.md -- shadow-first autonomous responder
+// Design: docs/architecture/anomaly/anomaly-2-shape.md -- shadow-first autonomous responder
 //
 // Implements the pinned Responder State Machine: one mutex over {armed map,
 // armedCount, killed, timers}; per-entity firewall rules re-registered as a whole

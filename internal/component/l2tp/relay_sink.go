@@ -1,4 +1,4 @@
-// Design: plan/learned/1100-followup-l2tp-call.md -- AC-3 PPPoE->L2TP relay (LAC role)
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 PPPoE->L2TP relay (LAC role)
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 10.1 (LAC incoming call)
 // Related: reactor_dial.go -- PlaceIncomingCall originates the ICRQ
 

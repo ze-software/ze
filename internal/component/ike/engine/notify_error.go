@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- error notification emission
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- error notification emission
 // RFC: rfc/short/rfc7296.md -- error handling (Sections 2.21.2, 2.21.3, 2.21.4)
 // Related: inbound.go -- the authenticated call sites that answer a refused request
 // Related: register.go -- the out-of-SA dispatch branch that answers an unknown SPI

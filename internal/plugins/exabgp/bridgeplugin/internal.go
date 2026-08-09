@@ -1,4 +1,4 @@
-// Design: plan/learned/1095-followup-subsystem.md AC-1 -- internal exabgp bridge runner
+// Design: docs/architecture/exabgp-bridge.md -- internal exabgp bridge runner
 //
 // runInternalBridge is the RunEngine entry point for the internal exabgp-bridge
 // plugin. It mirrors the external SDK-mode runner (internal/plugins/exabgp

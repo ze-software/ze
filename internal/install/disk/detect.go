@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- disk detection for on-device installer
+// Design: docs/architecture/appliance/on-device-installer.md -- disk detection for on-device installer
 
 package disk
 

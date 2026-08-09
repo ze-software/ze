@@ -1,4 +1,4 @@
-// Design: plan/learned/959-ospf-5-interface-ism.md -- NBMA + point-to-multipoint Hello send.
+// Design: docs/architecture/ospf/ospf-5-interface-ism.md -- NBMA + point-to-multipoint Hello send.
 // RFC: rfc/short/rfc2328.md (sec 9.4 step 6, sec 9.5, sec 10.1 Attempt), rfc/short/rfc5340.md (sec 2.9 unicast)
 //
 // The shared ISM core (iface.go) sends Hellos to a multicast group. NBMA has no

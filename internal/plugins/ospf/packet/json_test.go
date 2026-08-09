@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- offline decode JSON rendering (cold CLI path).
+// Design: docs/architecture/ospf/ospf-2-wire.md -- offline decode JSON rendering (cold CLI path).
 
 package packet
 

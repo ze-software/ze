@@ -1,4 +1,4 @@
-// Design: plan/learned/1095-followup-subsystem.md AC-3/AC-4 -- optional DNS-over-TLS
+// Design: docs/architecture/dns/secure-transports.md -- optional DNS-over-TLS
 // (RFC 7858) and DNS-over-HTTPS (RFC 8484) listeners on the shared harness.
 // RFC: rfc/short/rfc7858.md -- DoT transport; rfc/short/rfc8484.md -- DoH transport
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA and IKE SA rekeying
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- Child SA and IKE SA rekeying
 // Related: ts_narrow.go -- the narrowing floor of RFC 7296 Section 2.9.2
 // RFC: rfc/short/rfc7296.md -- Rekeying (Section 2.8), collision (Section 2.8.1)
 

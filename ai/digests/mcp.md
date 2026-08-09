@@ -420,11 +420,8 @@ package.
   flows)
 - `docs/features/ai-first.md`: where MCP fits in Ze's broader AI-facing surface
 - `ai/rules/plugins.md`: compile-out-able service pattern MCP follows
-- `plan/learned/636-mcp-1-streamable-http.md`, `plan/learned/638-mcp-2-remote-oauth.md`,
-  `plan/learned/640-mcp-3-elicitation.md`, `plan/learned/681-mcp-4-tasks.md`,
-  `plan/learned/682-mcp-5-apps.md`: landed phase specs (Streamable HTTP, OAuth, elicitation,
-  tasks, MCP Apps resources). The PUSH model of elicitation was deleted by the `2026-07-28`
-  cutover and returned as Multi Round-Trip Requests. The flat-primitive schema validator that
-  summary records was recovered unchanged, and it still constrains what Ze emits
-- `plan/learned/987-feature-gate-5-mcp.md`: the `ze_mcp` compile-out feature gate this digest's
-  mount point (`service_mcp.go`) implements
+- The PUSH model of elicitation was deleted by the `2026-07-28` cutover and returned as
+  Multi Round-Trip Requests. The flat-primitive schema validator was recovered unchanged
+  and it still constrains what Ze emits.
+- `feature-gates.txt`: the `ze_mcp` compile-out gate this digest's mount point
+  (`service_mcp.go`) implements

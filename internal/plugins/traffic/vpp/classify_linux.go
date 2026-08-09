@@ -1,4 +1,4 @@
-// Design: plan/learned/1097-followup-vpp-traffic.md -- classify + policer-classify
+// Design: docs/architecture/traffic/followup-vpp-traffic.md -- classify + policer-classify
 // pipeline for steering filters (protocol + dscp). Reuses the proven
 // firewall/vpp classify shape (table -> session -> interface bind) behind
 // trafficvpp's ops seam, extended to multi-class steering (phase 6): all

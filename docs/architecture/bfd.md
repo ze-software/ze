@@ -21,6 +21,7 @@ service for next-hop and session tracking.
 | Express-loop runtime | `internal/component/bfd/engine/` |
 | YANG schema | `internal/component/bfd/yang/ze-bfd-conf.yang` |
 | Reference RFCs | `rfc/short/rfc5880.md`, `rfc5881.md`, `rfc5882.md`, `rfc5883.md` |
+| Client integration pattern | `docs/architecture/ospf/bfd-client.md` |
 | Deep-dive research | `docs/research/bfd-implementation-guide.md` |
 
 <!-- source: internal/component/bfd/ -- plugin layout -->

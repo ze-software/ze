@@ -1,4 +1,4 @@
-// Design: plan/learned/935-isis-10-auth.md -- engine <-> authentication wiring.
+// Design: docs/architecture/isis/isis-10-auth.md -- engine <-> authentication wiring.
 // Related: auth_keystore.go -- the key store this builds from resolved config
 // Related: server.go -- the engine struct, dispatcher, and the metric this owns
 //

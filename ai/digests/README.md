@@ -24,8 +24,8 @@ repo-relative path) when the same basename exists under more than one base. The 
 fails closed on such ambiguity rather than guessing, so it will not silently validate an
 anchor against the wrong same-named file. This catches the anchors rotting, but cannot
 check that the prose still matches the code, so this file stays authoritative: verify
-before relying on a detail. The historical record lives in
-`plan/learned/`, the canonical design in `docs/architecture/`; a digest is the
+before relying on a detail. The recurrence record lives in
+`plan/journal/`, the canonical design in `docs/architecture/`; a digest is the
 fast-orientation layer between them, and `ai/PACKAGE-MAP.md` is the per-package index
 below it.
 

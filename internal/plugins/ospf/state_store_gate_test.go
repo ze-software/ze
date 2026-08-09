@@ -12,7 +12,8 @@ import (
 
 // VALIDATES: neither OSPF store opener resolves a config dir unless the operator
 // pinned one with ze.config.dir, and both degrade rather than fail without it.
-// PREVENTS: the contention behind the SIGBUS in plan/learned/1293. Unpinned,
+// PREVENTS: the store contention that produced a SIGBUS in
+// test/ospf/ospf-ldp-sync-restore.ci. Unpinned,
 // paths.DefaultConfigDir resolves the binary-relative etc/ze that EVERY `ze` on the
 // host shares; the OSPF engine is its own process and zefs's lock is an in-process
 // sync.RWMutex, so opening it put 64 functional-test daemons on one file.

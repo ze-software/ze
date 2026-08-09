@@ -392,12 +392,14 @@ func messageTypeToEventKind(msgType msgtype.MessageType) rpc.EventKind {
 // Uses the specified encoding and format (from process settings).
 // For text encoding, non-UPDATE types use dedicated text formatters instead of JSONEncoder.
 func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode, encoding string) string {
-	// Stack-local scratch for the non-UPDATE Append path. Single string
-	// conversion at each return is the named AC-9 boundary edge.
+	// Stack-local scratch for the non-UPDATE Append path. The single string
+	// conversion at each return is this function's one named boundary.
 	// Size rationale: typical OPEN (~6 caps) / NOTIFICATION / KEEPALIVE /
 	// ROUTE-REFRESH lines fit in 512B. Pathological inputs (many caps,
 	// long data hex) spill to heap transparently via `append` growth.
-	// See plan/learned/614-fmt-0-append.md invariant 4.
+	// The scratch stays stack-local to this caller: never a struct field,
+	// never a sync.Pool. See docs/architecture/api/process-protocol.md,
+	// "Text Event Formatting: the scratch discipline".
 	var scratchArr [512]byte
 	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
 	case msgtype.TypeUPDATE:
@@ -592,7 +594,8 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	// Stack-local scratch; single string(scratch) conversion at the cache edge.
 	// Size rationale: a typical state-change line (peer, ASN, state, reason,
 	// optional group/local) fits well under 512B. Long peer/group names
-	// spill transparently. See plan/learned/614-fmt-0-append.md.
+	// spill transparently. See docs/architecture/api/process-protocol.md,
+	// "Text Event Formatting: the scratch discipline".
 	var fmtCache formatCache
 	var scratchArr [512]byte
 	for _, proc := range procs {
@@ -730,11 +733,12 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 
 	logger().Debug("OnEORReceived", "peer", peerAddr, "family", family, "count", len(procs))
 
-	// Pre-format once per distinct encoding. Stack-local scratch; single
-	// string(scratch) conversion at the cache edge (AC-9 site).
+	// Pre-format once per distinct encoding. Stack-local scratch; one
+	// string(scratch) conversion at the cache edge, which is the boundary.
 	// Size rationale: EOR line is "peer X remote as N eor <family>" or the
 	// equivalent JSON envelope; always under 256B.
-	// See plan/learned/614-fmt-0-append.md.
+	// See docs/architecture/api/process-protocol.md,
+	// "Text Event Formatting: the scratch discipline".
 	var fmtCache formatCache
 	var scratchArr [256]byte
 	for _, proc := range procs {
@@ -886,11 +890,12 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 
 	logger().Debug("OnPeerCongestionChange", "peer", peerAddr, "event", eventType, "count", len(procs))
 
-	// Pre-format once per distinct encoding. Stack-local scratch; single
-	// string(scratch) conversion at the cache edge (AC-9 site).
+	// Pre-format once per distinct encoding. Stack-local scratch; one
+	// string(scratch) conversion at the cache edge, which is the boundary.
 	// Size rationale: congestion line is "peer X remote as N <eventType>"
 	// or the JSON envelope; always under 256B.
-	// See plan/learned/614-fmt-0-append.md.
+	// See docs/architecture/api/process-protocol.md,
+	// "Text Event Formatting: the scratch discipline".
 	var fmtCache formatCache
 	var scratchArr [256]byte
 	for _, proc := range procs {

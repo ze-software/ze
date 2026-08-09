@@ -1,4 +1,4 @@
-// Design: plan/learned/745-ipsec-10-cli-diag.md -- IPsec Prometheus metrics
+// Design: docs/architecture/ike/ipsec-10-cli-diag.md -- IPsec Prometheus metrics
 // RFC: rfc/short/rfc7296.md -- error notification and COOKIE counters (Sections 2.6, 2.21.4)
 
 package engine

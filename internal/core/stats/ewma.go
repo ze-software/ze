@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- exponentially weighted moving average
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- exponentially weighted moving average
 
 package stats
 

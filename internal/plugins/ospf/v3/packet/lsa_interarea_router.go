@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 Inter-Area-Router-LSA body codec.
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 Inter-Area-Router-LSA body codec.
 // RFC: rfc/short/rfc5340.md (§A.4.6 Inter-Area-Router-LSA)
 
 package packet

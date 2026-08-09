@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP-TLS successful termination
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-TLS successful termination
 // RFC: rfc/short/rfc5216.md -- EAP-TLS termination (Section 2.1.3), success direction
 //
 // RFC 5216 Section 2.1.3 ends a SUCCESSFUL EAP-TLS conversation in three owed

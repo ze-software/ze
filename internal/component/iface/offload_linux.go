@@ -1,4 +1,4 @@
-// Design: plan/learned/708-gap-4-iface-offload.md -- ethtool offload and sysfs steering
+// Design: docs/architecture/iface/offload.md -- ethtool offload and sysfs steering
 
 //go:build linux
 

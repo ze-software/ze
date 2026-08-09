@@ -1,4 +1,4 @@
-// Design: plan/learned/629-fw-7b-backend-hardening.md -- VPP-operation seam for unit tests
+// Design: docs/architecture/traffic/fw-7b-backend-hardening.md -- VPP-operation seam for unit tests
 // Related: backend_linux.go -- govppOps production adapter + Apply/applyWithOps consumers
 
 //go:build linux

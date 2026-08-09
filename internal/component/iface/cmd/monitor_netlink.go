@@ -1,4 +1,4 @@
-// Design: plan/learned/728-diag-netlink-monitor.md -- netlink monitor handler registration
+// Design: docs/architecture/iface/netlink-monitor.md -- netlink monitor handler registration
 // Related: interface_rate.go -- existing streaming monitor handler in iface/cmd
 
 package cmd

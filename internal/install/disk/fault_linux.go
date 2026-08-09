@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- R-6 forced-panic fault injection (evidence-only)
+// Design: docs/architecture/appliance/installer-initrd.md -- R-6 forced-panic fault injection (evidence-only)
 
 //go:build linux && ze_installer && ze_installer_fault
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- AC-11 pure-Go initrd packer round-trip
+// Design: docs/architecture/appliance/installer-initrd.md -- AC-11 pure-Go initrd packer round-trip
 
 package appliance
 

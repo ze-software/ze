@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- OSPFv3 AF-aware instance listing.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- OSPFv3 AF-aware instance listing.
 // RFC: rfc/short/rfc5838.md (Section 2: each address family is a separate OSPFv3 instance
 // with its own LSDB, identified by its Instance-ID range).
 //

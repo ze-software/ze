@@ -1,4 +1,4 @@
-// Design: plan/learned/750-zefs-integrity.md -- check, repair, and encode CLI commands
+// Design: docs/architecture/zefs-format.md -- check, repair, and encode CLI commands
 
 package cli
 

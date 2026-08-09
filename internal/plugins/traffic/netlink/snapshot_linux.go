@@ -1,4 +1,4 @@
-// Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore
+// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- tc original-qdisc restore
 // Related: ops_linux.go -- tc operation seam used by snapshot checks
 // Related: ai/rules/architecture.md -- the original-qdisc snapshot persists in
 // the shared zefs store (database.zefs) via internal/core/statestore, not a loose

@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- opaque/unknown LSA passthrough
+// Design: docs/architecture/ospf/ospf-2-wire.md -- opaque/unknown LSA passthrough
 // RFC 5250 opaque types 9/10/11 are retained verbatim in v1.
 
 package packet

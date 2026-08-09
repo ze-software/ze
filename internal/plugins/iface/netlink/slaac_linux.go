@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/1095-followup-subsystem.md AC-6 -- kernel-cooperating SLAAC
+// Design: docs/architecture/iface/management.md -- kernel-cooperating SLAAC
 // address lifecycle tracking. ze does not run a userspace RA client; it observes
 // the addresses the kernel autoconfigures from Router Advertisements (RFC 4862)
 // via netlink and classifies them by their IFA_F_* flags so status/CLI can

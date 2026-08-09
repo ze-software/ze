@@ -1,4 +1,4 @@
-// Design: plan/learned/760-subscriber-session-model.md -- transport-generic handler registries
+// Design: docs/architecture/l2tp/subscriber-session-model.md -- transport-generic handler registries
 
 package subscriber
 

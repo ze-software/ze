@@ -163,7 +163,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 		// option=env, however, is consumed by the test runner (it seeds proc.Env
 		// when spawning ze/ze-peer/helpers), NOT by ze-peer. Placing it inside
 		// the peer block means it is silently dropped and the target process
-		// never sees it. See plan/learned/545-debug-plugin-test-cluster.md.
+		// never sees it, and the test passes while proving nothing.
 		// Reject it with a hard error naming the directive so the author can
 		// move it outside the block.
 		if peerBlock, ok := v.StdinBlocks["peer"]; ok {
@@ -177,8 +177,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 				if strings.HasPrefix(trimmed, "option=env:") {
 					return r, fmt.Errorf("stdin=peer block line %d: %q is consumed by the test runner, not ze-peer, "+
 						"so placing it inside a stdin=peer block silently drops it. "+
-						"Move it outside (above) the stdin=peer:terminator=... header. "+
-						"See plan/learned/545-debug-plugin-test-cluster.md",
+						"Move it outside (above) the stdin=peer:terminator=... header.",
 						blockLine, trimmed)
 				}
 				// Parse expect= and action= lines for reporting purposes

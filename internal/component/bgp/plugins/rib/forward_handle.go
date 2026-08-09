@@ -1,4 +1,4 @@
-// Design: plan/learned/784-rib-rs-fastpath.md -- producer side of locrib.ForwardHandle
+// Design: docs/architecture/rib/forward-handle.md -- producer side of locrib.ForwardHandle
 // Related: rib_structured.go -- creates one handle per received UPDATE
 // Related: rib_bestchange.go -- threads the handle to locrib.InsertForward
 

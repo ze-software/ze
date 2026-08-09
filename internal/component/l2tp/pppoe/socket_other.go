@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- non-Linux stubs
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- non-Linux stubs
 
 //go:build !linux
 

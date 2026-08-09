@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- the RFC 7684 Extended Prefix Opaque
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- the RFC 7684 Extended Prefix Opaque
 // LSA (Opaque Type 7) consumer.
 // RFC: rfc/short/rfc7684.md -- sec 2 (Extended Prefix Opaque LSA), sec 2.1 (Extended Prefix
 // TLV, Route Type / A-Flag / N-Flag, lowest-Opaque-ID dedup), sec 5 (malformed rules).

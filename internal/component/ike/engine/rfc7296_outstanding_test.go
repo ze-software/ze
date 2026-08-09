@@ -7,7 +7,7 @@
 //
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval to strengthen a
 // tagged test whose tag asserted more than its body drove, for the whole of
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md. It covers edits that make a tagged test assert MORE
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md. It covers edits that make a tagged test assert MORE
 // than before, and nothing that weakens one. Here it covers
 // TestOsrOwnerLoopKeepsAForeignWindowHeld, which passed dpd == nil and so never reached
 // retireRequest at all.
@@ -213,7 +213,7 @@ func TestOsrOutOfWindowRequestIsNotAcknowledged(t *testing.T) {
 	// The invalid request. Its id is far outside the one-request window.
 	//
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. These requests are built
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. These requests are built
 	// with the PEER SA's real keys, so they authenticate, and an authenticated
 	// out-of-window request now draws an INVALID_MESSAGE_ID. RFC 7296 Section 2.3 raises
 	// that as a NEW REQUEST carrying its own Message ID, which is why this row's MUST NOT
@@ -284,7 +284,7 @@ func TestOsrClassifierRejectsOutOfWindow(t *testing.T) {
 // request go out beside a request that is still unanswered.
 //
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test whose tag asserted more
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test whose tag asserted more
 // than its body drove. This body passed dpd == nil. So established.go's awaitingReply gate
 // short-circuited, and retireRequest was never called. No mutation of either guard turned
 // the test red. The approval covers strengthening only, never weakening.
@@ -367,7 +367,7 @@ func TestOsrOwnerLoopKeepsAForeignWindowHeld(t *testing.T) {
 // two of our own requests in flight on one SA.
 //
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
 // adds proof, and it removes none.
 //
 // It drives the producer directly rather than through maintainSA. The owner loop reaches

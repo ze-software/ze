@@ -1,4 +1,4 @@
-// Design: plan/learned/913-firewall-irr.md -- firewall IRR config parsing
+// Design: docs/architecture/firewall/firewall-irr.md -- firewall IRR config parsing
 
 package irr
 

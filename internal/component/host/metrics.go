@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md -- Prometheus export of inventory
+// Design: docs/architecture/host/inventory.md -- Prometheus export of inventory
 // Related: inventory.go -- Inventory struct and Detect() entry point
 // Related: cached.go -- CachedDetector wraps Detect with TTL
 // Related: diff.go -- DiffInventory compares snapshots for change events

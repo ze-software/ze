@@ -1,4 +1,4 @@
-// Design: plan/learned/920-mpls-ldp.md -- LDP dataplane via the mpls-fib bus (AC-3/AC-4)
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP dataplane via the mpls-fib bus (AC-3/AC-4)
 // Related: register.go -- runSession wires label events to the fib
 // Related: ../../core/mplsfib/events.go -- the (mpls-fib, entry) payload
 //

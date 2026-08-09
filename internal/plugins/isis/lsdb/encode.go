@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- TLV value builders + fragment packer for origination.
+// Design: docs/architecture/isis/isis-6-lsdb.md -- TLV value builders + fragment packer for origination.
 // ISO/IEC 10589 clause 9 (TLV framing: 1-octet length, value 0..255).
 //
 // RFC: rfc/short/rfc5305.md -- TLV 22 / TLV 135 entry layout (sec 3/4)

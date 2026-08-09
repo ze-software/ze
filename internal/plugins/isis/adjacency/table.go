@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- per-circuit neighbor table + snapshot.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- per-circuit neighbor table + snapshot.
 // ISO/IEC 10589 section 8.2: a circuit holds one adjacency per (level, neighbor
 // System ID) on a LAN, and one adjacency per level on a point-to-point link.
 //

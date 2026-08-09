@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- non-Linux dataplane stub
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- non-Linux dataplane stub
 
 //go:build !linux
 

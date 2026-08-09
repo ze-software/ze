@@ -1,4 +1,4 @@
-// Design: plan/learned/965-ospf-11-stub-nssa.md -- engine NSSA default-route origination +
+// Design: docs/architecture/ospf/ospf-11-stub-nssa.md -- engine NSSA default-route origination +
 // translator election and Type 7 -> Type 5 translation.
 // Related: internal/plugins/ospf/lsdb -- the Type 7 originator (OriginateNSSA).
 // RFC: rfc/short/rfc3101.md -- sec 2.3 NSSA default; sec 3.5 translator election;

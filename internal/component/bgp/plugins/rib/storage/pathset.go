@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 2 (ADD-PATH moves to value layer)
+// Design: docs/architecture/rib/unified-locrib.md -- ADD-PATH in the value layer
 // Related: familyrib_bart.go -- uses pathSet as the Store value type under ADD-PATH
 // Related: familyrib_map.go -- same, under -tags maprib
 // Related: routeentry.go -- the per-path route data wrapped here

@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — passphrase change (rekey)
+// Design: docs/architecture/appliance/builder.md -- passphrase change (rekey)
 
 package appliance
 

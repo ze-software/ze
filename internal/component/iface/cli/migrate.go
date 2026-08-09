@@ -1,4 +1,4 @@
-// Design: plan/learned/491-iface-2-manage.md — Interface migration CLI
+// Design: docs/architecture/iface/management.md -- Interface migration CLI
 
 package cli
 

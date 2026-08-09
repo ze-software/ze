@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- the LS Acknowledgment body is an AF-neutral list
+// Design: docs/architecture/ospf/ospf-af-unify.md -- the LS Acknowledgment body is an AF-neutral list
 // of LSA headers, so it lives in the shared types leaf and both wire codecs (ospf/packet,
 // ospfv3/packet) produce/consume it. Only the wire encode/decode is version-specific.
 

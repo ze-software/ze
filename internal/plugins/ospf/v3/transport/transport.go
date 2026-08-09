@@ -1,4 +1,4 @@
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- OSPFv3 raw IPv6 transport orchestrator
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- OSPFv3 raw IPv6 transport orchestrator
 // RFC: rfc/short/rfc5340.md (§2.9 transport, §A.3.1 checksum, §4.2.1 Instance ID demux)
 
 package transport

@@ -160,7 +160,7 @@ feature-integration-completeness ## Feature Integration Completeness
 implementation-audit ## Implementation Audit
   pointer-to-the-audit-rationale
   when-to-run-the-audit
-  run-the-audit-before-a-summary-or-a-done-claim
+  run-the-audit-before-a-journal-row-or-a-done-claim
   process
   how-to-run-the-implementation-audit
   approval-required

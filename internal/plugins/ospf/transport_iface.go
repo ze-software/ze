@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- Phase 1: the engine consumes transport
+// Design: docs/architecture/ospf/ospf-af-unify.md -- Phase 1: the engine consumes transport
 // through an address-family-neutral interface, not the concrete OSPFv2 type, so a
 // second (IPv6/OSPFv3) instance can later supply ospfv3/transport. This phase is a
 // pure extract-interface refactor: the concrete *transport.Transport satisfies the

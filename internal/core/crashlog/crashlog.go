@@ -1,4 +1,4 @@
-// Design: plan/learned/726-diag-crash-capture.md -- crash capture for panic diagnostics
+// Design: docs/architecture/diagnostics/crash-capture.md -- crash capture for panic diagnostics
 //
 // Package crashlog captures stderr output (including Go panic traces) and
 // forwards it to syslog and a crash file on disk. Init() must be the first

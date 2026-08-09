@@ -18,5 +18,5 @@ load-bearing vs nice-to-have.
 
 The rule exists because every AI session's instinct is to wrap up and
 present when tests pass. Tests passing is step 10 of 12. The remaining
-steps (docs, audit, learned summary, spec closure) are where partial work
+steps (docs, audit, journal row, spec closure) are where partial work
 is caught, and skipping them is how partial work ships.

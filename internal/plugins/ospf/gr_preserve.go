@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- OSPFv3 GR preservation + v6 Grace-LSA.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- OSPFv3 GR preservation + v6 Grace-LSA.
 // Related: gr_restarter.go (capture on prepare, restore on resume), origination_v6.go
 //
 //	(v6OriginateLinkLSA pattern), gr.go (grManager preserved Interface-ID map).

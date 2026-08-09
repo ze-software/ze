@@ -1,4 +1,4 @@
-// Design: plan/learned/1055-config-apply-ordering.md -- operation graph foundation
+// Design: docs/architecture/config/apply-ordering.md -- operation graph foundation
 // Related: types.go -- transaction event payloads
 
 package transaction

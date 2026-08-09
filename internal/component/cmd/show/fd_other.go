@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- non-Linux stub for FD inspection
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- non-Linux stub for FD inspection
 // Overview: fd_linux.go -- Linux implementation
 //
 //go:build !linux

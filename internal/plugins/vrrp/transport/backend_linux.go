@@ -1,7 +1,7 @@
 //go:build linux
 
 // RFC: rfc/short/rfc9568.md -- Section 5.1/5.2 (advert transport), 7.2 (source identity)
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- Linux raw proto-112 backend (rx parent / tx macvlan)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- Linux raw proto-112 backend (rx parent / tx macvlan)
 // Related: garp_linux.go -- AF_PACKET gratuitous-ARP sender on the macvlan
 // Related: na_linux.go -- raw ICMPv6 unsolicited-NA sender on the macvlan
 //

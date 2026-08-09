@@ -1,4 +1,4 @@
-// Design: plan/learned/959-ospf-5-interface-ism.md -- OSPFv2 Interface State Machine
+// Design: docs/architecture/ospf/ospf-5-interface-ism.md -- OSPFv2 Interface State Machine
 // RFC: rfc/short/rfc2328.md
 // RFC 2328 Section 9.1: "The state of an OSPF interface is one of Down, Loopback, Waiting, Point-to-point, DR Other, Backup, or DR."
 // RFC 2328 Section 9.3: "The interface state machine changes state as interface events occur."

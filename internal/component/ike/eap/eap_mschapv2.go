@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP-MSCHAPv2 method handler
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-MSCHAPv2 method handler
 // RFC: rfc/short/rfc2759.md -- MS-CHAPv2 exchange inside EAP (type 26)
 
 package eap

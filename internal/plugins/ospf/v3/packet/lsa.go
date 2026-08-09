@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- 20-octet OSPFv3 LSA header and lazy LSA view.
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- 20-octet OSPFv3 LSA header and lazy LSA view.
 // RFC: rfc/short/rfc5340.md (§A.4.2.1 LSA header)
 
 package packet

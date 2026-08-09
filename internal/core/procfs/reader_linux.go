@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- Linux /proc file reading
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- Linux /proc file reading
 //
 //go:build linux
 

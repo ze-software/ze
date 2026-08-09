@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- shared zero-alloc dotted-hex format/parse helpers
+// Design: docs/architecture/isis/isis-1-types.md -- shared zero-alloc dotted-hex format/parse helpers
 
 package types
 

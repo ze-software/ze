@@ -15,8 +15,9 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// TestExtractLegacyNLRIOverride covers the per-prefix modify path helper for
-// cmd-4 phase 2 (plan/learned/552). The helper compares the "nlri
+// TestExtractLegacyNLRIOverride covers the per-prefix modify path helper: the
+// engine, not the filter plugin, re-encodes the accepted prefix subset, so the
+// plugin side of a per-prefix deny stays pure text. The helper compares the "nlri
 // ipv4/unicast add ..." block in two filter-text strings and returns
 // wire-encoded NLRI bytes for the modified prefix list, or nil when no
 // IPv4-unicast rewrite is needed.

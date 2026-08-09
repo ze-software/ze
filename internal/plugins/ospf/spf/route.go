@@ -1,4 +1,4 @@
-// Design: plan/learned/962-ospf-8-spf-rib.md -- OSPF route table, preference, and diff.
+// Design: docs/architecture/ospf/ospf-8-spf-rib.md -- OSPF route table, preference, and diff.
 // RFC 2328 Section 11 gives the route preference order. The OSPF package
 // resolves that order before publishing one Loc-RIB path set per prefix.
 // RFC: rfc/short/rfc5286.md (Section 3.6 fast-reroute backup protection classes)

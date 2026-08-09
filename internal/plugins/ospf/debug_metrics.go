@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- the six debug metric series.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- the six debug metric series.
 // RFC: rfc/short/rfc5250.md (IPv4 opaque), rfc/short/rfc5340.md (IPv6 native).
 //
 // The debug/introspection surface owns exactly six Prometheus series, three per address

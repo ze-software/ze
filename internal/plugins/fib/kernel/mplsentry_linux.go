@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/921-mpls-rsvp-te.md -- netlink AF_MPLS swap/pop programming
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- netlink AF_MPLS swap/pop programming
 // Related: mplsentry.go -- mplsBackend interface and dispatch
 // Related: nexthop_linux.go -- sibling rich-route (push) programming
 //

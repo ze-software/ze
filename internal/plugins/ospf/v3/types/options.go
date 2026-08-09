@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- OSPFv3 24-bit Options bitset.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- OSPFv3 24-bit Options bitset.
 // RFC: rfc/short/rfc5340.md (§A.2 Options), rfc/short/rfc5838.md (AF-bit)
 //
 // OSPFv3 widens the OSPFv2 8-bit Options to 24 bits, carried in Hello, DD, and several

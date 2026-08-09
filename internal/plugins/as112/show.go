@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- show as112 status command
+// Design: docs/architecture/dns/as112.md -- show as112 status command
 
 package as112
 

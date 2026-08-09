@@ -462,8 +462,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// the address. Gating this on `enabled` discarded the operator's certificate
 	// choice when --web, ze.web.listen, or ze.web.enabled started the server,
 	// leaving a self-signed certificate on a listener the operator believed was
-	// serving their own chain
-	// (plan/learned/1327-enabled-gate-discards-service-settings.md).
+	// serving their own chain.
 	if webSettings, ok := zeconfig.ExtractWebSettings(loadResult.Tree); ok && webCertificate == "" {
 		webCertificate = webSettings.Certificate
 	}

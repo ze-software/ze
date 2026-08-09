@@ -1,4 +1,4 @@
-// Design: plan/learned/627-fw-7-traffic-vpp.md -- Commit-time rejection matrix
+// Design: docs/architecture/traffic/fw-7-traffic-vpp.md -- Commit-time rejection matrix
 
 package trafficvpp
 
@@ -19,7 +19,7 @@ var (
 	// SR-policy), not a general packet mark; there is no VPP feature arc that
 	// reads it back into the packet the way Linux SKB fwmark persists. So no
 	// faithful mark semantic exists -- rejection is retained. Rationale and
-	// evidence: plan/learned/1097-followup-vpp-traffic.md (A-3, AC-3).
+	// evidence: docs/architecture/traffic/followup-vpp-traffic.md (A-3, AC-3).
 	errFilterMarkNotSupportedByBackend = errors.New("filter mark: not supported by backend vpp (Linux SKB fwmark has no faithful VPP equivalent; classify SET_METADATA stores opaque graph-node metadata, not a persistent packet mark -- validated on VPP v25.10, see plan/spec-followup-vpp-traffic.md AC-3)")
 	// errQdiscPrioNotSupportedByBackend names AC-4's rejection-retained
 	// resolution (USER decision 2026-07-10): `qdisc prio` is a priority
@@ -27,7 +27,7 @@ var (
 	// classify + policer shaping. Mapping prio to a DSCP egress-map would be a
 	// silent semantic substitution that exact-or-reject forbids, so prio stays
 	// rejected with this actionable error. Rationale:
-	// plan/learned/1097-followup-vpp-traffic.md (AC-4).
+	// docs/architecture/traffic/followup-vpp-traffic.md (AC-4).
 	errQdiscPrioNotSupportedByBackend = errors.New("qdisc prio: not supported by backend vpp (prio is a priority scheduler; VPP has no prio scheduler API, only classify+policer shaping -- use htb/tbf with per-class protocol/dscp filters instead, see plan/spec-followup-vpp-traffic.md AC-4)")
 )
 
@@ -71,7 +71,7 @@ const nameSeparator = "/"
 // scheduler VPP does not expose. Rejecting at verify is the
 // per-`rules/exact-or-reject.md` posture -- no feature ships that does not
 // actually work in VPP. Rationale + evidence:
-// plan/learned/1097-followup-vpp-traffic.md.
+// docs/architecture/traffic/followup-vpp-traffic.md.
 //
 // Errors from every bad interface are collected via errors.Join so the
 // operator sees all issues in one commit attempt. Interfaces are walked
@@ -255,7 +255,7 @@ func verifyQdiscType(q traffic.QdiscType) error {
 //     A-3 (validated on real VPP v25.10): the classify SET_METADATA action
 //     stores an opaque value consumed only by specific downstream graph nodes,
 //     not a persistent packet mark -- so no faithful semantic exists. Rationale:
-//     plan/learned/1097-followup-vpp-traffic.md (AC-3).
+//     docs/architecture/traffic/followup-vpp-traffic.md (AC-3).
 //
 // Rejecting the unimplemented filters at verify keeps the backend honest
 // (no half-working features) per `rules/exact-or-reject.md`.

@@ -1,4 +1,4 @@
-// Design: plan/learned/994-geodns-3-observability-cli.md -- show geodns status command
+// Design: docs/architecture/dns/geodns.md -- show geodns status command
 
 package geodns
 

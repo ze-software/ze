@@ -292,7 +292,7 @@ func TestCommitHelperRejectsIgnoredPaths(t *testing.T) {
 // VALIDATES: commit_helper refuses to write a script when ze-verify reports
 // STALE, and --unverified bypasses the gate with the reason recorded in output.
 // PREVENTS: silently preparing a commit over a red/stale verify -- the root
-// cause behind a batch of slipped-in breakage (plan/learned/1013-verify-gate-hardening.md).
+// cause behind a batch of slipped-in breakage.
 func TestCommitHelperVerifyGate(t *testing.T) {
 	root := makeCommitHelperFixture(t)
 	writeFixture(t, root, ".gitignore", "tmp/*\n")

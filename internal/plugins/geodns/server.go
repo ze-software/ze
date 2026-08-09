@@ -1,5 +1,5 @@
-// Design: plan/learned/993-geodns-2-server.md -- geodns DNS server (listener, EDNS0, answer synthesis)
-// Design: plan/learned/1027-dns-server-harness.md -- listener lifecycle, client-IP and
+// Design: docs/architecture/dns/geodns.md -- geodns DNS server (listener, EDNS0, answer synthesis)
+// Design: docs/architecture/dns/server-harness.md -- listener lifecycle, client-IP and
 // authoritative-answer shaping moved to internal/core/dnsserver; this file
 // keeps only geodns's answer policy and its thin harness wiring.
 // RFC: rfc/short/rfc7871.md -- EDNS0 client subnet; rfc/short/rfc1035.md -- DNS messages, SOA, NS

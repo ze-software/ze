@@ -1,4 +1,4 @@
-// Design: plan/learned/919-mpls-kernel.md -- MPLS shared constants, errors, validation
+// Design: docs/architecture/mpls/mpls-kernel.md -- MPLS shared constants, errors, validation
 // Related: nexthop_linux.go -- buildMPLSEncap programs the netlink MPLS encap
 // Related: fibkernel.go -- addChange/replaceChange dispatch labeled routes here
 

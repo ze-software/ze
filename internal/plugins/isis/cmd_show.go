@@ -1,4 +1,4 @@
-// Design: plan/learned/937-isis-13-cli-diag-interop.md -- `show isis ...` / `clear isis
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- `show isis ...` / `clear isis
 // ...` surfaced under the top-level show/clear grammar.
 // Related: register.go -- runISISEngine registers the matching CommandDecl set
 // Related: show.go -- the engine-side render/clear OnExecuteCommand dispatches to

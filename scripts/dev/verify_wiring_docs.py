@@ -34,11 +34,11 @@ TARGET_ORDER = (
     "ze-doc-check-stale",
     "ze-discovery-index-check",
     "ze-digest-check",
-    "ze-learned-staleness",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
+    "ze-docker-exec-check",
     "ze-spec-citation-check",
 )
 
@@ -49,11 +49,11 @@ MAKE_TARGETS = {
     "ze-doc-check-stale",
     "ze-discovery-index-check",
     "ze-digest-check",
-    "ze-learned-staleness",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
+    "ze-docker-exec-check",
     "ze-spec-citation-check",
 }
 
@@ -609,10 +609,10 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("ze-plugin-imports-check")
         if is_fuzz_source(root, path):
             selected.add("ze-fuzz-targets-check")
+        if is_docker_exec_source(path):
+            selected.add("ze-docker-exec-check")
         if is_plan_source(path):
             selected.add("ze-spec-citation-check")
-        if is_learned_source(path):
-            selected.add("ze-learned-staleness")
     return [target for target in TARGET_ORDER if target in selected]
 
 
@@ -632,21 +632,25 @@ def is_plan_source(path: str) -> bool:
     return path.startswith("plan/spec-") or path.startswith("plan/learned/")
 
 
-def is_learned_source(path: str) -> bool:
-    """Changed files that must re-run the learned-summary staleness gate: any
-    plan/learned/*.md (its `## Files` paths and `plan/learned/NNN` citations are
-    what the gate reads), the checker itself, or the shrink-only baseline.
+def is_docker_exec_source(path: str) -> bool:
+    """Changed files that must re-run the fail-open call-site ratchet: any
+    Python under test/ (a scenario check.py, an interop lab, the harness itself),
+    the checker, or the committed floor.
 
-    Adding a summary adds references that can be dead on arrival; retiring one
-    removes a number its siblings may still cite. Both land here, so the gate
-    fires exactly when a reference could have gone dangling. A deleted path is
-    still in the changed set, which is the case that matters most."""
+    Any of them can move the count. A scenario adds a call site; a lab adds a
+    WRAPPER, which enlarges the derived fail-open set and reclassifies sites in
+    files nobody touched. Both land here. test/draft/ is excluded to match the
+    checker's own skip: a draft is gitignored and must not redden the ratchet
+    for a session that had nothing to do with it.
+    """
     if path in {
-        "scripts/dev/learned_staleness.py",
-        "plan/.learned-staleness-baseline",
+        "scripts/dev/docker_exec_checked.py",
+        "test/health/docker-exec-baseline.json",
     }:
         return True
-    return path.endswith(".md") and path.startswith("plan/learned/")
+    if not (path.startswith("test/") and path.endswith(".py")):
+        return False
+    return not path.startswith("test/draft/")
 
 
 def is_fuzz_source(root: Path, path: str) -> bool:
@@ -744,10 +748,10 @@ def is_doc_source(root: Path, path: str) -> bool:
 
 def is_discovery_source(root: Path, path: str) -> bool:
     """Changed files that can drift a generated discovery index
-    (ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md): the
-    generators themselves, their outputs, the Makefile wiring, any learned
-    summary, any register.go (its Description), and any .go whose header carries
-    a `// Package` or `// Design:` line that the indexes derive from.
+    (ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md): the generators themselves, their
+    outputs, the Makefile wiring, any register.go (its Description), and any .go
+    whose header carries a `// Package` or `// Design:` line that the indexes
+    derive from.
 
     The path rules are shared with the commit gate
     (commit_helper.feeds_discovery_index) via discovery_sources.py; here the

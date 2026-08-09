@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: docs/architecture/rib/unified-locrib.md -- per-family NLRI split
 // RFC: rfc/short/rfc7606.md -- Section 5.4 names MCAST-VPN as a typed family
 // Related: register.go -- binds SplitMVPN to AFI IPv4/IPv6 with SAFI MCAST-VPN
 // Related: typelen.go -- the shared type-and-length framing walk

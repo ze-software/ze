@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- WriteTo round-trip tests for all OSPF leaf types
+// Design: docs/architecture/ospf/ospf-1-types.md -- WriteTo round-trip tests for all OSPF leaf types
 
 package types
 

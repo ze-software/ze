@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- Phase 2: the Codec seam. The engine decodes
+// Design: docs/architecture/ospf/ospf-af-unify.md -- Phase 2: the Codec seam. The engine decodes
 // the common OSPF header and verifies the packet checksum through this interface
 // instead of calling ospf/packet directly, so a second (IPv6/OSPFv3) instance can
 // later supply a v6 codec (ospfv3/packet) with its IPv6 upper-layer checksum. The v4

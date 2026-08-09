@@ -1,4 +1,4 @@
-// Design: plan/learned/726-diag-crash-capture.md -- offline crash file viewer
+// Design: docs/architecture/diagnostics/crash-capture.md -- offline crash file viewer
 //
 // Package crashes provides the in-process offline fallback for
 // `show crashes [latest | name <file>]`. It reads crash files directly from

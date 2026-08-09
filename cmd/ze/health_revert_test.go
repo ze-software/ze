@@ -1,4 +1,4 @@
-// Design: plan/learned/678-appliance-4-device-config.md — auto-revert tests
+// Design: docs/architecture/appliance/device-config.md -- auto-revert tests
 
 //go:build ze_core
 

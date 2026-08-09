@@ -198,6 +198,9 @@ The rule and its automated check (R9, sibling-collision) live in
 [`ai/rules/cli.md`](../../../ai/rules/cli.md) ("Compound Token vs
 Namespace Split").
 
+The same rule over the ROOT namespace, and the gate that enforces it, live in
+[`root-namespace-grammar.md`](root-namespace-grammar.md).
+
 ## Filters are keyword grammar, never `--flags`
 
 The through-line across every vendor above: the family / instance / table

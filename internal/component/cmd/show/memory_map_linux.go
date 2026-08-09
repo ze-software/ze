@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- show system memory (OS view) from /proc/self/status
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- show system memory (OS view) from /proc/self/status
 // Related: system.go -- existing Go runtime memory stats
 //
 //go:build linux

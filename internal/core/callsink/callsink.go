@@ -1,4 +1,4 @@
-// Design: plan/learned/1100-followup-l2tp-call.md -- AC-3 PPPoE->L2TP relay call-sink (R-1 boundary)
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 PPPoE->L2TP relay call-sink (R-1 boundary)
 
 // Package callsink is the neutral registration seam between the PPPoE access
 // concentrator and the L2TP tunnel engine, letting a PADS-completed PPPoE

@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- offline OSPFv2 packet decode CLI.
+// Design: docs/architecture/ospf/ospf-2-wire.md -- offline OSPFv2 packet decode CLI.
 // spec-ospf-ext-14: extended with `--opaque` (render an IPv4 opaque LSA's Opaque Type/ID +
 // generic TLVs, RFC 5250) and `--v3` (render an OSPFv3 LSA's scope-aware LS Type + 20-octet
 // header + typed/generic body, RFC 5340). Both run offline, with no running engine.

@@ -27,7 +27,7 @@ Three filter categories:
 | Default | On by default, can be overridden per-peer | `rfc:no-self-as` (loop prevention) |
 | User | Only present when explicitly configured | `rpki:validate`, `community:scrub` |
 
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
+<!-- source: internal/component/plugin/registry/registry.go -- FilterTypes and the mandatory/default/user filter categories -->
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in -->

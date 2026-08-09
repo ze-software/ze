@@ -112,8 +112,8 @@ forbidden-raw-output ## Forbidden Raw Output
 branch-integration ## Branch Integration
   integrate-a-worktree-branch-by-rebase-not-merge
 rebase-onto-diverged-main-driving-the-bookkeeping-conflicts ## Rebase Onto Diverged main: driving the bookkeeping conflicts
-  drive-a-diverged-rebase-with-rebase-learned-py
-  finish-the-rebase-before-fixing-learned-numbers
+  drive-a-diverged-rebase-by-regenerating-bookkeeping
+  finish-the-rebase-before-recomputing-derived-ratchets
   rebase-continue-reports-a-misleading-conflict-error
 gpg-signing ## GPG Signing
   never-disable-gpg-signing-or-a-hook

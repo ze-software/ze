@@ -1,4 +1,4 @@
-// Design: plan/learned/962-ospf-8-spf-rib.md -- OSPFv2 SPF graph build from the synced LSDB.
+// Design: docs/architecture/ospf/ospf-8-spf-rib.md -- OSPFv2 SPF graph build from the synced LSDB.
 // RFC 2328 Section 16.1 builds the intra-area shortest-path tree over router
 // vertices and transit-network vertices before stub networks are attached.
 // RFC: rfc/short/rfc5286.md (post-convergence graph clone for TI-LFA repair)

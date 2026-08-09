@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- engine `show ospf ...` snapshots.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- engine `show ospf ...` snapshots.
 // Related: instance.go -- the engine that owns the neighbor table, LSDB, and SPF computer.
 // Related: register.go -- OnExecuteCommand renders these snapshots for the show commands.
 package ospf

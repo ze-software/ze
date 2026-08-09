@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- FD inspection from /proc/self/fd (lsof replacement)
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- FD inspection from /proc/self/fd (lsof replacement)
 // Related: sockets_linux.go -- existing /proc reading pattern
 //
 //go:build linux

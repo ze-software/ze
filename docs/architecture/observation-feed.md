@@ -34,6 +34,28 @@ Observation {
 `Kind` tells consumers which `Flow` fields are meaningful. `Observation` is a value
 type (embedded `FlowKey`, no pointers) for zero-allocation publish.
 
+## Why this shape
+
+- **A subscriber list, not a single callback.** `RegisterCollectNotify` stored
+  one callback in an atomic pointer, so the last registration won and every
+  earlier plugin lost its tick-driven behavior whenever two of them were
+  enabled together. The copy-on-write subscriber list is the fix, and
+  `RegisterCollectNotify` now wraps the new API.
+- **A typed in-process feed, not the EventBus.** The EventBus appends every
+  event to a 1024-entry diagnostic ring. Per-source and per-flow volume would
+  thrash that ring, so this feed uses its own buffered channels and
+  copy-on-write dispatch.
+- **Publish never blocks, by contract.** Both publishers call it while holding
+  their own lock: trafficusage from `publishLocked` under `m.mu`, and
+  flowexport from `ExportFlows` under `e.mu`. A blocking publish would stall a
+  collector behind a slow subscriber.
+- **Conntrack flow values are deltas.** The cumulative reading applies to the
+  eBPF and rate-tracker byte counters. `FlowBytes` from conntrack is the delta
+  since the last export, which follows the `NewFlowCount` precedent.
+- **The iface tick payload did not change.** Existing consumers still receive
+  the same `[]InterfaceInfo`, which is what made the migration a no-op for
+  them.
+
 ## Delivery
 
 <!-- source: internal/core/observation/observation.go -- Publish, subscriber.drain -->

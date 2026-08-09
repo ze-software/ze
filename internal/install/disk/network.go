@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- network fallback for initrd installer
+// Design: docs/architecture/appliance/on-device-installer.md -- network fallback for initrd installer
 
 package disk
 

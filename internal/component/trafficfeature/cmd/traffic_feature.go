@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- show traffic feature CLI handler
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- show traffic feature CLI handler
 //
 // The show traffic feature view is trafficfeature's Spec-1 consumer: it surfaces
 // the neutral per-source feature signals for operators, and satisfies wiring

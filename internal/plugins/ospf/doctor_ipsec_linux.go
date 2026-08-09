@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- kernel XFRM readiness probe (Linux).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- kernel XFRM readiness probe (Linux).
 // RFC: rfc/short/rfc4552.md -- OSPFv3 IPsec needs CAP_NET_ADMIN + kernel XFRM.
 
 package ospf

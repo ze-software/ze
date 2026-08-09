@@ -1,4 +1,4 @@
-// Design: plan/learned/688-web-4-interfaces.md -- Interface table and detail pages
+// Design: docs/architecture/web-workbench-pages.md -- Interface table and detail pages
 // Related: workbench_table.go -- Reusable table component
 // Related: workbench_detail.go -- Reusable detail panel component
 // Related: handler_workbench.go -- Workbench handler that dispatches to this page

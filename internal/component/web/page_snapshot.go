@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- shared read-only snapshot page shell.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- shared read-only snapshot page shell.
 // Related: page_isis.go, page_ospf.go -- the IS-IS/OSPF view shells that wrap it.
 //
 // The IS-IS and OSPF neighbor/database pages are the same dependency-light HTML shell,

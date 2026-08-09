@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- Linux ipv6.PacketConn backend
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- Linux ipv6.PacketConn backend
 // RFC: rfc/short/rfc5340.md (§2.9 raw IPv6 proto 89, link-local source, ff02::5/6)
 
 package transport

@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3 (unified Loc-RIB)
+// Design: docs/architecture/rib/unified-locrib.md -- path group, entry and best selection
 // Related: candidate.go -- Path value type stored in each PathGroup
 
 package locrib

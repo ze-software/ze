@@ -218,7 +218,7 @@ forwarding`, independent of either engine's in-memory state.
   `internal/plugins/fib/kernel/fibkernel.go`); LDP/RSVP-TE ride the dedicated
   `mplsfibevents.EntryChange` through `handleMPLSEntry`
   (`internal/plugins/fib/kernel/fibkernel.go`). This digest covers only the
-  latter; see `plan/learned/919-mpls-kernel.md` for the former.
+  latter; read `internal/plugins/fib/kernel/` for the former.
 - **No shared label allocator between LDP and RSVP-TE.** LDP's local labels start
   at 16 (`ldp/lib.go`) and RSVP-TE's start at 1000 (`firstDynamicLabel`,
   `rsvpte/fsm.go`); both independently grow toward the same 20-bit ceiling
@@ -263,15 +263,6 @@ forwarding`, independent of either engine's in-memory state.
   kernel route shape (`mpls/forwarding_linux.go`,`:108`).
 
 ## See also
-- `plan/learned/920-mpls-ldp.md`, LDP closure notes: config-shape trap, dynamic
-  interface reload, FRR-ldpd interop evidence
-- `plan/learned/921-mpls-rsvp-te.md`, RSVP-TE closure notes: refresh/link-failure
-  design, reload reconciliation, multi-node interop test coverage
-- `plan/learned/925-mpls-rsvp-te-fast-reroute.md`, RFC 4090 facility-backup design
-  and gotchas (bypass keying, node-protection label resolution)
-- `plan/learned/919-mpls-kernel.md`, fib-kernel MPLS integration: BGP-LU via
-  Loc-RIB/sysrib vs. the LDP/RSVP-TE `(mpls-fib, entry)` topic, foreign-route
-  non-clobber
 - `ai/PACKAGE-MAP.md`, one-line role of every package, including `mplsfib` and
   `component/mpls`
 - `ai/rules/architecture.md`, one-page component map and boundaries

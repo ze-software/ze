@@ -117,4 +117,5 @@ Ze's healthcheck replaces ExaBGP's `healthcheck.py` program. Key differences:
 - Disable via `ze config set ... disable true` replaces file-poll mechanism.
 - Hooks have a 30-second timeout (ExaBGP hooks can hang forever).
 - Per-state community and as-path variation is not supported. Use separate watchdog groups if needed.
-<!-- source: plan/learned/516-healthcheck-0-umbrella.md -- ExaBGP Feature Mapping -->
+<!-- source: internal/component/bgp/plugins/healthcheck/hooks.go -- hookTimeout, the 30-second hook bound -->
+<!-- source: internal/component/bgp/plugins/healthcheck/config.go -- Disable and the watchdog metric fields -->

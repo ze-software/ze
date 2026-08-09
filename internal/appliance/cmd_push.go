@@ -1,4 +1,4 @@
-// Design: plan/learned/817-install-7c-vendor-updater.md — OTA push via vendored gokrazy updater
+// Design: docs/architecture/appliance/ota-push.md -- OTA push via vendored gokrazy updater
 
 package appliance
 

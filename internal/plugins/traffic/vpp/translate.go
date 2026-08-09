@@ -1,4 +1,4 @@
-// Design: plan/learned/627-fw-7-traffic-vpp.md -- Translation contract
+// Design: docs/architecture/traffic/fw-7-traffic-vpp.md -- Translation contract
 //
 // Pure translation functions mapping ze traffic.InterfaceQoS types to VPP
 // binapi structures. These functions contain no I/O and no references to

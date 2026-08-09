@@ -163,7 +163,7 @@ def unreachable_blocking(rules, corpus):
         print(
             "warning: the task corpus is empty, so no blocking rule can be shown "
             "unreachable and ai/rules/CORE.md loses that derivation -- check that "
-            "plan/learned/*.md and plan/spec-*.md are readable",
+            "plan/spec-*.md is readable",
             file=sys.stderr,
         )
         return set()
@@ -584,7 +584,7 @@ def load_task_corpus(root):
     """
     import rules_router
 
-    return rules_router.load_corpus(root / "plan" / "learned", root / "plan")
+    return rules_router.load_corpus(root / "plan")
 
 
 def payload_report(root):

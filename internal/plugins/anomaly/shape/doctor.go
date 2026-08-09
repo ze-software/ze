@@ -1,4 +1,4 @@
-// Design: plan/learned/1049-anomaly-2-shape.md -- armed-mode firewall readiness check.
+// Design: docs/architecture/anomaly/anomaly-2-shape.md -- armed-mode firewall readiness check.
 //
 // In armed mode the responder installs live nft rules via the firewall component.
 // If no firewall is configured there is no backend to apply them to, so `ze doctor`

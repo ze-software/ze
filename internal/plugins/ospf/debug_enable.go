@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- the shared debug-injection gate.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- the shared debug-injection gate.
 // RFC: rfc/short/rfc5250.md (IPv4 opaque inject), rfc/short/rfc5340.md (IPv6 native inject).
 //
 // The debug LSA-injection surface is DOUBLE-GATED (AC-16/AC-17, R-1): the read-only authz

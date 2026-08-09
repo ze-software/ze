@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP FSM output actions (closed set)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP FSM output actions (closed set)
 // RFC: rfc/short/rfc9568.md (VRRPv3) and rfc/short/rfc3768.md (VRRPv2)
 //
 // The FSM returns ordered action VALUES instead of performing effects. The

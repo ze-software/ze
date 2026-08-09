@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- AEAD and non-AEAD ciphers, integrity
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- AEAD and non-AEAD ciphers, integrity
 
 package crypto
 

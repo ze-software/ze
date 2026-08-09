@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- BGP message capture ring
+// Design: docs/architecture/diagnostics/packet-capture.md -- BGP message capture ring
 // Related: reactor_notify.go -- notifyMessageReceiver appends here
 
 package reactor

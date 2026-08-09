@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- shared state and metrics for the
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- shared state and metrics for the
 // RFC 7684 Extended Prefix (Opaque Type 7) and Extended Link (Opaque Type 8) consumers.
 // RFC: rfc/short/rfc7684.md (Extended Prefix/Link Opaque LSAs), rfc/short/rfc5250.md sec 5
 // (Type-11 originator reachability, consumed from ext-1).

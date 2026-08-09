@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- raw capture activation and pcap export
+// Design: docs/architecture/diagnostics/packet-capture.md -- raw capture activation and pcap export
 
 package cmd
 

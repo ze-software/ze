@@ -1,4 +1,4 @@
-// Design: plan/learned/692-web-8-tools-logs.md -- Log page handlers
+// Design: docs/architecture/web-workbench-pages.md -- Log page handlers
 // Related: sse.go -- EventBroker for Live Log SSE streaming
 // Related: handler_admin.go -- CommandDispatcher type
 // Related: workbench_pages.go -- Page dispatch (renderPageContent)

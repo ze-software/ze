@@ -1,4 +1,4 @@
-// Design: plan/learned/963-ospf-9-inter-area-abr.md -- inter-area SPF and ABR snapshots.
+// Design: docs/architecture/ospf/ospf-9-inter-area-abr.md -- inter-area SPF and ABR snapshots.
 // RFC 2328 Sections 3.3, 16.2, and 16.3: ABR detection, inter-area cost
 // composition, and the ABR backbone-only summary acceptance rule.
 

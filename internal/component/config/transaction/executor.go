@@ -1,4 +1,4 @@
-// Design: plan/learned/1055-config-apply-ordering.md -- ordered operation execution
+// Design: docs/architecture/config/apply-ordering.md -- ordered operation execution
 // Related: gateway.go -- event stream used to reach plugin callbacks
 
 package transaction

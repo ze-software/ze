@@ -2,7 +2,6 @@
 kind: directive
 level: MUST
 stage:
-rationale: plan/learned/1368-vacuous-eor-family-tests.md
 ---
 - **The review's subject is the PRODUCT. A false statement in the spec's own
   closure record is a NOTE, and a NOTE never re-opens a round.** Wrong arithmetic

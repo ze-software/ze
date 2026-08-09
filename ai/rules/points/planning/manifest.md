@@ -117,7 +117,7 @@ spec-closure-blocking ## Spec Closure (BLOCKING)
   re-read-what-a-bulk-repoint-produced
   resolve-rows-pointing-at-the-spec-during-closure
   why-closure-must-resolve-rows-that-name-the-spec
-  never-resolve-a-row-to-a-summary-that-omits-the-item
+  never-resolve-a-row-to-a-record-that-omits-the-item
   never-git-rm-f-an-uncommitted-spec
   banned-closure-shortcuts-and-why
   closure-enforcement-automated
@@ -126,8 +126,8 @@ spec-closure-blocking ## Spec Closure (BLOCKING)
   how-to-list-the-unclosed-spec-backlog
 spec-preservation ## Spec Preservation
   where-the-rationale-lives
-  what-to-discard-when-writing-the-summary
-  delete-the-spec-only-after-the-summary-is-written
+  what-to-discard-when-writing-the-row
+  delete-the-spec-only-after-the-journal-row-is-written
   commit-the-spec-before-deletion
   transform-spec-scaffolding-into-knowledge
 verify-specs-against-code-blocking ## Verify Specs Against Code (BLOCKING)
@@ -197,15 +197,10 @@ executive-summary-report ## Executive Summary Report
   the-purpose-of-each-executive-summary-section
 documentation-update-checklist-blocking ## Documentation Update Checklist (BLOCKING)
   where-the-canonical-documentation-checklist-lives
-writing-learned-summaries ## Writing Learned Summaries
-  write-a-summary-only-when-the-work-taught-something
-  the-staleness-ceiling-is-drained-never-removed
-  keep-a-learned-summary-within-its-line-budget
-  what-each-learned-summary-section-holds
-  what-the-context-section-must-carry
-  name-the-rejected-alternative-in-every-decision
-  what-the-consequences-section-must-carry
-  the-quality-test-every-summary-entry-must-pass
+writing-journal-rows ## Writing Journal Rows
+  write-a-row-only-when-the-work-taught-something
+  what-each-journal-row-cell-holds
+  the-quality-test-every-journal-row-must-pass
 session-handoff ## Session Handoff
   why-a-handoff-leads-with-its-rationale
   when-user-asks-how-to-continue

@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/929-isis-3-l2-transport.md -- raw-socket probe for the doctor check
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw-socket probe for the doctor check
 //
 // rawSocketAvailable opens and immediately closes an AF_PACKET/SOCK_RAW socket,
 // the exact capability the IS-IS transport needs. EPERM (no CAP_NET_RAW) makes

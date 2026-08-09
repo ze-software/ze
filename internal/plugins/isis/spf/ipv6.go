@@ -1,4 +1,4 @@
-// Design: plan/learned/924-isis-12-ipv6.md -- IPv6 leaf extraction + next-hop over the
+// Design: docs/architecture/isis/isis-12-ipv6.md -- IPv6 leaf extraction + next-hop over the
 // SHARED SPF tree. Single-topology (RFC 5308): IPv6 reachability rides the same
 // per-level Dijkstra result the IPv4 slice computes (spf.go / graph.go); there is
 // NO second SPF run and NO separate IPv6 topology graph. The only per-AF

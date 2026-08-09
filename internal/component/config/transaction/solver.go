@@ -1,4 +1,4 @@
-// Design: plan/learned/1055-config-apply-ordering.md -- operation graph solver
+// Design: docs/architecture/config/apply-ordering.md -- operation graph solver
 // Related: depgraph.go -- graph construction from constraint rules
 
 package transaction

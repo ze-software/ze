@@ -1,5 +1,5 @@
-// Design: plan/learned/992-geodns-1-config.md -- geodns source matcher (CIDR longest-prefix)
-// Design: plan/learned/1027-dns-server-harness.md -- longest-prefix mechanism moved to
+// Design: docs/architecture/dns/geodns.md -- geodns source matcher (CIDR longest-prefix)
+// Design: docs/architecture/dns/server-harness.md -- longest-prefix mechanism moved to
 // internal/core/dnsserver; only the host-set label mapping stays geodns's.
 
 package geodns

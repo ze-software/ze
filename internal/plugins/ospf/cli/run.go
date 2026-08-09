@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- offline `ze ospf decode` subcommand entry
+// Design: docs/architecture/ospf/ospf-2-wire.md -- offline `ze ospf decode` subcommand entry
 
 package cli
 

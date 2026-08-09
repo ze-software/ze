@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 306 design docs, 3267 files
+Total: 286 design docs, 3268 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -61,6 +61,7 @@ Total: 306 design docs, 3267 files
 | `internal/component/cli/testing/fake_monitor.go` | functional coverage for \| log data-transform pipes |
 | `internal/core/cliio/cliio.go` | "-" means stdin/stdout across every command |
 | `scripts/checks/ci_dispatch_commands.go` | dispatch-key migration leaves dead callers |
+| `scripts/checks/cli_dash_stdio.go` | "-" means stdin/stdout via internal/core/cliio |
 
 ## `ai/rules/config.md`
 
@@ -206,6 +207,36 @@ Total: 306 design docs, 3267 files
 | `internal/plugins/iface/ra/doctor_other.go` | doctor check platform probe |
 | `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
 | `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go` | doctor checks owned by the plugin that |
+
+## `docs/architecture/aaa-tacacs.md`
+
+- `internal/component/tacacs/cli/main.go` -- TACACS+ AAA operational CLI
+
+## `docs/architecture/anomaly/anomaly-1-detect.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/anomalyevent/event.go` | behavioral anomaly event contract |
+| `internal/plugins/anomaly/detect/config.go` | behavioral anomaly detector configuration |
+| `internal/plugins/anomaly/detect/detector.go` | behavioral anomaly detector (report-only) |
+| `internal/plugins/anomaly/detect/doctor.go` | feature-source readiness check. |
+| `internal/plugins/anomaly/detect/score.go` | Scoring & Correlation Rule (pinned) |
+| `internal/plugins/anomaly/detect/show.go` | show anomaly report surface |
+
+## `docs/architecture/anomaly/anomaly-2-shape.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/anomaly/shape/config.go` | shadow-first anomaly responder config |
+| `internal/plugins/anomaly/shape/doctor.go` | armed-mode firewall readiness check. |
+| `internal/plugins/anomaly/shape/match.go` | source entity to firewall term/table |
+| `internal/plugins/anomaly/shape/metrics.go` | responder metrics |
+| `internal/plugins/anomaly/shape/responder.go` | shadow-first autonomous responder |
+| `internal/plugins/anomaly/shape/show.go` | show anomaly-shape responder status |
+
+## `docs/architecture/anomaly/anomaly-4-interop-harness.md`
+
+- `internal/plugins/anomaly/shape/testsupport.go` -- in-process test composition seam.
 
 ## `docs/architecture/api/architecture.md`
 
@@ -480,6 +511,137 @@ Total: 306 design docs, 3267 files
 
 - `internal/component/bgp/textparse/scanner.go` -- shared text event tokenizer
 
+## `docs/architecture/appliance-serial-login.md`
+
+- `cmd/ze-serial-shell/main.go` -- gokrazy serial shell wrapper
+- `cmd/ze/login.go` -- serial console login gate
+
+## `docs/architecture/appliance/build-artifacts.md`
+
+| File | Topic |
+|------|-------|
+| `internal/appliance/cache.go` | XDG cache resolution and artifact download |
+| `internal/appliance/cmd_initrd.go` | installer initrd download/build |
+| `internal/appliance/cmd_kernel.go` | installer kernel download/build |
+| `internal/appliance/doctor_checks.go` | doctor check functions for appliance build prerequisites |
+
+## `docs/architecture/appliance/builder.md`
+
+| File | Topic |
+|------|-------|
+| `internal/appliance/agent.go` | passphrase agent (key-on-socket) |
+| `internal/appliance/cmd_assemble.go` | ZeFS assembly with config layering |
+| `internal/appliance/cmd_build.go` | full image build (assemble + gok + ext4) |
+| `internal/appliance/cmd_cert.go` | TLS certificate replacement |
+| `internal/appliance/cmd_clone.go` | clone config (not secrets) |
+| `internal/appliance/cmd_init.go` | appliance init wizard |
+| `internal/appliance/cmd_list.go` | list appliances |
+| `internal/appliance/cmd_passwd.go` | password rotation |
+| `internal/appliance/cmd_rekey.go` | passphrase change (rekey) |
+| `internal/appliance/cmd_run.go` | QEMU boot with port conflict detection |
+| `internal/appliance/cmd_show.go` | show appliance config and cert expiry |
+| `internal/appliance/cmd_unlock.go` | passphrase agent lifecycle |
+| `internal/appliance/config.go` | appliance config structs and validation |
+| `internal/appliance/crypto.go` | Argon2id KDF + ChaCha20-Poly1305 AEAD encryption |
+| `internal/appliance/homebrew.go` | Homebrew prefix resolution for the macOS build host |
+| `internal/appliance/main.go` | appliance CLI dispatch |
+| `internal/appliance/manifest.go` | build manifest and image checksums |
+| `internal/appliance/resolve.go` | appliance directory resolution |
+
+## `docs/architecture/appliance/command-provider.md`
+
+- `internal/appliance/register.go` -- appliance command provider
+
+## `docs/architecture/appliance/device-config.md`
+
+| File | Topic |
+|------|-------|
+| `cmd/ze/health_revert.go` | auto-revert on runtime failure after config push |
+| `cmd/ze/health_revert_test.go` | auto-revert tests |
+| `cmd/ze/pushed_config.go` | pushed config loading priority at boot |
+| `cmd/ze/pushed_config_test.go` | pushed config loading tests |
+
+## `docs/architecture/appliance/disaster-recovery.md`
+
+- `internal/appliance/cmd_export.go` -- bastion disaster recovery export
+- `internal/appliance/cmd_import.go` -- bastion disaster recovery import
+
+## `docs/architecture/appliance/gokrazy-build-pins.md`
+
+- `internal/appliance/instance/prepare.go` -- preparing a
+
+## `docs/architecture/appliance/installer-initrd.md`
+
+| File | Topic |
+|------|-------|
+| `cmd/ze-installer/main.go` | PID-1 installer initrd binary |
+| `internal/appliance/initrd_pack_test.go` | AC-11 pure-Go initrd packer round-trip |
+| `internal/core/rescueauth/rescueauth.go` | rescue-shell credential encoding |
+| `internal/install/disk/blockdev_linux.go` | block device ioctls + syscall wiring |
+| `internal/install/disk/blockdev_linux_test.go` | block device ioctl tests |
+| `internal/install/disk/bootstrap_linux.go` | PID-1 bootstrap: mount, console |
+| `internal/install/disk/bootstrap_linux_test.go` | bootstrap tests |
+| `internal/install/disk/console_linux.go` | multi-console fan-out writer |
+| `internal/install/disk/console_linux_test.go` | console fan-out tests |
+| `internal/install/disk/dhcp_linux.go` | single-shot DHCPv4 via nclient4 |
+| `internal/install/disk/fault_linux.go` | R-6 forced-panic fault injection (evidence-only) |
+| `internal/install/disk/fault_linux_test.go` | R-6 fault-injection hook tests |
+| `internal/install/disk/fault_stub_linux.go` | R-6 fault injection compiled out of shipping initrd |
+| `internal/install/disk/initrd_linux.go` | PID-1 entry point for installer initrd |
+| `internal/install/disk/initrd_linux_test.go` | RunInitrd wiring test |
+| `internal/install/disk/loop_linux.go` | loop device attach/detach via ioctls |
+| `internal/install/disk/loop_linux_test.go` | loop device ioctl tests |
+| `internal/install/disk/mount_linux.go` | mount/umount via unix syscalls |
+| `internal/install/disk/mount_linux_test.go` | mount/umount wrapper tests |
+| `internal/install/disk/netlink_linux.go` | netlink link/addr/route for installer |
+| `internal/install/disk/rescue_linux.go` | Go recovery console + three-branch fatal |
+
+## `docs/architecture/appliance/iso-installer.md`
+
+- `internal/appliance/cmd_iso.go` -- bootable appliance ISO installer
+
+## `docs/architecture/appliance/kernel-profiles.md`
+
+- `internal/appliance/cmd_kernel.go` -- installer kernel profile registry
+- `internal/appliance/kernelreg.go` -- installer kernel profile registry
+- `internal/appliance/kernelreq.go` -- installer kernel requirement enforcement
+
+## `docs/architecture/appliance/on-device-installer.md`
+
+| File | Topic |
+|------|-------|
+| `cmd/ze/ze_core_autoinit.go` | gokrazy first-boot auto-init fallback |
+| `internal/appliance/diskverify.go` | build-side inject verify |
+| `internal/install/disk/cmdline.go` | kernel cmdline parsing for on-device installer |
+| `internal/install/disk/detect.go` | disk detection for on-device installer |
+| `internal/install/disk/download.go` | download with retry and integrity check |
+| `internal/install/disk/iso.go` | ISO media detection and local image write |
+| `internal/install/disk/network.go` | network fallback for initrd installer |
+| `internal/install/disk/register.go` | ze install disk registration |
+| `internal/install/disk/run.go` | ze install disk entry point |
+| `internal/install/disk/system.go` | Linux-specific install operations |
+| `internal/install/disk/validate.go` | on-device installer input validation |
+
+## `docs/architecture/appliance/ota-push.md`
+
+- `internal/appliance/cmd_push.go` -- OTA push via vendored gokrazy updater
+- `internal/appliance/cmd_push_test.go` -- push tests with updater protocol
+
+## `docs/architecture/appliance/remote-operations.md`
+
+- `internal/appliance/cmd_config.go` -- config preview (merged base + overlay)
+- `internal/appliance/cmd_config_push.go` -- config push to device via SSH
+- `internal/appliance/parallel.go` -- bounded worker pool for parallel fleet operations
+
+## `docs/architecture/appliance/self-update.md`
+
+| File | Topic |
+|------|-------|
+| `cmd/ze/update_serve.go` | standalone update server with enhanced manifest |
+| `internal/component/config/system/selfupdate.go` | download, verify, stage, restart logic |
+| `internal/plugins/update-cmd/cmd/firmware.go` | update system firmware CLI handlers |
+| `internal/plugins/update-cmd/cmd/show.go` | show system update CLI handler (extended) |
+
 ## `docs/architecture/behavior/fsm.md`
 
 | File | Topic |
@@ -502,6 +664,64 @@ Total: 306 design docs, 3267 files
 - `internal/component/bfd/cmd/bfd.go` -- BFD CLI handlers
 - `internal/component/bfd/metrics.go` -- Prometheus metric surface
 
+## `docs/architecture/bgp/as112-coordination.md`
+
+- `internal/component/doctor/checks_as112_coordination.go` -- AS112 advisory coordination checks
+- `internal/plugins/as112/redistribute.go` -- AS112 layering rule:
+
+## `docs/architecture/bgp/fanout-dedup.md`
+
+- `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
+- `internal/component/bgp/reactor/forward_dedup.go` -- one materialization per policy group
+
+## `docs/architecture/bgp/filter-irr.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/filter_irr/cache.go` | shared PrefixStore wiring for the IRR filter plugin |
+| `internal/component/bgp/plugins/filter_irr/cmd_irr.go` | YANG command forwarding for IRR filter plugin. |
+| `internal/component/bgp/plugins/filter_irr/command.go` | IRR plugin command handlers (show/update bgp irr) |
+| `internal/component/bgp/plugins/filter_irr/config.go` | IRR filter config parsing from OnConfigure JSON |
+| `internal/component/bgp/plugins/filter_irr/filter_irr.go` | IRR prefix-list filter plugin entry point |
+| `internal/component/bgp/plugins/filter_irr/match.go` | prefix matching for IRR-derived filter lists |
+
+## `docs/architecture/bgp/healthcheck-plugin.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/healthcheck/config.go` | healthcheck config parsing |
+| `internal/component/bgp/plugins/healthcheck/fsm.go` | FSM states and transitions |
+| `internal/component/bgp/plugins/healthcheck/fsm_test.go` | FSM transition tests |
+| `internal/component/bgp/plugins/healthcheck/healthcheck.go` | healthcheck plugin design |
+| `internal/component/bgp/plugins/healthcheck/hooks.go` | hook execution |
+| `internal/component/bgp/plugins/healthcheck/ip.go` | IP management via iface |
+| `internal/component/bgp/plugins/healthcheck/lifecycle_test.go` | config reload lifecycle tests |
+| `internal/component/bgp/plugins/healthcheck/probe.go` | probe shell command execution |
+
+## `docs/architecture/bgp/interface-event-reactions.md`
+
+- `internal/component/bgp/reactor/reactor_iface.go` -- BGP reactions to interface events
+
+## `docs/architecture/bgp/on-demand-origination.md`
+
+- `internal/component/bgp/plugins/cmd/announce/announce.go` -- on-demand route origination CLI verbs
+- `internal/component/bgp/plugins/cmd/announce/registry.go` -- tag registry for on-demand route origination
+- `internal/component/bgp/plugins/cmd/announce/require.go` -- BGP reactor type assertion for announce cmd
+
+## `docs/architecture/bgp/peeringdb-prefix-update.md`
+
+- `internal/component/bgp/plugins/cmd/peer/prefix_update.go` -- PeeringDB prefix update command
+
+## `docs/architecture/bgp/replay-cursor.md`
+
+- `internal/component/bgp/plugins/cmd/update/cursor.go` -- stateful cursor for replay batching
+- `internal/component/bgp/plugins/rib/rib_replay.go` -- grouped collection and cursor replay
+
+## `docs/architecture/bgp/structural-forwarding.md`
+
+- `internal/component/bgp/reactor/forward_body.go` -- shared body-building for forwarding
+- `internal/component/bgp/reactor/forward_rs.go` -- reactor-native RS forwarding
+
 ## `docs/architecture/chaos-web-dashboard.md`
 
 | File | Topic |
@@ -515,6 +735,7 @@ Total: 306 design docs, 3267 files
 | `internal/chaos/guard/guard.go` | chaos action compatibility guard |
 | `internal/chaos/inprocess/chaos.go` | in-process chaos scheduling |
 | `internal/chaos/inprocess/runner.go` | in-process chaos runner |
+| `internal/chaos/mcp/tools.go` | Chaos MCP tools for AI queries |
 | `internal/chaos/mocknet/mocknet.go` | mock network for in-process chaos |
 | `internal/chaos/orchestrator/cli.go` | chaos CLI entry point |
 | `internal/chaos/orchestrator/conflict.go` | listener conflict detection for ze-chaos |
@@ -572,6 +793,7 @@ Total: 306 design docs, 3267 files
 | `internal/chaos/validation/props_route.go` | property-based validation |
 | `internal/chaos/validation/tracker.go` | property-based validation |
 | `internal/chaos/virtualclock.go` | simulation infrastructure |
+| `internal/chaos/watchdog/watchdog.go` | Watchdog consumer for anomaly detection |
 | `internal/chaos/web/control.go` | web dashboard UI |
 | `internal/chaos/web/dashboard.go` | web dashboard UI |
 | `internal/chaos/web/handlers.go` | web dashboard UI |
@@ -588,6 +810,10 @@ Total: 306 design docs, 3267 files
 | `internal/core/clock/clock.go` | simulation infrastructure |
 | `internal/core/network/network.go` | simulation infrastructure |
 | `internal/test/sim/sim.go` | simulation infrastructure |
+
+## `docs/architecture/cli/command-completion.md`
+
+- `internal/component/cli/client/inject.go` -- plugin command completion injection
 
 ## `docs/architecture/cli/command-namespacing.md`
 
@@ -635,10 +861,35 @@ Total: 306 design docs, 3267 files
 | `internal/plugins/systemd/register.go` | systemd install/uninstall plugin registration |
 | `internal/plugins/systemd/unit.go` | ze systemd unit file generation |
 
+## `docs/architecture/cli/root-namespace-grammar.md`
+
+- `internal/plugins/isis/cli/register.go` -- isis root namespace (decode member)
+- `internal/plugins/ospf/cli/register.go` -- ospf root namespace (decode member)
+
+## `docs/architecture/cli/tui-launcher.md`
+
+- `cmd/ze/tui_menu.go` -- interactive no-arg launcher
+
 ## `docs/architecture/command-ownership.md`
 
 - `internal/plugins/meta/cmd/register.go` -- plugin self-containment
 - `scripts/codegen/yang_glue.go` -- YANG as data, codegen enables folder test
+
+## `docs/architecture/config/apply-ordering.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugin/operation.go` | BGP-owned operation decomposition |
+| `internal/component/bgp/reactor/operation.go` | BGP peer operation handlers |
+| `internal/component/config/transaction/depgraph.go` | operation dependency graph |
+| `internal/component/config/transaction/executor.go` | ordered operation execution |
+| `internal/component/config/transaction/operation.go` | operation graph foundation |
+| `internal/component/config/transaction/solver.go` | operation graph solver |
+| `internal/component/iface/operation.go` | iface-owned operation decomposition |
+
+## `docs/architecture/config/change-file-structural-ops.md`
+
+- `internal/component/config/change_file.go` -- dedicated per-user change-file structural ops
 
 ## `docs/architecture/config/environment.md`
 
@@ -765,6 +1016,19 @@ Total: 306 design docs, 3267 files
 | `internal/component/config/validate_semantic.go` | semantic validation for offline checks |
 | `internal/component/config/yang_schema.go` | config parsing and loading |
 | `internal/core/parse/origin.go` | parsing helpers |
+
+## `docs/architecture/config/system-update.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/config/system/backend.go` | active update backend registry |
+| `internal/component/config/system/backend_gokrazy.go` | gokrazy-managed update backend |
+| `internal/component/config/system/backend_ze_appliance.go` | minimal-build Ze self-update stub |
+| `internal/component/config/system/backend_ze_distro.go` | Ze self-update backend wrapper |
+| `internal/component/config/system/backend_ze_distro_test.go` | update backend tests |
+| `internal/component/config/system/update.go` | periodic version check against remote manifest |
+| `internal/component/config/system/update_test.go` | unit tests for update checker |
+| `internal/core/gokrazyutil/gokrazyutil.go` | shared gokrazy management helpers |
 
 ## `docs/architecture/config/transaction-protocol.md`
 
@@ -1238,6 +1502,197 @@ Total: 306 design docs, 3267 files
 | `internal/test/plugins/fakeredist/fakeredist.go` | in-process test producer for redistevents |
 | `pkg/ze/eventbus.go` | namespaced event bus (typed payloads) |
 
+## `docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/ddosevent/event.go` | DDoS event contract |
+| `internal/plugins/ddos/detect/baseline.go` | rolling baseline with poisoning guards |
+| `internal/plugins/ddos/detect/config.go` | detector configuration |
+| `internal/plugins/ddos/detect/detector.go` | two-stage DDoS detector |
+| `internal/plugins/ddos/detect/policy.go` | detector traffic policy |
+| `internal/plugins/ddos/detect/state.go` | trigger/clear state machine |
+| `internal/plugins/ddos/flowspec/config.go` | flowspec responder config |
+| `internal/plugins/ddos/flowspec/match.go` | vector to FlowSpec match |
+| `internal/plugins/ddos/flowspec/probe.go` | leak-probe state machine |
+| `internal/plugins/ddos/flowspec/responder.go` | upstream FlowSpec/RTBH responder |
+| `internal/plugins/ddos/flowspec/show.go` | show ddos flowspec surface |
+| `internal/plugins/ddos/flowtriq/client.go` | Flowtriq cloud API reporter |
+| `internal/plugins/ddos/flowtriq/config.go` | Flowtriq reporter config |
+| `internal/plugins/ddos/local/config.go` | local responder config |
+| `internal/plugins/ddos/local/match.go` | vector to firewall term |
+| `internal/plugins/ddos/local/responder.go` | on-host nft drop responder |
+| `internal/plugins/ddos/local/show.go` | show ddos local surface |
+| `internal/plugins/ddos/observe/config.go` | observability config |
+| `internal/plugins/ddos/observe/show.go` | show ddos surface |
+| `internal/plugins/ddos/observe/store.go` | bounded incident store |
+
+## `docs/architecture/ddos/cp-survival-5-detect-5-characterization.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ddos/detect/characterize.go` | Stage-2 characterization. |
+| `internal/plugins/ddos/detect/doctor.go` | flow-source readiness. |
+| `internal/plugins/ddos/detect/metrics.go` | Stage-2 metrics. |
+| `internal/plugins/flowexport/recent.go` | Phase 2 recent-flow tap. |
+
+## `docs/architecture/ddos/ddos-detect-enhancements.md`
+
+- `internal/plugins/ddos/detect/persist.go` -- baseline persistence across restart.
+
+## `docs/architecture/diagnostics/active-probes.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/iface/cmd/show_route_lookup.go` | route lookup via netlink. |
+| `internal/component/ping/cmd/ping.go` | ICMP ping from the router |
+| `internal/component/ping/cmd/ping_test.go` | ping argument parsing tests |
+| `internal/component/traceroute/cmd/probe_round.go` | batch probe round (show probe-round RPC) |
+| `internal/component/traceroute/cmd/traceroute.go` | ICMP traceroute from the router |
+| `internal/component/traceroute/cmd/traceroute_test.go` | traceroute argument parsing and wiring tests |
+
+## `docs/architecture/diagnostics/crash-capture.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/crashlog/crashlog.go` | crash capture for panic diagnostics |
+| `internal/core/crashlog/dup2_unix.go` | fd2 redirect on unix platforms |
+| `internal/core/crashlog/dup2_unsupported.go` | fd2 redirect stub for non-unix |
+| `internal/core/crashlog/list.go` | crash file listing for CLI |
+| `internal/core/crashlog/persist.go` | crash file persistence and rotation |
+| `internal/core/crashlog/stderr.go` | stderr redirect and syslog forwarding |
+| `internal/plugins/crashes/crashes.go` | offline crash file viewer |
+| `internal/plugins/crashes/register.go` | offline crash file CLI |
+
+## `docs/architecture/diagnostics/debug-filtering.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/yang/register_debug.go` | BGP debug flag registration |
+| `internal/component/debug/yang/register.go` | debug YANG module registration |
+| `internal/core/duration/duration.go` | shared duration parsing for CLI input |
+| `internal/core/slogutil/debug.go` | debug subsystem validation and matching |
+| `internal/core/slogutil/filter.go` | slog handler that filters on flag and scope attributes |
+| `internal/plugins/debug/cmd/handlers.go` | live debug state query via RPC |
+| `internal/plugins/debug/cmd/register.go` | debug RPC command registration |
+| `internal/plugins/debug/debug.go` | granular debug with named profiles |
+| `internal/plugins/debug/profile.go` | debug profile load/save/modify via debug.zefs |
+| `internal/plugins/debug/register.go` | debug CLI registration |
+| `internal/plugins/debug/show.go` | structured debug state display |
+
+## `docs/architecture/diagnostics/event-history-rings.md`
+
+- `internal/component/bgp/reactor/peer_history.go` -- per-peer BGP FSM transition history
+- `internal/component/l2tp/fsm_history.go` -- L2TP tunnel/session FSM history
+- `internal/component/plugin/server/event_ring.go` -- global event ring buffer
+
+## `docs/architecture/diagnostics/packet-capture.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/reactor/capture.go` | BGP message capture ring |
+| `internal/component/bgp/reactor/raw_capture.go` | opt-in raw byte capture for pcap export |
+| `internal/component/l2tp/capture.go` | L2TP control packet capture ring |
+| `internal/component/l2tp/raw_capture.go` | opt-in raw byte capture for pcap export |
+| `internal/plugins/diag/cmd/capture.go` | control-plane capture display |
+| `internal/plugins/diag/cmd/capture_common.go` | shared capture constants and helpers |
+| `internal/plugins/diag/cmd/capture_interface.go` | portable types and helpers |
+| `internal/plugins/diag/cmd/capture_interface_linux.go` | AF_PACKET live capture |
+| `internal/plugins/diag/cmd/capture_interface_other.go` | platform stub (non-Linux) |
+| `internal/plugins/diag/cmd/capture_raw.go` | raw capture activation and pcap export |
+| `internal/plugins/diag/cmd/pcap.go` | pcap writer (stdlib-only) |
+
+## `docs/architecture/diagnostics/procfs-diagnostics.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bfd/engine/raw_capture.go` | BFD raw capture ring for pcap export |
+| `internal/component/cmd/show/fd_linux.go` | FD inspection from /proc/self/fd (lsof replacement) |
+| `internal/component/cmd/show/fd_other.go` | non-Linux stub for FD inspection |
+| `internal/component/cmd/show/goroutines.go` | goroutine dump via runtime.Stack |
+| `internal/component/cmd/show/memory_map_linux.go` | show system memory (OS view) from /proc/self/status |
+| `internal/component/cmd/show/memory_map_other.go` | non-Linux stub for show system memory (OS view) |
+| `internal/component/cmd/show/profile.go` | runtime profiling via runtime/pprof |
+| `internal/component/cmd/show/sockets_linux.go` | TCP/UDP socket state from /proc/net (ss replacement) |
+| `internal/component/cmd/show/sockets_other.go` | non-Linux stub for socket state |
+| `internal/component/resolve/cmd/show_dns.go` | DNS lookup and cache stats (dig replacement) |
+| `internal/core/procfs/reader.go` | shared /proc reading infrastructure |
+| `internal/core/procfs/reader_linux.go` | Linux /proc file reading |
+| `internal/core/procfs/reader_other.go` | non-Linux stub for /proc reading |
+| `internal/plugins/diag/cmd/tcp_check.go` | TCP port connectivity check (nc replacement) |
+| `internal/plugins/host-cmd/cmd/show_kernel_log_linux.go` | kernel log reader from /dev/kmsg (dmesg replacement) |
+| `internal/plugins/host-cmd/cmd/show_kernel_log_other.go` | non-Linux stub for kernel log |
+
+## `docs/architecture/diagnostics/production-diagnostics.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/vpp/trace_linux.go` | VPP dataplane trace via CLI socket |
+| `internal/component/vpp/trace_other.go` | VPP trace stubs for non-Linux |
+| `internal/core/health/registry.go` | component health aggregation (diag-6) |
+| `internal/core/slogutil/ring.go` | diag-7 structured log query |
+| `internal/plugins/diag/cmd/register.go` | diag component RPC registration |
+
+## `docs/architecture/dns/as112.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/as112/config.go` | as112 config parse + validation |
+| `internal/plugins/as112/doctor.go` | as112 listen-port bind-capability doctor check (finding L1) |
+| `internal/plugins/as112/health.go` | `ze ... request as112 healthcheck` command (finding M4) |
+| `internal/plugins/as112/metrics.go` | as112 Prometheus metrics |
+| `internal/plugins/as112/register.go` | as112 plugin registration, OnConfigure |
+| `internal/plugins/as112/server.go` | as112 DNS server (answer policy, |
+| `internal/plugins/as112/show.go` | show as112 status command |
+| `internal/plugins/as112/state.go` | as112 published state (atomic snapshot) |
+| `internal/plugins/as112/zones.go` | static AS112 zone table, SOA/NS/TXT synthesis |
+
+## `docs/architecture/dns/geodns.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/geodns/config.go` | geodns config parse + validation |
+| `internal/plugins/geodns/doctor.go` | geodns listen-port bind-capability doctor check |
+| `internal/plugins/geodns/metrics.go` | geodns Prometheus metrics |
+| `internal/plugins/geodns/record.go` | geodns record model (A/AAAA/SRV) |
+| `internal/plugins/geodns/server.go` | geodns DNS server (listener, EDNS0, answer synthesis) |
+| `internal/plugins/geodns/server_rfc4035_test.go` | geodns answer policy; the |
+| `internal/plugins/geodns/show.go` | show geodns status command |
+| `internal/plugins/geodns/source.go` | geodns source matcher (CIDR longest-prefix) |
+| `internal/plugins/geodns/state.go` | geodns resolver state (atomic snapshot) |
+
+## `docs/architecture/dns/secure-transports.md`
+
+- `internal/core/dnsserver/certcheck.go` -- shared DoT/DoH certificate
+- `internal/core/dnsserver/secure.go` -- optional DNS-over-TLS
+- `internal/core/dnsserver/tlsmaterial.go` -- shared certificate loading for
+
+## `docs/architecture/dns/server-harness.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/dnsserver/client.go` | EDNS0/packet client-IP resolution |
+| `internal/core/dnsserver/freebind_integration_linux_test.go` | IP_FREEBIND kernel wiring proof |
+| `internal/core/dnsserver/freebind_linux.go` | IP_FREEBIND opt-in bind, Linux only |
+| `internal/core/dnsserver/freebind_other.go` | non-Linux Freebind fallback |
+| `internal/core/dnsserver/handler.go` | authoritative-answer |
+| `internal/core/dnsserver/manager.go` | generic DNS listener lifecycle |
+| `internal/core/dnsserver/matcher.go` | CIDR longest-prefix matcher |
+| `internal/core/dnsserver/rfc4035_test.go` | the authoritative wrapper |
+| `internal/plugins/geodns/server.go` | listener lifecycle, client-IP and |
+| `internal/plugins/geodns/server_rfc7871_test.go` | geodns consumes the EDNS0 |
+| `internal/plugins/geodns/source.go` | longest-prefix mechanism moved to |
+
+## `docs/architecture/doctor-and-health-checks.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/reactor/session_health.go` | BGP session anomaly detection |
+| `internal/component/config/listener_defaults.go` | AC-1/AC-2 listener defaults |
+| `internal/component/firewall/audit.go` | firewall drift detection |
+| `internal/component/iface/health.go` | interface error counter monitoring |
+| `scripts/checks/port_defaults.go` | listener default port table |
+
 ## `docs/architecture/encoding-context.md`
 
 | File | Topic |
@@ -1246,6 +1701,55 @@ Total: 306 design docs, 3267 files
 | `internal/core/bgp/context/context.go` | encoding context |
 | `internal/core/bgp/context/negotiated.go` | encoding context |
 | `internal/core/bgp/context/registry.go` | encoding context |
+
+## `docs/architecture/exabgp-bridge.md`
+
+- `internal/plugins/exabgp/bridgeplugin/config.go` -- internal exabgp bridge config
+- `internal/plugins/exabgp/bridgeplugin/internal.go` -- internal exabgp bridge runner
+
+## `docs/architecture/fib/fib-depth-4-srv6.md`
+
+- `internal/component/bgp/plugins/rib/pool/srv6sid.go` -- SRv6 SID extraction from PrefixSID attribute
+- `internal/plugins/fib/vpp/srv6.go` -- VPP SRv6 SR steer programming
+
+## `docs/architecture/firewall/backend-command-dispatch.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/firewall/nft/cmd_show.go` | nft firewall show handlers |
+| `internal/plugins/firewall/nft/cmd_show_test.go` | nft firewall show handler tests |
+| `internal/plugins/firewall/nft/health.go` | nft firewall health check |
+| `internal/plugins/iface/vpp/cmd_show.go` | VPP dataplane trace handlers |
+| `internal/plugins/iface/vpp/health.go` | VPP health check |
+
+## `docs/architecture/firewall/firewall-irr.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/firewall/plugins/irr/cache.go` | shared PrefixStore path for firewall-irr |
+| `internal/component/firewall/plugins/irr/cmd_irr.go` | server-side YANG command forwarding for the |
+| `internal/component/firewall/plugins/irr/command.go` | CLI command handlers (show/update firewall irr) |
+| `internal/component/firewall/plugins/irr/config.go` | firewall IRR config parsing |
+| `internal/component/firewall/plugins/irr/irr.go` | firewall IRR plugin entry point |
+| `internal/component/firewall/plugins/irr/sets.go` | interval set generation from cached prefixes |
+
+## `docs/architecture/firewall/fw-6-firewall-vpp.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/firewall/vpp/backend_linux.go` | VPP firewall backend |
+| `internal/plugins/firewall/vpp/backend_other.go` | VPP firewall backend stub for non-Linux |
+| `internal/plugins/firewall/vpp/binapi_imports.go` | Vendor pinning |
+| `internal/plugins/firewall/vpp/logger_linux.go` | Linux-only logger accessor |
+| `internal/plugins/firewall/vpp/nat_linux.go` | NAT44-ED integration |
+| `internal/plugins/firewall/vpp/ops.go` | VPP-operation seam for unit tests |
+| `internal/plugins/firewall/vpp/register.go` | Backend registration |
+| `internal/plugins/firewall/vpp/translate.go` | Translation contract |
+| `internal/plugins/firewall/vpp/verify.go` | Commit-time rejection matrix |
+
+## `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`
+
+- `internal/test/plugins/fakeddos/fakeddos.go` -- fakeddos synthetic
 
 ## `docs/architecture/fleet-config.md`
 
@@ -1265,6 +1769,71 @@ Total: 306 design docs, 3267 files
 | `pkg/fleet/envelope.go` | managed config RPC payloads |
 | `pkg/fleet/version.go` | config version hashing |
 
+## `docs/architecture/flowexport/flow-export-0-umbrella.md`
+
+- `internal/plugins/flowexport/encoder_registry.go` -- Encoder factory registry
+- `internal/plugins/flowexport/sender.go` -- Buffer pool and UDP sender
+- `internal/plugins/flowexport/snapshot.go` -- Counter snapshot value types
+
+## `docs/architecture/flowexport/flow-export-1-counter-export.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/flowexport/config.go` | Flow export config parsing |
+| `internal/plugins/flowexport/exporter.go` | exporter lifecycle |
+| `internal/plugins/flowexport/health.go` | flow export health check |
+| `internal/plugins/flowexport/ipfix/adapter.go` | IPFIX protocol encoder adapter |
+| `internal/plugins/flowexport/ipfix/register.go` | IPFIX encoder registration |
+| `internal/plugins/flowexport/metrics.go` | Export Prometheus metrics |
+| `internal/plugins/flowexport/netflow9/adapter.go` | NetFlow v9 protocol encoder adapter |
+| `internal/plugins/flowexport/netflow9/data.go` | NetFlow v9 data FlowSet encoding |
+| `internal/plugins/flowexport/netflow9/encoder.go` | NetFlow v9 export packet encoder |
+| `internal/plugins/flowexport/netflow9/register.go` | NetFlow v9 encoder registration |
+| `internal/plugins/flowexport/netflow9/template.go` | NetFlow v9 template FlowSet |
+| `internal/plugins/flowexport/sflow/adapter.go` | sFlow protocol encoder adapter |
+| `internal/plugins/flowexport/sflow/counter.go` | sFlow v5 counter sample encoding |
+| `internal/plugins/flowexport/sflow/encoder.go` | sFlow v5 datagram encoder |
+| `internal/plugins/flowexport/sflow/register.go` | sFlow encoder registration |
+
+## `docs/architecture/flowexport/flow-export-2-flow-records.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/flowexport/conntrack/delta.go` | Per-flow delta tracking |
+| `internal/plugins/flowexport/conntrack/destroy.go` | conntrack destroy-event parser |
+| `internal/plugins/flowexport/conntrack/destroy_linux.go` | conntrack destroy-event listener |
+| `internal/plugins/flowexport/conntrack/destroy_other.go` | conntrack destroy listener stub |
+| `internal/plugins/flowexport/conntrack/destroy_test.go` | conntrack destroy-event parser test |
+| `internal/plugins/flowexport/conntrack/flow.go` | Conntrack flow entry types |
+| `internal/plugins/flowexport/conntrack/reader_linux.go` | Conntrack netlink reader |
+| `internal/plugins/flowexport/conntrack/reader_other.go` | Conntrack reader stub for non-Linux |
+| `internal/plugins/flowexport/conntrack_worker.go` | conntrack flow-record lifecycle |
+| `internal/plugins/flowexport/enrich/enricher.go` | BGP enrichment coordinator |
+| `internal/plugins/flowexport/enrich/radix.go` | Prefix-to-AS radix tree |
+| `internal/plugins/flowexport/enrichbgp.go` | BGP RIB enrichment wiring |
+| `internal/plugins/flowexport/flowtypes.go` | flow-record value types and encoder interfaces |
+| `internal/plugins/flowexport/ipfix/flow_adapter.go` | IPFIX flow-record encoder adapter |
+| `internal/plugins/flowexport/ipfix/flow_data.go` | IPFIX per-flow data Set |
+| `internal/plugins/flowexport/ipfix/flow_template.go` | IPFIX per-flow template |
+| `internal/plugins/flowexport/netflow9/flow_adapter.go` | NetFlow v9 flow-record encoder adapter |
+| `internal/plugins/flowexport/netflow9/flow_data.go` | NetFlow v9 per-flow data FlowSet |
+| `internal/plugins/flowexport/netflow9/flow_template.go` | NetFlow v9 per-flow template |
+| `internal/plugins/flowexport/sampling/psample.go` | psample constants and parser |
+| `internal/plugins/flowexport/sampling/psample_linux.go` | psample generic netlink reader |
+| `internal/plugins/flowexport/sampling/psample_other.go` | psample stub for non-Linux |
+| `internal/plugins/flowexport/sampling/sample.go` | Sampled packet types |
+| `internal/plugins/flowexport/sampling/tc_linux.go` | tc sample action setup/teardown |
+| `internal/plugins/flowexport/sampling/tc_other.go` | Sampling stub for non-Linux |
+| `internal/plugins/flowexport/sampling_worker.go` | packet sampling lifecycle |
+| `internal/plugins/flowexport/sflow/flow.go` | sFlow v5 flow sample encoding |
+| `internal/plugins/flowexport/sflow/flow_adapter.go` | sFlow flow-sample encoder adapter |
+
+## `docs/architecture/forked-route-install.md`
+
+- `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
+- `internal/component/sysrib/sysrib_forked_withdraw_test.go` -- forked route install via Loc-RIB RPC
+- `internal/core/rib/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
+
 ## `docs/architecture/forward-congestion-pool.md`
 
 | File | Topic |
@@ -1274,6 +1843,51 @@ Total: 306 design docs, 3267 files
 | `internal/component/bgp/reactor/forward_pool_congestion.go` | two-threshold enforcement |
 | `internal/component/bgp/reactor/forward_pool_weight.go` | two-tier pool sizing |
 | `internal/component/bgp/reactor/forward_pool_weight_tracker.go` | two-tier pool sizing |
+
+## `docs/architecture/host/inventory.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/host/cached.go` | cached inventory with TTL |
+| `internal/component/host/cpu_linux.go` | hardware inventory detection |
+| `internal/component/host/cpu_other.go` | hardware inventory detection |
+| `internal/component/host/dmi_linux.go` | hardware inventory detection |
+| `internal/component/host/dmi_other.go` | hardware inventory detection |
+| `internal/component/host/doc.go` | hardware inventory detection |
+| `internal/component/host/ethtool_linux.go` | hardware inventory detection |
+| `internal/component/host/fsroot_linux.go` | hardware inventory detection |
+| `internal/component/host/inventory.go` | hardware inventory detection |
+| `internal/component/host/kernel_linux.go` | hardware inventory detection |
+| `internal/component/host/kernel_other.go` | hardware inventory detection |
+| `internal/component/host/memory_linux.go` | hardware inventory detection |
+| `internal/component/host/memory_other.go` | hardware inventory detection |
+| `internal/component/host/metrics.go` | Prometheus export of inventory |
+| `internal/component/host/nic_linux.go` | hardware inventory detection |
+| `internal/component/host/nic_other.go` | hardware inventory detection |
+| `internal/component/host/storage_linux.go` | hardware inventory detection |
+| `internal/component/host/storage_other.go` | hardware inventory detection |
+| `internal/component/host/thermal_linux.go` | hardware inventory detection |
+| `internal/component/host/thermal_other.go` | hardware inventory detection |
+| `internal/plugins/host-cmd/cmd/register.go` | host command registration |
+| `internal/plugins/host-cmd/cmd/set_fd_linux.go` | runtime FD limit adjustment |
+| `internal/plugins/host-cmd/cmd/set_fd_other.go` | non-Linux stub for FD limit adjustment |
+| `internal/plugins/host-cmd/cmd/show_host.go` | hardware inventory detection |
+| `internal/plugins/host/host.go` | offline `show host` fallback |
+
+## `docs/architecture/host/observability.md`
+
+- `internal/component/host/diff.go` -- hardware-change event detection
+
+## `docs/architecture/host/smart.md`
+
+- `internal/component/host/smart.go` -- SMART health monitoring
+- `internal/component/host/smart_linux.go` -- SMART health via direct ioctl
+
+## `docs/architecture/host/tuning.md`
+
+- `internal/component/host/tuning.go` -- runtime hardware tuning
+- `internal/component/host/tuning_linux.go` -- runtime hardware tuning
+- `internal/component/host/tuning_other.go` -- runtime hardware tuning
 
 ## `docs/architecture/hub-architecture.md`
 
@@ -1298,6 +1912,421 @@ Total: 306 design docs, 3267 files
 | `internal/component/hub/reload.go` | hub coordination |
 | `internal/component/hub/router.go` | hub coordination |
 | `internal/component/hub/schema.go` | hub coordination |
+
+## `docs/architecture/iface/logical-name-resolution.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/iface/dispatch_resolve_integration_linux_test.go` | sub-spec 5 dispatch translation. |
+| `internal/component/iface/resolve.go` | shared logical-name resolver |
+| `internal/component/l2tp/pppoe/resolve.go` | consumers resolve through iface |
+| `scripts/checks/iface_resolution.go` | AC-U1 no-direct-resolution guard |
+
+## `docs/architecture/iface/management.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/iface/cli/addr.go` | Interface addr subcommand |
+| `internal/component/iface/cli/create.go` | Interface create subcommand |
+| `internal/component/iface/cli/delete.go` | Interface delete subcommand |
+| `internal/component/iface/cli/main.go` | Interface CLI commands |
+| `internal/component/iface/cli/migrate.go` | Interface migration CLI |
+| `internal/component/iface/cli/show.go` | Interface show subcommand |
+| `internal/component/iface/cli/unit.go` | Interface unit subcommand |
+| `internal/plugins/iface/netlink/slaac_linux.go` | kernel-cooperating SLAAC |
+
+## `docs/architecture/iface/netlink-monitor.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/iface/cmd/monitor_netlink.go` | netlink monitor handler registration |
+| `internal/component/iface/cmd/monitor_netlink_linux.go` | kernel netlink event streaming |
+| `internal/component/iface/cmd/monitor_netlink_linux_test.go` | unit tests for netlink message parsing |
+| `internal/component/iface/cmd/monitor_netlink_other.go` | non-Linux stub for netlink monitor |
+| `internal/component/iface/cmd/monitor_netlink_test.go` | wiring tests for netlink monitor |
+
+## `docs/architecture/iface/offload.md`
+
+- `internal/component/iface/offload_linux.go` -- ethtool offload and sysfs steering
+- `internal/component/iface/offload_other.go` -- no-op stub for non-Linux
+
+## `docs/architecture/ike/ipsec-10-cli-diag.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/cmd/ipsec.go` | clear vpn ipsec sa handler |
+| `internal/component/ike/cmd/ipsec_test.go` | clear vpn ipsec handler tests |
+| `internal/component/ike/cmd/monitor_ipsec.go` | monitor vpn ipsec streaming handler. |
+| `internal/component/ike/cmd/show_ipsec.go` | show vpn ipsec handlers. |
+| `internal/component/ike/cmd/show_ipsec_test.go` | show vpn ipsec handler tests |
+| `internal/component/ike/engine/health.go` | IPsec health check |
+| `internal/component/ike/engine/health_test.go` | IPsec health check tests |
+| `internal/component/ike/engine/metrics.go` | IPsec Prometheus metrics |
+| `internal/component/ike/engine/metrics_test.go` | IPsec metrics tests |
+| `internal/component/ike/engine/testport.go` | IKE engine addressing seam |
+| `internal/component/web/page_vpn_ipsec.go` | VPN IPsec web page |
+
+## `docs/architecture/ike/ipsec-11-interop-eap.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/eap/eap_tls_fragment_guard_test.go` | EAP-TLS fragment reassembly guards |
+| `internal/component/ike/eap/eap_tls_handshake_test.go` | EAP-TLS in-memory handshake harness |
+| `internal/component/ike/eap/eap_tls_regression_test.go` | EAP-TLS transport + peer fixes |
+| `internal/component/ike/eap/eap_tls_trust_anchor_test.go` | EAP-TLS trust anchor handling |
+| `internal/component/ike/eap/peer.go` | EAP peer (client/initiator) side |
+| `internal/component/ike/eap/peer_test.go` | EAP peer session tests |
+| `internal/component/ike/eap/rfc5216_peer_wait_test.go` | EAP-TLS termination, peer side |
+
+## `docs/architecture/ike/ipsec-13-rekey-wire.md`
+
+- `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
+- `internal/component/ike/engine/notify_invalid_msgid.go` -- RFC 7296 Section 2.3 message-ID handling
+- `internal/component/ike/engine/notify_invalid_msgid_retransmit_test.go` -- RFC 7296 Section 2.3 message-ID handling
+
+## `docs/architecture/ike/ipsec-14-responder.md`
+
+- `internal/component/ike/engine/overflow_test.go` -- IKE responder handshake
+- `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
+- `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
+
+## `docs/architecture/ike/ipsec-3-data-model.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/ipsec/algorithm_support.go` | IPsec data model types |
+| `internal/component/ike/ipsec/config.go` | IPsec config parser |
+| `internal/component/ike/ipsec/config_auth_policy.go` | IPsec data model types |
+| `internal/component/ike/ipsec/identity.go` | IPsec data model types |
+| `internal/component/ike/ipsec/types.go` | IPsec data model types |
+| `internal/component/ike/ipsec/validate.go` | IPsec cross-reference validation |
+
+## `docs/architecture/ike/ipsec-6-ikev2-crypto.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/crypto/cipher.go` | AEAD and non-AEAD ciphers, integrity |
+| `internal/component/ike/crypto/dh.go` | DH key exchange groups |
+| `internal/component/ike/crypto/keys.go` | SKEYSEED and SK_* key derivation |
+| `internal/component/ike/crypto/prf.go` | PRF and prf+ key expansion |
+| `internal/component/ike/crypto/proposal.go` | IKE/ESP proposal negotiation |
+| `internal/component/ike/crypto/transform.go` | IKEv2 transform type registry |
+| `internal/component/ike/engine/cert_payload.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certbundle.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certbundle_elements_test.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certurl.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certurl_async_test.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certurl_bounds_test.go` | IKEv2 certificate payload handling |
+
+## `docs/architecture/ike/ipsec-7-ikev2-engine.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/engine/auth.go` | AUTH payload computation |
+| `internal/component/ike/engine/config.go` | config parsing for IKE engine |
+| `internal/component/ike/engine/cookie.go` | responder COOKIE challenge |
+| `internal/component/ike/engine/doctor.go` | IKE engine readiness checks |
+| `internal/component/ike/engine/doctor_certurl.go` | IKE engine readiness checks |
+| `internal/component/ike/engine/doctor_cookie.go` | responder COOKIE challenge |
+| `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
+| `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
+| `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |
+| `internal/component/ike/engine/notify_error.go` | error notification emission |
+| `internal/component/ike/engine/reconcile.go` | config reconciliation |
+| `internal/component/ike/engine/register.go` | IKE engine component registration |
+| `internal/component/ike/engine/remote_id.go` | remote identity policy |
+| `internal/component/ike/engine/remote_id_hint_test.go` | remote identity policy |
+| `internal/component/ike/engine/sa.go` | IKE SA state |
+| `internal/component/ike/engine/sa_init_retry.go` | IKE_SA_INIT retry on COOKIE and INVALID_KE_PAYLOAD |
+| `internal/component/ike/engine/table.go` | IKE SA table |
+| `internal/component/ike/transport/udp.go` | IKE UDP transport |
+
+## `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/dataplane/dataplane.go` | dataplane abstraction for SA/SP installation |
+| `internal/component/ike/dataplane/noop.go` | dataplane backend registry |
+| `internal/component/ike/dataplane/policy_owner.go` | XFRM netlink backend |
+| `internal/component/ike/dataplane/rfc7296_ecn_linux_test.go` | XFRM netlink backend |
+| `internal/component/ike/dataplane/rfc7296_ecn_test.go` | XFRM netlink backend |
+| `internal/component/ike/dataplane/vpp.go` | VPP dataplane backend |
+| `internal/component/ike/dataplane/xfrm_linux.go` | XFRM netlink backend |
+| `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
+| `internal/component/ike/engine/bypass.go` | IKE control-plane bypass policies |
+| `internal/component/ike/engine/child.go` | Child SA creation and teardown |
+| `internal/component/ike/engine/child_policy_owner_test.go` | Child SA policy ownership |
+| `internal/component/ike/engine/delete.go` | Child SA teardown over INFORMATIONAL |
+| `internal/component/ike/engine/dpd.go` | Dead Peer Detection |
+| `internal/component/ike/engine/established.go` | established SA lifecycle |
+| `internal/component/ike/engine/inbound.go` | inbound message handling for established SAs |
+| `internal/component/ike/engine/rekey.go` | Child SA and IKE SA rekeying |
+
+## `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/eap/eap.go` | EAP framework and method dispatch |
+| `internal/component/ike/eap/eap_mschapv2.go` | EAP-MSCHAPv2 method handler |
+| `internal/component/ike/eap/eap_mschapv2_test.go` | EAP-MSCHAPv2 handler tests |
+| `internal/component/ike/eap/eap_test.go` | EAP framework tests |
+| `internal/component/ike/eap/eap_tls.go` | EAP-TLS method handler |
+| `internal/component/ike/eap/eap_tls_alert_flight_test.go` | EAP-TLS authenticator termination |
+| `internal/component/ike/eap/eap_tls_failure_report_test.go` | EAP-TLS authenticator failure reporting |
+| `internal/component/ike/eap/md4.go` | MD4 for MS-CHAPv2 NtPasswordHash |
+| `internal/component/ike/eap/mschapv2.go` | MS-CHAPv2 crypto primitives |
+| `internal/component/ike/eap/mschapv2_test.go` | MS-CHAPv2 crypto tests |
+| `internal/component/ike/eap/pool.go` | Virtual IP pool for road warrior clients |
+| `internal/component/ike/eap/pool_release_test.go` | Virtual IP pool for road warrior clients |
+| `internal/component/ike/eap/pool_test.go` | Virtual IP pool tests |
+| `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
+| `internal/component/ike/eap/rfc5216_success_flight_test.go` | EAP-TLS successful termination |
+| `internal/component/ike/eap/rfc5216_termination_test.go` | EAP-TLS termination, server side |
+| `internal/component/ike/eap/rfc7296_eap_result_test.go` | EAP framework tests |
+| `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
+| `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
+| `internal/component/ike/engine/udpencap.go` | UDP encapsulation readiness |
+| `internal/component/ike/transport/encap_linux.go` | UDP encapsulation of ESP |
+| `internal/component/ike/transport/encap_other.go` | UDP encapsulation of ESP |
+| `internal/component/ike/transport/keepalive.go` | NAT keepalive sender |
+| `internal/component/ike/transport/keepalive_test.go` | NAT keepalive tests |
+| `internal/component/ike/transport/nat.go` | NAT detection and port 4500 handling |
+| `internal/component/ike/transport/nat_test.go` | NAT detection tests |
+
+## `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/engine/transport_mode.go` | USE_TRANSPORT_MODE negotiation |
+| `internal/component/ike/engine/ts_initiator_subset_test.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
+| `internal/component/ike/engine/ts_narrow.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
+| `internal/component/ike/ipsec/traffic_selector.go` | operator traffic-selector policy for IKEv2 narrowing |
+
+## `docs/architecture/isis/isis-1-types.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/types/format.go` | shared zero-alloc dotted-hex format/parse helpers |
+| `internal/plugins/isis/types/lifetime.go` | RemainingLifetime and HoldingTime (16-bit seconds) |
+| `internal/plugins/isis/types/lspid.go` | LSPID (SourceID + LSP number), CSNP range ordering |
+| `internal/plugins/isis/types/metric.go` | Metric (24-bit TLV 22) and PrefixMetric (32-bit TLV 135/236) |
+| `internal/plugins/isis/types/net.go` | NET and AreaID (variable-length addressing) |
+| `internal/plugins/isis/types/sequence.go` | SequenceNumber (32-bit, reserved-zero semantics) |
+| `internal/plugins/isis/types/sourceid.go` | SourceID (SystemID + pseudonode ID) |
+| `internal/plugins/isis/types/systemid.go` | SystemID 6-byte router identifier |
+
+## `docs/architecture/isis/isis-10-auth.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/auth_keystore.go` | IS-IS authentication key store. |
+| `internal/plugins/isis/auth_wiring.go` | engine <-> authentication wiring. |
+| `internal/plugins/isis/packet/auth_sign.go` | IS-IS authentication backend (sign side). |
+| `internal/plugins/isis/packet/auth_types.go` | IS-IS authentication backend (sign + verify). |
+| `internal/plugins/isis/packet/auth_verify.go` | IS-IS authentication backend (verify side). |
+
+## `docs/architecture/isis/isis-11-redistribution.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/redist_wiring.go` | engine <-> redistribution wiring. |
+| `internal/plugins/isis/redistribute/consumer.go` | IS-IS redistribution consumer. |
+| `internal/plugins/isis/redistribute/events/events.go` | IS-IS redistevents producer wiring. |
+| `internal/plugins/isis/redistribute/redistribute.go` | IS-IS redistribution (both directions). |
+| `internal/plugins/isis/redistribute/source.go` | IS-IS redistribution source (producer). |
+
+## `docs/architecture/isis/isis-12-ipv6.md`
+
+- `internal/plugins/isis/lsdb/origination_ipv6.go` -- IPv6 origination scope filtering (RFC 5308).
+- `internal/plugins/isis/redistribute/ipv6.go` -- IPv6 redistribution (both directions).
+- `internal/plugins/isis/spf/ipv6.go` -- IPv6 leaf extraction + next-hop over the
+
+## `docs/architecture/isis/isis-13-cli-diag-interop.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/web/handler_isis.go` | IS-IS web neighbor + database views. |
+| `internal/component/web/page_isis.go` | IS-IS web page shell + SSE script. |
+| `internal/plugins/isis/cmd_show.go` | `show isis ...` / `clear isis |
+| `internal/plugins/isis/codes.go` | IS-IS diagnostic code ownership. |
+| `internal/plugins/isis/doctor.go` | IS-IS config-sanity doctor checks. |
+| `internal/plugins/isis/frr_interop_integration_linux_test.go` | IS-IS interop with FRR isisd. |
+| `internal/plugins/isis/show.go` | engine-side render + clear for |
+| `internal/plugins/isis/spf/spflog.go` | `show isis spf-log` history |
+
+## `docs/architecture/isis/isis-3-l2-transport.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/transport/backend_linux.go` | Linux AF_PACKET/SOCK_RAW backend |
+| `internal/plugins/isis/transport/backend_other.go` | non-Linux backend stub |
+| `internal/plugins/isis/transport/doctor.go` | raw-socket readiness doctor check |
+| `internal/plugins/isis/transport/doctor_linux.go` | raw-socket probe for the doctor check |
+| `internal/plugins/isis/transport/doctor_other.go` | raw-socket probe (non-Linux stub) |
+| `internal/plugins/isis/transport/frame.go` | IEEE 802.3 + LLC frame codec |
+| `internal/plugins/isis/transport/metrics.go` | transport Prometheus metrics |
+| `internal/plugins/isis/transport/multicast.go` | ISO multicast MAC selection |
+| `internal/plugins/isis/transport/register.go` | doctor-check registration |
+| `internal/plugins/isis/transport/transport.go` | raw L2 transport orchestrator |
+
+## `docs/architecture/isis/isis-4-component-config.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/config.go` | IS-IS config resolution |
+| `internal/plugins/isis/events.go` | IS-IS event bus types |
+| `internal/plugins/isis/register.go` | IS-IS component registration |
+| `internal/plugins/isis/server.go` | IS-IS engine orchestration |
+
+## `docs/architecture/isis/isis-5-adjacency.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/adjacency/adjacency.go` | IS-IS adjacency record and state. |
+| `internal/plugins/isis/adjacency/fsm.go` | adjacency finite state machine. |
+| `internal/plugins/isis/adjacency/table.go` | per-circuit neighbor table + snapshot. |
+| `internal/plugins/isis/circuit/circuit.go` | per-interface IS-IS circuit runtime. |
+| `internal/plugins/isis/circuit/hello.go` | IIH origination (LAN + P2P) + padding. |
+| `internal/plugins/isis/circuit/runtime.go` | circuit RX dispatch, Hello send, sweep. |
+| `internal/plugins/isis/circuits.go` | engine <-> adjacency-circuit wiring. |
+
+## `docs/architecture/isis/isis-6-lsdb.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/lsdb/aging.go` | LSP aging, refresh, and zero-age purge. |
+| `internal/plugins/isis/lsdb/encode.go` | TLV value builders + fragment packer for origination. |
+| `internal/plugins/isis/lsdb/entry.go` | per-LSP database entry (raw bytes + metadata). |
+| `internal/plugins/isis/lsdb/lsdb.go` | the Link-State Database store. |
+| `internal/plugins/isis/lsdb/origination.go` | own-LSP origination from live state. |
+| `internal/plugins/isis/lsdb_wiring.go` | engine <-> LSDB wiring (origination trigger, aging loop). |
+| `internal/plugins/isis/own_lsp_conflict.go` | own-LSP origination and sequence state. |
+
+## `docs/architecture/isis/isis-7-flooding.md`
+
+- `internal/plugins/isis/flooding_wiring.go` -- engine <-> flooding wiring (handlers, timers, P2P initial CSNP).
+- `internal/plugins/isis/lsdb/flooding.go` -- LSP flooding (receive-side algorithm + periodic SRM-driven TX).
+- `internal/plugins/isis/lsdb/snp.go` -- CSNP/PSNP synchronization + per-circuit pending-request set.
+
+## `docs/architecture/isis/isis-8-dis-broadcast.md`
+
+- `internal/plugins/isis/circuit/dis.go` -- Designated IS (DIS) election on
+- `internal/plugins/isis/dis_wiring.go` -- engine <-> DIS-election wiring.
+- `internal/plugins/isis/lsdb/pseudonode.go` -- pseudo-node LSP origination on a
+
+## `docs/architecture/isis/isis-9-spf-rib.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/spf/computer.go` | the SPF orchestrator (trigger -> run -> install). |
+| `internal/plugins/isis/spf/graph.go` | SPF graph build from the synced LSDB. |
+| `internal/plugins/isis/spf/install.go` | FIB install via Loc-RIB insertion. |
+| `internal/plugins/isis/spf/leak.go` | step 5 -- L1<->L2 inter-level route leaking |
+| `internal/plugins/isis/spf/route.go` | prefix attach, L1/L2 leaking, route diff. |
+| `internal/plugins/isis/spf/spf.go` | per-level Dijkstra over the LSDB graph. |
+| `internal/plugins/isis/spf_wiring.go` | engine <-> SPF wiring (LSDB read, next-hop, install). |
+
+## `docs/architecture/l2tp/bng-1-radius-attributes.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/iface_stats_linux.go` | idle timeout traffic detection |
+| `internal/component/l2tp/iface_stats_other.go` | idle timeout traffic detection |
+| `internal/component/l2tp/plugins/authradius/acct_interval_test.go` | Acct-Interim-Interval clamping |
+| `internal/component/l2tp/plugins/authradius/extract.go` | RADIUS attribute extraction |
+| `internal/component/l2tp/plugins/shaper/filter_rate.go` | Filter-Id rate parsing |
+| `internal/component/l2tp/plugins/shaper/filter_rate_test.go` | Filter-Id rate parsing tests |
+| `internal/component/l2tp/session_metadata.go` | RADIUS attribute metadata store |
+| `internal/component/l2tp/session_timeout.go` | RADIUS session/idle timeout |
+| `internal/component/l2tp/session_timeout_test.go` | session/idle timeout tests |
+
+## `docs/architecture/l2tp/bng-5-pppoe.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/ppp/devppp_linux.go` | shared /dev/ppp setup for L2TP and PPPoE |
+| `internal/component/l2tp/ppp/devppp_other.go` | non-Linux stub for /dev/ppp setup |
+| `internal/component/l2tp/pppoe/cmd/pppoe.go` | PPPoE CLI handlers |
+| `internal/component/l2tp/pppoe/config.go` | PPPoE configuration |
+| `internal/component/l2tp/pppoe/cookie.go` | AC-Cookie anti-DoS protection |
+| `internal/component/l2tp/pppoe/discovery.go` | PPPoE discovery wire format |
+| `internal/component/l2tp/pppoe/kernel_linux.go` | kernel integration (AF_PPPOX, AF_PACKET) |
+| `internal/component/l2tp/pppoe/ratelimit.go` | PADI rate limiting |
+| `internal/component/l2tp/pppoe/register.go` | component registration |
+| `internal/component/l2tp/pppoe/server.go` | per-interface PPPoE server |
+| `internal/component/l2tp/pppoe/service.go` | service locator for CLI access |
+| `internal/component/l2tp/pppoe/session.go` | session table and SID allocation |
+| `internal/component/l2tp/pppoe/snapshot.go` | observability snapshots for CLI |
+| `internal/component/l2tp/pppoe/socket_other.go` | non-Linux stubs |
+| `internal/component/l2tp/pppoe/subsystem.go` | PPPoE subsystem lifecycle |
+
+## `docs/architecture/l2tp/cos-vendor-radius.md`
+
+- `internal/component/l2tp/plugins/authradius/extract_vsa.go` -- vendor VSA CoS/rate extraction
+
+## `docs/architecture/l2tp/cpe-1-pppoe-client.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/iface/pppoe_client.go` | PPPoE client interface kind |
+| `internal/component/l2tp/pppoeclient/auth.go` | client-mode PPP authentication |
+| `internal/component/l2tp/pppoeclient/dialer.go` | PPPoE client discovery dialer |
+| `internal/component/l2tp/pppoeclient/session.go` | client-mode PPP session negotiation |
+
+## `docs/architecture/l2tp/followup-l2tp-call.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/bridge_linux.go` | AC-3 / A-4 LAC data-plane bridge |
+| `internal/component/l2tp/cmd/outgoing_call.go` | AC-4 request l2tp outgoing-call |
+| `internal/component/l2tp/outgoing_call.go` | AC-4 operator-initiated outgoing call |
+| `internal/component/l2tp/relay_sink.go` | AC-3 PPPoE->L2TP relay (LAC role) |
+| `internal/core/callsink/callsink.go` | AC-3 PPPoE->L2TP relay call-sink (R-1 boundary) |
+
+## `docs/architecture/l2tp/l2tp-10-metrics.md`
+
+- `internal/component/l2tp/metrics.go` -- Prometheus metrics exposure
+- `internal/component/l2tp/plugins/authradius/metrics.go` -- RADIUS Prometheus metrics
+
+## `docs/architecture/l2tp/l2tp-9-observer.md`
+
+- `internal/component/l2tp/cqm.go` -- CQM bucket aggregation
+- `internal/component/l2tp/observer.go` -- observer, event ring, ring pool
+
+## `docs/architecture/l2tp/subscriber-session-model.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/l2tp/pppoe/drain.go` | PPPoE auth/pool drain goroutines |
+| `internal/component/l2tp/subscriber/cmd/subscriber.go` | subscriber CLI handlers |
+| `internal/component/l2tp/subscriber/events/events.go` | subscriber event namespace |
+| `internal/component/l2tp/subscriber/events/events_test.go` | subscriber events tests |
+| `internal/component/l2tp/subscriber/handler_registry.go` | transport-generic handler registries |
+| `internal/component/l2tp/subscriber/handler_registry_test.go` | handler registry tests |
+| `internal/component/l2tp/subscriber/metrics.go` | session telemetry |
+| `internal/component/l2tp/subscriber/register.go` | component registration |
+| `internal/component/l2tp/subscriber/registry.go` | session registry |
+| `internal/component/l2tp/subscriber/registry_test.go` | registry tests |
+| `internal/component/l2tp/subscriber/service.go` | service locator |
+| `internal/component/l2tp/subscriber/session.go` | shared subscriber session type |
+| `internal/component/l2tp/subscriber_bridge.go` | L2TP subscriber event bridge |
+
+## `docs/architecture/ldp/mpls-ldp.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ldp/cmd_show.go` | `show ldp ...` surfaced under the top-level |
+| `internal/plugins/ldp/discovery.go` | LDP discovery (UDP hello) |
+| `internal/plugins/ldp/discovery_manager.go` | dynamic LDP interface reload (AC-9) |
+| `internal/plugins/ldp/doctor.go` | LDP port-646 readiness doctor check |
+| `internal/plugins/ldp/events.go` | LDP event bus types |
+| `internal/plugins/ldp/fib.go` | LDP dataplane via the mpls-fib bus (AC-3/AC-4) |
+| `internal/plugins/ldp/lib.go` | LDP Label Information Base |
+| `internal/plugins/ldp/local.go` | local FEC origination (AC-3) |
+| `internal/plugins/ldp/register.go` | LDP component registration |
+| `internal/plugins/ldp/rfc5036_test.go` | LDP plugin |
+| `internal/plugins/ldp/session.go` | LDP session FSM |
+| `internal/plugins/ldp/wire.go` | LDP wire codec |
 
 ## `docs/architecture/mcp/overview.md`
 
@@ -1333,6 +2362,15 @@ Total: 306 design docs, 3267 files
 | `internal/core/memguard/poison_debug.go` |  |
 | `internal/core/memguard/poison_release.go` |  |
 
+## `docs/architecture/mpls/mpls-kernel.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/mpls/forwarding_linux.go` | kernel AF_MPLS table reader |
+| `internal/component/mpls/forwarding_other.go` | non-Linux `show mpls forwarding` stub |
+| `internal/component/mpls/show_forwarding.go` | `show mpls forwarding` CLI (AC-7) |
+| `internal/plugins/fib/kernel/mpls.go` | MPLS shared constants, errors, validation |
+
 ## `docs/architecture/mrt.md`
 
 | File | Topic |
@@ -1364,9 +2402,437 @@ Total: 306 design docs, 3267 files
 | `internal/plugins/mrt/config.go` | daemon component configuration |
 | `internal/plugins/mrt/dump.go` | MRT record building from BGP events |
 
+## `docs/architecture/observation-feed.md`
+
+- `internal/core/observation/observation.go` -- shared traffic-observation feed
+
+## `docs/architecture/ospf/bfd-client.md`
+
+- `internal/plugins/ospf/bfd_client.go` -- nil-safe Service lookup, per-session
+- `internal/plugins/ospf/bfd_client_v6.go` -- the BFD engine's IPv6 single-hop
+
+## `docs/architecture/ospf/ospf-1-types.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/types/accessors_test.go` | fixed identifier accessor tests mirroring ISIS types |
+| `internal/plugins/ospf/types/areaid.go` | AreaID 4-byte scalar area identifier |
+| `internal/plugins/ospf/types/areaid_test.go` | AreaID integer and dotted forms |
+| `internal/plugins/ospf/types/checksum.go` | OSPFv2 Fletcher and Internet checksums |
+| `internal/plugins/ospf/types/checksum_test.go` | OSPF checksum algorithm vectors and boundaries |
+| `internal/plugins/ospf/types/doc.go` | OSPFv2 leaf domain value types |
+| `internal/plugins/ospf/types/format.go` | shared dotted-quad format and parse helpers |
+| `internal/plugins/ospf/types/format_test.go` | formatting allocation tests |
+| `internal/plugins/ospf/types/linkstateid.go` | LinkStateID 4-byte LSA identifier |
+| `internal/plugins/ospf/types/linkstateid_test.go` | LinkStateID parse, format, and wire tests |
+| `internal/plugins/ospf/types/lsage.go` | LSAge value and aging helpers |
+| `internal/plugins/ospf/types/lsage_test.go` | LSAge DoNotAge, MaxAge, and saturating arithmetic |
+| `internal/plugins/ospf/types/lsakey.go` | LSAKey LSDB identity tuple |
+| `internal/plugins/ospf/types/lsakey_test.go` | LSAKey extraction, equality, and ordering |
+| `internal/plugins/ospf/types/lstype.go` | OSPFv2 LSA type discriminator |
+| `internal/plugins/ospf/types/lstype_test.go` | LSType known, opaque, and out-of-scope values |
+| `internal/plugins/ospf/types/metric.go` | OSPF interface output metric |
+| `internal/plugins/ospf/types/metric_test.go` | Metric range and default-cost derivation |
+| `internal/plugins/ospf/types/options.go` | OSPF Options bit field |
+| `internal/plugins/ospf/types/options_test.go` | Options bit-field tests |
+| `internal/plugins/ospf/types/parse_test.go` | malformed dotted-quad and integer rejection |
+| `internal/plugins/ospf/types/routerid.go` | RouterID 4-byte OSPF router identifier |
+| `internal/plugins/ospf/types/routerid_test.go` | RouterID parse, format, and wire tests |
+| `internal/plugins/ospf/types/sequence.go` | LSSequenceNumber signed freshness value |
+| `internal/plugins/ospf/types/sequence_test.go` | LSSequenceNumber freshness and wrap boundaries |
+| `internal/plugins/ospf/types/serialize_test.go` | WriteTo round-trip tests for all OSPF leaf types |
+
+## `docs/architecture/ospf/ospf-10-as-external-asbr.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/default.go` | `default-information originate`. |
+| `internal/plugins/ospf/redist_wiring.go` | engine side of OSPF redistribution. |
+| `internal/plugins/ospf/redistribute/consumer.go` | OSPF redistribution consumer. |
+| `internal/plugins/ospf/redistribute/events/events.go` | OSPF redistevents producer wiring. |
+| `internal/plugins/ospf/redistribute/redistribute.go` | OSPF redistribution (both directions). |
+| `internal/plugins/ospf/redistribute/source.go` | OSPF redistribution source (producer). |
+| `internal/plugins/ospf/spf/external.go` | RFC 2328 sec 16.4 AS-External routes. |
+
+## `docs/architecture/ospf/ospf-11-stub-nssa.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/lsdb/nssa.go` | Type 7 NSSA-LSA origination. |
+| `internal/plugins/ospf/nssa.go` | engine NSSA default-route origination + |
+| `internal/plugins/ospf/spf/area_type.go` | stub/NSSA Summary-LSA origination policy. |
+| `internal/plugins/ospf/spf/external_nssa.go` | RFC 3101 sec 2.5 Type 7/Type 5 preference. |
+
+## `docs/architecture/ospf/ospf-12-auth.md`
+
+- `internal/plugins/ospf/auth_keystore.go` -- OSPFv2 authentication key store.
+- `internal/plugins/ospf/auth_wiring.go` -- engine glue for OSPFv2 authentication.
+- `internal/plugins/ospf/packet/auth_verify.go` -- OSPFv2 authentication sign/verify.
+
+## `docs/architecture/ospf/ospf-13-cli-diag-interop.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/web/handler_ospf.go` | OSPF web neighbor + database views. |
+| `internal/component/web/handler_ospf_test.go` | OSPF web view tests. |
+| `internal/component/web/page_ospf.go` | OSPF web page shell + SSE script. |
+| `internal/component/web/page_snapshot.go` | shared read-only snapshot page shell. |
+| `internal/component/web/snapshot_views.go` | shared read-only protocol live views. |
+| `internal/component/web/sse_snapshot.go` | shared read-only SSE snapshot loop. |
+| `internal/plugins/ospf/clear.go` | `clear ospf ...` runtime resets. |
+| `internal/plugins/ospf/cmd_show.go` | `show ospf ...` under the |
+| `internal/plugins/ospf/doctor.go` | OSPF config-sanity doctor checks. |
+| `internal/plugins/ospf/instance_snapshots.go` | engine `show ospf ...` snapshots. |
+| `internal/plugins/ospf/show_database.go` | `show ospf database <type>` subviews. |
+| `internal/plugins/ospf/show_summary.go` | `show ospf` process summary. |
+
+## `docs/architecture/ospf/ospf-2-wire.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/cli/decode.go` | offline OSPFv2 packet decode CLI. |
+| `internal/plugins/ospf/cli/run.go` | offline `ze ospf decode` subcommand entry |
+| `internal/plugins/ospf/packet/checksum.go` | packet and LSA checksum application |
+| `internal/plugins/ospf/packet/checksum_test.go` | checksum covered-range tests |
+| `internal/plugins/ospf/packet/dbdesc.go` | Database Description packet body codec |
+| `internal/plugins/ospf/packet/fuzz_test.go` | fuzz targets for packet and LSA decode |
+| `internal/plugins/ospf/packet/header.go` | common OSPFv2 packet header and dispatch |
+| `internal/plugins/ospf/packet/header_test.go` | common header tests |
+| `internal/plugins/ospf/packet/hello.go` | Hello packet body codec |
+| `internal/plugins/ospf/packet/helpers_test.go` | shared test fixtures |
+| `internal/plugins/ospf/packet/json.go` | offline decode JSON rendering |
+| `internal/plugins/ospf/packet/json_test.go` | offline decode JSON rendering (cold CLI path). |
+| `internal/plugins/ospf/packet/lsa.go` | common 20-byte LSA header and lazy LSA view |
+| `internal/plugins/ospf/packet/lsa_external.go` | AS-External and NSSA LSA body codec |
+| `internal/plugins/ospf/packet/lsa_network.go` | Network-LSA body codec |
+| `internal/plugins/ospf/packet/lsa_opaque.go` | opaque/unknown LSA passthrough |
+| `internal/plugins/ospf/packet/lsa_router.go` | Router-LSA body codec |
+| `internal/plugins/ospf/packet/lsa_summary.go` | Summary-LSA body codec |
+| `internal/plugins/ospf/packet/lsa_test.go` | LSA header and body tests |
+| `internal/plugins/ospf/packet/lsack.go` | Link State Acknowledgment packet body codec |
+| `internal/plugins/ospf/packet/lsreq.go` | Link State Request packet body codec |
+| `internal/plugins/ospf/packet/lsupdate.go` | Link State Update packet body codec |
+| `internal/plugins/ospf/packet/packet_body_test.go` | packet body round-trip tests |
+| `internal/plugins/ospf/packet/wire.go` | shared fixed-width wire helpers |
+
+## `docs/architecture/ospf/ospf-3-ip-transport.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/transport/backend_linux.go` | Linux AF_INET/SOCK_RAW backend |
+| `internal/plugins/ospf/transport/backend_linux_test.go` | Linux backend resolver and drop regressions |
+| `internal/plugins/ospf/transport/backend_other.go` | non-Linux backend stub |
+| `internal/plugins/ospf/transport/doctor.go` | raw socket readiness doctor check |
+| `internal/plugins/ospf/transport/doctor_linux.go` | Linux raw-socket probe |
+| `internal/plugins/ospf/transport/doctor_other.go` | non-Linux raw-socket probe stub |
+| `internal/plugins/ospf/transport/doctor_test.go` | OSPF raw-socket doctor tests |
+| `internal/plugins/ospf/transport/metrics.go` | OSPF transport metrics |
+| `internal/plugins/ospf/transport/metrics_test.go` | metric series registration tests |
+| `internal/plugins/ospf/transport/multicast.go` | OSPFv2 multicast groups |
+| `internal/plugins/ospf/transport/register.go` | doctor-check registration |
+| `internal/plugins/ospf/transport/transport.go` | OSPFv2 raw IPv4 transport orchestrator |
+| `internal/plugins/ospf/transport/transport_integration_linux_test.go` | Linux raw OSPF multicast integration |
+| `internal/plugins/ospf/transport/transport_test.go` | transport orchestrator tests |
+
+## `docs/architecture/ospf/ospf-4-component-config.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/config/validators_ospf_test.go` | OSPF custom validators |
+| `internal/plugins/ospf/area.go` | per-area state scaffolding |
+| `internal/plugins/ospf/config.go` | OSPFv2 config resolution |
+| `internal/plugins/ospf/config_test.go` | config resolution unit tests |
+| `internal/plugins/ospf/dispatcher.go` | OSPF packet dispatcher |
+| `internal/plugins/ospf/events.go` | OSPFv2 event bus types |
+| `internal/plugins/ospf/events_test.go` | OSPF event namespace tests |
+| `internal/plugins/ospf/instance.go` | OSPFv2 engine skeleton + dispatcher |
+| `internal/plugins/ospf/instance_test.go` | engine and dispatcher tests |
+| `internal/plugins/ospf/register.go` | OSPFv2 plugin registration |
+
+## `docs/architecture/ospf/ospf-5-interface-ism.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/iface/election.go` | RFC 2328 DR/BDR election |
+| `internal/plugins/ospf/iface/iface.go` | per-interface OSPFv2 runtime |
+| `internal/plugins/ospf/iface/iface_test.go` | ISM, Hello, and election tests |
+| `internal/plugins/ospf/iface/ism.go` | OSPFv2 Interface State Machine |
+| `internal/plugins/ospf/iface/nbma.go` | NBMA + point-to-multipoint Hello send. |
+| `internal/plugins/ospf/iface/nbma_test.go` | NBMA + point-to-multipoint ISM/Hello tests. |
+
+## `docs/architecture/ospf/ospf-6-neighbor-nsm.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/adjacency_full_test.go` | engine-to-neighbor NSM wiring |
+| `internal/plugins/ospf/neighbor/dd.go` | Database Description exchange |
+| `internal/plugins/ospf/neighbor/lsreq.go` | OSPFv2 LS Request list |
+| `internal/plugins/ospf/neighbor/neighbor.go` | OSPFv2 neighbor record |
+| `internal/plugins/ospf/neighbor/nsm.go` | OSPFv2 Neighbor State Machine |
+| `internal/plugins/ospf/neighbor/nsm_test.go` | NSM transition and DD tests |
+| `internal/plugins/ospf/neighbor/table.go` | per-interface OSPFv2 neighbor table |
+
+## `docs/architecture/ospf/ospf-7-lsdb-flooding.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/lsdb/aging.go` | LSA aging, refresh, and purge. |
+| `internal/plugins/ospf/lsdb/entry.go` | lazy raw-byte LSDB entry. |
+| `internal/plugins/ospf/lsdb/flooding.go` | RFC 2328 Section 13 flooding. |
+| `internal/plugins/ospf/lsdb/lsdb.go` | per-area OSPFv2 LSDB store. |
+| `internal/plugins/ospf/lsdb/origination.go` | Router-LSA and Network-LSA origination. |
+
+## `docs/architecture/ospf/ospf-8-spf-rib.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/spf/computer.go` | SPF trigger, throttle, run state, metrics. |
+| `internal/plugins/ospf/spf/graph.go` | OSPFv2 SPF graph build from the synced LSDB. |
+| `internal/plugins/ospf/spf/install.go` | OSPF route install via Loc-RIB insertion. |
+| `internal/plugins/ospf/spf/route.go` | OSPF route table, preference, and diff. |
+| `internal/plugins/ospf/spf/spf.go` | RFC 2328 intra-area SPF. |
+| `internal/plugins/ospf/spf_wiring.go` | engine to SPF wiring. |
+
+## `docs/architecture/ospf/ospf-9-inter-area-abr.md`
+
+- `internal/plugins/ospf/spf/interarea.go` -- inter-area SPF and ABR snapshots.
+- `internal/plugins/ospf/spf/summary.go` -- Type 3/4 Summary-LSA origination.
+
+## `docs/architecture/ospf/ospf-af-unify.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/afstrategy_v6.go` | Phase 5: the OSPFv3 AF prefix strategy. |
+| `internal/plugins/ospf/codec.go` | Phase 2: the Codec seam. The engine decodes |
+| `internal/plugins/ospf/codec_v6.go` | the OSPFv3 Codec adapter over ospfv3/packet. It |
+| `internal/plugins/ospf/dispatcher.go` | Phase 2: header decode + checksum verify go |
+| `internal/plugins/ospf/encoder_v6.go` | Phase 5: the OSPFv3 send (encode) path. |
+| `internal/plugins/ospf/interface_addr.go` | interface address/identity helpers. |
+| `internal/plugins/ospf/lsdb/link_scope.go` | OSPFv3 link-local-scope LSDB (Link-LSA store) |
+| `internal/plugins/ospf/origination_v6.go` | OSPFv3 (IPv6) self-origination. |
+| `internal/plugins/ospf/origination_v6_external.go` | OSPFv3 (IPv6) AS-External origination (ASBR redistribution). |
+| `internal/plugins/ospf/origination_v6_link.go` | OSPFv3 (IPv6) Link-LSA + Network Intra-Area-Prefix origination. |
+| `internal/plugins/ospf/origination_v6_summary.go` | OSPFv3 (IPv6) ABR inter-area summary origination. |
+| `internal/plugins/ospf/spf/afstrategy.go` | Phase 4: the AF prefix-strategy seam. |
+| `internal/plugins/ospf/transport_iface.go` | Phase 1: the engine consumes transport |
+| `internal/plugins/ospf/types/body_test.go` | AF-neutral LS Ack / LS Request body lengths |
+| `internal/plugins/ospf/types/dbdesc.go` | the Database Description body carries the same |
+| `internal/plugins/ospf/types/hello.go` | the Hello body is shared via the types leaf as a |
+| `internal/plugins/ospf/types/lsack.go` | the LS Acknowledgment body is an AF-neutral list |
+| `internal/plugins/ospf/types/lsaheader.go` | the LSA common header is address-family-neutral |
+| `internal/plugins/ospf/types/lsreq.go` | the LS Request body is an AF-neutral list of |
+| `internal/plugins/ospf/wire/rawpacket.go` | RawPacket is the address-family-neutral received |
+
+## `docs/architecture/ospf/ospf-ext-1-opaque-framework.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/lsdb/opaque_as.go` | RFC 5250 opaque-LSA carrier. |
+| `internal/plugins/ospf/opaque.go` | RFC 5250 opaque carrier engine glue. |
+| `internal/plugins/ospf/opaque_registry.go` | RFC 5250 opaque consumer registry. |
+| `internal/plugins/ospf/packet/opaque_tlv.go` | generic opaque-LSA TLV carriage. |
+
+## `docs/architecture/ospf/ospf-ext-11-ldp-igp-sync.md`
+
+- `internal/plugins/ospf/ldp_sync.go` -- OSPF LDP-IGP synchronization.
+- `internal/plugins/ospf/spf/cutedge.go` -- RFC 6138 cut-edge query.
+
+## `docs/architecture/ospf/ospf-ext-12-multi-instance.md`
+
+- `internal/plugins/ospf/multi_instance.go` -- OSPFv2 Multi-Instance (RFC 6549):
+
+## `docs/architecture/ospf/ospf-ext-14-debug-introspection.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/debug_enable.go` | the shared debug-injection gate. |
+| `internal/plugins/ospf/debug_metrics.go` | the six debug metric series. |
+| `internal/plugins/ospf/debug_wiring.go` | engine-arm helpers for the v6 |
+| `internal/plugins/ospf/decode_view.go` | IPv4 opaque-LSA deep decode. |
+| `internal/plugins/ospf/decode_view_v3.go` | IPv6 native LSA deep decode. |
+| `internal/plugins/ospf/doctor_debug.go` | the debug-enabled doctor Warning. |
+| `internal/plugins/ospf/inject.go` | guarded IPv4 opaque LSA inject. |
+| `internal/plugins/ospf/inject_v3.go` | guarded IPv6 native LSA inject. |
+| `internal/plugins/ospf/instance_view.go` | OSPFv3 AF-aware instance listing. |
+| `internal/plugins/ospf/interface_detail.go` | `show ospf [ipv6] interface detail`. |
+| `internal/plugins/ospf/neighbor_detail.go` | `show ospf [ipv6] neighbor detail`. |
+| `internal/plugins/ospf/spf/explain.go` | read-only SPF-explain snapshot. |
+| `internal/plugins/ospf/spf_explain_view.go` | the AF-tagged SPF-explain view. |
+
+## `docs/architecture/ospf/ospf-ext-15-multi-af.md`
+
+- `internal/plugins/ospf/multiaf.go` -- RFC 5838 multiple address families over OSPFv3.
+- `internal/plugins/ospf/register_multiaf.go` -- RFC 5838 per-AF engine lifecycle.
+
+## `docs/architecture/ospf/ospf-ext-16-ipsec-auth.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/config_ipsec.go` | RFC 4552 manual IPsec (IPv6 family). |
+| `internal/plugins/ospf/doctor_ipsec.go` | RFC 4552 IPsec readiness doctor check. |
+| `internal/plugins/ospf/doctor_ipsec_linux.go` | kernel XFRM readiness probe (Linux). |
+| `internal/plugins/ospf/doctor_ipsec_other.go` | kernel XFRM readiness probe (non-Linux). |
+| `internal/plugins/ospf/ipsec_drops_linux.go` | kernel XFRM drop stats (Linux). |
+| `internal/plugins/ospf/ipsec_drops_other.go` | kernel XFRM drop stats (non-Linux stub). |
+| `internal/plugins/ospf/ipsec_install.go` | RFC 4552 IPsec installer (IPv6 family). |
+| `internal/plugins/ospf/ipsec_metrics.go` | RFC 4552 IPsec metrics (IPv6 family). |
+
+## `docs/architecture/ospf/ospf-ext-2-traffic-engineering.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/packet/te_interas.go` | RFC 5392 inter-AS TE sub-TLVs. |
+| `internal/plugins/ospf/packet/te_lsa.go` | RFC 3630 TE LSA body codec. |
+| `internal/plugins/ospf/te.go` | the TE opaque consumer. |
+| `internal/plugins/ospf/te_config.go` | traffic-engineering config. |
+| `internal/plugins/ospf/te_originate.go` | TE LSA origination from config. |
+| `internal/plugins/ospf/te_show.go` | `show ospf te-database` render + |
+| `internal/plugins/ospf/te_ted.go` | the Traffic Engineering Database. |
+
+## `docs/architecture/ospf/ospf-ext-3-router-information.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/lsdb/native_view.go` | native-LSA-by-type body query. |
+| `internal/plugins/ospf/origination_v6_ri.go` | OSPFv3 Router Information LSA origination. |
+| `internal/plugins/ospf/packet/ri_tlv.go` | RFC 7770 Router Information TLV codec. |
+| `internal/plugins/ospf/ri.go` | the RFC 7770 Router Information LSA. |
+| `internal/plugins/ospf/ri_registry.go` | the RFC 7770 RI-TLV registration hook. |
+| `internal/plugins/ospf/ri_show.go` | `show ospf database router-information`. |
+
+## `docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/ext.go` | shared state and metrics for the |
+| `internal/plugins/ospf/ext_link.go` | the RFC 7684 Extended Link Opaque |
+| `internal/plugins/ospf/ext_prefix.go` | the RFC 7684 Extended Prefix Opaque |
+| `internal/plugins/ospf/ext_render.go` | decoded `show ospf database |
+| `internal/plugins/ospf/ext_subtlv.go` | the RFC 7684 sub-TLV registration hook. |
+| `internal/plugins/ospf/packet/ext_link.go` | RFC 7684 Extended Link Opaque LSA |
+| `internal/plugins/ospf/packet/ext_prefix.go` | RFC 7684 Extended Prefix Opaque |
+
+## `docs/architecture/ospf/ospf-ext-6-ti-lfa.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/spf/lfa.go` | OSPF LFA / TI-LFA fast reroute. |
+| `internal/plugins/ospf/spf/lfa_multiarea.go` | RFC 5286 Section 6.3 OSPF multi-area |
+| `internal/plugins/ospf/spf/tilfa.go` | TI-LFA repair list builder. Where no |
+| `internal/plugins/ospf/sr_tilfa.go` | the engine's SRResolver: the read-only |
+
+## `docs/architecture/ospf/ospf-ext-7-virtual-links.md`
+
+- `internal/plugins/ospf/spf/transitarea.go` -- the shared transit-area SPF side of
+- `internal/plugins/ospf/virtual_link.go` -- the engine-side virtual-link manager.
+- `internal/plugins/ospf/virtuallink_v6.go` -- OSPFv3 virtual-link endpoint resolution.
+
+## `docs/architecture/ospf/ospf-ext-9-graceful-restart.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/gr.go` | OSPF Graceful Restart control plane. |
+| `internal/plugins/ospf/gr_helper.go` | GR helper (restart-aid) state machine. |
+| `internal/plugins/ospf/gr_lsa.go` | IPv4 (RFC 3623) Grace-LSA body glue. |
+| `internal/plugins/ospf/gr_nvs.go` | GR restart-fact non-volatile storage. |
+| `internal/plugins/ospf/gr_preserve.go` | OSPFv3 GR preservation + v6 Grace-LSA. |
+| `internal/plugins/ospf/gr_restarter.go` | GR restarting-router state machine. |
+| `internal/plugins/ospf/gr_show.go` | `show ospf graceful-restart` renderer. |
+| `internal/plugins/ospf/packet/grace_lsa.go` | RFC 3623 Grace-LSA body codec (IPv4). |
+| `internal/plugins/ospf/v3/packet/lsa_grace.go` | OSPFv3 Grace-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/tlv.go` | OSPFv3 Grace-LSA tlv carriage. |
+
+## `docs/architecture/ospf/ospfv3-1-types.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/v3/types/age.go` | LSAge 16-bit LSA age in seconds. |
+| `internal/plugins/ospf/v3/types/doc.go` | OSPFv3 leaf value-type package. |
+| `internal/plugins/ospf/v3/types/format.go` | shared dotted-quad format and parse helpers. |
+| `internal/plugins/ospf/v3/types/instance.go` | InstanceID 8-bit link-local instance selector. |
+| `internal/plugins/ospf/v3/types/interface.go` | InterfaceID 32-bit router-local interface id. |
+| `internal/plugins/ospf/v3/types/lsa.go` | LSType (with embedded flooding scope) + LSAKey. |
+| `internal/plugins/ospf/v3/types/metric.go` | Metric 24-bit OSPFv3 route metric. |
+| `internal/plugins/ospf/v3/types/options.go` | OSPFv3 24-bit Options bitset. |
+| `internal/plugins/ospf/v3/types/prefix.go` | IPv6 prefix length + options encoding. |
+| `internal/plugins/ospf/v3/types/routerid.go` | RouterID / AreaID / LinkStateID 4-byte identifiers. |
+| `internal/plugins/ospf/v3/types/sequence.go` | LSSequenceNumber signed 32-bit LSA version. |
+
+## `docs/architecture/ospf/ospfv3-2-wire.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/v3/packet/checksum.go` | OSPFv3 LSA Fletcher and IPv6 packet checksums. |
+| `internal/plugins/ospf/v3/packet/dbdesc.go` | OSPFv3 Database Description packet body codec. |
+| `internal/plugins/ospf/v3/packet/doc.go` | OSPFv3 packet and LSA wire codec. |
+| `internal/plugins/ospf/v3/packet/header.go` | OSPFv3 common header and packet dispatch. |
+| `internal/plugins/ospf/v3/packet/hello.go` | OSPFv3 Hello packet body codec. |
+| `internal/plugins/ospf/v3/packet/helpers_test.go` | shared OSPFv3 codec test fixtures. |
+| `internal/plugins/ospf/v3/packet/lsa.go` | 20-octet OSPFv3 LSA header and lazy LSA view. |
+| `internal/plugins/ospf/v3/packet/lsa_external.go` | OSPFv3 AS-External / NSSA LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsa_interarea_prefix.go` | OSPFv3 Inter-Area-Prefix-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsa_interarea_router.go` | OSPFv3 Inter-Area-Router-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsa_intraarea_prefix.go` | OSPFv3 Intra-Area-Prefix-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsa_link.go` | OSPFv3 Link-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsa_network.go` | OSPFv3 Network-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsa_nssa.go` | OSPFv3 NSSA-LSA body codec (reuses the external body). |
+| `internal/plugins/ospf/v3/packet/lsa_router.go` | OSPFv3 Router-LSA body codec. |
+| `internal/plugins/ospf/v3/packet/lsack.go` | OSPFv3 Link State Acknowledgment packet body codec. |
+| `internal/plugins/ospf/v3/packet/lsreq.go` | OSPFv3 Link State Request packet body codec. |
+| `internal/plugins/ospf/v3/packet/lsupdate.go` | OSPFv3 Link State Update packet body codec. |
+| `internal/plugins/ospf/v3/packet/prefix.go` | OSPFv3 IPv6 prefix encode/decode (both carriage forms). |
+| `internal/plugins/ospf/v3/packet/wire.go` | shared fixed-width big-endian wire helpers. |
+
+## `docs/architecture/ospf/ospfv3-3-ipv6-transport.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/ospf/bfd_client_v6.go` | OSPFv3 is our OSPF; the BFD GTSM-255 |
+| `internal/plugins/ospf/v3/transport/backend_linux.go` | Linux ipv6.PacketConn backend |
+| `internal/plugins/ospf/v3/transport/backend_other.go` | non-Linux backend stub |
+| `internal/plugins/ospf/v3/transport/doctor.go` | raw IPv6 socket readiness doctor check |
+| `internal/plugins/ospf/v3/transport/doctor_linux.go` | Linux raw IPv6 socket probe |
+| `internal/plugins/ospf/v3/transport/doctor_other.go` | non-Linux raw IPv6 socket probe stub |
+| `internal/plugins/ospf/v3/transport/metrics.go` | OSPFv3 transport metrics |
+| `internal/plugins/ospf/v3/transport/multicast.go` | OSPFv3 IPv6 multicast groups |
+| `internal/plugins/ospf/v3/transport/register.go` | doctor-check registration |
+| `internal/plugins/ospf/v3/transport/transport.go` | OSPFv3 raw IPv6 transport orchestrator |
+| `internal/plugins/ospf/v3/transport/transport_integration_linux_test.go` | Linux raw IPv6 OSPFv3 multicast |
+
+## `docs/architecture/ospf/ospfv3-5-nssa-redist.md`
+
+- `internal/plugins/ospf/origination_v6_nssa.go` -- OSPFv3 NSSA Type-7 redistribution.
+
+## `docs/architecture/ospf/ospfv3-6-interop-coverage.md`
+
+- `internal/plugins/ospf/origination_v6_stub.go` -- OSPFv3 stub-area policy for the ABR
+
+## `docs/architecture/pki/pki-store.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/pki/config.go` | PKI config parser |
+| `internal/component/pki/config_test.go` | PKI config parser tests |
+| `internal/component/pki/show.go` | PKI show command handlers |
+| `internal/component/pki/store.go` | PKI in-memory certificate store |
+| `internal/component/pki/store_test.go` | PKI store tests |
+| `internal/component/pki/types.go` | PKI certificate store types |
+
 ## `docs/architecture/plugin-manager-wiring.md`
 
 - `internal/component/plugin/manager/manager.go` -- two-phase startup
+
+## `docs/architecture/plugin/component-boundaries.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/config/provider.go` | ConfigProvider implementation |
+| `internal/component/engine/engine.go` | Engine supervisor |
+| `internal/component/plugin/manager/manager.go` | PluginManager implementation |
+| `pkg/ze/config.go` | ConfigProvider interface |
+| `pkg/ze/engine.go` | Engine interface |
+| `pkg/ze/plugin.go` | PluginManager interface |
+| `pkg/ze/subsystem.go` | Subsystem interface |
 
 ## `docs/architecture/plugin/rib-storage-design.md`
 
@@ -1418,6 +2884,31 @@ Total: 306 design docs, 3267 files
 | `internal/core/rib/store/store_bart.go` | generic prefix-keyed store |
 | `internal/core/rib/store/store_map.go` | generic prefix-keyed store (map-only fallback) |
 
+## `docs/architecture/plugin/show-enrichers.md`
+
+- `internal/component/plugin/server/enricher.go` -- proxy enricher for external plugins
+- `internal/test/plugins/fakeenrich/fakeenrich.go` -- in-process test enricher plugin
+
+## `docs/architecture/policyroute/netlink-int-field-truncation.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/policyroute/netlinkint_linux_amd64.go` | netlink int width |
+| `internal/plugins/policyroute/netlinkint_linux_arm64.go` | netlink int width |
+| `internal/plugins/policyroute/netlinkint_linux_generic.go` | netlink int width |
+| `internal/plugins/policyroute/netlinkint_linux_test.go` | netlink int width |
+
+## `docs/architecture/policyroute/policy-routing.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/policyroute/config.go` | config parsing |
+| `internal/plugins/policyroute/logger.go` | logger |
+| `internal/plugins/policyroute/model.go` | rule and mark data types |
+| `internal/plugins/policyroute/rules_linux.go` | netlink ip rule and route management |
+| `internal/plugins/policyroute/rules_other.go` | platform stub for non-Linux |
+| `internal/plugins/policyroute/translate.go` | config to nftables/ip-rule translation |
+
 ## `docs/architecture/pool-architecture.md`
 
 | File | Topic |
@@ -1444,6 +2935,47 @@ Total: 306 design docs, 3267 files
 | `internal/component/bgp/store/attribute.go` | attribute and NLRI storage |
 | `internal/component/bgp/store/nlri.go` | attribute and NLRI storage |
 
+## `docs/architecture/provisioning/dhcp-server.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/dhcpserver/config.go` | DHCP server config parsing |
+| `internal/plugins/dhcpserver/handler.go` | DHCP packet handling (RFC 2131/2132) |
+| `internal/plugins/dhcpserver/lease.go` | DHCP lease tracking with expiry |
+| `internal/plugins/dhcpserver/pool.go` | DHCP address pool allocation |
+| `internal/plugins/dhcpserver/register.go` | DHCP server plugin registration |
+| `internal/plugins/dhcpserver/rfc2131_test.go` | RFC 2131 conformance coverage |
+| `internal/plugins/dhcpserver/socket_integration_linux_test.go` | integration coverage for SO_BINDTODEVICE |
+| `internal/plugins/dhcpserver/socket_linux.go` | Linux SO_BINDTODEVICE for interface-specific DHCP |
+| `internal/plugins/dhcpserver/socket_other.go` | Non-Linux DHCP socket fallback |
+
+## `docs/architecture/provisioning/image-server.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/imageserver/config.go` | image server config parsing |
+| `internal/plugins/imageserver/config_test.go` | image server config tests |
+| `internal/plugins/imageserver/handler.go` | HTTP image/boot file serving |
+| `internal/plugins/imageserver/handler_test.go` | image server handler tests |
+| `internal/plugins/imageserver/register.go` | image server plugin registration |
+
+## `docs/architecture/provisioning/pxe-staging.md`
+
+- `internal/plugins/provision/staging.go` -- PXE artifact staging and validation
+- `internal/plugins/provision/staging_test.go` -- staging unit tests
+
+## `docs/architecture/provisioning/tftp-server.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/tftpserver/config.go` | TFTP server config parsing |
+| `internal/plugins/tftpserver/config_test.go` | TFTP server config tests |
+| `internal/plugins/tftpserver/handler.go` | TFTP packet handling (RFC 1350, RFC 2347 option negotiation) |
+| `internal/plugins/tftpserver/register.go` | TFTP server plugin registration |
+| `internal/plugins/tftpserver/socket_integration_linux_test.go` | integration coverage for SO_BINDTODEVICE |
+| `internal/plugins/tftpserver/socket_linux.go` | Linux SO_BINDTODEVICE for interface-specific TFTP |
+| `internal/plugins/tftpserver/socket_other.go` | Non-Linux TFTP socket fallback |
+
 ## `docs/architecture/resolve.md`
 
 | File | Topic |
@@ -1458,6 +2990,8 @@ Total: 306 design docs, 3267 files
 | `internal/component/resolve/cli/resolve_test.go` | end-to-end tests for resolve CLI |
 | `internal/component/resolve/cmd/resolve.go` | resolve command handlers for dispatcher |
 | `internal/component/resolve/cymru/cymru.go` | Team Cymru ASN name resolution |
+| `internal/component/resolve/irr/store/store.go` | shared IRR prefix resolution + persistence |
+| `internal/component/resolve/peeringdb/client.go` | PeeringDB client for prefix update |
 | `internal/component/resolve/resolvers.go` | Resolution component container |
 | `internal/component/traceroute/cmd/resolve.go` | resolve traceroute command handler |
 
@@ -1470,6 +3004,40 @@ Total: 306 design docs, 3267 files
 | `internal/component/bgp/plugins/watchdog/server.go` | watchdog plugin extraction |
 | `internal/component/bgp/plugins/watchdog/watchdog.go` | watchdog plugin extraction |
 
+## `docs/architecture/rib/forward-handle.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/rib/forward_handle.go` | producer side of locrib.ForwardHandle |
+| `internal/component/bgp/plugins/rib/forward_observer.go` | observability subscriber for Change.Forward |
+| `internal/component/bgp/plugins/rib/forward_tracker.go` | first production Change.Forward consumer |
+| `internal/core/rib/locrib/change.go` | Change.Forward handle for zero-copy forwarding |
+| `internal/core/rib/locrib/forward_handle.go` | zero-copy forwarding for Change subscribers |
+| `internal/core/rib/locrib/manager.go` | InsertForward threads a ForwardHandle to Change subscribers |
+
+## `docs/architecture/rib/unified-locrib.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/bgp/plugins/rib/bestprev_shard.go` | sharded BGP bestPrev tracking |
+| `internal/component/bgp/plugins/rib/storage/pathset.go` | ADD-PATH in the value layer |
+| `internal/component/sysrib/sysrib_locrib_ghost_test.go` | unified Loc-RIB best-change consumption. |
+| `internal/core/bgp/nlri/nlrisplit/cidr.go` | per-family NLRI split |
+| `internal/core/bgp/nlri/nlrisplit/evpn.go` | per-family NLRI split |
+| `internal/core/bgp/nlri/nlrisplit/mup.go` | per-family NLRI split |
+| `internal/core/bgp/nlri/nlrisplit/mvpn.go` | per-family NLRI split |
+| `internal/core/bgp/nlri/nlrisplit/nlrisplit.go` | per-family NLRI split |
+| `internal/core/bgp/nlri/nlrisplit/register.go` | per-family NLRI split |
+| `internal/core/bgp/nlri/nlrisplit/typelen.go` | per-family NLRI split |
+| `internal/core/rib/locrib/candidate.go` | candidate and path model |
+| `internal/core/rib/locrib/candidate_equal_test.go` | Path.Equal label handling (F1) test |
+| `internal/core/rib/locrib/change.go` | Loc-RIB change notifications |
+| `internal/core/rib/locrib/default.go` | the process-wide Loc-RIB |
+| `internal/core/rib/locrib/entry.go` | path group, entry and best selection |
+| `internal/core/rib/locrib/manager.go` | the sharded Loc-RIB manager |
+| `internal/core/rib/locrib/metrics.go` | per-shard Loc-RIB metrics |
+| `internal/core/rib/locrib/shard.go` | one Loc-RIB shard |
+
 ## `docs/architecture/route-types.md`
 
 | File | Topic |
@@ -1481,6 +3049,88 @@ Total: 306 design docs, 3267 files
 | `internal/component/bgp/route/route_labeled.go` | labeled unicast route parsing |
 | `internal/component/bgp/route/route_mup.go` | MUP route parsing |
 | `internal/component/bgp/route/route_vpn.go` | L3VPN route parsing |
+
+## `docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md`
+
+- `internal/plugins/rsvpte/frr.go` -- RSVP-TE Fast Reroute
+
+## `docs/architecture/rsvpte/mpls-rsvp-te.md`
+
+| File | Topic |
+|------|-------|
+| `internal/core/mplsfib/events.go` | MPLS forwarding-entry input to fib-kernel |
+| `internal/plugins/fib/kernel/mplsentry.go` | MPLS forwarding-entry programming |
+| `internal/plugins/fib/kernel/mplsentry_linux.go` | netlink AF_MPLS swap/pop programming |
+| `internal/plugins/rsvpte/admission.go` | RSVP-TE bandwidth admission control |
+| `internal/plugins/rsvpte/build.go` | RSVP-TE full-message encoders |
+| `internal/plugins/rsvpte/cmd_show.go` | `show rsvp-te ...` surfaced under the |
+| `internal/plugins/rsvpte/doctor.go` | raw-socket (proto 46) readiness check |
+| `internal/plugins/rsvpte/doctor_linux.go` | raw-socket probe for the doctor check |
+| `internal/plugins/rsvpte/doctor_other.go` | raw-socket probe (non-Linux stub) |
+| `internal/plugins/rsvpte/engine.go` | RSVP-TE signaling engine |
+| `internal/plugins/rsvpte/events.go` | RSVP-TE event bus types |
+| `internal/plugins/rsvpte/fib.go` | RSVP-TE dataplane via the mpls-fib bus |
+| `internal/plugins/rsvpte/fsm.go` | RSVP-TE per-LSP state machine |
+| `internal/plugins/rsvpte/register.go` | RSVP-TE component registration |
+| `internal/plugins/rsvpte/reroute.go` | make-before-break reroute (AC-7) |
+| `internal/plugins/rsvpte/rro.go` | RRO collection + ERO/RRO display (AC-9) |
+| `internal/plugins/rsvpte/show_data.go` | `show rsvp-te ...` data builders |
+| `internal/plugins/rsvpte/transport.go` | RSVP-TE raw IP transport (protocol 46) |
+| `internal/plugins/rsvpte/transport_linux.go` | Linux raw IP socket for RSVP (proto 46) |
+| `internal/plugins/rsvpte/transport_other.go` | non-Linux RSVP transport stub |
+| `internal/plugins/rsvpte/wire.go` | RSVP-TE wire codec |
+
+## `docs/architecture/show-enricher.md`
+
+- `internal/core/show/show.go` -- show enricher registry
+- `internal/plugins/cos/enricher.go` -- CoS enricher for subscriber show commands
+
+## `docs/architecture/ssh/fixit-bcrypt-hash-credential.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/cli/editor_mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/config/mask.go` | mask ze:bcrypt leaves on display |
+| `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
+| `internal/core/redact/redact.go` | credential-token redaction for logs |
+
+## `docs/architecture/static-routes.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/routingtable/config.go` | routing-table config parsing |
+| `internal/plugins/routingtable/logger.go` | routing-table plugin logger |
+| `internal/plugins/routingtable/register.go` | routing-table plugin registration |
+| `internal/plugins/routingtable/registry.go` | routing-table registry |
+| `internal/plugins/static/backend.go` | backend abstraction |
+| `internal/plugins/static/backend_linux.go` | Linux netlink backend with multipath |
+| `internal/plugins/static/backend_other.go` | rejecting backend for non-Linux |
+| `internal/plugins/static/backend_vpp_linux.go` | VPP data-plane static backend selection |
+| `internal/plugins/static/config.go` | config parsing |
+| `internal/plugins/static/diff.go` | diff engine for config reload |
+| `internal/plugins/static/doctor.go` | interface-only next-hop readiness check |
+| `internal/plugins/static/eventbus.go` | event bus integration |
+| `internal/plugins/static/events/events.go` | redistribution event types |
+| `internal/plugins/static/inject.go` | BFD integration and active NH tracking |
+| `internal/plugins/static/logger.go` | logger |
+| `internal/plugins/static/model.go` | static route data model |
+| `internal/plugins/static/register.go` | plugin registration and lifecycle |
+| `internal/plugins/static/vpp/backend.go` | VPP static route programming via GoVPP |
+
+## `docs/architecture/storage/smart-health.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/storage/config.go` | SMART disk health management |
+| `internal/component/storage/discover_linux.go` | SMART disk health management |
+| `internal/component/storage/discover_other.go` | SMART disk health management |
+| `internal/component/storage/manager.go` | SMART disk health management |
+| `internal/component/storage/manager_test.go` | SMART disk health management |
+| `internal/component/storage/show.go` | SMART disk health management |
+| `internal/core/smart/smart.go` | SMART disk health ioctl library |
+| `internal/core/smart/smart_linux.go` | SMART disk health ioctl library |
+| `internal/core/smart/smart_other.go` | SMART disk health ioctl library |
+| `internal/core/smart/smart_test.go` | SMART disk health management |
 
 ## `docs/architecture/system-architecture.md`
 
@@ -1624,6 +3274,105 @@ Total: 306 design docs, 3267 files
 | `internal/core/hostload/hostload_other.go` | host load detection for contended-run classification |
 | `internal/test/runner/hostload.go` | host load detection for contended-run classification |
 
+## `docs/architecture/testing/test-health.md`
+
+- `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
+
+## `docs/architecture/testing/tracked-build-gate.md`
+
+- `scripts/checks/tracked_build.go` -- compile what git holds
+
+## `docs/architecture/traffic/cos-dynamic.md`
+
+- `internal/plugins/cos/handler.go` -- dynamic CoS event handler
+- `internal/plugins/cos/session_state.go` -- per-session CoS state for revert
+
+## `docs/architecture/traffic/cos-plugin.md`
+
+- `internal/core/cos/cos.go` -- shared CoS profile registry
+- `internal/plugins/cos/config.go` -- CoS profile config parsing
+- `internal/plugins/cos/cos.go` -- class-of-service plugin
+
+## `docs/architecture/traffic/cp-survival-2-copp-port179.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/copp/config.go` | config parsing |
+| `internal/plugins/copp/doctor.go` | doctor check |
+| `internal/plugins/copp/logger.go` | logger |
+| `internal/plugins/copp/model.go` | CoPP policy data types |
+| `internal/plugins/copp/register.go` | plugin registration |
+| `internal/plugins/copp/translate.go` | coppPolicy to firewall.Table translation |
+
+## `docs/architecture/traffic/cp-survival-3-egress-cs6-sched.md`
+
+- `internal/plugins/traffic/netlink/cs6_integration_linux_test.go` -- CS6 classification integration test
+- `internal/plugins/traffic/netlink/translate_linux_test.go` -- DSCP filter selector tests
+
+## `docs/architecture/traffic/followup-vpp-traffic.md`
+
+- `internal/plugins/traffic/vpp/classify_linux.go` -- classify + policer-classify
+
+## `docs/architecture/traffic/fw-7-traffic-vpp.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/traffic/vpp/backend_linux.go` | VPP traffic backend |
+| `internal/plugins/traffic/vpp/backend_other.go` | VPP traffic backend stub for non-Linux |
+| `internal/plugins/traffic/vpp/binapi_imports.go` | Phase 0 vendor pinning |
+| `internal/plugins/traffic/vpp/register.go` | Backend registration |
+| `internal/plugins/traffic/vpp/translate.go` | Translation contract |
+| `internal/plugins/traffic/vpp/verify.go` | Commit-time rejection matrix |
+
+## `docs/architecture/traffic/fw-7b-backend-hardening.md`
+
+- `internal/plugins/traffic/vpp/apply_test.go` -- Apply-path tests for vpp backend.
+- `internal/plugins/traffic/vpp/ops.go` -- VPP-operation seam for unit tests
+- `internal/plugins/traffic/vpp/ops_linux.go` -- govppOps production adapter
+
+## `docs/architecture/traffic/tc-original-qdisc-restore.md`
+
+- `internal/plugins/traffic/netlink/backend_linux_test.go` -- tc original-qdisc restore regressions
+- `internal/plugins/traffic/netlink/ops_linux.go` -- tc original-qdisc restore
+- `internal/plugins/traffic/netlink/snapshot_linux.go` -- tc original-qdisc restore
+
+## `docs/architecture/traffic/traffic-analysis-layers.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/trafficfeature/cmd/traffic_feature.go` | show traffic feature CLI handler |
+| `internal/component/trafficfeature/feature.go` | per-source neutral feature aggregation |
+| `internal/component/trafficfeature/service.go` | neutral per-source traffic feature signals |
+| `internal/component/trafficstat/window.go` | per-key rolling window and rate derivation |
+| `internal/core/stats/beacon.go` | coarse beaconing (interval regularity) |
+| `internal/core/stats/entropy.go` | Shannon entropy of a distribution |
+| `internal/core/stats/ewma.go` | exponentially weighted moving average |
+| `internal/core/stats/math.go` | neutral statistical primitives (mean, stddev, quantile) |
+| `internal/core/stats/window.go` | shared traffic-analysis stats primitives |
+
+## `docs/architecture/traffic/traffic-usage-monitor.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/trafficstat/cmd/render.go` | full-screen traffic monitor renderer |
+| `internal/component/trafficstat/cmd/traffic.go` | show/monitor traffic CLI handlers |
+| `internal/component/trafficstat/service.go` | lazy refcounted traffic aggregation service |
+| `internal/core/portname/portname.go` | port-to-service-name lookup |
+
+## `docs/architecture/traffic/traffic-usage.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/trafficusage/attach_linux.go` | traffic-usage Linux TCX attacher (load, attach, read maps, detach) |
+| `internal/plugins/trafficusage/attach_other.go` | traffic-usage non-Linux stub attacher |
+| `internal/plugins/trafficusage/config.go` | traffic-usage config parsing & validation |
+| `internal/plugins/trafficusage/doctor.go` | traffic-usage doctor check (kernel eBPF/TCX + CAP_BPF) |
+| `internal/plugins/trafficusage/metrics.go` | traffic-usage Prometheus metric families & helpers |
+| `internal/plugins/trafficusage/monitor.go` | traffic-usage monitor: reconcile, lifecycle, poller |
+| `internal/plugins/trafficusage/program_linux.go` | pure-Go eBPF TCX accounting programs (asm.Instructions) |
+| `internal/plugins/trafficusage/show.go` | show traffic-usage command handler. |
+| `internal/plugins/trafficusage/trafficusage.go` | traffic-usage plugin identity, logger, namespace |
+
 ## `docs/architecture/update-building.md`
 
 | File | Topic |
@@ -1637,6 +3386,63 @@ Total: 306 design docs, 3267 files
 | `internal/component/bgp/message/update_build_vpn.go` | VPN UPDATE builders |
 | `internal/component/bgp/reactor/update_group.go` | cross-peer UPDATE grouping |
 | `internal/component/bgp/transaction/commit_manager.go` | commit management |
+
+## `docs/architecture/vpp-host-tuning.md`
+
+- `internal/appliance/kernelargs.go` -- host-side hugepage reservation via the
+- `internal/component/vpp/doctor_linux.go` -- ze doctor check for the boot-time
+- `internal/component/vpp/register_linux.go` -- linux-only VPP registrations.
+
+## `docs/architecture/vrrp/vrrp-first-hop-redundancy.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/vrrp/cmd_show.go` | show/clear command surface |
+| `internal/plugins/vrrp/cmd_show_test.go` | show/clear command tests |
+| `internal/plugins/vrrp/doctor.go` | doctor codes + config-sanity check |
+| `internal/plugins/vrrp/doctor_test.go` | doctor config-sanity tests |
+| `internal/plugins/vrrp/engine.go` | instance manager: config diff + lifecycle |
+| `internal/plugins/vrrp/engine_test.go` | instance manager (config diff + lifecycle) tests |
+| `internal/plugins/vrrp/fsm/actions.go` | VRRP FSM output actions (closed set) |
+| `internal/plugins/vrrp/fsm/doc.go` | VRRP instance state machine and timers |
+| `internal/plugins/vrrp/fsm/events.go` | VRRP FSM input events and instance config |
+| `internal/plugins/vrrp/fsm/fsm.go` | VRRP per-instance state machine |
+| `internal/plugins/vrrp/fsm/timers.go` | VRRP Skew_Time / Master_Down_Interval math |
+| `internal/plugins/vrrp/groups.go` | VRRP config extraction and verification |
+| `internal/plugins/vrrp/groups_test.go` | VRRP config extraction + verification tests |
+| `internal/plugins/vrrp/instance.go` | per-instance worker: FSM executor + rx decode |
+| `internal/plugins/vrrp/instance_test.go` | per-instance worker (FSM executor) tests |
+| `internal/plugins/vrrp/register.go` | plugin registration and engine entry point |
+| `internal/plugins/vrrp/register_test.go` | live platform wiring |
+| `internal/plugins/vrrp/telemetry.go` | engine-owned telemetry and state events |
+| `internal/plugins/vrrp/transport/announce.go` | per-instance announcer worker |
+| `internal/plugins/vrrp/transport/announce_test.go` | announcer burst semantics tests |
+| `internal/plugins/vrrp/transport/backend_linux.go` | Linux raw proto-112 backend (rx parent / tx macvlan) |
+| `internal/plugins/vrrp/transport/backend_other.go` | non-Linux backend stub (ospf backend_other.go model) |
+| `internal/plugins/vrrp/transport/backend_other_test.go` | non-Linux backend stub test |
+| `internal/plugins/vrrp/transport/counters.go` | per-instance counter snapshot (Finding 7) |
+| `internal/plugins/vrrp/transport/doctor.go` | raw-socket readiness doctor check |
+| `internal/plugins/vrrp/transport/doctor_linux.go` | Linux raw-socket probe for the doctor check |
+| `internal/plugins/vrrp/transport/doctor_other.go` | raw-socket probe (non-Linux stub) |
+| `internal/plugins/vrrp/transport/doctor_test.go` | raw-socket doctor check tests |
+| `internal/plugins/vrrp/transport/garp.go` | pure GARP frame builder (testable on darwin) |
+| `internal/plugins/vrrp/transport/garp_linux.go` | AF_PACKET gratuitous-ARP sender on the macvlan |
+| `internal/plugins/vrrp/transport/garp_test.go` | golden-byte GARP frame tests (darwin-safe) |
+| `internal/plugins/vrrp/transport/metrics.go` | transport-owned Prometheus metrics |
+| `internal/plugins/vrrp/transport/metrics_test.go` | transport metric series + per-instance snapshot tests |
+| `internal/plugins/vrrp/transport/na.go` | pure NA message builder (testable on darwin) |
+| `internal/plugins/vrrp/transport/na_linux.go` | raw ICMPv6 unsolicited-NA sender on the macvlan |
+| `internal/plugins/vrrp/transport/na_test.go` | golden-byte NA message tests (darwin-safe) |
+| `internal/plugins/vrrp/transport/register.go` | doctor-check registration |
+| `internal/plugins/vrrp/transport/transport.go` | VRRP raw-socket transport orchestrator |
+| `internal/plugins/vrrp/transport/transport_integration_linux_test.go` | QEMU integration: raw proto-112 sockets, |
+| `internal/plugins/vrrp/transport/transport_test.go` | transport orchestrator tests (fake backend) |
+| `internal/plugins/vrrp/vrrp.go` | vrrp plugin package doc, logger, show views |
+
+## `docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md`
+
+- `internal/plugins/vrrp/dataplane_linux.go` -- virtual-MAC dataplane (ARP/ND ownership)
+- `internal/plugins/vrrp/dataplane_other.go` -- virtual-MAC dataplane (ARP/ND ownership)
 
 ## `docs/architecture/web-components.md`
 
@@ -1698,6 +3504,31 @@ Total: 306 design docs, 3267 files
 | `internal/graph/graph.go` | shared AS path topology graph data model |
 | `internal/graph/layout.go` | parameterized layered graph layout |
 | `internal/graph/text.go` | Unicode box-drawing text renderer for AS topology |
+
+## `docs/architecture/web-workbench-pages.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/web/handler_l2tp.go` | L2TP web management UI |
+| `internal/component/web/page_bgp_families.go` | BGP Families page |
+| `internal/component/web/page_bgp_groups.go` | BGP Groups table page |
+| `internal/component/web/page_bgp_peers.go` | BGP Peers table page |
+| `internal/component/web/page_bgp_policy.go` | BGP Policy/Filters page |
+| `internal/component/web/page_bgp_summary.go` | BGP Summary page |
+| `internal/component/web/page_dashboard.go` | Dashboard sub-page handlers |
+| `internal/component/web/page_firewall.go` | Firewall workbench pages |
+| `internal/component/web/page_interfaces.go` | Interface table and detail pages |
+| `internal/component/web/page_ip_addresses.go` | IP Addresses page |
+| `internal/component/web/page_ip_dns.go` | IP DNS form page |
+| `internal/component/web/page_ip_routes.go` | IP Routes page |
+| `internal/component/web/page_l2tp.go` | L2TP workbench pages |
+| `internal/component/web/page_logs.go` | Log page handlers |
+| `internal/component/web/page_services.go` | Services section pages |
+| `internal/component/web/page_system.go` | System section pages |
+| `internal/component/web/page_tools.go` | Tool page handlers |
+| `internal/component/web/page_traffic.go` | Traffic monitoring page |
+| `internal/component/web/page_workbench_generic.go` | generic system/service workbench dispatch |
+| `internal/component/web/workbench_pages.go` | Workbench page dispatch |
 
 ## `docs/architecture/wire/attributes.md`
 
@@ -1769,6 +3600,28 @@ Total: 306 design docs, 3267 files
 | `internal/core/bgp/capability/negotiated.go` | capability negotiation |
 | `internal/core/bgp/capability/plugin.go` | capability negotiation |
 | `internal/core/bgp/capability/session.go` | capability negotiation |
+
+## `docs/architecture/wire/isis.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/isis/cli/decode.go` | offline IS-IS PDU decode CLI (wiring proof) |
+| `internal/plugins/isis/cli/run.go` | offline `ze isis decode` subcommand entry |
+| `internal/plugins/isis/packet/checksum.go` | ISO 8473 Fletcher checksum, two-step adjustment |
+| `internal/plugins/isis/packet/csnp.go` | L1/L2 CSNP body codec (source ID, start/end LSPID) |
+| `internal/plugins/isis/packet/header.go` | common 8-byte header, PDU type constants, dispatch |
+| `internal/plugins/isis/packet/hello.go` | LAN L1/L2 IIH and P2P IIH body codec |
+| `internal/plugins/isis/packet/json.go` | offline decode rendering (JSON view of a PDU) |
+| `internal/plugins/isis/packet/lsp.go` | L1/L2 LSP body codec (lifetime, LSPID, sequence, checksum, type block) |
+| `internal/plugins/isis/packet/pdu.go` | top-level PDU dispatch (header parse -> body decoder) |
+| `internal/plugins/isis/packet/psnp.go` | L1/L2 PSNP body codec (source ID) |
+| `internal/plugins/isis/packet/tlv.go` | generic TLV iterator + encode helper |
+| `internal/plugins/isis/packet/tlv_auth.go` | TLV 10 (Authentication) structural codec only |
+| `internal/plugins/isis/packet/tlv_core.go` | core TLV codecs (1, 8, 9, 22, 129, 132-shared, 137, 240) |
+| `internal/plugins/isis/packet/tlv_ipv4.go` | TLV 132 (IP Interface Address), TLV 135 (Extended IP Reachability) |
+| `internal/plugins/isis/packet/tlv_ipv6.go` | TLV 232 (IPv6 Interface Address), TLV 236 (IPv6 Reachability) |
+| `internal/plugins/isis/packet/tlv_neighbours.go` | TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode-only) |
+| `internal/plugins/isis/packet/tlv_opaque.go` | unknown-TLV opaque retention + verbatim re-serialization |
 
 ## `docs/architecture/wire/l2tp.md`
 
@@ -1939,19 +3792,27 @@ Total: 306 design docs, 3267 files
 | `internal/plugins/ospf/sr_reception_v6.go` | OSPF Segment Routing IPv6 reception. |
 | `internal/plugins/ospf/v3/packet/lsa_extended.go` | RFC 8362 Extended-LSA body codec. |
 
+## `docs/architecture/wire/rfc7606-relay-shape.md`
+
+- `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
+
 ## `docs/architecture/zefs-format.md`
 
 | File | Topic |
 |------|-------|
 | `internal/component/cli/history.go` | command history persistence |
 | `internal/component/config/storage/blob.go` | blob storage implementation |
+| `internal/component/config/storage/cli/cmd_integrity.go` | check, repair, and encode CLI commands |
 | `internal/component/config/storage/cli/main.go` | ZeFS blob store CLI |
 | `internal/component/config/storage/pointer.go` | transactional config pointers |
 | `internal/component/config/storage/pointer_test.go` | transactional config pointers |
 | `internal/component/config/storage/storage.go` | config storage abstraction |
 | `internal/component/config/storage/storage_test.go` | config storage tests |
+| `pkg/zefs/check.go` | corruption detection and recovery |
 | `pkg/zefs/keys.go` | ZeFS key definitions |
 | `pkg/zefs/netcapstring.go` | netcapstring encoding |
+| `pkg/zefs/pwrite_other.go` | in-place write fallback for non-unix |
+| `pkg/zefs/pwrite_unix.go` | in-place write via pwrite |
 | `pkg/zefs/registry.go` | ZeFS key registry for centralized key definitions |
 | `pkg/zefs/store.go` | ZeFS file format and netcapstring framing |
 
@@ -2277,1922 +4138,6 @@ Total: 306 design docs, 3267 files
 | `internal/plugins/iface/vpp/query.go` | VPP interface query and MAC operations |
 | `internal/plugins/iface/vpp/register.go` | VPP interface backend registration |
 
-## `plan/design-rib-rs-fastpath.md`
-
-- `internal/core/rib/locrib/change.go` -- Change.Forward handle for zero-copy forwarding
-- `internal/core/rib/locrib/manager.go` -- InsertForward threads a ForwardHandle to Change subscribers
-
-## `plan/learned/1005-cp-survival-2-copp-port179.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/copp/config.go` | config parsing |
-| `internal/plugins/copp/doctor.go` | doctor check |
-| `internal/plugins/copp/logger.go` | logger |
-| `internal/plugins/copp/model.go` | CoPP policy data types |
-| `internal/plugins/copp/register.go` | plugin registration |
-| `internal/plugins/copp/translate.go` | coppPolicy to firewall.Table translation |
-
-## `plan/learned/1007-cp-survival-3-egress-cs6-sched.md`
-
-- `internal/plugins/traffic/netlink/cs6_integration_linux_test.go` -- CS6 classification integration test
-- `internal/plugins/traffic/netlink/translate_linux_test.go` -- DSCP filter selector tests
-
-## `plan/learned/1008-cp-survival-4-on-demand-origination-design.md`
-
-- `internal/component/bgp/plugins/cmd/announce/announce.go` -- on-demand route origination CLI verbs
-- `internal/component/bgp/plugins/cmd/announce/registry.go` -- tag registry for on-demand route origination
-- `internal/component/bgp/plugins/cmd/announce/require.go` -- BGP reactor type assertion for announce cmd
-
-## `plan/learned/1011-cp-survival-5-detect-0-umbrella.md`
-
-| File | Topic |
-|------|-------|
-| `internal/core/ddosevent/event.go` | DDoS event contract |
-| `internal/plugins/ddos/detect/baseline.go` | rolling baseline with poisoning guards |
-| `internal/plugins/ddos/detect/config.go` | detector configuration |
-| `internal/plugins/ddos/detect/detector.go` | two-stage DDoS detector |
-| `internal/plugins/ddos/detect/policy.go` | detector traffic policy |
-| `internal/plugins/ddos/detect/state.go` | trigger/clear state machine |
-| `internal/plugins/ddos/flowspec/config.go` | flowspec responder config |
-| `internal/plugins/ddos/flowspec/match.go` | vector to FlowSpec match |
-| `internal/plugins/ddos/flowspec/probe.go` | leak-probe state machine |
-| `internal/plugins/ddos/flowspec/responder.go` | upstream FlowSpec/RTBH responder |
-| `internal/plugins/ddos/flowspec/show.go` | show ddos flowspec surface |
-| `internal/plugins/ddos/flowtriq/client.go` | Flowtriq cloud API reporter |
-| `internal/plugins/ddos/flowtriq/config.go` | Flowtriq reporter config |
-| `internal/plugins/ddos/local/config.go` | local responder config |
-| `internal/plugins/ddos/local/match.go` | vector to firewall term |
-| `internal/plugins/ddos/local/responder.go` | on-host nft drop responder |
-| `internal/plugins/ddos/local/show.go` | show ddos local surface |
-| `internal/plugins/ddos/observe/config.go` | observability config |
-| `internal/plugins/ddos/observe/show.go` | show ddos surface |
-| `internal/plugins/ddos/observe/store.go` | bounded incident store |
-
-## `plan/learned/1015-cp-survival-5-detect-5-characterization.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ddos/detect/characterize.go` | Stage-2 characterization. |
-| `internal/plugins/ddos/detect/doctor.go` | flow-source readiness. |
-| `internal/plugins/ddos/detect/metrics.go` | Stage-2 metrics. |
-| `internal/plugins/flowexport/recent.go` | Phase 2 recent-flow tap. |
-
-## `plan/learned/1016-observation-feed.md`
-
-- `internal/core/observation/observation.go` -- shared traffic-observation feed
-
-## `plan/learned/1019-traffic-usage-monitor.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/trafficstat/cmd/render.go` | full-screen traffic monitor renderer |
-| `internal/component/trafficstat/cmd/traffic.go` | show/monitor traffic CLI handlers |
-| `internal/component/trafficstat/service.go` | lazy refcounted traffic aggregation service |
-| `internal/core/portname/portname.go` | port-to-service-name lookup |
-
-## `plan/learned/1024-installer-initrd-pure-go.md`
-
-| File | Topic |
-|------|-------|
-| `cmd/ze-installer/main.go` | PID-1 installer initrd binary |
-| `internal/appliance/initrd_pack_test.go` | AC-11 pure-Go initrd packer round-trip |
-| `internal/core/rescueauth/rescueauth.go` | rescue-shell credential encoding |
-| `internal/install/disk/blockdev_linux.go` | block device ioctls + syscall wiring |
-| `internal/install/disk/blockdev_linux_test.go` | block device ioctl tests |
-| `internal/install/disk/bootstrap_linux.go` | PID-1 bootstrap: mount, console |
-| `internal/install/disk/bootstrap_linux_test.go` | bootstrap tests |
-| `internal/install/disk/console_linux.go` | multi-console fan-out writer |
-| `internal/install/disk/console_linux_test.go` | console fan-out tests |
-| `internal/install/disk/dhcp_linux.go` | single-shot DHCPv4 via nclient4 |
-| `internal/install/disk/fault_linux.go` | R-6 forced-panic fault injection (evidence-only) |
-| `internal/install/disk/fault_linux_test.go` | R-6 fault-injection hook tests |
-| `internal/install/disk/fault_stub_linux.go` | R-6 fault injection compiled out of shipping initrd |
-| `internal/install/disk/initrd_linux.go` | PID-1 entry point for installer initrd |
-| `internal/install/disk/initrd_linux_test.go` | RunInitrd wiring test |
-| `internal/install/disk/loop_linux.go` | loop device attach/detach via ioctls |
-| `internal/install/disk/loop_linux_test.go` | loop device ioctl tests |
-| `internal/install/disk/mount_linux.go` | mount/umount via unix syscalls |
-| `internal/install/disk/mount_linux_test.go` | mount/umount wrapper tests |
-| `internal/install/disk/netlink_linux.go` | netlink link/addr/route for installer |
-| `internal/install/disk/rescue_linux.go` | Go recovery console + three-branch fatal |
-
-## `plan/learned/1027-dns-server-harness.md`
-
-| File | Topic |
-|------|-------|
-| `internal/core/dnsserver/client.go` | EDNS0/packet client-IP resolution |
-| `internal/core/dnsserver/freebind_integration_linux_test.go` | IP_FREEBIND kernel wiring proof |
-| `internal/core/dnsserver/freebind_linux.go` | IP_FREEBIND opt-in bind, Linux only |
-| `internal/core/dnsserver/freebind_other.go` | non-Linux Freebind fallback |
-| `internal/core/dnsserver/handler.go` | authoritative-answer |
-| `internal/core/dnsserver/manager.go` | generic DNS listener lifecycle |
-| `internal/core/dnsserver/matcher.go` | CIDR longest-prefix matcher |
-| `internal/core/dnsserver/rfc4035_test.go` | the authoritative wrapper |
-| `internal/plugins/geodns/server.go` | listener lifecycle, client-IP and |
-| `internal/plugins/geodns/server_rfc7871_test.go` | geodns consumes the EDNS0 |
-| `internal/plugins/geodns/source.go` | longest-prefix mechanism moved to |
-
-## `plan/learned/1029-ospf-ext-1-opaque-framework.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/lsdb/opaque_as.go` | RFC 5250 opaque-LSA carrier. |
-| `internal/plugins/ospf/opaque.go` | RFC 5250 opaque carrier engine glue. |
-| `internal/plugins/ospf/opaque_registry.go` | RFC 5250 opaque consumer registry. |
-| `internal/plugins/ospf/packet/opaque_tlv.go` | generic opaque-LSA TLV carriage. |
-
-## `plan/learned/1030-ospf-ext-2-traffic-engineering.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/packet/te_interas.go` | RFC 5392 inter-AS TE sub-TLVs. |
-| `internal/plugins/ospf/packet/te_lsa.go` | RFC 3630 TE LSA body codec. |
-| `internal/plugins/ospf/te.go` | the TE opaque consumer. |
-| `internal/plugins/ospf/te_config.go` | traffic-engineering config. |
-| `internal/plugins/ospf/te_originate.go` | TE LSA origination from config. |
-| `internal/plugins/ospf/te_show.go` | `show ospf te-database` render + |
-| `internal/plugins/ospf/te_ted.go` | the Traffic Engineering Database. |
-
-## `plan/learned/1031-ospf-ext-3-router-information.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/lsdb/native_view.go` | native-LSA-by-type body query. |
-| `internal/plugins/ospf/origination_v6_ri.go` | OSPFv3 Router Information LSA origination. |
-| `internal/plugins/ospf/packet/ri_tlv.go` | RFC 7770 Router Information TLV codec. |
-| `internal/plugins/ospf/ri.go` | the RFC 7770 Router Information LSA. |
-| `internal/plugins/ospf/ri_registry.go` | the RFC 7770 RI-TLV registration hook. |
-| `internal/plugins/ospf/ri_show.go` | `show ospf database router-information`. |
-
-## `plan/learned/1033-as112-2-dns-server.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/as112/config.go` | as112 config parse + validation |
-| `internal/plugins/as112/doctor.go` | as112 listen-port bind-capability doctor check (finding L1) |
-| `internal/plugins/as112/health.go` | `ze ... request as112 healthcheck` command (finding M4) |
-| `internal/plugins/as112/metrics.go` | as112 Prometheus metrics |
-| `internal/plugins/as112/register.go` | as112 plugin registration, OnConfigure |
-| `internal/plugins/as112/server.go` | as112 DNS server (answer policy, |
-| `internal/plugins/as112/show.go` | show as112 status command |
-| `internal/plugins/as112/state.go` | as112 published state (atomic snapshot) |
-| `internal/plugins/as112/zones.go` | static AS112 zone table, SOA/NS/TXT synthesis |
-
-## `plan/learned/1034-as112-3-bgp-integration.md`
-
-- `internal/component/doctor/checks_as112_coordination.go` -- AC-10/AC-11
-- `internal/plugins/as112/redistribute.go` -- AS112 layering rule:
-
-## `plan/learned/1036-ospf-ext-12-multi-instance.md`
-
-- `internal/plugins/ospf/multi_instance.go` -- OSPFv2 Multi-Instance (RFC 6549):
-
-## `plan/learned/1037-ospf-ext-15-multi-af.md`
-
-- `internal/plugins/ospf/multiaf.go` -- RFC 5838 multiple address families over OSPFv3.
-- `internal/plugins/ospf/register_multiaf.go` -- RFC 5838 per-AF engine lifecycle.
-
-## `plan/learned/1038-ospf-ext-16-ipsec-auth.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/config_ipsec.go` | RFC 4552 manual IPsec (IPv6 family). |
-| `internal/plugins/ospf/doctor_ipsec.go` | RFC 4552 IPsec readiness doctor check. |
-| `internal/plugins/ospf/doctor_ipsec_linux.go` | kernel XFRM readiness probe (Linux). |
-| `internal/plugins/ospf/doctor_ipsec_other.go` | kernel XFRM readiness probe (non-Linux). |
-| `internal/plugins/ospf/ipsec_drops_linux.go` | kernel XFRM drop stats (Linux). |
-| `internal/plugins/ospf/ipsec_drops_other.go` | kernel XFRM drop stats (non-Linux stub). |
-| `internal/plugins/ospf/ipsec_install.go` | RFC 4552 IPsec installer (IPv6 family). |
-| `internal/plugins/ospf/ipsec_metrics.go` | RFC 4552 IPsec metrics (IPv6 family). |
-
-## `plan/learned/1039-ospf-ext-4-extended-link-prefix.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/ext.go` | shared state and metrics for the |
-| `internal/plugins/ospf/ext_link.go` | the RFC 7684 Extended Link Opaque |
-| `internal/plugins/ospf/ext_prefix.go` | the RFC 7684 Extended Prefix Opaque |
-| `internal/plugins/ospf/ext_render.go` | decoded `show ospf database |
-| `internal/plugins/ospf/ext_subtlv.go` | the RFC 7684 sub-TLV registration hook. |
-| `internal/plugins/ospf/packet/ext_link.go` | RFC 7684 Extended Link Opaque LSA |
-| `internal/plugins/ospf/packet/ext_prefix.go` | RFC 7684 Extended Prefix Opaque |
-
-## `plan/learned/1042-ospf-ext-11-ldp-igp-sync.md`
-
-- `internal/plugins/ospf/ldp_sync.go` -- OSPF LDP-IGP synchronization.
-- `internal/plugins/ospf/spf/cutedge.go` -- RFC 6138 cut-edge query.
-
-## `plan/learned/1043-ospf-ext-7-virtual-links.md`
-
-- `internal/plugins/ospf/spf/transitarea.go` -- the shared transit-area SPF side of
-- `internal/plugins/ospf/virtual_link.go` -- the engine-side virtual-link manager.
-- `internal/plugins/ospf/virtuallink_v6.go` -- OSPFv3 virtual-link endpoint resolution.
-
-## `plan/learned/1044-ospf-ext-9-graceful-restart.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/gr.go` | OSPF Graceful Restart control plane. |
-| `internal/plugins/ospf/gr_helper.go` | GR helper (restart-aid) state machine. |
-| `internal/plugins/ospf/gr_lsa.go` | IPv4 (RFC 3623) Grace-LSA body glue. |
-| `internal/plugins/ospf/gr_nvs.go` | GR restart-fact non-volatile storage. |
-| `internal/plugins/ospf/gr_preserve.go` | OSPFv3 GR preservation + v6 Grace-LSA. |
-| `internal/plugins/ospf/gr_restarter.go` | GR restarting-router state machine. |
-| `internal/plugins/ospf/gr_show.go` | `show ospf graceful-restart` renderer. |
-| `internal/plugins/ospf/packet/grace_lsa.go` | RFC 3623 Grace-LSA body codec (IPv4). |
-| `internal/plugins/ospf/v3/packet/lsa_grace.go` | OSPFv3 Grace-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/tlv.go` | OSPFv3 Grace-LSA tlv carriage. |
-
-## `plan/learned/1046-traffic-analysis-restructure.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/trafficfeature/cmd/traffic_feature.go` | show traffic feature CLI handler |
-| `internal/component/trafficfeature/feature.go` | per-source neutral feature aggregation |
-| `internal/component/trafficfeature/service.go` | neutral per-source traffic feature signals |
-| `internal/component/trafficstat/window.go` | per-key rolling window and rate derivation |
-| `internal/core/stats/beacon.go` | coarse beaconing (interval regularity) |
-| `internal/core/stats/entropy.go` | Shannon entropy of a distribution |
-| `internal/core/stats/ewma.go` | exponentially weighted moving average |
-| `internal/core/stats/math.go` | neutral statistical primitives (mean, stddev, quantile) |
-| `internal/core/stats/window.go` | shared traffic-analysis stats primitives |
-
-## `plan/learned/1048-anomaly-1-detect.md`
-
-| File | Topic |
-|------|-------|
-| `internal/core/anomalyevent/event.go` | behavioral anomaly event contract |
-| `internal/plugins/anomaly/detect/config.go` | behavioral anomaly detector configuration |
-| `internal/plugins/anomaly/detect/detector.go` | behavioral anomaly detector (report-only) |
-| `internal/plugins/anomaly/detect/doctor.go` | feature-source readiness check. |
-| `internal/plugins/anomaly/detect/score.go` | Scoring & Correlation Rule (pinned) |
-| `internal/plugins/anomaly/detect/show.go` | show anomaly report surface |
-
-## `plan/learned/1049-anomaly-2-shape.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/anomaly/shape/config.go` | shadow-first anomaly responder config |
-| `internal/plugins/anomaly/shape/doctor.go` | armed-mode firewall readiness check. |
-| `internal/plugins/anomaly/shape/match.go` | source entity to firewall term/table |
-| `internal/plugins/anomaly/shape/metrics.go` | responder metrics |
-| `internal/plugins/anomaly/shape/responder.go` | shadow-first autonomous responder |
-| `internal/plugins/anomaly/shape/show.go` | show anomaly-shape responder status |
-
-## `plan/learned/1051-ospf-ext-6-ti-lfa.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/spf/lfa.go` | OSPF LFA / TI-LFA fast reroute. |
-| `internal/plugins/ospf/spf/lfa_multiarea.go` | RFC 5286 Section 6.3 OSPF multi-area |
-| `internal/plugins/ospf/spf/tilfa.go` | TI-LFA repair list builder. Where no |
-| `internal/plugins/ospf/sr_tilfa.go` | the engine's SRResolver: the read-only |
-
-## `plan/learned/1052-ospf-ext-14-debug-introspection.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/debug_enable.go` | the shared debug-injection gate. |
-| `internal/plugins/ospf/debug_metrics.go` | the six debug metric series. |
-| `internal/plugins/ospf/debug_wiring.go` | engine-arm helpers for the v6 |
-| `internal/plugins/ospf/decode_view.go` | IPv4 opaque-LSA deep decode. |
-| `internal/plugins/ospf/decode_view_v3.go` | IPv6 native LSA deep decode. |
-| `internal/plugins/ospf/doctor_debug.go` | the debug-enabled doctor Warning. |
-| `internal/plugins/ospf/inject.go` | guarded IPv4 opaque LSA inject. |
-| `internal/plugins/ospf/inject_v3.go` | guarded IPv6 native LSA inject. |
-| `internal/plugins/ospf/instance_view.go` | OSPFv3 AF-aware instance listing. |
-| `internal/plugins/ospf/interface_detail.go` | `show ospf [ipv6] interface detail`. |
-| `internal/plugins/ospf/neighbor_detail.go` | `show ospf [ipv6] neighbor detail`. |
-| `internal/plugins/ospf/spf/explain.go` | read-only SPF-explain snapshot. |
-| `internal/plugins/ospf/spf_explain_view.go` | the AF-tagged SPF-explain view. |
-
-## `plan/learned/1054-anomaly-4-interop-harness.md`
-
-- `internal/plugins/anomaly/shape/testsupport.go` -- in-process test composition seam.
-
-## `plan/learned/1055-config-apply-ordering.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/plugin/operation.go` | BGP-owned operation decomposition |
-| `internal/component/bgp/reactor/operation.go` | BGP peer operation handlers |
-| `internal/component/config/transaction/depgraph.go` | operation dependency graph |
-| `internal/component/config/transaction/executor.go` | ordered operation execution |
-| `internal/component/config/transaction/operation.go` | operation graph foundation |
-| `internal/component/config/transaction/solver.go` | operation graph solver |
-| `internal/component/iface/operation.go` | iface-owned operation decomposition |
-
-## `plan/learned/1069-ipsec-13-rekey-wire.md`
-
-- `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
-- `internal/component/ike/engine/notify_invalid_msgid.go` -- RFC 7296 Section 2.3 message-ID handling
-- `internal/component/ike/engine/notify_invalid_msgid_retransmit_test.go` -- RFC 7296 Section 2.3 message-ID handling
-
-## `plan/learned/1070-forked-route-install.md`
-
-- `internal/component/plugin/server/dispatch_route.go` -- forked route install via Loc-RIB RPC
-- `internal/component/sysrib/sysrib_forked_withdraw_test.go` -- forked route install via Loc-RIB RPC
-- `internal/core/rib/routeinstall/sink.go` -- forked route install via Loc-RIB RPC
-
-## `plan/learned/1072-ipsec-14-responder.md`
-
-- `internal/component/ike/engine/overflow_test.go` -- IKE responder handshake
-- `internal/component/ike/engine/responder.go` -- IKE responder handshake (mirror of the initiator)
-- `internal/component/ike/engine/responder_eap.go` -- IKE responder EAP authenticator
-
-## `plan/learned/1095-followup-subsystem.md`
-
-| File | Topic |
-|------|-------|
-| `internal/core/dnsserver/certcheck.go` | AC-3 -- shared DoT/DoH certificate |
-| `internal/core/dnsserver/secure.go` | AC-3/AC-4 -- optional DNS-over-TLS |
-| `internal/core/dnsserver/tlsmaterial.go` | AC-3 -- shared certificate loading for |
-| `internal/plugins/exabgp/bridgeplugin/config.go` | AC-1 -- internal exabgp bridge config |
-| `internal/plugins/exabgp/bridgeplugin/internal.go` | AC-1 -- internal exabgp bridge runner |
-| `internal/plugins/iface/netlink/slaac_linux.go` | AC-6 -- kernel-cooperating SLAAC |
-
-## `plan/learned/1097-followup-vpp-traffic.md`
-
-- `internal/plugins/traffic/vpp/classify_linux.go` -- classify + policer-classify
-
-## `plan/learned/1099-iface-resolve-0-umbrella.md`
-
-- `internal/component/iface/dispatch_resolve_integration_linux_test.go` -- sub-spec 5 dispatch translation.
-- `internal/component/l2tp/pppoe/resolve.go` -- consumers resolve through iface
-- `scripts/checks/iface_resolution.go` -- AC-U1 no-direct-resolution guard
-
-## `plan/learned/1100-followup-l2tp-call.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/l2tp/bridge_linux.go` | AC-3 / A-4 LAC data-plane bridge |
-| `internal/component/l2tp/cmd/outgoing_call.go` | AC-4 request l2tp outgoing-call |
-| `internal/component/l2tp/outgoing_call.go` | AC-4 operator-initiated outgoing call |
-| `internal/component/l2tp/relay_sink.go` | AC-3 PPPoE->L2TP relay (LAC role) |
-| `internal/core/callsink/callsink.go` | AC-3 PPPoE->L2TP relay call-sink (R-1 boundary) |
-
-## `plan/learned/1105-vpp-host-tuning.md`
-
-- `internal/appliance/kernelargs.go` -- host-side hugepage reservation via the
-- `internal/component/vpp/doctor_linux.go` -- ze doctor check for the boot-time
-- `internal/component/vpp/register_linux.go` -- linux-only VPP registrations.
-
-## `plan/learned/1108-ddos-detect-enhancements.md`
-
-- `internal/plugins/ddos/detect/persist.go` -- baseline persistence across restart.
-
-## `plan/learned/1113-fib-depth-4-srv6.md`
-
-- `internal/component/bgp/plugins/rib/pool/srv6sid.go` -- SRv6 SID extraction from PrefixSID attribute
-- `internal/plugins/fib/vpp/srv6.go` -- VPP SRv6 SR steer programming
-
-## `plan/learned/1115-command-completion.md`
-
-- `internal/component/cli/client/inject.go` -- plugin command completion injection
-
-## `plan/learned/1116-copp-firewall-shutdown-flush.md`
-
-- `internal/test/plugins/fakeddos/fakeddos.go` -- fakeddos synthetic
-
-## `plan/learned/1122-vrrp-macvlan-vmac-dataplane.md`
-
-- `internal/plugins/vrrp/dataplane_linux.go` -- virtual-MAC dataplane (ARP/ND ownership)
-- `internal/plugins/vrrp/dataplane_other.go` -- virtual-MAC dataplane (ARP/ND ownership)
-
-## `plan/learned/1124-vrrp-first-hop-redundancy.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/vrrp/cmd_show.go` | show/clear command surface |
-| `internal/plugins/vrrp/cmd_show_test.go` | show/clear command tests |
-| `internal/plugins/vrrp/doctor.go` | doctor codes + config-sanity check |
-| `internal/plugins/vrrp/doctor_test.go` | doctor config-sanity tests |
-| `internal/plugins/vrrp/engine.go` | instance manager: config diff + lifecycle |
-| `internal/plugins/vrrp/engine_test.go` | instance manager (config diff + lifecycle) tests |
-| `internal/plugins/vrrp/fsm/actions.go` | VRRP FSM output actions (closed set) |
-| `internal/plugins/vrrp/fsm/doc.go` | VRRP instance state machine and timers |
-| `internal/plugins/vrrp/fsm/events.go` | VRRP FSM input events and instance config |
-| `internal/plugins/vrrp/fsm/fsm.go` | VRRP per-instance state machine |
-| `internal/plugins/vrrp/fsm/timers.go` | VRRP Skew_Time / Master_Down_Interval math |
-| `internal/plugins/vrrp/groups.go` | VRRP config extraction and verification |
-| `internal/plugins/vrrp/groups_test.go` | VRRP config extraction + verification tests |
-| `internal/plugins/vrrp/instance.go` | per-instance worker: FSM executor + rx decode |
-| `internal/plugins/vrrp/instance_test.go` | per-instance worker (FSM executor) tests |
-| `internal/plugins/vrrp/register.go` | plugin registration and engine entry point |
-| `internal/plugins/vrrp/register_test.go` | live platform wiring |
-| `internal/plugins/vrrp/telemetry.go` | engine-owned telemetry and state events |
-| `internal/plugins/vrrp/transport/announce.go` | per-instance announcer worker |
-| `internal/plugins/vrrp/transport/announce_test.go` | announcer burst semantics tests |
-| `internal/plugins/vrrp/transport/backend_linux.go` | Linux raw proto-112 backend (rx parent / tx macvlan) |
-| `internal/plugins/vrrp/transport/backend_other.go` | non-Linux backend stub (ospf backend_other.go model) |
-| `internal/plugins/vrrp/transport/backend_other_test.go` | non-Linux backend stub test |
-| `internal/plugins/vrrp/transport/counters.go` | per-instance counter snapshot (Finding 7) |
-| `internal/plugins/vrrp/transport/doctor.go` | raw-socket readiness doctor check |
-| `internal/plugins/vrrp/transport/doctor_linux.go` | Linux raw-socket probe for the doctor check |
-| `internal/plugins/vrrp/transport/doctor_other.go` | raw-socket probe (non-Linux stub) |
-| `internal/plugins/vrrp/transport/doctor_test.go` | raw-socket doctor check tests |
-| `internal/plugins/vrrp/transport/garp.go` | pure GARP frame builder (testable on darwin) |
-| `internal/plugins/vrrp/transport/garp_linux.go` | AF_PACKET gratuitous-ARP sender on the macvlan |
-| `internal/plugins/vrrp/transport/garp_test.go` | golden-byte GARP frame tests (darwin-safe) |
-| `internal/plugins/vrrp/transport/metrics.go` | transport-owned Prometheus metrics |
-| `internal/plugins/vrrp/transport/metrics_test.go` | transport metric series + per-instance snapshot tests |
-| `internal/plugins/vrrp/transport/na.go` | pure NA message builder (testable on darwin) |
-| `internal/plugins/vrrp/transport/na_linux.go` | raw ICMPv6 unsolicited-NA sender on the macvlan |
-| `internal/plugins/vrrp/transport/na_test.go` | golden-byte NA message tests (darwin-safe) |
-| `internal/plugins/vrrp/transport/register.go` | doctor-check registration |
-| `internal/plugins/vrrp/transport/transport.go` | VRRP raw-socket transport orchestrator |
-| `internal/plugins/vrrp/transport/transport_integration_linux_test.go` | QEMU integration: raw proto-112 sockets, |
-| `internal/plugins/vrrp/transport/transport_test.go` | transport orchestrator tests (fake backend) |
-| `internal/plugins/vrrp/vrrp.go` | vrrp plugin package doc, logger, show views |
-
-## `plan/learned/1169-cli-root-namespace-grammar.md`
-
-- `internal/plugins/isis/cli/register.go` -- isis root namespace (decode member)
-- `internal/plugins/ospf/cli/register.go` -- ospf root namespace (decode member)
-
-## `plan/learned/1181-fixit-bcrypt-hash-credential.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/cli/editor_mask.go` | mask ze:bcrypt leaves on display |
-| `internal/component/config/mask.go` | mask ze:bcrypt leaves on display |
-| `internal/component/ssh/passwordauth.go` | hash-as-token is local-only |
-| `internal/core/redact/redact.go` | credential-token redaction for logs |
-
-## `plan/learned/1225-rfc7606-relay-shape.md`
-
-- `internal/component/bgp/message/rfc7606_shape.go` -- one NLRI-bearing field per UPDATE
-
-## `plan/learned/1226-test-health-dashboard.md`
-
-- `scripts/checks/inert_tests.go` -- test-sensitivity ratchet
-
-## `plan/learned/1254-gokrazy-derived-parent-discards-pins.md`
-
-- `internal/appliance/instance/prepare.go` -- preparing a
-
-## `plan/learned/1274-netlink-int-field-truncation.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/policyroute/netlinkint_linux_amd64.go` | netlink int width |
-| `internal/plugins/policyroute/netlinkint_linux_arm64.go` | netlink int width |
-| `internal/plugins/policyroute/netlinkint_linux_generic.go` | netlink int width |
-| `internal/plugins/policyroute/netlinkint_linux_test.go` | netlink int width |
-
-## `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/engine/transport_mode.go` | USE_TRANSPORT_MODE negotiation |
-| `internal/component/ike/engine/ts_initiator_subset_test.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
-| `internal/component/ike/engine/ts_narrow.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
-| `internal/component/ike/ipsec/traffic_selector.go` | operator traffic-selector policy for IKEv2 narrowing |
-
-## `plan/learned/1321-wire-edit-5-fanout-dedup.md`
-
-- `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
-- `internal/component/bgp/reactor/forward_dedup.go` -- one materialization per policy group
-
-## `plan/learned/1342-tracked-build-gate.md`
-
-- `scripts/checks/tracked_build.go` -- compile what git holds
-
-## `plan/learned/415-prefix-data.md`
-
-- `internal/component/resolve/peeringdb/client.go` -- PeeringDB client for prefix update
-
-## `plan/learned/425-arch-0-system-boundaries.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/config/provider.go` | ConfigProvider implementation |
-| `internal/component/engine/engine.go` | Engine supervisor |
-| `internal/component/plugin/manager/manager.go` | PluginManager implementation |
-| `pkg/ze/config.go` | ConfigProvider interface |
-| `pkg/ze/engine.go` | Engine interface |
-| `pkg/ze/plugin.go` | PluginManager interface |
-| `pkg/ze/subsystem.go` | Subsystem interface |
-
-## `plan/learned/491-iface-2-manage.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/iface/cli/addr.go` | Interface addr subcommand |
-| `internal/component/iface/cli/create.go` | Interface create subcommand |
-| `internal/component/iface/cli/delete.go` | Interface delete subcommand |
-| `internal/component/iface/cli/main.go` | Interface CLI commands |
-| `internal/component/iface/cli/migrate.go` | Interface migration CLI |
-| `internal/component/iface/cli/show.go` | Interface show subcommand |
-| `internal/component/iface/cli/unit.go` | Interface unit subcommand |
-
-## `plan/learned/492-iface-3-bgp-react.md`
-
-- `internal/component/bgp/reactor/reactor_iface.go` -- BGP reactions to interface events
-
-## `plan/learned/516-healthcheck-0-umbrella.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/plugins/healthcheck/config.go` | healthcheck config parsing |
-| `internal/component/bgp/plugins/healthcheck/fsm.go` | FSM states and transitions |
-| `internal/component/bgp/plugins/healthcheck/fsm_test.go` | FSM transition tests |
-| `internal/component/bgp/plugins/healthcheck/healthcheck.go` | healthcheck plugin design |
-| `internal/component/bgp/plugins/healthcheck/hooks.go` | hook execution |
-| `internal/component/bgp/plugins/healthcheck/ip.go` | IP management via iface |
-| `internal/component/bgp/plugins/healthcheck/lifecycle_test.go` | config reload lifecycle tests |
-| `internal/component/bgp/plugins/healthcheck/probe.go` | probe shell command execution |
-
-## `plan/learned/560-bfd-3-bgp-client.md`
-
-- `internal/plugins/ospf/bfd_client.go` -- nil-safe Service lookup, per-session
-
-## `plan/learned/564-bfd-2b-ipv6-transport.md`
-
-- `internal/plugins/ospf/bfd_client_v6.go` -- the BFD engine's IPv6 single-hop
-
-## `plan/learned/601-tacacs.md`
-
-- `internal/component/tacacs/cli/main.go` -- TACACS+ AAA operational CLI
-
-## `plan/learned/627-fw-7-traffic-vpp.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/traffic/vpp/backend_linux.go` | VPP traffic backend |
-| `internal/plugins/traffic/vpp/backend_other.go` | VPP traffic backend stub for non-Linux |
-| `internal/plugins/traffic/vpp/binapi_imports.go` | Phase 0 vendor pinning |
-| `internal/plugins/traffic/vpp/register.go` | Backend registration |
-| `internal/plugins/traffic/vpp/translate.go` | Translation contract |
-| `internal/plugins/traffic/vpp/verify.go` | Commit-time rejection matrix |
-
-## `plan/learned/629-fw-7b-backend-hardening.md`
-
-- `internal/plugins/traffic/vpp/apply_test.go` -- Apply-path tests for vpp backend.
-- `internal/plugins/traffic/vpp/ops.go` -- VPP-operation seam for unit tests
-- `internal/plugins/traffic/vpp/ops_linux.go` -- govppOps production adapter
-
-## `plan/learned/631-host-0-inventory.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/host/cached.go` | cached inventory with TTL |
-| `internal/component/host/cpu_linux.go` | hardware inventory detection |
-| `internal/component/host/cpu_other.go` | hardware inventory detection |
-| `internal/component/host/dmi_linux.go` | hardware inventory detection |
-| `internal/component/host/dmi_other.go` | hardware inventory detection |
-| `internal/component/host/doc.go` | hardware inventory detection |
-| `internal/component/host/ethtool_linux.go` | hardware inventory detection |
-| `internal/component/host/fsroot_linux.go` | hardware inventory detection |
-| `internal/component/host/inventory.go` | hardware inventory detection |
-| `internal/component/host/kernel_linux.go` | hardware inventory detection |
-| `internal/component/host/kernel_other.go` | hardware inventory detection |
-| `internal/component/host/memory_linux.go` | hardware inventory detection |
-| `internal/component/host/memory_other.go` | hardware inventory detection |
-| `internal/component/host/metrics.go` | Prometheus export of inventory |
-| `internal/component/host/nic_linux.go` | hardware inventory detection |
-| `internal/component/host/nic_other.go` | hardware inventory detection |
-| `internal/component/host/storage_linux.go` | hardware inventory detection |
-| `internal/component/host/storage_other.go` | hardware inventory detection |
-| `internal/component/host/thermal_linux.go` | hardware inventory detection |
-| `internal/component/host/thermal_other.go` | hardware inventory detection |
-| `internal/plugins/host-cmd/cmd/register.go` | host command registration |
-| `internal/plugins/host-cmd/cmd/set_fd_linux.go` | runtime FD limit adjustment |
-| `internal/plugins/host-cmd/cmd/set_fd_other.go` | non-Linux stub for FD limit adjustment |
-| `internal/plugins/host-cmd/cmd/show_host.go` | hardware inventory detection |
-| `internal/plugins/host/host.go` | offline `show host` fallback |
-
-## `plan/learned/639-rib-unified.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/plugins/rib/bestprev_shard.go` | Phase 4 (sharded BGP bestPrev) |
-| `internal/component/bgp/plugins/rib/storage/pathset.go` | Phase 2 (ADD-PATH moves to value layer) |
-| `internal/component/sysrib/sysrib_locrib_ghost_test.go` | unified Loc-RIB best-change consumption. |
-| `internal/core/bgp/nlri/nlrisplit/cidr.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/bgp/nlri/nlrisplit/evpn.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/bgp/nlri/nlrisplit/mup.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/bgp/nlri/nlrisplit/mvpn.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/bgp/nlri/nlrisplit/nlrisplit.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/bgp/nlri/nlrisplit/register.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/bgp/nlri/nlrisplit/typelen.go` | Phase 3g (per-family NLRI split) |
-| `internal/core/rib/locrib/candidate.go` | Phase 3 (unified Loc-RIB) |
-| `internal/core/rib/locrib/candidate_equal_test.go` | Path.Equal label handling (F1) test |
-| `internal/core/rib/locrib/change.go` | Phase 3c (Loc-RIB change notifications) |
-| `internal/core/rib/locrib/default.go` | Phase 3e (process-wide Loc-RIB) |
-| `internal/core/rib/locrib/entry.go` | Phase 3 (unified Loc-RIB) |
-| `internal/core/rib/locrib/manager.go` | Phase 4 (sharded Loc-RIB) |
-| `internal/core/rib/locrib/metrics.go` | Phase 4 (per-shard locrib metrics) |
-| `internal/core/rib/locrib/shard.go` | Phase 4 (sharded Loc-RIB) |
-
-## `plan/learned/645-operator-surface-parity.md`
-
-- `internal/component/config/change_file.go` -- dedicated per-user change-file structural ops
-
-## `plan/learned/646-l2tp-11-web.md`
-
-- `internal/component/web/handler_l2tp.go` -- L2TP web management UI
-
-## `plan/learned/650-static-routes.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/static/backend.go` | backend abstraction |
-| `internal/plugins/static/backend_linux.go` | Linux netlink backend with multipath |
-| `internal/plugins/static/backend_other.go` | rejecting backend for non-Linux |
-| `internal/plugins/static/backend_vpp_linux.go` | VPP data-plane static backend selection |
-| `internal/plugins/static/doctor.go` | interface-only next-hop readiness check |
-| `internal/plugins/static/model.go` | static route data model |
-| `internal/plugins/static/register.go` | plugin registration and lifecycle |
-| `internal/plugins/static/vpp/backend.go` | VPP static route programming via GoVPP |
-
-## `plan/learned/656-deployment-readiness-review.md`
-
-- `internal/plugins/traffic/netlink/backend_linux_test.go` -- tc original-qdisc restore regressions
-- `internal/plugins/traffic/netlink/ops_linux.go` -- tc original-qdisc restore
-- `internal/plugins/traffic/netlink/snapshot_linux.go` -- tc original-qdisc restore
-
-## `plan/learned/660-l2tp-9-observer.md`
-
-- `internal/component/l2tp/cqm.go` -- CQM bucket aggregation
-- `internal/component/l2tp/observer.go` -- observer, event ring, ring pool
-
-## `plan/learned/661-l2tp-10-metrics.md`
-
-- `internal/component/l2tp/metrics.go` -- Prometheus metrics exposure
-- `internal/component/l2tp/plugins/authradius/metrics.go` -- RADIUS Prometheus metrics
-
-## `plan/learned/663-rs-gap-0-structural-forwarding.md`
-
-- `internal/component/bgp/reactor/forward_body.go` -- shared body-building for forwarding
-- `internal/component/bgp/reactor/forward_rs.go` -- reactor-native RS forwarding
-
-## `plan/learned/664-diag-5-active-probes.md`
-
-- `internal/component/iface/cmd/show_route_lookup.go` -- route lookup via netlink.
-- `internal/component/ping/cmd/ping.go` -- ICMP ping from the router
-- `internal/component/ping/cmd/ping_test.go` -- ping argument parsing tests
-
-## `plan/learned/665-diag-2-event-history.md`
-
-- `internal/component/bgp/reactor/peer_history.go` -- per-peer BGP FSM transition history
-- `internal/component/l2tp/fsm_history.go` -- L2TP tunnel/session FSM history
-- `internal/component/plugin/server/event_ring.go` -- global event ring buffer
-
-## `plan/learned/666-bng-1-radius-attributes.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/l2tp/iface_stats_linux.go` | idle timeout traffic detection |
-| `internal/component/l2tp/iface_stats_other.go` | idle timeout traffic detection |
-| `internal/component/l2tp/plugins/authradius/acct_interval_test.go` | Acct-Interim-Interval clamping |
-| `internal/component/l2tp/plugins/authradius/extract.go` | RADIUS attribute extraction |
-| `internal/component/l2tp/plugins/shaper/filter_rate.go` | Filter-Id rate parsing |
-| `internal/component/l2tp/plugins/shaper/filter_rate_test.go` | Filter-Id rate parsing tests |
-| `internal/component/l2tp/session_metadata.go` | RADIUS attribute metadata store |
-| `internal/component/l2tp/session_timeout.go` | RADIUS session/idle timeout |
-| `internal/component/l2tp/session_timeout_test.go` | session/idle timeout tests |
-
-## `plan/learned/669-bng-5-pppoe.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/l2tp/ppp/devppp_linux.go` | shared /dev/ppp setup for L2TP and PPPoE |
-| `internal/component/l2tp/ppp/devppp_other.go` | non-Linux stub for /dev/ppp setup |
-| `internal/component/l2tp/pppoe/cmd/pppoe.go` | PPPoE CLI handlers |
-| `internal/component/l2tp/pppoe/config.go` | PPPoE configuration |
-| `internal/component/l2tp/pppoe/cookie.go` | AC-Cookie anti-DoS protection |
-| `internal/component/l2tp/pppoe/discovery.go` | PPPoE discovery wire format |
-| `internal/component/l2tp/pppoe/kernel_linux.go` | kernel integration (AF_PPPOX, AF_PACKET) |
-| `internal/component/l2tp/pppoe/ratelimit.go` | PADI rate limiting |
-| `internal/component/l2tp/pppoe/register.go` | component registration |
-| `internal/component/l2tp/pppoe/server.go` | per-interface PPPoE server |
-| `internal/component/l2tp/pppoe/service.go` | service locator for CLI access |
-| `internal/component/l2tp/pppoe/session.go` | session table and SID allocation |
-| `internal/component/l2tp/pppoe/snapshot.go` | observability snapshots for CLI |
-| `internal/component/l2tp/pppoe/socket_other.go` | non-Linux stubs |
-| `internal/component/l2tp/pppoe/subsystem.go` | PPPoE subsystem lifecycle |
-
-## `plan/learned/671-fw-6-firewall-vpp.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/firewall/vpp/backend_linux.go` | VPP firewall backend |
-| `internal/plugins/firewall/vpp/backend_other.go` | VPP firewall backend stub for non-Linux |
-| `internal/plugins/firewall/vpp/binapi_imports.go` | Vendor pinning |
-| `internal/plugins/firewall/vpp/logger_linux.go` | Linux-only logger accessor |
-| `internal/plugins/firewall/vpp/nat_linux.go` | NAT44-ED integration |
-| `internal/plugins/firewall/vpp/ops.go` | VPP-operation seam for unit tests |
-| `internal/plugins/firewall/vpp/register.go` | Backend registration |
-| `internal/plugins/firewall/vpp/translate.go` | Translation contract |
-| `internal/plugins/firewall/vpp/verify.go` | Commit-time rejection matrix |
-
-## `plan/learned/673-diag-0-umbrella.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/reactor/capture.go` | BGP message capture ring |
-| `internal/component/bgp/reactor/raw_capture.go` | opt-in raw byte capture for pcap export |
-| `internal/component/l2tp/capture.go` | L2TP control packet capture ring |
-| `internal/component/l2tp/raw_capture.go` | opt-in raw byte capture for pcap export |
-| `internal/component/vpp/trace_linux.go` | VPP dataplane trace via CLI socket |
-| `internal/component/vpp/trace_other.go` | VPP trace stubs for non-Linux |
-| `internal/core/health/registry.go` | component health aggregation (diag-6) |
-| `internal/core/slogutil/ring.go` | diag-7 structured log query |
-| `internal/plugins/diag/cmd/capture.go` | control-plane capture display |
-| `internal/plugins/diag/cmd/capture_common.go` | shared capture constants and helpers |
-| `internal/plugins/diag/cmd/capture_raw.go` | raw capture activation and pcap export |
-| `internal/plugins/diag/cmd/pcap.go` | pcap writer (stdlib-only) |
-| `internal/plugins/diag/cmd/register.go` | diag component RPC registration |
-
-## `plan/learned/675-appliance-1-builder.md`
-
-| File | Topic |
-|------|-------|
-| `internal/appliance/agent.go` | passphrase agent (key-on-socket) |
-| `internal/appliance/cmd_assemble.go` | ZeFS assembly with config layering |
-| `internal/appliance/cmd_build.go` | full image build (assemble + gok + ext4) |
-| `internal/appliance/cmd_cert.go` | TLS certificate replacement |
-| `internal/appliance/cmd_clone.go` | clone config (not secrets) |
-| `internal/appliance/cmd_init.go` | appliance init wizard |
-| `internal/appliance/cmd_list.go` | list appliances |
-| `internal/appliance/cmd_passwd.go` | password rotation |
-| `internal/appliance/cmd_rekey.go` | passphrase change (rekey) |
-| `internal/appliance/cmd_run.go` | QEMU boot with port conflict detection |
-| `internal/appliance/cmd_show.go` | show appliance config and cert expiry |
-| `internal/appliance/cmd_unlock.go` | passphrase agent lifecycle |
-| `internal/appliance/config.go` | appliance config structs and validation |
-| `internal/appliance/crypto.go` | Argon2id KDF + ChaCha20-Poly1305 AEAD encryption |
-| `internal/appliance/homebrew.go` | Homebrew prefix resolution for the macOS build host |
-| `internal/appliance/main.go` | appliance CLI dispatch |
-| `internal/appliance/manifest.go` | build manifest and image checksums |
-| `internal/appliance/resolve.go` | appliance directory resolution |
-
-## `plan/learned/676-appliance-3-recovery.md`
-
-- `internal/appliance/cmd_export.go` -- bastion disaster recovery export
-- `internal/appliance/cmd_import.go` -- bastion disaster recovery import
-
-## `plan/learned/677-appliance-2-remote.md`
-
-- `internal/appliance/cmd_config.go` -- config preview (merged base + overlay)
-- `internal/appliance/cmd_config_push.go` -- config push to device via SSH
-- `internal/appliance/parallel.go` -- bounded worker pool for parallel fleet operations
-
-## `plan/learned/678-appliance-4-device-config.md`
-
-| File | Topic |
-|------|-------|
-| `cmd/ze/health_revert.go` | auto-revert on runtime failure after config push |
-| `cmd/ze/health_revert_test.go` | auto-revert tests |
-| `cmd/ze/pushed_config.go` | pushed config loading priority at boot |
-| `cmd/ze/pushed_config_test.go` | pushed config loading tests |
-
-## `plan/learned/679-chaos-ai.md`
-
-- `internal/chaos/mcp/tools.go` -- Chaos MCP tools for AI queries
-- `internal/chaos/watchdog/watchdog.go` -- Watchdog consumer for anomaly detection
-
-## `plan/learned/684-policy-routing.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/policyroute/config.go` | config parsing |
-| `internal/plugins/policyroute/logger.go` | logger |
-| `internal/plugins/policyroute/model.go` | rule and mark data types |
-| `internal/plugins/policyroute/rules_linux.go` | netlink ip rule and route management |
-| `internal/plugins/policyroute/rules_other.go` | platform stub for non-Linux |
-| `internal/plugins/policyroute/translate.go` | config to nftables/ip-rule translation |
-
-## `plan/learned/688-web-4-interfaces.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/web/page_interfaces.go` | Interface table and detail pages |
-| `internal/component/web/page_ip_addresses.go` | IP Addresses page |
-| `internal/component/web/page_ip_dns.go` | IP DNS form page |
-| `internal/component/web/page_ip_routes.go` | IP Routes page |
-| `internal/component/web/page_traffic.go` | Traffic monitoring page |
-| `internal/component/web/workbench_pages.go` | Workbench page dispatch |
-
-## `plan/learned/689-web-5-bgp.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/web/page_bgp_families.go` | BGP Families page |
-| `internal/component/web/page_bgp_groups.go` | BGP Groups table page |
-| `internal/component/web/page_bgp_peers.go` | BGP Peers table page |
-| `internal/component/web/page_bgp_policy.go` | BGP Policy/Filters page |
-| `internal/component/web/page_bgp_summary.go` | BGP Summary page |
-
-## `plan/learned/690-web-6-firewall.md`
-
-- `internal/component/web/page_firewall.go` -- Firewall workbench pages
-
-## `plan/learned/691-web-7-system-services.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/web/page_l2tp.go` | L2TP workbench pages |
-| `internal/component/web/page_services.go` | Services section pages |
-| `internal/component/web/page_system.go` | System section pages |
-| `internal/component/web/page_workbench_generic.go` | generic system/service workbench dispatch |
-
-## `plan/learned/692-web-8-tools-logs.md`
-
-- `internal/component/web/page_dashboard.go` -- Dashboard sub-page handlers
-- `internal/component/web/page_logs.go` -- Log page handlers
-- `internal/component/web/page_tools.go` -- Tool page handlers
-
-## `plan/learned/695-host-3-smart.md`
-
-- `internal/component/host/smart.go` -- SMART health monitoring
-- `internal/component/host/smart_linux.go` -- SMART health via direct ioctl
-
-## `plan/learned/696-host-1-observability.md`
-
-- `internal/component/host/diff.go` -- hardware-change event detection
-
-## `plan/learned/697-host-2-tuning.md`
-
-- `internal/component/host/tuning.go` -- runtime hardware tuning
-- `internal/component/host/tuning_linux.go` -- runtime hardware tuning
-- `internal/component/host/tuning_other.go` -- runtime hardware tuning
-
-## `plan/learned/705-cpe-1-pppoe-client.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/iface/pppoe_client.go` | PPPoE client interface kind |
-| `internal/component/l2tp/pppoeclient/auth.go` | client-mode PPP authentication |
-| `internal/component/l2tp/pppoeclient/dialer.go` | PPPoE client discovery dialer |
-| `internal/component/l2tp/pppoeclient/session.go` | client-mode PPP session negotiation |
-
-## `plan/learned/706-cpe-2-dhcp-server.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/dhcpserver/config.go` | DHCP server config parsing |
-| `internal/plugins/dhcpserver/handler.go` | DHCP packet handling (RFC 2131/2132) |
-| `internal/plugins/dhcpserver/lease.go` | DHCP lease tracking with expiry |
-| `internal/plugins/dhcpserver/register.go` | DHCP server plugin registration |
-| `internal/plugins/dhcpserver/rfc2131_test.go` | RFC 2131 conformance coverage |
-| `internal/plugins/dhcpserver/socket_integration_linux_test.go` | integration coverage for SO_BINDTODEVICE |
-| `internal/plugins/dhcpserver/socket_linux.go` | Linux SO_BINDTODEVICE for interface-specific DHCP |
-| `internal/plugins/dhcpserver/socket_other.go` | Non-Linux DHCP socket fallback |
-
-## `plan/learned/708-gap-4-iface-offload.md`
-
-- `internal/component/iface/offload_linux.go` -- ethtool offload and sysfs steering
-- `internal/component/iface/offload_other.go` -- no-op stub for non-Linux
-
-## `plan/learned/710-gap-2-static-route-enhancements.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/routingtable/config.go` | routing-table config parsing |
-| `internal/plugins/routingtable/logger.go` | routing-table plugin logger |
-| `internal/plugins/routingtable/register.go` | routing-table plugin registration |
-| `internal/plugins/routingtable/registry.go` | routing-table registry |
-| `internal/plugins/static/config.go` | config parsing |
-| `internal/plugins/static/diff.go` | diff engine for config reload |
-| `internal/plugins/static/eventbus.go` | event bus integration |
-| `internal/plugins/static/events/events.go` | redistribution event types |
-| `internal/plugins/static/inject.go` | BFD integration and active NH tracking |
-| `internal/plugins/static/logger.go` | logger |
-
-## `plan/learned/714-cpe-5-firmware-update.md`
-
-- `internal/component/config/system/update.go` -- periodic version check against remote manifest
-- `internal/component/config/system/update_test.go` -- unit tests for update checker
-
-## `plan/learned/725-spec-cpe-3-dhcp-ranges.md`
-
-- `internal/plugins/dhcpserver/pool.go` -- DHCP address pool allocation
-
-## `plan/learned/726-diag-crash-capture.md`
-
-| File | Topic |
-|------|-------|
-| `internal/core/crashlog/crashlog.go` | crash capture for panic diagnostics |
-| `internal/core/crashlog/dup2_unix.go` | fd2 redirect on unix platforms |
-| `internal/core/crashlog/dup2_unsupported.go` | fd2 redirect stub for non-unix |
-| `internal/core/crashlog/list.go` | crash file listing for CLI |
-| `internal/core/crashlog/persist.go` | crash file persistence and rotation |
-| `internal/core/crashlog/stderr.go` | stderr redirect and syslog forwarding |
-| `internal/plugins/crashes/crashes.go` | offline crash file viewer |
-| `internal/plugins/crashes/register.go` | offline crash file CLI |
-
-## `plan/learned/727-diag-core.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bfd/engine/raw_capture.go` | BFD raw capture ring for pcap export |
-| `internal/component/cmd/show/fd_linux.go` | FD inspection from /proc/self/fd (lsof replacement) |
-| `internal/component/cmd/show/fd_other.go` | non-Linux stub for FD inspection |
-| `internal/component/cmd/show/goroutines.go` | goroutine dump via runtime.Stack |
-| `internal/component/cmd/show/memory_map_linux.go` | show system memory (OS view) from /proc/self/status |
-| `internal/component/cmd/show/memory_map_other.go` | non-Linux stub for show system memory (OS view) |
-| `internal/component/cmd/show/profile.go` | runtime profiling via runtime/pprof |
-| `internal/component/cmd/show/sockets_linux.go` | TCP/UDP socket state from /proc/net (ss replacement) |
-| `internal/component/cmd/show/sockets_other.go` | non-Linux stub for socket state |
-| `internal/component/resolve/cmd/show_dns.go` | DNS lookup and cache stats (dig replacement) |
-| `internal/core/procfs/reader.go` | shared /proc reading infrastructure |
-| `internal/core/procfs/reader_linux.go` | Linux /proc file reading |
-| `internal/core/procfs/reader_other.go` | non-Linux stub for /proc reading |
-| `internal/plugins/diag/cmd/tcp_check.go` | TCP port connectivity check (nc replacement) |
-| `internal/plugins/host-cmd/cmd/show_kernel_log_linux.go` | kernel log reader from /dev/kmsg (dmesg replacement) |
-| `internal/plugins/host-cmd/cmd/show_kernel_log_other.go` | non-Linux stub for kernel log |
-
-## `plan/learned/728-diag-netlink-monitor.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/iface/cmd/monitor_netlink.go` | netlink monitor handler registration |
-| `internal/component/iface/cmd/monitor_netlink_linux.go` | kernel netlink event streaming |
-| `internal/component/iface/cmd/monitor_netlink_linux_test.go` | unit tests for netlink message parsing |
-| `internal/component/iface/cmd/monitor_netlink_other.go` | non-Linux stub for netlink monitor |
-| `internal/component/iface/cmd/monitor_netlink_test.go` | wiring tests for netlink monitor |
-
-## `plan/learned/729-diag-traceroute.md`
-
-- `internal/component/traceroute/cmd/probe_round.go` -- batch probe round (show probe-round RPC)
-- `internal/component/traceroute/cmd/traceroute.go` -- ICMP traceroute from the router
-- `internal/component/traceroute/cmd/traceroute_test.go` -- traceroute argument parsing and wiring tests
-
-## `plan/learned/730-diag-capture-interface.md`
-
-- `internal/plugins/diag/cmd/capture_interface.go` -- portable types and helpers
-- `internal/plugins/diag/cmd/capture_interface_linux.go` -- AF_PACKET live capture
-- `internal/plugins/diag/cmd/capture_interface_other.go` -- platform stub (non-Linux)
-
-## `plan/learned/733-pki-store.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/pki/config.go` | PKI config parser |
-| `internal/component/pki/config_test.go` | PKI config parser tests |
-| `internal/component/pki/show.go` | PKI show command handlers |
-| `internal/component/pki/store.go` | PKI in-memory certificate store |
-| `internal/component/pki/store_test.go` | PKI store tests |
-| `internal/component/pki/types.go` | PKI certificate store types |
-
-## `plan/learned/734-ipsec-3-data-model.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/ipsec/algorithm_support.go` | IPsec data model types |
-| `internal/component/ike/ipsec/config.go` | IPsec config parser |
-| `internal/component/ike/ipsec/config_auth_policy.go` | IPsec data model types |
-| `internal/component/ike/ipsec/identity.go` | IPsec data model types |
-| `internal/component/ike/ipsec/types.go` | IPsec data model types |
-| `internal/component/ike/ipsec/validate.go` | IPsec cross-reference validation |
-
-## `plan/learned/739-ipsec-6-ikev2-crypto.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/crypto/cipher.go` | AEAD and non-AEAD ciphers, integrity |
-| `internal/component/ike/crypto/dh.go` | DH key exchange groups |
-| `internal/component/ike/crypto/keys.go` | SKEYSEED and SK_* key derivation |
-| `internal/component/ike/crypto/prf.go` | PRF and prf+ key expansion |
-| `internal/component/ike/crypto/proposal.go` | IKE/ESP proposal negotiation |
-| `internal/component/ike/crypto/transform.go` | IKEv2 transform type registry |
-| `internal/component/ike/engine/cert_payload.go` | IKEv2 certificate payload handling |
-| `internal/component/ike/engine/certbundle.go` | IKEv2 certificate payload handling |
-| `internal/component/ike/engine/certbundle_elements_test.go` | IKEv2 certificate payload handling |
-| `internal/component/ike/engine/certurl.go` | IKEv2 certificate payload handling |
-| `internal/component/ike/engine/certurl_async_test.go` | IKEv2 certificate payload handling |
-| `internal/component/ike/engine/certurl_bounds_test.go` | IKEv2 certificate payload handling |
-
-## `plan/learned/740-ipsec-7-ikev2-engine.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/engine/auth.go` | AUTH payload computation |
-| `internal/component/ike/engine/config.go` | config parsing for IKE engine |
-| `internal/component/ike/engine/cookie.go` | responder COOKIE challenge |
-| `internal/component/ike/engine/doctor.go` | IKE engine readiness checks |
-| `internal/component/ike/engine/doctor_certurl.go` | IKE engine readiness checks |
-| `internal/component/ike/engine/doctor_cookie.go` | responder COOKIE challenge |
-| `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
-| `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
-| `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |
-| `internal/component/ike/engine/notify_error.go` | error notification emission |
-| `internal/component/ike/engine/reconcile.go` | config reconciliation |
-| `internal/component/ike/engine/register.go` | IKE engine component registration |
-| `internal/component/ike/engine/remote_id.go` | remote identity policy |
-| `internal/component/ike/engine/remote_id_hint_test.go` | remote identity policy |
-| `internal/component/ike/engine/sa.go` | IKE SA state |
-| `internal/component/ike/engine/sa_init_retry.go` | IKE_SA_INIT retry on COOKIE and INVALID_KE_PAYLOAD |
-| `internal/component/ike/engine/table.go` | IKE SA table |
-| `internal/component/ike/transport/udp.go` | IKE UDP transport |
-
-## `plan/learned/742-ipsec-8-ikev2-child-xfrm.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/dataplane/dataplane.go` | dataplane abstraction for SA/SP installation |
-| `internal/component/ike/dataplane/noop.go` | dataplane backend registry |
-| `internal/component/ike/dataplane/policy_owner.go` | XFRM netlink backend |
-| `internal/component/ike/dataplane/rfc7296_ecn_linux_test.go` | XFRM netlink backend |
-| `internal/component/ike/dataplane/rfc7296_ecn_test.go` | XFRM netlink backend |
-| `internal/component/ike/dataplane/vpp.go` | VPP dataplane backend |
-| `internal/component/ike/dataplane/xfrm_linux.go` | XFRM netlink backend |
-| `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
-| `internal/component/ike/engine/bypass.go` | IKE control-plane bypass policies |
-| `internal/component/ike/engine/child.go` | Child SA creation and teardown |
-| `internal/component/ike/engine/child_policy_owner_test.go` | Child SA policy ownership |
-| `internal/component/ike/engine/delete.go` | Child SA teardown over INFORMATIONAL |
-| `internal/component/ike/engine/dpd.go` | Dead Peer Detection |
-| `internal/component/ike/engine/established.go` | established SA lifecycle |
-| `internal/component/ike/engine/inbound.go` | inbound message handling for established SAs |
-| `internal/component/ike/engine/rekey.go` | Child SA and IKE SA rekeying |
-
-## `plan/learned/744-ipsec-9-ikev2-eap-nat.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/eap/eap.go` | EAP framework and method dispatch |
-| `internal/component/ike/eap/eap_mschapv2.go` | EAP-MSCHAPv2 method handler |
-| `internal/component/ike/eap/eap_mschapv2_test.go` | EAP-MSCHAPv2 handler tests |
-| `internal/component/ike/eap/eap_test.go` | EAP framework tests |
-| `internal/component/ike/eap/eap_tls.go` | EAP-TLS method handler |
-| `internal/component/ike/eap/eap_tls_alert_flight_test.go` | EAP-TLS authenticator termination |
-| `internal/component/ike/eap/eap_tls_failure_report_test.go` | EAP-TLS authenticator failure reporting |
-| `internal/component/ike/eap/md4.go` | MD4 for MS-CHAPv2 NtPasswordHash |
-| `internal/component/ike/eap/mschapv2.go` | MS-CHAPv2 crypto primitives |
-| `internal/component/ike/eap/mschapv2_test.go` | MS-CHAPv2 crypto tests |
-| `internal/component/ike/eap/pool.go` | Virtual IP pool for road warrior clients |
-| `internal/component/ike/eap/pool_release_test.go` | Virtual IP pool for road warrior clients |
-| `internal/component/ike/eap/pool_test.go` | Virtual IP pool tests |
-| `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
-| `internal/component/ike/eap/rfc5216_success_flight_test.go` | EAP-TLS successful termination |
-| `internal/component/ike/eap/rfc5216_termination_test.go` | EAP-TLS termination, server side |
-| `internal/component/ike/eap/rfc7296_eap_result_test.go` | EAP framework tests |
-| `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
-| `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
-| `internal/component/ike/engine/udpencap.go` | UDP encapsulation readiness |
-| `internal/component/ike/transport/encap_linux.go` | UDP encapsulation of ESP |
-| `internal/component/ike/transport/encap_other.go` | UDP encapsulation of ESP |
-| `internal/component/ike/transport/keepalive.go` | NAT keepalive sender |
-| `internal/component/ike/transport/keepalive_test.go` | NAT keepalive tests |
-| `internal/component/ike/transport/nat.go` | NAT detection and port 4500 handling |
-| `internal/component/ike/transport/nat_test.go` | NAT detection tests |
-
-## `plan/learned/745-ipsec-10-cli-diag.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/cmd/ipsec.go` | clear vpn ipsec sa handler |
-| `internal/component/ike/cmd/ipsec_test.go` | clear vpn ipsec handler tests |
-| `internal/component/ike/cmd/monitor_ipsec.go` | monitor vpn ipsec streaming handler. |
-| `internal/component/ike/cmd/show_ipsec.go` | show vpn ipsec handlers. |
-| `internal/component/ike/cmd/show_ipsec_test.go` | show vpn ipsec handler tests |
-| `internal/component/ike/engine/health.go` | IPsec health check |
-| `internal/component/ike/engine/health_test.go` | IPsec health check tests |
-| `internal/component/ike/engine/metrics.go` | IPsec Prometheus metrics |
-| `internal/component/ike/engine/metrics_test.go` | IPsec metrics tests |
-| `internal/component/ike/engine/testport.go` | IKE engine addressing seam |
-| `internal/component/web/page_vpn_ipsec.go` | VPN IPsec web page |
-
-## `plan/learned/748-cpe-6-self-update.md`
-
-| File | Topic |
-|------|-------|
-| `cmd/ze/update_serve.go` | standalone update server with enhanced manifest |
-| `internal/component/config/system/selfupdate.go` | download, verify, stage, restart logic |
-| `internal/plugins/update-cmd/cmd/firmware.go` | update system firmware CLI handlers |
-| `internal/plugins/update-cmd/cmd/show.go` | show system update CLI handler (extended) |
-
-## `plan/learned/750-zefs-integrity.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/config/storage/cli/cmd_integrity.go` | check, repair, and encode CLI commands |
-| `pkg/zefs/check.go` | corruption detection and recovery |
-| `pkg/zefs/pwrite_other.go` | in-place write fallback for non-unix |
-| `pkg/zefs/pwrite_unix.go` | in-place write via pwrite |
-
-## `plan/learned/760-subscriber-session-model.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/l2tp/pppoe/drain.go` | PPPoE auth/pool drain goroutines |
-| `internal/component/l2tp/subscriber/cmd/subscriber.go` | subscriber CLI handlers |
-| `internal/component/l2tp/subscriber/events/events.go` | subscriber event namespace |
-| `internal/component/l2tp/subscriber/events/events_test.go` | subscriber events tests |
-| `internal/component/l2tp/subscriber/handler_registry.go` | transport-generic handler registries |
-| `internal/component/l2tp/subscriber/handler_registry_test.go` | handler registry tests |
-| `internal/component/l2tp/subscriber/metrics.go` | session telemetry |
-| `internal/component/l2tp/subscriber/register.go` | component registration |
-| `internal/component/l2tp/subscriber/registry.go` | session registry |
-| `internal/component/l2tp/subscriber/registry_test.go` | registry tests |
-| `internal/component/l2tp/subscriber/service.go` | service locator |
-| `internal/component/l2tp/subscriber/session.go` | shared subscriber session type |
-| `internal/component/l2tp/subscriber_bridge.go` | L2TP subscriber event bridge |
-
-## `plan/learned/768-doctor-health-checks.md`
-
-- `internal/component/bgp/reactor/session_health.go` -- BGP session anomaly detection
-- `internal/component/firewall/audit.go` -- firewall drift detection
-- `internal/component/iface/health.go` -- interface error counter monitoring
-
-## `plan/learned/784-rib-rs-fastpath.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/plugins/rib/forward_handle.go` | producer side of locrib.ForwardHandle |
-| `internal/component/bgp/plugins/rib/forward_observer.go` | observability subscriber for Change.Forward |
-| `internal/component/bgp/plugins/rib/forward_tracker.go` | first production Change.Forward consumer |
-| `internal/core/rib/locrib/forward_handle.go` | zero-copy forwarding for Change subscribers |
-
-## `plan/learned/786-backend-command-dispatch.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/firewall/nft/cmd_show.go` | nft firewall show handlers |
-| `internal/plugins/firewall/nft/cmd_show_test.go` | nft firewall show handler tests |
-| `internal/plugins/firewall/nft/health.go` | nft firewall health check |
-| `internal/plugins/iface/vpp/cmd_show.go` | VPP dataplane trace handlers |
-| `internal/plugins/iface/vpp/health.go` | VPP health check |
-
-## `plan/learned/788-doctor-improvements.md`
-
-- `internal/component/config/listener_defaults.go` -- AC-1/AC-2 listener defaults
-- `scripts/checks/port_defaults.go` -- listener default port table
-
-## `plan/learned/805-ipsec-11-interop-eap.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/eap/eap_tls_fragment_guard_test.go` | EAP-TLS fragment reassembly guards |
-| `internal/component/ike/eap/eap_tls_handshake_test.go` | EAP-TLS in-memory handshake harness |
-| `internal/component/ike/eap/eap_tls_regression_test.go` | EAP-TLS transport + peer fixes |
-| `internal/component/ike/eap/eap_tls_trust_anchor_test.go` | EAP-TLS trust anchor handling |
-| `internal/component/ike/eap/peer.go` | EAP peer (client/initiator) side |
-| `internal/component/ike/eap/peer_test.go` | EAP peer session tests |
-| `internal/component/ike/eap/rfc5216_peer_wait_test.go` | EAP-TLS termination, peer side |
-
-## `plan/learned/807-install-2-tftpserver.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/tftpserver/config.go` | TFTP server config parsing |
-| `internal/plugins/tftpserver/config_test.go` | TFTP server config tests |
-| `internal/plugins/tftpserver/handler.go` | TFTP packet handling (RFC 1350, RFC 2347 option negotiation) |
-| `internal/plugins/tftpserver/register.go` | TFTP server plugin registration |
-| `internal/plugins/tftpserver/socket_integration_linux_test.go` | integration coverage for SO_BINDTODEVICE |
-| `internal/plugins/tftpserver/socket_linux.go` | Linux SO_BINDTODEVICE for interface-specific TFTP |
-| `internal/plugins/tftpserver/socket_other.go` | Non-Linux TFTP socket fallback |
-
-## `plan/learned/808-smart-management.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/storage/config.go` | SMART disk health management |
-| `internal/component/storage/discover_linux.go` | SMART disk health management |
-| `internal/component/storage/discover_other.go` | SMART disk health management |
-| `internal/component/storage/manager.go` | SMART disk health management |
-| `internal/component/storage/manager_test.go` | SMART disk health management |
-| `internal/component/storage/show.go` | SMART disk health management |
-| `internal/core/smart/smart.go` | SMART disk health ioctl library |
-| `internal/core/smart/smart_linux.go` | SMART disk health ioctl library |
-| `internal/core/smart/smart_other.go` | SMART disk health ioctl library |
-| `internal/core/smart/smart_test.go` | SMART disk health management |
-
-## `plan/learned/811-install-3-image-server.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/imageserver/config.go` | image server config parsing |
-| `internal/plugins/imageserver/config_test.go` | image server config tests |
-| `internal/plugins/imageserver/handler.go` | HTTP image/boot file serving |
-| `internal/plugins/imageserver/handler_test.go` | image server handler tests |
-| `internal/plugins/imageserver/register.go` | image server plugin registration |
-
-## `plan/learned/817-install-7c-vendor-updater.md`
-
-- `internal/appliance/cmd_push.go` -- OTA push via vendored gokrazy updater
-- `internal/appliance/cmd_push_test.go` -- push tests with updater protocol
-
-## `plan/learned/818-flow-export-1-counter-export.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/flowexport/config.go` | Flow export config parsing |
-| `internal/plugins/flowexport/exporter.go` | exporter lifecycle |
-| `internal/plugins/flowexport/health.go` | flow export health check |
-| `internal/plugins/flowexport/ipfix/adapter.go` | IPFIX protocol encoder adapter |
-| `internal/plugins/flowexport/ipfix/register.go` | IPFIX encoder registration |
-| `internal/plugins/flowexport/metrics.go` | Export Prometheus metrics |
-| `internal/plugins/flowexport/netflow9/adapter.go` | NetFlow v9 protocol encoder adapter |
-| `internal/plugins/flowexport/netflow9/data.go` | NetFlow v9 data FlowSet encoding |
-| `internal/plugins/flowexport/netflow9/encoder.go` | NetFlow v9 export packet encoder |
-| `internal/plugins/flowexport/netflow9/register.go` | NetFlow v9 encoder registration |
-| `internal/plugins/flowexport/netflow9/template.go` | NetFlow v9 template FlowSet |
-| `internal/plugins/flowexport/sflow/adapter.go` | sFlow protocol encoder adapter |
-| `internal/plugins/flowexport/sflow/counter.go` | sFlow v5 counter sample encoding |
-| `internal/plugins/flowexport/sflow/encoder.go` | sFlow v5 datagram encoder |
-| `internal/plugins/flowexport/sflow/register.go` | sFlow encoder registration |
-
-## `plan/learned/819-flow-export-2-flow-records.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/flowexport/conntrack/delta.go` | Per-flow delta tracking |
-| `internal/plugins/flowexport/conntrack/destroy.go` | conntrack destroy-event parser |
-| `internal/plugins/flowexport/conntrack/destroy_linux.go` | conntrack destroy-event listener |
-| `internal/plugins/flowexport/conntrack/destroy_other.go` | conntrack destroy listener stub |
-| `internal/plugins/flowexport/conntrack/destroy_test.go` | conntrack destroy-event parser test |
-| `internal/plugins/flowexport/conntrack/flow.go` | Conntrack flow entry types |
-| `internal/plugins/flowexport/conntrack/reader_linux.go` | Conntrack netlink reader |
-| `internal/plugins/flowexport/conntrack/reader_other.go` | Conntrack reader stub for non-Linux |
-| `internal/plugins/flowexport/conntrack_worker.go` | conntrack flow-record lifecycle |
-| `internal/plugins/flowexport/enrich/enricher.go` | BGP enrichment coordinator |
-| `internal/plugins/flowexport/enrich/radix.go` | Prefix-to-AS radix tree |
-| `internal/plugins/flowexport/enrichbgp.go` | BGP RIB enrichment wiring |
-| `internal/plugins/flowexport/flowtypes.go` | flow-record value types and encoder interfaces |
-| `internal/plugins/flowexport/ipfix/flow_adapter.go` | IPFIX flow-record encoder adapter |
-| `internal/plugins/flowexport/ipfix/flow_data.go` | IPFIX per-flow data Set |
-| `internal/plugins/flowexport/ipfix/flow_template.go` | IPFIX per-flow template |
-| `internal/plugins/flowexport/netflow9/flow_adapter.go` | NetFlow v9 flow-record encoder adapter |
-| `internal/plugins/flowexport/netflow9/flow_data.go` | NetFlow v9 per-flow data FlowSet |
-| `internal/plugins/flowexport/netflow9/flow_template.go` | NetFlow v9 per-flow template |
-| `internal/plugins/flowexport/sampling/psample.go` | psample constants and parser |
-| `internal/plugins/flowexport/sampling/psample_linux.go` | psample generic netlink reader |
-| `internal/plugins/flowexport/sampling/psample_other.go` | psample stub for non-Linux |
-| `internal/plugins/flowexport/sampling/sample.go` | Sampled packet types |
-| `internal/plugins/flowexport/sampling/tc_linux.go` | tc sample action setup/teardown |
-| `internal/plugins/flowexport/sampling/tc_other.go` | Sampling stub for non-Linux |
-| `internal/plugins/flowexport/sampling_worker.go` | packet sampling lifecycle |
-| `internal/plugins/flowexport/sflow/flow.go` | sFlow v5 flow sample encoding |
-| `internal/plugins/flowexport/sflow/flow_adapter.go` | sFlow flow-sample encoder adapter |
-
-## `plan/learned/820-flow-export-0-umbrella.md`
-
-- `internal/plugins/flowexport/encoder_registry.go` -- Encoder factory registry
-- `internal/plugins/flowexport/sender.go` -- Buffer pool and UDP sender
-- `internal/plugins/flowexport/snapshot.go` -- Counter snapshot value types
-
-## `plan/learned/824-rib-feed-replay-batch.md`
-
-- `internal/component/bgp/plugins/cmd/update/cursor.go` -- stateful cursor for replay batching
-- `internal/component/bgp/plugins/rib/rib_replay.go` -- grouped collection and cursor replay
-
-## `plan/learned/850-appliance-command-plugin.md`
-
-- `internal/appliance/register.go` -- appliance command provider
-
-## `plan/learned/851-install-10-pxe-staging.md`
-
-- `internal/plugins/provision/staging.go` -- PXE artifact staging and validation
-- `internal/plugins/provision/staging_test.go` -- staging unit tests
-
-## `plan/learned/854-install-8-appliance-iso.md`
-
-- `internal/appliance/cmd_iso.go` -- bootable appliance ISO installer
-
-## `plan/learned/856-install-10-iso-prerequisites.md`
-
-| File | Topic |
-|------|-------|
-| `internal/appliance/cache.go` | XDG cache resolution and artifact download |
-| `internal/appliance/cmd_initrd.go` | installer initrd download/build |
-| `internal/appliance/cmd_kernel.go` | installer kernel download/build |
-| `internal/appliance/doctor_checks.go` | doctor check functions for appliance build prerequisites |
-
-## `plan/learned/878-appliance-login-shell.md`
-
-- `cmd/ze-serial-shell/main.go` -- gokrazy serial shell wrapper
-- `cmd/ze/login.go` -- serial console login gate
-
-## `plan/learned/884-cos-plugin.md`
-
-- `internal/core/cos/cos.go` -- shared CoS profile registry
-- `internal/plugins/cos/config.go` -- CoS profile config parsing
-- `internal/plugins/cos/cos.go` -- class-of-service plugin
-
-## `plan/learned/885-cos-dynamic.md`
-
-- `internal/plugins/cos/handler.go` -- dynamic CoS event handler
-- `internal/plugins/cos/session_state.go` -- per-session CoS state for revert
-
-## `plan/learned/887-cos-vendor-radius.md`
-
-- `internal/component/l2tp/plugins/authradius/extract_vsa.go` -- vendor VSA CoS/rate extraction
-
-## `plan/learned/891-granular-debug.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/yang/register_debug.go` | BGP debug flag registration |
-| `internal/component/debug/yang/register.go` | debug YANG module registration |
-| `internal/core/duration/duration.go` | shared duration parsing for CLI input |
-| `internal/core/slogutil/debug.go` | debug subsystem validation and matching |
-| `internal/core/slogutil/filter.go` | slog handler that filters on flag and scope attributes |
-| `internal/plugins/debug/cmd/handlers.go` | live debug state query via RPC |
-| `internal/plugins/debug/cmd/register.go` | debug RPC command registration |
-| `internal/plugins/debug/debug.go` | granular debug with named profiles |
-| `internal/plugins/debug/profile.go` | debug profile load/save/modify via debug.zefs |
-| `internal/plugins/debug/register.go` | debug CLI registration |
-| `internal/plugins/debug/show.go` | structured debug state display |
-
-## `plan/learned/894-show-enricher.md`
-
-- `internal/core/show/show.go` -- show enricher registry
-- `internal/plugins/cos/enricher.go` -- CoS enricher for subscriber show commands
-
-## `plan/learned/895-show-enricher-v2.md`
-
-- `internal/component/plugin/server/enricher.go` -- proxy enricher for external plugins
-- `internal/test/plugins/fakeenrich/fakeenrich.go` -- in-process test enricher plugin
-
-## `plan/learned/896-filter-irr.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/bgp/plugins/filter_irr/cmd_irr.go` | YANG command forwarding for IRR filter plugin. |
-| `internal/component/bgp/plugins/filter_irr/command.go` | IRR plugin command handlers (show/update bgp irr) |
-| `internal/component/bgp/plugins/filter_irr/config.go` | IRR filter config parsing from OnConfigure JSON |
-| `internal/component/bgp/plugins/filter_irr/filter_irr.go` | IRR prefix-list filter plugin entry point |
-| `internal/component/bgp/plugins/filter_irr/match.go` | prefix matching for IRR-derived filter lists |
-
-## `plan/learned/903-tui-launcher.md`
-
-- `cmd/ze/tui_menu.go` -- interactive no-arg launcher
-
-## `plan/learned/904-update-bgp-prefix.md`
-
-- `internal/component/bgp/plugins/cmd/peer/prefix_update.go` -- PeeringDB prefix update command
-
-## `plan/learned/907-appliance-install-robust.md`
-
-| File | Topic |
-|------|-------|
-| `cmd/ze/ze_core_autoinit.go` | gokrazy first-boot auto-init fallback |
-| `internal/appliance/diskverify.go` | build-side inject verify |
-| `internal/install/disk/cmdline.go` | kernel cmdline parsing for on-device installer |
-| `internal/install/disk/detect.go` | disk detection for on-device installer |
-| `internal/install/disk/download.go` | download with retry and integrity check |
-| `internal/install/disk/iso.go` | ISO media detection and local image write |
-| `internal/install/disk/network.go` | network fallback for initrd installer |
-| `internal/install/disk/register.go` | ze install disk registration |
-| `internal/install/disk/run.go` | ze install disk entry point |
-| `internal/install/disk/system.go` | Linux-specific install operations |
-| `internal/install/disk/validate.go` | on-device installer input validation |
-
-## `plan/learned/909-unified-update-backend.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/config/system/backend.go` | active update backend registry |
-| `internal/component/config/system/backend_gokrazy.go` | gokrazy-managed update backend |
-| `internal/component/config/system/backend_ze_appliance.go` | minimal-build Ze self-update stub |
-| `internal/component/config/system/backend_ze_distro.go` | Ze self-update backend wrapper |
-| `internal/component/config/system/backend_ze_distro_test.go` | update backend tests |
-| `internal/core/gokrazyutil/gokrazyutil.go` | shared gokrazy management helpers |
-
-## `plan/learned/912-irr-prefix-store.md`
-
-- `internal/component/bgp/plugins/filter_irr/cache.go` -- shared PrefixStore wiring for the IRR filter plugin
-- `internal/component/resolve/irr/store/store.go` -- shared IRR prefix resolution + persistence
-
-## `plan/learned/913-firewall-irr.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/firewall/plugins/irr/cache.go` | shared PrefixStore path for firewall-irr |
-| `internal/component/firewall/plugins/irr/cmd_irr.go` | server-side YANG command forwarding for the |
-| `internal/component/firewall/plugins/irr/command.go` | CLI command handlers (show/update firewall irr) |
-| `internal/component/firewall/plugins/irr/config.go` | firewall IRR config parsing |
-| `internal/component/firewall/plugins/irr/irr.go` | firewall IRR plugin entry point |
-| `internal/component/firewall/plugins/irr/sets.go` | interval set generation from cached prefixes |
-
-## `plan/learned/919-mpls-kernel.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/mpls/forwarding_linux.go` | kernel AF_MPLS table reader |
-| `internal/component/mpls/forwarding_other.go` | non-Linux `show mpls forwarding` stub |
-| `internal/component/mpls/show_forwarding.go` | `show mpls forwarding` CLI (AC-7) |
-| `internal/plugins/fib/kernel/mpls.go` | MPLS shared constants, errors, validation |
-
-## `plan/learned/920-mpls-ldp.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ldp/cmd_show.go` | `show ldp ...` surfaced under the top-level |
-| `internal/plugins/ldp/discovery.go` | LDP discovery (UDP hello) |
-| `internal/plugins/ldp/discovery_manager.go` | dynamic LDP interface reload (AC-9) |
-| `internal/plugins/ldp/doctor.go` | LDP port-646 readiness doctor check |
-| `internal/plugins/ldp/events.go` | LDP event bus types |
-| `internal/plugins/ldp/fib.go` | LDP dataplane via the mpls-fib bus (AC-3/AC-4) |
-| `internal/plugins/ldp/lib.go` | LDP Label Information Base |
-| `internal/plugins/ldp/local.go` | local FEC origination (AC-3) |
-| `internal/plugins/ldp/register.go` | LDP component registration |
-| `internal/plugins/ldp/rfc5036_test.go` | LDP plugin |
-| `internal/plugins/ldp/session.go` | LDP session FSM |
-| `internal/plugins/ldp/wire.go` | LDP wire codec |
-
-## `plan/learned/921-mpls-rsvp-te.md`
-
-| File | Topic |
-|------|-------|
-| `internal/core/mplsfib/events.go` | MPLS forwarding-entry input to fib-kernel |
-| `internal/plugins/fib/kernel/mplsentry.go` | MPLS forwarding-entry programming |
-| `internal/plugins/fib/kernel/mplsentry_linux.go` | netlink AF_MPLS swap/pop programming |
-| `internal/plugins/rsvpte/admission.go` | RSVP-TE bandwidth admission control |
-| `internal/plugins/rsvpte/build.go` | RSVP-TE full-message encoders |
-| `internal/plugins/rsvpte/cmd_show.go` | `show rsvp-te ...` surfaced under the |
-| `internal/plugins/rsvpte/doctor.go` | raw-socket (proto 46) readiness check |
-| `internal/plugins/rsvpte/doctor_linux.go` | raw-socket probe for the doctor check |
-| `internal/plugins/rsvpte/doctor_other.go` | raw-socket probe (non-Linux stub) |
-| `internal/plugins/rsvpte/engine.go` | RSVP-TE signaling engine |
-| `internal/plugins/rsvpte/events.go` | RSVP-TE event bus types |
-| `internal/plugins/rsvpte/fib.go` | RSVP-TE dataplane via the mpls-fib bus |
-| `internal/plugins/rsvpte/fsm.go` | RSVP-TE per-LSP state machine |
-| `internal/plugins/rsvpte/register.go` | RSVP-TE component registration |
-| `internal/plugins/rsvpte/reroute.go` | make-before-break reroute (AC-7) |
-| `internal/plugins/rsvpte/rro.go` | RRO collection + ERO/RRO display (AC-9) |
-| `internal/plugins/rsvpte/show_data.go` | `show rsvp-te ...` data builders |
-| `internal/plugins/rsvpte/transport.go` | RSVP-TE raw IP transport (protocol 46) |
-| `internal/plugins/rsvpte/transport_linux.go` | Linux raw IP socket for RSVP (proto 46) |
-| `internal/plugins/rsvpte/transport_other.go` | non-Linux RSVP transport stub |
-| `internal/plugins/rsvpte/wire.go` | RSVP-TE wire codec |
-
-## `plan/learned/923-isis-8-dis-broadcast.md`
-
-- `internal/plugins/isis/circuit/dis.go` -- Designated IS (DIS) election on
-- `internal/plugins/isis/dis_wiring.go` -- engine <-> DIS-election wiring.
-- `internal/plugins/isis/lsdb/pseudonode.go` -- pseudo-node LSP origination on a
-
-## `plan/learned/924-isis-12-ipv6.md`
-
-- `internal/plugins/isis/lsdb/origination_ipv6.go` -- IPv6 origination scope filtering (RFC 5308).
-- `internal/plugins/isis/redistribute/ipv6.go` -- IPv6 redistribution (both directions).
-- `internal/plugins/isis/spf/ipv6.go` -- IPv6 leaf extraction + next-hop over the
-
-## `plan/learned/925-mpls-rsvp-te-fast-reroute.md`
-
-- `internal/plugins/rsvpte/frr.go` -- RSVP-TE Fast Reroute
-
-## `plan/learned/927-isis-1-types.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/types/format.go` | shared zero-alloc dotted-hex format/parse helpers |
-| `internal/plugins/isis/types/lifetime.go` | RemainingLifetime and HoldingTime (16-bit seconds) |
-| `internal/plugins/isis/types/lspid.go` | LSPID (SourceID + LSP number), CSNP range ordering |
-| `internal/plugins/isis/types/metric.go` | Metric (24-bit TLV 22) and PrefixMetric (32-bit TLV 135/236) |
-| `internal/plugins/isis/types/net.go` | NET and AreaID (variable-length addressing) |
-| `internal/plugins/isis/types/sequence.go` | SequenceNumber (32-bit, reserved-zero semantics) |
-| `internal/plugins/isis/types/sourceid.go` | SourceID (SystemID + pseudonode ID) |
-| `internal/plugins/isis/types/systemid.go` | SystemID 6-byte router identifier |
-
-## `plan/learned/928-isis-2-wire.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/cli/decode.go` | offline IS-IS PDU decode CLI (wiring proof) |
-| `internal/plugins/isis/cli/run.go` | offline `ze isis decode` subcommand entry |
-| `internal/plugins/isis/packet/checksum.go` | ISO 8473 Fletcher checksum, two-step adjustment |
-| `internal/plugins/isis/packet/csnp.go` | L1/L2 CSNP body codec (source ID, start/end LSPID) |
-| `internal/plugins/isis/packet/header.go` | common 8-byte header, PDU type constants, dispatch |
-| `internal/plugins/isis/packet/hello.go` | LAN L1/L2 IIH and P2P IIH body codec |
-| `internal/plugins/isis/packet/json.go` | offline decode rendering (JSON view of a PDU) |
-| `internal/plugins/isis/packet/lsp.go` | L1/L2 LSP body codec (lifetime, LSPID, sequence, checksum, type block) |
-| `internal/plugins/isis/packet/pdu.go` | top-level PDU dispatch (header parse -> body decoder) |
-| `internal/plugins/isis/packet/psnp.go` | L1/L2 PSNP body codec (source ID) |
-| `internal/plugins/isis/packet/tlv.go` | generic TLV iterator + encode helper |
-| `internal/plugins/isis/packet/tlv_auth.go` | TLV 10 (Authentication) structural codec only |
-| `internal/plugins/isis/packet/tlv_core.go` | core TLV codecs (1, 8, 9, 22, 129, 132-shared, 137, 240) |
-| `internal/plugins/isis/packet/tlv_ipv4.go` | TLV 132 (IP Interface Address), TLV 135 (Extended IP Reachability) |
-| `internal/plugins/isis/packet/tlv_ipv6.go` | TLV 232 (IPv6 Interface Address), TLV 236 (IPv6 Reachability) |
-| `internal/plugins/isis/packet/tlv_neighbours.go` | TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode-only) |
-| `internal/plugins/isis/packet/tlv_opaque.go` | unknown-TLV opaque retention + verbatim re-serialization |
-
-## `plan/learned/929-isis-3-l2-transport.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/transport/backend_linux.go` | Linux AF_PACKET/SOCK_RAW backend |
-| `internal/plugins/isis/transport/backend_other.go` | non-Linux backend stub |
-| `internal/plugins/isis/transport/doctor.go` | raw-socket readiness doctor check |
-| `internal/plugins/isis/transport/doctor_linux.go` | raw-socket probe for the doctor check |
-| `internal/plugins/isis/transport/doctor_other.go` | raw-socket probe (non-Linux stub) |
-| `internal/plugins/isis/transport/frame.go` | IEEE 802.3 + LLC frame codec |
-| `internal/plugins/isis/transport/metrics.go` | transport Prometheus metrics |
-| `internal/plugins/isis/transport/multicast.go` | ISO multicast MAC selection |
-| `internal/plugins/isis/transport/register.go` | doctor-check registration |
-| `internal/plugins/isis/transport/transport.go` | raw L2 transport orchestrator |
-
-## `plan/learned/930-isis-4-component-config.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/config.go` | IS-IS config resolution |
-| `internal/plugins/isis/events.go` | IS-IS event bus types |
-| `internal/plugins/isis/register.go` | IS-IS component registration |
-| `internal/plugins/isis/server.go` | IS-IS engine orchestration |
-
-## `plan/learned/931-isis-5-adjacency.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/adjacency/adjacency.go` | IS-IS adjacency record and state. |
-| `internal/plugins/isis/adjacency/fsm.go` | adjacency finite state machine. |
-| `internal/plugins/isis/adjacency/table.go` | per-circuit neighbor table + snapshot. |
-| `internal/plugins/isis/circuit/circuit.go` | per-interface IS-IS circuit runtime. |
-| `internal/plugins/isis/circuit/hello.go` | IIH origination (LAN + P2P) + padding. |
-| `internal/plugins/isis/circuit/runtime.go` | circuit RX dispatch, Hello send, sweep. |
-| `internal/plugins/isis/circuits.go` | engine <-> adjacency-circuit wiring. |
-
-## `plan/learned/932-isis-6-lsdb.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/lsdb/aging.go` | LSP aging, refresh, and zero-age purge. |
-| `internal/plugins/isis/lsdb/encode.go` | TLV value builders + fragment packer for origination. |
-| `internal/plugins/isis/lsdb/entry.go` | per-LSP database entry (raw bytes + metadata). |
-| `internal/plugins/isis/lsdb/lsdb.go` | the Link-State Database store. |
-| `internal/plugins/isis/lsdb/origination.go` | own-LSP origination from live state. |
-| `internal/plugins/isis/lsdb_wiring.go` | engine <-> LSDB wiring (origination trigger, aging loop). |
-| `internal/plugins/isis/own_lsp_conflict.go` | own-LSP origination and sequence state. |
-
-## `plan/learned/933-isis-7-flooding.md`
-
-- `internal/plugins/isis/flooding_wiring.go` -- engine <-> flooding wiring (handlers, timers, P2P initial CSNP).
-- `internal/plugins/isis/lsdb/flooding.go` -- LSP flooding (receive-side algorithm + periodic SRM-driven TX).
-- `internal/plugins/isis/lsdb/snp.go` -- CSNP/PSNP synchronization + per-circuit pending-request set.
-
-## `plan/learned/934-isis-9-spf-rib.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/spf/computer.go` | the SPF orchestrator (trigger -> run -> install). |
-| `internal/plugins/isis/spf/graph.go` | SPF graph build from the synced LSDB. |
-| `internal/plugins/isis/spf/install.go` | FIB install via Loc-RIB insertion. |
-| `internal/plugins/isis/spf/leak.go` | step 5 -- L1<->L2 inter-level route leaking |
-| `internal/plugins/isis/spf/route.go` | prefix attach, L1/L2 leaking, route diff. |
-| `internal/plugins/isis/spf/spf.go` | per-level Dijkstra over the LSDB graph. |
-| `internal/plugins/isis/spf_wiring.go` | engine <-> SPF wiring (LSDB read, next-hop, install). |
-
-## `plan/learned/935-isis-10-auth.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/auth_keystore.go` | IS-IS authentication key store. |
-| `internal/plugins/isis/auth_wiring.go` | engine <-> authentication wiring. |
-| `internal/plugins/isis/packet/auth_sign.go` | IS-IS authentication backend (sign side). |
-| `internal/plugins/isis/packet/auth_types.go` | IS-IS authentication backend (sign + verify). |
-| `internal/plugins/isis/packet/auth_verify.go` | IS-IS authentication backend (verify side). |
-
-## `plan/learned/936-isis-11-redistribution.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/isis/redist_wiring.go` | engine <-> redistribution wiring. |
-| `internal/plugins/isis/redistribute/consumer.go` | IS-IS redistribution consumer. |
-| `internal/plugins/isis/redistribute/events/events.go` | IS-IS redistevents producer wiring. |
-| `internal/plugins/isis/redistribute/redistribute.go` | IS-IS redistribution (both directions). |
-| `internal/plugins/isis/redistribute/source.go` | IS-IS redistribution source (producer). |
-
-## `plan/learned/937-isis-13-cli-diag-interop.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/web/handler_isis.go` | IS-IS web neighbor + database views. |
-| `internal/component/web/page_isis.go` | IS-IS web page shell + SSE script. |
-| `internal/plugins/isis/cmd_show.go` | `show isis ...` / `clear isis |
-| `internal/plugins/isis/codes.go` | IS-IS diagnostic code ownership. |
-| `internal/plugins/isis/doctor.go` | IS-IS config-sanity doctor checks. |
-| `internal/plugins/isis/frr_interop_integration_linux_test.go` | IS-IS interop with FRR isisd. |
-| `internal/plugins/isis/show.go` | engine-side render + clear for |
-| `internal/plugins/isis/spf/spflog.go` | `show isis spf-log` history |
-
-## `plan/learned/950-iface-resolve-2-resolver.md`
-
-- `internal/component/iface/resolve.go` -- shared logical-name resolver
-
-## `plan/learned/955-ospf-1-types.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/types/accessors_test.go` | fixed identifier accessor tests mirroring ISIS types |
-| `internal/plugins/ospf/types/areaid.go` | AreaID 4-byte scalar area identifier |
-| `internal/plugins/ospf/types/areaid_test.go` | AreaID integer and dotted forms |
-| `internal/plugins/ospf/types/checksum.go` | OSPFv2 Fletcher and Internet checksums |
-| `internal/plugins/ospf/types/checksum_test.go` | OSPF checksum algorithm vectors and boundaries |
-| `internal/plugins/ospf/types/doc.go` | OSPFv2 leaf domain value types |
-| `internal/plugins/ospf/types/format.go` | shared dotted-quad format and parse helpers |
-| `internal/plugins/ospf/types/format_test.go` | formatting allocation tests |
-| `internal/plugins/ospf/types/linkstateid.go` | LinkStateID 4-byte LSA identifier |
-| `internal/plugins/ospf/types/linkstateid_test.go` | LinkStateID parse, format, and wire tests |
-| `internal/plugins/ospf/types/lsage.go` | LSAge value and aging helpers |
-| `internal/plugins/ospf/types/lsage_test.go` | LSAge DoNotAge, MaxAge, and saturating arithmetic |
-| `internal/plugins/ospf/types/lsakey.go` | LSAKey LSDB identity tuple |
-| `internal/plugins/ospf/types/lsakey_test.go` | LSAKey extraction, equality, and ordering |
-| `internal/plugins/ospf/types/lstype.go` | OSPFv2 LSA type discriminator |
-| `internal/plugins/ospf/types/lstype_test.go` | LSType known, opaque, and out-of-scope values |
-| `internal/plugins/ospf/types/metric.go` | OSPF interface output metric |
-| `internal/plugins/ospf/types/metric_test.go` | Metric range and default-cost derivation |
-| `internal/plugins/ospf/types/options.go` | OSPF Options bit field |
-| `internal/plugins/ospf/types/options_test.go` | Options bit-field tests |
-| `internal/plugins/ospf/types/parse_test.go` | malformed dotted-quad and integer rejection |
-| `internal/plugins/ospf/types/routerid.go` | RouterID 4-byte OSPF router identifier |
-| `internal/plugins/ospf/types/routerid_test.go` | RouterID parse, format, and wire tests |
-| `internal/plugins/ospf/types/sequence.go` | LSSequenceNumber signed freshness value |
-| `internal/plugins/ospf/types/sequence_test.go` | LSSequenceNumber freshness and wrap boundaries |
-| `internal/plugins/ospf/types/serialize_test.go` | WriteTo round-trip tests for all OSPF leaf types |
-
-## `plan/learned/956-ospf-2-wire.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/cli/decode.go` | offline OSPFv2 packet decode CLI. |
-| `internal/plugins/ospf/cli/run.go` | offline `ze ospf decode` subcommand entry |
-| `internal/plugins/ospf/packet/checksum.go` | packet and LSA checksum application |
-| `internal/plugins/ospf/packet/checksum_test.go` | checksum covered-range tests |
-| `internal/plugins/ospf/packet/dbdesc.go` | Database Description packet body codec |
-| `internal/plugins/ospf/packet/fuzz_test.go` | fuzz targets for packet and LSA decode |
-| `internal/plugins/ospf/packet/header.go` | common OSPFv2 packet header and dispatch |
-| `internal/plugins/ospf/packet/header_test.go` | common header tests |
-| `internal/plugins/ospf/packet/hello.go` | Hello packet body codec |
-| `internal/plugins/ospf/packet/helpers_test.go` | shared test fixtures |
-| `internal/plugins/ospf/packet/json.go` | offline decode JSON rendering |
-| `internal/plugins/ospf/packet/json_test.go` | offline decode JSON rendering (cold CLI path). |
-| `internal/plugins/ospf/packet/lsa.go` | common 20-byte LSA header and lazy LSA view |
-| `internal/plugins/ospf/packet/lsa_external.go` | AS-External and NSSA LSA body codec |
-| `internal/plugins/ospf/packet/lsa_network.go` | Network-LSA body codec |
-| `internal/plugins/ospf/packet/lsa_opaque.go` | opaque/unknown LSA passthrough |
-| `internal/plugins/ospf/packet/lsa_router.go` | Router-LSA body codec |
-| `internal/plugins/ospf/packet/lsa_summary.go` | Summary-LSA body codec |
-| `internal/plugins/ospf/packet/lsa_test.go` | LSA header and body tests |
-| `internal/plugins/ospf/packet/lsack.go` | Link State Acknowledgment packet body codec |
-| `internal/plugins/ospf/packet/lsreq.go` | Link State Request packet body codec |
-| `internal/plugins/ospf/packet/lsupdate.go` | Link State Update packet body codec |
-| `internal/plugins/ospf/packet/packet_body_test.go` | packet body round-trip tests |
-| `internal/plugins/ospf/packet/wire.go` | shared fixed-width wire helpers |
-
-## `plan/learned/957-ospf-3-ip-transport.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/transport/backend_linux.go` | Linux AF_INET/SOCK_RAW backend |
-| `internal/plugins/ospf/transport/backend_linux_test.go` | Linux backend resolver and drop regressions |
-| `internal/plugins/ospf/transport/backend_other.go` | non-Linux backend stub |
-| `internal/plugins/ospf/transport/doctor.go` | raw socket readiness doctor check |
-| `internal/plugins/ospf/transport/doctor_linux.go` | Linux raw-socket probe |
-| `internal/plugins/ospf/transport/doctor_other.go` | non-Linux raw-socket probe stub |
-| `internal/plugins/ospf/transport/doctor_test.go` | OSPF raw-socket doctor tests |
-| `internal/plugins/ospf/transport/metrics.go` | OSPF transport metrics |
-| `internal/plugins/ospf/transport/metrics_test.go` | metric series registration tests |
-| `internal/plugins/ospf/transport/multicast.go` | OSPFv2 multicast groups |
-| `internal/plugins/ospf/transport/register.go` | doctor-check registration |
-| `internal/plugins/ospf/transport/transport.go` | OSPFv2 raw IPv4 transport orchestrator |
-| `internal/plugins/ospf/transport/transport_integration_linux_test.go` | Linux raw OSPF multicast integration |
-| `internal/plugins/ospf/transport/transport_test.go` | transport orchestrator tests |
-
-## `plan/learned/958-ospf-4-component-config.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/config/validators_ospf_test.go` | OSPF custom validators |
-| `internal/plugins/ospf/area.go` | per-area state scaffolding |
-| `internal/plugins/ospf/config.go` | OSPFv2 config resolution |
-| `internal/plugins/ospf/config_test.go` | config resolution unit tests |
-| `internal/plugins/ospf/dispatcher.go` | OSPF packet dispatcher |
-| `internal/plugins/ospf/events.go` | OSPFv2 event bus types |
-| `internal/plugins/ospf/events_test.go` | OSPF event namespace tests |
-| `internal/plugins/ospf/instance.go` | OSPFv2 engine skeleton + dispatcher |
-| `internal/plugins/ospf/instance_test.go` | engine and dispatcher tests |
-| `internal/plugins/ospf/register.go` | OSPFv2 plugin registration |
-
-## `plan/learned/959-ospf-5-interface-ism.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/iface/election.go` | RFC 2328 DR/BDR election |
-| `internal/plugins/ospf/iface/iface.go` | per-interface OSPFv2 runtime |
-| `internal/plugins/ospf/iface/iface_test.go` | ISM, Hello, and election tests |
-| `internal/plugins/ospf/iface/ism.go` | OSPFv2 Interface State Machine |
-| `internal/plugins/ospf/iface/nbma.go` | NBMA + point-to-multipoint Hello send. |
-| `internal/plugins/ospf/iface/nbma_test.go` | NBMA + point-to-multipoint ISM/Hello tests. |
-
-## `plan/learned/960-ospf-6-neighbor-nsm.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/adjacency_full_test.go` | engine-to-neighbor NSM wiring |
-| `internal/plugins/ospf/neighbor/dd.go` | Database Description exchange |
-| `internal/plugins/ospf/neighbor/lsreq.go` | OSPFv2 LS Request list |
-| `internal/plugins/ospf/neighbor/neighbor.go` | OSPFv2 neighbor record |
-| `internal/plugins/ospf/neighbor/nsm.go` | OSPFv2 Neighbor State Machine |
-| `internal/plugins/ospf/neighbor/nsm_test.go` | NSM transition and DD tests |
-| `internal/plugins/ospf/neighbor/table.go` | per-interface OSPFv2 neighbor table |
-
-## `plan/learned/961-ospf-7-lsdb-flooding.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/lsdb/aging.go` | LSA aging, refresh, and purge. |
-| `internal/plugins/ospf/lsdb/entry.go` | lazy raw-byte LSDB entry. |
-| `internal/plugins/ospf/lsdb/flooding.go` | RFC 2328 Section 13 flooding. |
-| `internal/plugins/ospf/lsdb/lsdb.go` | per-area OSPFv2 LSDB store. |
-| `internal/plugins/ospf/lsdb/origination.go` | Router-LSA and Network-LSA origination. |
-
-## `plan/learned/962-ospf-8-spf-rib.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/spf/computer.go` | SPF trigger, throttle, run state, metrics. |
-| `internal/plugins/ospf/spf/graph.go` | OSPFv2 SPF graph build from the synced LSDB. |
-| `internal/plugins/ospf/spf/install.go` | OSPF route install via Loc-RIB insertion. |
-| `internal/plugins/ospf/spf/route.go` | OSPF route table, preference, and diff. |
-| `internal/plugins/ospf/spf/spf.go` | RFC 2328 intra-area SPF. |
-| `internal/plugins/ospf/spf_wiring.go` | engine to SPF wiring. |
-
-## `plan/learned/963-ospf-9-inter-area-abr.md`
-
-- `internal/plugins/ospf/spf/interarea.go` -- inter-area SPF and ABR snapshots.
-- `internal/plugins/ospf/spf/summary.go` -- Type 3/4 Summary-LSA origination.
-
-## `plan/learned/964-ospf-10-as-external-asbr.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/default.go` | `default-information originate`. |
-| `internal/plugins/ospf/redist_wiring.go` | engine side of OSPF redistribution. |
-| `internal/plugins/ospf/redistribute/consumer.go` | OSPF redistribution consumer. |
-| `internal/plugins/ospf/redistribute/events/events.go` | OSPF redistevents producer wiring. |
-| `internal/plugins/ospf/redistribute/redistribute.go` | OSPF redistribution (both directions). |
-| `internal/plugins/ospf/redistribute/source.go` | OSPF redistribution source (producer). |
-| `internal/plugins/ospf/spf/external.go` | RFC 2328 sec 16.4 AS-External routes. |
-
-## `plan/learned/965-ospf-11-stub-nssa.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/lsdb/nssa.go` | Type 7 NSSA-LSA origination. |
-| `internal/plugins/ospf/nssa.go` | engine NSSA default-route origination + |
-| `internal/plugins/ospf/spf/area_type.go` | stub/NSSA Summary-LSA origination policy. |
-| `internal/plugins/ospf/spf/external_nssa.go` | RFC 3101 sec 2.5 Type 7/Type 5 preference. |
-
-## `plan/learned/966-ospf-12-auth.md`
-
-- `internal/plugins/ospf/auth_keystore.go` -- OSPFv2 authentication key store.
-- `internal/plugins/ospf/auth_wiring.go` -- engine glue for OSPFv2 authentication.
-- `internal/plugins/ospf/packet/auth_verify.go` -- OSPFv2 authentication sign/verify.
-
-## `plan/learned/967-ospf-13-cli-diag-interop.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/web/handler_ospf.go` | OSPF web neighbor + database views. |
-| `internal/component/web/handler_ospf_test.go` | OSPF web view tests. |
-| `internal/component/web/page_ospf.go` | OSPF web page shell + SSE script. |
-| `internal/component/web/page_snapshot.go` | shared read-only snapshot page shell. |
-| `internal/component/web/snapshot_views.go` | shared read-only protocol live views. |
-| `internal/component/web/sse_snapshot.go` | shared read-only SSE snapshot loop. |
-| `internal/plugins/ospf/clear.go` | `clear ospf ...` runtime resets. |
-| `internal/plugins/ospf/cmd_show.go` | `show ospf ...` under the |
-| `internal/plugins/ospf/doctor.go` | OSPF config-sanity doctor checks. |
-| `internal/plugins/ospf/instance_snapshots.go` | engine `show ospf ...` snapshots. |
-| `internal/plugins/ospf/show_database.go` | `show ospf database <type>` subviews. |
-| `internal/plugins/ospf/show_summary.go` | `show ospf` process summary. |
-
-## `plan/learned/968-ospfv3-1-types.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/v3/types/age.go` | LSAge 16-bit LSA age in seconds. |
-| `internal/plugins/ospf/v3/types/doc.go` | OSPFv3 leaf value-type package. |
-| `internal/plugins/ospf/v3/types/format.go` | shared dotted-quad format and parse helpers. |
-| `internal/plugins/ospf/v3/types/instance.go` | InstanceID 8-bit link-local instance selector. |
-| `internal/plugins/ospf/v3/types/interface.go` | InterfaceID 32-bit router-local interface id. |
-| `internal/plugins/ospf/v3/types/lsa.go` | LSType (with embedded flooding scope) + LSAKey. |
-| `internal/plugins/ospf/v3/types/metric.go` | Metric 24-bit OSPFv3 route metric. |
-| `internal/plugins/ospf/v3/types/options.go` | OSPFv3 24-bit Options bitset. |
-| `internal/plugins/ospf/v3/types/prefix.go` | IPv6 prefix length + options encoding. |
-| `internal/plugins/ospf/v3/types/routerid.go` | RouterID / AreaID / LinkStateID 4-byte identifiers. |
-| `internal/plugins/ospf/v3/types/sequence.go` | LSSequenceNumber signed 32-bit LSA version. |
-
-## `plan/learned/969-ospfv3-2-wire.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/v3/packet/checksum.go` | OSPFv3 LSA Fletcher and IPv6 packet checksums. |
-| `internal/plugins/ospf/v3/packet/dbdesc.go` | OSPFv3 Database Description packet body codec. |
-| `internal/plugins/ospf/v3/packet/doc.go` | OSPFv3 packet and LSA wire codec. |
-| `internal/plugins/ospf/v3/packet/header.go` | OSPFv3 common header and packet dispatch. |
-| `internal/plugins/ospf/v3/packet/hello.go` | OSPFv3 Hello packet body codec. |
-| `internal/plugins/ospf/v3/packet/helpers_test.go` | shared OSPFv3 codec test fixtures. |
-| `internal/plugins/ospf/v3/packet/lsa.go` | 20-octet OSPFv3 LSA header and lazy LSA view. |
-| `internal/plugins/ospf/v3/packet/lsa_external.go` | OSPFv3 AS-External / NSSA LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsa_interarea_prefix.go` | OSPFv3 Inter-Area-Prefix-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsa_interarea_router.go` | OSPFv3 Inter-Area-Router-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsa_intraarea_prefix.go` | OSPFv3 Intra-Area-Prefix-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsa_link.go` | OSPFv3 Link-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsa_network.go` | OSPFv3 Network-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsa_nssa.go` | OSPFv3 NSSA-LSA body codec (reuses the external body). |
-| `internal/plugins/ospf/v3/packet/lsa_router.go` | OSPFv3 Router-LSA body codec. |
-| `internal/plugins/ospf/v3/packet/lsack.go` | OSPFv3 Link State Acknowledgment packet body codec. |
-| `internal/plugins/ospf/v3/packet/lsreq.go` | OSPFv3 Link State Request packet body codec. |
-| `internal/plugins/ospf/v3/packet/lsupdate.go` | OSPFv3 Link State Update packet body codec. |
-| `internal/plugins/ospf/v3/packet/prefix.go` | OSPFv3 IPv6 prefix encode/decode (both carriage forms). |
-| `internal/plugins/ospf/v3/packet/wire.go` | shared fixed-width big-endian wire helpers. |
-
-## `plan/learned/970-ospfv3-3-ipv6-transport.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/bfd_client_v6.go` | OSPFv3 is our OSPF; the BFD GTSM-255 |
-| `internal/plugins/ospf/v3/transport/backend_linux.go` | Linux ipv6.PacketConn backend |
-| `internal/plugins/ospf/v3/transport/backend_other.go` | non-Linux backend stub |
-| `internal/plugins/ospf/v3/transport/doctor.go` | raw IPv6 socket readiness doctor check |
-| `internal/plugins/ospf/v3/transport/doctor_linux.go` | Linux raw IPv6 socket probe |
-| `internal/plugins/ospf/v3/transport/doctor_other.go` | non-Linux raw IPv6 socket probe stub |
-| `internal/plugins/ospf/v3/transport/metrics.go` | OSPFv3 transport metrics |
-| `internal/plugins/ospf/v3/transport/multicast.go` | OSPFv3 IPv6 multicast groups |
-| `internal/plugins/ospf/v3/transport/register.go` | doctor-check registration |
-| `internal/plugins/ospf/v3/transport/transport.go` | OSPFv3 raw IPv6 transport orchestrator |
-| `internal/plugins/ospf/v3/transport/transport_integration_linux_test.go` | Linux raw IPv6 OSPFv3 multicast |
-
-## `plan/learned/972-ospf-af-unify.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/ospf/afstrategy_v6.go` | Phase 5: the OSPFv3 AF prefix strategy. |
-| `internal/plugins/ospf/codec.go` | Phase 2: the Codec seam. The engine decodes |
-| `internal/plugins/ospf/codec_v6.go` | the OSPFv3 Codec adapter over ospfv3/packet. It |
-| `internal/plugins/ospf/dispatcher.go` | Phase 2: header decode + checksum verify go |
-| `internal/plugins/ospf/encoder_v6.go` | Phase 5: the OSPFv3 send (encode) path. |
-| `internal/plugins/ospf/interface_addr.go` | interface address/identity helpers. |
-| `internal/plugins/ospf/lsdb/link_scope.go` | OSPFv3 link-local-scope LSDB (Link-LSA store) |
-| `internal/plugins/ospf/origination_v6.go` | OSPFv3 (IPv6) self-origination. |
-| `internal/plugins/ospf/origination_v6_external.go` | OSPFv3 (IPv6) AS-External origination (ASBR redistribution). |
-| `internal/plugins/ospf/origination_v6_link.go` | OSPFv3 (IPv6) Link-LSA + Network Intra-Area-Prefix origination. |
-| `internal/plugins/ospf/origination_v6_summary.go` | OSPFv3 (IPv6) ABR inter-area summary origination. |
-| `internal/plugins/ospf/spf/afstrategy.go` | Phase 4: the AF prefix-strategy seam. |
-| `internal/plugins/ospf/transport_iface.go` | Phase 1: the engine consumes transport |
-| `internal/plugins/ospf/types/body_test.go` | AF-neutral LS Ack / LS Request body lengths |
-| `internal/plugins/ospf/types/dbdesc.go` | the Database Description body carries the same |
-| `internal/plugins/ospf/types/hello.go` | the Hello body is shared via the types leaf as a |
-| `internal/plugins/ospf/types/lsack.go` | the LS Acknowledgment body is an AF-neutral list |
-| `internal/plugins/ospf/types/lsaheader.go` | the LSA common header is address-family-neutral |
-| `internal/plugins/ospf/types/lsreq.go` | the LS Request body is an AF-neutral list of |
-| `internal/plugins/ospf/wire/rawpacket.go` | RawPacket is the address-family-neutral received |
-
-## `plan/learned/973-ospfv3-6-interop-coverage.md`
-
-- `internal/plugins/ospf/origination_v6_stub.go` -- OSPFv3 stub-area policy for the ABR
-
-## `plan/learned/975-ospfv3-5-nssa-redist.md`
-
-- `internal/plugins/ospf/origination_v6_nssa.go` -- OSPFv3 NSSA Type-7 redistribution.
-
-## `plan/learned/977-traffic-usage.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/trafficusage/attach_linux.go` | traffic-usage Linux TCX attacher (load, attach, read maps, detach) |
-| `internal/plugins/trafficusage/attach_other.go` | traffic-usage non-Linux stub attacher |
-| `internal/plugins/trafficusage/config.go` | traffic-usage config parsing & validation |
-| `internal/plugins/trafficusage/doctor.go` | traffic-usage doctor check (kernel eBPF/TCX + CAP_BPF) |
-| `internal/plugins/trafficusage/metrics.go` | traffic-usage Prometheus metric families & helpers |
-| `internal/plugins/trafficusage/monitor.go` | traffic-usage monitor: reconcile, lifecycle, poller |
-| `internal/plugins/trafficusage/program_linux.go` | pure-Go eBPF TCX accounting programs (asm.Instructions) |
-| `internal/plugins/trafficusage/show.go` | show traffic-usage command handler. |
-| `internal/plugins/trafficusage/trafficusage.go` | traffic-usage plugin identity, logger, namespace |
-
-## `plan/learned/982-install-11-hw-kernel-profiles.md`
-
-- `internal/appliance/cmd_kernel.go` -- installer kernel profile registry
-- `internal/appliance/kernelreg.go` -- installer kernel profile registry
-- `internal/appliance/kernelreq.go` -- installer kernel requirement enforcement
-
-## `plan/learned/992-geodns-1-config.md`
-
-| File | Topic |
-|------|-------|
-| `internal/plugins/geodns/config.go` | geodns config parse + validation |
-| `internal/plugins/geodns/record.go` | geodns record model (A/AAAA/SRV) |
-| `internal/plugins/geodns/source.go` | geodns source matcher (CIDR longest-prefix) |
-| `internal/plugins/geodns/state.go` | geodns resolver state (atomic snapshot) |
-
-## `plan/learned/993-geodns-2-server.md`
-
-- `internal/plugins/geodns/server.go` -- geodns DNS server (listener, EDNS0, answer synthesis)
-- `internal/plugins/geodns/server_rfc4035_test.go` -- geodns answer policy; the
-
-## `plan/learned/994-geodns-3-observability-cli.md`
-
-- `internal/plugins/geodns/doctor.go` -- geodns listen-port bind-capability doctor check
-- `internal/plugins/geodns/metrics.go` -- geodns Prometheus metrics
-- `internal/plugins/geodns/show.go` -- show geodns status command
-
 ## `plan/spec-anomaly-4-interop-harness.md`
 
 - `internal/plugins/anomaly/detect/chain_integration_test.go` -- facts->judgment->response end to end.
@@ -4200,14 +4145,6 @@ Total: 306 design docs, 3267 files
 ## `plan/spec-appliance-login-shell.md`
 
 - `cmd/ze/login_test.go` -- serial console login tests
-
-## `plan/spec-arch-4-config-manager.md`
-
-- `internal/component/config/provider.go` -- ConfigProvider spec
-
-## `plan/spec-arch-5-engine.md`
-
-- `internal/component/engine/engine.go` -- Engine spec
 
 ## `plan/spec-as112-1-iface-address-registry.md`
 

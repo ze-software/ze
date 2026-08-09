@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc9568.md -- Section 6.4.1/6.4.2 + Section 8.2.2 (unsolicited NA)
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- pure NA message builder (testable on darwin)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- pure NA message builder (testable on darwin)
 // Cites (no short summary file): RFC 4861 (Neighbor Discovery), RFC 3542 (raw ICMPv6)
 //
 // na.go builds the unsolicited ICMPv6 Neighbor Advertisement VRRP multicasts when

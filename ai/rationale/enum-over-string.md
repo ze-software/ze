@@ -41,7 +41,7 @@ arguments still apply to hot paths, but the contract concern does not.
 ## Why this rule exists
 
 The `spec-bgp-redistribute` design crystallised three prior decisions
-scattered across learned summaries:
+scattered across earlier specs:
 
 1. Event payloads crossing component seams must be value-typed
    (`memory_feedback_no_cross_boundary_pointers`).

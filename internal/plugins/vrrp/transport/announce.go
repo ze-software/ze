@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc9568.md -- Section 8.1.2 / 8.2.2 (announce on Master transition)
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- per-instance announcer worker
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- per-instance announcer worker
 //
 // announce.go runs one long-lived worker goroutine per instance
 // (ai/rules/goroutine-lifecycle.md: no per-burst goroutines). AnnounceMaster

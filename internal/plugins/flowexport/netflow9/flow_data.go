@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- NetFlow v9 per-flow data FlowSet
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- NetFlow v9 per-flow data FlowSet
 // Related: flow_adapter.go -- WriteFlowDataFlowSet / WriteFlowDataFlowSet6 callers
 
 package netflow9

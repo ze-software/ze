@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- neutral statistical primitives (mean, stddev, quantile)
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- neutral statistical primitives (mean, stddev, quantile)
 
 package stats
 

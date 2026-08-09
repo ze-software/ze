@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- `show ospf database <type>` subviews.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- `show ospf database <type>` subviews.
 // Each subview filters the LSDB snapshot to one LS Type (RFC 2328 / RFC 3101 Type 7).
 // RFC: rfc/short/rfc2328.md (LSA types 1-5), rfc/short/rfc3101.md (Type 7 NSSA)
 

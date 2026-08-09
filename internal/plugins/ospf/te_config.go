@@ -1,4 +1,4 @@
-// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- traffic-engineering config.
+// Design: docs/architecture/ospf/ospf-ext-2-traffic-engineering.md -- traffic-engineering config.
 // RFC: rfc/short/rfc3630.md (per-link TE attributes), rfc/short/rfc5392.md (inter-AS).
 //
 // The per-interface `traffic-engineering` block and its `inter-as` sub-block are TE-owned

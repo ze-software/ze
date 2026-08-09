@@ -1,4 +1,4 @@
-// Design: plan/learned/992-geodns-1-config.md -- geodns config parse + validation
+// Design: docs/architecture/dns/geodns.md -- geodns config parse + validation
 // RFC: rfc/short/rfc2181.md -- TTL bounds (section 8); rfc/short/rfc2782.md -- SRV records
 
 package geodns

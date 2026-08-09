@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- engine-to-neighbor NSM wiring
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- engine-to-neighbor NSM wiring
 package ospf
 
 import (

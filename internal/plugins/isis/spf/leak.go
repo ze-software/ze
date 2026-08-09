@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md step 5 -- L1<->L2 inter-level route leaking
+// Design: docs/architecture/isis/isis-9-spf-rib.md step 5 -- L1<->L2 inter-level route leaking
 // (the ORIGINATION side). After per-level Dijkstra (spf.go) yields the reachable
 // node set, an L1L2 router re-originates the OTHER level's reachable IS-IS
 // prefixes into this level's own LSP, marking them with the RFC 2966 up/down bit

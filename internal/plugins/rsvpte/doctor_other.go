@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/921-mpls-rsvp-te.md -- raw-socket probe (non-Linux stub)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- raw-socket probe (non-Linux stub)
 // Related: transport_other.go -- RSVP-TE transport is unsupported off Linux
 
 package rsvpte

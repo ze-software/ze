@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — appliance CLI dispatch
+// Design: docs/architecture/appliance/builder.md -- appliance CLI dispatch
 //
 // Package appliance is the self-contained command provider for ze appliance.
 // It owns the entire appliance command surface and registers it through the

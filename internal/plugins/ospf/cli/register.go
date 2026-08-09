@@ -1,4 +1,4 @@
-// Design: plan/learned/1169-cli-root-namespace-grammar.md -- ospf root namespace (decode member)
+// Design: docs/architecture/cli/root-namespace-grammar.md -- ospf root namespace (decode member)
 //
 // Owner package: the offline OSPFv2 packet decode tool lives with the
 // internal/plugins/ospf codec, not under cmd/ze. It registers the `ospf` root

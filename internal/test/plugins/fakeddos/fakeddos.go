@@ -1,4 +1,4 @@
-// Design: plan/learned/1116-copp-firewall-shutdown-flush.md -- fakeddos synthetic
+// Design: docs/architecture/firewall/table-ownership-and-shutdown-flush.md -- fakeddos synthetic
 // DDoS injector: runScenario is the two-phase driver (install on detect, withdraw
 // on clear) behind the ddos-local withdraw functional test.
 

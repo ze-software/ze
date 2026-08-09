@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- Link State Update packet body codec
+// Design: docs/architecture/ospf/ospf-2-wire.md -- Link State Update packet body codec
 // RFC 2328 Appendix A.3.5: Link State Update packet.
 
 package packet

@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP-TLS authenticator failure reporting
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-TLS authenticator failure reporting
 // RFC: rfc/short/rfc5216.md -- EAP-TLS: a fragment ACK answers the M flag, it is not a resting state
 //
 // The authenticator's tlsMethod.Process waits for its TLS engine to settle, but a

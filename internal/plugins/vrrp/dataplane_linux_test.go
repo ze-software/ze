@@ -57,7 +57,7 @@ func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
 	// not the physical MAC: the parent gets arp_ignore=1/arp_filter=1 so it stops
 	// answering for the VIP, and the virtual-MAC macvlan (arp_ignore=1, rp_filter=0)
 	// becomes the sole responder (proven end-to-end under QEMU in
-	// plan/learned/1122-vrrp-macvlan-vmac-dataplane.md).
+	// docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md).
 	// RFC requirement: RFC3768-6.4.3-1 positive -- the virtual-MAC macvlan is made the sole ARP responder for the VIP, so a Master answers ARP requests for the virtual address with the virtual MAC (dataplane_linux.go:64,73).
 	// RFC requirement: RFC3768-8.2-1 positive -- the parent's arp_ignore/arp_filter are set so the parent's physical MAC never answers ARP for the virtual address (dataplane_linux.go:73).
 	// RFC requirement: RFC9568-6.4.3-1 positive -- the virtual-MAC macvlan is made the sole ARP responder for the virtual address, so the Active router answers ARP requests for it with the Virtual Router MAC (vmacSysctls dataplane_linux.go:64, parentSysctls dataplane_linux.go:73)

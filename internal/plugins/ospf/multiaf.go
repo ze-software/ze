@@ -1,4 +1,4 @@
-// Design: plan/learned/1037-ospf-ext-15-multi-af.md -- RFC 5838 multiple address families over OSPFv3.
+// Design: docs/architecture/ospf/ospf-ext-15-multi-af.md -- RFC 5838 multiple address families over OSPFv3.
 // Related: dispatcher.go -- the per-instance Instance-ID demux (RFC 5340 §4.2.2) reused per AF.
 // Related: register.go -- one v6-codec engine spawned per configured AF.
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- NAT44-ED integration
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- NAT44-ED integration
 
 //go:build linux
 

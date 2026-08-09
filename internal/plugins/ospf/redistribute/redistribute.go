@@ -1,4 +1,4 @@
-// Design: plan/learned/964-ospf-10-as-external-asbr.md -- OSPF redistribution (both directions).
+// Design: docs/architecture/ospf/ospf-10-as-external-asbr.md -- OSPF redistribution (both directions).
 // Related: internal/plugins/ospf/lsdb -- Type 5 AS-External-LSA origination.
 // Related: internal/plugins/ospf/redistribute/events -- redistevents producer wiring.
 //

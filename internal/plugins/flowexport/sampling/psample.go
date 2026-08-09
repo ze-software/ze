@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- psample constants and parser
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- psample constants and parser
 
 package sampling
 

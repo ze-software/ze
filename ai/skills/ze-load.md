@@ -83,7 +83,6 @@ ai/rules/architecture.md
 
 ```
 ai/INDEX.md
-ai/LEARNED-INDEX.md
 docs/architecture/core-design.md
 plan/learned/DESIGN-HISTORY.md
 plan/learned/RECURRING-PATTERNS.md

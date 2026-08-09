@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- AF-neutral LS Ack / LS Request body lengths
+// Design: docs/architecture/ospf/ospf-af-unify.md -- AF-neutral LS Ack / LS Request body lengths
 // and the LSA header identity projection shared by both wire codecs.
 
 package types

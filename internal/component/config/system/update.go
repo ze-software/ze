@@ -1,4 +1,4 @@
-// Design: plan/learned/714-cpe-5-firmware-update.md — periodic version check against remote manifest
+// Design: docs/architecture/config/system-update.md -- periodic version check against remote manifest
 
 package system
 

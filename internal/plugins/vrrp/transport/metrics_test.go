@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- transport metric series + per-instance snapshot tests
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- transport metric series + per-instance snapshot tests
 
 package transport
 

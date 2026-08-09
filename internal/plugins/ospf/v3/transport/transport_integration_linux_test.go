@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- Linux raw IPv6 OSPFv3 multicast
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- Linux raw IPv6 OSPFv3 multicast
 // integration. Validates A-1 (ipv6.PacketConn raw proto 89), A-2 (multicast
 // receive), A-3 (control-message dst/ifindex/hoplimit), A-4 (hop limit 1 / loop
 // off), A-6 (checksum source binding: peer VerifyPacketChecksum passes), A-5

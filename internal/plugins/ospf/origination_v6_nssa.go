@@ -1,4 +1,4 @@
-// Design: plan/learned/975-ospfv3-5-nssa-redist.md -- OSPFv3 NSSA Type-7 redistribution.
+// Design: docs/architecture/ospf/ospfv3-5-nssa-redist.md -- OSPFv3 NSSA Type-7 redistribution.
 // RFC: rfc/short/rfc3101.md (sec 2.3/2.4 P-bit and forwarding address), rfc/short/rfc5340.md (App A.4.8 NSSA-LSA)
 
 package ospf

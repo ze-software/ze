@@ -1,4 +1,4 @@
-// Design: plan/learned/818-flow-export-1-counter-export.md -- Flow export config parsing
+// Design: docs/architecture/flowexport/flow-export-1-counter-export.md -- Flow export config parsing
 
 package flowexport
 

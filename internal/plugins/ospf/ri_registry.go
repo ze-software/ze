@@ -1,4 +1,4 @@
-// Design: plan/learned/1031-ospf-ext-3-router-information.md -- the RFC 7770 RI-TLV registration hook.
+// Design: docs/architecture/ospf/ospf-ext-3-router-information.md -- the RFC 7770 RI-TLV registration hook.
 // RFC: rfc/short/rfc7770.md -- sec 2.3 (RI LSA TLV stream), sec 2.4 (type-1 TLV first),
 // sec 2.7 (per-TLV flooding scope).
 //

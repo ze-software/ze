@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP-TLS termination, server side
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-TLS termination, server side
 // RFC: rfc/short/rfc5216.md -- EAP-TLS termination (Section 2.1.3)
 //
 // RFC 5216 Section 2.1.3 ends a failed EAP-TLS conversation in two directions,

@@ -1,4 +1,4 @@
-// Design: plan/learned/1225-rfc7606-relay-shape.md -- one NLRI-bearing field per UPDATE
+// Design: docs/architecture/wire/rfc7606-relay-shape.md -- one NLRI-bearing field per UPDATE
 // RFC: rfc/short/rfc7606.md -- Section 5.1 second bullet (sender-side encoding restriction)
 // Related: update_split.go -- Splitter.SplitCompliant, the enforcement point for parsed UPDATEs
 // Related: ../wireu/split.go -- SplitWireUpdate, the enforcement point for wire UPDATEs

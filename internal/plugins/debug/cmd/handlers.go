@@ -1,4 +1,4 @@
-// Design: plan/learned/891-granular-debug.md -- live debug state query via RPC
+// Design: docs/architecture/diagnostics/debug-filtering.md -- live debug state query via RPC
 // Related: internal/core/slogutil/ -- level and filter registries
 
 package cmd

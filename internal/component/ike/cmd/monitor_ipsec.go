@@ -1,4 +1,4 @@
-// Design: plan/learned/745-ipsec-10-cli-diag.md -- monitor vpn ipsec streaming handler.
+// Design: docs/architecture/ike/ipsec-10-cli-diag.md -- monitor vpn ipsec streaming handler.
 // Owned by the ike component (see ai/rules/plugins.md).
 // Related: show_ipsec.go -- show vpn ipsec handlers
 

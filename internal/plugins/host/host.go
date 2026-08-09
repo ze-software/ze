@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md — offline `show host` fallback
+// Design: docs/architecture/host/inventory.md -- offline `show host` fallback
 
 // Package host is the offline fallback for `show host [section]`. It reads the
 // hardware inventory directly from sysfs/procfs (no daemon required) and writes

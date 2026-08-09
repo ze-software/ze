@@ -1,4 +1,4 @@
-// Design: plan/learned/650-static-routes.md -- interface-only next-hop readiness check
+// Design: docs/architecture/static-routes.md -- interface-only next-hop readiness check
 // Related: register.go -- doctor check registration (static-interface-nexthop-backend)
 // Related: inject.go -- routeManager.skipped + activeRouteManager the route-skipped check reads
 // Related: backend_linux.go -- resolveNexthopIndex, the runtime resolve this pre-flights

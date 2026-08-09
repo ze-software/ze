@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- RFC 7684 Extended Prefix Opaque
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- RFC 7684 Extended Prefix Opaque
 // LSA (Opaque Type 7) body codec.
 // RFC: rfc/short/rfc7684.md -- sec 2 (Extended Prefix Opaque LSA), sec 2.1 (Extended Prefix
 // TLV), sec 5 (malformed-LSA rules). RFC 8665 sec 4 (Extended Prefix Range TLV, carried here

@@ -228,13 +228,13 @@ func TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint(t *testing.T) {
 // it is not claimed. Both listeners bind the wildcard by default (register.go). On a
 // multi-homed host the route table picks the source address, and no sender reads
 // pkt.LocalAddr. That gap is recorded for the owner as OR-WP8-1 in
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md.
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md.
 //
 // BOTH directions are asserted. A test that checked only the 4500 case passes for an
 // implementation that always answers from 4500, which breaks the row the other way.
 //
 // rfc-test-change-approved: 2026-08-01 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 //
 // The test used to call sendReply with a transport IT chose. That proves only that
 // sendReply sends on the socket it is handed. The CHOICE belongs to production.
@@ -494,7 +494,7 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 	}
 
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The counter used to
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The counter used to
 	// increment BEFORE the `if !p.UDPEncap { continue }`, so it reached its target while
 	// every port assertion was skipped. Pinning createFirstChildSA to UDPEncap false left
 	// this test green with zero assertions run, which is the shape it exists to prevent.
@@ -542,7 +542,7 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 // PREVENTS: a NAT-traversing tunnel that establishes, rekeys, and then carries nothing.
 //
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is new.
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is new.
 //
 // createFirstChildSA is the only other writer of UDPEncap, and installChildSA gates the
 // ESP-in-UDP template on it. A rekeyed child that does not inherit the field installs a

@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/808-smart-management.md — SMART disk health management
+// Design: docs/architecture/storage/smart-health.md -- SMART disk health management
 // Related: manager.go — Manager.poll calls discoverBlockDevices
 
 package storage

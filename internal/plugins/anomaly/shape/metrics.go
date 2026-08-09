@@ -1,4 +1,4 @@
-// Design: plan/learned/1049-anomaly-2-shape.md -- responder metrics
+// Design: docs/architecture/anomaly/anomaly-2-shape.md -- responder metrics
 
 package shape
 

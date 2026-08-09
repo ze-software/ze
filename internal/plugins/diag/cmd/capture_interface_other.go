@@ -1,4 +1,4 @@
-// Design: plan/learned/730-diag-capture-interface.md -- platform stub (non-Linux)
+// Design: docs/architecture/diagnostics/packet-capture.md -- platform stub (non-Linux)
 
 //go:build !linux
 

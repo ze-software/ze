@@ -9,4 +9,4 @@ stage:
 | `open` | Live: synonym of `deferred`. Prefer `deferred` | YES |
 | `done` | Terminal. The work landed, or the row was superseded | no |
 | `cancelled` | Terminal. User decided not to do it | no |
-| `resolved` | Terminal. Closed with evidence (learned summary) | no |
+| `resolved` | Terminal. Closed with evidence (a journal row, or the commit that landed the work) | no |

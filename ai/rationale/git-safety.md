@@ -32,8 +32,7 @@ two-pass strategy (cached full pass + `-race` only on changed groups) is
 what keeps the common case short enough for that to be practical. How
 short is not stated here: `_record_duration` (`scripts/dev/verify-lock.sh`)
 appends the real elapsed seconds to `tmp/.ze-verify-duration.txt`, and a
-duration typed into a document is a claim
-(`plan/learned/1359-rules-corpus-paraphrase-drift.md`).
+duration typed into a document is a claim, not a measurement.
 
 If a previous run is still going, `verify-lock.sh` blocks the second
 invocation inside the same foreground Bash call until the lock releases.

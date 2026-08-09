@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP per-instance state machine
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP per-instance state machine
 // RFC: rfc/short/rfc9568.md (VRRPv3 Section 6.4) and rfc/short/rfc3768.md (VRRPv2 Section 6.4)
 //
 // The per-group VRRP state machine: State type, the Instance struct, the single

@@ -1,4 +1,4 @@
-// Design: plan/learned/705-cpe-1-pppoe-client.md -- client-mode PPP session negotiation
+// Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- client-mode PPP session negotiation
 // Related: dialer.go -- discovery phase that precedes this
 
 package pppoeclient

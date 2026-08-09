@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- per-LSP database entry (raw bytes + metadata).
+// Design: docs/architecture/isis/isis-6-lsdb.md -- per-LSP database entry (raw bytes + metadata).
 // ISO/IEC 10589 clause 7.3: an LSP is identified by its LSP ID and versioned by
 // its Sequence Number; the Remaining Lifetime ages it down; the Fletcher
 // checksum (clause 7.3.11) protects it.

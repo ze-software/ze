@@ -1,7 +1,7 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 config semantics (Sections 5.2.4, 5.2.7, 5.2.9, 6.1)
 // RFC: rfc/short/rfc3768.md -- VRRPv2 config semantics (Section 5.3.7)
 //
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP config extraction and verification
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP config extraction and verification
 //
 // Extraction walks ONLY the vrrp-bearing path of the shared `interface` config
 // section (type list -> name -> unit -> ipv4|ipv6 -> vrrp -> group) and ignores

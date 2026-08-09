@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- Prefix-to-AS radix tree
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- Prefix-to-AS radix tree
 
 package enrich
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- instance manager (config diff + lifecycle) tests
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- instance manager (config diff + lifecycle) tests
 //
 // VALIDATES: AC-6 (idle with zero groups), AC-7 (instance created on commit),
 // AC-13 (instance deleted on config removal), and the reconfigure-in-place rule.

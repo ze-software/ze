@@ -364,9 +364,9 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 //
 // Standing down matters because the owner does NOT gate the concurrent forward
 // while its replay runs: bgp-rs selects forward targets on peer.Up alone
-// (rs/server_forward.go selectForwardTargets), by the deliberate decision in
-// plan/learned/630-rs-fastpath-3-passthrough.md. So ownership being settled
-// before a peer establishes is the only thing preventing a doubled replay.
+// (rs/server_forward.go selectForwardTargets), deliberately, because excluding a
+// replaying peer loses routes and a duplicate UPDATE does not. So ownership being
+// settled before a peer establishes is the only thing preventing a doubled replay.
 //
 // It is deliberately NOT the plain "replay" verb doing the claiming. Latching on
 // the first replay had two defects: the FIRST peer-up still raced (nothing had

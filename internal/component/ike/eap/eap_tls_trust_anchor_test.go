@@ -1,4 +1,4 @@
-// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP-TLS trust anchor handling
+// Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS trust anchor handling
 // RFC: rfc/short/rfc5216.md -- EAP-TLS certificate path validation (Section 5.3)
 //
 // Pins the authenticator-side consequence of an ABSENT trust anchor, which the

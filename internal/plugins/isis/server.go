@@ -1,4 +1,4 @@
-// Design: plan/learned/930-isis-4-component-config.md -- IS-IS engine orchestration
+// Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS engine orchestration
 // Related: config.go -- typed Config the engine reconciles to
 // Related: events.go -- lifecycle events the engine emits
 //

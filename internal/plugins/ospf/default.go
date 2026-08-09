@@ -1,4 +1,4 @@
-// Design: plan/learned/964-ospf-10-as-external-asbr.md -- `default-information originate`.
+// Design: docs/architecture/ospf/ospf-10-as-external-asbr.md -- `default-information originate`.
 // Related: internal/plugins/ospf/redistribute -- the ExternalInjector seam reused here.
 // RFC: rfc/short/rfc2328.md -- sec 12.4.4 AS-External-LSA origination (Type 5 default)
 

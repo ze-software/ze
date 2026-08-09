@@ -1,4 +1,4 @@
-// Design: plan/learned/807-install-2-tftpserver.md -- Non-Linux TFTP socket fallback
+// Design: docs/architecture/provisioning/tftp-server.md -- Non-Linux TFTP socket fallback
 
 //go:build !linux
 

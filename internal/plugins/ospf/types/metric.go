@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- OSPF interface output metric
+// Design: docs/architecture/ospf/ospf-1-types.md -- OSPF interface output metric
 // Related: lsakey.go -- metrics are LSA version data, not identity
 
 package types

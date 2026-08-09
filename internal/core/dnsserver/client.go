@@ -1,4 +1,4 @@
-// Design: plan/learned/1027-dns-server-harness.md -- EDNS0/packet client-IP resolution
+// Design: docs/architecture/dns/server-harness.md -- EDNS0/packet client-IP resolution
 // RFC: rfc/short/rfc7871.md -- EDNS0 Client Subnet
 
 package dnsserver

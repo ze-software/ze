@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/819-flow-export-2-flow-records.md -- Conntrack netlink reader
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- Conntrack netlink reader
 
 package conntrack
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- kernel cmdline parsing for on-device installer
+// Design: docs/architecture/appliance/on-device-installer.md -- kernel cmdline parsing for on-device installer
 
 package disk
 

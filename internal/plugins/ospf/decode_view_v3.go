@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- IPv6 native LSA deep decode.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- IPv6 native LSA deep decode.
 // RFC: rfc/short/rfc5340.md (Section A.4.2.1: scope-aware LS Type; Section A.4: base types),
 // rfc/short/rfc5838.md (Section 2: address-family identity of the OSPFv3 instance).
 //

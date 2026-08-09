@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- static AS112 zone table, SOA/NS/TXT synthesis
+// Design: docs/architecture/dns/as112.md -- static AS112 zone table, SOA/NS/TXT synthesis
 // RFC: rfc/short/rfc7534.md -- zone list, SOA-only content, RFC-mandated SOA timers (finding M1)
 // RFC: rfc/short/rfc7535.md -- EMPTY.AS112.ARPA (identical shape to the Direct-Delegation zones)
 // RFC: rfc/short/rfc1035.md -- NODATA (NOERROR + SOA in Authority) vs NXDOMAIN

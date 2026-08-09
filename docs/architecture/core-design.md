@@ -86,7 +86,8 @@ flowchart TB
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF and runOSPFEngine -->
 <!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig and validateConfig -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- Interface, ReceiveHello, runElectionLocked -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello, HandleDBDesc -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Install, Snapshot, SetOnChange -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck -->
 <!-- source: internal/plugins/ospf/spf_wiring.go -- initSPF and triggerSPF -->
@@ -113,7 +114,7 @@ flowchart TB
 <!-- source: internal/component/plugin/types.go -- Registration struct -->
 <!-- source: internal/component/engine/engine.go -- Engine supervisor -->
 <!-- source: internal/component/bgp/plugin/register.go -- BGP plugin with ConfigRoots -->
-<!-- source: internal/component/plugin/coordinator.go -- PluginCoordinator, reactor-optional -->
+<!-- source: internal/component/plugin/coordinator.go -- Coordinator, reactor-optional -->
 <!-- source: internal/component/plugin/manager/manager.go -- PluginManager with ProcessSpawner -->
 
 ---
@@ -626,7 +627,7 @@ then string keys are produced off the forward critical path.
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
-<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
 
 ### Ingress Filter Pipeline
 
@@ -784,7 +785,6 @@ modified attributes are re-encoded.
 A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
 
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter containers -->
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
@@ -1120,7 +1120,7 @@ bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
                                                       v
                                                     Linux kernel routing table
 ```
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic, best-path tracking -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, bestChangeBatch, packBestPath -->
 <!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change monitor -->
@@ -1191,7 +1191,7 @@ MPLS lwtunnel, and `SEG6Encap` for SRv6.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/richroute.go -- RichRoute, richRouteBackend interface -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, routeTypeToLinux, buildMultiPath -->
-<!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, rtprotZE -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- routewatch consumer for external change detection -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel plugin registration -->
 
@@ -1286,7 +1286,7 @@ Counter export is driven by the `iface` rate tracker's snapshot callback rather
 than its own poll loop, so it reuses the same 1s interface sampler. For BGP
 next-hop enrichment (`enrichment { bgp true }`) the component consumes the RIB
 best-change event so flow records can carry the destination prefix's next-hop.
-<!-- source: internal/plugins/flowexport/exporter.go -- Exporter, rate-snapshot callback consumer -->
+<!-- source: internal/plugins/flowexport/exporter.go -- exporter, newExporter, rate-snapshot callback consumer -->
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- flow-export config surface -->
 
 ### Sysctl
@@ -1407,21 +1407,23 @@ The BGP config package extracts plain data; the hub creates servers.
 This avoids bgp importing ssh, cli, or web.
 
 <!-- source: internal/component/authz/auth.go -- UserConfig, AuthenticateUser -->
-<!-- source: internal/component/aaa/aaa.go -- Authenticator/Authorizer/Accountant interfaces, ChainAuthenticator -->
+<!-- source: internal/component/aaa/aaa.go -- Authenticator/Authorizer/Accountant interfaces -->
+<!-- source: internal/component/aaa/types.go -- ChainAuthenticator -->
 <!-- source: internal/component/aaa/all/all.go -- backend blank-imports (authz, tacacs) -->
 <!-- source: internal/core/audit/audit.go -- Recorder and Entry -->
 <!-- source: internal/component/cmd/show/audit.go -- RegisterAuditProvider -->
 <!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build, AAA registration -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- atomic bundle swap on reload -->
 <!-- source: cmd/ze/hub/infra_setup.go -- buildAAABundle, SSH wiring, accountant hook installation -->
-<!-- source: internal/component/bgp/config/infra_hook.go -- InfraHook, SSHExtractedConfig -->
+<!-- source: internal/component/bgp/config/infra_hook.go -- LoginWarning, the BGP-side alias -->
+<!-- source: internal/component/config/infra/hook.go -- SSHExtractedConfig, HookParams, Hook, SetHook -->
 
 ---
 
 ## 20. System Update Backend
 
 The system update surface is a single registered backend interface in `internal/component/config/system`. The hub selects `ze-self-update` for normal Linux, systemd, container, and Darwin platforms, and `gokrazy-ab` for gokrazy appliances. CLI and API handlers read the active backend through `ActiveBackend()` rather than holding separate checker/updater globals.
-<!-- source: internal/component/config/system/backend.go -- UpdateBackend, NewUpdateBackend, ActiveBackend -->
+<!-- source: internal/component/config/system/backend.go -- UpdateBackend, ActiveBackend, SetActiveBackend -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateBackend platform selection -->
 
 The `ze-self-update` backend delegates to the existing passive `UpdateChecker` when only version checking is configured, and to `SelfUpdater` when auto-apply or restart policy is configured. This preserves the existing download, verification, staging, restart, and history code path.
@@ -1450,10 +1452,11 @@ Build-time: `ze appliance build` writes the seed config's SHA-256 to `meta/confi
 
 Runtime: after `config-push` applies a new config, a 30-second health window monitors BGP sessions via `PeerLifecycleObserver`. If any session flaps, the device reverts to the previous config (or seed config as fallback).
 
-<!-- source: cmd/ze/main.go -- cmdStart, checkPushedConfig, writeConfigActiveHash -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart -->
+<!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
 <!-- source: cmd/ze/pushed_config.go -- pushed config loading and validation -->
 <!-- source: cmd/ze/health_revert.go -- auto-revert health monitor -->
-<!-- source: internal/appliance/cmd_assemble.go -- assembleConfigTemplate -->
+<!-- source: internal/appliance/cmd_assemble.go -- runAssemble, assembleZeFS, resolveSeedConfig -->
 
 ---
 
@@ -1464,6 +1467,15 @@ Runtime: after `config-push` applies a new config, a 30-second health window mon
 - `update-building.md` - Wire format construction
 - `api/architecture.md` - Pipe communication protocol
 - `config/transaction-protocol.md` - Config transaction protocol design
+- `bgp/structural-forwarding.md` - What left the forwarding critical path (Section 9)
+- `bgp/fanout-dedup.md` - One materialization per policy group (Section 9)
+- `rib/unified-locrib.md` - Cross-source best path, and the two triggers (Section 4)
+- `rib/forward-handle.md` - Zero-copy wire access for state trackers (Section 4)
+- `plugin/component-boundaries.md` - The four interfaces behind Section 19
+- `config/system-update.md` - Why the update backend has its shape (Section 20)
+- `diagnostics/crash-capture.md` - Capturing a panic when stderr goes nowhere
+- `diagnostics/procfs-diagnostics.md` - The built-in ss, dmesg, lsof, and dig
+- `storage/smart-health.md` - SMART polling, alerting, and self-test scheduling
 
 ---
 

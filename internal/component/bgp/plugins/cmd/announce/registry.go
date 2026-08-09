@@ -1,4 +1,4 @@
-// Design: plan/learned/1008-cp-survival-4-on-demand-origination-design.md -- tag registry for on-demand route origination
+// Design: docs/architecture/bgp/on-demand-origination.md -- tag registry for on-demand route origination
 
 package announce
 

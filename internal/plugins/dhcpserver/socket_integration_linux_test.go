@@ -1,4 +1,4 @@
-// Design: plan/learned/706-cpe-2-dhcp-server.md -- integration coverage for SO_BINDTODEVICE
+// Design: docs/architecture/provisioning/dhcp-server.md -- integration coverage for SO_BINDTODEVICE
 //
 // These tests pin socket_linux.go (listenDHCP): they exercise the real
 // SO_BINDTODEVICE syscall and a real DISCOVER/OFFER exchange over UDP, asserting

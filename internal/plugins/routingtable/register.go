@@ -1,4 +1,4 @@
-// Design: plan/learned/710-gap-2-static-route-enhancements.md -- routing-table plugin registration
+// Design: docs/architecture/static-routes.md -- routing-table plugin registration
 
 package routingtable
 

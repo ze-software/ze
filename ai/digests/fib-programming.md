@@ -245,15 +245,6 @@ Route wins in a protocol, then gets programmed in the kernel:
 ## See also
 - `ai/digests/rib.md`: the upstream layer, BGP's own Adj-RIB-In/Loc-RIB and best-path
   selection, whose winner is what step 1 mirrors into the shared Loc-RIB here
-- `plan/learned/639-rib-unified.md`: why Loc-RIB is unified and sharded, Phase 3/4 design
-- `plan/learned/934-isis-9-spf-rib.md`, `plan/learned/962-ospf-8-spf-rib.md`: IS-IS/OSPF
-  Loc-RIB install specs (route-install-vs-redistribution contract)
-- `plan/learned/784-rib-rs-fastpath.md`, `plan/learned/637-rs-fastpath-4-forward-handle.md`:
-  `ForwardHandle` zero-copy forwarding design
 - `plan/spec-fib-depth.md`: ECMP/backup/recursive-next-hop-resolution spec
-- `plan/learned/921-mpls-rsvp-te.md`, `plan/learned/919-mpls-kernel.md`: MPLS forwarding
-  entry channel and kernel AF_MPLS programming
-- `plan/learned/650-static-routes.md`, `plan/learned/710-gap-2-static-route-enhancements.md`:
-  static route netlink backend and BFD-tracked next-hop enhancements
 - `docs/architecture/core-design.md`: overall component map referenced by every plugin's
   design header in this subsystem

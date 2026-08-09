@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- guarded IPv6 native LSA inject.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- guarded IPv6 native LSA inject.
 // RFC: rfc/short/rfc5340.md (Section A.4.2.1: scope from S2/S1 bits; reserved=11 rejected),
 // rfc/short/rfc2328.md (Section 14 MaxAge withdraw; Section 9.5 MinLSInterval pacing).
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- offline decode JSON rendering
+// Design: docs/architecture/ospf/ospf-2-wire.md -- offline decode JSON rendering
 // RFC: rfc/short/rfc7684.md -- Extended Prefix (Opaque Type 7) / Extended Link (Opaque Type 8)
 // body decode into the opaque JSON view (spec-ospf-ext-4).
 

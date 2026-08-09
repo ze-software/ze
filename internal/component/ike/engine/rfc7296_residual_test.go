@@ -1,7 +1,7 @@
 package engine
 
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Adds the errors import
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Adds the errors import
 // that the sentinel-identity assertion above needs; no assertion is relaxed.
 import (
 	"errors"
@@ -56,7 +56,7 @@ func resAuthRequestPayloads(t *testing.T, mode ipsec.AuthMode) []wire.PayloadEnt
 // for a device identity, so buildAuthRequest still emits INITIAL_CONTACT.
 func TestResInitialContactSentByNonReplicableIdentity(t *testing.T) {
 	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The predicate is
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The predicate is
 	// still asserted for BOTH device modes. Only the wire assertion narrowed to the
 	// pre-shared secret, because buildAuthRequest refuses an x509 peer that has no
 	// certificate configured ("ike auth: no certificate configured"), so the x509
@@ -159,7 +159,7 @@ func TestResExpiredSAIsNotUsed(t *testing.T) {
 				t.Fatal("an SA past its hard lifetime did not report itself expired")
 			}
 			// rfc-test-change-approved: 2026-07-31 owner standing approval for
-			// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The refusal is
+			// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The refusal is
 			// matched by sentinel identity through errors.Is instead of by comparing
 			// error text, so an unrelated error that happens to render the same string
 			// no longer satisfies this assertion.
@@ -200,7 +200,7 @@ func TestResRekeyLeadLeavesRoomBeforeHardExpiry(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// rfc-test-change-approved: 2026-07-31 owner standing approval for
-			// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Loop form only;
+			// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Loop form only;
 			// the same 32 jitter draws are still asserted.
 			for range 32 {
 				lead := rekeyLead(c.lifetime)
@@ -316,7 +316,7 @@ func TestResOtherRekeyFailuresDoNotReestablish(t *testing.T) {
 }
 
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Adds two new tests
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Adds two new tests
 // above the RFC7296-3.3.6-8 pair and changes none of it.
 
 // resRewriteKEGroup rewrites the Diffie-Hellman Group Num of the KE payload in an
@@ -407,7 +407,7 @@ func TestResIKESANeverSelectsDHGroupNone(t *testing.T) {
 }
 
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. The previous
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The previous
 // RFC7296-3.3.6-8 positive asserted only which group NegotiateIKE picks, and
 // mutation testing showed it gated nothing: the pick is defended by three
 // independent refusals plus `chosen := *local`, so no single mutation could kill it,

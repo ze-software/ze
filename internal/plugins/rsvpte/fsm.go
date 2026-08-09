@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE per-LSP state machine
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE per-LSP state machine
 // RFC: rfc/short/rfc2205.md
 // RFC: rfc/short/rfc3209.md
 // RFC: rfc/short/rfc4090.md

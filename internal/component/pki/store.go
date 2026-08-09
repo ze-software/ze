@@ -1,4 +1,4 @@
-// Design: plan/learned/733-pki-store.md -- PKI in-memory certificate store
+// Design: docs/architecture/pki/pki-store.md -- PKI in-memory certificate store
 
 package pki
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/958-ospf-4-component-config.md -- OSPF custom validators
+// Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPF custom validators
 //
 // VALIDATES: ospf-router-id accepts only dotted-quad IPv4 router IDs, and
 // ospf-area-id accepts dotted-quad or decimal uint32 area identifiers.

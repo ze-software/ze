@@ -11,8 +11,7 @@ working tree plus HEAD -- so each passes its own `header_text`; the path
 patterns are shared.
 
 Generated indexes: ai/PACKAGE-MAP.md (from `// Package` docs + register.go
-Description), ai/DOCS-TO-CODE.md (from `// Design:` headers), ai/LEARNED-FULL-INDEX.md
-(from plan/learned/NNN-*.md).
+Description), ai/DOCS-TO-CODE.md (from `// Design:` headers).
 """
 
 from __future__ import annotations
@@ -24,20 +23,17 @@ from pathlib import Path
 # per-index source map below reads as data, not as a coincidence of ordering.
 PACKAGE_MAP = "ai/PACKAGE-MAP.md"  # from `// Package` docs + register.go Description
 DOCS_TO_CODE = "ai/DOCS-TO-CODE.md"  # from `// Design:` headers
-LEARNED_INDEX = "ai/LEARNED-FULL-INDEX.md"  # from plan/learned/NNN-*.md
 
 # GENERATORS[i] produces OUTPUTS[i]; the two tuples MUST stay parallel (the commit
 # gate and the freshness check both `zip()` them).
 GENERATORS = (
     "scripts/dev/package_map.py",
     "scripts/dev/docs_to_code.py",
-    "scripts/dev/learned_index.py",
 )
 
 OUTPUTS = (
     PACKAGE_MAP,
     DOCS_TO_CODE,
-    LEARNED_INDEX,
 )
 
 HEADER_MARKERS = ("// Package", "// Design:")
@@ -101,8 +97,6 @@ def indexes_fed_by(path: str, header_text: str = "") -> frozenset[str]:
         if path == gen:
             return frozenset({out})
     fed: set[str] = set()
-    if path.startswith("plan/learned/") and path.endswith(".md"):
-        fed.add(LEARNED_INDEX)
     if path.endswith("register.go"):
         fed.add(PACKAGE_MAP)  # register.go Description strings feed PACKAGE-MAP
     if path.endswith(".go") and not path.endswith("_test.go"):

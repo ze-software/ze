@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- unknown-TLV opaque retention + verbatim re-serialization
+// Design: docs/architecture/wire/isis.md -- unknown-TLV opaque retention + verbatim re-serialization
 // ISO/IEC 10589 clause 7.3.14: an IS MUST accept and re-flood unknown TLVs
 // verbatim. The codec keeps every TLV (known or not) as an opaque span so the
 // LSDB (isis-6) can re-encode a received LSP byte-for-byte.

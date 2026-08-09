@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE bandwidth admission control
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE bandwidth admission control
 // Related: wire.go -- FlowSpec carries bandwidth parameters
 // Related: fsm.go -- LSP tracks bandwidth reservation
 //

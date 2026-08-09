@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 Database Description packet body codec.
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 Database Description packet body codec.
 // RFC: rfc/short/rfc5340.md (§A.3.3 Database Description packet)
 
 package packet

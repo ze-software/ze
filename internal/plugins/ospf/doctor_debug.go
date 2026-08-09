@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- the debug-enabled doctor Warning.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- the debug-enabled doctor Warning.
 // RFC: rfc/short/rfc5250.md / rfc/short/rfc5340.md -- the inject surface this guards.
 //
 // AC-25: when debug LSA injection is left enabled, `ze doctor` emits a Warning so an

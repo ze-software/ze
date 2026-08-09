@@ -1,4 +1,4 @@
-// Design: plan/learned/491-iface-2-manage.md — Interface CLI commands
+// Design: docs/architecture/iface/management.md -- Interface CLI commands
 //
 // Package iface provides the ze interface subcommand for managing
 // OS network interfaces (dummy, veth, VLAN units, addresses).

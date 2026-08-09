@@ -252,7 +252,7 @@ tree.
 - **`SAParams.Sel` / `SPParams.IfIndex`/`UpperProto` are OSPFv3-only fields.** IKE
   Child SAs always leave `Sel` nil and `IfIndex`/`UpperProto` zero
   (`child.go` never sets them); only the OSPFv3 manual-keyed IPsec-AH path
-  (`plan/learned/1038-ospf-ext-16-ipsec-auth.md`) populates them to scope a shared
+  populates them to scope a shared
   wildcard SA to one interface/protocol. Do not assume IKE ever sets a selector.
 - **Filename collision trap.** `internal/plugins/iface/netlink/xfrm_linux.go`
   creates/queries XFRM *interface* devices (if_id, parent link) for the `iface`
@@ -273,20 +273,9 @@ tree.
   (`rekey.go`) applies up to 10% random jitter only to the soft (rekey-trigger)
   deadline (`lifetimeJitter`, `rekey.go`); many peers configured with identical
   ESP/IKE group lifetimes can still hard-expire in lockstep if rekeying stalls.
-- **Doc-vs-code drift:** `plan/learned/734-ipsec-3-data-model.md` describes the
-  IPsec data model living at `internal/component/ipsec/*`; the code has since moved
-  to `internal/component/ike/ipsec/*` (this digest's paths are current).
+- **The IPsec data model moved package.** It lived at `internal/component/ipsec/*` and is
+  now `internal/component/ike/ipsec/*`; an older path in another document is stale, and
+  this digest's paths are current.
 
 ## See also
-- `plan/learned/734-ipsec-3-data-model.md`, IPsec config data model (path stale, see gotchas)
-- `plan/learned/735-ipsec-2-xfrm.md`, XFRM *interface* (device) support in `iface`, distinct from this subsystem's SA/policy install
-- `plan/learned/1141-ipsec-5-ikev2-wire.md`, IKEv2 wire codec (`internal/component/ike/wire`)
-- `plan/learned/737-ipsec-4-data-model-eap.md`, EAP additions to the data model
-- `plan/learned/739-ipsec-6-ikev2-crypto.md`, crypto primitives layer (`internal/component/ike/crypto`)
-- `plan/learned/740-ipsec-7-ikev2-engine.md`, engine skeleton, plugin registration, config reconciliation
-- `plan/learned/742-ipsec-8-ikev2-child-xfrm.md`, Child SA + dataplane abstraction, DPD, rekey (local-only)
-- `plan/learned/744-ipsec-9-ikev2-eap-nat.md`, EAP-MSCHAPv2/EAP-TLS, NAT-T
-- `plan/learned/745-ipsec-10-cli-diag.md`, CLI/health/diagnostics (`internal/component/ike/cmd`)
-- `plan/learned/805-ipsec-11-interop-eap.md`, strongSwan interop validation (initiator + EAP scenarios only)
-- `plan/learned/1038-ospf-ext-16-ipsec-auth.md`, OSPFv3 manual-keyed IPsec consumer of the shared `dataplane` package
 - `ai/rules/architecture.md`, one-page component map and boundaries

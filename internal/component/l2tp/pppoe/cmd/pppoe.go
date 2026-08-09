@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- PPPoE CLI handlers
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- PPPoE CLI handlers
 //
 // Package pppoe registers engine-side RPC handlers that expose the PPPoE
 // subsystem's observability surface to the CLI. Handlers reach the

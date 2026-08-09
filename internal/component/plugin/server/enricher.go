@@ -1,4 +1,4 @@
-// Design: plan/learned/895-show-enricher-v2.md -- proxy enricher for external plugins
+// Design: docs/architecture/plugin/show-enrichers.md -- proxy enricher for external plugins
 
 package server
 

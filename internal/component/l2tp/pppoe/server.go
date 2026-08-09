@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- per-interface PPPoE server
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- per-interface PPPoE server
 // Related: discovery.go -- ParseDiscovery, Build* frame constructors
 // Related: cookie.go -- GenerateCookie, VerifyCookie
 // Related: session.go -- SessionTable, Session

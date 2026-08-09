@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/929-isis-3-l2-transport.md -- non-Linux backend stub
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- non-Linux backend stub
 //
 // IS-IS raw L2 transport uses AF_PACKET/SOCK_RAW, which is Linux-specific (the
 // gokrazy appliance target is Linux). On other platforms NewBackend returns a

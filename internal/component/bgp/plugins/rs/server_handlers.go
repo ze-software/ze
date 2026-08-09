@@ -43,8 +43,7 @@ const cmdAdjRIBInReplay = "request bgp adj-rib-in replay"
 // This is the ordering that matters, because the claim does NOT gate the live
 // forward. A peer marked Replaying IS still a selectForwardTargets destination
 // (server_forward.go selects on peer.Up alone; TestReplayingPeerIncludedInForwardTargets
-// pins that, and plan/learned/630-rs-fastpath-3-passthrough.md records the
-// decision -- BGP UPDATE duplicates are idempotent and excluding replaying peers
+// pins that -- BGP UPDATE duplicates are idempotent and excluding replaying peers
 // loses routes). So the claim landing before a peer establishes is the ONLY
 // thing standing between that peer and a doubled replay.
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/887-cos-vendor-radius.md -- vendor VSA CoS/rate extraction
+// Design: docs/architecture/l2tp/cos-vendor-radius.md -- vendor VSA CoS/rate extraction
 // Related: extract.go -- extractAuthMetadata calls extractVSACoSProfile
 // Related: coa.go -- extractCoSProfile/extractRate call VSA functions
 

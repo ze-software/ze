@@ -1,4 +1,4 @@
-// Design: plan/learned/923-isis-8-dis-broadcast.md -- engine <-> DIS-election wiring.
+// Design: docs/architecture/isis/isis-8-dis-broadcast.md -- engine <-> DIS-election wiring.
 // Related: server.go -- the engine struct, dispatcher, and lifecycle this extends
 // Related: circuits.go -- the broadcast circuits whose election this drives
 // Related: lsdb_wiring.go -- own-LSP origination (the star encoding reads the DIS state)

@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: docs/architecture/rib/unified-locrib.md -- per-family NLRI split
 // RFC: rfc/short/rfc7606.md -- Section 5.4, the typed families this framing serves
 // Related: evpn.go, mvpn.go, mup.go -- the three families that share this walk
 

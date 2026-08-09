@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
 // RFC: rfc/short/rfc4301.md -- SPD entries are keyed by their selector
 // Related: xfrm_linux.go -- the backend that claims and releases through this registry
 

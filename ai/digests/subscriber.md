@@ -240,8 +240,7 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
 - **PPPoE Disconnect-Message (RADIUS CoA) is not wired to teardown.** `handleDisconnect`
   (`plugins/authradius/coa.go`) finds the PPPoE session via the subscriber registry
   but only logs and NAKs; there is no `pppoe.Subsystem.TeardownSession` equivalent to
-  `l2tp.Service.TeardownSession` (`coa.go`) yet. This matches the known gap recorded in
-  `plan/learned/760-subscriber-session-model.md`.
+  `l2tp.Service.TeardownSession` (`coa.go`) yet. The gap is known and still open.
 - **Registry values are always copies.** `Registry.Add` copies `*Session` into the map
   (`subscriber/registry.go`) and `Get`/`All` return value copies
   (`subscriber/registry.go,44-51`); mutating a `Session` obtained from the registry
@@ -256,16 +255,12 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
   straight to `LCPStateOpened` with the LAC's already-negotiated options
   (`session_run.go`); PPPoE StartSessions never carry proxy-LCP bytes (all three
   fields are empty), so PPPoE sessions always run full LCP.
-- **`plan/learned/760` file paths are stale.** The design doc lists created files under
-  `internal/component/subscriber/...` and `internal/component/pppoe/...`; the current tree has
-  both nested one level deeper under `internal/component/l2tp/subscriber/` and
-  `internal/component/l2tp/pppoe/` (confirmed via `ai/PACKAGE-MAP.md` and the actual
-  directory listing). The decisions/gotchas in that doc still hold; only the file locations
-  moved.
+- **The subscriber and PPPoE packages sit one level deeper than their names suggest.**
+  They are `internal/component/l2tp/subscriber/` and `internal/component/l2tp/pppoe/`,
+  not `internal/component/subscriber/` or `internal/component/pppoe/` (confirmed against
+  `ai/PACKAGE-MAP.md` and the directory listing).
 
 ## See also
-- `plan/learned/760-subscriber-session-model.md`: unified subscriber session model design (file paths are stale; see Gotchas)
-- `plan/learned/669-bng-5-pppoe.md`: PPPoE subsystem lifecycle design
 - `docs/research/l2tpv2-ze-integration.md`: PPP driver + per-session goroutine design, transport boundary
 - `docs/architecture/wire/l2tp.md`: L2TPv2 wire format reference
 - `docs/labs/l2tp-interop.md`: L2TP interop test harness notes

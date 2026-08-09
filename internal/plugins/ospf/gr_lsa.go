@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- IPv4 (RFC 3623) Grace-LSA body glue.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- IPv4 (RFC 3623) Grace-LSA body glue.
 // Related: packet/grace_lsa.go -- the ext-1 opaque TLV codec this wraps.
 // RFC: rfc/short/rfc3623.md sec A -- the Grace-LSA is a Type-9 link-local Opaque LSA,
 //

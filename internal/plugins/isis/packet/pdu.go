@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- top-level PDU dispatch (header parse -> body decoder)
+// Design: docs/architecture/wire/isis.md -- top-level PDU dispatch (header parse -> body decoder)
 // ISO/IEC 10589 clause 9: the PDU type octet selects the body layout.
 
 package packet

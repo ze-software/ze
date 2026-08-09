@@ -1,4 +1,4 @@
-// Design: plan/learned/1027-dns-server-harness.md -- the authoritative wrapper
+// Design: docs/architecture/dns/server-harness.md -- the authoritative wrapper
 // owns the reply's header shape for every ze DNS server
 // RFC: rfc/short/rfc4035.md -- DNSSEC protocol modifications, name-server header
 // bits (CD copied from the query, AD ignored on the query and never asserted)

@@ -256,8 +256,7 @@ pass whether or not the feature works (a **false-pass**) when the observed effec
 reaches the assertion by a path OTHER than the one under test. Real example: three
 `redistribute-late-join*.ci` tests kept passing with the late-join replay
 (`handleReplayBatch`) disabled, so the route reached the peer by some path other than
-the replay: they guarded nothing and shipped green
-(`plan/learned/1062-redistribute-late-join-replay.md`).
+the replay: they guarded nothing and shipped green.
 
 For every NEW or CHANGED `.ci`/`.et` that is meant to guard a SPECIFIC behavior:
 
@@ -820,10 +819,11 @@ meaningful.
 | Completion test fails intermittently | Real bug, not flaky | Check `completeShowPath` includes YANG schema children |
 | Inter-message timing in plugin tests | Sleep too tight under load | Increase inter-message delay or use synchronization |
 
-Flake-shape catalogue (locked-write/unlocked-read, subscribe-before-broadcast,
-gate-handler queue state, barrier FIFO, cleanup-drains-work, fixed-port
-SO_REUSEPORT gate, test-fake pool IDs): `plan/learned/608-concurrent-test-patterns.md`.
-Read it before investigating a new race or isolation flake.
+Seven flake shapes have been seen here: locked-write with unlocked-read,
+subscribe-before-broadcast, gate-handler queue state, barrier FIFO order,
+cleanup-drains-work, a fixed port behind an SO_REUSEPORT gate, and colliding
+test-fake pool IDs. Check each one against your test before investigating a new
+race or isolation flake.
 
 ## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
 
@@ -1001,7 +1001,7 @@ error). No em dashes in the comment text.
 ### Related (CI sleep)
 
 - `plan/spec-fixit-redistribute-establishment-stall.md` -- the P0 that blocks converting the redistribute establishment sleeps.
-- `plan/learned/1232-fixit-reject-fence-observability.md` -- the missing signal behind the external-plugin refuse/warn sleeps.
+- The external-plugin refuse/warn sleeps wait on a reject-fence signal the daemon does not emit, so no deterministic wait exists for them yet.
 
 ## Python Observer API (`test/scripts/ze_api.py`)
 

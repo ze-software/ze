@@ -27,6 +27,30 @@ const specMetaInProgress = `# Spec: widget
 Build the widget.
 `
 
+// A finished Review Gate: the section /ze-close appends, with nothing left to
+// tick before closing. With a journal row this is the closure signal.
+const specReviewGateDone = `
+## Review Gate
+
+| Round | Blockers | Issues |
+|-------|----------|--------|
+| 2 | 0 | 0 |
+
+- [x] re-run shows 0 BLOCKER, 0 ISSUE
+`
+
+// A Review Gate mid-loop: the box that must be ticked before closing is still
+// open, so the spec is not finished.
+const specReviewGateOpen = `
+## Review Gate
+
+| Round | Blockers | Issues |
+|-------|----------|--------|
+| 1 | 2 | 3 |
+
+- [ ] re-run shows 0 BLOCKER, 0 ISSUE
+`
+
 // VALIDATES: an in-progress spec whose stem-matching learned summary is already
 // committed is flagged (commit A ran, commit B "git rm the spec" never did).
 // PREVENTS: implemented specs being silently orphaned in plan/ forever, which
@@ -56,8 +80,7 @@ func TestSpecClosureFlagsCommittedButOpenSpec(t *testing.T) {
 }
 
 // VALIDATES: a learned summary that exists on disk but is NOT committed does not
-// flag the spec. commit_helper.py `learned-next` creates the file early,
-// mid-implementation, so on-disk presence alone is not evidence of completion.
+// flag the spec. On-disk presence alone is not evidence of completion.
 // PREVENTS: the Stop hook wedging an active implementation session.
 func TestSpecClosureIgnoresUncommittedLearned(t *testing.T) {
 	root := makeCommitHelperFixture(t)
@@ -149,6 +172,146 @@ func TestSpecClosureWeakMatchNotBlocked(t *testing.T) {
 	}
 	stdout, _, _ := runSpecClosure(t, root, "--list")
 	mustContain(t, stdout, "spec-widget.md  [weak-match]")
+}
+
+// VALIDATES: AC-6 -- a committed journal row naming a spec stem, on a spec
+// whose Review Gate is finished, is accepted as the closure artifact by
+// spec-closure-check.py, so a spec can close with a journal row instead of a
+// plan/learned/NNN-<stem>.md file.
+// PREVENTS: the closure gate ignoring journal evidence and leaving specs that
+// closed via a journal row in "completed but not closed" limbo.
+func TestSpecClosureAcceptsJournalRow(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaInProgress+specReviewGateDone)
+	writeFixture(t, root, "plan/journal/some-class.md",
+		"| Date | Spec | Surface | Symptom | Fix |\n"+
+			"|------|------|---------|---------|-----|\n"+
+			"| 2026-08-09 | widget | gate | it refused | fixed |\n")
+	commitFixtureAll(t, root, "feat: widget with journal")
+
+	// --spec exits 3: the journal row names this spec's stem.
+	_, stderr, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 3 {
+		t.Fatalf("expected exit 3, got %d\nstderr:\n%s", code, stderr)
+	}
+	mustContain(t, stderr, "COMPLETED BUT NOT CLOSED")
+
+	// --json includes the journal-match field.
+	stdout, _, jcode := runSpecClosure(t, root, "--json")
+	if jcode != 0 {
+		t.Fatalf("--json exit %d\n%s", jcode, stdout)
+	}
+	mustContain(t, stdout, "journal-match")
+	mustContain(t, stdout, "plan/journal/some-class.md")
+}
+
+// VALIDATES: a journal row whose Spec cell is "-" does NOT flag the spec as
+// completed-but-not-closed. Rows written outside a spec carry "-".
+func TestSpecClosureIgnoresJournalDashSpec(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaInProgress+specReviewGateDone)
+	writeFixture(t, root, "plan/journal/some-class.md",
+		"| Date | Spec | Surface | Symptom | Fix |\n"+
+			"|------|------|---------|---------|-----|\n"+
+			"| 2026-08-09 | - | gate | it refused | fixed |\n")
+	commitFixtureAll(t, root, "feat: widget with dash journal")
+
+	_, _, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 0 {
+		t.Fatalf("expected exit 0 (journal Spec is dash), got %d", code)
+	}
+}
+
+// VALIDATES: a journal row naming a spec that has NO finished Review Gate does
+// not flag the spec. A row is written when a problem is FOUND, mid-work, so the
+// row alone is not evidence that the spec is finished.
+// PREVENTS: the Stop hook (block-premature-stop.sh, which exits 3 on this
+// signal) blocking every stop for the rest of a session from the moment the
+// session writes its first journal row.
+func TestSpecClosureIgnoresMidWorkJournalRow(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaInProgress)
+	writeFixture(t, root, "plan/journal/some-class.md",
+		"| Date | Spec | Surface | Symptom | Fix |\n"+
+			"|------|------|---------|---------|-----|\n"+
+			"| 2026-08-09 | widget | gate | it refused | fixed |\n")
+	commitFixtureAll(t, root, "wip: widget journal row")
+
+	_, stderr, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 0 {
+		t.Fatalf("expected exit 0 (no Review Gate yet), got %d\nstderr:\n%s", code, stderr)
+	}
+}
+
+// VALIDATES: an unfinished Review Gate (a box still to tick before closing) is
+// not a finished one, so the journal row still does not flag the spec.
+// PREVENTS: the gate section being read as a closure signal the moment
+// /ze-review appends it, before the review loop has reached zero.
+func TestSpecClosureIgnoresUnfinishedReviewGate(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaInProgress+specReviewGateOpen)
+	writeFixture(t, root, "plan/journal/some-class.md",
+		"| Date | Spec | Surface | Symptom | Fix |\n"+
+			"|------|------|---------|---------|-----|\n"+
+			"| 2026-08-09 | widget | gate | it refused | fixed |\n")
+	commitFixtureAll(t, root, "wip: widget review round 1")
+
+	_, stderr, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 0 {
+		t.Fatalf("expected exit 0 (gate unfinished), got %d\nstderr:\n%s", code, stderr)
+	}
+}
+
+// VALIDATES: AC-4 -- a malformed journal row is NAMED on stderr by the closure
+// reader, not skipped in silence, and the readable rows still count.
+// PREVENTS: the third copy of the row parser (the one that lived here and
+// returned None for a malformed row) silently dropping evidence.
+func TestSpecClosureNamesMalformedJournalRow(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaInProgress+specReviewGateDone)
+	writeFixture(t, root, "plan/journal/some-class.md",
+		"| Date | Spec | Surface | Symptom | Fix |\n"+
+			"|------|------|---------|---------|-----|\n"+
+			"| 2026-08-08 | widget | gate |\n"+
+			"| 2026-08-09 | widget | gate | it refused | fixed |\n")
+	commitFixtureAll(t, root, "feat: widget with a broken row")
+
+	_, stderr, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 3 {
+		t.Fatalf("expected exit 3, got %d\nstderr:\n%s", code, stderr)
+	}
+	mustContain(t, stderr, "malformed journal row in plan/journal/some-class.md")
+}
+
+// VALIDATES: the README example row is not read as closure evidence.
+// PREVENTS: plan/journal/README.md's fenced example naming a real spec stem and
+// flagging that spec as completed-but-not-closed forever.
+func TestSpecClosureIgnoresJournalReadme(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaInProgress+specReviewGateDone)
+	writeFixture(t, root, "plan/journal/README.md",
+		"# Problem Journal\n\n```\n"+
+			"| Date | Spec | Surface | Symptom | Fix |\n"+
+			"|------|------|---------|---------|-----|\n"+
+			"| 2026-08-09 | widget | gate | example row | example fix |\n```\n")
+	commitFixtureAll(t, root, "docs: journal readme")
+
+	_, stderr, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 0 {
+		t.Fatalf("expected exit 0 (README is not evidence), got %d\nstderr:\n%s", code, stderr)
+	}
 }
 
 func runSpecClosure(t *testing.T, fixtureRoot string, args ...string) (string, string, int) {

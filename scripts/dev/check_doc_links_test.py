@@ -119,54 +119,6 @@ class InRepo:
         return False
 
 
-class PointerBudgetTest(unittest.TestCase):
-    """The `ai/rules/writing.md` budget: 120 characters after the link.
-
-    VALIDATES: AC-1 -- an over-long curated-index entry is named with its
-               length and its file:line.
-    PREVENTS:  the curated index drifting back into 117 KB of description that
-               restates the summaries it links.
-    """
-
-    def _index(self, body: str) -> str:
-        d = tempfile.mkdtemp(prefix="pointer-budget-")
-        self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
-        p = Path(d) / "LEARNED-INDEX.md"
-        p.write_text(body, encoding="utf-8")
-        return str(p)
-
-    def test_index_entry_over_budget_fails(self) -> None:
-        path = self._index(
-            "- [760](plan/learned/760-a.md) -- " + "x" * 121 + "\n",
-        )
-        found = cdl.check_index_budget(path)
-        self.assertEqual(len(found), 1, found)
-        self.assertIn("121 characters after the link", found[0])
-        self.assertIn(f"{path}:1", found[0])
-
-    def test_index_entry_within_budget_passes(self) -> None:
-        """The boundary: 120 is the last valid length, 121 is the first bad."""
-        at_limit = self._index("- [760](plan/learned/760-a.md) -- " + "x" * 120 + "\n")
-        self.assertEqual(cdl.check_index_budget(at_limit), [])
-
-        over = self._index("- [760](plan/learned/760-a.md) -- " + "x" * 121 + "\n")
-        self.assertEqual(len(cdl.check_index_budget(over)), 1)
-
-        # A heading, a prose line and a table row are not index entries.
-        other = self._index(
-            "## Core Architecture\n\nProse that runs well past the budget "
-            + "y" * 200
-            + "\n\n| Question | File |\n|---|---|\n| a | `b` "
-            + "z" * 200
-            + " |\n"
-        )
-        self.assertEqual(cdl.check_index_budget(other), [])
-
-    def test_absent_index_is_not_an_error(self) -> None:
-        """A tree without the curated index is not the Ze corpus."""
-        self.assertEqual(cdl.check_index_budget("no/such/index.md"), [])
-
-
 class DeadNameLintTest(unittest.TestCase):
     """Hook and check names cited in the hook-describing documents.
 
@@ -357,10 +309,10 @@ class RealCorpusTest(unittest.TestCase):
     """AC-4: after the fixes, the lint exits 0 against the real tree."""
 
     def test_real_corpus_is_present_and_clean(self) -> None:
-        for rel in cdl.NAME_LINT_FILES + (cdl.INDEX_FILE,):
+        for rel in cdl.NAME_LINT_FILES:
             self.assertTrue(
                 (REPO / rel).exists(),
-                f"{rel} is missing; both checks would go quiet without it",
+                f"{rel} is missing; the check would go quiet without it",
             )
         with InRepo():
             self.assertEqual(cdl.check_hook_names(), [])
@@ -388,22 +340,6 @@ class RealCorpusTest(unittest.TestCase):
             finally:
                 cdl.MD_GLOBS = saved
         self.assertEqual(broken, [], broken)
-
-    def test_index_budget_is_blocking_and_the_real_index_is_clean(self) -> None:
-        """AC-2: the trim landed, so the budget gate blocks rather than reports.
-
-        VALIDATES: every curated-index entry is under the pointer budget, and a
-                   new over-budget entry fails `make ze-doc-test` instead of
-                   printing a line nobody reads.
-        PREVENTS:  the gate being left report-only after the corpus it was
-                   scheduling came clean, which is how a ratchet stops holding.
-        """
-        self.assertTrue(
-            cdl.INDEX_BUDGET_BLOCKING,
-            "the curated index is under budget, so the check must block",
-        )
-        with InRepo():
-            self.assertEqual(cdl.check_index_budget(), [])
 
 
 def registry_names(hooks: Path) -> set[str]:

@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- IPv6 prefix length + options encoding.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- IPv6 prefix length + options encoding.
 // RFC: rfc/short/rfc5340.md (§A.4.1 IPv6 prefix representation, PrefixOptions)
 //
 // OSPFv3 encodes an IPv6 prefix as a PrefixLength (bits), a PrefixOptions octet, and the

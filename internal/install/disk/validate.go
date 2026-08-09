@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- on-device installer input validation
+// Design: docs/architecture/appliance/on-device-installer.md -- on-device installer input validation
 
 package disk
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA policy ownership
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- Child SA policy ownership
 // RFC: rfc/short/rfc4301.md -- SPD entries are keyed by their selector
 //
 // The kernel gives a policy no per-peer identity: it tells one policy from

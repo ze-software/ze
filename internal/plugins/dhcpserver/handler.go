@@ -1,4 +1,4 @@
-// Design: plan/learned/706-cpe-2-dhcp-server.md -- DHCP packet handling (RFC 2131/2132)
+// Design: docs/architecture/provisioning/dhcp-server.md -- DHCP packet handling (RFC 2131/2132)
 
 package dhcpserver
 

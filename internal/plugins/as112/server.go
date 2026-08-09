@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- as112 DNS server (answer policy,
+// Design: docs/architecture/dns/as112.md -- as112 DNS server (answer policy,
 // allow-from enforcement, thin harness wiring)
 // RFC: rfc/short/rfc1035.md -- DNS messages, SOA, NS
 // RFC: rfc/short/rfc7534.md -- Section 3.5 authoritative-only, recursion disabled

@@ -1,4 +1,4 @@
-// Design: plan/learned/856-install-10-iso-prerequisites.md — installer initrd download/build
+// Design: docs/architecture/appliance/build-artifacts.md -- installer initrd download/build
 
 package appliance
 

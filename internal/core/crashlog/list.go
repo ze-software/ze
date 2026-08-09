@@ -1,4 +1,4 @@
-// Design: plan/learned/726-diag-crash-capture.md -- crash file listing for CLI
+// Design: docs/architecture/diagnostics/crash-capture.md -- crash file listing for CLI
 
 package crashlog
 

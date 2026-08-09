@@ -6,9 +6,8 @@
 // this seam -- never importing internal/component/ssh directly. The seam
 // carries only generic infra types (infra.HookParams, AAA, audit); the opaque
 // sshServer handle hides *zessh.Server. When ze_ssh is compiled out, the seam
-// vars stay nil, ssh is never built, and the ssh package is dropped.
-//
-// See plan/spec-feature-gate-2-ssh.md and plan/learned/980-feature-gate-1-lg.md.
+// vars stay nil, ssh is never built, and the ssh package is dropped. The
+// looking-glass seam was the pilot for this shape and uses the same one.
 
 package hub
 

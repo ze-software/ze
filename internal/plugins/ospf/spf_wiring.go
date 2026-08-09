@@ -1,4 +1,4 @@
-// Design: plan/learned/962-ospf-8-spf-rib.md -- engine to SPF wiring.
+// Design: docs/architecture/ospf/ospf-8-spf-rib.md -- engine to SPF wiring.
 // This mirrors the IS-IS SPF wiring shape: LSDB changes trigger a debounced SPF
 // run, SPF reads the LSDB through a narrow Source interface, and route install is
 // owned by the SPF package via Loc-RIB insertion.

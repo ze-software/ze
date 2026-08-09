@@ -1,4 +1,4 @@
-// Design: plan/learned/1037-ospf-ext-15-multi-af.md -- RFC 5838 per-AF engine lifecycle.
+// Design: docs/architecture/ospf/ospf-ext-15-multi-af.md -- RFC 5838 per-AF engine lifecycle.
 // RFC: rfc/short/rfc5838.md (§2 separate LSDB/neighbors per AF instance)
 // Related: register.go -- runOSPFEngine drives this set from the plugin config callbacks.
 // Related: multiaf.go -- the AF <-> Instance-ID-range mapping each engine is keyed by.

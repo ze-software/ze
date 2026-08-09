@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- non-Linux stub for socket state
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- non-Linux stub for socket state
 // Overview: sockets_linux.go -- Linux implementation
 //
 //go:build !linux

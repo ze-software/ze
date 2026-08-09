@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- build-side inject verify
+// Design: docs/architecture/appliance/on-device-installer.md -- build-side inject verify
 
 package appliance
 

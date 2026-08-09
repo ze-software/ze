@@ -1,4 +1,4 @@
-// Design: plan/learned/1043-ospf-ext-7-virtual-links.md -- the engine-side virtual-link manager.
+// Design: docs/architecture/ospf/ospf-ext-7-virtual-links.md -- the engine-side virtual-link manager.
 // Related: spf/transitarea.go -- the transit-area SPF resolution this consumes.
 // Related: lsdb/origination.go -- the backbone Router-LSA virtual record this drives.
 // RFC: rfc/short/rfc2328.md (sec 15), rfc/short/rfc5340.md (sec 4.2)

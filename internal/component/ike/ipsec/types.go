@@ -1,4 +1,4 @@
-// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec data model types
+// Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec data model types
 // RFC: rfc/short/rfc7296.md -- identity types (Section 3.5), certificate payloads (Section 3.6)
 // Related: algorithm_support.go -- the predicates deciding which of these enums a build implements
 // Related: config.go -- the parser that fills these types from the config tree

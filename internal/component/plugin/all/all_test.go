@@ -43,7 +43,7 @@ func assertSnapshot(t *testing.T, label string, got, expected []string) {
 // `expected := []string{...}` literals to golden files in testdata/. The
 // assertSnapshot comparison is unchanged; only the source of `expected` moved,
 // and -update regenerates it from the live registry so it can never drift from
-// all.go. See plan/learned/999-generated-registry-snapshot.md.
+// all.go.
 var updateSnapshot = flag.Bool("update", false,
 	"rewrite plugin/all registry snapshots in testdata/ from the live registry")
 

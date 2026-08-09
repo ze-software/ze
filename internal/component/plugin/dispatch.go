@@ -1,4 +1,4 @@
-// Design: plan/learned -- unified command-result envelope and dispatcher
+// Unified command-result envelope and dispatcher.
 //
 // This file holds the single, shared command surface every user-facing entry
 // point (web, mcp, looking-glass, REST/gRPC, chaos, SSH) consumes: the

@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- per-instance worker (FSM executor) tests
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- per-instance worker (FSM executor) tests
 //
 // VALIDATES: the action-execution contract spec-vrrp-2 hands the engine -- every
 // action value is executed, in order, with the right side effect; timer Gen is
@@ -273,7 +273,7 @@ func TestInstanceStartupNonOwnerGoesBackup(t *testing.T) {
 	// A Backup installs no virtual address, so its virtual-MAC macvlan holds no VIP;
 	// with no VIP the kernel answers no ARP for it and locally accepts nothing
 	// addressed to it (the dataplane realization is proven under QEMU in
-	// plan/learned/1122-vrrp-macvlan-vmac-dataplane.md). The Master contrast lives in
+	// docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md). The Master contrast lives in
 	// TestInstanceOwnerStartupGoesMaster.
 	// RFC requirement: RFC3768-6.4.2-1 positive -- a Backup installs no VIP, so the kernel never answers ARP requests for the virtual address (doInstallVIPs runs only on Master, instance.go:369).
 	// RFC requirement: RFC3768-6.4.2-2 positive -- with no VIP installed a Backup does not locally accept frames delivered to the virtual-MAC device.

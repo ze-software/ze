@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- OSPF Graceful Restart control plane.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- OSPF Graceful Restart control plane.
 // Related: gr_nvs.go (restart fact), gr_lsa.go + packet/grace_lsa.go (IPv4 wire),
 //
 //	v3/packet/lsa_grace.go (IPv6 wire).

@@ -1,4 +1,4 @@
-// Design: plan/learned/1042-ospf-ext-11-ldp-igp-sync.md -- RFC 6138 cut-edge query.
+// Design: docs/architecture/ospf/ospf-ext-11-ldp-igp-sync.md -- RFC 6138 cut-edge query.
 // RFC: rfc/short/rfc6138.md -- Section 4 (cut-edge MUST-advertise) + Appendix A
 // (cut-edge derived from the last SPF; a pending SPF MUST run first).
 

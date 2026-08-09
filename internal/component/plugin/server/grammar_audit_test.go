@@ -23,7 +23,7 @@
 // skips any handler with no YANG path) so they are a strict subset of Feeder 1's
 // tree, and plugin commands are rejected at registration by Feeder 2. The merged
 // runtime surface can therefore contain only conforming commands by construction;
-// a boot-and-dump audit adds no catch value. See plan/learned (cli-grammar-runtime).
+// a boot-and-dump audit adds no catch value.
 
 package server_test
 

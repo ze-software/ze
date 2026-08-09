@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- L1/L2 PSNP body codec (source ID)
+// Design: docs/architecture/wire/isis.md -- L1/L2 PSNP body codec (source ID)
 // ISO/IEC 10589 clause 9.11 (Partial Sequence Numbers PDU).
 
 package packet

@@ -1,4 +1,4 @@
-// Design: plan/learned/627-fw-7-traffic-vpp.md -- Backend registration
+// Design: docs/architecture/traffic/fw-7-traffic-vpp.md -- Backend registration
 
 package trafficvpp
 

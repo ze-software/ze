@@ -9,15 +9,30 @@ Ze implements the IS-IS PDU and TLV wire codec per
 [RFC 5303](../../../rfc/short/rfc5303.md) (P2P three-way, TLV 240), and
 [RFC 5304](../../../rfc/short/rfc5304.md) (authentication TLV 10 structure).
 
-The `spec-isis-2-wire` slice (see `plan/learned/928-isis-2-wire.md`) delivers the
-serialization layer only: the common header, all nine PDU types, the core TLVs,
-the ISO 8473 Fletcher checksum, and opaque unknown-TLV passthrough. It contains
-no runtime, sockets, timers, LSDB, or FSM; those live in later children
-(isis-3 transport, isis-5 adjacency, isis-6 LSDB, isis-7 flooding). All codec
-code lives in `internal/plugins/isis/packet/`, depending only on the domain
-types in `internal/plugins/isis/types` (isis-1).
+This page is the serialization layer only: the common header, all nine PDU
+types, the core TLVs, the ISO 8473 Fletcher checksum, and opaque unknown-TLV
+passthrough. It carries no runtime, sockets, timers, LSDB, or FSM. All codec code
+lives in `internal/plugins/isis/packet/`, depending only on the domain types in
+`internal/plugins/isis/types`.
 
-<!-- source: internal/plugins/isis/packet/doc.go — package overview -->
+<!-- source: internal/plugins/isis/packet/doc.go -- package overview -->
+
+The runtime layers above it each have their own architecture page:
+
+| Layer | Page |
+|-------|------|
+| Domain types | [`../isis/isis-1-types.md`](../isis/isis-1-types.md) |
+| Layer-2 transport | [`../isis/isis-3-l2-transport.md`](../isis/isis-3-l2-transport.md) |
+| Component and config | [`../isis/isis-4-component-config.md`](../isis/isis-4-component-config.md) |
+| Circuits and adjacency | [`../isis/isis-5-adjacency.md`](../isis/isis-5-adjacency.md) |
+| Link-State Database | [`../isis/isis-6-lsdb.md`](../isis/isis-6-lsdb.md) |
+| Flooding and SNP | [`../isis/isis-7-flooding.md`](../isis/isis-7-flooding.md) |
+| DIS and pseudo-nodes | [`../isis/isis-8-dis-broadcast.md`](../isis/isis-8-dis-broadcast.md) |
+| SPF and route install | [`../isis/isis-9-spf-rib.md`](../isis/isis-9-spf-rib.md) |
+| Authentication | [`../isis/isis-10-auth.md`](../isis/isis-10-auth.md) |
+| Redistribution | [`../isis/isis-11-redistribution.md`](../isis/isis-11-redistribution.md) |
+| Dual stack | [`../isis/isis-12-ipv6.md`](../isis/isis-12-ipv6.md) |
+| CLI, diagnostics and web | [`../isis/isis-13-cli-diag-interop.md`](../isis/isis-13-cli-diag-interop.md) |
 
 ## Layering
 
@@ -389,9 +404,20 @@ RFCs are authoritative — HMAC-MD5 is 54, generic crypto is 3.)
 TLV in the PDU. Ze emits it first on sign and rejects on decode a PDU whose TLV 10
 is present but not first.
 
+**The Authentication Value pre-image differs by algorithm family.** The two RFCs
+disagree, and an interop peer follows its own RFC literally. HMAC-MD5 (RFC 5304
+sec 2) **zeroes** the value before the digest. The HMAC-SHA generic-crypto family
+(RFC 5310 sec 3.3 step 1 and sec 3.5) **fills** the value with Apad, the hex
+value `0x878FE1F3` repeated, on both sign and verify. Using the zeroed pre-image
+for HMAC-SHA silently breaks every digest against a conforming peer while
+HMAC-MD5 keeps working, so both pre-images are pinned by name in the tests.
+
+<!-- source: internal/plugins/isis/packet/auth_types.go -- apadPattern, fillApad -->
+
 **Field zeroing before the digest** (RFC 5304 sec 2) depends on the PDU class:
 
-- **All PDUs:** the Authentication Value octets inside TLV 10 are set to zero.
+- **All PDUs:** the Authentication Value octets inside TLV 10 are set to the
+  algorithm's pre-image (zeroes for HMAC-MD5, Apad for HMAC-SHA).
 - **LSPs additionally:** the LSP **Checksum** and **Remaining Lifetime** fields are
   set to zero. (Zeroing Remaining Lifetime is what lets a transit router age an LSP
   without re-signing it.)

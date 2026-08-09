@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md -- prefix attach, L1/L2 leaking, route diff.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- prefix attach, L1/L2 leaking, route diff.
 // After Dijkstra (spf.go) yields per-node distances and first-hops, this file
 // attaches each node's advertised IP prefixes (TLV 135) to a route at the node's
 // distance plus the prefix metric, choosing the minimum total metric and the

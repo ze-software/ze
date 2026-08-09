@@ -221,7 +221,7 @@ environment {
     tcp { attempts 3; }
 }
 ```
-<!-- source: internal/component/config/environment.go -- Environment struct, envOptions -->
+<!-- source: internal/component/config/environment.go -- ListenEndpoint, ParseCompoundListen, parseOneEndpoint -->
 
 ### plugin
 
@@ -679,7 +679,6 @@ references through the plugin registry, and leaves explicit `<plugin>:<filter>`
 references for runtime dispatch. Runtime calls use the `filter-update` callback
 on the selected plugin.
 
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution YANG config design -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- policy and filter containers -->
 <!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
 <!-- source: internal/component/bgp/config/filter_registry.go -- local policy filter validation -->
@@ -971,7 +970,7 @@ refuse          # capability mode: reject session if peer has it
 ```
 
 The `require` and `refuse` values are accepted by boolean fields to support capability mode enforcement. The parser normalizes `enable` to `true` and `disable` to `false` internally; `require` and `refuse` pass through unchanged.
-<!-- source: internal/component/config/environment.go -- parseBoolStrict -->
+<!-- source: internal/component/config/environment.go -- ParseBoolStrict -->
 
 ### Origin
 

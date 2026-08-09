@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- download with retry and integrity check
+// Design: docs/architecture/appliance/on-device-installer.md -- download with retry and integrity check
 
 package disk
 

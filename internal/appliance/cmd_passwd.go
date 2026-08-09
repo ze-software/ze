@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — password rotation
+// Design: docs/architecture/appliance/builder.md -- password rotation
 
 package appliance
 

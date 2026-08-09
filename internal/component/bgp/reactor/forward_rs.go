@@ -1,4 +1,4 @@
-// Design: plan/learned/663-rs-gap-0-structural-forwarding.md -- reactor-native RS forwarding
+// Design: docs/architecture/bgp/structural-forwarding.md -- reactor-native RS forwarding
 // RFC: rfc/short/rfc4271.md -- LOCAL_PREF is internal-only (Section 5.1.5)
 // RFC: rfc/short/rfc4456.md -- route reflection attribute injection (Section 8)
 // RFC: rfc/short/rfc7947.md -- route server transparency (Section 2.2.2)

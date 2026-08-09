@@ -1,4 +1,4 @@
-// Design: plan/learned/684-policy-routing.md — platform stub for non-Linux
+// Design: docs/architecture/policyroute/policy-routing.md -- platform stub for non-Linux
 
 //go:build !linux
 

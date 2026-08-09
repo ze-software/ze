@@ -1,4 +1,4 @@
-// Design: plan/learned/1019-traffic-usage-monitor.md -- full-screen traffic monitor renderer
+// Design: docs/architecture/traffic/traffic-usage-monitor.md -- full-screen traffic monitor renderer
 
 package cmd
 

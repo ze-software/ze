@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- netlink link/addr/route for installer
+// Design: docs/architecture/appliance/installer-initrd.md -- netlink link/addr/route for installer
 
 //go:build linux
 

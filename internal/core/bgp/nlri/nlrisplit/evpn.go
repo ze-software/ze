@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: docs/architecture/rib/unified-locrib.md -- per-family NLRI split
 // Related: register.go -- binds SplitEVPN to AFI L2VPN / SAFI EVPN
 // Related: typelen.go -- the shared type-and-length framing walk
 

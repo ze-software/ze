@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- TLV 232 (IPv6 Interface Address), TLV 236 (IPv6 Reachability)
+// Design: docs/architecture/wire/isis.md -- TLV 232 (IPv6 Interface Address), TLV 236 (IPv6 Reachability)
 // RFC: rfc/short/rfc5308.md -- TLV 232 (sec 3), TLV 236 entry layout (sec 2): metric, flags, prefixlen, packed prefix, sub-TLVs
 
 package packet

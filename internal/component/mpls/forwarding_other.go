@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/919-mpls-kernel.md -- non-Linux `show mpls forwarding` stub
+// Design: docs/architecture/mpls/mpls-kernel.md -- non-Linux `show mpls forwarding` stub
 //
 // The kernel MPLS FIB is Linux-only (the appliance target is Linux). On other
 // platforms the command returns an empty table rather than erroring, so the CLI

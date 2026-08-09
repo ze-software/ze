@@ -109,7 +109,9 @@ transport (`ff02::5` / `ff02::6`) and the OSPFv3 prefix model
 (Intra-Area-Prefix, Link, AS-External, and NSSA LSAs). Both families install
 selected routes through the shared Loc-RIB -> sysrib -> fibkernel path.
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF, runOSPFEngine -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello, HandleDBDesc, HandleLSUpdate -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
+<!-- source: internal/plugins/ospf/neighbor/lsreq.go -- HandleLSUpdate -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Summary -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- module ze-ospf-conf -->
@@ -158,7 +160,7 @@ The IPv6 address family mirrors the area and interface model under
 instance; `instance-id` defaults to 0 and is used for RFC 5340 per-link
 demultiplexing.
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- address-family ipv6 -->
-<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, parseV6Config -->
+<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, v6AFConfig, v6Families -->
 
 The `router-information` container advertises this router's optional capabilities
 in the RFC 7770 Router Information LSA. `enabled true` originates it; the `scope`
@@ -757,7 +759,7 @@ be removed. Default filters (e.g., `rfc:no-self-as`) run unless overridden by
 a filter that declares `overrides`.
 
 See [Route Filters](redistribution.md) for details.
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter config design -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
 ## Cross-Protocol Redistribute
 
@@ -934,7 +936,7 @@ data in zefs (not in the config tree) and survive restarts.
 
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- RunFilterIRR, handleFilterUpdate, refreshASN -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->
 
 ### AS-Path Filter
 
@@ -1712,7 +1714,7 @@ On Linux without VPP, a warning is logged and the setting has no effect.
 The legacy `rp-filter 0|1|2` integer syntax is still accepted for backward
 compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 
-<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, RPFMode -->
+<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, rpfMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
 
 ### IPv6 Router Advertisements
@@ -2034,7 +2036,7 @@ sysctl {
 
 The `<iface>` placeholder is substituted with the actual interface name at apply time.
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles, ResolveProfileSettings -->
-<!-- source: internal/component/iface/config.go -- applySysctlProfiles -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctlProfiles -->
 
 ## Connection Tracking (Conntrack)
 
@@ -2827,7 +2829,7 @@ Every ze instance has at least one `server` block (for local plugins and SSH).
 Secrets must be at least 32 characters. See [Fleet Configuration](fleet-config.md) for details.
 
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
-<!-- source: internal/component/bgp/config/plugins.go -- ExtractHubConfig -->
+<!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig -->
 
 ## Outbound Source Address
 

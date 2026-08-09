@@ -1,4 +1,4 @@
-// Design: plan/learned/750-zefs-integrity.md -- in-place write fallback for non-unix
+// Design: docs/architecture/zefs-format.md -- in-place write fallback for non-unix
 // Overview: store.go -- flush() falls back to full rewrite on non-unix
 
 //go:build !unix

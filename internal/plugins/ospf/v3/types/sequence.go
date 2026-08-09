@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- LSSequenceNumber signed 32-bit LSA version.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- LSSequenceNumber signed 32-bit LSA version.
 // RFC: rfc/short/rfc5340.md (§A.4.2.1 LS sequence number; RFC 2328 §12.1.6 semantics)
 //
 // OSPFv3 keeps the OSPFv2 signed-32-bit LS sequence number space: InitialSequenceNumber

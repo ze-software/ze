@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- TCP port connectivity check (nc replacement)
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- TCP port connectivity check (nc replacement)
 
 package cmd
 

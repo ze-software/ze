@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/808-smart-management.md — SMART disk health ioctl library
+// Design: docs/architecture/storage/smart-health.md -- SMART disk health ioctl library
 // Related: smart.go — Info type, ParseNVMeBuf, NvmeNamespace
 
 package smart

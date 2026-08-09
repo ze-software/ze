@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: plan/learned/1099-iface-resolve-0-umbrella.md -- sub-spec 5 dispatch translation.
+// Design: docs/architecture/iface/logical-name-resolution.md -- sub-spec 5 dispatch translation.
 //
 // VALIDATES: the iface dispatch ops translate a LOGICAL interface name to its os
 // device via resolveOS before the backend call, so a mutation issued against a

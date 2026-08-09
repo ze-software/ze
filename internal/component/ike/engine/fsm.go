@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE SA finite state machine
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE SA finite state machine
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT and IKE_AUTH exchanges (Sections 1.2, 2.4)
 // Related: sa_init_retry.go -- the corrected IKE_SA_INIT retry handleSAInitResponse calls into
 package engine

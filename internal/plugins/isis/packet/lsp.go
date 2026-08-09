@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- L1/L2 LSP body codec (lifetime, LSPID, sequence, checksum, type block)
+// Design: docs/architecture/wire/isis.md -- L1/L2 LSP body codec (lifetime, LSPID, sequence, checksum, type block)
 // ISO/IEC 10589 clause 9.8 (Link State PDU), clause 7.3.11 (Fletcher checksum).
 //
 // RFC: rfc/short/rfc3787.md -- LSP-database-overload (OL) bit usage

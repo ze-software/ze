@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- neutral per-source traffic feature signals
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- neutral per-source traffic feature signals
 //
 // trafficfeature is the FEATURE layer of the traffic-analysis split: a second,
 // independent consumer of observation.Feed that derives domain-NEUTRAL detection

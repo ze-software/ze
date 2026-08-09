@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- Database Description exchange
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- Database Description exchange
 // RFC 2328 Section 10.6: "If the Interface MTU field in the Database Description packet is larger than the router's interface MTU, the packet is rejected."
 
 package neighbor

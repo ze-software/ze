@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- NAT detection and port 4500 handling
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- NAT detection and port 4500 handling
 // RFC: rfc/short/rfc7296.md -- NAT detection via hash notify payloads (Section 2.23)
 // RFC: rfc/short/rfc3948.md -- Non-ESP marker, UDP encapsulation on port 4500
 

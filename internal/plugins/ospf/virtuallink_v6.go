@@ -1,4 +1,4 @@
-// Design: plan/learned/1043-ospf-ext-7-virtual-links.md -- OSPFv3 virtual-link endpoint resolution.
+// Design: docs/architecture/ospf/ospf-ext-7-virtual-links.md -- OSPFv3 virtual-link endpoint resolution.
 // Related: virtual_link.go -- the AF-neutral manager that consumes this resolver.
 // RFC: rfc/short/rfc5340.md (sec 2.9 routed global src/dst, App A.4.10 Intra-Area-Prefix-LSA)
 //

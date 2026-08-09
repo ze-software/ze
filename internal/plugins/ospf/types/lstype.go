@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- OSPFv2 LSA type discriminator
+// Design: docs/architecture/ospf/ospf-1-types.md -- OSPFv2 LSA type discriminator
 // Related: lsakey.go -- LSType is the first field of LSAKey
 // RFC: rfc/short/rfc2328.md (OSPFv2 LSA types), rfc/short/rfc5340.md (OSPFv3 scope-typed
 // LS Type, sec A.4.2.1), rfc/short/rfc7770.md (AS-scope Router Information LSA vs AS-External)

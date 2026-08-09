@@ -1,4 +1,4 @@
-// Design: plan/learned/1321-wire-edit-5-fanout-dedup.md -- fingerprint the edit set, confirm by equality
+// Design: docs/architecture/bgp/fanout-dedup.md -- fingerprint the edit set, confirm by equality
 // Overview: filterapi.go -- ModAccumulator, whose state this encodes
 // Related: editset.go -- the rebuild plan the digest predicts the output of
 package filterapi

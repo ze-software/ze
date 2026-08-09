@@ -1,4 +1,4 @@
-// Design: plan/learned/824-rib-feed-replay-batch.md — grouped collection and cursor replay
+// Design: docs/architecture/bgp/replay-cursor.md -- grouped collection and cursor replay
 // RFC: rfc/short/rfc9494.md -- LLGR stale metadata on replay
 // Overview: rib.go — replayRoutes, updateRoute
 // Related: ribout_entry.go — ribOutEntry, reconstructRoute, pool.RibOut

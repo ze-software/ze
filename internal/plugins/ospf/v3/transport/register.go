@@ -1,4 +1,4 @@
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- doctor-check registration
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- doctor-check registration
 
 package transport
 

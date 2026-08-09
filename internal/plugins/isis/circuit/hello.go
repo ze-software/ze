@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- IIH origination (LAN + P2P) + padding.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- IIH origination (LAN + P2P) + padding.
 // ISO/IEC 10589 clause 9.5/9.6 (IIH layout), clause 9.10 (Padding TLV 8),
 // section 8.2 (hold time = hello-interval * hold-multiplier).
 //

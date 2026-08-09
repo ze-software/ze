@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md — hardware inventory detection
+// Design: docs/architecture/host/inventory.md -- hardware inventory detection
 // Related: smart_linux.go — SMART health detection per device
 
 //go:build linux

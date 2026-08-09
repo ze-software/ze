@@ -25,7 +25,7 @@
   agent's.
 - Use `scripts/dev/commit_helper.py` for commit scripts by default. It creates
   the session ID, message file, executable script, ignored-path checks, and
-  learned-summary gate. Full rules live in `ai/rules/git-safety.md` under
+  journal-row gate. Full rules live in `ai/rules/git-safety.md` under
   "Commit Rules". Read them before writing any commit script.
 - When the user asks for a commit, prepare the commit script and run it
   immediately. Do not perform a late review or rerun gates just because
@@ -67,7 +67,7 @@
 - If you are genuinely blocked: say so plainly with evidence, keep the spec OPEN, and
   reach for the fix before asking. Ask "which way do I fix it", never "may I skip it."
 - **RECORDING A PROBLEM IS NOT ADDRESSING IT. FIX THE ROOT CAUSE, ALWAYS.** Writing a
-  failure into `plan/known-failures/`, a learned summary, or a report changes nothing
+  failure into `plan/known-failures/`, a journal row, or a report changes nothing
   about the product. A record is a step toward a fix, never a substitute. The ONLY
   thing that may be recorded instead of fixed is a failure you actively tried and
   FAILED to reproduce, and its shard must carry the reproduction attempt and the next
@@ -298,7 +298,7 @@ means "no rule applies".
 | Start a planning, implementation, or review phase | `ai/rules/planning.md` -- review runs on Opus 5 and is INDEPENDENT of the author; implementation carries no model requirement |
 | Work on ANY spec (research, design, implement, review, close) | `ai/rules/planning.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
 | Make a behavioral claim about code, or recommend work based on one | `ai/rules/evidence.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |
-| Write a report, a rule, a doc, a commit body, or a learned summary | `ai/rules/writing.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |
+| Write a report, a rule, a doc, a commit body, or a journal row | `ai/rules/writing.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |
 | Find recurring development friction or problem patterns | `ai/rules/repo-maintenance.md` -- report the pattern and decide whether a new or changed rule would prevent it |
 | Write any code | `ai/rules/architecture.md`, relevant `ai/patterns/`, `ai/rules/repo-maintenance.md` (which checks will fire) |
 | Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/evidence.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |
@@ -324,7 +324,7 @@ means "no rule applies".
 | Complete work autonomously | `ai/rules/completion.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
 | Decide whether to stop, ask, delegate, or continue when two rules disagree | `ai/rules/rule-precedence.md` -- one ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy. Stopping at a phase boundary is not asking permission; a forced question is always "which way", never "may I skip it" |
 | Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/architecture.md` |
-| Check past decisions or known traps | `ai/LEARNED-INDEX.md` -> `plan/learned/`, `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md` |
+| Check past decisions or known traps | `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/journal/` (recurrence data) |
 
 ## Every Rule's Trigger (loaded below)
 

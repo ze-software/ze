@@ -1,4 +1,4 @@
-// Design: plan/learned/907-appliance-install-robust.md -- Linux-specific install operations
+// Design: docs/architecture/appliance/on-device-installer.md -- Linux-specific install operations
 
 package disk
 

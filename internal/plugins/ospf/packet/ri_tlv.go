@@ -1,4 +1,4 @@
-// Design: plan/learned/1031-ospf-ext-3-router-information.md -- RFC 7770 Router Information TLV codec.
+// Design: docs/architecture/ospf/ospf-ext-3-router-information.md -- RFC 7770 Router Information TLV codec.
 // RFC: rfc/short/rfc7770.md -- the RI LSA TLV stream (sec 2.3), the Router Informational
 // Capabilities TLV (sec 2.4), the capability bit assignments (sec 2.5), and the Router
 // Functional Capabilities TLV (sec 2.6).

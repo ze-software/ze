@@ -1,4 +1,4 @@
-// Design: plan/learned/666-bng-1-radius-attributes.md -- Filter-Id rate parsing tests
+// Design: docs/architecture/l2tp/bng-1-radius-attributes.md -- Filter-Id rate parsing tests
 
 package l2tpshaper
 

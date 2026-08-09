@@ -1,4 +1,4 @@
-// Design: plan/learned/920-mpls-ldp.md -- LDP port-646 readiness doctor check
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP port-646 readiness doctor check
 // Related: register.go -- DoctorChecks registration (ldp-port)
 // Related: wire.go -- ldpHelloPort / ldpSessionPort (646) this check probes
 //

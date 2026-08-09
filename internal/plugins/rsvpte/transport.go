@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- RSVP-TE raw IP transport (protocol 46)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RSVP-TE raw IP transport (protocol 46)
 // Related: build.go -- produces the message bytes Send transmits
 // Related: wire.go -- DecodeMessage parses received payloads
 //

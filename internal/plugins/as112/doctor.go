@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- as112 listen-port bind-capability doctor check (finding L1)
+// Design: docs/architecture/dns/as112.md -- as112 listen-port bind-capability doctor check (finding L1)
 //
 // Unlike geodns (default unprivileged port 5300, operator-configurable),
 // as112's port is always the fixed, privileged DNS port 53 (RFC 7534

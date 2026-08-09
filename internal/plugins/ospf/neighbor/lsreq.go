@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- OSPFv2 LS Request list
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- OSPFv2 LS Request list
 // RFC 2328 Section 10.9: "When the Link state request list becomes empty, the neighbor state machine is scheduled with the Loading Done event."
 
 package neighbor

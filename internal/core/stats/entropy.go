@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- Shannon entropy of a distribution
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- Shannon entropy of a distribution
 
 package stats
 

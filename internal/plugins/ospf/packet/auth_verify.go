@@ -1,4 +1,4 @@
-// Design: plan/learned/966-ospf-12-auth.md -- OSPFv2 authentication sign/verify.
+// Design: docs/architecture/ospf/ospf-12-auth.md -- OSPFv2 authentication sign/verify.
 // RFC: rfc/short/rfc2328.md (App D Keyed-MD5), rfc/short/rfc5709.md (HMAC-SHA + Apad),
 // rfc/short/rfc7474.md (AuType 3 extended 64-bit sequence).
 //

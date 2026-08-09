@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- `ze ... request as112 healthcheck` command (finding M4)
+// Design: docs/architecture/dns/as112.md -- `ze ... request as112 healthcheck` command (finding M4)
 // RFC: rfc/short/rfc7534.md Section 3.3 -- healthcheck ordering: DNS readiness before BGP announcement
 
 package as112

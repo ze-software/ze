@@ -1,4 +1,4 @@
-// Design: plan/learned/710-gap-2-static-route-enhancements.md -- diff engine for config reload
+// Design: docs/architecture/static-routes.md -- diff engine for config reload
 
 package static
 

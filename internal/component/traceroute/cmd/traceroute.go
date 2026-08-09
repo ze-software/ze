@@ -1,4 +1,4 @@
-// Design: plan/learned/729-diag-traceroute.md -- ICMP traceroute from the router
+// Design: docs/architecture/diagnostics/active-probes.md -- ICMP traceroute from the router
 // Related: register.go -- registers ze-show:traceroute and the rest of the surface
 
 package cmd

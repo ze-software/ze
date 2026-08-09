@@ -271,7 +271,5 @@ unmarshal it back into a `map[string]any` for template rendering.
 - `docs/architecture/web-components.md`: HTMX fragment/OOB component conventions
 - `docs/features/looking-glass.md`: looking glass feature overview (birdwatcher compatibility, graph modes)
 - `docs/guide/web-interface.md`, `docs/guide/looking-glass.md`: operator-facing usage guides
-- `plan/learned/688-web-4-interfaces.md`: Workbench page dispatch design notes
-- `plan/learned/937-isis-13-cli-diag-interop.md`, `plan/learned/967-ospf-13-cli-diag-interop.md`: shared read-only SSE snapshot loop rationale
 - `ai/rules/plugins.md`: compile-out-able service construction registry
 - `ai/digests/cli-editor.md`: the SSH CLI side of the same `CommandDispatcher`/editor-commit machinery

@@ -39,7 +39,7 @@ class TestFeedsDiscoveryIndex(unittest.TestCase):
 
             f = ch.feeds_discovery_index
             self.assertTrue(f(root, "internal/x/register.go"))
-            self.assertTrue(f(root, "plan/learned/1099-z.md"))
+            self.assertFalse(f(root, "plan/learned/1099-z.md"))
             self.assertTrue(f(root, "scripts/dev/package_map.py"))
             self.assertTrue(f(root, "ai/PACKAGE-MAP.md"))
             self.assertTrue(f(root, "Makefile"))
@@ -929,15 +929,17 @@ class TestDiscoveryIndexProblems(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = self._repo(tmp)
-                # This commit feeds ONLY the learned index and includes it.
-                (root / "plan" / "learned" / "1200-x.md").write_text("# L\n")
-                (root / "ai" / "LEARNED-FULL-INDEX.md").write_text("v2\n")
-                # DOCS-TO-CODE.md is dirty from another session but this commit
+                # This commit feeds ONLY DOCS-TO-CODE and includes it.
+                go_path = root / "internal" / "x" / "y.go"
+                go_path.parent.mkdir(parents=True, exist_ok=True)
+                go_path.write_text("// Design: docs/x.md\npackage x\n")
+                (root / "ai" / "DOCS-TO-CODE.md").write_text("v2\n")
+                # PACKAGE-MAP.md is dirty from another session but this commit
                 # does not feed it, so the gate must not demand it.
-                (root / "ai" / "DOCS-TO-CODE.md").write_text("someone-else\n")
+                (root / "ai" / "PACKAGE-MAP.md").write_text("someone-else\n")
                 problems = ch.discovery_index_problems(
                     root,
-                    ("plan/learned/1200-x.md", "ai/LEARNED-FULL-INDEX.md"),
+                    ("internal/x/y.go", "ai/DOCS-TO-CODE.md"),
                 )
                 self.assertEqual(problems, [], problems)
         finally:
@@ -949,14 +951,14 @@ class TestDiscoveryIndexProblems(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = self._repo(tmp)
-                # Commit feeds the learned index, whose output IS dirty but omitted.
-                (root / "plan" / "learned" / "1200-x.md").write_text("# L\n")
-                (root / "ai" / "LEARNED-FULL-INDEX.md").write_text("v2\n")
-                problems = ch.discovery_index_problems(
-                    root, ("plan/learned/1200-x.md",)
-                )
+                # Commit feeds DOCS-TO-CODE, whose output IS dirty but omitted.
+                go_path = root / "internal" / "x" / "y.go"
+                go_path.parent.mkdir(parents=True, exist_ok=True)
+                go_path.write_text("// Design: docs/x.md\npackage x\n")
+                (root / "ai" / "DOCS-TO-CODE.md").write_text("v2\n")
+                problems = ch.discovery_index_problems(root, ("internal/x/y.go",))
                 self.assertTrue(problems, "a fed-but-omitted dirty index must refuse")
-                self.assertIn("LEARNED-FULL-INDEX.md", "\n".join(problems))
+                self.assertIn("DOCS-TO-CODE.md", "\n".join(problems))
         finally:
             ch.discovery_index_freshness = saved
 
@@ -1284,84 +1286,6 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
     def test_structural_gates_is_not_empty(self):
         # The subset assertion above is satisfied by an empty frozenset too.
         self.assertTrue(ch.STRUCTURAL_GATES)
-
-
-class TestLearnedNextCounterFree(unittest.TestCase):
-    """learned_next allocates from max(glob)+1 alone, with no plan/learned/.counter.
-
-    The .counter cache is retired: the NNNN-slug.md filenames ARE the record,
-    so allocation is max(existing prefixes) + 1 and the O_EXCL create is the
-    only same-tree mutual exclusion. A losing racer must retry onto the next
-    free number, never surface an uncaught FileExistsError.
-    """
-
-    def _repo(self, tmp: str) -> Path:
-        root = Path(tmp)
-        _git(root, "init", "-q")
-        return ch.repo_root(str(root))
-
-    def test_learned_next_unique_without_counter(self):
-        # AC-4: two allocations in one tree with no .counter present yield
-        # distinct numbers, relying solely on the O_EXCL create + max(glob).
-        with tempfile.TemporaryDirectory() as tmp:
-            repo = self._repo(tmp)
-            learned = repo / "plan" / "learned"
-            learned.mkdir(parents=True)
-            (learned / "500-seed.md").write_text("# 500 -- seed\n")
-
-            self.assertEqual(
-                ch.learned_next(argparse.Namespace(repo=str(repo), slug="alpha")), 0
-            )
-            self.assertEqual(
-                ch.learned_next(argparse.Namespace(repo=str(repo), slug="beta")), 0
-            )
-
-            nums = sorted(
-                int(p.name.split("-", 1)[0]) for p in learned.glob("[0-9]*-*.md")
-            )
-            self.assertEqual(nums, [500, 501, 502])
-            self.assertFalse((learned / ".counter").exists())
-
-    def test_learned_next_retries_on_existing(self):
-        # AC-4/R-6: simulate the same-tree race -- a concurrent session wins
-        # the target number in the window between this session's glob and its
-        # O_EXCL create. Today the uncaught FileExistsError escapes learned_next
-        # (main() catches only UsageError); the bounded retry must re-glob past
-        # the winner and land on the next free number instead of crashing.
-        with tempfile.TemporaryDirectory() as tmp:
-            repo = self._repo(tmp)
-            learned = repo / "plan" / "learned"
-            learned.mkdir(parents=True)
-            (learned / "500-seed.md").write_text("# 500 -- seed\n")
-
-            real_open = os.open
-            first = {"pending": True}
-
-            def racing_open(path, *a, **k):
-                # First exclusive create of a summary: a concurrent session
-                # wins that number (create the file), then fail this caller's
-                # O_EXCL exactly as the kernel would.
-                if first["pending"] and str(path).endswith(".md"):
-                    first["pending"] = False
-                    os.close(
-                        real_open(
-                            str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644
-                        )
-                    )
-                    raise FileExistsError(17, "File exists", str(path))
-                return real_open(path, *a, **k)
-
-            args = argparse.Namespace(repo=str(repo), slug="alpha")
-            with mock.patch.object(ch.os, "open", side_effect=racing_open):
-                rc = ch.learned_next(args)
-
-            self.assertEqual(rc, 0)
-            nums = sorted(
-                int(p.name.split("-", 1)[0]) for p in learned.glob("[0-9]*-*.md")
-            )
-            # 500 seed, 501 the racing winner, 502 this session after the retry.
-            self.assertEqual(nums, [500, 501, 502])
-            self.assertFalse((learned / ".counter").exists())
 
 
 class TestDeferralSharding(unittest.TestCase):
@@ -1995,6 +1919,345 @@ class TestLessonIsContentDriven(unittest.TestCase):
                     paths, (), True, None, ch.lesson_change_lines(root, paths, ())
                 )
             self.assertIn("--lesson-required", str(caught.exception))
+
+    # VALIDATES: AC-3 -- a journal row in plan/journal/ satisfies the lesson gate
+    # exactly as a route to any other ROUTE_PREFIXES destination does.
+    # PREVENTS: the lesson gate refusing a commit that carries a journal row,
+    # which would force --lesson-not-needed on every journal-bearing commit.
+    def test_lesson_gate_accepts_journal_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            journal_dir = root / "plan" / "journal"
+            journal_dir.mkdir(parents=True)
+            (journal_dir / "some-class.md").write_text(
+                "| Date | Spec | Surface | Symptom | Fix |\n"
+                "|------|------|---------|---------|-----|\n"
+                "| 2026-08-09 | my-feature | gate | it refused | fixed |\n"
+            )
+            (root / "scripts" / "dev" / "a.py").write_text(
+                "def widen(value):\n    return value * 3\n\ndef added():\n    pass\n"
+            )
+            comment = self._comment(
+                root, ("scripts/dev/a.py", "plan/journal/some-class.md")
+            )
+            self.assertIn("routed to", comment)
+            self.assertIn("plan/journal/", comment)
+
+    # VALIDATES: AC-7 -- spec_closure_stem() reads the Spec cell from a journal
+    # row and returns it as the closure stem, so review_gate_problems() fires on
+    # the commit that carries the code.
+    def test_journal_row_is_a_closure_signal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            journal_dir = root / "plan" / "journal"
+            journal_dir.mkdir(parents=True)
+            (journal_dir / "some-class.md").write_text(
+                "| Date | Spec | Surface | Symptom | Fix |\n"
+                "|------|------|---------|---------|-----|\n"
+                "| 2026-08-09 | my-feature | gate | it refused | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "my-feature")
+
+    # VALIDATES: spec_closure_stem() returns None for a journal row whose Spec
+    # cell is "-", which marks a row written outside a spec.
+    def test_journal_dash_spec_is_not_a_closure_signal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            journal_dir = root / "plan" / "journal"
+            journal_dir.mkdir(parents=True)
+            (journal_dir / "some-class.md").write_text(
+                "| Date | Spec | Surface | Symptom | Fix |\n"
+                "|------|------|---------|---------|-----|\n"
+                "| 2026-08-09 | - | gate | it refused | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(stem)
+
+    _JOURNAL_HEAD = (
+        "| Date | Spec | Surface | Symptom | Fix |\n"
+        "|------|------|---------|---------|-----|\n"
+        "| 2026-07-01 | old-spec | gate | first time | fixed |\n"
+    )
+
+    def _journal_repo(self, tmp: str) -> tuple[Path, Path]:
+        """A repo whose HEAD already holds a one-row journal class file."""
+        root = self._repo(tmp)
+        journal = root / "plan" / "journal"
+        journal.mkdir(parents=True)
+        path = journal / "some-class.md"
+        path.write_text(self._JOURNAL_HEAD)
+        (root / "plan" / "spec-other.md").write_text("# Spec: other\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "first closure through this class")
+        return root, path
+
+    def _claim(self, root: Path, spec: str) -> None:
+        """Make `claimed_spec()` report `spec` for this fixture repo.
+
+        The real marker lives outside the repo, so the fixture supplies the one
+        thing `claimed_spec` reads: `scripts/dev/spec-session.sh current`.
+        """
+        script = root / "scripts" / "dev" / "spec-session.sh"
+        script.write_text(f'#!/bin/sh\n[ "$1" = current ] && echo {spec}\n')
+        script.chmod(0o755)
+
+    # VALIDATES: the closure stem comes from the row this commit ADDS, not from
+    # the first row in the file. A class file is multi-row by design.
+    # PREVENTS: from the second closure through a class onward,
+    # review_gate_problems() being handed a spec that closed long ago, so the
+    # review gate blocks or passes on the wrong spec.
+    def test_journal_stem_comes_from_the_added_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-09 | new-spec | gate | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "new-spec")
+
+    # VALIDATES: a row already at HEAD is not a closure signal, the way a learned
+    # summary already at HEAD is not one (_tracked_at_head).
+    # PREVENTS: every later commit that touches the class file being read as a
+    # re-closure of the spec its first row names.
+    def test_journal_row_already_at_head_is_not_a_closure_signal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(self._JOURNAL_HEAD + "\nSome prose, no new row.\n")
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(stem)
+
+    # VALIDATES: a re-formatted row is not an added row. Column-padding a class
+    # file re-emits every row as `+`, and the first of them names whatever spec
+    # closed through that class FIRST.
+    # PREVENTS: the stale-stem failure arriving by a second route. The shards are
+    # unpadded today, so this is one `column -t` away rather than hypothetical.
+    # The `+` and the `-` carry the same cells once stripped, so matching them
+    # leaves only the row whose CONTENT is new.
+    def test_a_repadded_row_is_not_a_new_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                "| Date       | Spec     | Surface | Symptom    | Fix   |\n"
+                "|------------|----------|---------|------------|-------|\n"
+                "| 2026-07-01 | old-spec | gate    | first time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(stem, "a re-pad adds no occurrence")
+
+    # VALIDATES: the control for the case above -- a re-pad that ALSO appends a
+    # genuinely new row still yields that row's spec, and never the padded one.
+    def test_a_repad_plus_a_new_row_yields_the_new_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                "| Date       | Spec     | Surface | Symptom     | Fix   |\n"
+                "|------------|----------|---------|-------------|-------|\n"
+                "| 2026-07-01 | old-spec | gate    | first time  | fixed |\n"
+                "| 2026-08-09 | new-spec | gate    | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "new-spec")
+
+    # An edit to an older row plus the closure row: two surviving `+` lines whose
+    # cells match no `-`, the edited one first because diff order is file order.
+    _EDIT_PLUS_APPEND = (
+        "| Date | Spec | Surface | Symptom | Fix |\n"
+        "|------|------|---------|---------|-----|\n"
+        "| 2026-07-01 | old-spec | gate | first occurrence | fixed |\n"
+        "| 2026-08-09 | new-spec | gate | second time | fixed |\n"
+    )
+
+    # VALIDATES: an EDIT to an older row is new content (its cells match no `-`),
+    # so the reader returns it AND the closure row, and the caller chooses.
+    # PREVENTS: the shape the cell comparison does not cancel. Fixing a typo in a
+    # months-old Symptom cell while appending the closure row made the FIRST
+    # survivor the old row, and the single-answer reader returned a months-old
+    # stem to both gates that read it.
+    def test_an_edited_older_row_does_not_hide_the_closure_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(self._EDIT_PLUS_APPEND)
+            stems = ch._journal_added_spec_stems(
+                root, ("plan/journal/some-class.md",), ()
+            )
+            self.assertEqual(stems, ["old-spec", "new-spec"])
+
+    # VALIDATES: with two stems the session's CLAIM decides which one this commit
+    # closes, so the review artifact is keyed on the spec being closed.
+    # PREVENTS: review_gate.py being asked for `old-spec`'s artifact while
+    # `new-spec` is the spec closing, which no session can satisfy.
+    def test_the_claimed_spec_decides_between_two_added_stems(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(self._EDIT_PLUS_APPEND)
+            self._claim(root, "spec-new-spec.md")
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "new-spec")
+
+    # VALIDATES: no claim leaves the first stem answering, so the gate still
+    # fires on a closure prepared by a session that claimed nothing.
+    # PREVENTS: the claim becoming an override -- returning None with no claim
+    # would drop the review gate off the commit carrying the code.
+    # NOT EVIDENCE FOR the claim tie-break beside it: this case passes with that
+    # tie-break reverted, because the fallback answers the same way. It is a
+    # regression guard over the fallback, and it is meant to keep passing.
+    def test_no_claim_still_yields_a_stem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(self._EDIT_PLUS_APPEND)
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "old-spec")
+
+    # An edit to the ONE older row, appending nothing: a code-free journal typo
+    # fix. One surviving `+` line, so one stem, so the claim tie-break never runs.
+    _EDIT_ONLY = (
+        "| Date | Spec | Surface | Symptom | Fix |\n"
+        "|------|------|---------|---------|-----|\n"
+        "| 2026-07-01 | old-spec | gate | first occurrence | fixed |\n"
+    )
+
+    def _close_spec(self, root: Path, stem: str) -> None:
+        """Close plan/spec-<stem>.md the way ai/rules/planning.md does.
+
+        Two commits: the spec exists, then commit B `git rm`s it. That leaves the
+        state every spec that closed EARLIER is in, which is what
+        `_spec_closed_earlier` reads.
+        """
+        rel = f"plan/spec-{stem}.md"
+        (root / rel).write_text(f"# Spec: {stem}\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", f"spec {stem}")
+        _git(root, "rm", "-q", rel)
+        _git(root, "commit", "-q", "-m", f"close {stem}")
+
+    # VALIDATES: a commit that only EDITS an older row closes nothing, because the
+    # spec that row names has no plan/spec-<stem>.md left -- commit B removed it.
+    # PREVENTS: the single-stem shape of the stale-stem failure. One stem never
+    # reaches the claim tie-break, so the months-old stem answered and
+    # review_gate_problems() demanded a clean artifact for a spec nobody was
+    # closing, refusing an ordinary code-free journal typo fix.
+    def test_an_edit_only_commit_on_a_closed_spec_is_not_a_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._close_spec(root, "old-spec")
+            path.write_text(self._EDIT_ONLY)
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(stem, "a closed spec cannot be closing again")
+
+    # VALIDATES: the control -- the same edit-only shape on a spec still OPEN on
+    # disk still names it, so the gate keeps firing where it should.
+    # PREVENTS: the drop widening into "a journal row never closes anything",
+    # which would take the review gate off every journal-borne closure.
+    def test_an_edit_only_commit_on_an_open_spec_still_yields_its_stem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            (root / "plan" / "spec-old-spec.md").write_text("# Spec: old-spec\n")
+            _git(root, "add", "-A")
+            _git(root, "commit", "-q", "-m", "spec old-spec is open")
+            path.write_text(self._EDIT_ONLY)
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "old-spec")
+
+    # VALIDATES: a Spec cell naming a path git has NEVER held is kept, not
+    # dropped. Absent-from-disk alone does not mean closed.
+    # PREVENTS: a misspelled Spec cell on a real closure commit disarming the
+    # review gate silently -- the fail-OPEN the "gone, having once existed" test
+    # exists to refuse.
+    def test_a_spec_git_never_held_still_yields_its_stem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-09 | mispelt-spec | gate | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "mispelt-spec")
+
+    # VALIDATES: `closure_reminder` applies the same closed-spec filter as
+    # `spec_closure_stem`, so an edit-only commit on a spec that closed earlier
+    # is not nudged to prepare a commit B for it.
+    # PREVENTS: the two call sites of `_journal_added_spec_stems` disagreeing
+    # about what a closure is. The filter landed in one and not the other, and
+    # nothing failed, because this function had no test at all.
+    def test_closure_reminder_is_silent_on_an_edit_to_a_closed_specs_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._close_spec(root, "old-spec")
+            path.write_text(self._EDIT_ONLY)
+            note = ch.closure_reminder(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(note, "a spec that closed earlier needs no commit B")
+
+    # VALIDATES: the control -- a real closure still gets its nudge, so the
+    # filter narrowed the false positive without taking the reminder away.
+    # PREVENTS: the filter widening into "a journal row never nudges", which
+    # would drop the guard against the orphaned in-progress spec the two-commit
+    # closure exists to avoid.
+    def test_closure_reminder_still_fires_for_a_spec_open_on_disk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            (root / "plan" / "spec-old-spec.md").write_text("# Spec: old-spec\n")
+            _git(root, "add", "-A")
+            _git(root, "commit", "-q", "-m", "spec old-spec is open")
+            path.write_text(self._EDIT_ONLY)
+            note = ch.closure_reminder(("plan/journal/some-class.md",), (), root)
+            self.assertIsNotNone(note)
+            self.assertIn("closure-reminder", note or "")
+
+    # VALIDATES: the Pre-Commit Verification gate fires on the closure row even
+    # when an older row is edited in the same commit.
+    # PREVENTS: `stem in _journal_added_spec_stems(...)` reading False because
+    # the reader answered with the edited row, which let a closure commit land
+    # with the spec's evidence tables byte-identical to the template.
+    def test_spec_audit_fires_on_the_closure_row_beside_an_edit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(self._EDIT_PLUS_APPEND)
+            (root / "plan" / "spec-new-spec.md").write_text(
+                _pcv(files="| `a.go` | yes | ls output |\n")
+            )
+            problems = ch.spec_audit_problems(
+                root, ("plan/journal/some-class.md",), "spec-new-spec.md", ()
+            )
+            self.assertTrue(problems, "the closure row must reach the audit gate")
+            self.assertIn("AC Verified", problems[0])
+
+    # VALIDATES: commit B derives the stem from the spec it REMOVES, even when it
+    # also carries a journal file.
+    # PREVENTS: the journal loop answering first and handing commit B the stem of
+    # a spec that closed through the same class earlier.
+    def test_removed_spec_beats_a_journal_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-09 | new-spec | gate | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(
+                ("plan/journal/some-class.md",), ("plan/spec-other.md",), root
+            )
+            self.assertEqual(stem, "other")
+
+    # VALIDATES: --lesson-required accepts a journal row, which is what its own
+    # message offers.
+    # PREVENTS: the operator being told to stage a plan/journal/<class>.md and
+    # then refused for staging one.
+    def test_lesson_required_accepts_a_journal_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            journal_dir = root / "plan" / "journal"
+            journal_dir.mkdir(parents=True)
+            (journal_dir / "some-class.md").write_text(
+                "| Date | Spec | Surface | Symptom | Fix |\n"
+                "|------|------|---------|---------|-----|\n"
+                "| 2026-08-09 | my-feature | gate | it refused | fixed |\n"
+            )
+            paths = ("scripts/dev/a.py", "plan/journal/some-class.md")
+            comment = ch.lesson_comment(
+                paths, (), True, None, ch.lesson_change_lines(root, paths, ())
+            )
+            self.assertIn("plan/journal/some-class.md", comment)
 
 
 class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):

@@ -22,7 +22,7 @@
 
 **Interoperability and correctness are never "optional" and never a scope-reduction candidate.** A network daemon that another implementation rejects has failed at its only job.
 
-**Recording a problem is not addressing it. Fix the root cause, always.** Writing a failure down (in `plan/known-failures/`, a learned summary, a deferral row, or a report to the user) changes nothing about the product. A record is a step *toward* a fix and never a substitute for one. When you find a red test, a hang, a wrong result, or a silent misbehavior, the deliverable is the FIX.
+**Recording a problem is not addressing it. Fix the root cause, always.** Writing a failure down (in `plan/known-failures/`, a journal row, a deferral row, or a report to the user) changes nothing about the product. A record is a step *toward* a fix and never a substitute for one. When you find a red test, a hang, a wrong result, or a silent misbehavior, the deliverable is the FIX.
 **A SPEC is the one exception, and only on the route "A problem you FIND" (above) sets out: spec it, close the work in hand, ask.** The spec differs from every record above in what it produces: work somebody can start, homed at a destination, with the owner asked. A spec written and never put to Thomas is a record wearing a spec's filename, and it is banned like the rest.
 
 **Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first.** Editing to silence the symptom before the root cause is named is the defect, not the fix.
@@ -90,7 +90,7 @@ If you genuinely cannot complete an item (missing infrastructure, blocked by
 another component, would require user decision):
 
 1. **Say explicitly:** "I cannot complete X because Y. The work is NOT done."
-2. **Keep the spec open.** Do not close it. Do not write a learned summary.
+2. **Keep the spec open.** Do not close it. Do not write the closing journal row.
 3. **List what works and what does not** in plain terms, no hedging.
 4. **Ask the user** what they want to do about the incomplete items.
 
@@ -570,7 +570,7 @@ Rationale: `ai/rationale/implementation-audit.md`
 
 ### When to run the audit
 
-Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
+Before: writing the journal row, claiming "done", asking to commit.
 
 ### Process
 

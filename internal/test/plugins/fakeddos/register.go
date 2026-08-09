@@ -6,7 +6,8 @@
 //
 // It exists to prove the "ze_" ownership prefix on ddos-local's table lets a
 // cleared mitigation be swept from the kernel -- the withdraw leak fixed in
-// plan/learned/1116-copp-firewall-shutdown-flush.md. The responder's own unit
+// docs/architecture/firewall/table-ownership-and-shutdown-flush.md. The
+// responder's own unit
 // tests mock the firewall backend, so only a functional test through the real
 // backend can show the table actually disappears.
 //

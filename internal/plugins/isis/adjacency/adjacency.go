@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- IS-IS adjacency record and state.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- IS-IS adjacency record and state.
 // ISO/IEC 10589 section 8.2 (adjacency states).
 //
 // RFC: rfc/short/rfc5303.md -- P2P three-way adjacency (TLV 240), reported state

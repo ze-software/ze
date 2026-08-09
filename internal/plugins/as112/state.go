@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- as112 published state (atomic snapshot)
+// Design: docs/architecture/dns/as112.md -- as112 published state (atomic snapshot)
 
 package as112
 

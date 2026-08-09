@@ -1,4 +1,4 @@
-// Design: plan/learned/1051-ospf-ext-6-ti-lfa.md -- RFC 5286 Section 6.3 OSPF multi-area
+// Design: docs/architecture/ospf/ospf-ext-6-ti-lfa.md -- RFC 5286 Section 6.3 OSPF multi-area
 // LFA suppression. OSPF traffic can leave and re-enter an area, so the local-area
 // SPF may not reflect the real inter-area / external path. Where the Section 6.3
 // leakage conditions hold, an LFA computed from the local-area SPF can micro-loop,

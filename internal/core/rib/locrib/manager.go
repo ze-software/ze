@@ -1,5 +1,5 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 4 (sharded Loc-RIB)
-// Design: plan/design-rib-rs-fastpath.md -- InsertForward threads a ForwardHandle to Change subscribers
+// Design: docs/architecture/rib/unified-locrib.md -- the sharded Loc-RIB manager
+// Design: docs/architecture/rib/forward-handle.md -- InsertForward threads a ForwardHandle to Change subscribers
 // Related: candidate.go -- Path value type
 // Related: entry.go -- PathGroup, selectBest
 // Related: forward_handle.go -- ForwardHandle interface

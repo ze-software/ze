@@ -1,4 +1,4 @@
-// Design: plan/learned/1044-ospf-ext-9-graceful-restart.md -- OSPFv3 Grace-LSA tlv carriage.
+// Design: docs/architecture/ospf/ospf-ext-9-graceful-restart.md -- OSPFv3 Grace-LSA tlv carriage.
 // RFC: rfc/short/rfc5187.md (§2.2 grace-LSA TLVs use the RFC 3630 §2.3.2 format),
 // rfc/short/rfc3630.md (§2.3.2 the 4-octet-aligned Type/Length/Value convention).
 //
@@ -6,8 +6,9 @@
 // natively. The wire shape (2-byte Type, 2-byte Length, value, pad to a 4-byte boundary,
 // Length excluding the pad) is identical to the OSPFv2 opaque tlv convention, but the
 // codec is re-implemented here rather than importing the v2 packet helpers: the v3 codec
-// never depends on the OSPFv2 wire package (plan/learned/972 -- the AF-specific wire lives
-// entirely under v3/). This mirrors v3/packet/checksum.go, which re-derives the Fletcher
+// never depends on the OSPFv2 wire package (docs/architecture/ospf/ospf-af-unify.md -- the
+// AF-specific wire lives entirely under v3/). This mirrors v3/packet/checksum.go, which
+// re-derives the Fletcher
 // checksum for the same reason.
 
 package packet

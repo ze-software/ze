@@ -130,8 +130,7 @@ func ExtractWebConfig(tree *Tree) (WebListenConfig, bool) {
 // --web flag, ze.web.listen, or ze.web.enabled as well as from this block. A
 // single `enabled` gate therefore discarded `certificate` for every listener
 // the config file did not start, silently serving a self-signed certificate to
-// an operator who had named their own
-// (plan/learned/1327-enabled-gate-discards-service-settings.md).
+// an operator who had named their own.
 func extractWebBlock(tree *Tree) (WebListenConfig, bool, bool) {
 	if tree == nil {
 		return WebListenConfig{}, false, false

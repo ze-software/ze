@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- packet body round-trip tests
+// Design: docs/architecture/ospf/ospf-2-wire.md -- packet body round-trip tests
 
 package packet
 

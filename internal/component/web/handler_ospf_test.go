@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- OSPF web view tests.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- OSPF web view tests.
 // Related: handler_ospf.go -- the neighbor/database handlers under test.
 //
 // VALIDATES: spec-ospf-13 AC-11 -- the OSPF web handlers dispatch the right show command,

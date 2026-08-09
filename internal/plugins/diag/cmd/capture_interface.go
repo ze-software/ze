@@ -1,4 +1,4 @@
-// Design: plan/learned/730-diag-capture-interface.md -- portable types and helpers
+// Design: docs/architecture/diagnostics/packet-capture.md -- portable types and helpers
 
 //go:build linux
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- Commit-time rejection matrix
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- Commit-time rejection matrix
 
 package firewallvpp
 

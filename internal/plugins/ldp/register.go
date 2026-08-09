@@ -1,4 +1,4 @@
-// Design: plan/learned/920-mpls-ldp.md -- LDP component registration
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP component registration
 // Related: wire.go -- LDP message codec
 // Related: discovery.go -- adjacency table
 // Related: session.go -- TCP session FSM

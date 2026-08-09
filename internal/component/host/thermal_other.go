@@ -1,4 +1,4 @@
-// Design: plan/learned/631-host-0-inventory.md — hardware inventory detection
+// Design: docs/architecture/host/inventory.md -- hardware inventory detection
 
 //go:build !linux
 

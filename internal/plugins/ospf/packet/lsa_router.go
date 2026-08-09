@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- Router-LSA body codec
+// Design: docs/architecture/ospf/ospf-2-wire.md -- Router-LSA body codec
 // RFC 2328 Appendix A.4.2: Router-LSA.
 
 package packet

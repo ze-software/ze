@@ -126,7 +126,7 @@ func majorVersionSweep(
 }
 
 // rfc-test-change-approved: 2026-08-01 owner standing approval for
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 //
 // mvAcceptedVersions is NEW and removes nothing. The RFC7296-2.5-15 echo test compared a
 // literal 2 it wrote against a literal 2 the builders write. That holds for an
@@ -267,7 +267,7 @@ func TestNATTDispatchAppliesTheSameVersionGate(t *testing.T) {
 // 2 in the builders is therefore their decision, not a limit of the encoder.
 func TestResponderEchoesTheSupportedMajorVersion(t *testing.T) {
 	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only. Nothing is removed.
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Nothing is removed.
 	//
 	// Ze MEASURES the supported version from the production inbound gate now. It is no
 	// longer a second literal 2 beside the builders' own. RFC 7296 Section 2.5 makes the
@@ -314,7 +314,7 @@ func TestResponderEchoesTheSupportedMajorVersion(t *testing.T) {
 	}
 
 	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	//
 	// Every later response repeats the same version number. That number is the MEASURED
 	// supported one. It is not a literal this file wrote beside the builders' own.

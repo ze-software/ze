@@ -1,4 +1,4 @@
-// Design: plan/learned/516-healthcheck-0-umbrella.md -- FSM states and transitions
+// Design: docs/architecture/bgp/healthcheck-plugin.md -- FSM states and transitions
 // Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 

@@ -54,6 +54,30 @@ surfaces the tests it stranded. The check is a satisfiability search, so a
 negated or compile-out constraint (`!linux`, `ze_core && !ze_web`) is correctly
 NOT an orphan.
 
+### Detector pitfalls
+
+Four traps hit while building these detectors, recorded because each produced a
+green or a plausible number that was wrong:
+
+- **A name-shaped heuristic is porous.** Matching `"/is"` as a substring for an
+  assertion-library import exempted all of `internal/plugins/isis/**`, which is
+  143 tests. Match the final path element. A method-name match with no receiver
+  check credited `fmt.Errorf(...)` as a failure call. Discriminate on the
+  receiver.
+- **A correction can over-shoot into the opposite defect.** Narrowing a
+  negative-test regular expression that over-matched setup guards narrowed it
+  past the house style `if err == nil { t.Fatal }`, which halved the figure
+  (418 against 828) and published `0/31` for subsystems holding 13 files of
+  rejection tests.
+- **A guard driven only through its helper is not tested.** Several
+  fail-closed tests called the helper directly and passed, while the real entry
+  point crashed on the same input because a different collector read the file
+  first. Drive a fail-closed guard from its entry point.
+- **A scripted edit is not done until it is grepped.** Two string replacements
+  silently matched nothing after a formatter reflowed their targets, and the
+  review record said "fixed". A false review record stops the next reviewer
+  looking.
+
 ### The floors
 
 Committed in `test/health/sensitivity-baseline.json`. Counts may only go DOWN,

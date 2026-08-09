@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- fuzz targets for packet and LSA decode
+// Design: docs/architecture/ospf/ospf-2-wire.md -- fuzz targets for packet and LSA decode
 
 package packet
 

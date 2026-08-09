@@ -1,5 +1,5 @@
 // Design: internal/component/bgp/reactor/peer_bfd.go -- the EXEMPLAR BFD client this mirrors.
-// Design: plan/learned/560-bfd-3-bgp-client.md -- nil-safe Service lookup, per-session
+// Design: docs/architecture/ospf/bfd-client.md -- nil-safe Service lookup, per-session
 // subscriber worker, stop+done handshake.
 // RFC: rfc/short/rfc5881.md (single-hop UDP 3784, both ends Active, TTL/Hop-Limit 255 GTSM);
 // rfc/short/rfc5880.md (Down/AdminDown detection); rfc/short/rfc5882.md (client model:

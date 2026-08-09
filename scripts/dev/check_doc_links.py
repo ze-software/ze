@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """Check that path references in the instruction corpus resolve.
 
-Four checks:
+Three checks:
   1. Markdown corpus: backtick path references and markdown links in the
      normative agent-instruction files (ai/, .claude/rules/, plan/ meta docs)
-     must point at files/dirs that exist. Historical records (plan/learned
-     numbered summaries, plan/handover/) are NOT checked: they describe the
-     tree as it was at the time.
+     must point at files/dirs that exist. Historical records (plan/handover/)
+     are NOT checked: they describe the tree as it was at the time.
   2. Go sources: the target of every `// Design:` comment must exist
      (`(none ...)` placeholders are allowed).
-  3. Pointer budget: an entry in the curated `ai/LEARNED-INDEX.md` says what
-     its target answers and stops, under 120 characters after the link
-     (`ai/rules/writing.md`).
-  4. Dead names: a backticked `*.sh` filename or `c_*`/`check_*` function name
+  3. Dead names: a backticked `*.sh` filename or `c_*`/`check_*` function name
      in the hook-describing documents must name something in the tree. Check 1
      cannot see these: a bare `foo.sh` carries no `/`, so `candidate_paths`
      drops it, and a function name is not a path at all.
@@ -90,7 +86,6 @@ MD_GLOBS = [
     "ai/INSTRUCTIONS.md",
     "ai/INDEX.md",
     "ai/NAVIGATION.md",
-    "ai/LEARNED-INDEX.md",
     "ai/rules/*.md",
     "ai/rationale/*.md",
     "ai/patterns/*.md",
@@ -121,22 +116,9 @@ LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
 # `file.go:Symbol` / `pkg.Symbol` references: strip the symbol, check the path.
 SYMBOL_COLON = re.compile(r":[A-Za-z_][\w.]*$")
 SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
-LEARNED_NUMBER = re.compile(r"^plan/learned/(\d+)$")
 DESIGN = re.compile(r"^// Design:\s*(.+)$")
 
-# --- Check 3: pointer budget (ai/rules/writing.md) --------------------
-POINTER_BUDGET = 120
-INDEX_FILE = "ai/LEARNED-INDEX.md"
-# `- [760](plan/learned/760-name.md) -- description`: the budget governs the
-# description, so the measured span starts after the link's closing paren.
-INDEX_ENTRY = re.compile(r"^\s*[-*]\s*\[[^\]]*\]\([^)]*\)(.*)$")
-INDEX_SEPARATOR = re.compile(r"^\s*(?:--|—|-)\s*")
-# BLOCKING since the trim landed (spec-knowledge-2-meta-docs, step 4). It ran
-# report-only for one commit while 211 entries were over budget; the gate now
-# holds that line, so a new entry must point rather than summarise.
-INDEX_BUDGET_BLOCKING = True
-
-# --- Check 4: dead hook and check names -------------------------------------
+# --- Check 3: dead hook and check names -------------------------------------
 NAME_LINT_FILES = (
     "plan/learned/HOOK-FRICTION.md",
     "plan/learned/RECURRING-PATTERNS.md",
@@ -202,10 +184,6 @@ def candidate_paths(raw: str) -> list[str]:
 
 
 def path_resolves(path: str) -> bool:
-    m = LEARNED_NUMBER.match(path)
-    if m:
-        # `plan/learned/734` shorthand for `plan/learned/734-*.md`
-        return bool(globmod.glob(f"plan/learned/{m.group(1)}-*.md"))
     if "*" in path or "?" in path or "[" in path:
         return bool(globmod.glob(path))
     return os.path.exists(path.rstrip("/"))
@@ -304,44 +282,6 @@ def check_design_refs(verbose: bool) -> list[tuple[str, str]]:
                 print(f"ok {go}:{lineno}: {target}")
             break
     return errors
-
-
-def index_entry_length(line: str) -> int | None:
-    """Characters after the link in an index entry, or None if not an entry."""
-    m = INDEX_ENTRY.match(line)
-    if not m:
-        return None
-    return len(INDEX_SEPARATOR.sub("", m.group(1).strip()).strip())
-
-
-def check_index_budget(
-    path: str = INDEX_FILE, limit: int = POINTER_BUDGET
-) -> list[str]:
-    """Report curated-index entries longer than the pointer budget."""
-    if not os.path.exists(path):
-        # A tree that does not carry the curated index is not the Ze corpus
-        # (the fixtures in check_doc_links_test.py are such trees). Presence in
-        # the real tree is asserted by test_real_corpus_is_present_and_clean,
-        # so deleting the index reds the suite rather than silencing the check.
-        return []
-    try:
-        with open(path, encoding="utf-8") as fh:
-            text = fh.read()
-    except OSError as err:
-        # Fail closed: an index that exists but cannot be read is a fault.
-        return [f"{path}: cannot read curated index: {err}"]
-    findings = []
-    for lineno, line in enumerate(text.splitlines(), 1):
-        if "doc-links: ignore" in line:
-            continue
-        size = index_entry_length(line)
-        if size is not None and size > limit:
-            findings.append(
-                f"{path}:{lineno}: index entry runs {size} characters after "
-                f"the link, budget {limit} -- say what the target answers, "
-                f"then stop; the detail belongs in the summary it links"
-            )
-    return findings
 
 
 def python_check_sources() -> list[str]:
@@ -520,18 +460,6 @@ def main() -> int:
 
     if not args.design_only:
         errors += check_hook_names(verbose=args.verbose)
-        over_budget = check_index_budget()
-        if INDEX_BUDGET_BLOCKING:
-            errors += over_budget
-        elif over_budget:
-            for finding in over_budget:
-                print(finding)
-            print(
-                f"{len(over_budget)} index entr(ies) over the "
-                f"{POINTER_BUDGET}-character pointer budget "
-                f"(report-only; see ai/rules/writing.md)",
-                file=sys.stderr,
-            )
 
     for err in errors:
         print(err)

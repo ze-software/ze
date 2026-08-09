@@ -1,4 +1,4 @@
-// Design: plan/learned/1007-cp-survival-3-egress-cs6-sched.md -- CS6 classification integration test
+// Design: docs/architecture/traffic/cp-survival-3-egress-cs6-sched.md -- CS6 classification integration test
 
 //go:build integration && linux
 

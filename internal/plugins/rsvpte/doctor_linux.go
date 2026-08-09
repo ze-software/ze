@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/921-mpls-rsvp-te.md -- raw-socket probe for the doctor check
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- raw-socket probe for the doctor check
 // Related: transport_linux.go -- the production raw socket this mirrors
 
 package rsvpte

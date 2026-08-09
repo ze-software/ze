@@ -1855,27 +1855,62 @@ class CorpusRatchetTest(unittest.TestCase):
 
     def test_an_undeclared_deletion_is_reported(self):
         shrunk = rules_points.corpus_shrink(
-            {"alpha": 4, "beta": 2}, collections.Counter({"alpha": 3, "beta": 2}), {}
+            {"alpha/d/one", "alpha/d/two", "beta/d/one"},
+            {"alpha/d/one", "beta/d/one"},
+            set(),
         )
         self.assertEqual(len(shrunk), 1, shrunk)
         self.assertIn("alpha", shrunk[0])
         self.assertIn("1 vanished", shrunk[0])
+        self.assertIn("alpha/d/two", shrunk[0], "the report names the id that left")
         _, code = rules_points.report_gate_map(self._gm(), shrunk=shrunk)
         self.assertNotEqual(code, 0, "an undeclared deletion must fail")
+
+    # VALIDATES: an ADDITION does not buy a DELETION. The rule's point count is
+    # unchanged, so the count form saw nothing at all.
+    # PREVENTS: the shape measured on 2026-08-09 -- 17 points deleted, 6
+    # declared, and `make ze-rules-gate-map` exiting 0. completion, git-safety,
+    # rfc-compliance and testing each lost a point behind an addition, and only
+    # planning (191 -> 186) had a count drop the guard could see.
+    def test_a_net_zero_add_and_delete_is_caught(self):
+        shrunk = rules_points.corpus_shrink(
+            {"alpha/d/one", "alpha/d/two"},
+            {"alpha/d/one", "alpha/d/three"},
+            set(),
+        )
+        self.assertEqual(len(shrunk), 1, shrunk)
+        self.assertIn("alpha/d/two", shrunk[0])
+        self.assertNotIn("alpha/d/three", shrunk[0], "the added point is not a loss")
+        _, code = rules_points.report_gate_map(self._gm(), shrunk=shrunk)
+        self.assertNotEqual(code, 0, "a masked deletion must fail")
 
     def test_a_declared_retirement_covers_the_drop(self):
         """Legitimate deletion stays possible: one ledger row per point."""
         shrunk = rules_points.corpus_shrink(
-            {"alpha": 4},
-            collections.Counter({"alpha": 3}),
-            collections.Counter({"alpha": 1}),
+            {"alpha/d/one", "alpha/d/two"},
+            {"alpha/d/one"},
+            {"alpha/d/two"},
         )
         self.assertEqual(shrunk, [])
+
+    # VALIDATES: a declaration covers the id it NAMES and no other. The count
+    # form let one row cover any deletion inside the same rule.
+    def test_a_declaration_covers_only_its_own_id(self):
+        shrunk = rules_points.corpus_shrink(
+            {"alpha/d/one", "alpha/d/two"},
+            set(),
+            {"alpha/d/two"},
+        )
+        self.assertEqual(len(shrunk), 1, shrunk)
+        self.assertIn("alpha/d/one", shrunk[0])
+        self.assertNotIn("alpha/d/two", shrunk[0])
 
     def test_a_growing_corpus_is_never_a_shrink(self):
         self.assertEqual(
             rules_points.corpus_shrink(
-                {"alpha": 2}, collections.Counter({"alpha": 5, "beta": 1}), {}
+                {"alpha/d/one", "alpha/d/two"},
+                {"alpha/d/one", "alpha/d/two", "alpha/d/three", "beta/d/one"},
+                set(),
             ),
             [],
         )
@@ -1899,14 +1934,6 @@ class CorpusRatchetTest(unittest.TestCase):
         for row in rules_points.retirement_rows(path.read_text(encoding="utf-8")):
             self.assertIsNotNone(rules_points.RETIREMENT.match(row), row)
 
-    def test_head_point_counts_over_the_real_repository(self):
-        counts = rules_points.head_point_counts(ROOT)
-        if counts is None:
-            self.skipTest("git could not answer; no HEAD baseline on this machine")
-        self.assertGreater(len(counts), 20, "27 rules are committed")
-        self.assertNotIn("manifest", counts)
-        self.assertGreater(sum(counts.values()), 1000)
-
     def test_head_point_ids_carry_the_names_not_only_the_count(self):
         ids = rules_points.head_point_ids(ROOT)
         if ids is None:
@@ -1914,9 +1941,9 @@ class CorpusRatchetTest(unittest.TestCase):
         self.assertGreater(len(ids), 1000)
         self.assertTrue(all(ref.count("/") == 2 for ref in ids))
         self.assertFalse([r for r in ids if r.endswith("/manifest")])
-        self.assertEqual(
-            rules_points.head_point_counts(ROOT), dict(rules_points.counts_by_rule(ids))
-        )
+        rules = {ref.split("/", 1)[0] for ref in ids}
+        self.assertGreater(len(rules), 20, "27 rules are committed")
+        self.assertNotIn("manifest", rules)
 
     def test_a_fictional_retirement_buys_no_deletion(self):
         """R4a: delete a real point, declare an id the corpus never carried.
@@ -1940,11 +1967,7 @@ class CorpusRatchetTest(unittest.TestCase):
 
         # The deletion the row tried to cover is still reported, so the run is
         # red for both reasons rather than green for the wrong one.
-        shrunk = problems + rules_points.corpus_shrink(
-            dict(rules_points.counts_by_rule(head_ids)),
-            rules_points.counts_by_rule(now_ids),
-            rules_points.counts_by_rule(declared),
-        )
+        shrunk = problems + rules_points.corpus_shrink(head_ids, now_ids, declared)
         self.assertEqual(len(shrunk), 2, shrunk)
         _, code = rules_points.report_gate_map(self._gm(), shrunk=shrunk)
         self.assertNotEqual(code, 0, "a fake declaration must not clear the ratchet")
@@ -1962,11 +1985,7 @@ class CorpusRatchetTest(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(declared, {"alpha/directives/first"})
         self.assertEqual(
-            rules_points.corpus_shrink(
-                dict(rules_points.counts_by_rule(head_ids)),
-                rules_points.counts_by_rule(now_ids),
-                rules_points.counts_by_rule(declared),
-            ),
+            rules_points.corpus_shrink(head_ids, now_ids, declared),
             [],
         )
 
@@ -2064,6 +2083,42 @@ class CorpusRatchetTest(unittest.TestCase):
             ROOT, points_dir, head_ids, set(rules_points.points_on_disk(points_dir))
         )
         self.assertEqual(problems, [], "the committed ledger states nothing false")
+
+    # VALIDATES: with no point baseline the report REFUSES to print a count.
+    # PREVENTS: `head_point_ids` returning None (its `ls-tree` call failed) while
+    # the dispatcher baseline stands, which printed `SHRUNK: 0` over an identity
+    # comparison that never ran -- the permissive miss path the guard exists to
+    # refuse (`ai/rules/evidence.md`).
+    def test_no_point_baseline_prints_no_count(self):
+        lines, code = rules_points.report_gate_map(self._gm(), corpus_baseline=False)
+        shrunk_lines = [line for line in lines if line.startswith("SHRUNK:")]
+        self.assertEqual(len(shrunk_lines), 1, lines)
+        self.assertIn("no HEAD point baseline", shrunk_lines[0])
+        self.assertNotIn("SHRUNK: 0", "\n".join(lines))
+        self.assertEqual(code, 0, "an absent baseline is not a failure, it is a say-so")
+
+    # VALIDATES: a ledger row that declares nothing is counted as a ledger row,
+    # and the SHRUNK count stays a count of RULES.
+    # PREVENTS: `shrunk = ledger_problems + corpus_shrink(...)`, which reported
+    # "N rule(s) lost a point" over a list holding rows of a different kind.
+    def test_a_ledger_problem_is_not_counted_as_a_shrunk_rule(self):
+        lines, code = rules_points.report_gate_map(
+            self._gm(),
+            shrunk=["alpha: 1 vanished since HEAD with no RETIRED.md row: alpha/d/one"],
+            ledger=["ai/rules/points/RETIRED.md: 'junk' is not '<rule>/...'"],
+        )
+        text = "\n".join(lines)
+        self.assertIn("SHRUNK: 1 rule(s)", text)
+        self.assertIn("RETIRED LEDGER: 1 row(s)", text)
+        self.assertNotEqual(code, 0, "either set fails the gate")
+
+    # VALIDATES: a ledger problem alone still fails, so separating the counts
+    # cannot make the ledger check advisory.
+    def test_a_ledger_problem_alone_fails(self):
+        _, code = rules_points.report_gate_map(
+            self._gm(), ledger=["ai/rules/points/RETIRED.md: 'junk' is not a row"]
+        )
+        self.assertNotEqual(code, 0)
 
     def _gm(self):
         with tempfile.TemporaryDirectory() as tmp:

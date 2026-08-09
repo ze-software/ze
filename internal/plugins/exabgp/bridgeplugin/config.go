@@ -1,4 +1,4 @@
-// Design: plan/learned/1095-followup-subsystem.md AC-1 -- internal exabgp bridge config
+// Design: docs/architecture/exabgp-bridge.md -- internal exabgp bridge config
 //
 // Parses the `exabgp { bridge { ... } }` config root delivered to the internal
 // plugin via the SDK OnConfigure (Stage 2) callback. The script command reaches

@@ -1,4 +1,4 @@
-// Design: plan/learned/728-diag-netlink-monitor.md -- wiring tests for netlink monitor
+// Design: docs/architecture/iface/netlink-monitor.md -- wiring tests for netlink monitor
 
 package cmd
 

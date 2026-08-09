@@ -1,4 +1,4 @@
-// Design: plan/learned/957-ospf-3-ip-transport.md -- OSPFv2 multicast groups
+// Design: docs/architecture/ospf/ospf-3-ip-transport.md -- OSPFv2 multicast groups
 // RFC 2328 Appendix B / D.3: AllSPFRouters and AllDRouters.
 
 package transport

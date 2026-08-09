@@ -7,7 +7,7 @@ directives ## Directives
   hold-every-protocol-to-its-own-rfcs
   never-trade-conformance-for-convenience
   treat-conformance-as-non-negotiable
-  record-an-authorised-deviation-in-plan-learned
+  record-an-authorised-deviation-in-the-journal
   what-to-do-in-each-conformance-situation
   read-the-rfc-text-before-claiming-conformance
   where-the-rationale-lives

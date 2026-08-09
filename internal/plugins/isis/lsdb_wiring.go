@@ -1,4 +1,4 @@
-// Design: plan/learned/932-isis-6-lsdb.md -- engine <-> LSDB wiring (origination trigger, aging loop).
+// Design: docs/architecture/isis/isis-6-lsdb.md -- engine <-> LSDB wiring (origination trigger, aging loop).
 // Related: server.go -- the engine struct + lifecycle this extends
 // Related: circuits.go -- the adjacency circuits whose Up neighbors feed origination
 // Related: events.go -- the LSPChange event emitted on an LSDB change

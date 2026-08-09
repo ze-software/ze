@@ -1,4 +1,4 @@
-// Design: plan/learned/629-fw-7b-backend-hardening.md -- govppOps production adapter
+// Design: docs/architecture/traffic/fw-7b-backend-hardening.md -- govppOps production adapter
 // Related: ops.go (vppOps interface), backend_linux.go (Apply/reconcile consumers)
 
 //go:build linux

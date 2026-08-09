@@ -1,4 +1,4 @@
-// Design: plan/learned/733-pki-store.md -- PKI show command handlers
+// Design: docs/architecture/pki/pki-store.md -- PKI show command handlers
 
 package pki
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/982-install-11-hw-kernel-profiles.md - installer kernel requirement enforcement
+// Design: docs/architecture/appliance/kernel-profiles.md - installer kernel requirement enforcement
 
 package appliance
 

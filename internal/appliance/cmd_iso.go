@@ -1,4 +1,4 @@
-// Design: plan/learned/854-install-8-appliance-iso.md — bootable appliance ISO installer
+// Design: docs/architecture/appliance/iso-installer.md -- bootable appliance ISO installer
 
 package appliance
 

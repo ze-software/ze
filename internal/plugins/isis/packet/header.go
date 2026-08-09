@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- common 8-byte header, PDU type constants, dispatch
+// Design: docs/architecture/wire/isis.md -- common 8-byte header, PDU type constants, dispatch
 // ISO/IEC 10589 clause 9: common header and PDU-specific headers.
 
 package packet

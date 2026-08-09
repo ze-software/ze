@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- PPPoE configuration
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- PPPoE configuration
 // Related: subsystem.go -- Parameters produced here, consumed at Start
 
 package pppoe

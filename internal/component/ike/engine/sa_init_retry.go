@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE_SA_INIT retry on COOKIE and INVALID_KE_PAYLOAD
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE_SA_INIT retry on COOKIE and INVALID_KE_PAYLOAD
 // RFC: rfc/short/rfc7296.md -- corrected retry (Sections 1.2, 2.6, 2.6.1)
 // Related: cookie.go -- the responder half that issues the challenge this file answers
 // Related: fsm.go -- handleSAInitResponse, which classifies the notify and calls in here

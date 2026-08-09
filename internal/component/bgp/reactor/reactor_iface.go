@@ -1,4 +1,4 @@
-// Design: plan/learned/492-iface-3-bgp-react.md — BGP reactions to interface events
+// Design: docs/architecture/bgp/interface-event-reactions.md -- BGP reactions to interface events
 // RFC: rfc/short/rfc2545.md — the Section 3 link-local condition is re-settled on an address event
 // Overview: reactor.go — Reactor struct and lifecycle
 

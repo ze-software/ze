@@ -1,4 +1,4 @@
-// Design: plan/learned/965-ospf-11-stub-nssa.md -- stub/NSSA Summary-LSA origination policy.
+// Design: docs/architecture/ospf/ospf-11-stub-nssa.md -- stub/NSSA Summary-LSA origination policy.
 // RFC: rfc/short/rfc2328.md -- sec 3.6 stub areas (Type 3 default, no Type 4/5)
 
 package spf

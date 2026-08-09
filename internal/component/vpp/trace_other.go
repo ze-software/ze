@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- VPP trace stubs for non-Linux
+// Design: docs/architecture/diagnostics/production-diagnostics.md -- VPP trace stubs for non-Linux
 
 //go:build !linux
 

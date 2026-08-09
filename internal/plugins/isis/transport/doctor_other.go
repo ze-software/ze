@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/929-isis-3-l2-transport.md -- raw-socket probe (non-Linux stub)
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw-socket probe (non-Linux stub)
 //
 // The IS-IS raw L2 transport only opens an AF_PACKET socket on Linux, so off
 // Linux there is no raw-socket dependency to warn about; the probe reports

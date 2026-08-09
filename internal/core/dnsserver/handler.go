@@ -1,4 +1,4 @@
-// Design: plan/learned/1027-dns-server-harness.md -- authoritative-answer
+// Design: docs/architecture/dns/server-harness.md -- authoritative-answer
 // shaping, the single-source-of-truth recursion guard (child-2 R-3)
 // RFC: rfc/short/rfc1035.md -- DNS message structure
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1031-ospf-ext-3-router-information.md -- OSPFv3 Router Information LSA origination.
+// Design: docs/architecture/ospf/ospf-ext-3-router-information.md -- OSPFv3 Router Information LSA origination.
 // RFC: rfc/short/rfc7770.md -- sec 2.2 (OSPFv3 RI LSA = function code 12, U-bit set, per-scope
 // wire type), sec 2.4 (Informational Capabilities TLV first), sec 2.7 (per-scope flooding).
 // RFC: rfc/short/rfc5340.md -- App A.4.2.1 (U/S2/S1 LS Type), the native self-LSA seam.

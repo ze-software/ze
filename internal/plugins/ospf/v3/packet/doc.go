@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 packet and LSA wire codec.
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 packet and LSA wire codec.
 
 // Package packet is the OSPFv3 (RFC 5340) packet and LSA wire codec: the
 // protocol's serialization boundary. It parses received OSPFv3 payloads (raw

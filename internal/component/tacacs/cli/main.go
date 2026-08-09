@@ -1,4 +1,4 @@
-// Design: plan/learned/601-tacacs.md -- TACACS+ AAA operational CLI
+// Design: docs/architecture/aaa-tacacs.md -- TACACS+ AAA operational CLI
 //
 // Package tacacs implements the `ze tacacs` offline subcommand.
 //

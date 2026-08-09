@@ -1,4 +1,4 @@
-// Design: plan/learned (cli-dash-stdio) -- "-" means stdin/stdout via internal/core/cliio
+// Design: ai/rules/cli.md -- "-" means stdin/stdout via internal/core/cliio
 //
 // cli_dash_stdio enforces the invariant that a command must NOT read or write a
 // USER-SUPPLIED path with a raw os call: it must route through internal/core/cliio

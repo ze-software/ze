@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- VPP-operation seam for unit tests
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- VPP-operation seam for unit tests
 
 //go:build linux
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- LSAge 16-bit LSA age in seconds.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- LSAge 16-bit LSA age in seconds.
 // RFC: rfc/short/rfc5340.md (§A.4.2.1 LS age; RFC 2328 §12.1.1 MaxAge semantics)
 //
 // OSPFv3 keeps the OSPFv2 16-bit LS age in seconds and the MaxAge flush boundary at 3600.

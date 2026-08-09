@@ -1,4 +1,4 @@
-// Design: plan/learned/727-diag-core.md -- BFD raw capture ring for pcap export
+// Design: docs/architecture/diagnostics/procfs-diagnostics.md -- BFD raw capture ring for pcap export
 // Overview: engine.go -- Loop struct holds the atomic capture pointer
 
 package engine

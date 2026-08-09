@@ -49,11 +49,12 @@ func TestExtractWebConfigCertificate(t *testing.T) {
 func TestExtractWebSettingsSurviveDisabledBlock(t *testing.T) {
 	// VALIDATES: a web block that does NOT say `enabled true` still carries the
 	// operator's certificate choice to a listener started by something else.
-	// PREVENTS: plan/learned/1327-enabled-gate-discards-service-settings.md, the
-	// third instance of that shape. cmd/ze/hub/main.go sets webEnabled from the
-	// --web flag, ze.web.listen, and ze.web.enabled, none of which consult this
-	// block; gating `certificate` on `enabled` would silently serve a
-	// self-signed certificate to an operator who asked for their own chain.
+	// PREVENTS: the third instance of the enabled-gate shape, where a service
+	// extractor parses its settings PAST the `enabled` check and so discards
+	// them whenever something else starts the listener. cmd/ze/hub/main.go sets
+	// webEnabled from the --web flag, ze.web.listen, and ze.web.enabled, none of
+	// which consult this block; gating `certificate` on `enabled` would silently
+	// serve a self-signed certificate to an operator who asked for their own chain.
 	tree := webTree("false", "lan")
 
 	if _, ok := ExtractWebConfig(tree); ok {

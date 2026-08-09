@@ -1,4 +1,4 @@
-// Design: plan/learned/669-bng-5-pppoe.md -- observability snapshots for CLI
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- observability snapshots for CLI
 
 package pppoe
 

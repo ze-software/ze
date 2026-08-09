@@ -66,7 +66,7 @@ still missing, go back: this skill does not implement.
 | 2. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 4. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
 | 5. Review Gate | **Review Gate**: record via `scripts/dev/review_gate.py`, loop to 0 BLOCKER/0 ISSUE |
-| 6. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Deferrals Resolved**, `plan/learned/METHODOLOGY.md` |
+| 6. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Deferrals Resolved** |
 
 ## Steps
 
@@ -116,7 +116,7 @@ still missing, go back: this skill does not implement.
    - Invoke `/ze-review` on the uncommitted changes. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
    - **Record the machine artifact, not just prose:** `python3 scripts/dev/review_gate.py record --spec <spec> --rounds <N> ...`, then `check`. `commit_helper.py` runs that same `check` on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path, the `check` result and the round count in the Review Gate table.
    - **`--rounds` is required and more than three is refused without `--rounds-reason`.** The reason must name the PRODUCT defect a later round found. A false statement in the spec's own closure prose is not one: those are NOTEs, they are fixed in ONE edit, and they never earn another round (`ai/rules/planning.md`, "A finding in the record is not a finding in the product"). A round whose findings are all record defects is the last round.
-   - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by) so the learned summary can carry them forward. NOTEs do not block: record and proceed.
+   - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by). NOTEs do not block: record and proceed.
    - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/completion.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
    - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
    - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
@@ -146,37 +146,38 @@ still missing, go back: this skill does not implement.
    Running the commit script finishes the work. There is no step 7. The script is the
    final action. Everything below MUST be in that single script.
 
-   a. **Ask whether there is a lesson, THEN allocate.** A learned summary records
-      what the code cannot tell a future reader. It is not an artifact of closing a
-      spec, so a spec that produced no such knowledge writes no file at all: no
-      number is allocated, nothing is created, and commit A carries the reason
-      instead (`plan/learned/METHODOLOGY.md`, "When No Summary Is Written").
+   a. **Record the lesson as a journal row.** The closure artifact is a row in
+      `plan/journal/<class>.md`, where `<class>` names the problem class (the trap
+      or pattern, not the subsystem). The row has five columns:
+      `| Date | Spec | Surface | Symptom | Fix |`. The Spec column carries the
+      spec stem so `spec_closure_stem` can read it. Create the file when the class
+      is new. All five cells, starting with `|`: `journal_row_problems` REFUSES
+      commit A over a row it cannot parse, because a row with no readable Spec
+      cell leaves the review gate with no stem and it stops firing on the code.
       Answer this first, from the finished work: does this spec leave a decision
       with a rejected alternative, a constraint discovered, or a trap that would
-      catch the next session? A "Gotchas: None." with nothing above it is the
-      answer being no.
-      - **Yes, there is a lesson:** `python3 scripts/dev/commit_helper.py learned-next <spec-stem>` allocates NNN (max(existing `plan/learned/NNNN-*.md` prefixes) + 1) and creates `plan/learned/NNN-<spec-stem>.md` immediately, so concurrent sessions in one tree cannot collide. Write the summary into that file following `plan/learned/METHODOLOGY.md`.
-        Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
-      - **No, there is none:** create nothing. Do not run `learned-next` -- it
-        allocates and writes on the spot, so calling it to "see the number" leaves
-        an empty summary behind. Carry the reason on commit A instead (step 6e).
+      catch the next session?
+      - **Yes, there is a lesson:** append a row to the matching class file under
+        `plan/journal/`. Use today's date, the spec stem, the subsystem where it
+        appeared, a one-phrase symptom, and a one-phrase fix.
+      - **No, there is none:** create nothing. Carry the reason on commit A
+        instead (step 6e, `--lesson-not-needed`).
       The commit helper asks the same question of the diff and will refuse commit A
-      if the change adds content and neither a summary nor a reason is present, so
-      an honest "no" costs one flag and a dishonest one is caught.
-   b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
-   c. Release this session's spec claim: `scripts/dev/spec-session.sh release`. This also frees a slot against the WIP cap (`scripts/dev/spec-session.sh wip`).
-   d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
-   e. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
-      - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md` when step 6a wrote one, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.
+      if the change adds content and neither a journal row nor a reason is present,
+      so an honest "no" costs one flag and a dishonest one is caught.
+   b. Release this session's spec claim: `scripts/dev/spec-session.sh release`. This also frees a slot against the WIP cap (`scripts/dev/spec-session.sh wip`).
+   c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
+   d. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
+      - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/journal/<class>.md` when step 6a wrote a journal row, and `plan/<spec-name>` to preserve all implementation edits in git history.
       - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
-      - **Lesson flags follow step 6a's answer, and commit A never passes `--lesson-required`.** That flag is the operator demanding a summary; passing it on every closure is what made the summary unconditional. When a summary was written, `--file` on it is the whole story. When none was, pass `--lesson-not-needed "<why this spec taught nothing reusable>"` and say what the work was, not that a spec closed.
-      - Commit B removes a spec and adds nothing, so the helper asks it for nothing. Pass `--lesson-not-needed "spec closure only; lesson is in Commit A"` only when commit A actually carried a summary.
-      - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and learned-summary checks.
-   f. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
+      - **Lesson flags follow step 6a's answer, and commit A never passes `--lesson-required`.** That flag is the operator demanding a summary; passing it on every closure is what made the summary unconditional. When a journal row was written, `--file` on the class file is the whole story. When none was, pass `--lesson-not-needed "<why this spec taught nothing reusable>"` and say what the work was, not that a spec closed.
+      - Commit B removes a spec and adds nothing, so the helper asks it for nothing. Pass `--lesson-not-needed "spec closure only; lesson is in Commit A"` only when commit A actually carried a journal row.
+      - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and journal-row checks.
+   e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 
    **Why one script, two commits, no follow-up:** the user will not ask for a second step.
    They will not remember that the spec needs closing. They will not prompt you for the
-   learned summary. If closure is not in the script, it will never happen and the spec
+   journal row. If closure is not in the script, it will never happen and the spec
    rots in `plan/` forever. Include everything. There is nothing after this step.
    Two commits because `git rm` destroys the working copy. Commit A preserves the
    edited spec in git history; commit B cleanly removes it.

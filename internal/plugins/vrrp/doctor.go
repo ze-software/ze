@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- doctor codes + config-sanity check
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- doctor codes + config-sanity check
 //
 // The codes live here, not in internal/core/diagnostic's builtin list, so that
 // deleting this plugin removes its diagnostics with it

@@ -1,4 +1,4 @@
-// Design: plan/learned/1011-cp-survival-5-detect-0-umbrella.md -- DDoS event contract
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- DDoS event contract
 
 package ddosevent
 

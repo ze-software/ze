@@ -1,4 +1,4 @@
-// Design: plan/learned/973-ospfv3-6-interop-coverage.md -- OSPFv3 stub-area policy for the ABR
+// Design: docs/architecture/ospf/ospfv3-6-interop-coverage.md -- OSPFv3 stub-area policy for the ABR
 // inter-area summary set (the v6 counterpart of spf.applyAreaTypePolicy).
 // RFC: rfc/short/rfc5340.md (sec 3.5 inter-area), rfc/short/rfc2328.md (sec 3.6 stub areas)
 //

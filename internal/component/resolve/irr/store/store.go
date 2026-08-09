@@ -1,4 +1,4 @@
-// Design: plan/learned/912-irr-prefix-store.md -- shared IRR prefix resolution + persistence
+// Design: docs/architecture/resolve.md -- shared IRR prefix resolution + persistence
 //
 // Package store provides PrefixStore, a shared cache of IRR-resolved prefix
 // lists keyed by name (an ASN like "AS13335" or an AS-SET like "AS-CLOUDFLARE").

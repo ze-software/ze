@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- Linux-only logger accessor
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- Linux-only logger accessor
 
 //go:build linux
 

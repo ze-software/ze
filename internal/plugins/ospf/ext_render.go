@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- decoded `show ospf database
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- decoded `show ospf database
 // opaque-area` / `opaque-as` view of the RFC 7684 Extended Prefix/Link Opaque LSAs.
 // RFC: rfc/short/rfc7684.md -- sec 2.1 (Extended Prefix TLV), sec 3.1 (Extended Link TLV).
 //

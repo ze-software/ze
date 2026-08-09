@@ -1,4 +1,4 @@
-// Design: plan/learned/696-host-1-observability.md — hardware-change event detection
+// Design: docs/architecture/host/observability.md -- hardware-change event detection
 // Overview: inventory.go — Inventory struct and section types
 // Related: cached.go — CachedDetector produces the snapshots diffed here
 

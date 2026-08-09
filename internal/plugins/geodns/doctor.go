@@ -1,4 +1,4 @@
-// Design: plan/learned/994-geodns-3-observability-cli.md -- geodns listen-port bind-capability doctor check
+// Design: docs/architecture/dns/geodns.md -- geodns listen-port bind-capability doctor check
 // Related: register.go -- DoctorChecks registration (geodns-listen-capability)
 //
 // geodns defaults to the unprivileged port 5300, but an operator may move it to

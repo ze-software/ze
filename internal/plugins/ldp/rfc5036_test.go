@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc5036.md -- gated MUST coverage for the LDP specification
-// Design: plan/learned/920-mpls-ldp.md -- LDP plugin
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP plugin
 //
 // These tests bind RFC 5036 MUST-level obligations to the producing code. Each
 // obligation is pinned from both sides: a positive test that the required behavior

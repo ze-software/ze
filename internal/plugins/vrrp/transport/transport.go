@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc9568.md -- Section 7.2 (transmit identity), Constants (dst/proto)
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP raw-socket transport orchestrator
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP raw-socket transport orchestrator
 //
 // The transport is the byte pipe between the raw sockets and the VRRP engine
 // (spec-vrrp-5). It owns a per-instance socket set (rx on the parent, tx + announce

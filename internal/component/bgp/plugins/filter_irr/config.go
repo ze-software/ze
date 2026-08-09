@@ -1,4 +1,4 @@
-// Design: plan/learned/896-filter-irr.md -- IRR filter config parsing from OnConfigure JSON
+// Design: docs/architecture/bgp/filter-irr.md -- IRR filter config parsing from OnConfigure JSON
 
 package filter_irr
 

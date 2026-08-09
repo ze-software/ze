@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- Link State Acknowledgment packet body codec
+// Design: docs/architecture/ospf/ospf-2-wire.md -- Link State Acknowledgment packet body codec
 // RFC 2328 Appendix A.3.6: Link State Acknowledgment packet.
 
 package packet

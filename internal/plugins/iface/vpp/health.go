@@ -1,4 +1,4 @@
-// Design: plan/learned/786-backend-command-dispatch.md -- VPP health check
+// Design: docs/architecture/firewall/backend-command-dispatch.md -- VPP health check
 
 package ifacevpp
 

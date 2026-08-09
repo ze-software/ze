@@ -1,4 +1,4 @@
-// Design: plan/learned/748-cpe-6-self-update.md -- show system update CLI handler (extended)
+// Design: docs/architecture/appliance/self-update.md -- show system update CLI handler (extended)
 // Relocated from internal/component/cmd/show/update.go (plugin self-containment).
 
 package cmd

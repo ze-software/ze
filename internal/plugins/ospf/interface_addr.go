@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- interface address/identity helpers.
+// Design: docs/architecture/ospf/ospf-af-unify.md -- interface address/identity helpers.
 //
 // These resolve an OSPF interface's live OS properties (IPv4 address, mask, MTU,
 // ifindex) through the iface component, the inputs the engine feeds into the iface

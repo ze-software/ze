@@ -1,4 +1,4 @@
-// Design: plan/learned/924-isis-12-ipv6.md -- IPv6 origination scope filtering (RFC 5308).
+// Design: docs/architecture/isis/isis-12-ipv6.md -- IPv6 origination scope filtering (RFC 5308).
 //
 // RFC: rfc/short/rfc5308.md sec 2 -- "Link-local prefixes MUST NOT be advertised
 //   using this TLV [236]."

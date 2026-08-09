@@ -1,4 +1,4 @@
-// Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore regressions
+// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- tc original-qdisc restore regressions
 
 //go:build linux
 

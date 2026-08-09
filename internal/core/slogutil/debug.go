@@ -1,4 +1,4 @@
-// Design: plan/learned/891-granular-debug.md -- debug subsystem validation and matching
+// Design: docs/architecture/diagnostics/debug-filtering.md -- debug subsystem validation and matching
 // Related: slogutil.go -- SetLevel, ListLevels, Subsystems used for debug application
 
 package slogutil

@@ -1,4 +1,4 @@
-// Design: plan/learned/935-isis-10-auth.md -- IS-IS authentication key store.
+// Design: docs/architecture/isis/isis-10-auth.md -- IS-IS authentication key store.
 //
 // RFC: rfc/short/rfc5304.md -- area/domain/link-level authentication strings (sec 2)
 // RFC: rfc/short/rfc5310.md -- Security Associations keyed by Key ID, algorithm agility (sec 2)

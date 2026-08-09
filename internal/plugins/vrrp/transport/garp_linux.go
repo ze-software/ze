@@ -1,7 +1,7 @@
 //go:build linux
 
 // RFC: rfc/short/rfc9568.md -- Section 7.3 / errata 7947/7949 (gratuitous ARP)
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- AF_PACKET gratuitous-ARP sender on the macvlan
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- AF_PACKET gratuitous-ARP sender on the macvlan
 //
 // The gratuitous-ARP announce socket is an AF_PACKET/SOCK_RAW socket bound to the
 // macvlan ifindex (isis Send model). The frame built by garp.go already carries

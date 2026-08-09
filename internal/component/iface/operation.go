@@ -1,4 +1,4 @@
-// Design: plan/learned/1055-config-apply-ordering.md -- iface-owned operation decomposition
+// Design: docs/architecture/config/apply-ordering.md -- iface-owned operation decomposition
 // Related: register.go -- SDK operation handlers
 
 package iface

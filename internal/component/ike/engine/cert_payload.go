@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- IKEv2 certificate payload handling
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- IKEv2 certificate payload handling
 // RFC: rfc/short/rfc7296.md -- Certificate payloads, chain bound and Hash and URL (Section 3.6)
 // Overview: auth.go -- the IKE_AUTH assembly and verification these payloads serve
 // Related: certurl.go -- the bounded fetcher a Hash and URL payload is resolved through

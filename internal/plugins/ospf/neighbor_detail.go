@@ -1,4 +1,4 @@
-// Design: plan/learned/1052-ospf-ext-14-debug-introspection.md -- `show ospf [ipv6] neighbor detail`.
+// Design: docs/architecture/ospf/ospf-ext-14-debug-introspection.md -- `show ospf [ipv6] neighbor detail`.
 // RFC: rfc/short/rfc2328.md (Section 10 NSM state; the O-bit is RFC 5250), rfc/short/rfc5340.md
 // (Section A.2 OSPFv3 Options R/V6/E/N; RFC 5838 Section 2.4 AF-bit).
 //

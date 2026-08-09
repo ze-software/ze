@@ -41,7 +41,7 @@ Use US English for all of the following. This list is illustrative, not exhausti
 | YANG leaf descriptions and config help text | schema `description` strings |
 | `docs/` (user + architecture documentation) | guides, references, comparisons |
 | `ai/` rules, patterns, digests, indexes | this file included |
-| `plan/` specs, learned summaries | spec bodies, ACs |
+| `plan/` specs, journal rows | spec bodies, ACs |
 | Commit messages and PR text | subject and body |
 
 Common divergences to get right (US -- avoid the UK form):
@@ -140,7 +140,7 @@ text clearer for a reader. Owner directive, 2026-07-31.
 | Error messages, log lines, diagnostic remediation text | Yes, together with `cli.md` |
 | CLI output, help text, completions, TUI labels | Yes |
 | YANG `description` strings | Yes |
-| `ai/` rules, patterns, and digests, plus `plan/` specs and learned summaries | Yes |
+| `ai/` rules, patterns, and digests, plus `plan/` specs and journal rows | Yes |
 | Commit messages and PR text | Yes |
 | Chat replies, reports, and analysis for the user | No. Answer the person who asked |
 | Thomas's authored prose: blog posts, articles, emails, the weekly update (`/write`, `/ze-weekly-update`) | No. That prose is his voice and it stays UK English (see "Language and Spelling" above) |
@@ -201,7 +201,7 @@ Write what changes the reader's next action. Write nothing else.
 - **Report the conclusion, not the search.** What you tried, in what order, and how long it took are yours. The reader needs the answer, the evidence that would overturn it, and what is still open.
 - **Give a count plus the exceptions, not a row per item.** "12 call sites updated, 2 refused and are listed below" is complete. Twelve identical rows are not more complete.
 - **A directive line in an always-on rule enters EVERY session through `CORE.md`, and every rule's `**When:**` line enters it through `TRIGGERS.md`.** Before you add one, ask whether it changes an action. When it does not, put it under `## Rationale` or `## Examples`. The digest drops both.
-- **A pointer line points. It never summarises.** An entry in `ai/LEARNED-INDEX.md`, `ai/INDEX.md`, or any other index says what the target answers, then stops. Under 120 characters after the link. A reader who wants the content opens the target. On `ai/LEARNED-INDEX.md` the budget is enforced: `make ze-doc-test` fails and names the entry and its length.
+- **A pointer line points. It never summarises.** An entry in `ai/INDEX.md` or any other index says what the target answers, then stops. Under 120 characters after the link. A reader who wants the content opens the target.
 
 ### Write like a person
 
@@ -317,7 +317,7 @@ Not part of `ze-verify` today because of a pre-existing drift backlog. Run on de
 ### NOT Documentation
 
 - Code comments (`// Design:`, `// Related:`) -- covered by `go-standards.md` and `go-standards.md`
-- Learned summaries (`plan/learned/`) -- covered by `planning.md`
+- Journal rows (`plan/journal/`) -- covered by `planning.md`
 - Memory entries -- covered by `memory.md`
 
 ## Comparison Honesty
@@ -375,6 +375,6 @@ Detail feels like rigor, so it grows without anyone deciding to add it. The cost
 
 Two measurements, 2026-07-31. `CONDENSED.md` reached 99k tokens. `ai/INSTRUCTIONS.md` imports it into every session before any work starts. One table row in `repo-maintenance.md` reached 1,327 tokens. It narrates a hook's guard order, its exit codes, and its line offsets. The script and its 35 fixtures already state all three.
 
-The drift is measurable elsewhere too. Learned summaries averaged 27 lines in the first hundred and 93 lines in the last hundred. The stated budget is 25 to 35. Entries in `ai/LEARNED-INDEX.md` started at about 80 characters and now run to 2538. An index that exists to route a reader now repeats the summary it points at.
+The drift was measurable in the old learned corpus too. Summaries averaged 27 lines in the first hundred and 93 lines in the last hundred, against a stated budget of 25 to 35. The corpus was replaced by `plan/journal/` (one file per problem class, one row per occurrence).
 
 The citation rule has a second cost. Nine rules mint the `file:line` demand independently. Seven `ze-*` skills repeat it for each claim. A line number pinned in prose goes stale on the next edit of the file it points into. This is why `/ze-rfc-audit` must tell a real verdict change from "a pure `file:line` refresh from someone else's un-regenerated test edit".

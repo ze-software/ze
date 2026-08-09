@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 4 (sharded BGP bestPrev)
+// Design: docs/architecture/rib/unified-locrib.md -- sharded BGP bestPrev tracking
 // Related: rib_bestchange.go -- bestPrevStore type wrapped per shard
 // Related: rib.go -- RIBManager owns one bestPrevShards instance
 

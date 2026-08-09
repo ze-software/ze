@@ -9,13 +9,15 @@ against real past work before the import is switched.
 
 ## The corpus
 
-Past task descriptions, drawn from the two places this repo keeps them:
+Past task descriptions, drawn from where this repo keeps them:
 
-  plan/learned/*.md   `## Context` -- what problem a closed spec existed to solve
-  plan/spec-*.md      `## Task`    -- the same section on specs still open
+  plan/spec-*.md      `## Task`    -- what a spec exists to do
 
-Both are the author's own statement of the work, written before the rules were
-consulted, which is exactly the input a router would see.
+That is the author's own statement of the work, written before the rules were
+consulted, which is exactly the input a router would see. `plan/learned/*.md`
+`## Context` sections were the other half until the corpus was replaced by
+`plan/journal/` (plan/spec-problem-journal.md); a journal row records a problem
+class, not a task description, so it is not corpus.
 
 ## What "missed" means -- two readings, and the one that governs
 
@@ -93,7 +95,7 @@ def section_text(path, wanted=TASK_SECTIONS):
 
 
 def load_corpus(*dirs):
-    """Task descriptions from every learned summary and open spec given."""
+    """Task descriptions from every spec in the directories given."""
     corpus = []
     for d in dirs:
         d = Path(d)
@@ -223,7 +225,7 @@ def main(argv=None):
     )
     rules_dir = Path(args.rules_dir) if args.rules_dir else root / "ai" / "rules"
     rules = rules_condensed.load_rules(rules_dir)
-    corpus = load_corpus(root / "plan" / "learned", root / "plan")
+    corpus = load_corpus(root / "plan")
     try:
         report = build_report(rules, corpus)
     except rules_condensed.LadderError as exc:

@@ -1,4 +1,4 @@
-// Design: plan/learned/650-static-routes.md -- VPP data-plane static backend selection
+// Design: docs/architecture/static-routes.md -- VPP data-plane static backend selection
 
 //go:build linux && ze_vpp
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/710-gap-2-static-route-enhancements.md -- redistribution event types
+// Design: docs/architecture/static-routes.md -- redistribution event types
 
 package staticevents
 

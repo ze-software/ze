@@ -1,4 +1,4 @@
-// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP-TLS termination, peer side
+// Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS termination, peer side
 // RFC: rfc/short/rfc5216.md -- EAP-TLS termination (Section 2.1.3), peer's wait
 //
 // RFC 5216 Section 2.1.3 puts an obligation on the PEER when it is the side that

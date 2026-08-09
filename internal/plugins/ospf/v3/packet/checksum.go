@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 LSA Fletcher and IPv6 packet checksums.
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 LSA Fletcher and IPv6 packet checksums.
 // RFC: rfc/short/rfc5340.md (§A.3.1 IPv6 upper-layer packet checksum, §A.4.2.1 LS checksum)
 //
 // The LSA Fletcher checksum is byte-identical to OSPFv2 (RFC 2328 §12.1.7) but is

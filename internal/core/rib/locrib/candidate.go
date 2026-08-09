@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3 (unified Loc-RIB)
+// Design: docs/architecture/rib/unified-locrib.md -- candidate and path model
 // Related: entry.go -- Entry holds the per-prefix PathGroup these Paths live in
 
 package locrib

@@ -1,4 +1,4 @@
-// Design: plan/learned/1019-traffic-usage-monitor.md -- show/monitor traffic CLI handlers
+// Design: docs/architecture/traffic/traffic-usage-monitor.md -- show/monitor traffic CLI handlers
 
 package cmd
 

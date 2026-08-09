@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- OSPFv3 leaf value-type package.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- OSPFv3 leaf value-type package.
 
 // Package types holds the OSPFv3 (RFC 5340) leaf value types shared by every later
 // OSPFv3 child spec: Router ID, Area ID, Instance ID, Interface ID, Link State ID, the

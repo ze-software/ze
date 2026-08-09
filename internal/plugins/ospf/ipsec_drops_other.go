@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- kernel XFRM drop stats (non-Linux stub).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- kernel XFRM drop stats (non-Linux stub).
 //
 // Kernel IPsec (XFRM) is Linux-only, so there are no drop counters to read on other
 // platforms; the OSPFv3 IPsec metric stays at zero there.

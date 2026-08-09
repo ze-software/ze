@@ -1,4 +1,4 @@
-// Design: plan/learned/977-traffic-usage.md -- traffic-usage monitor: reconcile, lifecycle, poller
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage monitor: reconcile, lifecycle, poller
 
 package trafficusage
 

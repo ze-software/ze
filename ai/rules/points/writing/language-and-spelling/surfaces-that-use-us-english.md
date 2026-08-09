@@ -12,5 +12,5 @@ stage:
 | YANG leaf descriptions and config help text | schema `description` strings |
 | `docs/` (user + architecture documentation) | guides, references, comparisons |
 | `ai/` rules, patterns, digests, indexes | this file included |
-| `plan/` specs, learned summaries | spec bodies, ACs |
+| `plan/` specs, journal rows | spec bodies, ACs |
 | Commit messages and PR text | subject and body |

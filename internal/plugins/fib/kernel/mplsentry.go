@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- MPLS forwarding-entry programming
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- MPLS forwarding-entry programming
 // Related: fibkernel.go -- run() subscribes handleMPLSEntry to (mpls-fib, entry)
 // Related: richroute.go -- push reuses the rich-route IP+label path
 //

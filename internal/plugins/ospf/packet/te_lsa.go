@@ -1,4 +1,4 @@
-// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- RFC 3630 TE LSA body codec.
+// Design: docs/architecture/ospf/ospf-ext-2-traffic-engineering.md -- RFC 3630 TE LSA body codec.
 // RFC: rfc/short/rfc3630.md -- Traffic Engineering (TE) Extensions to OSPFv2.
 //
 // The TE LSA is an Opaque LSA (Opaque type 1, LS type 10 area-local) whose body is a

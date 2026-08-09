@@ -1,4 +1,4 @@
-// Design: plan/learned/786-backend-command-dispatch.md -- VPP dataplane trace handlers
+// Design: docs/architecture/firewall/backend-command-dispatch.md -- VPP dataplane trace handlers
 
 package ifacevpp
 

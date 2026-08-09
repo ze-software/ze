@@ -1,4 +1,4 @@
-// Design: plan/learned/1042-ospf-ext-11-ldp-igp-sync.md -- OSPF LDP-IGP synchronization.
+// Design: docs/architecture/ospf/ospf-ext-11-ldp-igp-sync.md -- OSPF LDP-IGP synchronization.
 // RFC: rfc/short/rfc5443.md -- Section 2 (cost-out at LSInfinity while LDP not
 // operational; hold-down estimation), Section 3 (persistent-cost-out alert),
 // Section 4 (IP link cost only, never TE cost).

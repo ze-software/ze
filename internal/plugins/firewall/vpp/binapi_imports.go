@@ -1,4 +1,4 @@
-// Design: plan/learned/671-fw-6-firewall-vpp.md -- Vendor pinning
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- Vendor pinning
 
 // Anchor file that keeps the GoVPP binapi packages in the module's
 // import graph on EVERY platform, so `go mod vendor` retains them under

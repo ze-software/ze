@@ -1,4 +1,4 @@
-// Design: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md -- RFC 7296 Section 2.9 traffic-selector narrowing
+// Design: docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md -- RFC 7296 Section 2.9 traffic-selector narrowing
 // Overview: child.go -- the Child SA lifecycle that installs the narrowed selectors
 // Related: initiator.go -- proposeChildTSPayloads and the wildcard fallback
 // Related: responder_eap.go -- the second responder producer, which narrows identically

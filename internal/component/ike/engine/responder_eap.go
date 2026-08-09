@@ -1,4 +1,4 @@
-// Design: plan/learned/1072-ipsec-14-responder.md -- IKE responder EAP authenticator
+// Design: docs/architecture/ike/ipsec-14-responder.md -- IKE responder EAP authenticator
 // Related: ts_narrow.go -- the narrowing this path shares with buildAuthResponse
 // RFC: rfc/short/rfc7296.md -- EAP in IKE_AUTH (Section 2.16)
 

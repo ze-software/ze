@@ -1,4 +1,4 @@
-// Design: plan/learned/650-static-routes.md -- static route data model
+// Design: docs/architecture/static-routes.md -- static route data model
 
 package static
 

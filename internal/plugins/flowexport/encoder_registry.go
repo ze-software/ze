@@ -1,4 +1,4 @@
-// Design: plan/learned/820-flow-export-0-umbrella.md -- Encoder factory registry
+// Design: docs/architecture/flowexport/flow-export-0-umbrella.md -- Encoder factory registry
 // Related: flowtypes.go -- FlowSampleEncoder / FlowRecordEncoder interfaces
 
 package flowexport

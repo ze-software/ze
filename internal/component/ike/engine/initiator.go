@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE_SA_INIT initiator logic
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE_SA_INIT initiator logic
 // Related: ts_narrow.go -- traffic-selector policy, narrowing, and port encoding
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT exchange (Section 1.2)
 package engine

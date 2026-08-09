@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: docs/architecture/rib/unified-locrib.md -- per-family NLRI split
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md -- Section 3.1, BGP-MUP NLRI envelope
 // Related: register.go -- binds SplitMUP to AFI IPv4/IPv6 with SAFI MUP
 // Related: typelen.go -- the shared type-and-length framing walk

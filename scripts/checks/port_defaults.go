@@ -1,4 +1,4 @@
-// Design: plan/learned/788-doctor-improvements.md -- listener default port table
+// Design: docs/architecture/doctor-and-health-checks.md -- listener default port table
 //
 // port_defaults pins the hand-maintained Go listener-default table
 // (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults)

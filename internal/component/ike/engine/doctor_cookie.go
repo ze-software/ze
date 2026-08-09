@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- responder COOKIE challenge
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- responder COOKIE challenge
 // RFC: rfc/short/rfc7296.md -- COOKIE (Section 2.6)
 // Related: doctor.go -- the sibling ike readiness checks and their registration
 // Related: cookie.go -- cookieRequired and the count this check reports against

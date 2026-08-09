@@ -1,4 +1,4 @@
-// Design: plan/learned/1036-ospf-ext-12-multi-instance.md -- OSPFv2 Multi-Instance (RFC 6549):
+// Design: docs/architecture/ospf/ospf-ext-12-multi-instance.md -- OSPFv2 Multi-Instance (RFC 6549):
 // one full OSPFv2 engine per configured Instance ID, demuxed by the shared dispatcher rule.
 // Related: instance.go -- the per-engine skeleton this file drives one-per-instance.
 // Related: config.go -- ospfConfig.instanceIDSet / forInstance derive the per-instance set.

@@ -1,4 +1,4 @@
-// Design: plan/learned/1046-traffic-analysis-restructure.md -- per-source neutral feature aggregation
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- per-source neutral feature aggregation
 //
 // Derives domain-NEUTRAL per-source feature signals from the observation feed via
 // the shared internal/core/stats primitives. These are FACTS (measurable numbers),

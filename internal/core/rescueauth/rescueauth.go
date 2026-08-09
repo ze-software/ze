@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- rescue-shell credential encoding
+// Design: docs/architecture/appliance/installer-initrd.md -- rescue-shell credential encoding
 
 // Package rescueauth encodes and verifies the installer's rescue-shell
 // credential. It is shared by the provisioner that mints the credential, the

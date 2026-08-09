@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- raw-socket readiness doctor check
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- raw-socket readiness doctor check
 // Related: doctor_linux.go -- the AF_INET/SOCK_RAW proto-112 probe this check runs
 // Related: doctor_other.go -- non-Linux probe stub
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck

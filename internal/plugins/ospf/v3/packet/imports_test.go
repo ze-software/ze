@@ -6,7 +6,7 @@
 // PREVENTS: the codec growing a dependency on runtime code or the OSPFv2 codec.
 //
 // The v6 leaves were nested under internal/plugins/ospf/v3/ so the single OSPF plugin
-// is self-contained (plan/learned/972-ospf-af-unify.md). Because the codec now lives
+// is self-contained (docs/architecture/ospf/ospf-af-unify.md). Because the codec now lives
 // inside the OSPF tree, "no OSPF-tree import" is expressed as a single allow-list check:
 // the only permitted OSPF-tree import is the v6 types leaf.
 

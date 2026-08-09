@@ -1,4 +1,4 @@
-// Design: plan/learned/927-isis-1-types.md -- RemainingLifetime and HoldingTime (16-bit seconds)
+// Design: docs/architecture/isis/isis-1-types.md -- RemainingLifetime and HoldingTime (16-bit seconds)
 
 package types
 

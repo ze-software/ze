@@ -1,4 +1,4 @@
-// Design: plan/learned/646-l2tp-11-web.md -- L2TP web management UI
+// Design: docs/architecture/web-workbench-pages.md -- L2TP web management UI
 // Related: handler_admin.go -- CommandDispatcher type reused for disconnect
 // Related: sse.go -- heartbeat/flusher pattern reused for CQM SSE
 

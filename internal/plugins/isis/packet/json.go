@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- offline decode rendering (JSON view of a PDU)
+// Design: docs/architecture/wire/isis.md -- offline decode rendering (JSON view of a PDU)
 //
 // This file produces a stable JSON view of a decoded PDU for the offline
 // `ze isis decode` CLI (the wiring proof) and future diagnostics (isis-13). It

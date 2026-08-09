@@ -1,4 +1,4 @@
-// Design: plan/learned/750-zefs-integrity.md -- in-place write via pwrite
+// Design: docs/architecture/zefs-format.md -- in-place write via pwrite
 // Overview: store.go -- flush() uses pwriteRegions for in-place updates
 
 //go:build unix

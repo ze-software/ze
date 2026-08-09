@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- engine <-> adjacency-circuit wiring.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- engine <-> adjacency-circuit wiring.
 // Related: server.go -- the engine struct, dispatcher, and lifecycle this extends
 // Related: events.go -- the eventSink the circuits emit session events through
 //

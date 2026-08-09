@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- the RFC 7684 Extended Link Opaque
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- the RFC 7684 Extended Link Opaque
 // LSA (Opaque Type 8) consumer.
 // RFC: rfc/short/rfc7684.md -- sec 3 (Extended Link Opaque LSA), sec 3.1 (one Extended Link
 // TLV per LSA SHALL; Link Type/ID/Data mirror the Router-LSA link), sec 5 (malformed rules).

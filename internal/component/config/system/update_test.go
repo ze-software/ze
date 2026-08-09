@@ -1,4 +1,4 @@
-// Design: plan/learned/714-cpe-5-firmware-update.md — unit tests for update checker
+// Design: docs/architecture/config/system-update.md -- unit tests for update checker
 
 package system
 

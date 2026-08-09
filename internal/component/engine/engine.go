@@ -1,5 +1,4 @@
-// Design: plan/learned/425-arch-0-system-boundaries.md — Engine supervisor
-// Design: plan/spec-arch-5-engine.md — Engine spec
+// Design: docs/architecture/plugin/component-boundaries.md -- Engine supervisor
 
 package engine
 

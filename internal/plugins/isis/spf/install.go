@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md -- FIB install via Loc-RIB insertion.
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- FIB install via Loc-RIB insertion.
 // IS-IS does NOT invent route installation: SPF results are INSERTED into the
 // shared cross-protocol Loc-RIB exactly as BGP mirrors its best path
 // (internal/component/bgp/plugins/rib/rib_bestchange.go:813

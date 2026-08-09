@@ -1,4 +1,4 @@
-// Design: plan/learned/950-iface-resolve-2-resolver.md -- shared logical-name resolver
+// Design: docs/architecture/iface/logical-name-resolution.md -- shared logical-name resolver
 // Overview: iface.go -- Binding / LinkEvent value types
 // Related: dispatch.go -- GetInterface backend dispatch this builds on
 // Related: events/events.go -- monitor event namespace + constants

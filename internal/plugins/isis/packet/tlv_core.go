@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- core TLV codecs (1, 8, 9, 22, 129, 132-shared, 137, 240)
+// Design: docs/architecture/wire/isis.md -- core TLV codecs (1, 8, 9, 22, 129, 132-shared, 137, 240)
 // ISO/IEC 10589 clause 9.2 (TLV 1), 9.10 (TLV 8), 9.14 (TLV 9).
 //
 // RFC: rfc/short/rfc5305.md -- TLV 22 (Extended IS Reachability), sub-TLV framing (sec 2, 3)

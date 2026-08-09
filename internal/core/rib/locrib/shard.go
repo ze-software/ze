@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 4 (sharded Loc-RIB)
+// Design: docs/architecture/rib/unified-locrib.md -- one Loc-RIB shard
 // Related: manager.go -- RIB delegates per-prefix mutations to familyShards
 // Related: change.go -- subscriberList replicated per shard
 

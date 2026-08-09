@@ -7,7 +7,7 @@
 // the writable /perm partition; a loose state file escapes that management and
 // silently disappears on reimage. This guard was added after a sweep migrated
 // ddos-detect, traffic-usage, ntp, bfd-auth and the config health/pushed hashes
-// off loose files (see plan/learned).
+// off loose files.
 //
 // It scans internal/plugins, internal/component and cmd/ze (non-test) for the
 // filesystem WRITE primitives that indicate persistence -- os.WriteFile,

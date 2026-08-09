@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- kernel XFRM readiness probe (non-Linux).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- kernel XFRM readiness probe (non-Linux).
 //
 // Kernel IPsec (XFRM) is Linux-only. On other platforms the check reports availability so
 // config/unit runs do not flag a capability the daemon never uses there (the OSPFv3 raw

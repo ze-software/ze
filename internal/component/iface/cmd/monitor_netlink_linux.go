@@ -1,4 +1,4 @@
-// Design: plan/learned/728-diag-netlink-monitor.md -- kernel netlink event streaming
+// Design: docs/architecture/iface/netlink-monitor.md -- kernel netlink event streaming
 // Related: interface_rate.go -- existing streaming monitor handler in iface/cmd
 //
 //go:build linux

@@ -1,4 +1,4 @@
-// Design: plan/learned/629-fw-7b-backend-hardening.md -- Apply-path tests for vpp backend.
+// Design: docs/architecture/traffic/fw-7b-backend-hardening.md -- Apply-path tests for vpp backend.
 
 //go:build linux
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP Skew_Time / Master_Down_Interval math
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP Skew_Time / Master_Down_Interval math
 // RFC: rfc/short/rfc9568.md (VRRPv3 Algorithms) and rfc/short/rfc3768.md (VRRPv2 Algorithms)
 //
 // Timer arithmetic for the VRRP FSM. Unit discipline (spec risk R-2): every

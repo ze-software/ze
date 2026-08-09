@@ -1,4 +1,4 @@
-// Design: plan/learned/1055-config-apply-ordering.md -- operation dependency graph
+// Design: docs/architecture/config/apply-ordering.md -- operation dependency graph
 // Related: operation.go -- operation types and constraint rule registry
 
 package transaction

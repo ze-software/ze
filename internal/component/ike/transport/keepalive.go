@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- NAT keepalive sender
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- NAT keepalive sender
 // RFC: rfc/short/rfc3948.md -- NAT keepalive: single 0xFF byte (Section 2.3)
 
 package transport

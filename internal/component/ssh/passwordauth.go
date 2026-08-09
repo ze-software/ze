@@ -1,4 +1,4 @@
-// Design: plan/learned/1181-fixit-bcrypt-hash-credential.md -- hash-as-token is local-only
+// Design: docs/architecture/ssh/fixit-bcrypt-hash-credential.md -- hash-as-token is local-only
 // Related: ssh.go -- WithPasswordAuth callback delegates here
 
 package ssh

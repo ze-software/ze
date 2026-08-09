@@ -1,4 +1,4 @@
-// Design: plan/learned/684-policy-routing.md -- rule and mark data types
+// Design: docs/architecture/policyroute/policy-routing.md -- rule and mark data types
 
 package policyroute
 

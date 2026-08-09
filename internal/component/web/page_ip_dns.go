@@ -1,4 +1,4 @@
-// Design: plan/learned/688-web-4-interfaces.md -- IP DNS form page
+// Design: docs/architecture/web-workbench-pages.md -- IP DNS form page
 // Related: workbench_form.go -- Reusable form component
 // Related: page_ip_routes.go -- IP Routes page (sibling)
 

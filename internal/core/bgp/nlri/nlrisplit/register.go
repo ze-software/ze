@@ -1,4 +1,4 @@
-// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: docs/architecture/rib/unified-locrib.md -- per-family NLRI split
 // Related: cidr.go -- CIDR splitter registered here
 // Related: evpn.go, mvpn.go, mup.go -- the typed splitters registered here
 

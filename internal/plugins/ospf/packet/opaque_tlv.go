@@ -1,4 +1,4 @@
-// Design: plan/learned/1029-ospf-ext-1-opaque-framework.md -- generic opaque-LSA TLV carriage.
+// Design: docs/architecture/ospf/ospf-ext-1-opaque-framework.md -- generic opaque-LSA TLV carriage.
 // RFC: rfc/short/rfc5250.md -- opaque LSA carrier and the 4-byte-aligned TLV convention.
 // RFC 5250 is the opaque carrier; the TLV shape (2-byte type, 2-byte length, value,
 // pad to a 4-byte boundary) is the convention every opaque consumer body reuses (RFC

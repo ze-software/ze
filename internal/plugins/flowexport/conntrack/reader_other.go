@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- Conntrack reader stub for non-Linux
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- Conntrack reader stub for non-Linux
 
 //go:build !linux
 

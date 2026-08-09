@@ -1,4 +1,4 @@
-// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 common header and packet dispatch.
+// Design: docs/architecture/ospf/ospfv3-2-wire.md -- OSPFv3 common header and packet dispatch.
 // RFC: rfc/short/rfc5340.md (§A.3.1 OSPFv3 packet header)
 
 package packet

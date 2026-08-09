@@ -1,4 +1,4 @@
-// Design: plan/learned/931-isis-5-adjacency.md -- per-interface IS-IS circuit runtime.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- per-interface IS-IS circuit runtime.
 // ISO/IEC 10589 section 8.2 (adjacency), clause 9.5/9.6 (IIH), section 8.2.3
 // (hold timer). A circuit is the per-interface runtime object created for each
 // interface IS-IS is enabled on. It owns the adjacency table, the periodic Hello

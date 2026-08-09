@@ -1,4 +1,4 @@
-// Design: plan/learned/919-mpls-kernel.md -- `show mpls forwarding` CLI (AC-7)
+// Design: docs/architecture/mpls/mpls-kernel.md -- `show mpls forwarding` CLI (AC-7)
 // Related: forwarding_linux.go -- kernel reader (AF_MPLS swap/pop + IP-encap push)
 //
 // `show mpls forwarding` lists the kernel's installed MPLS label-switching

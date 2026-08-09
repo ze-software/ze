@@ -1,4 +1,4 @@
-// Design: plan/learned/726-diag-crash-capture.md -- crash file persistence and rotation
+// Design: docs/architecture/diagnostics/crash-capture.md -- crash file persistence and rotation
 
 package crashlog
 

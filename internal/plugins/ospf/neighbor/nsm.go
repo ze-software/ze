@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- OSPFv2 Neighbor State Machine
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- OSPFv2 Neighbor State Machine
 // RFC: rfc/short/rfc2328.md
 // RFC 2328 Section 10.3: "The neighbor state machine is event driven."
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/650-static-routes.md -- rejecting backend for non-Linux
+// Design: docs/architecture/static-routes.md -- rejecting backend for non-Linux
 
 //go:build !linux
 

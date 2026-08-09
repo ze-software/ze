@@ -1,4 +1,4 @@
-// Design: plan/learned/959-ospf-5-interface-ism.md -- ISM, Hello, and election tests
+// Design: docs/architecture/ospf/ospf-5-interface-ism.md -- ISM, Hello, and election tests
 package iface
 
 import (

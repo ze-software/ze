@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- responder COOKIE challenge
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- responder COOKIE challenge
 // RFC: rfc/short/rfc7296.md -- COOKIE (Sections 2.6, 2.6.1)
 // Related: register.go -- tryResponderSAInit, where the challenge gates the half-open slot
 // Related: sa_init_retry.go -- the initiator half that echoes a received cookie

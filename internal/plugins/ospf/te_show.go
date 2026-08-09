@@ -1,4 +1,4 @@
-// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- `show ospf te-database` render +
+// Design: docs/architecture/ospf/ospf-ext-2-traffic-engineering.md -- `show ospf te-database` render +
 // the opaque-area TE decode hook.
 // RFC: rfc/short/rfc3630.md (Router-Address + Link TLV), rfc/short/rfc5392.md (inter-AS).
 //

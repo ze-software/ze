@@ -1,4 +1,4 @@
-// Design: plan/learned/958-ospf-4-component-config.md -- OSPFv2 config resolution
+// Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPFv2 config resolution
 // Related: yang/ze-ospf-conf.yang -- schema this resolver consumes
 // RFC: rfc/short/rfc3101.md -- NSSA translate-role / stability-interval config
 //

@@ -1,4 +1,4 @@
-// Design: plan/learned/913-firewall-irr.md -- server-side YANG command forwarding for the
+// Design: docs/architecture/firewall/firewall-irr.md -- server-side YANG command forwarding for the
 // firewall IRR plugin. The ze:command nodes in yang/ze-firewall-irr-cmd.yang need a
 // registered RPC handler each; these forwarders hop the command straight to the
 // plugin process via ForwardToPlugin, where command.go's handleCommand serves it.

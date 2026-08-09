@@ -1,4 +1,4 @@
-// Design: plan/learned/977-traffic-usage.md -- traffic-usage doctor check (kernel eBPF/TCX + CAP_BPF)
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage doctor check (kernel eBPF/TCX + CAP_BPF)
 
 package trafficusage
 

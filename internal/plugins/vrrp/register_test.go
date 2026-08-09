@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- live platform wiring
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- live platform wiring
 //
 // VALIDATES: waitDevicePresent returns only once a kernel device with the given
 // name exists, and errors (never hangs) when it does not appear. This is the

@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- RFC 7684 Extended Link Opaque LSA
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- RFC 7684 Extended Link Opaque LSA
 // (Opaque Type 8) body codec.
 // RFC: rfc/short/rfc7684.md -- sec 3 (Extended Link Opaque LSA), sec 3.1 (Extended Link TLV,
 // one per LSA SHALL), sec 5 (malformed-LSA rules). RFC 2328 App A.4.2 (Link Type/ID/Data).

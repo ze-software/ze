@@ -1,7 +1,7 @@
-// Design: plan/learned/564-bfd-2b-ipv6-transport.md -- the BFD engine's IPv6 single-hop
+// Design: docs/architecture/ospf/bfd-client.md -- the BFD engine's IPv6 single-hop
 // transport (IPV6_UNICAST_HOPS=255 TX, IPV6_RECVHOPLIMIT cmsg GTSM RX). The engine carries an
 // IPv6 single-hop session end-to-end; OSPF adds NO transport code.
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- OSPFv3 is our OSPF; the BFD GTSM-255
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- OSPFv3 is our OSPF; the BFD GTSM-255
 // single-hop unicast session is independent of base OSPFv3's Hop-Limit-1 multicast.
 // RFC: rfc/short/rfc5881.md -- BFD for IPv4/IPv6 single hop.
 //

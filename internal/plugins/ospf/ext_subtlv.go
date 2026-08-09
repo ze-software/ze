@@ -1,4 +1,4 @@
-// Design: plan/learned/1039-ospf-ext-4-extended-link-prefix.md -- the RFC 7684 sub-TLV registration hook.
+// Design: docs/architecture/ospf/ospf-ext-4-extended-link-prefix.md -- the RFC 7684 sub-TLV registration hook.
 // RFC: rfc/short/rfc7684.md -- sec 2 (Extended Prefix TLV sub-TLVs), sec 3.1 (Extended Link
 // TLV sub-TLVs); the registries are seeded with only Reserved (0), so all sub-TLV VALUES are
 // owned by downstream applications (RFC 8665, spec-ospf-ext-5).

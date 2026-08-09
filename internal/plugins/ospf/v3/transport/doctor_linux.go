@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- Linux raw IPv6 socket probe
+// Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- Linux raw IPv6 socket probe
 // RFC: rfc/short/rfc5340.md (§2.9 raw IPv6 proto 89)
 
 package transport

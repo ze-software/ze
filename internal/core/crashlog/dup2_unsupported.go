@@ -1,4 +1,4 @@
-// Design: plan/learned/726-diag-crash-capture.md -- fd2 redirect stub for non-unix
+// Design: docs/architecture/diagnostics/crash-capture.md -- fd2 redirect stub for non-unix
 
 //go:build !unix
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- VRRP FSM input events and instance config
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP FSM input events and instance config
 // RFC: rfc/short/rfc9568.md (VRRPv3) and rfc/short/rfc3768.md (VRRPv2)
 //
 // Typed input events consumed by Instance.Handle. Each event is a small value

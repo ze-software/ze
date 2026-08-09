@@ -26,7 +26,8 @@ NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically
 BGP itself is a config-driven plugin. If your config has a `bgp { }` section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). Native OSPFv2 follows the same pattern: an `ospf { }` section auto-loads the `ospf` edge plugin through `ConfigRoots ["ospf"]`.
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, autoLoadForNewConfigPaths -->
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF ConfigRoots -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello, HandleDBDesc -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB -->
 
 ## Loading Plugins
@@ -308,9 +309,9 @@ Bus topics in the FIB pipeline:
 | `bgp-rib/best-change/bgp` | `bgp-rib` | `rib` | Batch of per-prefix best-path changes |
 | `system-rib/best-change` | `rib` | `fib-kernel`, `fib-p4` | Batch of system-wide best route changes |
 | `fib/external-change` | `fib-kernel` | monitoring | External route change on ze-managed prefix |
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, bestChangeBatch -->
 <!-- source: internal/component/sysrib/sysrib.go -- system-rib topic -->
-<!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeTopic -->
+<!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeEvent, publishExternalChange -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
 
 Bus topics in the sysctl pipeline:
@@ -325,7 +326,7 @@ Bus topics in the sysctl pipeline:
 | `sysctl/list-request` | CLI | `sysctl` | Request known keys table (request-id) |
 | `sysctl/list-result` | `sysctl` | requester | Known keys JSON (request-id, entries) |
 | `sysctl/clear-profile-defaults` | `iface` | `sysctl` | Clear stale profile defaults for an interface before re-emission (interface) |
-<!-- source: internal/component/plugin/server/events.go -- NamespaceSysctl, EventSysctl* -->
+<!-- source: internal/component/sysctl/events/events.go -- Namespace, EventDefault, EventSet, EventApplied -->
 <!-- source: internal/component/sysctl/register.go -- EventBus subscribe/emit -->
 
 ### Route Filters
@@ -347,7 +348,7 @@ A single plugin can offer multiple named filters. Config references them as
 Filters can declare `overrides` to remove default filters from the chain
 (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as` for a specific peer).
 
-<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
 ### Cross-Protocol Redistribute (`redistribute-orchestrator`)
 
@@ -493,7 +494,8 @@ For conditional modification, compose with match filters earlier in the chain:
 
 Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate, buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
 <!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
 

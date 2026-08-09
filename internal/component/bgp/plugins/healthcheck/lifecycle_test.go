@@ -1,4 +1,4 @@
-// Design: plan/learned/516-healthcheck-0-umbrella.md -- config reload lifecycle tests
+// Design: docs/architecture/bgp/healthcheck-plugin.md -- config reload lifecycle tests
 package healthcheck
 
 import (

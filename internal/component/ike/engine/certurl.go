@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- IKEv2 certificate payload handling
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- IKEv2 certificate payload handling
 // RFC: rfc/short/rfc7296.md -- Hash and URL certificate encodings (Section 3.6)
 // Related: auth.go -- the CERT payload assembly and remote certificate store this feeds
 

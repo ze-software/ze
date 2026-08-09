@@ -1,4 +1,4 @@
-// Design: plan/learned/728-diag-netlink-monitor.md -- unit tests for netlink message parsing
+// Design: docs/architecture/iface/netlink-monitor.md -- unit tests for netlink message parsing
 //
 //go:build linux
 

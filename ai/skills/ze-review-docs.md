@@ -284,7 +284,7 @@ Each agent runs steps 3-6 for its scope. Results are merged in step 7.
 ## What This Skill Does NOT Do
 
 - Does not review `.claude/rules/` (those are instructions for Claude, not user documentation)
-- Does not review `plan/` specs or `plan/learned/` summaries
+- Does not review `plan/` specs or `plan/journal/` rows
 - Does not review `rfc/` (those are reference material, not project docs)
 - Does not review code comments or `// Design:` annotations (covered by `/ze-review` and `/ze-review-deep`)
 - For change-scoped doc accuracy (do docs match a specific diff?), use `/ze-review-deep docs` instead

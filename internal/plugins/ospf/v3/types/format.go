@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- shared dotted-quad format and parse helpers.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- shared dotted-quad format and parse helpers.
 //
 // These mirror the OSPFv2 leaf-package conventions but are a SEPARATE copy: OSPFv3 must
 // not import the OSPFv2 implementation (the LSA registries and wire formats differ).

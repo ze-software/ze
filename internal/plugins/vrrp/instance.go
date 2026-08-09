@@ -1,7 +1,7 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 engine behavior (Sections 6.4, 7.1)
 // RFC: rfc/short/rfc3768.md -- VRRPv2 engine behavior (Sections 6.4, 7.1)
 //
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- per-instance worker: FSM executor + rx decode
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- per-instance worker: FSM executor + rx decode
 //
 // One worker goroutine owns one virtual router. It is the ONLY executor of the
 // FSM's action values (spec-vrrp-2 is a pure function of events -> actions) and

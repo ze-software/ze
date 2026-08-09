@@ -1,4 +1,4 @@
-// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP peer (client/initiator) side
+// Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP peer (client/initiator) side
 // RFC: rfc/short/rfc3748.md -- EAP peer (client) side exchange
 // RFC: rfc/short/rfc7296.md -- Section 2.16: EAP in IKE_AUTH (initiator is EAP peer)
 // RFC: rfc/short/rfc5216.md -- EAP-TLS fragmentation (Section 2.1.5)

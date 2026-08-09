@@ -1,4 +1,4 @@
-// Design: plan/learned/959-ospf-5-interface-ism.md -- per-interface OSPFv2 runtime
+// Design: docs/architecture/ospf/ospf-5-interface-ism.md -- per-interface OSPFv2 runtime
 // RFC: rfc/short/rfc2328.md (sec 9.5 Hello), rfc/short/rfc5340.md (sec 2.9 ff02::5)
 //
 // "Hello packets are sent periodically out all interfaces."

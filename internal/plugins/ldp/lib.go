@@ -1,4 +1,4 @@
-// Design: plan/learned/920-mpls-ldp.md -- LDP Label Information Base
+// Design: docs/architecture/ldp/mpls-ldp.md -- LDP Label Information Base
 // Related: wire.go -- label/FEC types
 // Related: discovery.go -- adjacency keys used for peer identification
 //

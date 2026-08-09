@@ -1,4 +1,4 @@
-// Design: plan/learned/1007-cp-survival-3-egress-cs6-sched.md -- DSCP filter selector tests
+// Design: docs/architecture/traffic/cp-survival-3-egress-cs6-sched.md -- DSCP filter selector tests
 
 //go:build linux
 

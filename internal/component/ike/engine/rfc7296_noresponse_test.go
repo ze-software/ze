@@ -5,7 +5,7 @@
 // this package. This file reuses the `rtx` loopback helpers and the `rky` recorder.
 
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged tests. `net` is imported so the
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen tagged tests. `net` is imported so the
 // "out of SA admission" arm can give its packet a source address and actually reach the
 // producer its tag names.
 
@@ -110,7 +110,7 @@ func TestNrsResponseNeverDrawsAResponse(t *testing.T) {
 	// Producer two: out-of-SA IKE_SA_INIT admission.
 	//
 	// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole
-	// of plan/learned/1313-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test whose body did
+	// of docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test whose body did
 	// not reach the producer it named. This arm sent a packet with no RemoteAddr. So
 	// matchResponderPeer(nil) returned nil (register.go:557-559), and register.go:594-597
 	// returned false whatever the R-flag check did. Deleting that check left the arm green,

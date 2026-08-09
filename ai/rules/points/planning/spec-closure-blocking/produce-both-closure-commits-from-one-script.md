@@ -5,7 +5,7 @@ stage:
 ---
 The helper-generated commit script MUST produce two commits:
 1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
-   with `--file` for all code, tests, docs, learned summary, LEARNED-INDEX,
+   with `--file` for all code, tests, docs, journal row,
    AND the spec file itself (with all edits from implementation).
 2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
    If the spec has a deferral shard AND every row in it is terminal,

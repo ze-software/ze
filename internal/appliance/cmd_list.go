@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — list appliances
+// Design: docs/architecture/appliance/builder.md -- list appliances
 
 package appliance
 

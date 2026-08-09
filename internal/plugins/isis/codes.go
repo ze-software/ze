@@ -1,4 +1,4 @@
-// Design: plan/learned/937-isis-13-cli-diag-interop.md -- IS-IS diagnostic code ownership.
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- IS-IS diagnostic code ownership.
 // Related: doctor.go -- the config-sanity check that emits these two codes
 // Related: register.go -- registerISISDiagnosticCodes() registers them at init
 // Related: transport/doctor.go -- the SEPARATE raw-socket check (isis-3 owns its code)

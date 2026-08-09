@@ -1,4 +1,4 @@
-// Design: plan/learned/955-ospf-1-types.md -- AreaID integer and dotted forms
+// Design: docs/architecture/ospf/ospf-1-types.md -- AreaID integer and dotted forms
 
 package types
 

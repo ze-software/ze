@@ -813,7 +813,7 @@ var regenCheckPrereqs = map[string]string{
 	"ze-rules-condensed-check": "rules_condensed.py -> ai/rules/TRIGGERS.md, ai/rules/CORE.md",
 	"ze-rules-lint":            "rules_lint.py -> ai/rules/*.md format contract (read-only validator, no generated output)",
 	"ze-arch-map-check":        "arch_map.py -> the architecture lists in ai/INSTRUCTIONS.md (NOT covered by ze-doc-test)",
-	"ze-discovery-index-check": "package_map.py, docs_to_code.py, learned_index.py, learned_numbers.py -> the ai/ discovery indexes",
+	"ze-discovery-index-check": "package_map.py, docs_to_code.py -> the ai/ discovery indexes",
 	"ze-test-health-check":     "testing_health.py -> docs/features/test-health.md, test/health/latest.json, the sensitivity baseline",
 }
 
@@ -851,7 +851,6 @@ var generatorChecks = map[string]string{
 	"scripts/dev/rules_condensed.py": "ze-rules-condensed-check",
 	"scripts/dev/package_map.py":     "ze-discovery-index-check",
 	"scripts/dev/docs_to_code.py":    "ze-discovery-index-check",
-	"scripts/dev/learned_index.py":   "ze-discovery-index-check",
 	"scripts/dev/skill_sync.sh":      "", // gitignored outputs -- excluded on purpose
 	"scripts/dev/testing_health.py":  "ze-test-health-check",
 	"ze-test-health":                 "ze-test-health-check",

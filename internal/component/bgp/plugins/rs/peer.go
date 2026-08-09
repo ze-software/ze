@@ -27,7 +27,8 @@ type PeerState struct {
 	// Replaying is true from handleStateUp until replayForPeer finishes. It is NOT
 	// consulted by selectForwardTargets: a replaying peer IS a live-forward target
 	// on purpose, because excluding it loses routes when peers connect together
-	// (TestReplayingPeerIncludedInForwardTargets, plan/learned/630-rs-fastpath-3-passthrough.md).
+	// and a duplicate UPDATE is idempotent at the receiver
+	// (TestReplayingPeerIncludedInForwardTargets pins this).
 	// Its only readers are the replay goroutine's own generation bookkeeping.
 	Replaying bool // In-flight RIB replay; see note above
 

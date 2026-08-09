@@ -1,4 +1,4 @@
-// Design: plan/learned/768-doctor-health-checks.md -- firewall drift detection
+// Design: docs/architecture/doctor-and-health-checks.md -- firewall drift detection
 // Related: accessor.go -- LastApplied snapshot
 // Related: backend.go -- Backend.ListTables for kernel state
 

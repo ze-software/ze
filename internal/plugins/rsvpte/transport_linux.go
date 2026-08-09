@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/learned/921-mpls-rsvp-te.md -- Linux raw IP socket for RSVP (proto 46)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- Linux raw IP socket for RSVP (proto 46)
 // Related: transport.go -- Transport interface and Packet type
 // Related: build.go -- message bytes sent over this socket
 //

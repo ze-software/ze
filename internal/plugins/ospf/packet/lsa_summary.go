@@ -1,4 +1,4 @@
-// Design: plan/learned/956-ospf-2-wire.md -- Summary-LSA body codec
+// Design: docs/architecture/ospf/ospf-2-wire.md -- Summary-LSA body codec
 // RFC 2328 Appendix A.4.4: Summary-LSA types 3 and 4 use a 24-bit metric.
 
 package packet

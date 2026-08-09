@@ -1,4 +1,4 @@
-// Design: plan/learned/1069-ipsec-13-rekey-wire.md -- RFC 7296 §2.3 message-ID handling
+// Design: docs/architecture/ike/ipsec-13-rekey-wire.md -- RFC 7296 §2.3 message-ID handling
 // RFC: rfc/short/rfc7296.md -- Message IDs and windows (Section 2.3)
 
 package engine

@@ -1,4 +1,4 @@
-// Design: plan/learned/491-iface-2-manage.md — Interface create subcommand
+// Design: docs/architecture/iface/management.md -- Interface create subcommand
 
 package cli
 

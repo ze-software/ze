@@ -1,4 +1,4 @@
-// Design: plan/learned/1038-ospf-ext-16-ipsec-auth.md -- RFC 4552 IPsec metrics (IPv6 family).
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- RFC 4552 IPsec metrics (IPv6 family).
 // Related: ipsec_install.go -- the installer that sets these series.
 //
 // These extend the OSPFv3 IPv6-family metric set with the ze_ospfv3_ipsec_* prefix

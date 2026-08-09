@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE SA lifecycle events
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- IKE SA lifecycle events
 package engine
 
 import "github.com/ze-software/ze/internal/core/events"

@@ -1,7 +1,7 @@
 // RFC: rfc/short/rfc9568.md -- VRRPv3 (RFCs field, default version)
 // RFC: rfc/short/rfc3768.md -- VRRPv2 (RFCs field, opt-in version)
 //
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- plugin registration and engine entry point
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- plugin registration and engine entry point
 //
 // Registration is the plugin's whole coupling to ze: an init() that hands the
 // registry a Registration, plus generated blank imports. Delete this directory,
@@ -250,8 +250,8 @@ func macString(mac [6]byte) string {
 // masked to the parent subnet that contains it. A non-owner VIP MUST carry the
 // subnet's connected route, not a host route: the kernel only answers ARP/ND for
 // it from the virtual-MAC device when that device owns the subnet route (proven
-// in plan/learned/1122-vrrp-macvlan-vmac-dataplane.md -- a /32 leaves the parent as the sole subnet device and
-// it answers with its real MAC).
+// in docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- a /32 leaves the
+// parent as the sole subnet device and it answers with its real MAC).
 func (s GroupSpec) vipCIDRs(vips []netip.Addr) []string {
 	out := make([]string, 0, len(vips))
 	for _, v := range vips {
@@ -333,7 +333,7 @@ func livePlatform() enginePlatform {
 				MAC:    macString(mac),
 				// Private, not bridge: in bridge mode the parent wins the ARP-flux
 				// race for the VIP and answers with its real MAC, so hosts never
-				// learn the virtual MAC (proven in plan/learned/1122-vrrp-macvlan-vmac-dataplane.md QEMU probes).
+				// learn the virtual MAC (proven in docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md QEMU probes).
 				// Private isolation, together with the dataplane sysctls applied
 				// below, makes the virtual-MAC device the sole ARP/ND responder.
 				Mode: iface.MacvlanModePrivate,

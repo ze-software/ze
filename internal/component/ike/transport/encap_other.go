@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- UDP encapsulation of ESP
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- UDP encapsulation of ESP
 // RFC: rfc/short/rfc7296.md -- receive UDP-encapsulated ESP at any time (Section 2.23)
 // Related: encap_linux.go -- the platform that can decapsulate ESP in UDP
 

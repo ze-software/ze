@@ -1,4 +1,4 @@
-// Design: plan/learned/884-cos-plugin.md -- class-of-service plugin
+// Design: docs/architecture/traffic/cos-plugin.md -- class-of-service plugin
 
 package cos
 

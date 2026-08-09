@@ -1,4 +1,4 @@
-// Design: plan/learned/689-web-5-bgp.md -- BGP Groups table page
+// Design: docs/architecture/web-workbench-pages.md -- BGP Groups table page
 // Related: workbench_table.go -- Reusable table component
 // Related: page_bgp_peers.go -- Peer page (sibling)
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/665-diag-2-event-history.md -- L2TP tunnel/session FSM history
+// Design: docs/architecture/diagnostics/event-history-rings.md -- L2TP tunnel/session FSM history
 
 package l2tp
 

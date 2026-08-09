@@ -1,4 +1,4 @@
-// Design: plan/learned/1254-gokrazy-derived-parent-discards-pins.md -- preparing a
+// Design: docs/architecture/appliance/gokrazy-build-pins.md -- preparing a
 // relocated gokrazy instance that keeps the checked-in build pins. Extracted from
 // internal/appliance/kernelargs.go so cmd/ze-gok can prepare an instance without
 // importing the whole appliance package (spec-gokrazy-builddir-tmp, D-1c).

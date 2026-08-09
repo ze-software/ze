@@ -1,4 +1,4 @@
-// Design: plan/learned/1070-forked-route-install.md -- forked route install via Loc-RIB RPC
+// Design: docs/architecture/forked-route-install.md -- forked route install via Loc-RIB RPC
 // Related: dispatch.go -- the plugin->engine RPC switch these handlers hang off
 //
 // A forked (external, out-of-process) route-installing plugin (OSPF, IS-IS) cannot
@@ -7,8 +7,8 @@
 // the cross-process bridge: the plugin ships its computed routes as a batch, the
 // engine applies them to locrib.Default() -- the REAL singleton in the engine
 // process -- and sysrib's OnChange subscription programs the kernel exactly as it
-// does for an in-process installer. See plan/learned/639-rib-unified.md for the
-// locrib->sysrib->fibkernel path this reuses unchanged.
+// does for an in-process installer. See docs/architecture/rib/unified-locrib.md
+// for the locrib->sysrib->fibkernel path this reuses unchanged.
 //
 // The engine tracks each plugin's installed routes (installedByPlugin) so a
 // disconnect withdraws them (AC-8): a forked plugin that dies without withdrawing

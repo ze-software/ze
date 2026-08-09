@@ -1,4 +1,4 @@
-// Design: plan/learned/1124-vrrp-first-hop-redundancy.md -- show/clear command surface
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- show/clear command surface
 //
 // Three halves make a command work, and all three live in this plugin so the
 // removal test holds: the YANG tree (yang/ze-vrrp-cmd.yang) declares the path

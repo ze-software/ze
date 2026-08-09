@@ -1,4 +1,4 @@
-// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP-TLS transport + peer fixes
+// Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS transport + peer fixes
 // RFC: rfc/short/rfc5216.md -- EAP-TLS server certificate validation (Section 5.3)
 //
 // Focused regression tests for four EAP-TLS fixes that the end-to-end handshake

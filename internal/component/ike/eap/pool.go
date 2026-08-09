@@ -1,4 +1,4 @@
-// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- Virtual IP pool for road warrior clients
+// Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- Virtual IP pool for road warrior clients
 // RFC: rfc/short/rfc7296.md -- Configuration Payload, INTERNAL_IP4_ADDRESS (Section 2.19)
 
 package eap

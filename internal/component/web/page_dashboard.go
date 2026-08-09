@@ -1,4 +1,4 @@
-// Design: plan/learned/692-web-8-tools-logs.md -- Dashboard sub-page handlers
+// Design: docs/architecture/web-workbench-pages.md -- Dashboard sub-page handlers
 // Related: workbench_dashboard.go -- BuildDashboardData for the overview panel
 // Related: handler_admin.go -- CommandDispatcher type
 // Related: workbench_pages.go -- Page dispatch (renderPageContent)

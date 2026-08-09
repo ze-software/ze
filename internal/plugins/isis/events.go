@@ -1,4 +1,4 @@
-// Design: plan/learned/930-isis-4-component-config.md -- IS-IS event bus types
+// Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS event bus types
 // Related: register.go -- registers the event namespace and wires the EventBus
 // Related: server.go -- the engine emits session up/down through the eventSink here
 //

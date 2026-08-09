@@ -1395,7 +1395,8 @@ def retired_rows_since(
     while declaring an id that never existed cleared the ratchet, and editing a
     committed row's `Why` text minted a second deletion for the same point. A
     guard whose whole job is to be un-launderable states what it checked
-    (`ai/rules/evidence.md`).
+    (`ai/rules/evidence.md`). `corpus_shrink` now compares ids on both sides for
+    the same reason.
 
     Four shapes declare nothing, and each one is REFUSED:
 
@@ -1416,9 +1417,10 @@ def retired_rows_since(
     fresh deletion. Both are what keep the ledger a scope rather than an
     allowlist.
 
-    What this still cannot see is a RENAME inside one rule: the old id was at
-    HEAD, it is gone from disk, and the rule's count did not drop. `RETIRED.md`
-    states that tolerance, and `corpus_shrink` is a count by construction.
+    A RENAME inside one rule is now one of these: the old id was at HEAD and is
+    gone from disk, so `corpus_shrink` reports it by identity and the row says
+    where the instruction went. It used to be invisible, because the rule's
+    count did not drop.
     """
     where = f"ai/rules/points/{RETIRED_FILE}"
     unchanged = set(retirement_rows(was_text))
@@ -1498,33 +1500,38 @@ def head_point_ids(root: Path) -> set[str] | None:
     return out
 
 
-def counts_by_rule(refs: set[str]) -> collections.Counter:
-    """How many of these point ids each rule holds."""
-    return collections.Counter(ref.split("/", 1)[0] for ref in refs)
-
-
-def head_point_counts(root: Path) -> dict[str, int] | None:
-    """Each rule's point count at git HEAD, or None when git cannot answer."""
-    ids = head_point_ids(root)
-    return None if ids is None else dict(counts_by_rule(ids))
-
-
 def corpus_shrink(
-    head_counts: dict[str, int],
-    now_counts: collections.Counter,
-    declared: collections.Counter,
+    head_ids: set[str],
+    now_ids: set[str],
+    declared: set[str],
 ) -> list[str]:
-    """Rules holding fewer points than HEAD, beyond what the ledger declares."""
-    out = []
-    for rule in sorted(head_counts):
-        was, now = head_counts[rule], now_counts.get(rule, 0)
-        lost = was - now - declared.get(rule, 0)
-        if lost > 0:
-            out.append(
-                f"{rule}: {was} point(s) at HEAD, {now} now, "
-                f"{declared.get(rule, 0)} declared retired; {lost} vanished"
-            )
-    return out
+    """Point ids git HEAD carried that are gone from disk and undeclared.
+
+    IDENTITY, never a count. A count is masked by an addition: the rule ends up
+    holding as many points as it did, so `was - now` is zero while a specific
+    instruction has left. Measured on 2026-08-09 over the problem-journal change,
+    17 points were deleted and 6 declared, and the count form reported ZERO
+    rules: completion went 160 to 160, git-safety 105 to 105, rfc-compliance 45
+    to 45 and testing 204 to 204, each having lost a point behind an addition,
+    while planning's 191-to-186 drop was the only one it could see. A guard whose
+    miss path returns the permissive answer is the shape `ai/rules/evidence.md`
+    refuses, and `make ze-rules-gate-map` exited 0 over all of it.
+
+    A RENAME is therefore a retirement of the old id. The count form could not
+    see one at all; this one reports it, so the ledger row says where the
+    instruction went and a reader chasing the old id finds an answer rather than
+    nothing. The rows are grouped by rule because that is how a reader fixes
+    them: one rule's manifest at a time.
+    """
+    vanished = sorted(head_ids - now_ids - declared)
+    by_rule: dict[str, list[str]] = {}
+    for ref in vanished:
+        by_rule.setdefault(ref.split("/", 1)[0], []).append(ref)
+    return [
+        f"{rule}: {len(refs)} vanished since HEAD with no "
+        f"{RETIRED_FILE} row: {', '.join(refs)}"
+        for rule, refs in sorted(by_rule.items())
+    ]
 
 
 def rationale_problems(
@@ -1658,6 +1665,8 @@ def report_gate_map(
     no_head_for: list[str] | None = None,
     declared_none: list[str] | None = None,
     shrunk: list[str] | None = None,
+    ledger: list[str] | None = None,
+    corpus_baseline: bool = True,
 ) -> tuple[list[str], int]:
     """The four sets as report lines, plus the exit code.
 
@@ -1678,7 +1687,17 @@ def report_gate_map(
     - shrunk FAILS. A rule holding fewer points than HEAD has lost instructions
       that no `ai/rules/points/RETIRED.md` line accounts for. Every other gate
       reads the tree as it IS, so a point deleted with its manifest line leaves
-      them all agreeing on the smaller corpus.
+      them all agreeing on the smaller corpus. `corpus_baseline` is False when
+      git could not name the points HEAD carries, and then the count is not
+      printed at all: `SHRUNK: 0` over a comparison that never ran is the
+      permissive answer the guard exists to refuse (`ai/rules/evidence.md`).
+      `head_point_ids` returns None on a failure of EITHER git call, and the
+      `ls-tree`-only failure leaves the dispatcher baseline intact, so this
+      cannot be inferred from `baseline`.
+    - ledger FAILS, and is counted apart from shrunk. A malformed or
+      unsubstantiated `RETIRED.md` row is not a rule that lost a point, and
+      folding the two together made the SHRUNK count over-read: it said
+      "N rule(s) lost a point" over a list that also held ledger rows.
     - missing rationale FAILS (AC-16). A `rationale:` naming a path that is not
       on disk is the same defect class as a dangling binding, one direction out:
       the explanation moved out from under the instruction. Both are one line to
@@ -1702,6 +1721,7 @@ def report_gate_map(
     no_head_for = list(no_head_for or [])
     declared_none = list(declared_none or [])
     shrunk = list(shrunk or [])
+    ledger = list(ledger or [])
     if not gm.points:
         return [
             (
@@ -1771,12 +1791,6 @@ def report_gate_map(
             "and declare `none` now",
         ]
         out += [f"  {line}" for line in declared_none]
-        out += [
-            "",
-            f"SHRUNK: {len(shrunk)} rule(s) hold fewer points than HEAD, "
-            f"undeclared in ai/rules/points/{RETIRED_FILE}",
-        ]
-        out += [f"  {line}" for line in shrunk]
     else:
         out += [
             "",
@@ -1791,6 +1805,33 @@ def report_gate_map(
             f"  no version at HEAD: {name} (its bindings are not ratcheted)"
             for name in no_head_for
         ]
+
+    # The corpus ratchet has its OWN baseline: the point ids at HEAD. It is
+    # printed outside the block above because the two baselines fail apart --
+    # `git ls-tree ai/rules/points` can fail while every dispatcher is at HEAD --
+    # and a count printed over a comparison that never ran reads as a pass.
+    if corpus_baseline:
+        out += [
+            "",
+            f"SHRUNK: {len(shrunk)} rule(s) lost a point git HEAD carried, "
+            f"undeclared in ai/rules/points/{RETIRED_FILE}",
+        ]
+        out += [f"  {line}" for line in shrunk]
+    else:
+        out += [
+            "",
+            "SHRUNK: no HEAD point baseline (git could not name the points at "
+            "HEAD); not ratcheted",
+        ]
+
+    # Counted apart from SHRUNK: a row that declares nothing is a defect in the
+    # ledger, not a rule that lost a point.
+    out += [
+        "",
+        f"RETIRED LEDGER: {len(ledger)} row(s) in ai/rules/points/{RETIRED_FILE} "
+        "declare no retirement",
+    ]
+    out += [f"  {line}" for line in ledger]
 
     out += [
         "",
@@ -1863,6 +1904,7 @@ def report_gate_map(
             or regressed
             or declared_none
             or shrunk
+            or ledger
             or gm.missing_rationale
             or gm.missing_excepted_by
         )
@@ -2167,14 +2209,11 @@ def main(argv: list[str] | None = None) -> int:
             root, points_dir, head_ids, now_ids
         )
         declared_none = unbound_regressions(gm, at_head, retired) if head else []
-        shrunk = ledger_problems + (
-            corpus_shrink(
-                counts_by_rule(head_ids),
-                counts_by_rule(now_ids),
-                counts_by_rule(retired),
-            )
-            if head_ids is not None
-            else []
+        # Two baselines, reported apart. `head_ids is None` says git could not
+        # name the points at HEAD, which is NOT the same failure as no
+        # dispatcher at HEAD, and the identity comparison cannot run without it.
+        shrunk = (
+            corpus_shrink(head_ids, now_ids, retired) if head_ids is not None else []
         )
         lines, code = report_gate_map(
             gm,
@@ -2185,6 +2224,8 @@ def main(argv: list[str] | None = None) -> int:
             no_head_for=no_head_for,
             declared_none=declared_none,
             shrunk=shrunk,
+            ledger=ledger_problems,
+            corpus_baseline=head_ids is not None,
         )
         for line in lines:
             print(line)
@@ -2212,6 +2253,13 @@ def main(argv: list[str] | None = None) -> int:
                     f"{len(shrunk)} rule(s) lost points that ai/rules/points/"
                     f"{RETIRED_FILE} does not account for; restore the point, or add "
                     "one line per retired instruction saying which id left and why"
+                )
+            elif ledger_problems:
+                reason = (
+                    f"{len(ledger_problems)} row(s) in ai/rules/points/"
+                    f"{RETIRED_FILE} declare no retirement; each row names one id "
+                    "that HEAD carried and disk does not, and says where the "
+                    "instruction went"
                 )
             elif gm.missing_rationale:
                 reason = (

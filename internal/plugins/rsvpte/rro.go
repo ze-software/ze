@@ -1,4 +1,4 @@
-// Design: plan/learned/921-mpls-rsvp-te.md -- RRO collection + ERO/RRO display (AC-9)
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RRO collection + ERO/RRO display (AC-9)
 // RFC: rfc/short/rfc3209.md
 // Related: wire.go -- RROEntry/EROHop and their Encode/Decode primitives
 // Related: engine.go -- RESV handlers record the route; register.go shows it

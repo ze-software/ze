@@ -1,4 +1,4 @@
-// Design: plan/learned/937-isis-13-cli-diag-interop.md -- `show isis spf-log` history
+// Design: docs/architecture/isis/isis-13-cli-diag-interop.md -- `show isis spf-log` history
 // Related: computer.go -- Run records one SPFLogEntry per level per run
 //
 // The SPF log is a bounded ring of recent SPF runs surfaced by `show isis

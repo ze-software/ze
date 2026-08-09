@@ -1,4 +1,4 @@
-// Design: plan/learned/665-diag-2-event-history.md -- global event ring buffer
+// Design: docs/architecture/diagnostics/event-history-rings.md -- global event ring buffer
 
 package server
 

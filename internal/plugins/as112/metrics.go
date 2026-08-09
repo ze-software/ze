@@ -1,4 +1,4 @@
-// Design: plan/learned/1033-as112-2-dns-server.md -- as112 Prometheus metrics
+// Design: docs/architecture/dns/as112.md -- as112 Prometheus metrics
 // Related: internal/core/metrics -- Registry/CounterVec/Histogram/GaugeVec
 
 package as112

@@ -167,7 +167,7 @@ engine; the engine has no Loc-RIB table.
 - **093,
   220,
   377,
-  [450](450-iter-elements.md)** Split-function zero-copy. `SplitMPNLRI`
+  450** Split-function zero-copy. `SplitMPNLRI`
   returns subslices of the original buffer. `ChunkMPNLRI` subsumed into
   `iter.Elements`.
 - **070,
@@ -190,9 +190,9 @@ engine; the engine has no Loc-RIB table.
   374,
   384,
   387,
-  [534](534-rib-alloc.md),
-  [607](607-rib-bart-bestprev.md),
-  [618](618-rib-bestpath-pack.md)** RIB plugin arc. RIB commands
+  534,
+  607,
+  618** RIB plugin arc. RIB commands
   originally engine builtins; moved to plugin-provided via registry
   dispatch. adj-rib-in plugin stores raw wire bytes for zero-copy
   replay. `seqmap` library gives O(log N + K) delta queries. Refcounted
@@ -214,10 +214,10 @@ engine; the engine has no Loc-RIB table.
   316,
   392,
   394,
-  [424](424-forward-backpressure.md),
-  [445](445-forward-congestion-phase4-5.md),
-  [457](457-forward-congestion-phase2.md),
-  [630](630-rs-fastpath-3-passthrough.md)** Forward path evolution. Per-destination-peer worker goroutines,
+  424,
+  445,
+  457,
+  630** Forward path evolution. Per-destination-peer worker goroutines,
   MuxConn for concurrent RPCs (`#id <verb> [<json>]\n`), EBGP wire
   variants cached per-UPDATE (ASN4 vs ASN2 prepend), four-layer
   congestion response (bounded overflow, Prometheus metrics, read
@@ -225,18 +225,18 @@ engine; the engine has no Loc-RIB table.
   path for internal plugins.
 - **239,
   280,
-  [408](408-dynamic-send-types.md),
-  [442](442-filter-community.md),
-  [464](464-role-otc.md),
-  [541](541-policy-framework.md),
-  [548](548-cmd-4-prefix-filter.md),
-  [552](552-cmd-4-prefix-filter-phase2.md),
-  [569](569-cmd-5-aspath-filter.md),
-  [570](570-cmd-6-community-match.md),
-  [571](571-cmd-7-route-modify.md),
-  [590](590-cmd-1-rr-nexthop.md),
-  [591](591-cmd-3-multipath.md),
-  [593](593-cmd-2-session-policy.md)** Filter and policy framework.
+  408,
+  442,
+  464,
+  541,
+  548,
+  552,
+  569,
+  570,
+  571,
+  590,
+  591,
+  593** Filter and policy framework.
   Capability mode (enable/disable/require/refuse) post-negotiation
   validation. Dynamic event/send type registration from plugins.
   OTC (RFC 9234), prefix-list, as-path, community-match, route-modify
@@ -483,7 +483,7 @@ strict enforcement in the `bgp-role` plugin.
 | `local-address` is mandatory for every peer | `reactor/config.go` | Explicit choice per peer; `auto` is allowed for OS-selected binding but must be explicit. (049, 233) |
 | Peer lookup on incoming connection is by remote IP, not listener address | `reactor/listener.go` | Listener address is used only for RFC-compliance validation. (049) |
 | Keepalive timer fires via `time.AfterFunc` in independent goroutine | `session.go` | Writes through `sendKeepalive` → `writeMessage`; this is the least obvious concurrent caller. `writeMu` required. (279) |
-| `connectionEstablished()` sends an OPEN | session setup | Tests that set up TCP sessions directly must use raw field assignment. ([415](415-prefix-data.md)) |
+| `connectionEstablished()` sends an OPEN | session setup | Tests that set up TCP sessions directly must use raw field assignment. (415) |
 | Reactor code must use `sim.Clock` interface, not `time.*` | `reactor/*.go` | Chaos and virtual-time tests bypass `time.Now()` silently — audit test forbids direct calls. (288) |
 | Collision detection happens at OpenConfirm, not OpenSent | `peer.go collision check` | OpenSent collision is a MAY, never implemented. OpenConfirm is the MUST case. (023) |
 | UPDATE delivery uses a bounded channel plus a goroutine PER PEER, never one reactor-wide | per-peer delivery channel on `Peer` | A shared channel reintroduces a cross-peer deadlock: A reads an UPDATE and delivers it to the route server, which forwards to B, whose TCP write blocks because B's receive buffer is full, because B's read goroutine is blocked on the shared channel forwarding back to A. (272) |
@@ -524,9 +524,9 @@ subtree at Stage 2; they parse the JSON themselves.
   removed from code (API versions, config fields, migration comments).
   Design for machine-transformable migration.
 - **050,
-  [476](476-env-registry-consistency.md),
-  [506](506-listener-6-compound-env.md),
-  [628](628-env-cleanup.md)** `environment { }` block. Priority:
+  476,
+  506,
+  628** `environment { }` block. Priority:
   OS env > config block > defaults. Strict validation (unknown keys
   fail at startup). Env vars registered via `env.MustRegister` silently
   overwrite duplicates; known two-site drift (`environment.go` +
@@ -541,16 +541,16 @@ subtree at Stage 2; they parse the JSON themselves.
   eliminated. `LegacyBGPSchema()` retained only for ExaBGP migration.
 - **151,
   334,
-  [488](488-lg-looking-glass.md),
-  [556](556-bfd-1-wiring.md),
-  [577](577-gokrazy-2-ntp.md)** YANG reorganisation. Each module lives
+  488,
+  556,
+  577** YANG reorganisation. Each module lives
   with the package that owns it; `init()` registers via
   `yang.RegisterModule`; `yang_schema.go` hard-codes the module list
   (TWO registrations required — known duplication).
 - **293,
   356,
-  [410](410-validate-completion.md),
-  [551](551-filter-non-cidr-families.md)** YANG `ze:validate` extension.
+  410,
+  551** YANG `ze:validate` extension.
   Registry in `internal/component/config/yang/`; validators in other packages register
   via explicit `RegisterValidators()`. `CompleteFn` provides autocompletion
   in the editor. Runtime-determined sets (plugin families) use
@@ -569,8 +569,8 @@ subtree at Stage 2; they parse the JSON themselves.
   369,
   370,
   391,
-  [427](427-per-user-drafts.md),
-  [428](428-command-history.md)** Editor. Text surgery (findFullContextPath,
+  427,
+  428** Editor. Text surgery (findFullContextPath,
   setValueInConfig) deleted. `Tree` is canonical; `WorkingContent()` =
   `Serialize(tree)`. Per-user change files (`config.conf.change.<user>`)
   replace shared draft. Session identity is `user@origin:unix-ts`.
@@ -586,15 +586,15 @@ subtree at Stage 2; they parse the JSON themselves.
 - **380** Config archive. VyOS-inspired fan-out:
   all locations attempted, errors collected per-location, non-fatal to
   commit. `file://` and `http(s)://` protocols.
-- **[426](426-blob-namespaces.md),
-  [456](456-zefs-integration.md),
-  [463](463-zefs-socket-locking.md),
-  [477](477-zefs-key-registry.md)** Zefs blob store. Two namespaces:
+- **426,
+  456,
+  463,
+  477** Zefs blob store. Two namespaces:
   `meta/` (instance metadata), `file/active/` (current config).
   `file/draft/` and `file/<date>/` qualifiers planned. No flock (all
   sessions in-process); `Storage.AcquireLock` returns a `WriteGuard`.
-- **[537](537-config-tx-protocol.md),
-  [538](538-report-bus.md)** Transaction protocol. Orchestrator
+- **537,
+  538** Transaction protocol. Orchestrator
   migrated from the bus to the stream system during the larger
   bus-removal work. Participating plugins declare via `WantsConfig`;
   orchestrator sends verify → all ok → apply → all ok → commit.
@@ -647,13 +647,13 @@ subtree at Stage 2; they parse the JSON themselves.
 |-----------|------|------------------------|
 | YANG is the single source of schema truth | `internal/component/config/yang/` | `BGPSchema()` removed; `LegacyBGPSchema()` only for ExaBGP migration. (166) |
 | Every YANG `environment/<name>` leaf needs `ze.<name>.<leaf>` registered via `env.MustRegister` | plugin `init()` | Env vars are part of the config interface, not follow-up work. (050, CLAUDE.md rule) |
-| Every new top-level config block requires TWO registrations | `init()` + `yang_schema.go:YANGSchemaWithPlugins()` | `yang.RegisterModule()` makes module available to loader; explicit call in `yang_schema.go` builds the schema. Parser does not discover. ([488](488-lg-looking-glass.md), [556](556-bfd-1-wiring.md), [577](577-gokrazy-2-ntp.md)) |
-| `ApplyConfigDiff` in production re-reads disk via `reloadFn` | `reactor/config.go` | Verify and apply must see the same on-disk state at their respective times. ([466](466-set-with.md), [535](535-config-tx-consumers.md)) |
-| `GetConfigTree` returns live map reference, not a copy | `reactor/config.go` | Mutating outside locks races. ([466](466-set-with.md)) |
-| `ze config validate` does NOT invoke plugin `OnConfigVerify` | `internal/component/config/cli/cmd_validate.go` | Parser + YANG type check only; plugin-side validation runs only in running daemon. ([413](413-prefix-limit.md), [557](557-iface-tunnel.md), [621](621-backend-feature-gate.md), [627](627-fw-7-traffic-vpp.md)) |
-| Plugin config tree delivered wrapped as `{"bgp":{...}}` | `server/reload.go` | Plugins must unwrap before accessing their subtree. (185, [538](538-report-bus.md)) |
-| YANG list = JSON map keyed by list key | type conversion | `list server { key "name"; }` → `"server": {"default": {...}}`, not `[{"name":"default",...}]`. ([574](574-bgp-4-bmp.md)) |
-| Config values survive JSON roundtrip as strings | type conversion | `"enabled": "true"` not `"enabled": true`; `strconv.ParseUint` needed for numeric. (213, [556](556-bfd-1-wiring.md), [574](574-bgp-4-bmp.md)) |
+| Every new top-level config block requires TWO registrations | `init()` + `yang_schema.go:YANGSchemaWithPlugins()` | `yang.RegisterModule()` makes module available to loader; explicit call in `yang_schema.go` builds the schema. Parser does not discover. (488, 556, 577) |
+| `ApplyConfigDiff` in production re-reads disk via `reloadFn` | `reactor/config.go` | Verify and apply must see the same on-disk state at their respective times. (466, 535) |
+| `GetConfigTree` returns live map reference, not a copy | `reactor/config.go` | Mutating outside locks races. (466) |
+| `ze config validate` does NOT invoke plugin `OnConfigVerify` | `internal/component/config/cli/cmd_validate.go` | Parser + YANG type check only; plugin-side validation runs only in running daemon. (413, 557, 621, 627) |
+| Plugin config tree delivered wrapped as `{"bgp":{...}}` | `server/reload.go` | Plugins must unwrap before accessing their subtree. (185, 538) |
+| YANG list = JSON map keyed by list key | type conversion | `list server { key "name"; }` → `"server": {"default": {...}}`, not `[{"name":"default",...}]`. (574) |
+| Config values survive JSON roundtrip as strings | type conversion | `"enabled": "true"` not `"enabled": true`; `strconv.ParseUint` needed for numeric. (213, 556, 574) |
 | `ze:validate` on a YANG typedef does NOT reach the leaves that reference the typedef; the extension must be repeated on every leaf | leaves using `zt:address-family` | goyang resolves the typedef's type and pattern, but not its custom extensions. 293 asserted the opposite, citing RFC 7950 7.3.4, and 356's empirical finding governs. A leaf that looks validated by its typedef is unvalidated. (356 over 293) |
 | Template `match` blocks apply in CONFIG-FILE ORDER, not by specificity | template match application, and the v2-to-v3 migration | An explicit choice to give operators order control, which is why migration must preserve insertion order. Precedence is template.match, then template.group, then the peer block. `inherit` is rejected inside `template`, and `match` is valid only inside `template`. (008, 009) |
 | GR `restart-time` has an upper bound of 4095, not 65535 | GR YANG typedef, RFC 4724 capability encoding | The field is 12 bits inside the two-byte capability value, so a YANG `uint16` range accepts unencodable values. (163) |
@@ -734,7 +734,7 @@ built and then deleted (see Abandoned approaches).
   210,
   264,
   294,
-  [459](459-plugin-tcp-transport.md)** Plugin invocation modes.
+  459** Plugin invocation modes.
   `ze.X` prefix = internal (goroutine + `io.Pipe` or `net.Pipe`),
   path/cmd = fork. Same protocol both. DirectBridge skips JSON +
   socket I/O for internal plugins (415× faster UPDATE delivery).
@@ -762,8 +762,8 @@ built and then deleted (see Abandoned approaches).
   299,
   321,
   322,
-  [422](422-structured-delivery.md),
-  [606](606-eventbus-typed.md)** Event delivery performance.
+  422,
+  606** Event delivery performance.
   JSON-RPC `deliver-batch` replaces per-event writes. Persistent reader
   goroutine replaces 5 per-RPC goroutines. Text format opt-in per
   plugin. DirectBridge delivers `*RawMessage` directly; plugin reads
@@ -808,10 +808,10 @@ built and then deleted (see Abandoned approaches).
   nothing.
 - **323 through
   328,
-  [419](419-arch-7-subsystem-wiring.md) through
-  [425](425-arch-0-system-boundaries.md),
-  [531](531-config-inline-container.md),
-  [533](533-bgp-boundary-cleanup.md)** Arch-0 restructuring.
+  419 through
+  425,
+  531,
+  533** Arch-0 restructuring.
   Four components (originally five): Engine, ConfigProvider,
   PluginManager, Subsystem. Interfaces in `pkg/ze/`. Subsystem ≠
   Plugin (BGP daemon owns TCP/FSM; bgp-rib/rs/gr are plugins).
@@ -823,17 +823,17 @@ built and then deleted (see Abandoned approaches).
   declared in registration. Two-layer validation: Go registry for
   pre-startup auto-loading of internal plugins; protocol Stage 1 for
   runtime validation of all plugins. Fail-loud on missing dependency.
-- **[536](536-family-registry.md)** Family registry. Runtime-registered
+- **536** Family registry. Runtime-registered
   families (dynamic), AFI/SAFI indexed. `family.Family.String()`
   requires the family to be registered; tests call
   `family.RegisterTestFamilies()`. Single atomic state; old dual
   (mutable + snapshot cache) collapsed.
 - **390,
-  [452](452-ssh-server.md),
-  [484](484-unified-cli.md),
-  [601](601-tacacs.md),
-  [598](598-aaa-registry.md),
-  [600](600-user-login.md)** Auth. SSH server with bcrypt. RBAC
+  452,
+  484,
+  601,
+  598,
+  600** Auth. SSH server with bcrypt. RBAC
   (Nokia-inspired). AAA registry (`aaa.Default.Register`,
   `BackendRegistry`). TACACS+ plugin. Timing side-channel fixed
   (always run dummy bcrypt for unknown users).
@@ -930,12 +930,12 @@ built and then deleted (see Abandoned approaches).
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
 | Internal plugin full 5-stage startup can deadlock | `DirectBridge` startup | Engine blocks waiting for plugin `ready`; plugin blocks waiting for engine config. Decode-only path skips stages. (198, 264) |
-| `net.Pipe()` writes block until reader is ready | test helpers | Zero-buffering. Tests must start readers before writes OR wrap writes in goroutines. (210, 264, [459](459-plugin-tcp-transport.md)) |
-| Plugin subprocess stderr consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's `expect=stderr:contains=`. ([451](451-rib-show-filters.md)) |
+| `net.Pipe()` writes block until reader is ready | test helpers | Zero-buffering. Tests must start readers before writes OR wrap writes in goroutines. (210, 264, 459) |
+| Plugin subprocess stderr consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's `expect=stderr:contains=`. (451) |
 | Strict role (RFC 9234) enforcement stays in plugin | `bgp-role` plugin | Engine is policy-free. (239) |
-| Plugin declares what it handles; engine never enumerates | registry API | Families, events, send types all dynamic. (187, 188, [404](404-rpki-decorator.md), [408](408-dynamic-send-types.md)) |
-| Registry lookup is by name (exact, case-sensitive post-normalisation) | `registry.go` | Case normalized at write time, not read time. (187, [412](412-rpki-test-isolation.md)) |
-| Auto-linter strips imports between Edits | `auto_linter.sh` hook | `goimports` runs after every Edit/Write; import + first usage must be in same Edit call. (288, [422](422-structured-delivery.md), many others) |
+| Plugin declares what it handles; engine never enumerates | registry API | Families, events, send types all dynamic. (187, 188, 404, 408) |
+| Registry lookup is by name (exact, case-sensitive post-normalisation) | `registry.go` | Case normalized at write time, not read time. (187, 412) |
+| Auto-linter strips imports between Edits | `auto_linter.sh` hook | `goimports` runs after every Edit/Write; import + first usage must be in same Edit call. (288, 422, many others) |
 | Plugin startup needs TWO socket pairs, not one | socketpair creation, `pkg/plugin/rpc` | One socket per direction prevents deadlock. On a single socket both sides can block waiting for the other's response while each holds an unread request. (210) |
 | The capability seam is decode-versus-negotiate, not capability-by-capability | `bgp-gr`, `bgp-route-refresh` and `bgp-hostname` versus engine `capability/` | The engine keeps wire parsing and negotiation, and only the CLI and display decode path moves to a plugin. Moving negotiation into a plugin breaks engine=protocol, plugin=policy. (282) |
 | A capability-decoding plugin must declare BOTH the decoder function and the capability codes | `registry.Registration` | With only one of the two the plugin registers and is never invoked. It is silent: no error, no log, and the capability renders undecoded. (282) |
@@ -1005,11 +1005,11 @@ tests. Prometheus metrics at `/metrics`.
   381,
   383,
   395,
-  [440](440-bgp-dashboard.md),
-  [446](446-feature-inventory-ci-gaps.md),
-  [496](496-cli-dispatch.md),
-  [518](518-shell-completion-v2.md),
-  [625](625-rs-fastpath-1-profile.md)** CLI. `ze bgp run` + interactive
+  440,
+  446,
+  496,
+  518,
+  625** CLI. `ze bgp run` + interactive
   merged into `ze cli`. `ze show` (read-only) and `ze run` (all) share
   `BuildCommandTree` from YANG. Shared `cmdutil` package. Pipe
   operators (`| json`, `| table`, `| text`, `| yaml`, `| count`)
@@ -1017,7 +1017,7 @@ tests. Prometheus metrics at `/metrics`.
 - **388,
   389,
   396,
-  [502](502-signal-status-command.md)** CLI commands for metrics/log/
+  502** CLI commands for metrics/log/
   monitor/signal. `bgp metrics show/list`, `bgp log show/set`,
   `bgp monitor` streaming, `ze status`.
 - **266 through
@@ -1029,27 +1029,27 @@ tests. Prometheus metrics at `/metrics`.
   ~40-peer active set with adaptive TTL decay. 200 ms SSE debounce.
   Peer grid (alternative to table), donut chart, event toasts, chaos
   pulse, peer filter, convergence trend, chaos rate, trigger buttons.
-- **[454](454-web-htmx-architecture.md) through
-  [475](475-web-0-umbrella-retrospective.md),
-  [474](474-web-admin-finder.md),
-  [486](486-cli-nav-sync.md),
-  [498](498-lg-overhaul.md)** Main web UI. Server-rendered Go HTML,
+- **454 through
+  475,
+  474,
+  486,
+  498** Main web UI. Server-rendered Go HTML,
   HTMX, SSE. CSP-strict (no `unsafe-eval`). Config view/edit with
   `EditorManager` injected. Admin finder columns, CLI bar (form +
   terminal modes), live update banner, self-signed cert with SAN for
   every interface IP. Looking glass: birdwatcher API, topology graph,
   ASN decorators via `SetDecoratorRegistry`.
-- **[417](417-perf.md),
-  [433](433-interop-coverage.md),
-  [565](565-bfd-3b-frr-interop.md)** `ze-perf` standalone benchmarking
+- **417,
+  433,
+  565** `ze-perf` standalone benchmarking
   binary. Cross-implementation (Ze, GoBGP, FRR, BIRD, rustbgpd).
   NDJSON history, stddev-aware regression detection, Docker-orchestrated
   runs.
 - **386,
-  [453](453-prometheus-deep.md),
-  [482](482-prometheus-plugin-health.md),
-  [542](542-plugin-metrics.md),
-  [561](561-bfd-4-operator-ux.md)** Prometheus metrics. Map-based
+  453,
+  482,
+  542,
+  561** Prometheus metrics. Map-based
   idempotent `PrometheusRegistry`. Per-instance registry (not global)
   for test isolation. Counter metric families invisible until first
   `.Inc()`.
@@ -1085,11 +1085,11 @@ tests. Prometheus metrics at `/metrics`.
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| `EventSource` (SSE) does not support custom headers | `web/htmx.js` | Drives session-cookie auth over Basic Auth. ([468](468-web-1-foundation.md)) |
-| HTMX SSE extension inserts via `innerHTML` | web handlers | Requires pre-rendering through `html/template` for XSS safety. ([473](473-web-6-live-updates.md)) |
-| HTMX filter expressions in `hx-trigger` use eval internally | CSP config | Requires `unsafe-eval`; replace with plain JS event listener to keep CSP strict. ([454](454-web-htmx-architecture.md)) |
+| `EventSource` (SSE) does not support custom headers | `web/htmx.js` | Drives session-cookie auth over Basic Auth. (468) |
+| HTMX SSE extension inserts via `innerHTML` | web handlers | Requires pre-rendering through `html/template` for XSS safety. (473) |
+| HTMX filter expressions in `hx-trigger` use eval internally | CSP config | Requires `unsafe-eval`; replace with plain JS event listener to keep CSP strict. (454) |
 | Pipe operators default table when no format specified | `ProcessPipesDefaultTable` | `| json`, `| table`, `| text`, `| yaml` are format; `| count` is transform. Multiple formatters are an error. (383) |
-| `ze config validate` invokes YANG type check only | `internal/component/config/cli/cmd_validate.go` | Plugin `OnConfigVerify` runs only when daemon loads or reloads — parser tests cannot verify plugin-specific rules. ([413](413-prefix-limit.md), others) |
+| `ze config validate` invokes YANG type check only | `internal/component/config/cli/cmd_validate.go` | Plugin `OnConfigVerify` runs only when daemon loads or reloads — parser tests cannot verify plugin-specific rules. (413, others) |
 | Bubble Tea owns stdin once the TUI starts, so the editor cannot read piped terminal input normally | editor `load`, paste-mode state | Any multi-line terminal input needs a paste-collecting state with an explicit terminator (Ctrl-D). Pre-TUI stdin detection does not work. (349) |
 | Fish single-quotes have NO escape mechanism, so `\'` is literal | `plugins/completion/fish.go` | A `complete -a '...'` containing a regex such as `[^"]*` breaks, leaving `[^` as an unquoted glob, so regexes must live in a named helper. Also, `commandline -opc` at `[-1]` returns the PARTIAL token being typed. (381) |
 | Nushell's module system collides with extern command names | `plugins/completion/nushell.go` | `ze.nu` loaded with `use ze.nu` creates module `ze`, which forbids `export extern "ze"`, and `use foo.nu *` does not export externs. Only `source` with a plain `extern` works. (381) |
@@ -1145,55 +1145,55 @@ tests. Prometheus metrics at `/metrics`.
 
 ### Evolution
 
-Interface: [489](489-iface-0-umbrella.md),
-[490](490-iface-1-monitor.md), [491](491-iface-2-manage.md),
-[492](492-iface-3-bgp-react.md), [493](493-iface-4-advanced.md),
-[494](494-iface-5-vm-tests.md),
-[522](522-fib-0-umbrella.md),
-[523](523-iface-mac-discovery.md),
-[524](524-fib-config-autoload.md),
-[526](526-iface-backend-split.md),
-[557](557-iface-tunnel.md),
-[566](566-iface-wireguard.md),
-[567](567-iface-tunnel-mac-per-case.md),
-[568](568-listener-dynamic-walk.md),
-[576](576-gokrazy-1-dhcp-wiring.md),
-[582](582-iface-route-priority.md),
-[589](589-iface-ipv6-default-route.md),
-[615](615-vpp-4-iface.md).
+Interface: 489,
+490, 491,
+492, 493,
+494,
+522,
+523,
+524,
+526,
+557,
+566,
+567,
+568,
+576,
+582,
+589,
+615.
 
-BFD: [555](555-bfd-skeleton.md),
-[556](556-bfd-1-wiring.md), [559](559-bfd-2-transport-hardening.md),
-[560](560-bfd-3-bgp-client.md), [561](561-bfd-4-operator-ux.md),
-[562](562-bfd-5-authentication.md), [563](563-bfd-6-echo-mode.md),
-[564](564-bfd-2b-ipv6-transport.md), [565](565-bfd-3b-frr-interop.md).
+BFD: 555,
+556, 559,
+560, 561,
+562, 563,
+564, 565.
 
-L2TP + PPP: [594](594-l2tp-1-wire.md),
-[595](595-l2tp-2-reliable.md), [596](596-l2tp-3-tunnel.md),
-[597](597-l2tp-4-session.md), [599](599-l2tp-5-kernel.md),
-[602](602-l2tp-6a-lcp-base.md),
-[609](609-l2tp-6b-auth.md), [616](616-l2tp-6c-ncp.md),
-[620](620-l2tp-7-subsystem.md), [622](622-l2tp-7b-ci-coverage.md).
+L2TP + PPP: 594,
+595, 596,
+597, 599,
+602,
+609, 616,
+620, 622.
 
-VPP: [610](610-vpp-7-test-harness.md),
-[611](611-vpp-1-lifecycle.md), [612](612-vpp-6-telemetry.md),
-[613](613-vpp-2-fib.md), [614](614-fmt-0-append.md),
-[615](615-vpp-4-iface.md), [623](623-fw-9-traffic-lifecycle.md),
-[627](627-fw-7-traffic-vpp.md), [629](629-fw-7b-backend-hardening.md).
+VPP: 610,
+611, 612,
+613, 614,
+615, 623,
+627, 629.
 
-Firewall: [584](584-fw-1-data-model.md),
-[585](585-fw-4-yang-config.md), [586](586-fw-2-firewall-nft.md),
-[587](587-fw-3-traffic-netlink.md), [588](588-fw-5-cli.md),
-[635](635-fw-10-linux-gaps.md).
+Firewall: 584,
+585, 586,
+587, 588,
+635.
 
-Host + Gokrazy: [577](577-gokrazy-2-ntp.md),
-[578](578-gokrazy-3-build.md), [579](579-gokrazy-4-resilience.md),
-[580](580-gokrazy-0-umbrella.md),
-[581](581-sysctl-0-plugin.md), [583](583-sysctl-1-profiles.md),
-[631](631-host-0-inventory.md).
+Host + Gokrazy: 577,
+578, 579,
+580,
+581, 583,
+631.
 
-BMP: [574](574-bgp-4-bmp.md),
-[647](647-bmp-5-sender-compliance.md).
+BMP: 574,
+647.
 
 ### Abandoned approaches
 
@@ -1224,15 +1224,15 @@ BMP: [574](574-bgp-4-bmp.md),
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| `IP_RECVTTL` cmsg arrives as `IP_TTL` | BFD UDP parser | Setsockopt uses `IP_RECVTTL` (enable flag); cmsg type is `IP_TTL` (value carrier). ([559](559-bfd-2-transport-hardening.md)) |
-| DHCPv6 does not install default route | `iface/dhcp.go` | Default gateway comes from Router Advertisements. ([576](576-gokrazy-1-dhcp-wiring.md)) |
-| `runtime.LockOSThread()` is mandatory before netns switch | iface tests | Without it, scheduler can move goroutine out of the target namespace. ([494](494-iface-5-vm-tests.md)) |
-| `accept_ra` must be `2` not `1` when `forwarding=true` | `iface/sysctl_linux.go` | The kernel ignores Router Advertisements at `accept_ra=1` when forwarding is on. ([489](489-iface-0-umbrella.md), [491](491-iface-2-manage.md)) |
-| VLAN composite names must fit IFNAMSIZ (15 chars) | `iface/validateIfaceName` | Combined (parent + `.` + vlan-id), not parent alone. ([489](489-iface-0-umbrella.md), [491](491-iface-2-manage.md)) |
-| `SetKernelWorker` must be called BEFORE `reactor.Start()` | L2TP kernel worker | Reactor goroutine reads `r.kernelErrCh`; write after Start races. ([599](599-l2tp-5-kernel.md)) |
-| `/proc/meminfo` values are in kB, not bytes | host inventory | Convert at parse time; field names carry `-bytes` suffix. ([631](631-host-0-inventory.md)) |
-| `unsafe.Pointer` for RTC ioctl triggers gosec G103 | ntp plugin | Unavoidable for kernel ioctl. Document with `//nolint:gosec` + reason. ([577](577-gokrazy-2-ntp.md)) |
-| BMP OPEN cache + dedup cleanup must run before senders-empty check | `bmp/bmp.go:handleStructuredEvent` | Peers establish before collectors connect; early return loses OPEN PDUs. ([647](647-bmp-5-sender-compliance.md)) |
+| `IP_RECVTTL` cmsg arrives as `IP_TTL` | BFD UDP parser | Setsockopt uses `IP_RECVTTL` (enable flag); cmsg type is `IP_TTL` (value carrier). (559) |
+| DHCPv6 does not install default route | `iface/dhcp.go` | Default gateway comes from Router Advertisements. (576) |
+| `runtime.LockOSThread()` is mandatory before netns switch | iface tests | Without it, scheduler can move goroutine out of the target namespace. (494) |
+| `accept_ra` must be `2` not `1` when `forwarding=true` | `iface/sysctl_linux.go` | The kernel ignores Router Advertisements at `accept_ra=1` when forwarding is on. (489, 491) |
+| VLAN composite names must fit IFNAMSIZ (15 chars) | `iface/validateIfaceName` | Combined (parent + `.` + vlan-id), not parent alone. (489, 491) |
+| `SetKernelWorker` must be called BEFORE `reactor.Start()` | L2TP kernel worker | Reactor goroutine reads `r.kernelErrCh`; write after Start races. (599) |
+| `/proc/meminfo` values are in kB, not bytes | host inventory | Convert at parse time; field names carry `-bytes` suffix. (631) |
+| `unsafe.Pointer` for RTC ioctl triggers gosec G103 | ntp plugin | Unavoidable for kernel ioctl. Document with `//nolint:gosec` + reason. (577) |
+| BMP OPEN cache + dedup cleanup must run before senders-empty check | `bmp/bmp.go:handleStructuredEvent` | Peers establish before collectors connect; early return loses OPEN PDUs. (647) |
 
 ---
 
@@ -1268,7 +1268,7 @@ for benchmarks.
   alphanumeric (0-9, A-Z, a-z) stable across runs. `ze-test bgp
   parse/ui/encode/decode/plugin`.
 - **205,
-  [428](428-command-history.md)** `.et` framework. Key sequences
+  428** `.et` framework. Key sequences
   + expected viewport/completions. Extended with `option=session:user=X`,
   `expect=file:path=X:contains=Y`, `restart=` for multi-session and
   persistence tests.
@@ -1285,13 +1285,13 @@ for benchmarks.
   354,
   355,
   393,
-  [446](446-feature-inventory-ci-gaps.md),
-  [550](550-ci-observer-exit-code-fix.md),
-  [558](558-ci-observer-per-test-audit.md)** Test coverage audits.
+  446,
+  550,
+  558** Test coverage audits.
   Fuzz targets across wire parsers. Observer-exit antipattern
   (`sys.exit(1)` after `daemon shutdown` → test framework sees
   "success") replaced with `runtime_fail(msg)` pattern.
-- **[608](608-concurrent-test-patterns.md)** Concurrent-test flake
+- **608** Concurrent-test flake
   patterns. Locked-write/unlocked-read, subscribe-before-broadcast,
   gate-handler, barrier FIFO, cleanup-drains-work.
 - **217** Fix the test harness before the code under test. The ExaBGP suite
@@ -1346,14 +1346,14 @@ for benchmarks.
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| `cmd=api` lines in `.ci` files are documentation metadata, not execution directives | `internal/test/runner/` | The route must come from the plugin. (362, [414](414-forward-barrier.md), [483](483-exabgp-bridge-muxconn.md)) |
-| `expect=stderr:contains=` only fires inside `ExpectExitCode != nil` branch | `runner_exec.go` | Without `expect=exit:code=`, runner falls through to peer-wait path. ([623](623-fw-9-traffic-lifecycle.md)) |
-| Plugin subprocess stderr is consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's stderr match. ([451](451-rib-show-filters.md)) |
-| Background `.ci` processes do NOT get `ZE_READY_FILE` | `runner_exec.go` | Only foreground path writes daemon.pid + daemon.ready. ([623](623-fw-9-traffic-lifecycle.md)) |
-| `parse/` test runner only extracts `stdin=config` and runs `ze validate` | `internal/test/runner/` | `cmd=foreground`, `tmpfs=`, `expect=stdout:contains=` are silently skipped. ([449](449-strip-private.md)) |
-| Python test library (`test/scripts/ze_api.py`) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. (291, 397, [497](497-check-ci-slowness.md)) |
-| Stored test state (registry, `sync.Once`) must Snapshot/Restore | `t.Cleanup` | `Reset` empties all globally registered decoders; fresh registry breaks tests. (240, [533](533-bgp-boundary-cleanup.md)) |
-| `net.Pipe()` deadlocks sequential write-then-read | test setup | Zero buffering. Wrap writes in goroutines or start reader first. (210, 264, [459](459-plugin-tcp-transport.md), [609](609-l2tp-6b-auth.md)) |
+| `cmd=api` lines in `.ci` files are documentation metadata, not execution directives | `internal/test/runner/` | The route must come from the plugin. (362, 414, 483) |
+| `expect=stderr:contains=` only fires inside `ExpectExitCode != nil` branch | `runner_exec.go` | Without `expect=exit:code=`, runner falls through to peer-wait path. (623) |
+| Plugin subprocess stderr is consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's stderr match. (451) |
+| Background `.ci` processes do NOT get `ZE_READY_FILE` | `runner_exec.go` | Only foreground path writes daemon.pid + daemon.ready. (623) |
+| `parse/` test runner only extracts `stdin=config` and runs `ze validate` | `internal/test/runner/` | `cmd=foreground`, `tmpfs=`, `expect=stdout:contains=` are silently skipped. (449) |
+| Python test library (`test/scripts/ze_api.py`) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. (291, 397, 497) |
+| Stored test state (registry, `sync.Once`) must Snapshot/Restore | `t.Cleanup` | `Reset` empties all globally registered decoders; fresh registry breaks tests. (240, 533) |
+| `net.Pipe()` deadlocks sequential write-then-read | test setup | Zero buffering. Wrap writes in goroutines or start reader first. (210, 264, 459, 609) |
 | A `.ci` using `action=sighup` must contain at least one `tmpfs=` block | functional runner sighup path | `daemon.pid` is only written when a tmpfs directory exists, so the signal can never be delivered. (234) |
 | A test for JSON-processing code must feed it a JSON string, never a hand-constructed struct | any `parseEvent`-style test | Building the struct skips the function that holds the bug. The RS event parser was wrong for every production event while its unit tests were green. (263) |
 | Registry-count assertions use exact equality, not `>=` | RPC registration table test | A `>= N` threshold passes while RPCs silently disappear. (209) |
@@ -1431,7 +1431,7 @@ Engine code: zero ExaBGP format awareness.
 |-----------|------|------------------------|
 | All ExaBGP-aware code lives in `internal/exabgp/` | package boundary | No imports from other packages. (181) |
 | Complex NLRI families (FlowSpec, MVPN, MUP) are API-only, not config | config schema | Removed from config for simplicity. (181) |
-| ExaBGP text protocol plugins bridged at the boundary | `ze exabgp plugin` | Incompatible with Ze's own RPC framing. That framing was NUL-delimited when this boundary was drawn and is newline-delimited today (`pkg/plugin/rpc/conn.go`); the bridge is required either way. (219, [483](483-exabgp-bridge-muxconn.md)) |
+| ExaBGP text protocol plugins bridged at the boundary | `ze exabgp plugin` | Incompatible with Ze's own RPC framing. That framing was NUL-delimited when this boundary was drawn and is newline-delimited today (`pkg/plugin/rpc/conn.go`); the bridge is required either way. (219, 483) |
 | SAFI detection must test for `rd` before `label` | migration SAFI detection | RFC 8277 labeled-unicast (SAFI 4) and RFC 4364 L3VPN (SAFI 128) share label syntax, so a label-first test classifies every VPN route as labeled unicast. (096) |
 | ExaBGP fixture configs under the exabgp test tree must be excluded from bulk config migration | `test/exabgp/*/input.conf` | A bulk migration rewrote them into Ze syntax twice, in 135 and again in 138, which made the migration tests pass without exercising migration. (138) |
 | The ExaBGP bridge reuses ONE scanner across the startup and JSON phases | bridge phase transition | Creating a fresh scanner at the switch drops bytes already buffered. (125) |

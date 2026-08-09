@@ -140,4 +140,4 @@ capabilities so a same-context forward stays a raw byte passthrough.
 - `docs/architecture/forward-congestion-pool.md`, two-tier per-peer forward worker pool + overflow.
 - `ai/rules/performance.md`, mechanical banned/allowed table, `encoding-alloc` hook, `/ze-find-alloc`.
 - `ai/rules/performance.md`, data lifecycle, caller-owned buffers, copy triggers, pool strategy.
-- `ai/PACKAGE-MAP.md`, `plan/learned/`, per-package index and historical record below/around this digest.
+- `ai/PACKAGE-MAP.md`, the per-package index below this digest.

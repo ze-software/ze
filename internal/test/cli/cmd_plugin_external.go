@@ -15,7 +15,7 @@ import (
 // via a genuine external TLS connect-back instead. Test-only tool: proves a
 // plugin's runtime IsInternal()-guarded refuse/warn behavior actually fires
 // when launched as a real subprocess, not just against a synthetic
-// net.Pipe() in a Go unit test (plan/learned/1045-plugin-process-boundary.md).
+// net.Pipe() in a Go unit test.
 //
 // Mirrors the configure sequence internal/component/plugin's
 // GetInternalPluginRunner applies for internal plugins (ConfigureEngineLogger

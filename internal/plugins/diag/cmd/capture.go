@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- control-plane capture display
+// Design: docs/architecture/diagnostics/packet-capture.md -- control-plane capture display
 
 package cmd
 

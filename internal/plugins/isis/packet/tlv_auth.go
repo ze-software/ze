@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- TLV 10 (Authentication) structural codec only
+// Design: docs/architecture/wire/isis.md -- TLV 10 (Authentication) structural codec only
 // RFC: rfc/short/rfc5304.md -- TLV 10 structure (sec 1): auth-type byte + value; HMAC-MD5 type 54
 // RFC: rfc/short/rfc5310.md -- generic crypto / HMAC-SHA auth type 3
 //

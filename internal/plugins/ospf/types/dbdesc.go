@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- the Database Description body carries the same
+// Design: docs/architecture/ospf/ospf-af-unify.md -- the Database Description body carries the same
 // logical fields in OSPFv2 and OSPFv3, so the struct is shared via the types leaf. The
 // wire fixed-layout differs between versions (RFC 2328 A.3.3 vs RFC 5340 A.3.3) and is
 // encoded/decoded by the codec.

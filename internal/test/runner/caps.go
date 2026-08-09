@@ -136,14 +136,14 @@ const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch 
 //     fails "Link not found", the ospf engine exits 1, plugin startup never
 //     completes, and each test dies on its observer's unrelated-looking TLS
 //     connect timeout. Teaching OSPF to tolerate a missing active link is
-//     explicitly NOT the fix (plan/learned/1264).
+//     explicitly NOT the fix.
 //   - test/policy/005-next-hop's next-hop then has no connected route, so
 //     RouteAdd returns "network is unreachable" and takes policy-routes down.
 //
 // Provisioning the links outside netns mode is NOT the alternative: they are
 // named eth0/eth1/..., so creating them would touch the caller's REAL host
-// namespace -- the one thing the per-test netns launch mode (Fix B and its R-2
-// host-safety gate, plan/learned/1112) exists to guarantee never happens.
+// namespace -- the one thing the per-test netns launch mode and its host-safety
+// gate exist to guarantee never happens.
 //
 // It replaces a weaker reason on purpose: netns mode implies Linux plus the
 // runner's CAP_SYS_ADMIN, so this requirement subsumes

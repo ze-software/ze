@@ -11,7 +11,8 @@ long time by design); `ready` and `in-progress` specs are current work.
 | `spec-<name>.md` | One spec per work item, status in its header table |
 | `TEMPLATE.md` | Design-time spec format: everything that must exist BEFORE code |
 | `TEMPLATE-CLOSURE.md` | Closure sections (audit, goal validation, review gate, pre-commit evidence), appended by `/ze-implement` at stage 11 |
-| `learned/` | Learned summaries of completed specs (`NNN-<name>.md`) plus the meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
+| `journal/` | One file per problem class, one row per occurrence (`plan/journal/README.md`) |
+| `learned/` | The hand-written meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
 | `deferrals/` (sharded per source), `known-failures/` (sharded per failure) | Cross-spec tracking |
 
 ## Lifecycle
@@ -27,10 +28,10 @@ holder fills `## Task` and leaves the rest for whoever picks the work up
 sections are written.
 
 A spec that passes its Review Gate is not done until it is **deleted** from
-`plan/`: closure is two commits (commit A: code + spec + learned summary;
-commit B: `git rm` the spec). Completed knowledge survives as
-`plan/learned/NNN-<name>.md`, indexed in `ai/LEARNED-INDEX.md`. There is no
-`done/` directory.
+`plan/`: closure is two commits (commit A: code + spec + the problem record;
+commit B: `git rm` the spec). The problem record is a row in
+`plan/journal/<class>.md` whose `Spec` cell names the spec
+(`plan/journal/README.md`). There is no `done/` directory.
 
 ## Working With Specs
 

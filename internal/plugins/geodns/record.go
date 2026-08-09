@@ -1,4 +1,4 @@
-// Design: plan/learned/992-geodns-1-config.md -- geodns record model (A/AAAA/SRV)
+// Design: docs/architecture/dns/geodns.md -- geodns record model (A/AAAA/SRV)
 
 package geodns
 

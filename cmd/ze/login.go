@@ -1,4 +1,4 @@
-// Design: plan/learned/878-appliance-login-shell.md -- serial console login gate
+// Design: docs/architecture/appliance-serial-login.md -- serial console login gate
 //
 // Gokrazy serial console authentication. When ze is invoked with argv[0]
 // basename "ash" or "sh" (via /tmp/serial-busybox/ash symlink), this handler

@@ -1,4 +1,4 @@
-// Design: plan/learned/819-flow-export-2-flow-records.md -- sFlow flow-sample encoder adapter
+// Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- sFlow flow-sample encoder adapter
 // Related: flow.go -- WriteFlowSample / WriteSampledHeader record writers
 // Related: register.go -- registers newSFlowFlowEncoder as the flow-sample factory
 

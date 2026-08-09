@@ -1,4 +1,4 @@
-// Design: plan/learned/994-geodns-3-observability-cli.md -- geodns Prometheus metrics
+// Design: docs/architecture/dns/geodns.md -- geodns Prometheus metrics
 
 package geodns
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/961-ospf-7-lsdb-flooding.md -- LSA aging, refresh, and purge.
+// Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- LSA aging, refresh, and purge.
 // RFC 2328 Section 14: MaxAge LSAs are retained until acknowledged everywhere.
 
 package lsdb

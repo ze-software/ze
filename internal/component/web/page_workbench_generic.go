@@ -1,4 +1,4 @@
-// Design: plan/learned/691-web-7-system-services.md -- generic system/service workbench dispatch
+// Design: docs/architecture/web-workbench-pages.md -- generic system/service workbench dispatch
 // Related: page_l2tp.go -- the ze_l2tp-gated BNG pages these were split from
 // Related: workbench_pages.go -- the top-level workbench dispatcher
 

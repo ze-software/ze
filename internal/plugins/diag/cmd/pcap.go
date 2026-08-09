@@ -1,4 +1,4 @@
-// Design: plan/learned/673-diag-0-umbrella.md -- pcap writer (stdlib-only)
+// Design: docs/architecture/diagnostics/packet-capture.md -- pcap writer (stdlib-only)
 
 package cmd
 

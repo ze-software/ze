@@ -1,4 +1,4 @@
-// Design: plan/learned/961-ospf-7-lsdb-flooding.md -- Router-LSA and Network-LSA origination.
+// Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- Router-LSA and Network-LSA origination.
 // RFC: rfc/short/rfc2328.md -- Appendix A.4.2-A.4.3 (Router/Network bodies), sec 12.4.3 (Summary), sec 12.4.4 (AS-External)
 // RFC: rfc/short/rfc6987.md -- sec 2 max-metric sets all non-stub Router-LSA links to 0xffff.
 

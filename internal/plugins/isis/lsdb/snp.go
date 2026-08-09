@@ -1,4 +1,4 @@
-// Design: plan/learned/933-isis-7-flooding.md -- CSNP/PSNP synchronization + per-circuit pending-request set.
+// Design: docs/architecture/isis/isis-7-flooding.md -- CSNP/PSNP synchronization + per-circuit pending-request set.
 // ISO/IEC 10589 clause 7.3.15-17, clause 9.10 (CSNP) / 9.11 (PSNP) / 9.14 (TLV 9).
 //
 // CSNP ("here is everything I have") and PSNP ("here is a partial list, used to

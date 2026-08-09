@@ -1,4 +1,4 @@
-// Design: plan/learned/1030-ospf-ext-2-traffic-engineering.md -- the Traffic Engineering Database.
+// Design: docs/architecture/ospf/ospf-ext-2-traffic-engineering.md -- the Traffic Engineering Database.
 // RFC: rfc/short/rfc3630.md sec 1 (the TED is passive; no SPF), rfc/short/rfc5250.md sec 5
 // (Type-11 originator-reachability gate).
 //

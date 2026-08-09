@@ -1,4 +1,4 @@
-// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- IKE/ESP proposal negotiation
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- IKE/ESP proposal negotiation
 // RFC: rfc/short/rfc7296.md -- proposal and transform negotiation (Sections 3.3, 3.14, 5)
 
 package crypto

@@ -1,4 +1,4 @@
-// Design: plan/learned/706-cpe-2-dhcp-server.md -- Linux SO_BINDTODEVICE for interface-specific DHCP
+// Design: docs/architecture/provisioning/dhcp-server.md -- Linux SO_BINDTODEVICE for interface-specific DHCP
 
 //go:build linux
 

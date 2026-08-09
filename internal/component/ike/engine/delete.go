@@ -1,4 +1,4 @@
-// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA teardown over INFORMATIONAL
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- Child SA teardown over INFORMATIONAL
 // RFC: rfc/short/rfc7296.md -- Deleting an SA with INFORMATIONAL Exchanges (Section 1.4.1)
 // Overview: inbound.go -- the INFORMATIONAL handler that calls into this file
 // Related: child.go -- installChildSA / removeChildSA, the dataplane half of a Child SA

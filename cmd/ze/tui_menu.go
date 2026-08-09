@@ -1,4 +1,4 @@
-// Design: plan/learned/903-tui-launcher.md -- interactive no-arg launcher
+// Design: docs/architecture/cli/tui-launcher.md -- interactive no-arg launcher
 
 //go:build ze_core
 

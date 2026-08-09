@@ -1,4 +1,4 @@
-// Design: plan/learned/928-isis-2-wire.md -- offline IS-IS PDU decode CLI (wiring proof)
+// Design: docs/architecture/wire/isis.md -- offline IS-IS PDU decode CLI (wiring proof)
 //
 // Offline IS-IS PDU decoder. Reads a hex blob from stdin (ASCII hex, any
 // whitespace or newlines allowed), parses it with

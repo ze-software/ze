@@ -1,4 +1,4 @@
-// Design: plan/learned/968-ospfv3-1-types.md -- RouterID / AreaID / LinkStateID 4-byte identifiers.
+// Design: docs/architecture/ospf/ospfv3-1-types.md -- RouterID / AreaID / LinkStateID 4-byte identifiers.
 // RFC: rfc/short/rfc5340.md (§A.3.1 common header, §A.4.2.1 LSA header)
 //
 // RFC 5340 keeps the OSPFv2 4-octet Router ID, Area ID, and Link State ID shapes (the IDs

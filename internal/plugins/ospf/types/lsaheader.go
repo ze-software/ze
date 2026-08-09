@@ -1,4 +1,4 @@
-// Design: plan/learned/972-ospf-af-unify.md -- the LSA common header is address-family-neutral
+// Design: docs/architecture/ospf/ospf-af-unify.md -- the LSA common header is address-family-neutral
 // data (all fields are shared types), so it lives in the types leaf and is shared by the
 // engine, LSDB, neighbor FSM, SPF, and both wire codecs (ospf/packet, ospfv3/packet).
 // Only the WIRE encode/decode is version-specific and stays in the codec packages.

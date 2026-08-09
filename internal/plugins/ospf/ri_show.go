@@ -1,4 +1,4 @@
-// Design: plan/learned/1031-ospf-ext-3-router-information.md -- `show ospf database router-information`.
+// Design: docs/architecture/ospf/ospf-ext-3-router-information.md -- `show ospf database router-information`.
 // RFC: rfc/short/rfc7770.md -- sec 2.4 (Informational Capabilities TLV), sec 2.5 (bit names),
 // sec 3 (smallest Instance ID wins for an unspecified-multi-instance TLV).
 //

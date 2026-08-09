@@ -1,4 +1,4 @@
-// Design: plan/learned/885-cos-dynamic.md -- per-session CoS state for revert
+// Design: docs/architecture/traffic/cos-dynamic.md -- per-session CoS state for revert
 // Related: handler.go -- cosHandler uses sessionStore for revert
 
 package cos

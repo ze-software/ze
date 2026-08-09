@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-The drift is measurable elsewhere too. Learned summaries averaged 27 lines in the first hundred and 93 lines in the last hundred. The stated budget is 25 to 35. Entries in `ai/LEARNED-INDEX.md` started at about 80 characters and now run to 2538. An index that exists to route a reader now repeats the summary it points at.
+The drift was measurable in the old learned corpus too. Summaries averaged 27 lines in the first hundred and 93 lines in the last hundred, against a stated budget of 25 to 35. The corpus was replaced by `plan/journal/` (one file per problem class, one row per occurrence).

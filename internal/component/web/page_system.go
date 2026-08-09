@@ -1,4 +1,4 @@
-// Design: plan/learned/691-web-7-system-services.md -- System section pages
+// Design: docs/architecture/web-workbench-pages.md -- System section pages
 // Related: workbench_form.go -- Form component
 // Related: workbench_table.go -- Table component
 // Related: page_ip_dns.go -- DNS form page (pattern reference)

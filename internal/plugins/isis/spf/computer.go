@@ -1,4 +1,4 @@
-// Design: plan/learned/934-isis-9-spf-rib.md -- the SPF orchestrator (trigger -> run -> install).
+// Design: docs/architecture/isis/isis-9-spf-rib.md -- the SPF orchestrator (trigger -> run -> install).
 // Related: spflog.go -- the bounded SPF-run history `show isis spf-log` renders.
 // Related: leak.go -- the RFC 2966 inter-level leak set this run hands the engine.
 // The Computer ties the pieces together: a debounced, event-driven trigger

@@ -162,8 +162,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 - **`staleIfaces` is not a permanent "ever owned" set.** An earlier version tracked every
   interface a plugin ever registered, which permanently stripped kernel-native addresses (e.g.
   `lo`'s `127.0.0.1`) on later unrelated reconciles; the current version forgets an interface
-  once a clean pass proves its stale address was pruned (`address_owner.go`, full incident
-  in `plan/learned/1028-as112-1-iface-address-registry.md`).
+  once a clean pass proves its stale address was pruned (`address_owner.go`).
 - **`GetInterface`/`ListInterfaces` bypass `resolveOS`.** `resolve.go`'s resolver is built on top
   of these two calls, so routing them through `resolveOS` would recurse; every other by-name
   dispatch function does translate the logical name first (`dispatch.go`).
@@ -181,8 +180,3 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 - `docs/features/interfaces.md`, full interface-management design doc, cited by nearly every file in this package
 - `docs/architecture/subsystem-wiring.md`, cross-component Bus event flow example using the interface plugin
 - `ai/rules/plugins.md`, cross-boundary value types (the pattern `Binding` in `resolve.go` follows)
-- `plan/learned/1028-as112-1-iface-address-registry.md`, address-ownership registry design and the staleIfaces incident history
-- `plan/learned/617-iface-vpp-ready-gate.md`, deferred-reconcile-on-vpp-ready design
-- `plan/learned/566-iface-wireguard.md`, WireGuard interface kind design (wgctrl, ReplacePeers)
-- `plan/learned/705-cpe-1-pppoe-client.md`, PPPoE client design and the `PPPoEDialer` import-cycle split
-- `plan/learned/950-iface-resolve-2-resolver.md`, shared logical-name resolver design

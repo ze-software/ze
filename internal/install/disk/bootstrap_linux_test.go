@@ -1,4 +1,4 @@
-// Design: plan/learned/1024-installer-initrd-pure-go.md -- bootstrap tests
+// Design: docs/architecture/appliance/installer-initrd.md -- bootstrap tests
 
 //go:build linux && ze_installer
 

@@ -1,4 +1,4 @@
-// Design: plan/learned/960-ospf-6-neighbor-nsm.md -- per-interface OSPFv2 neighbor table
+// Design: docs/architecture/ospf/ospf-6-neighbor-nsm.md -- per-interface OSPFv2 neighbor table
 // The IS-IS adjacency table uses the same snapshot and bounded-table pattern.
 
 package neighbor

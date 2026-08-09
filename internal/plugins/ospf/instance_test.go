@@ -1,4 +1,4 @@
-// Design: plan/learned/958-ospf-4-component-config.md -- engine and dispatcher tests
+// Design: docs/architecture/ospf/ospf-4-component-config.md -- engine and dispatcher tests
 //
 // VALIDATES: plugin inventory wiring, raw-transport interface enrolment over a
 // fake backend, journal reconcile without restart-all, and packet dispatcher

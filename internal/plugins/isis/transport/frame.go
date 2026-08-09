@@ -1,4 +1,4 @@
-// Design: plan/learned/929-isis-3-l2-transport.md -- IEEE 802.3 + LLC frame codec
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- IEEE 802.3 + LLC frame codec
 // Related: multicast.go -- destination MAC groups frames are addressed to
 //
 // IS-IS runs directly over IEEE 802.3 frames with an LLC header, NOT over an

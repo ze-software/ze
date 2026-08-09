@@ -1,4 +1,4 @@
-// Design: plan/learned/1031-ospf-ext-3-router-information.md -- the RFC 7770 Router Information LSA.
+// Design: docs/architecture/ospf/ospf-ext-3-router-information.md -- the RFC 7770 Router Information LSA.
 // RFC: rfc/short/rfc7770.md -- sec 2.1 (OSPFv2 RI = Opaque type 4), sec 2.3 (TLV stream),
 // sec 2.4 (Informational Capabilities TLV first), sec 2.5 (capability bits), sec 2.6
 // (Functional Capabilities TLV), sec 2.7 (per-scope flooding), sec 3 (multi-instance).

@@ -1,4 +1,4 @@
-// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- AUTH payload computation
+// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- AUTH payload computation
 // Related: remote_id.go -- remote identity policy and certificate binding
 // Detail: cert_payload.go -- CERT payload assembly, the received-chain bound, Hash and URL
 // RFC: rfc/short/rfc7296.md -- Authentication of the IKE SA (Section 2.15)

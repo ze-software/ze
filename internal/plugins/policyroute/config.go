@@ -1,4 +1,4 @@
-// Design: plan/learned/684-policy-routing.md -- config parsing
+// Design: docs/architecture/policyroute/policy-routing.md -- config parsing
 
 package policyroute
 

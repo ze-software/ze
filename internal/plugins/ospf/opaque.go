@@ -1,4 +1,4 @@
-// Design: plan/learned/1029-ospf-ext-1-opaque-framework.md -- RFC 5250 opaque carrier engine glue.
+// Design: docs/architecture/ospf/ospf-ext-1-opaque-framework.md -- RFC 5250 opaque carrier engine glue.
 // RFC: rfc/short/rfc5250.md -- §3 origination/reception, §5 Type-11 reachability.
 //
 // This is the seam between the process-global opaque consumer registry

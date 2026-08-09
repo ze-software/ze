@@ -1,4 +1,4 @@
-// Design: plan/learned/935-isis-10-auth.md -- IS-IS authentication backend (verify side).
+// Design: docs/architecture/isis/isis-10-auth.md -- IS-IS authentication backend (verify side).
 //
 // RFC: rfc/short/rfc5304.md -- IS-IS Cryptographic Authentication (HMAC-MD5, type 54)
 // RFC: rfc/short/rfc5310.md -- IS-IS Generic Cryptographic Authentication (HMAC-SHA, type 3)

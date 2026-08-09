@@ -1,4 +1,4 @@
-// Design: plan/learned/811-install-3-image-server.md -- HTTP image/boot file serving
+// Design: docs/architecture/provisioning/image-server.md -- HTTP image/boot file serving
 
 package imageserver
 

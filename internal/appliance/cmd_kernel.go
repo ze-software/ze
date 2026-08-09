@@ -1,5 +1,5 @@
-// Design: plan/learned/856-install-10-iso-prerequisites.md — installer kernel download/build
-// Design: plan/learned/982-install-11-hw-kernel-profiles.md — installer kernel profile registry
+// Design: docs/architecture/appliance/build-artifacts.md -- installer kernel download/build
+// Design: docs/architecture/appliance/kernel-profiles.md -- installer kernel profile registry
 // Design: kernel-build-consolidation — single run.py driver, runtime verified path, --target
 
 package appliance

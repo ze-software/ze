@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- OSPF config-sanity doctor checks.
+// Design: docs/architecture/ospf/ospf-13-cli-diag-interop.md -- OSPF config-sanity doctor checks.
 // Related: config.go -- parseOSPFConfig the check reuses to resolve router-id + areas.
 // Related: transport -- the SEPARATE raw-socket check (ospf-3 owns doctor-ospf-raw-socket).
 // RFC: rfc/short/rfc5880.md, rfc/short/rfc5881.md -- BFD (the bfd-plugin-absent informational check).

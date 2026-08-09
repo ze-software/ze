@@ -1,6 +1,6 @@
 //go:build ze_distro
 
-// Design: plan/learned/909-unified-update-backend.md -- update backend tests
+// Design: docs/architecture/config/system-update.md -- update backend tests
 
 package system
 

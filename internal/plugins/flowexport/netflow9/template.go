@@ -1,4 +1,4 @@
-// Design: plan/learned/818-flow-export-1-counter-export.md -- NetFlow v9 template FlowSet
+// Design: docs/architecture/flowexport/flow-export-1-counter-export.md -- NetFlow v9 template FlowSet
 
 package netflow9
 

@@ -304,7 +304,11 @@ func extractObserverFailLine(stderr string, idx int) string {
 // test author added a dedicated reject= directive.
 //
 // Kept in sync with test/scripts/ze_api.py `_OBSERVER_FAIL_SENTINEL`.
-// See plan/known-failures/README.md and plan/learned/550 for background.
+//
+// The sentinel exists because an observer's own exit code never reaches the
+// runner: the observer ends its failure branch with `daemon shutdown`, ze exits
+// 0, and the runner used to report PASS on a test whose observer had detected a
+// real failure. See plan/known-failures/README.md for background.
 const observerFailSentinel = "ZE-OBSERVER-FAIL"
 
 // validateLogging validates logging expectations against stderr and syslog output.
