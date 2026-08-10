@@ -23,6 +23,18 @@ NEXT_HOP = "10.0.0.1"
 MPLS_PREFIX = "10.30.0.0/24"
 MPLS_LABEL = 100
 TRAFFIC_POLICER_CLASS = "default"
+# The IPsec case: what the probe binary prints, and what VPP must report back. The SPI
+# and the salt are the values internal/component/ike/dataplane
+# vpp_real_integration_test.go installs. The salt is the LAST FOUR OCTETS of the AEAD
+# key material, so a backend that sent all 36 octets as the key, or a hardcoded zero
+# salt, makes VPP report a different number.
+IPSEC_REPORT_PREFIX = "ze-vpp-ipsec:"
+IPSEC_SPI = 0x11223344
+IPSEC_INBOUND_SPI = 0x55667788
+IPSEC_SALT = "0xdeadbeef"
+# The 32 cipher octets alone. All 36 KEYMAT octets used to go into this field with the
+# salt hardcoded to 0, so VPP read an over-long key and a zero salt.
+IPSEC_CIPHER_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 
 
 def repo_root() -> Path:
@@ -56,6 +68,22 @@ def ensure_image() -> None:
         raise SystemExit(f"docker pull {VPP_IMAGE} failed")
 
 
+def feature_tags(root: Path) -> list[str]:
+    """The default-on feature tags, DERIVED from feature-gates.txt.
+
+    feature-gates.txt is the single source of truth for compile-out-able features and
+    the Makefile's ZE_FEATURES reads it the same way. Hardcoding a tag list here left
+    this script building a ze with no BGP once ze_bgp became a gate, so the fib case
+    died on "unknown top-level keyword: bgp" and no VPP backend was linked either.
+    """
+    tags = set()
+    for line in (root / "feature-gates.txt").read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        if fields and fields[0].startswith("ze_"):
+            tags.add(fields[0])
+    return sorted(tags)
+
+
 def ensure_linux_binaries(root: Path) -> tuple[Path, Path]:
     require_cmd("go")
     bindir = root / "tmp" / "evidence" / "bin"
@@ -69,8 +97,17 @@ def ensure_linux_binaries(root: Path) -> tuple[Path, Path]:
     env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
 
+    features = " ".join(feature_tags(root))
     build = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        [
+            "go",
+            "build",
+            "-tags",
+            f"ze_core ze_distro {features}",
+            "-o",
+            str(ze),
+            "./cmd/ze",
+        ],
         cwd=root,
         env=env,
     )
@@ -78,9 +115,9 @@ def ensure_linux_binaries(root: Path) -> tuple[Path, Path]:
         raise SystemExit("go build ./cmd/ze failed")
     # ze-test is the ze_test-tagged build of ./cmd/ze (there is no cmd/ze-test
     # directory; it was consolidated into cmd/ze selected by build tag, matching
-    # the Makefile's `-tags ze_test -o bin/ze-test ./cmd/ze`).
+    # the Makefile's `-tags 'ze_test $(ZE_FEATURES)' -o bin/ze-test ./cmd/ze`).
     build = run(
-        ["go", "build", "-tags", "ze_test", "-o", str(ze_test), "./cmd/ze"],
+        ["go", "build", "-tags", f"ze_test {features}", "-o", str(ze_test), "./cmd/ze"],
         cwd=root,
         env=env,
     )
@@ -192,6 +229,225 @@ def create_loopback(container: str) -> str:
             f"created VPP loopback {iface!r} not visible in show interface:\n{interfaces}"
         )
     return iface
+
+
+def sw_if_index(container: str, iface: str) -> int:
+    """Return the VPP sw_if_index of iface, read from `show interface`."""
+    text = vppctl_text(container, "show interface")
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) >= 2 and fields[0] == iface:
+            return int(fields[1])
+    raise SystemExit(f"interface {iface!r} has no index in show interface:\n{text}")
+
+
+def ensure_ipsec_probe(root: Path) -> Path:
+    """Compile the IKE dataplane test binary that programs VPP over the API socket.
+
+    It is `go test -c` of internal/component/ike/dataplane, so what runs against VPP is
+    the shipped backend rather than a copy of it. The ze daemon is not the vehicle: no
+    config leaf selects the IPsec dataplane, the only selector is the private
+    ze.test.ike.dataplane override (ike/engine/testport.go), and IKE would still need a
+    peer to negotiate with before it programmed anything.
+    """
+    require_cmd("go")
+    bindir = root / "tmp" / "evidence" / "bin"
+    bindir.mkdir(parents=True, exist_ok=True)
+    probe = bindir / f"ipsec-vpp-linux-{GOARCH}"
+
+    env = os.environ.copy()
+    env["GOOS"] = "linux"
+    env["GOARCH"] = GOARCH
+    env["CGO_ENABLED"] = "0"
+    env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
+
+    build = run(
+        [
+            "go",
+            "test",
+            "-c",
+            "-tags",
+            "ze_core ze_vpp integration",
+            "-o",
+            str(probe),
+            "./internal/component/ike/dataplane",
+        ],
+        cwd=root,
+        env=env,
+    )
+    if build.returncode != 0:
+        raise SystemExit("go test -c ./internal/component/ike/dataplane failed")
+    return probe
+
+
+def run_ipsec_evidence(
+    container: str, root: Path, probe: Path, api_sock: Path, iface: str
+) -> int:
+    """Install an IPsec SA and two policies in a real VPP, then read them back.
+
+    This is the spec's AC-7. Every other test of this backend agrees with the
+    generated binapi by construction; only a running VPP can say whether VPP accepts
+    what the backend sends.
+
+    The probe runs a cleanup half first, which installs its own SA and policy, closes
+    the backend, and asserts VPP holds neither afterwards. What this function then
+    reads back is the second half, which is deliberately left open so the state
+    survives the probe process.
+    """
+    index = sw_if_index(container, iface)
+    probe_run = run(
+        [
+            "docker",
+            "exec",
+            "--env",
+            f"ZE_VPP_IPSEC_API_SOCKET={api_sock}",
+            "--env",
+            f"ZE_VPP_IPSEC_SW_IF_INDEX={index}",
+            container,
+            f"/src/{probe.relative_to(root)}",
+            "-test.run",
+            "TestVPPRealDataplaneInstalls",
+            "-test.v",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    output = probe_run.stdout or ""
+    sys.stderr.write(output)
+    if probe_run.returncode != 0:
+        sys.stderr.write(
+            "FAIL: the IKE dataplane backend could not program a real VPP\n"
+        )
+        return 1
+    if "SKIP" in output:
+        sys.stderr.write("FAIL: the IPsec probe skipped; it must program the VPP\n")
+        return 1
+
+    ids = {}
+    for line in output.splitlines():
+        if line.startswith(IPSEC_REPORT_PREFIX):
+            key, _, value = line[len(IPSEC_REPORT_PREFIX) :].strip().partition("=")
+            ids[key] = value
+    if "spd-id" not in ids or "sad-id" not in ids:
+        sys.stderr.write(f"FAIL: the IPsec probe reported no ids: {ids}\n")
+        return 1
+    # The probe's first half installs an SA and a policy, closes the backend, and
+    # asserts against this VPP that neither survives. Nothing in VPP expires either,
+    # so a ze that exits without deleting leaves a dead session's SAs installed and
+    # its SPD still bound. These two keys say that half ran and passed.
+    if "close-removed-spi" not in ids or "close-removed-spd-id" not in ids:
+        sys.stderr.write(
+            f"FAIL: the IPsec probe did not report the close-cleanup half: {ids}\n"
+        )
+        return 1
+    print(
+        f"OK: Close removed the SA {ids['close-removed-spi']} and SPD "
+        f"{ids['close-removed-spd-id']} it installed, so a restart leaves no orphan"
+    )
+
+    # `show ipsec sa` lists one line per SA; the index in brackets is what
+    # `show ipsec sa <index>` takes, and it is not the sad_id.
+    summary = vppctl_text(container, "show ipsec sa")
+    for needle in (
+        f"spi {IPSEC_SPI}",
+        f"spi {IPSEC_INBOUND_SPI}",
+        "protocol:esp",
+        "tunnel",
+    ):
+        if needle not in summary:
+            sys.stderr.write(
+                f"FAIL: real VPP SA list does not report {needle!r}\n{summary}\n"
+            )
+            return 1
+    # Direction: VPP records the inbound flag on exactly one of the two SAs.
+    inbound_lines = [line for line in summary.splitlines() if "inbound" in line]
+    if len(inbound_lines) != 1 or f"spi {IPSEC_INBOUND_SPI}" not in inbound_lines[0]:
+        sys.stderr.write(
+            f"FAIL: exactly one SA must carry the inbound flag, and it must be spi "
+            f"{IPSEC_INBOUND_SPI}\n{summary}\n"
+        )
+        return 1
+    print("OK: real VPP holds both SAs ze installed, and flags one of them inbound")
+    print(summary)
+
+    sa_index = None
+    for line in summary.splitlines():
+        stripped = line.strip()
+        if f"spi {IPSEC_SPI}" in stripped and stripped.startswith("["):
+            sa_index = stripped[1 : stripped.index("]")]
+            break
+    if sa_index is None:
+        sys.stderr.write(f"FAIL: no runtime index for spi {IPSEC_SPI}\n{summary}\n")
+        return 1
+    detail = vppctl_text(container, f"show ipsec sa {sa_index}")
+    for needle in (
+        f"salt {IPSEC_SALT}",
+        "aes-gcm-256",
+        IPSEC_CIPHER_KEY,
+        "integrity alg none",
+        # ECN, measured rather than assumed. RFC 7296 Section 2.24 (RFC7296-2.24-1 and
+        # -2) requires a tunnel-mode SA created by IKEv2 to copy the congestion
+        # indication on encapsulation and back onto the inner header on decapsulation.
+        # VPP's tunnel encap/decap flags default to NONE, so an unset field is a tunnel
+        # that DISCARDS the indication. These two tokens are what a real VPP prints for
+        # the flags ecnFullFunctionality sets (ike/dataplane/vpp.go, InstallSA). The
+        # unit tests agree with the generated binapi by construction; only this run says
+        # VPP accepted the flags and holds them.
+        "encap-copy-ecn",
+        "decap-copy-ecn",
+    ):
+        if needle not in detail:
+            sys.stderr.write(
+                f"FAIL: real VPP SA does not report {needle!r}\n{detail}\n"
+            )
+            return 1
+    print("OK: real VPP reports the AEAD cipher key and its salt in their own fields")
+    print("OK: real VPP holds the ECN copy flags RFC 7296 Section 2.24 requires")
+    print(detail)
+
+    # `show ipsec all` prints every SPD; `show ipsec spd <id>` takes a runtime index
+    # rather than the spd_id, so this reads the whole thing.
+    spd_text = vppctl_text(container, "show ipsec all")
+    if f"spd {ids['spd-id']}" not in spd_text:
+        sys.stderr.write(f"FAIL: real VPP holds no SPD {ids['spd-id']}\n{spd_text}\n")
+        return 1
+    if f"{ids['spd-id']} -> {iface}" not in spd_text:
+        sys.stderr.write(
+            f"FAIL: SPD {ids['spd-id']} is not bound to {iface}\n{spd_text}\n"
+        )
+        return 1
+    outbound = [
+        line.strip() for line in spd_text.splitlines() if "type ip4-outbound" in line
+    ]
+    if len(outbound) != 2:
+        sys.stderr.write(
+            f"FAIL: want two outbound policies, got {outbound}\n{spd_text}\n"
+        )
+        return 1
+    # PRIORITY ORDER, measured rather than assumed: VPP prints the chain in stored
+    # order. Ze ranks LOWER first and negates, so the IKE bypass (Ze 100, VPP -100)
+    # must be listed AHEAD of the child SA policy (Ze 2000, VPP -2000).
+    if "priority -100 action bypass" not in outbound[0]:
+        sys.stderr.write(f"FAIL: the IKE bypass must sort first, got {outbound}\n")
+        return 1
+    if "priority -2000 action protect" not in outbound[1]:
+        sys.stderr.write(
+            f"FAIL: the child SA policy must sort second, got {outbound}\n"
+        )
+        return 1
+    # PROTOCOL, measured rather than assumed: Ze's any-protocol 0 must reach VPP as
+    # its own any. Passing the zero through made VPP read IP protocol 0, hop-by-hop
+    # options, and the policy then matched no traffic at all.
+    if "protocol any" not in outbound[1]:
+        sys.stderr.write(
+            f"FAIL: the child SA policy must match every protocol, got {outbound[1]}\n"
+        )
+        return 1
+    print(
+        f"OK: real VPP holds SPD {ids['spd-id']} bound to {iface}, with both policies"
+    )
+    print(spd_text)
+    return 0
 
 
 def policer_name(iface: str) -> str:
@@ -984,6 +1240,14 @@ FIREWALL_ACL_TAG = "ze/wan/input"
 
 
 def firewall_config(api_sock: Path, with_rules: bool) -> str:
+    """A firewall config the VPP backend can express in full.
+
+    It carried a conntrack term (`connection-state established,related`) whose leaf is
+    annotated ze:backend "nft" (internal/component/firewall/yang/ze-firewall-conf.yang),
+    so the vpp backend REFUSED the commit and ze never started. The refusal is correct
+    (ai/rules/protocol.md), and asking a VPP evidence run for an nft-only match was
+    never something this test could prove.
+    """
     if not with_rules:
         return vpp_config(api_sock) + "\nfirewall {\n    backend vpp;\n}\n"
     return (
@@ -998,18 +1262,10 @@ firewall {
             hook input;
             priority 0;
             policy drop;
-            term allow-established {
-                from {
-                    connection state established,related;
-                }
-                then {
-                    accept;
-                }
-            }
             term allow-ssh {
                 from {
                     protocol tcp;
-                    destination port 22;
+                    destination-port 22;
                 }
                 then {
                     accept;
@@ -1136,6 +1392,7 @@ def main() -> int:
     root = repo_root()
     ensure_image()
     ze, ze_test = ensure_linux_binaries(root)
+    ipsec_probe = ensure_ipsec_probe(root)
 
     tmp_parent = root / "tmp" / "evidence"
     tmp_parent.mkdir(parents=True, exist_ok=True)
@@ -1229,6 +1486,12 @@ def main() -> int:
 
         iface = create_loopback(container)
         print(f"OK: created real VPP loopback interface {iface}")
+
+        # The IPsec case runs FIRST because it drives the backend over the API socket
+        # directly, so it depends on nothing the ze daemon cases set up.
+        ipsec_rc = run_ipsec_evidence(container, root, ipsec_probe, api_sock, iface)
+        if ipsec_rc != 0:
+            return ipsec_rc
 
         fib_rc = run_fib_evidence(container, root, ze, ze_test, work, api_sock)
         if fib_rc != 0:

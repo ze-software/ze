@@ -398,6 +398,12 @@ func ospfWildcardNet() *net.IPNet {
 // manual SPI/key protects egress and verifies ingress. The kernel identifies a state
 // by (daddr, spi, proto): with a wildcard daddr the inbound and outbound SA are the
 // SAME state, so the installer installs it once.
+//
+// SAParams.Dir is left unset on purpose. This one state has no single direction.
+// Either SADirIn or SADirOut would claim something RFC 4552 Section 7 does not. A
+// backend that flags direction per SA refuses an unset Dir rather than pick one
+// (vppUnsupportedSA, ike/dataplane/vpp.go). That is the right answer here, because VPP
+// cannot express one bidirectional SA.
 func buildIPsecSA(ifindex int, c ipsecInterfaceConfig) dataplane.SAParams {
 	reqid := ipsecReqIDBase + uint32(ifindex)
 	proto := ipsecProtoNumber(c.Protocol)

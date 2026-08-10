@@ -362,6 +362,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		SPI:       child.InboundSPI,
 		Src:       child.RemoteAddr,
 		Dst:       child.LocalAddr,
+		Dir:       dataplane.SADirIn,
 		IfID:      child.IfID,
 		Proto:     protoESP,
 		Mode:      mode,
@@ -428,6 +429,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		SPI:       child.OutboundSPI,
 		Src:       child.LocalAddr,
 		Dst:       child.RemoteAddr,
+		Dir:       dataplane.SADirOut,
 		IfID:      child.IfID,
 		Proto:     protoESP,
 		Mode:      mode,
@@ -545,10 +547,15 @@ func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
 	src, dst := child.TSLocal, child.TSRemote
 	tunnelSrc, tunnelDst := child.LocalAddr, child.RemoteAddr
 	srcPort, dstPort := selectorPort(child, true), selectorPort(child, false)
+	// The SA this policy protects with, for a dataplane that binds by SA id rather
+	// than by template addresses (dataplane.SPParams.SAID). It is the SPI of the SA
+	// installed for the SAME direction.
+	said := child.OutboundSPI
 	if dir == dataplane.SADirIn {
 		src, dst = child.TSRemote, child.TSLocal
 		tunnelSrc, tunnelDst = child.RemoteAddr, child.LocalAddr
 		srcPort, dstPort = selectorPort(child, false), selectorPort(child, true)
+		said = child.InboundSPI
 	}
 	if mode == modeTransport {
 		tunnelSrc, tunnelDst = nil, nil
@@ -574,6 +581,7 @@ func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
 		DstPort:    dstPort,
 		TunnelSrc:  tunnelSrc,
 		TunnelDst:  tunnelDst,
+		SAID:       said,
 	}
 }
 

@@ -4,6 +4,8 @@ package dataplane
 
 import (
 	"testing"
+
+	"go.fd.io/govpp/binapi/ipsec_types"
 )
 
 func TestVPPBackendRequiresConnector(t *testing.T) {
@@ -17,17 +19,23 @@ func TestVPPCryptoAlg(t *testing.T) {
 	tests := []struct {
 		algo   string
 		aead   bool
-		wantID uint8
+		wantID ipsec_types.IpsecCryptoAlg
 	}{
 		{"aes128gcm", true, 7},
 		{"aes256gcm", true, 9},
 		{"chacha20poly1305", true, 12},
 		{"aes128", false, 1},
 		{"aes256", false, 3},
-		{"3des", false, 4},
+		// 11 is IPSEC_API_CRYPTO_ALG_3DES_CBC. This row asserted 4 until 2026-08-10,
+		// and 4 is AES_CTR_128. The test agreed with the code, and both were wrong.
+		// An operator who configured 3DES got a different cipher.
+		{"3des", false, 11},
 	}
 	for _, tt := range tests {
-		id := vppCryptoAlg(tt.algo, tt.aead)
+		id, err := vppCryptoAlg(tt.algo, tt.aead)
+		if err != nil {
+			t.Fatalf("vppCryptoAlg(%q, %v): %v", tt.algo, tt.aead, err)
+		}
 		if id != tt.wantID {
 			t.Errorf("vppCryptoAlg(%q, %v) = %d, want %d", tt.algo, tt.aead, id, tt.wantID)
 		}
@@ -38,7 +46,7 @@ func TestVPPIntegAlg(t *testing.T) {
 	tests := []struct {
 		algo   string
 		aead   bool
-		wantID uint8
+		wantID ipsec_types.IpsecIntegAlg
 	}{
 		{"sha256", false, 4},
 		{"sha384", false, 5},
@@ -47,7 +55,10 @@ func TestVPPIntegAlg(t *testing.T) {
 		{"sha256", true, 0},
 	}
 	for _, tt := range tests {
-		id := vppIntegAlg(tt.algo, tt.aead)
+		id, err := vppIntegAlg(tt.algo, tt.aead)
+		if err != nil {
+			t.Fatalf("vppIntegAlg(%q, %v): %v", tt.algo, tt.aead, err)
+		}
 		if id != tt.wantID {
 			t.Errorf("vppIntegAlg(%q, %v) = %d, want %d", tt.algo, tt.aead, id, tt.wantID)
 		}

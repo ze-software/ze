@@ -216,6 +216,25 @@ type SAParams struct {
 	ReqID     uint32
 	ReplayWin uint8
 
+	// Dir names the direction this SA carries traffic in. SADirIn is the state that
+	// DECRYPTS what the peer sends. SADirOut is the state that encrypts what we send.
+	//
+	// Linux XFRM does not take it, and that is the kernel's shape rather than an
+	// omission. XFRM_MSG_NEWSA carries no direction. xfrmStateFromParams
+	// (xfrm_linux.go) therefore builds a directionless state. The kernel resolves it
+	// inbound by (daddr, spi, proto), and outbound through the policy template.
+	//
+	// VPP does take it. ipsec_sad_entry_v3 carries IPSEC_API_SAD_FLAG_IS_INBOUND. An SA
+	// that is not flagged inbound is never selected for inbound processing, so the
+	// tunnel establishes and decrypts nothing.
+	//
+	// The zero value names NEITHER direction, following the 1-based SADir constants. A
+	// backend that flags direction per SA MUST refuse it rather than pick one. It is
+	// what a manually keyed SA used in BOTH directions carries. RFC 4552 Section 7 gives
+	// OSPFv3 one wildcard-address state that encrypts egress and verifies ingress
+	// (plugins/ospf/ipsec_install.go, buildIPsecSA). No single flag expresses that.
+	Dir SADir
+
 	EncAlgo string
 
 	// EncKey is the encryption key material for one direction. Its layout depends on
@@ -358,12 +377,32 @@ type SPParams struct {
 	// the historical IKE default; 89 restricts the policy to OSPF traffic per
 	// RFC 4552 §5/§6). It threads onto the XfrmPolicy selector, not the template.
 	UpperProto uint8
-	// IfIndex is the kernel interface index of the policy selector (XFRM sel.ifindex,
-	// the outbound oif / inbound iif). RFC 4552 §6 interface-based selectors: a
-	// non-zero value scopes the policy to a single interface so a plain non-IPsec
-	// OSPFv3 interface on the same node keeps passing OSPF unprotected. It is
-	// distinct from IfID (the XFRM if_id / XFRMA_IF_ID used by IKE to bind an SA to
-	// an xfrm interface device). IKE leaves IfIndex 0 (node-wide), byte-identical.
+	// IfIndex is the interface index of the policy selector IN THE FORWARDING PLANE
+	// THE BACKEND PROGRAMS. On Linux that is the kernel index (XFRM sel.ifindex, the
+	// outbound oif / inbound iif); the VPP backend reads the same field as a VPP
+	// sw_if_index (vppPolicyInterface, vpp_policy.go).
+	//
+	// THE TWO READINGS DO MEET, and the hazard is on the PRODUCER side.
+	// defaultDataplaneSource (plugins/ospf/ipsec_install.go) returns whatever backend is
+	// already loaded and falls back to xfrm only when none is. So with the private
+	// ze.test.ike.dataplane=vpp override set, the OSPF installer hands its KERNEL
+	// ifindex (buildIPsecPolicies) to the VPP backend, which reads it as a sw_if_index
+	// and names a different interface.
+	//
+	// Three refusals keep that inert today, and NONE of them is about the index.
+	// buildIPsecPolicies emits SADirOut, SADirIn and SADirFwd. spdEntry (vpp_policy.go)
+	// refuses the SADirFwd one on its direction, before the mode is read. vppProtectMode
+	// (vpp_policy.go) refuses the other two for their transport mode. vppUnsupportedSA
+	// (vpp.go) refuses the SA all three protect with for its unset Dir. Widening any one
+	// of them makes the mismatch reachable, and supplying a VPP interface is what
+	// plan/future/spec-ipsec-vpp-policy-interface.md is for.
+	//
+	// RFC 4552 §6 interface-based selectors: a non-zero value scopes the policy to a
+	// single interface so a plain non-IPsec OSPFv3 interface on the same node keeps
+	// passing OSPF unprotected. It is distinct from IfID (the XFRM if_id /
+	// XFRMA_IF_ID used by IKE to bind an SA to an xfrm interface device). IKE leaves
+	// IfIndex 0 (node-wide), byte-identical. A backend with no node-wide policy
+	// database MUST reject a zero rather than pick an interface for the caller.
 	IfIndex int
 
 	// TunnelSrc and TunnelDst are the tunnel endpoints of the policy template. They
@@ -382,6 +421,23 @@ type SPParams struct {
 	// template's addresses unused. tunnelEndpoints rejects both mistakes.
 	TunnelSrc net.IP
 	TunnelDst net.IP
+
+	// SAID names the SA that a PROTECT policy hands its matching traffic to. It is
+	// the SPI of the SA installed for the same direction. An outbound policy carries
+	// the outbound SPI, and an inbound policy carries the inbound one.
+	//
+	// It is how a template-free dataplane binds a policy to a state. VPP is one:
+	// ipsec_spd_entry_v2 carries sa_id and holds no template addresses at all. A
+	// policy sent with SAID 0 protects with whatever SA holds id 0, or with none.
+	// The Linux XFRM backend binds through TunnelSrc and TunnelDst above instead. It
+	// ignores this field, so an unset SAID changes nothing there.
+	//
+	// It carries the SPI, NOT a backend's own identifier for the SA. A backend whose
+	// identifier differs resolves the two through the SPI, TunnelDst above and Proto
+	// (saIdentity, vpp.go), because a peer-chosen SPI does not name one SA on its own.
+	//
+	// A bypass policy needs no SA and leaves it 0.
+	SAID uint32
 }
 
 // SAInfo is one Security Association as the DATAPLANE holds it, returned by

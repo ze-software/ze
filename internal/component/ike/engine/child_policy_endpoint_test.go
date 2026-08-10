@@ -65,6 +65,39 @@ func TestChildSAPolicyCarriesTunnelEndpoints(t *testing.T) {
 	}
 }
 
+// VALIDATES: each of the two ESP states says which direction it carries. The state
+// keyed with the peer's send keys is inbound, and the one keyed with ours is outbound.
+// PREVENTS: a backend that flags direction per SA guessing it. VPP selects an SA for
+// inbound processing by IPSEC_API_SAD_FLAG_IS_INBOUND alone (vppSAFlags,
+// ike/dataplane/vpp.go). An inbound state that reaches it unflagged decrypts nothing.
+// The tunnel then establishes and carries no traffic, the same silent shape as the
+// 0.0.0.0 template above.
+func TestChildSAStatesCarryTheirDirection(t *testing.T) {
+	const localAddr, remoteAddr = "10.0.0.1", "10.0.0.2"
+	local, remote := net.ParseIP(localAddr), net.ParseIP(remoteAddr)
+
+	dp := &mockDP{}
+	if _, err := createFirstChildSA(
+		testSA(), testESPGroup(), localAddr, remoteAddr, 1, dp, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+	if len(dp.sas) != 2 {
+		t.Fatalf("installed %d SAs, want 2", len(dp.sas))
+	}
+	// The direction is read from the ADDRESSES rather than from the install order. This
+	// fails if the two states are labeled the wrong way round.
+	for _, sa := range dp.sas {
+		want := dataplane.SADirOut
+		label := "outbound"
+		if sa.Src.Equal(remote) && sa.Dst.Equal(local) {
+			want, label = dataplane.SADirIn, "inbound"
+		}
+		if sa.Dir != want {
+			t.Errorf("%s SA (src=%v dst=%v) Dir = %d, want %d", label, sa.Src, sa.Dst, sa.Dir, want)
+		}
+	}
+}
+
 // VALIDATES: no Child SA policy leaves a tunnel endpoint unspecified.
 // PREVENTS: a regression to 0.0.0.0, the value that produced the silent defect.
 func TestChildSAPolicyEndpointsAreSpecified(t *testing.T) {

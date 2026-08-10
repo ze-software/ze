@@ -166,7 +166,7 @@ still needs.
 |----------|--------|
 | What breaks if this is wrong? | Every IPsec tunnel. A policy installed too late leaves traffic unprotected; a policy removed too early drops it. |
 | How is it reverted? | Single commit revert. No config migration, nothing a peer observes. |
-| Who else touches this path? | `plan/spec-fixit-vpp-ipsec-inoperable.md` (the VPP backend cannot program an SA at all, so it is unaffected until that lands), `plan/spec-ipsec-opaque-selector-port-mask.md` (the same policy selector). |
+| Who else touches this path? | `spec-fixit-vpp-ipsec-inoperable` (the VPP backend refuses every policy IKE produces, so it is unaffected until `plan/future/spec-ipsec-vpp-policy-interface.md` lands), `plan/spec-ipsec-opaque-selector-port-mask.md` (the same policy selector). |
 
 ## Risks & Assumptions
 
@@ -315,8 +315,9 @@ functional or interop tier.
 
 ## Known Limitations
 
-The VPP IPsec backend cannot program a security association at all
-(`plan/spec-fixit-vpp-ipsec-inoperable.md`), so this fix is proven on XFRM only.
+The VPP IPsec backend cannot be driven by IKE: it installs SAs and refuses every policy
+the engine produces (`spec-fixit-vpp-ipsec-inoperable`, closed 2026-08-10), so this fix is
+proven on XFRM only.
 
 ## Checklist
 

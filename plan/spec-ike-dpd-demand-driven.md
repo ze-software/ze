@@ -203,7 +203,7 @@ missing piece is a decision about polling cadence and about what happens on a
 backend that cannot answer. On VPP the signal does not exist at all, and
 creating it means implementing the VPP IPsec SAD dump, which is separable work
 already recorded as a Known Limitation of `plan/spec-ipsec-dataplane-inspection.md`
-and adjacent to `plan/spec-fixit-vpp-ipsec-inoperable.md`.
+and adjacent to `spec-fixit-vpp-ipsec-inoperable`.
 
 **One thing is NOT established and must be validated before it is relied on:**
 whether the Linux kernel updates `use_time` and the packet counters on the
@@ -348,7 +348,7 @@ an error from netlink.
 |--------|--------------------------------------|------|--------------------------|
 | a. Fall back to today's periodic schedule | DPD probes at `interval` exactly as now | Free. Matches `driftingPeers`'s existing "a question that was not asked is not an answer" shape | S-4 on those backends. The divergence is invisible to the operator unless it is surfaced |
 | b. Fall back to periodic AND surface it | a, plus a health signal or a log line naming the peers whose liveness cannot be data-plane-observed | A health-check arm and its test. `checkIPsecHealth` (`health.go`) is the existing home | Nothing beyond a. It makes a's limitation visible rather than silent |
-| c. Implement the VPP IPsec SAD dump first | The signal exists on VPP too | A VPP binary-API dump: `vpp.go` says it is unimplemented and the `govpp` binapi is not vendored for it. This is a whole spec of its own, adjacent to `plan/spec-fixit-vpp-ipsec-inoperable.md` | Nothing, but it is out of proportion to a SHOULD and would block this work behind unrelated VPP work |
+| c. Implement the VPP IPsec SAD dump first | The signal exists on VPP too | A VPP binary-API dump: `vpp.go` says it is unimplemented and the `govpp` binapi is not vendored for it. This is a whole spec of its own, adjacent to `spec-fixit-vpp-ipsec-inoperable` | Nothing, but it is out of proportion to a SHOULD and would block this work behind unrelated VPP work |
 
 ### Q-3: is the probe gated on having traffic to send?
 

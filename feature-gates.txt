@@ -20,6 +20,8 @@
 # (`make generate`); do NOT hand-edit their tag lists. Drift is gated by the
 # scripts/codegen feature_tags --check test, `dep_audit.py --check` (golangci), and
 # the appliance gokrazy test. scripts/dev/stress-repro.py reads this file directly.
+# scripts/evidence/effective-vpp.py reads it directly too, in feature_tags: it derives
+# the tags of the linux ze it builds for the real-VPP evidence run.
 #
 # To add a feature gate: add each owned package that must disappear below, create
 # register_<tag>.go + service_<tag>.go (listener service) or a gated seam

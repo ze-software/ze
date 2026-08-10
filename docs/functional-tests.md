@@ -106,7 +106,8 @@ targets say so in the target name.
 
 Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
 `make ze-deployment-vpp-test` starts VPP in a privileged Docker container and
-proves `fib-vpp` add and withdraw against VPP's real FIB.
+proves `fib-vpp` add and withdraw against VPP's real FIB, traffic policers,
+and the IKE IPsec dataplane backend.
 
 External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
 `make ze-deployment-l2tp-test` starts Ze and a real `xl2tpd` LAC in a
@@ -307,7 +308,7 @@ run in the ordinary unit passes (no build tag):
 |------|---------|-----------|
 | `TestListenerConflictProperties` | `internal/component/config` | listener-conflict symmetry, port/family/protocol independence, wildcard dominance, `FindListenerConflict` ↔ pairwise equivalence (conflict is provably NOT transitive; `TestListenerConflictNotTransitive` pins the wildcard counterexample). |
 | `TestMigrationRoundTripProperty` | `internal/exabgp/migration` | any valid ExaBGP config → migrate → serialize re-parses as valid Ze config with every neighbor preserved. |
-| `TestForwardPoolOrderingProperty` | `internal/component/bgp/reactor` | withdrawals-first stable reorder, supersede-key determinism, malformed-body robustness, and exactly-once delivery under concurrent dispatch (`-race`). |
+| `TestForwardPoolOrderingProperty` | `internal/component/bgp/reactor` | batch order preservation, supersede-key determinism, malformed-body robustness, and exactly-once delivery under concurrent dispatch (`-race`). |
 | `TestFilterChainRandomUpdatesProperty` | `internal/component/bgp/reactor` | `buildModifiedPayload` never panics and only emits well-formed UPDATE bodies over random payloads+ops; `LessOrder` is a strict total order. |
 <!-- source: internal/component/config/listener_property_test.go -- TestListenerConflictProperties -->
 <!-- source: internal/exabgp/migration/roundtrip_property_test.go -- TestMigrationRoundTripProperty -->
@@ -1155,7 +1156,26 @@ no vfio, no root. Each test runs against a fresh per-test Unix socket.
 Real-daemon evidence uses `make ze-deployment-vpp-test`. That target starts
 `ligato/vpp-base` under Docker, runs Linux-built `ze` and `ze-test peer` inside
 the same container, and checks that VPP's FIB contains then withdraws the test
-route.
+route. It also covers traffic policers, MPLS, and the IKE IPsec dataplane.
+
+The IPsec case is `run_ipsec_evidence`. It compiles the `ze_vpp && integration`
+test binary of `internal/component/ike/dataplane` and runs it inside the
+container, so what programs VPP is the shipped backend rather than a copy of it.
+The probe installs two SAs and two policies over the VPP binary API, and
+`vppctl` then asserts what VPP holds: both SPIs, the inbound flag on exactly one
+SA, the AEAD cipher key and its salt in their own fields, the SPD bound to the
+interface, both policies in one chain in priority order, and the child-SA policy
+matching every protocol. It also proves that closing the backend REMOVES the SA
+and the SPD it installed, so a ze restart leaves no orphan state enforcing
+policies that name dead SAs. The IKE engine is not the vehicle: no config leaf
+selects the IPsec dataplane, and IKE would need a peer to negotiate with before
+it programmed anything.
+<!-- source: scripts/evidence/effective-vpp.py -- run_ipsec_evidence, real-VPP IKE IPsec evidence -->
+<!-- source: internal/component/ike/dataplane/vpp_real_integration_test.go -- the probe that programs VPP -->
+
+**Not green as a whole.** Its firewall case fails on a plugin startup deadlock
+recorded in `plan/journal/plugin-startup-barrier-deadlock.md`. The FIB, MPLS,
+traffic and IPsec cases pass.
 
 `make ze-deployment-vpp-iface-test` is the interface-feature counterpart
 (`scripts/evidence/effective-vpp-iface.py`): it proves ze programs a GRE tunnel
@@ -2394,7 +2414,7 @@ required `CONFIG_BPF_SYSCALL`, `CONFIG_BPF_JIT`, and `CONFIG_VETH`.
 ```bash
 make ze-deployment-preflight       # Strict tool check for complete deployment evidence
 make ze-release-check              # Run clean Docker ze-verify release evidence
-make ze-deployment-vpp-test        # Run real VPP daemon FIB add/withdraw evidence
+make ze-deployment-vpp-test        # Run real VPP daemon FIB, traffic, MPLS and IPsec evidence
 make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
 make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux
 make ze-install-qemu-test       # Run PXE installer QEMU evidence

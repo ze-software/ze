@@ -365,7 +365,7 @@ reader usually loses the read half, and the read half is what blocks the proof.
 | A-2 | A packet that presents port 0 to the selector is what RFC 4301 Section 4.4.1.1 calls OPAQUE, and a non-initial IP fragment is one | Not yet read. `rfc/short/rfc4301.md` can be absent | The behavioral half of the QEMU proof has no stimulus, and only the read-back assertion survives | Read RFC 4301 Section 4.4.1.1, then generate the stimulus in a namespace | unvalidated |
 | A-3 | `vendor/` is regenerated only by an explicit `go mod vendor`, so a patched file survives a normal build | `scripts/dev/reapply-updater-fixes.py` states exactly this hazard and this cadence | Route 1 is unusable and route 2 becomes mandatory | Read the makefile targets that touch `vendor/`, and confirm the marker test catches a revert | unvalidated |
 | A-4 | No caller outside the IKE dataplane sets a port on an `XfrmPolicy` | Measured 2026-08-01. The only other callers are `internal/plugins/iface/netlink/xfrm_linux.go`, `internal/plugins/ospf/doctor_ipsec_linux.go` and the OSPF integration test, and all three list rather than install | An additive patch changes bytes for a caller this spec did not consider | Re-grep at implementation time | unvalidated |
-| A-5 | The VPP dataplane needs no change, because it programs nothing at all today | `plan/spec-fixit-vpp-ipsec-inoperable.md`, and `internal/component/ike/dataplane/vpp.go` | The VPP backend must express or refuse the opaque form in the same work (`ai/rules/architecture.md`) | Read `vpp.go` and the VPP IPsec binary API | unvalidated |
+| A-5 | The VPP dataplane needs no change, because it REFUSES the selector forms it cannot express rather than approximating them | `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10: the backend installs SAs on a real VPP, and `vppUnsupportedSA` (`internal/component/ike/dataplane/vpp.go`) refuses any SA carrying an explicit state selector. The earlier basis, that it programs nothing at all, is spent | The VPP backend must express or refuse the opaque form in the same work (`ai/rules/architecture.md`) | Read `vpp.go` and the VPP IPsec binary API | unvalidated |
 | A-6 | `TestXFRMOpaquePortIsRefused` (`xfrm_transport_integration_linux_test.go`) is the only test pinning the refusal | Measured 2026-08-01 by grep for `Opaque` under `internal/` | A second test pins the old behavior and reddens unexpectedly | Re-grep at implementation time | unvalidated |
 | A-7 | Upstream accepts an additive, backward-compatible patch | Partly established. Upstream merges actively and has no documented process, so the patch is a pull request against `main`. Acceptance itself is unmeasured | Route 3 stalls, and route 1 or route 2 becomes permanent rather than a bridge | Send the patch and record the outcome | unvalidated |
 | A-8 | Ze cannot wait for an upstream release, because upstream releases lag `main` by about fourteen months | Measured 2026-08-01. The newest tag is dated 2025-05-09 and the newest commit is dated 2026-06-29 | Route 3 alone would be enough, and no bridge is needed | Re-measure the tag date and the commit date before the design phase closes | confirmed |
@@ -390,7 +390,7 @@ reader usually loses the read half, and the read half is what blocks the proof.
 |----------|--------|
 | What breaks if this is wrong? | An IPsec policy protects the wrong set of traffic. Too wide leaks nothing but violates the negotiated scope and RFC 7296 Section 2.9. Too narrow drops traffic the peers agreed to protect. A silently reverted vendor patch produces the wide case with no signal at all |
 | How is it reverted? | A single commit revert, while the two refusals remain in place. Once the refusals are relaxed and an operator configures `port opaque`, a revert makes that configuration fail at commit, so the config must change too |
-| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (owns the `RFC7296-3.13.1-3` row and its tags), `plan/spec-ipsec-ipcomp.md` and `plan/spec-ipsec-auth-piggyback.md` (same engine), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the other dataplane backend), and `internal/plugins/ospf/` (an RFC 4552 state selector) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (owns the `RFC7296-3.13.1-3` row and its tags), `plan/spec-ipsec-ipcomp.md` and `plan/spec-ipsec-auth-piggyback.md` (same engine), `spec-fixit-vpp-ipsec-inoperable` (the other dataplane backend), and `internal/plugins/ospf/` (an RFC 4552 state selector) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -716,9 +716,10 @@ on the existing unit-tier tags.
 - The spec is void if A-1 is broken, which is to say if the kernel does not honor a full
   port mask over a zero port value. Nothing in Ze can fix that, and the refusal would become
   permanent and correct.
-- The VPP backend programs nothing at all today
-  (`plan/spec-fixit-vpp-ipsec-inoperable.md`). AC-12 can therefore only be satisfied by an
-  explicit refusal until that spec closes.
+- The VPP backend installs SAs, and refuses one that carries an explicit state selector
+  (`vppUnsupportedSA`, `internal/component/ike/dataplane/vpp.go`; `spec-fixit-vpp-ipsec-inoperable`,
+  closed 2026-08-10). AC-12 can therefore only be satisfied by an explicit refusal until
+  that backend can express the opaque form.
 - The interop scenario cannot carry an RFC tag, because `test/ipsec-interop/` is
   `TIER_UNRUN`. Compliance evidence stays on the existing unit-tier tags.
 

@@ -136,9 +136,10 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
     buffer comes from a pool, and the copy count is the design question.
 - [ ] `ai/rules/completion.md` - the owner's step two
   → Constraint: a recorded limit is not an addressed limit. This spec exists to close one.
-- [ ] `plan/spec-fixit-vpp-ipsec-inoperable.md` - the VPP backend's real state
-  → Constraint: route B is gated behind this spec. Its AC-7 says nothing runs Ze's IPsec
-    against a real VPP today.
+- [ ] `spec-fixit-vpp-ipsec-inoperable` - the VPP backend's real state (closed 2026-08-10)
+  → Constraint: its AC-7 is MET: a real VPP v26.06 holds SAs that backend installed. Route B
+    stays gated on the policy path, because the backend refuses every policy IKE produces
+    until `plan/future/spec-ipsec-vpp-policy-interface.md` supplies the VPP interface.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc7296.md` - IKEv2. Rows `-2.23-10` and `-2.23-11`
@@ -284,7 +285,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | R-1 | Route A puts every encapsulated ESP datagram through userspace, and throughput falls | A benchmark against the current kernel decapsulation path | Measure this before you commit to route A. A form change is rare, so a hybrid that stays in the kernel until a mismatch is observed is the fallback |
 | R-2 | Route A loses the anti-replay and address checks the kernel performs on the encapsulated form | A conformance read of RFC 3948 against the re-injection path | Keep XFRM as the decryptor. Route A changes the presentation of the datagram and never the cryptography |
 | R-3 | The two tagged RFC pairs must change when the limit lifts, and `c_rfc_tagged_test` blocks that edit | The hook refuses the edit | The owner authorizes the change in writing, per `ai/rules/testing.md`. Ask before you edit, never after |
-| R-4 | Route B is chosen and inherits a backend that installs nothing | `plan/spec-fixit-vpp-ipsec-inoperable.md` AC-7 is still open | Treat route B as blocked until that spec closes. Record the dependency in Depends |
+| R-4 | Route B is chosen and inherits a backend IKE cannot drive | `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10 with AC-7 met, and the backend still refuses every policy IKE produces | Treat route B as blocked until `plan/future/spec-ipsec-vpp-policy-interface.md` lands. Record the dependency in Depends |
 | R-5 | A-4 comes back negative and the work looks unnecessary | The interop experiment finds no peer that alternates | The MUST binds regardless of peer behavior. A negative A-4 changes PRIORITY, never the obligation. Record it and keep the spec open |
 
 ## Blast Radius
@@ -293,7 +294,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 |----------|--------|
 | What breaks if this is wrong? | Every IPsec tunnel's receive path. A wrong route silently drops ESP, which is the quietest failure this subsystem has: the tunnel establishes and carries no traffic |
 | How is it reverted? | A single commit revert, as long as the change stays inside the receive presentation and no wire format changes. Route A is revertible. A change to the encapsulation DECISION is visible to the peer and is not |
-| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec owns the two tagged rows. `plan/spec-fixit-vpp-ipsec-inoperable.md` owns the VPP backend. Both must be read before any edit |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec owns the two tagged rows. `spec-fixit-vpp-ipsec-inoperable` owns the VPP backend. Both must be read before any edit |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -562,7 +563,7 @@ together.
 | Route | Verdict | Evidence |
 |-------|---------|----------|
 | A. Userspace demultiplex | **VIABLE, and the only one buildable today** | `TestEncapReinjectedBareESPAccepted` re-injected a userspace-read datagram with the peer's source preserved and the template-free state took it: `XfrmInStateProtoError`. The kernel already hands those datagrams to userspace when the socket carries no encap type (`net/ipv4/xfrm4_input.c:91-94`, `if (!encap_type) return 1;`) |
-| B. VPP | **Capable, and blocked** | VPP's inbound lookup is encapsulation-BLIND, keyed on peer address and SPI (`ipsec_tun_in.c` `ipsec_tun_protect_input_inline`, which picks the ESP offset per packet from the wire and then keys `ipsec4_tunnel_mk_key`). `ipsec_tun.c` `ipsec_tun_register_nodes` points proto-50 AND UDP/4500 at the same node unconditionally. So ONE VPP SA takes both forms. Ze cannot use it: `plan/spec-fixit-vpp-ipsec-inoperable.md` establishes the backend installs no SA at all |
+| B. VPP | **Capable, and blocked** | VPP's inbound lookup is encapsulation-BLIND, keyed on peer address and SPI (`ipsec_tun_in.c` `ipsec_tun_protect_input_inline`, which picks the ESP offset per packet from the wire and then keys `ipsec4_tunnel_mk_key`). `ipsec_tun.c` `ipsec_tun_register_nodes` points proto-50 AND UDP/4500 at the same node unconditionally. So ONE VPP SA takes both forms. Ze cannot use it: `spec-fixit-vpp-ipsec-inoperable` (closed 2026-08-10) leaves the backend installing SAs and refusing every policy IKE produces, so no IKE-driven tunnel reaches it |
 | C. A newer kernel | **CLOSED** | Linux 6.19.11 `net/xfrm/xfrm_input.c:634` is `if ((x->encap ? x->encap->encap_type : 0) != encap_type)`. It is SYMMETRIC, so a template-free state demands `encap_type == 0`. Byte-identical at v6.6 and v6.12. No wildcard encap type exists, and `xfrm_state.c:2233-2237` REFUSES to add, remove, or change an encap template on a live state (`-EINVAL`) |
 | D. No peer does this | **REJECTED, and it answers a different question** | strongSwan DOES change form on a live SA, through `kernel_netlink_ipsec.c` `update_sa`, which deletes and re-adds the state and restores the replay counter by hand. It is driven by MOBIKE (`ike_mobike.c:543-545`). But the measured red is an ESTABLISHMENT-time disagreement, not a mid-SA change |
 
@@ -808,7 +809,7 @@ only one common SPI to advance and Ze's own outbound counter does. Scenario 23 d
 | AC-2 | met | same test, row 1: the encapsulated form raises `XfrmInStateProtoError` on the SAME state and SPI |
 | AC-3 | met | same test, final control: an SPI with no state raises `XfrmInNoStates` |
 | AC-4 | met, with one bound stated below | `TestEncapEstablishedSAServesAPeerFormChange` (QEMU, own process): a live SA carries form A, the peer switches to form B, then back to A, and the kernel's state table shows ONE state with an unchanged add time throughout. `test/ipsec-interop/scenarios/23-esp-form-change`: the same property against strongSwan over a real interface, with traffic flowing both ways, `XfrmInStateMismatch` rising, and the SPI set unchanged. Both are RED under a mutation that removes the production behaviour. **Bound:** the peer's form is the one its kernel state does not accept for the whole life of the SA, rather than being SWITCHED part way through. strongSwan switches a live SA's form only through MOBIKE, and ze advertises no `MOBIKE_SUPPORTED` (no notify type 16396 in `wire/payload_notify.go`), so no trigger exists in the lab. The property the switch would exercise is proven; the switch itself is not |
-| AC-5 | not applicable, by measurement | VPP CAN receive both forms on one SA, so there is nothing to refuse. Recorded in `vpp.go` with the VPP source read. Its backend installs no SA at all, which `plan/spec-fixit-vpp-ipsec-inoperable.md` owns |
+| AC-5 | not applicable, by measurement | VPP CAN receive both forms on one SA, so there is nothing to refuse. Recorded in `vpp.go` with the VPP source read. That backend installs SAs and refuses every policy IKE produces, which `spec-fixit-vpp-ipsec-inoperable` owns |
 | AC-6 | met | A-1 to A-6 are `confirmed`, each with a named test or source read |
 | AC-7 | met | Key Design Decisions records route A and every rejected route with its measured cost |
 
@@ -827,8 +828,10 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 | Throughput of the re-presented form | Not measured. R-1 stands for the bare form on a templated SA |
 
 ## Known Limitations
-- Route B cannot be attempted until `plan/spec-fixit-vpp-ipsec-inoperable.md` closes. That
-  spec is `ready`, and its AC-7 states that nothing runs Ze's IPsec against a real VPP.
+- Route B cannot be attempted yet. `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10 with
+  AC-7 met, so a real VPP now holds SAs that backend installed. The backend still refuses
+  every policy IKE produces, until `plan/future/spec-ipsec-vpp-policy-interface.md` supplies
+  the interface a VPP SPD binds to.
 - The interop scenarios cannot carry an RFC tag, because `test/ipsec-interop/` is
   `TIER_UNRUN`. Compliance evidence stays at unit tier or functional tier.
 - `make ze-qemu-integration-test` is not automated anywhere. Every QEMU result in this spec

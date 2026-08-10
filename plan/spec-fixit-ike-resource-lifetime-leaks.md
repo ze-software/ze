@@ -190,7 +190,7 @@ lands.
 |----------|--------|
 | What breaks if this is wrong? | An over-eager bypass removal sends IKE control traffic into IPsec processing and stops negotiation node-wide. A double `SADown` misleads every lifecycle subscriber. |
 | How is it reverted? | Single commit revert. No config migration, no wire-visible change. |
-| Who else touches this path? | `plan/spec-fixit-child-sa-rekey-policy.md` (policy teardown), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the other backend), `plan/spec-lifecycle-invariants.md` (event pairing in the subscriber namespace) |
+| Who else touches this path? | `plan/spec-fixit-child-sa-rekey-policy.md` (policy teardown), `spec-fixit-vpp-ipsec-inoperable` (the other backend), `plan/spec-lifecycle-invariants.md` (event pairing in the subscriber namespace) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

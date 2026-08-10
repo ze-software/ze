@@ -275,7 +275,7 @@ the design phase closes.
 |----------|--------|
 | What breaks if this is wrong? | An IKE SA survives when Ze must delete it, or an authenticated peer accumulates SAs that carry no traffic. A wrong initiator guard removes the Child SA install from every tunnel, which is total data-path loss |
 | How is it reverted? | A single commit revert, while the behavior stays off by default. Once a peer depends on the surviving SA, a revert deletes that SA on the next Child SA refusal |
-| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `plan/spec-fixit-vpp-ipsec-inoperable.md` (the dataplane the attachment path installs into) |
+| Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec (the error notification sender, near closure), `plan/spec-ipsec-remote-access.md` (the same IKE_AUTH response chain and the CP payload), `plan/spec-ipsec-ipcomp.md` (the same Child SA negotiation), `spec-fixit-vpp-ipsec-inoperable` (the dataplane the attachment path installs into) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
