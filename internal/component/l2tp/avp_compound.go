@@ -53,7 +53,11 @@ func readResultCode(value []byte) (ResultCodeValue, error) {
 // writeAVPResultCode writes a Result Code AVP into buf at off. If rc.ErrorPresent
 // is false, only the 2-byte Result field is written. If rc.MessagePresent is true,
 // the advisory message is appended after Error. Returns bytes written.
-func writeAVPResultCode(buf []byte, off int, mandatory bool, rc ResultCodeValue) int {
+//
+// The other writeAVP* functions take the M-bit from the caller. This one does not:
+// RFC 2661 Section 4.4.2 says the M-bit for the Result Code AVP MUST be set to 1,
+// so the caller has no valid choice to make.
+func writeAVPResultCode(buf []byte, off int, rc ResultCodeValue) int {
 	valueOff := off + AVPHeaderLen
 	binary.BigEndian.PutUint16(buf[valueOff:], rc.Result)
 	valueLen := 2
@@ -65,12 +69,9 @@ func writeAVPResultCode(buf []byte, off int, mandatory bool, rc ResultCodeValue)
 			valueLen = 4 + n
 		}
 	}
-	flags := AVPFlags(0)
-	if mandatory {
-		flags |= FlagMandatory
-	}
+	// RFC 2661 Section 4.4.2: "The M-bit for this AVP MUST be set to 1."
 	total := AVPHeaderLen + valueLen
-	WriteAVPHeader(buf, off, flags, 0, AVPResultCode, total)
+	WriteAVPHeader(buf, off, FlagMandatory, 0, AVPResultCode, total)
 	return total
 }
 

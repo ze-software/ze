@@ -186,81 +186,13 @@ func TestMonitorBackpressure(t *testing.T) {
 	assert.Len(t, mc.EventChan, 2)
 }
 
-// TestMonitorDeliverLazyNoMonitors verifies DeliverLazy skips build when empty.
-//
-// VALIDATES: With no monitors registered, the build callback is never invoked.
-// PREVENTS: Structured plugin consumers paying JSON formatting cost when no
-// CLI monitor is attached.
-func TestMonitorDeliverLazyNoMonitors(t *testing.T) {
-	mm := NewMonitorManager()
-
-	called := 0
-	mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
-		called++
-		return `{"should":"not appear"}`
-	})
-
-	assert.Equal(t, 0, called, "build must not run when no monitors are registered")
-}
-
-// TestMonitorDeliverLazyNoMatch verifies DeliverLazy skips build on no match.
-//
-// VALIDATES: When monitors exist but none match the event, build is not called.
-// PREVENTS: Formatting JSON for events that no subscription cares about.
-func TestMonitorDeliverLazyNoMatch(t *testing.T) {
-	mm := NewMonitorManager()
-
-	mc := NewMonitorClient(t.Context(), "state-only", []*Subscription{
-		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventState), Direction: events.DirBoth},
-	}, 256)
-	mm.Add(mc)
-
-	called := 0
-	mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
-		called++
-		return `{"should":"not appear"}`
-	})
-
-	assert.Equal(t, 0, called, "build must not run when no subscription matches")
-	assert.Empty(t, mc.EventChan)
-}
-
-// TestMonitorDeliverLazyMatch verifies DeliverLazy invokes build once and fans out.
-//
-// VALIDATES: build is invoked exactly once even when multiple monitors match,
-// and all matching monitors receive the same output string.
-// PREVENTS: Per-monitor formatting cost or stale/missed delivery.
-func TestMonitorDeliverLazyMatch(t *testing.T) {
-	mm := NewMonitorManager()
-	ctx := t.Context()
-
-	mc1 := NewMonitorClient(ctx, "one", []*Subscription{
-		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
-	}, 256)
-	mc2 := NewMonitorClient(ctx, "two", []*Subscription{
-		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
-	}, 256)
-	mm.Add(mc1)
-	mm.Add(mc2)
-
-	called := 0
-	const payload = `{"ok":true}`
-	mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
-		called++
-		return payload
-	})
-
-	assert.Equal(t, 1, called, "build must run exactly once even with two matching monitors")
-
-	for _, mc := range []*MonitorClient{mc1, mc2} {
-		select {
-		case got := <-mc.EventChan:
-			assert.Equal(t, payload, got)
-		default:
-			t.Fatalf("monitor %s did not receive event", mc.id)
-		}
-	}
-}
+// test-relax: TestMonitorDeliverLazyNoMonitors, TestMonitorDeliverLazyNoMatch and
+// TestMonitorDeliverLazyMatch were deleted with the deliverLazy method they drove.
+// This is the removed-functionality case, not a weakening: DeliverLazyTyped
+// superseded deliverLazy, deliverLazy had no non-test caller left anywhere in the
+// tree, and the same three behaviors are asserted against the surviving function
+// by TestDeliverLazyTypedNoMonitors, TestDeliverLazyTypedNoMatch and
+// TestDeliverLazyTypedMatch below. Net assertion count over the file is unchanged.
 
 // TestMonitorManagerConcurrency verifies thread-safe operations.
 //
@@ -290,9 +222,15 @@ func TestMonitorManagerConcurrency(t *testing.T) {
 			for range 100 {
 				_ = mm.GetMatching(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "")
 				mm.Deliver(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", `{"test":true}`)
-				mm.deliverLazy(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", func() string {
-					return `{"test":"lazy"}`
-				})
+				mm.DeliverLazyTyped(
+					events.LookupNamespaceID(bgpevents.Namespace),
+					events.LookupEventTypeID(bgpevents.EventUpdate),
+					events.DirReceived,
+					"10.0.0.1", "",
+					func() string {
+						return `{"test":"lazy"}`
+					},
+				)
 			}
 		})
 	}

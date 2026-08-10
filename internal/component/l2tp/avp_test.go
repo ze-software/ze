@@ -259,7 +259,7 @@ func TestResultCodeRoundTrip(t *testing.T) {
 	}
 	for _, tc := range cases {
 		buf := make([]byte, 64)
-		n := writeAVPResultCode(buf, 0, true, tc)
+		n := writeAVPResultCode(buf, 0, tc)
 		it := NewAVPIterator(buf[:n])
 		_, at, _, v, ok := it.Next()
 		if !ok || at != AVPResultCode {

@@ -487,6 +487,9 @@ func (r *OutgoingRIB) CommitTransaction() (commitStats, error) {
 }
 
 // commitTransactionWithLabel commits the transaction, verifying the label matches.
+// It is CommitTransaction with a label check, so it returns the same pair.
+//
+//nolint:unparam // the transaction API is one shape: BeginTransaction, CommitTransaction, RollbackTransaction and this label-checked variant all report commitStats. unparam judges this function alone and cannot see the exported siblings that make the stats part of the contract
 func (r *OutgoingRIB) commitTransactionWithLabel(label string) (commitStats, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -83,7 +83,7 @@ func TestServiceRegistry_BuildErrorSkipped(t *testing.T) {
 
 func TestRegisterBuiltService_UsesRegisteredMigratorHook(t *testing.T) {
 	withCleanRegistry(t)
-	lm := newListenerMigrator(nil)
+	lm := newListenerMigrator()
 	want := &fakeService{name: "fake", addrs: []string{"0.0.0.0:8443"}}
 	registerService("fake", func(ServiceDeps) (Service, error) { return want, nil }, func(lm *ListenerMigrator, svc Service) {
 		lm.SetLG(svc)

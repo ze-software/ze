@@ -83,7 +83,7 @@ func buildCDN(resultCode, assignedSID uint16) []byte {
 	var buf [128]byte
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgCDN))
-	off += writeAVPResultCode(buf[:], off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf[:], off, ResultCodeValue{Result: resultCode})
 	off += WriteAVPUint16(buf[:], off, true, AVPAssignedSessionID, assignedSID)
 	return buf[:off]
 }
@@ -415,7 +415,7 @@ func TestSession_StopCCN_CascadeSessions(t *testing.T) {
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf[:], off, true, AVPAssignedTunnelID, 200)
-	off += writeAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
+	off += writeAVPResultCode(buf[:], off, ResultCodeValue{Result: 1})
 	stopCCN := buf[:off]
 
 	tun.handleStopCCN(now, stopCCN)
@@ -837,7 +837,7 @@ func TestStopCCNQueuesAllTeardowns(t *testing.T) {
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf[:], off, true, AVPAssignedTunnelID, 200)
-	off += writeAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
+	off += writeAVPResultCode(buf[:], off, ResultCodeValue{Result: 1})
 	tun.handleStopCCN(now, buf[:off])
 
 	if len(tun.pendingKernelTeardowns) != 3 {

@@ -1104,7 +1104,7 @@ func writeOCRPBody(buf []byte, localSID uint16) int {
 func writeCDNBody(buf []byte, localSID, resultCode uint16) int {
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgCDN))
-	off += writeAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf, off, ResultCodeValue{Result: resultCode})
 	off += WriteAVPUint16(buf, off, true, AVPAssignedSessionID, localSID)
 	return off
 }

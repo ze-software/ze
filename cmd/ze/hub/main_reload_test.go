@@ -190,7 +190,7 @@ func TestDoReloadRollsBackOnListenerMigrationFailure(t *testing.T) {
 	require.NoError(t, store.WriteVersion(configPath, []byte("new"), mustParseReloadStamp(t, newStamp)))
 	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerCandidate, newStamp))
 
-	lm := newListenerMigrator(nil)
+	lm := newListenerMigrator()
 	lm.web = &failingReconfigurable{addrs: []string{"127.0.0.1:3443"}, err: fmt.Errorf("listener refused")}
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return newTree, reloadWebTree("127.0.0.1", "3444"), nil

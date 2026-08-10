@@ -210,10 +210,15 @@ func (m *ListenerMigrator) runningAuth(name string) (authenticated, known bool) 
 	return v, ok
 }
 
-// newListenerMigrator creates a migrator. Pass nil for services that are not running.
-func newListenerMigrator(web Reconfigurable) *ListenerMigrator {
+// newListenerMigrator creates a migrator with no services attached. Each service
+// registers itself later through its Set* method as it starts.
+//
+// It takes no web argument on purpose. SetWeb both assigns the reference AND
+// calls registerAuthUpdater, so a web server installed here instead would reach
+// the reload guard with no auth updater registered and runningAuth would fall
+// back to the boot snapshot for it.
+func newListenerMigrator() *ListenerMigrator {
 	return &ListenerMigrator{
-		web:    web,
 		logger: slogutil.Logger("hub.listener"),
 	}
 }

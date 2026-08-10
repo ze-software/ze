@@ -487,7 +487,7 @@ func writeStopCCNBody(buf []byte, localTID, resultCode uint16) int {
 	off := 0
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgStopCCN))
 	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, localTID)
-	off += writeAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
+	off += writeAVPResultCode(buf, off, ResultCodeValue{Result: resultCode})
 	return off
 }
 

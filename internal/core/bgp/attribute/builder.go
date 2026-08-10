@@ -141,14 +141,14 @@ func (b *Builder) setAtomicAggregate(v bool) *Builder {
 }
 
 // setAIGP sets the AIGP attribute with the given metric value.
-func (b *Builder) setAIGP(metric uint64) *Builder {
+func (b *Builder) setAIGP(metric uint64) *Builder { //nolint:unparam // fluent-builder contract: every Builder setter returns *Builder so calls chain (SetOrigin ... setWire). builder_parse.go ends its chain here, but a setter that returns nothing cannot sit in the middle of one
 	b.aigp = NewAIGPMetric(metric)
 	return b
 }
 
 // setWire sets pre-built wire bytes (for forwarding).
 // When wire is set, Build() returns it directly.
-func (b *Builder) setWire(wire []byte) *Builder {
+func (b *Builder) setWire(wire []byte) *Builder { //nolint:unparam // fluent-builder contract: every Builder setter returns *Builder so calls chain. The caller that ends its chain here is not the one the signature serves; a setter returning nothing cannot sit in the middle of a chain
 	b.wire = wire
 	return b
 }

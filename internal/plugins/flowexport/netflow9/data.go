@@ -17,6 +17,11 @@ const FlowSetHeaderSize = 4
 // RFC 3954: Data FlowSet ID = the template ID it references (256+).
 // Layout: FlowSet ID (2) + Length (2) + records + padding.
 // Length is backfilled after all records are written.
+// FlowSet is identified by the template it references, and this package already defines
+// several (CounterTemplateID 256, FlowTemplateID6 258). Hard-coding the counter template
+// here would put the wrong FlowSet ID on the wire the moment a second one reaches it
+//
+//nolint:unparam // templateID is the RFC 3954 FlowSet ID field, not a constant: a Data
 func writeDataFlowSet(buf []byte, off int, templateID uint16, ifaces []flowexport.InterfaceCounters) (int, uint16) {
 	start := off
 	recSize := CounterRecordSize()

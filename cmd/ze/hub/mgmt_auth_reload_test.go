@@ -31,7 +31,7 @@ func webTreeWithInsecure(insecure string) *zeconfig.Tree {
 // PREVENTS: the reload guard reading an auth mode the operator has replaced,
 // which is what made an auth-mode edit a silent no-op until a restart.
 func TestWebAuthReloaderFollowsConfigLeaf(t *testing.T) {
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{webFollowsConfig: true})
 	reload := migrator.authReloaders["web"]
 	require.NotNil(t, reload)
@@ -52,7 +52,7 @@ func TestWebAuthReloaderFollowsConfigLeaf(t *testing.T) {
 // PREVENTS: the reload answering the precedence question differently from boot,
 // so the migrator reports a change the daemon would never make.
 func TestWebAuthReloaderIgnoresConfigWhenFlagDecided(t *testing.T) {
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{webFollowsConfig: false})
 
 	_, ok, err := migrator.authReloaders["web"](webTreeWithInsecure("true"))
@@ -65,7 +65,7 @@ func TestWebAuthReloaderIgnoresConfigWhenFlagDecided(t *testing.T) {
 // PREVENTS: the reload guard calling an accept-all MCP server authenticated,
 // the exact mismatch mcpListenerAuthenticated exists to close.
 func TestMCPAuthReloaderMirrorsServerPrecedence(t *testing.T) {
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{mcpTokenBase: "flag-token"})
 	reload := migrator.authReloaders["mcp"]
 	require.NotNil(t, reload)
@@ -95,7 +95,7 @@ func mcpSettingsTree(authMode string) *zeconfig.Tree {
 // PREVENTS: registering a reloader that reports a mode without the credentials
 // to build it, leaving the rebuild with nothing to apply.
 func TestAPIAuthReloaderResolvesConfiguredToken(t *testing.T) {
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{})
 
 	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("reloaded-token"))
@@ -115,7 +115,7 @@ func TestAPIAuthReloaderResolvesConfiguredToken(t *testing.T) {
 // PREVENTS: deleting a config block silently stripping authentication off a
 // server that is still listening.
 func TestAPIAuthReloaderSilentWithoutBlock(t *testing.T) {
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{})
 
 	_, ok, err := migrator.authReloaders["rest"](zeconfig.NewTree())
@@ -141,7 +141,7 @@ func setAPIConfigDir(t *testing.T, dir string) {
 func TestAPIAuthReloaderFailsClosedWhenCredentialsBecomeUnreadable(t *testing.T) {
 	setAPIConfigDir(t, t.TempDir())
 
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{apiZefsUsersOK: true})
 
 	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree(""))
@@ -158,7 +158,7 @@ func TestAPIAuthReloaderFailsClosedWhenCredentialsBecomeUnreadable(t *testing.T)
 func TestAPIAuthReloaderProceedsWhenCredentialsNeverExisted(t *testing.T) {
 	setAPIConfigDir(t, t.TempDir())
 
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{apiZefsUsersOK: false})
 
 	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
@@ -193,7 +193,7 @@ func apiTokenTree(token string) *zeconfig.Tree {
 // migrated to a public address. Web carries no loopback rule of its own: this
 // guard is the only one it has.
 func TestMarkMgmtAuthClassifiesBeforeAnyHandleExists(t *testing.T) {
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 
 	// Boot order: the guard's answer reaches the migrator first, then the
 	// servers do. Every surface is classified, handle or no handle.
@@ -223,7 +223,7 @@ func TestMarkMgmtAuthClassifiesBeforeAnyHandleExists(t *testing.T) {
 // server that does not exist.
 func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}}
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	markMgmtAuth(migrator, map[string]bool{svcREST: true, svcGRPC: true})
 	migrator.SetREST(rest)
 
@@ -251,7 +251,7 @@ func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
 // removal failing the whole commit over a server that does not exist.
 func TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "boot-token"}
-	migrator := newListenerMigrator(nil)
+	migrator := newListenerMigrator()
 	migrator.SetREST(rest)
 	markMgmtAuth(migrator, map[string]bool{"rest": true, "grpc": true})
 

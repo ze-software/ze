@@ -788,7 +788,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	startArchiveScheduler(loadResult.Tree, configPath, store, apiServer)
 	defer stopArchiveScheduler()
 
-	lm := newListenerMigrator(nil)
+	lm := newListenerMigrator()
 	reloadAfterCommit := func() error {
 		startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer startupCancel()

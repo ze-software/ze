@@ -310,6 +310,8 @@ func decodeRouteMirroring(buf []byte, off, end int) (*routeMirroring, error) {
 
 // writeInitiation writes a complete Initiation message into buf at off.
 // Returns total bytes written.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, and it is what the skip-and-backfill start position is taken from. writeTLVs, writePeerUp and WriteCommonHeader take the same pair. sender.go passes 0 because it sends one BMP message per buffer
 func writeInitiation(buf []byte, off int, init *Initiation) int {
 	// Skip-and-backfill: reserve common header, write payload, backfill length.
 	start := off
@@ -322,6 +324,8 @@ func writeInitiation(buf []byte, off int, init *Initiation) int {
 
 // writeTermination writes a complete Termination message into buf at off.
 // Returns total bytes written.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, and it is what the skip-and-backfill start position is taken from. writeTLVs, writePeerUp and WriteCommonHeader take the same pair. sender.go passes 0 because it sends one BMP message per buffer
 func writeTermination(buf []byte, off int, term *Termination) int {
 	start := off
 	off += CommonHeaderSize

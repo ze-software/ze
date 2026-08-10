@@ -49,7 +49,7 @@ func TestRunReloadUndoesCredentialsWhenCertificateRotationFails(t *testing.T) {
 		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
 		token:                   "original",
 	}
-	lm := newListenerMigrator(nil)
+	lm := newListenerMigrator()
 	lm.SetWebTLS(failingTLS)
 	lm.SetREST(rest)
 	lm.markAuthenticated("rest")
@@ -88,7 +88,7 @@ func TestRunReloadKeepsCredentialsWhenReloadSucceeds(t *testing.T) {
 		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
 		token:                   "original",
 	}
-	lm := newListenerMigrator(nil)
+	lm := newListenerMigrator()
 	lm.SetWebTLS(&fakeTLSUpdatable{})
 	lm.SetREST(rest)
 	lm.markAuthenticated("rest")

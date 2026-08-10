@@ -383,6 +383,8 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // The int return is the buffer-first writer contract this package keeps
 // (WriteWithdrawUpdate, nlri.WriteNLRI, attribute.WriteAttrTo), so the reason
 // travels beside it rather than inside it.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, which is what lets this writer and every one it calls (writeOriginAttr, writeASPathAttr, writeCommunitiesAttr, nlri.WriteNLRI) write forward with no reslice and no allocation. session_write.go passes 0 because one UPDATE owns the whole send buffer
 func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLocalNextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) int {
 	start := off
 
@@ -627,6 +629,8 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, so the marker, the length field and the NLRI go in at an advancing offset with no reslice and no allocation. session_write.go passes 0 because one UPDATE owns the whole send buffer
 func writeWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool) int {
 	start := off
 

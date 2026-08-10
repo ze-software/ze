@@ -73,6 +73,8 @@ type CommonHeader struct {
 
 // decodeCommonHeader parses a CommonHeader from buf at the given offset.
 // Returns the number of bytes consumed (always CommonHeaderSize on success).
+//
+//nolint:unparam // (buf, off) is the codec contract of this package, shared with decodePeerHeader, WriteCommonHeader and writePeerHeader: a decoder reads at an offset in the caller's read buffer, so no step reslices or copies. decodePeerHeader receives non-zero offsets from msg.go; the common header reads at 0 because it starts the message
 func decodeCommonHeader(buf []byte, off int) (CommonHeader, int, error) {
 	if len(buf)-off < CommonHeaderSize {
 		return CommonHeader{}, 0, errShortHeader
