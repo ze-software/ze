@@ -52,6 +52,46 @@ func (r *AdjRIBInManager) promoteToInstalled(pr *pendingRoute, validationState u
 	r.ribIn[pr.peerAddr].Put(pr.routeKey, r.seqCounter, pr.route)
 }
 
+// applyToInstalled applies a validation decision to a route the RIB already holds.
+//
+// RFC 6811 Section 4: when a VRP is added or deleted, the RPKI plugin re-validates every tracked
+// route and re-dispatches an accept or a reject for each one whose state changed. Those routes
+// are installed, not pending, so the pending map cannot carry them. Without this, a re-dispatched
+// decision fell through to storeEarlyDecision -- the slot for a decision that arrives BEFORE its
+// route -- and the installed route kept the state it was given on arrival for the life of the
+// session. A route validated against an empty cache stayed NotFound after the cache synced, and
+// a route that became Invalid stayed in the Adj-RIB-In under `invalid reject`.
+//
+// An accept rewrites the state in place and keeps the route's sequence number. The wire bytes did
+// not change, and a new sequence number re-sends the same route to every peer that replays from a
+// cursor (buildReplayRoutes).
+//
+// A reject removes the route. RFC 6811 Section 2 forbids excluding a route from the Adj-RIB-In as
+// a side effect of its validation state, so a reject reaches here only when the operator
+// configured `invalid reject` or `not-found reject` (the rpki plugin's buildDecisions).
+//
+// Returns false when the RIB does not hold the route, which leaves the caller's early-decision
+// path in charge.
+// Caller must hold r.mu write lock.
+func (r *AdjRIBInManager) applyToInstalled(peerAddr netip.Addr, routeKey compactRouteKey, accept bool, validationState uint8) bool {
+	routes := r.ribIn[peerAddr]
+	if routes == nil {
+		return false
+	}
+	route, ok := routes.Get(routeKey)
+	if !ok {
+		return false
+	}
+	if !accept {
+		routes.Delete(routeKey)
+		logger().Debug("re-validation removed an installed route",
+			"peer", peerAddr, "family", routeKey.Fam, "prefix", routeKey.Prefix)
+		return true
+	}
+	route.ValidationState = validationState
+	return true
+}
+
 // sweepExpiredPending promotes pending routes that have exceeded the validation timeout.
 // Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) sweepExpiredPending() {

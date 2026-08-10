@@ -90,6 +90,10 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 		if d.Accept {
 			pr, ok := r.pending[pKey]
 			if !ok {
+				if r.applyToInstalled(peerAddr, rKey, true, d.ValState) {
+					accepted++
+					continue
+				}
 				r.storeEarlyDecision(peerAddr, rKey, earlyAccept, d.ValState)
 				early++
 				accepted++
@@ -100,6 +104,10 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 			accepted++
 		} else {
 			if _, ok := r.pending[pKey]; !ok {
+				if r.applyToInstalled(peerAddr, rKey, false, 0) {
+					rejected++
+					continue
+				}
 				r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
 				early++
 				rejected++
@@ -184,6 +192,10 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 		case 'a':
 			pr, ok := r.pending[pKey]
 			if !ok {
+				if r.applyToInstalled(d.peerAddr, rKey, true, d.valState) {
+					accepted++
+					continue
+				}
 				r.storeEarlyDecision(d.peerAddr, rKey, earlyAccept, d.valState)
 				early++
 				accepted++
@@ -194,6 +206,10 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 			accepted++
 		case 'r':
 			if _, ok := r.pending[pKey]; !ok {
+				if r.applyToInstalled(d.peerAddr, rKey, false, 0) {
+					rejected++
+					continue
+				}
 				r.storeEarlyDecision(d.peerAddr, rKey, earlyReject, 0)
 				early++
 				rejected++
@@ -425,6 +441,9 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 	key := pendingKey(peerAddr, rKey)
 	pr, ok := r.pending[key]
 	if !ok {
+		if r.applyToInstalled(peerAddr, rKey, true, valState) {
+			return statusDone, map[string]any{"status": "ok"}, nil
+		}
 		r.storeEarlyDecision(peerAddr, rKey, earlyAccept, valState)
 		return statusDone, map[string]any{"status": "ok", "early": true}, nil
 	}
@@ -460,6 +479,9 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
+		if r.applyToInstalled(peerAddr, rKey, false, 0) {
+			return statusDone, map[string]any{"status": "ok"}, nil
+		}
 		r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
 		return statusDone, map[string]any{"status": "ok", "early": true}, nil
 	}

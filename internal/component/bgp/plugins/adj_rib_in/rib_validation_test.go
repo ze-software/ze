@@ -353,11 +353,11 @@ func TestAcceptNonExistentRoute(t *testing.T) {
 	assert.Equal(t, ValidationValid, ed.state)
 }
 
-// TestRejectAlreadyInstalled verifies early buffering when rejecting a non-pending route.
+// TestRejectRemovesInstalledRoute verifies a reject for a route the RIB already holds removes it.
 //
-// VALIDATES: reject-routes for non-pending route buffers early decision, installed unchanged.
-// PREVENTS: Installed routes being incorrectly removed by late reject.
-func TestRejectAlreadyInstalled(t *testing.T) {
+// VALIDATES: reject-routes for an installed (non-pending) route removes it from the Adj-RIB-In.
+// PREVENTS: A route that a VRP change turned Invalid staying installed under `invalid reject`.
+func TestRejectRemovesInstalledRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
@@ -373,10 +373,141 @@ func TestRejectAlreadyInstalled(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 
-	// Installed route should be unchanged
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	assert.Equal(t, 1, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(), "installed route should not be removed")
+	assert.Equal(t, 0, r.ribIn[netip.MustParseAddr("10.0.0.1")].Len(), "a rejected route must leave the Adj-RIB-In")
+	assert.Empty(t, r.earlyDecisions, "the RIB held the route, so the decision must be applied rather than buffered")
+}
+
+// TestReValidationAppliesToInstalledRoutes verifies that the decisions the RPKI plugin
+// re-dispatches after a VRP change reach the routes they name. Those routes are installed, never
+// pending: the pending map holds a route only between its arrival and its first decision.
+//
+// The demo that found this failed with all three of its prefixes NotFound and the RPKI-invalid one
+// installed, because the routes arrived before the RTR cache synced and no later decision could
+// correct them.
+//
+// RFC requirement: RFC6811-4-1 positive -- a re-validation decision reaches the Adj-RIB-In: an
+// accept carrying a new state rewrites the installed route's state, and a reject removes the route,
+// so the RIB reflects the changed VRP set rather than the state the route arrived with.
+// RFC requirement: RFC6811-4-1 negative -- re-validation acts only on routes the RIB holds: a
+// decision naming a prefix that is neither pending nor installed buffers as an early decision and
+// installs nothing, so a VRP change cannot conjure a route the peer never sent.
+//
+// VALIDATES: accept/reject decisions for installed routes update or remove them (typed and string
+// paths), and the installed route keeps its sequence number across a state rewrite.
+// PREVENTS: RFC 6811 Section 4 re-validation being dispatched by bgp-rpki and dropped by
+// bgp-adj-rib-in, which pins a route to the state it was given when it arrived.
+func TestReValidationAppliesToInstalledRoutes(t *testing.T) {
+	peer := netip.MustParseAddr("10.0.0.1")
+	rKey := routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0)
+
+	install := func(t *testing.T) *AdjRIBInManager {
+		t.Helper()
+		r := newTestManager(t)
+		r.validationEnabled = true
+		m := seqmap.New[compactRouteKey, *RawRoute]()
+		m.Put(rKey, 7, &RawRoute{
+			Family: family.IPv4Unicast, AttrHex: "40010100",
+			NHopHex: "0a000001", NLRIHex: "180a0000",
+			ValidationState: ValidationNotFound,
+		})
+		r.ribIn[peer] = m
+		return r
+	}
+
+	// The state a route was given against an empty cache is rewritten when the VRPs arrive.
+	// Typed path: the one internal plugins use through DirectBridge.
+	t.Run("typed accept rewrites the state", func(t *testing.T) {
+		r := install(t)
+		result, err := r.handleBatchValidateTyped([]rpc.ValidationDecision{{
+			Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast",
+			Prefix: "10.0.0.0/24", PathID: 0, ValState: ValidationValid,
+		}})
+		require.NoError(t, err)
+		assert.Equal(t, 1, result.Accepted)
+		assert.Equal(t, 0, result.Early, "the RIB holds the route, so nothing is buffered")
+
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		route, ok := r.ribIn[peer].Get(rKey)
+		require.True(t, ok, "an accept must not remove the route")
+		assert.Equal(t, ValidationValid, route.ValidationState)
+
+		// The wire bytes did not change, so the route keeps its place in the replay order: a new
+		// sequence number would re-send it to every peer replaying from a cursor.
+		var seq uint64
+		r.ribIn[peer].Range(func(_ compactRouteKey, s uint64, _ *RawRoute) bool {
+			seq = s
+			return true
+		})
+		assert.Equal(t, uint64(7), seq, "a state rewrite must not renumber the route")
+	})
+
+	t.Run("typed reject removes the route", func(t *testing.T) {
+		r := install(t)
+		result, err := r.handleBatchValidateTyped([]rpc.ValidationDecision{{
+			Accept: false, PeerAddr: "10.0.0.1", Family: "ipv4/unicast",
+			Prefix: "10.0.0.0/24", PathID: 0,
+		}})
+		require.NoError(t, err)
+		assert.Equal(t, 1, result.Rejected)
+		assert.Equal(t, 0, result.Early)
+
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		assert.Equal(t, 0, r.ribIn[peer].Len(), "a rejected route must leave the Adj-RIB-In")
+	})
+
+	// String path: the same decisions from an external plugin.
+	t.Run("string batch accept rewrites the state", func(t *testing.T) {
+		r := install(t)
+		status, _, err := r.handleCommand("request bgp adj-rib-in batch-validate",
+			commandArgs("a 10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1"), "")
+		require.NoError(t, err)
+		assert.Equal(t, statusDone, status)
+
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		route, ok := r.ribIn[peer].Get(rKey)
+		require.True(t, ok)
+		assert.Equal(t, ValidationValid, route.ValidationState)
+	})
+
+	t.Run("accept-routes rewrites the state", func(t *testing.T) {
+		r := install(t)
+		status, _, err := r.handleCommand("request bgp adj-rib-in accept-routes",
+			commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1"), "")
+		require.NoError(t, err)
+		assert.Equal(t, statusDone, status)
+
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		route, ok := r.ribIn[peer].Get(rKey)
+		require.True(t, ok)
+		assert.Equal(t, ValidationValid, route.ValidationState)
+		assert.Empty(t, r.earlyDecisions)
+	})
+
+	// A prefix the RIB does not hold keeps the early-decision path: the decision waits for the
+	// route rather than inventing one.
+	t.Run("unknown prefix still buffers", func(t *testing.T) {
+		r := install(t)
+		result, err := r.handleBatchValidateTyped([]rpc.ValidationDecision{{
+			Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast",
+			Prefix: "192.168.1.0/24", PathID: 0, ValState: ValidationValid,
+		}})
+		require.NoError(t, err)
+		assert.Equal(t, 1, result.Early)
+
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		assert.Equal(t, 1, r.ribIn[peer].Len(), "the named prefix is not in the RIB: nothing else may change")
+		other := routeKeyFromStrings(family.IPv4Unicast, "192.168.1.0/24", 0)
+		_, installed := r.ribIn[peer].Get(other)
+		assert.False(t, installed, "an accept must not install a route the peer never sent")
+		assert.Len(t, r.earlyDecisions, 1)
+	})
 }
 
 // TestEarlyDecisionAppliedOnArrival verifies the store-and-reconcile flow:
