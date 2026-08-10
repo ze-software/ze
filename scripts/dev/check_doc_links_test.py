@@ -121,6 +121,8 @@ class DocLinksGateTest(unittest.TestCase):
         """
         repo = self._repo(
             "Live `ai/rules/sample.md,62,152,169`, dead `ai/rules/absent.md,7`.\n"
+            "Range `ai/rules/sample.md,875-886`, mixed "
+            "`ai/rules/sample.md,12,40-44`.\n"
         )
         res = run(repo)
         self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
@@ -598,6 +600,27 @@ class TrackedCitationTest(unittest.TestCase):
         self.assertIn("repair the reference", res.stdout)
         self.assertIn("doc-links: ignore", res.stdout)
 
+    def test_a_dead_citation_in_a_non_markdown_file_is_reported(self) -> None:
+        """The sweep is over TRACKED files, not over `*.md`.
+
+        VALIDATES: a `.py`, `.sh` or `.go` file is swept like a document.
+        PREVENTS:  the mutation every other fixture survives. Narrowing
+                   `tracked_files` to `f.endswith(".md")` leaves this suite
+                   green while 38 markers in `scripts/dev/hook-fixture-check.py`
+                   and the citations in `.claude/hooks/*.py` go unread, which
+                   is the spec's central claim deleted by one line.
+        """
+        repo = self._repo(
+            {
+                "scripts/dev/sample.py": '"""Read `internal/absent/thing.go`."""\n',
+                "scripts/dev/sample.sh": "# Read `internal/absent/other.go`\n",
+            }
+        )
+        res = run(repo)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("scripts/dev/sample.py:1", res.stdout)
+        self.assertIn("scripts/dev/sample.sh:1", res.stdout)
+
     def test_live_citation_outside_md_globs_passes(self) -> None:
         """AC-2: the same file, citing a path that resolves, is no finding."""
         repo = self._repo(
@@ -961,6 +984,20 @@ class RealCorpusTest(unittest.TestCase):
             "correct BASELINE_HEADER, whichever text is right",
         )
         self.assertIn("SHRINK-ONLY", cdl.BASELINE_HEADER)
+
+        # Drive the GENERATOR, not the constant. Comparing the file against
+        # BASELINE_HEADER alone stays green when `write_baseline` stops
+        # emitting it, because both sides read the same constant. The sweep is
+        # stubbed because this asserts what is WRITTEN, not what is found.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated.txt"
+            real = cdl.sweep_tracked
+            cdl.sweep_tracked = lambda *a, **k: ([], [], [])
+            try:
+                cdl.write_baseline(str(out))
+            finally:
+                cdl.sweep_tracked = real
+            self.assertEqual(out.read_text(encoding="utf-8"), cdl.BASELINE_HEADER)
 
     def test_a_baseline_line_with_no_tab_is_reported(self) -> None:
         """A malformed baseline entry names itself.

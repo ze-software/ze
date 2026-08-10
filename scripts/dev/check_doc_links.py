@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that path references in the instruction corpus resolve.
+"""Check that path references resolve, in the instruction corpus and beyond it.
 
 Five checks:
   1. Markdown corpus: backtick path references and markdown links in the
@@ -15,9 +15,11 @@ Five checks:
      cannot see these: a bare `foo.sh` carries no `/`, so `candidate_paths`
      drops it, and a function name is not a path at all.
   4. Suppression reasons: every `doc-links: ignore` marker in a TRACKED file
-     must carry a reason. Checks 1 and 3 are the only readers of the marker,
-     and between them they walk `MD_GLOBS` and `NAME_LINT_FILES` -- a small
-     fraction of the tree. A marker anywhere else was decoration no gate read.
+     must carry a reason. Checks 1, 3 and 5 read the marker. Check 5 gives it
+     effect over nearly the whole tree, so a reason is what makes a
+     suppression auditable rather than a hole. Before check 5 existed, only
+     `MD_GLOBS` and `NAME_LINT_FILES` were read, and a marker outside both
+     was decoration no gate ever saw.
   5. Tracked citations: a path reference in any other TRACKED file must
      resolve too, under check 1's grammar. The population that predates this
      check is grandfathered in `scripts/dev/doc_citation_baseline.txt`, which
@@ -135,9 +137,12 @@ BACKTICK = re.compile(r"`([^`]+)`")
 MD_LINK = re.compile(r"\]\(([^)#][^)]*)\)")
 LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
 # `ai/digests/*.md` writes several line numbers as a comma run:
-# `forward_body.go,47,64,82`. The FILE still has to resolve, so this strips the
-# run and leaves the path, exactly as LINE_SUFFIX strips `:12`.
-LINE_RUN_SUFFIX = re.compile(r"(?:,\d+)+$")
+# `forward_body.go,47,64,82`. A member of the run can be a RANGE, as
+# `selfupdate.go,875-886` is: the first form covered 1332 baseline pairs and the
+# second covered 94 more, all of them live files reported dead. The FILE still
+# has to resolve, so this strips the run and leaves the path, exactly as
+# LINE_SUFFIX strips `:12` and `:12-14`.
+LINE_RUN_SUFFIX = re.compile(r"(?:,\d+(?:-\d+)?)+$")
 # `file.go:Symbol` / `pkg.Symbol` references: strip the symbol, check the path.
 SYMBOL_COLON = re.compile(r":[A-Za-z_][\w.]*$")
 SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
@@ -606,15 +611,29 @@ def head_baseline(path: str = BASELINE_REL) -> set[tuple[str, str]] | None:
 
     `None` is the state of a first commit and of a fresh checkout with no
     history, and it passes: there is nothing to compare against yet.
+
+    ONLY that state returns `None`, and `git cat-file -e` is what separates it
+    from the rest. Reading `git show`'s exit status alone mapped EVERY failure
+    to "nothing to compare against", which disarms the shrink-only ratchet and
+    says nothing: a blob missing from a `--filter=blob:none` clone, a corrupt
+    object, and a rename of `BASELINE_REL` all took that branch. A guard whose
+    failure mode is silent approval is the one shape `ai/rules/evidence.md`
+    refuses, so anything else raises and reds the gate.
     """
-    proc = subprocess.run(
-        ["git", "show", f"HEAD:{path}"],
+    absent = subprocess.run(
+        ["git", "cat-file", "-e", f"HEAD:{path}"],
         capture_output=True,
         text=True,
         check=False,
     )
-    if proc.returncode != 0:
+    if absent.returncode != 0:
         return None
+    proc = subprocess.run(
+        ["git", "show", f"HEAD:{path}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return parse_baseline(proc.stdout)
 
 
@@ -929,7 +948,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    summary = "all corpus path references resolve"
+    summary = "every path reference resolves"
     if baseline:
         summary += f" ({len(baseline)} citation pair(s) baselined"
         if stale:
