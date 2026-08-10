@@ -33,6 +33,17 @@ before writing a new one.
   the drawing board" heading, phrased as design work started, not delivered.
 - **Accurate over impressive.** If unsure whether something shipped or how it
   works, verify against the code/git history before claiming it. Do not inflate.
+- **No repo vocabulary.** Some words mean something inside this repository and
+  nothing outside it: extracted, enrolled, gated, polarity, ratchet, row, walk,
+  carrier, artifact, deferral, tier, rail. Say what a reader would say. A
+  requirement is *written down* and *checked*, never *extracted* and *gated*. A
+  test filed against the wrong case is that, not a *polarity* error.
+- **No raw wire bytes.** A hex dump tells the reader nothing. Decode it and name
+  what changed: `0004180a00000007400304c0000201` is "a withdrawal of 10.0.0.0/24
+  left Ze with a NEXT_HOP attached".
+- **Prefer the limit to the magic number.** "A peer can fill that attribute to
+  the maximum the format allows" beats "16383 communities", unless the number
+  itself is the point of the sentence.
 
 ## Reads like a person wrote it (avoiding AI tells)
 
@@ -56,6 +67,25 @@ trusting the words even when the facts are right, so avoid the tells:
   into telegraphic fragments ("New backend. Faster path. Less RAM.") for effect.
 - **Rephrase, never paste.** Turn commit messages, spec text, and internal notes
   into plain user-facing capability in your own words. Do not quote them verbatim.
+
+## How much detail
+
+A fix and a feature earn different budgets, because the reader does different
+things with them.
+
+- **A new feature, command, field, config leaf, counter or default: name it in
+  full.** The reader may go and use it, so give the spelling and the shape: an
+  `own` field on `show isis database`, a new `reconnect` leaf,
+  `ze_bgp_announce_dropped_oversize_total`. A changed default gets its escape
+  hatch beside it.
+- **A fix: one line.** What was broken, plus the RFC section when that is the
+  point. Leave out the mechanism, the function names, the measurements, the
+  review rounds, the interop scenario numbers, and the byte-level story. The
+  reader wants to know it is fixed, not how it was found.
+- **One sentence, one idea.** Split anything past about 30 words. Three clauses
+  and two RFC references in one sentence is a sentence nobody finishes.
+
+A section with both gets a `New:` list and a `Fixed:` list, in that order.
 
 ## Format that works (template)
 
@@ -81,7 +111,8 @@ trusting the words even when the facts are right, so avoid the tells:
 - **Bold section headers with a leading emoji.** Pick an emoji that fits the
   theme (🔒 security/hardening, 💿 appliance/installer, 🛰️ routing/protocols,
   📊 observability, 🛠️ under the hood / internals, 🧩 build/modularity,
-  🔭 coming up). Reuse the same emoji for the same theme across weeks.
+  📚 standards and RFC conformance, 🔭 coming up). Reuse the same emoji for the
+  same theme across weeks.
 - **Group by theme, not by commit.** Readers care about capabilities, not the
   changelog. Fold many small commits into one bullet when they serve one story.
 - **Bullets for lists of features; a short sentence for a single item.**

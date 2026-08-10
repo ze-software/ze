@@ -18,6 +18,8 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 - Do not mention internal process in the public update: specs, acceptance criteria, review gates, agent sessions, learned summaries, commit-count bragging, or implementation bureaucracy.
 - Write as Zeledon, not as Thomas. Use the project voice. If Thomas must be named, use third person.
 - No em dashes. Use commas, periods, colons, or parentheses.
+- A fix gets one line. A new command, field, config leaf, counter or default keeps its full spelling (`scripts/zeledon/STYLE.md`, "How much detail").
+- No repo vocabulary and no raw wire bytes in the post (`scripts/zeledon/STYLE.md`, "Hard rules").
 - Do not hand-edit generated site pages. Edit the source data or Markdown, then run the generator.
 
 ## Required references
@@ -42,6 +44,29 @@ If your working directory is `../gh-pages`, then the main repo is `../main`. If 
    - include only behavior that actually landed,
    - put design or planning work only under `Coming up`, phrased as work started, not shipped.
 4. Group the week by user-facing theme, not by commit. Fold small commits into one capability when they serve one story.
+5. **A commit message describes the moment it was written, not HEAD.** Before calling anything fixed, read the producer at HEAD. A number quoted in a commit body is usually the PRE-fix measurement, and a spec row can still read `NOT MET` after the fix landed. Say what is true now.
+
+### The RFC MUST programme is a standing item
+
+Ze is being checked against every RFC it implements, one MUST at a time. Every
+weekly update says so: that the work has started rather than finished, where it
+stands, and what it turned up that week. Owner instruction, 2026-08-10.
+
+Read the counts live. Never copy them from a commit message or a previous post.
+
+| Fact | Source |
+|------|--------|
+| Total requirements, MUST-level, how many are checked | the header of `ai/RFC-REQUIREMENTS.md` |
+| MUSTs still owing a test | the "Coverage by RFC" line in the same file |
+| Documents read end to end against their own text, and those not | `make ze-rfc-extraction-status` |
+
+State the limit honestly: a green run proves everything on the list, and does
+not yet prove the list is complete. That gap is the reason the end-to-end
+reading is on the roadmap.
+
+**MUST comes before SHOULD, and `Coming up` keeps that order.** Close what the
+checking found, then the MUSTs still owing a test, then the documents not yet
+read end to end. SHOULD waits behind all of it.
 
 ## Phase 2: Draft the public post
 
@@ -62,12 +87,16 @@ tags: <comma-separated allowed tags>
    - 3 to 6 themed sections with bold emoji headers,
    - bullets for multiple items,
    - `**🔭 Coming up**` only for planned or design work.
-5. Run a self-review against the hard gates:
+5. Run a self-review against the hard gates. Grep for what a grep can find rather than re-reading:
    - no em dashes,
    - no first person,
    - no internal process language,
+   - no repo vocabulary (`extracted`, `enrolled`, `gated`, `polarity`, `ratchet`, `walk`, `carrier`, `artifact`, `tier`),
+   - no raw hex or wire bytes,
    - no unverified shipped claims,
-   - no hype.
+   - no hype,
+   - fixes at one line, new surfaces named in full,
+   - no sentence past about 30 words.
 6. Show Thomas the exact draft and wait for approval before posting.
 
 If Thomas asks only for a draft, stop after the draft. Do not post, archive, or regenerate the site unless asked.

@@ -118,6 +118,7 @@ Before claiming code behaves a certain way, or recommending work premised on it:
 | Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
 | Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
 | Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/journal/`, specs |
+| Citing a commit message, or a number in one, as the state of HEAD | It records the moment it was written. A measurement in a body is usually the PRE-fix figure, and a spec row can still read `NOT MET` after the fix landed: `1f28ecf3e` quotes 874-889 ms for a strip whose `newRemovalSet` is no longer quadratic at HEAD. Read the producer before writing that anything is fixed |
 | Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
 | Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
 | Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |
