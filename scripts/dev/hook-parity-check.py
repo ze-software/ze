@@ -41,7 +41,6 @@ BASH_CMDS = [
     "go build -o bin/ze ./cmd/ze",
     "go build ./...",
     "go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze",
-    "go build -o tmp/s/abc123/bin/ze ./cmd/ze",
     "grep x | tail -5",
     "git log --oneline | tail -3",
     "go test ./... | head -50",
@@ -142,7 +141,6 @@ BASH_CMDS = [
     "tee @PROJECT@/tmp/notes.txt",
     "echo probe > sub/tmp/notes.txt",
     'make ze-unit-test-changed > "$dir/unit.log" 2>&1',
-    "go test ./... 2>&1 | tee tmp/s/abc123/t.log",
     "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log",
     "make ze-doc-test > tmp/verify/out.log 2>&1",
     "make ze-doc-test > tmp/ze-verify.log 2>&1",
@@ -326,11 +324,10 @@ WE_CASES = [
         "package af\nfunc ParseAndValidate() {}\n",
     ),
     # The Write half of the scratch guard, on the same policy the Bash cases
-    # pin: the tmp/ root is refused, both session layouts pass, a producer's
+    # pin: the tmp/ root is refused, the session layout passes, a producer's
     # own folder passes, and the shared-by-design root names pass. The runner
     # sends an ABSOLUTE path here, which is what the Write tool sends too.
     ("scratch tmp root", "tmp/notes.md", "# notes\n"),
-    ("scratch session dir", "tmp/s/abc123/notes.md", "# notes\n"),
     (
         "scratch dated session dir",
         "tmp/session/2026-08-10-abc123/notes.md",
@@ -612,11 +609,9 @@ BASH_GOLDEN = {
     "go build ./...": 0,
     "go build ./cmd/ze": 2,
     # A session builds into its own dated directory (mk/session.mk,
-    # internal/test/sessionpath). The retired tmp/s/<id>/ root is not a binary
-    # directory any producer writes into, so it is refused like every other
-    # path outside bin/.
+    # internal/test/sessionpath). Every other -o target outside bin/ is
+    # refused, which "go build ./cmd/ze" above pins.
     "go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze": 0,
-    "go build -o tmp/s/abc123/bin/ze ./cmd/ze": 2,
     "grep -n x f.log": 0,
     # A lossy pipe is blocked on an EXPENSIVE producer only (commands.md).
     # `grep x | tail` and `git log | tail` are cheap: blocking them was a false
@@ -681,11 +676,12 @@ BASH_GOLDEN = {
     "grep -rn 'until ! pgrep' ai/rules": 0,
     "while read -r line; do echo no-sleep-here; done < tmp/list": 0,
     "python3 -c 'import time; while True: time.sleep(5)'": 2,
-    # Scratch placement. Only a fixed name at the tmp/ ROOT is refused; both
-    # session layouts, any subdirectory, and the shared-by-design root names
-    # pass. Both layouts are here because the rename to
-    # tmp/session/<YYYY-MM-DD>-<sid>/ lands while sessions run on tmp/s/<sid>/,
-    # and refusing the old one mid-flight would stop them (spec-session-bin-directory).
+    # Scratch placement. Only a fixed name at the tmp/ ROOT is refused; the
+    # session layout, any other subdirectory, and the shared-by-design root
+    # names pass. The guard's contract is "not at the tmp/ root": it decides on
+    # a path's resolved PARENT and names no layout, so no row here pins a
+    # directory NAME, and a renamed session root needs no fixture change
+    # (spec-session-bin-directory, AC-27).
     "grep -rn foo ai/rules > tmp/notes.txt": 2,
     # One file, three spellings, one verdict -- and a control proving the
     # candidate widened without the refusal widening.
@@ -694,7 +690,6 @@ BASH_GOLDEN = {
     "tee @PROJECT@/tmp/notes.txt": 2,
     "echo probe > sub/tmp/notes.txt": 0,
     'make ze-unit-test-changed > "$dir/unit.log" 2>&1': 0,
-    "go test ./... 2>&1 | tee tmp/s/abc123/t.log": 0,
     "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log": 0,
     "make ze-doc-test > tmp/verify/out.log 2>&1": 0,
     "make ze-doc-test > tmp/ze-verify.log 2>&1": 0,
@@ -750,11 +745,10 @@ WE_GOLDEN = {
     "Edit|println": 2,
     "Edit|raw ansi": 2,
     # The Write surface answers the tmp/ root exactly as the Bash surface does:
-    # the root is refused, both session layouts and any other subdirectory pass,
+    # the root is refused, the session layout and any other subdirectory pass,
     # and so do the shared-by-design root names (c_scratch_path_we).
     "Edit|scratch dated session dir": 0,
     "Edit|scratch producer folder": 0,
-    "Edit|scratch session dir": 0,
     "Edit|scratch shared root name": 0,
     "Edit|scratch tmp root": 2,
     "Edit|scripts os.exit ok": 2,
@@ -801,7 +795,6 @@ WE_GOLDEN = {
     "Write|raw ansi": 2,
     "Write|scratch dated session dir": 0,
     "Write|scratch producer folder": 0,
-    "Write|scratch session dir": 0,
     "Write|scratch shared root name": 0,
     "Write|scratch tmp root": 2,
     "Write|scripts os.exit ok": 2,

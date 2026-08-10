@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-session-scoped-build-artifacts.md` (supersedes one of its decisions) |
-| Phase | 10/10 (0, 1, E2, 2, 3, 3a, 4, 5, E1, 6 green; AC-27 is owner-held open) |
+| Phase | 10/10 (0, 1, E2, 2, 3, 3a, 4, 5, E1, 6 green; AC-27 resolved 2026-08-10) |
 | Deferral shard | `-` (create `plan/deferrals/session-bin-directory.md` on the first deferral) |
 | Updated | 2026-08-10 |
 
@@ -126,12 +126,13 @@ cleans it. The guard covers both surfaces an agent creates a file with: a Bash r
 `tee`, and the Write tool. A path with a directory component passes; a bare `tmp/<file>`
 does not.
 
-**The guard accepts BOTH layouts through the transition.** `tmp/s/<id>/` and
-`tmp/session/<YYYY-MM-DD>-<sid>/` are equally acceptable until a grep proves no producer and
-no live tree writes to `tmp/s/` any more. Refusing the old layout while the rename is in
-flight would block sessions that are mid-run in a shared checkout, which is the one failure
-this spec must not cause. Removing the legacy acceptance is its own step, gated on that
-grep, and is AC-27.
+**The guard accepts BOTH layouts through the transition, and it needs no code to do it.**
+`tmp/s/<id>/` and `tmp/session/<YYYY-MM-DD>-<sid>/` are equally acceptable because
+`is_ad_hoc_root_file` decides on a path's resolved PARENT and names no layout at all: every
+subdirectory of `tmp/` passes. Refusing the old layout while the rename was in flight would
+have blocked sessions mid-run in a shared checkout, which is the one failure this spec must
+not cause. AC-27 asked for the legacy acceptance to be removed once the rename landed; see
+its resolution under the AC table.
 
 **Root files that stay.** The guard exempts the root names that are session-keyed or shared
 by design: `ze-verify*`, `.ze-verify*`, `commit-*`, `commit-msg-*`, `delete-*`, `mutation*`,
@@ -146,20 +147,35 @@ them is not in this spec.
 | AC-22 | `.sid-by-pid-<clipid>` and `.closure-ack-<stem>` | still flat under `tmp/session/`, unmoved and unrenamed |
 | AC-23 | Bash: a redirect or `tee` names `tmp/<file>` | refused, exit 2, naming `session-scratch.sh` as the route |
 | AC-24 | Write or Edit: the path is `tmp/<file>` | refused, exit 2, same message |
-| AC-25 | Bash or Write: the path carries a directory component under `tmp/` | allowed, for `tmp/s/<id>/…`, `tmp/session/<dated-id>/…`, and every producer-backed folder (`verify/`, `review/`, `kernel/`, `gokrazy/`, `qemu/`, `evidence/`, `stress-repro/`, `rule-coverage/`) |
+| AC-25 | Bash or Write: the path carries a directory component under `tmp/` | allowed, for `tmp/session/<dated-id>/…` and every producer-backed folder (`verify/`, `review/`, `kernel/`, `gokrazy/`, `qemu/`, `evidence/`, `stress-repro/`, `rule-coverage/`) |
 | AC-26 | Bash or Write: the path is an exempt root file (`tmp/ze-verify.log`, `tmp/commit-<sid>.sh`) | allowed |
-| AC-27 | grep for `tmp/s/` across producers and rules, after the rename lands | no hit; the guard's legacy acceptance of `tmp/s/` is then removed, and its fixture becomes a refusal |
+| AC-27 | grep for `tmp/s/` across producers and rules, after the rename lands | no hit. The removal this AC asks for has no target: there is no legacy acceptance branch, because `is_ad_hoc_root_file` names no layout. Resolved by the root's retirement; see the finding below the table |
 
-**AC-27 IS HELD OPEN ON PURPOSE, by owner instruction (2026-08-10): both layouts stay
-accepted "until it does not trigger as fully ironed out".** The rename landed in the working
-tree during phases 2 to E1, and it is NOT committed. Sibling sessions share this checkout, so
-refusing `tmp/s/` now would break a session mid-run, which the scope extension names as the
-one failure this spec must not cause. `tmp/s/<id>/` is accepted BY CONSTRUCTION in
-`.claude/hooks/lib/scratch_path.py`, which names no layout at all, so nothing has to be added
-to keep it. AC-27 is a deliberate follow-up, gated on the commit landing and on the grep
-being clean, and it is the one AC this spec closes with open. Do not let a later phase or a
-review "tidy" it: removing the acceptance early is a regression, not a completion.
-| AC-28 | the parity corpus and the fixture runner | every row above is pinned: allowed paths exit 0, refused paths exit 2, and both layouts appear |
+**AC-27 IS RESOLVED, and its resolution is a FINDING rather than a task done. There was no
+legacy acceptance branch to remove: it never existed.** The owner released the hold on
+2026-08-10, after commit `5a9db3c9a` landed the rename and the grep for `tmp/s/` came back
+clean across every producer and rule. The removal AC-27 asked for then had no target.
+`is_ad_hoc_root_file` (`.claude/hooks/lib/scratch_path.py`) refuses a file whose resolved
+PARENT is `<project>/tmp`, and passes everything deeper. `tmp/s/<id>/` was never a blessed
+layout the guard knew by name; it passed as an ordinary subdirectory, exactly as
+`tmp/verify/` and `tmp/review/` do. So the AC is satisfied by the RETIREMENT of the root,
+which landed in `5a9db3c9a`, and the only work it left was prose: the rule point stopped
+offering `tmp/s/<sid>/` as a place to write, and the parity corpus stopped naming a root the
+repository no longer has.
+
+**A refusal for `tmp/s/` WAS built, reviewed green, and deliberately NOT taken. Do not
+rebuild it.** The implementation added an `is_retired_scratch_path` predicate called by both
+dispatchers, flipped three parity goldens to exit 2, and passed every gate, an independent
+review at 0 BLOCKER, and a mutation check. The owner refused it on 2026-08-10 on
+`ai/rules/simplicity.md`. The argument for it was that `tmp/s/` is now a root nothing creates
+and nothing sweeps, so a write there accumulates unnoticed. That is true, and it is equally
+true of `tmp/anything-else/`. The guard's contract is "not at the `tmp/` root". It never
+promised sweepability, and a subdirectory passing is the contract working, not a hole in it.
+Refusing one arbitrary retired name out of unbounded many buys nothing the contract does not
+already give, and costs a special case the problem does not need. The diff is kept at
+`backups/work-20260810-171933-ac27-guard-refusal.patch` for whoever wants to read what was
+rejected.
+| AC-28 | the parity corpus and the fixture runner | every row above is pinned: allowed paths exit 0, refused paths exit 2, and no row names a retired directory |
 
 **Files this extension adds to the change set.**
 
@@ -720,10 +736,8 @@ N/A — no protocol behavior.
       no longer exists: that corpus was deleted, and a closure's lesson is now one row in
       `plan/journal/<class>.md` (owner directive 2026-08-10, `ai/rules/planning.md`)
 - [ ] **Commit A:** code + tests + docs + spec + journal rows
-- [ ] ~~**Commit B:** `git rm plan/spec-session-bin-directory.md` only~~ **NOT RUN.**
-      AC-27 is held open by owner instruction (recorded under the AC table), so this spec
-      stays in `plan/` with Status `in-progress` and the claim stays unreleased. Removing
-      it would destroy the record of the one outstanding item (`ai/rules/completion.md`)
+- [ ] **Commit B:** `git rm plan/spec-session-bin-directory.md` only. Run on 2026-08-10,
+      after the owner released the AC-27 hold and commit A2 landed AC-27 plus this record
 
 ---
 
@@ -787,7 +801,9 @@ journal files and clear when the commit records them.
 | Seed with `ze init --force --yes --seed` | `ze init --seed` | `--force` moves an existing database aside. See Bugs Found |
 | `scripts/dev/hook_session_id_test.py` for AC-17/AC-18 | the existing `scripts/dev/hook-fixture-check.py` `session-id` section | the file never existed; creating a second runner for one section is layering |
 | `plan/deferrals/session-bin-directory.md` created | not created | no deferral was taken. See Deferrals Resolved |
-| Commit B removes the spec | not run | AC-27 is held open by owner instruction. See the Closure checklist above |
+| Commit B removes the spec | run, one commit later than planned | AC-27 was held open by owner instruction until commit A landed. Commit A2 carries AC-27, commit B removes the spec |
+| AC-27 removes a legacy `tmp/s/` acceptance from the guard | nothing was removed, because no such branch existed | `is_ad_hoc_root_file` decides on a path's resolved PARENT and names no layout, so `tmp/s/<id>/` passed as an ordinary subdirectory. AC-27 was written on the belief that the guard knew the old layout by name |
+| A `tmp/s/` refusal is added instead | BUILT, reviewed green, and REJECTED by the owner (2026-08-10) | The root is unswept, but so is every other `tmp/` subdirectory; the guard's contract is "not at the `tmp/` root" and never promised sweepability. A special case the problem does not need (`ai/rules/simplicity.md`). Diff kept at `backups/work-20260810-171933-ac27-guard-refusal.patch` |
 
 ## Mistake Log
 
@@ -843,10 +859,10 @@ journal files and clear when the commit records them.
 | AC-22 | Done | `session-state-flat-markers-do-not-move`: eight flat markers survive a full `session-start.sh` run | |
 | AC-23 | Done | `hook-parity-check.py` BASH goldens `tee tmp/t.log`, `tee tmp/v.log`, `grep … > tmp/notes.txt` = 2, plus `./tmp/notes.txt`, the absolute form and `tee` of the absolute form = 2 | the last three were added at closure and found a real defect |
 | AC-24 | Done | WE goldens `Write\|scratch tmp root` = 2, `Edit\|scratch tmp root` = 2, on the ABSOLUTE path the Write tool sends | |
-| AC-25 | Done | goldens = 0 for `tmp/s/<id>/`, `tmp/session/<dated>/`, all eight producer folders on both surfaces, and `sub/tmp/notes.txt` as the widening control | |
+| AC-25 | Done | goldens = 0 for `tmp/session/<dated>/`, all eight producer folders on both surfaces, and `sub/tmp/notes.txt` as the widening control | the `tmp/s/<id>/` rows left the corpus with AC-27: the guard names no layout, so no row needs to |
 | AC-26 | Done | goldens = 0 for `ze-verify.log`, `.ze-verify-duration.txt`, `commit-*`, `delete-*`, `mutation*`, `test-timings*` | |
-| AC-27 | **OPEN, owner-held** | not implemented, on purpose | The owner instructed on 2026-08-10 that both layouts stay accepted "until it does not trigger as fully ironed out". The rename lives only in the working tree; sibling sessions share this checkout, so refusing `tmp/s/` before the commit lands would break one mid-run, which the scope extension names as the one failure this spec must not cause. `tmp/s/<id>/` is accepted BY CONSTRUCTION in `scratch_path.py`, which names no layout, so nothing had to be added to keep it. This is the one item this spec closes with open, and it is why commit B is not run |
-| AC-28 | Done | `hook-parity-check.py` 200/200, both layouts present on both surfaces | |
+| AC-27 | Done, as a FINDING | `grep -rn "tmp/s/"` over the tree, excluding `tmp/`, `.git/`, `plan/` and `backups/`, finds no producer. No acceptance branch was removed because none existed: `is_ad_hoc_root_file` (`.claude/hooks/lib/scratch_path.py`) decides on the resolved parent and names no layout | The owner released the hold on 2026-08-10, then refused the refusal that was built for it (`ai/rules/simplicity.md`). Only prose changed: the rule point and the parity corpus stopped naming a retired root. See the finding under the AC table before rebuilding anything |
+| AC-28 | Done | `hook-parity-check.py` 196/196, the session layout allowed on both surfaces and no row naming a retired directory | four rows naming `tmp/s/` left the corpus with AC-27 |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -898,10 +914,10 @@ journal files and clear when the commit records them.
 
 ### Audit Summary
 - **Total items:** 28 AC + 9 Task requirements + 20 TDD rows + 22 file rows = 79
-- **Done:** 71
+- **Done:** 72
 - **Partial:** 0
 - **Skipped:** 0
-- **Open by owner instruction:** 1 (AC-27)
+- **Open by owner instruction:** 0
 - **Changed:** 7 (recorded in Deviations and in the tables above)
 
 ## Goal Validation (BLOCKING)
@@ -917,7 +933,7 @@ journal files and clear when the commit records them.
 | Nothing under `tmp/session/` is removed automatically (owner decision) | grep + fixture | AC-16's grep over `.claude/hooks/` and `scripts/dev/` for `-mmin +1440`, `reap_dead`, `reap_binaries` and `rm -rf … tmp/session` is EMPTY, re-run at closure. `TestSessionEndDeletesNothing` iterates whatever `settings.json` registers on `SessionEnd`, drives each with a real payload, and diffs the whole tree, so it goes red the moment any deleting hook is registered again. Mutation-verified: putting the age sweep back in `session-start.sh` reds two checks. And the one path that could still have taken the whole root, `ze-clean-tmp` matching `tmp/` as its own child, is closed and mutation-verified |
 | Removing the age-out cannot reopen the PID-reuse incident (R-9) | fixture + mutation | `session-id-reused-pid-mints-fresh-id`. MUTATION-VERIFIED: restoring the PID-only cache key makes a new session adopt a dead session's id (`dead == live`), which is incident 1162/1246 exactly |
 | QEMU still reaches the DUT when `tmp/` is a symlink (R-3) | live boot + control | a real QEMU boot over a fixture checkout whose `tmp/` IS a symlink: the DUT under `/workspace/tmp/session/2026-08-10-ac9probe/bin/` execs and prints its marker, `QEMU VM: PASS`. CONTROL, same fixture with `scratch_share` neutered: `mkdir: can't create directory '/workspace/tmp/'`, exit 1, marker absent |
-| A file at the `tmp/` root is refused, on both surfaces an agent writes with | golden corpus + mutation | 200/200 parity rows, covering all three spellings of the root path on the Bash surface and the absolute one on Write and Edit. MUTATION-VERIFIED four ways: the Bash guard made to allow reds 4 goldens; the Write guard made to allow reds 2; the search-argument exemption removed reds the audit golden; the regex narrowed back to the literal `tmp/` reds exactly the 3 new refuse rows and leaves the allow-control green |
+| A file at the `tmp/` root is refused, on both surfaces an agent writes with | golden corpus + mutation | 196/196 parity rows, covering all three spellings of the root path on the Bash surface and the absolute one on Write and Edit. MUTATION-VERIFIED four ways: the Bash guard made to allow reds 4 goldens; the Write guard made to allow reds 2; the search-argument exemption removed reds the audit golden; the regex narrowed back to the literal `tmp/` reds exactly the 3 new refuse rows and leaves the allow-control green |
 
 Interop: N-A. Build tooling, no wire-visible behaviour, no protocol peer
 (`ai/rules/interop-and-goal-validation.md`, "When interop tests are NOT required").
@@ -984,8 +1000,8 @@ No foreign shard was emptied by these resolutions, so none is removed.
 | AC-12 | the retired vocabulary is gone | `grep -rn 'ZE_BIN_SUFFIX\|ZE_BIN_NAMES\|reap_binaries\|bare_named_perf' Makefile mk/ scripts/ .claude/ internal/ test/ ai/ docs/`, excluding `*_test.py` and `RETIRED.md`: EMPTY, run at closure |
 | AC-16 | the four banned deletion idioms are gone | `grep -rn 'mmin +1440\|reap_dead\|rm -rf .*tmp/session' .claude/hooks/ scripts/dev/`, excluding `*_test.py`: EMPTY, run at closure |
 | AC-17..AC-22 | id cache key, digest location, flat markers | `python3 scripts/dev/hook-fixture-check.py` gives `356/356 passed`, run after every closure fix |
-| AC-11, AC-23..AC-26, AC-28 | the guards refuse and allow exactly the pinned corpus | `python3 scripts/dev/hook-parity-check.py` gives `200/200 match`, and `make ze-hook-test` OK, both run after every closure fix |
-| AC-27 | held OPEN by owner instruction | `.claude/hooks/lib/scratch_path.py` names no layout, so `tmp/s/<id>/` is accepted by construction; the parity corpus still carries both layouts. Nothing was added to keep it and nothing was removed |
+| AC-11, AC-23..AC-26, AC-28 | the guards refuse and allow exactly the pinned corpus | `python3 scripts/dev/hook-parity-check.py` gives `196/196 match`, and `make ze-hook-test` OK, both run after every closure fix |
+| AC-27 | no producer writes the retired root, and no guard code was owed | `grep -rn "tmp/s/"` finds no producer; `.claude/hooks/lib/scratch_path.py` is byte-identical to `5a9db3c9a`, which is the evidence that no acceptance branch existed to remove |
 | every rule point and digest | fresh | `make ze-rules-lint` 28 conform; `ze-rules-condensed-check`, `ze-rules-render-check`, `ze-rules-index-check`, `ze-rules-points-roundtrip` all rc=0; `ze-rules-gate-map` DANGLING 0, PUBLISHED 0 |
 
 ### Wiring Verified (end-to-end)
