@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-10 | fixit-rib-graph-ci-never-terminates | test runner | the drain barrier burned its full 10s `peerDrainGrace` on every `--mode sink` or `--mode echo` test in `test/plugin/`, because nothing signaled a `ze-peer` whose only exit is a signal. It read as latency for two days, and it was hiding a red: `event-predicate-wait.ci` failed at its 15s budget with `TYPE: timeout` while the daemon completed correctly | `terminateScaffoldPeers` sends SIGTERM after the arm switch and waits for nothing, so `drainPeers` reaps at once and stays the only bounded wait. A check-mode peer is skipped so the capture its verdict is read from survives |

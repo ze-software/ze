@@ -1196,6 +1196,26 @@ is still governed by its own exit/output/file assertions.
 <!-- source: internal/test/runner/peer_contract.go -- isSelfValidated, hasCheckPeer -->
 <!-- test: internal/test/runner/peer_contract_test.go TestIsSelfValidated, TestHasCheckPeer -->
 
+### A scaffolding ze-peer is signaled at teardown
+
+A sink, echo or inject `ze-peer` never ends itself: its accept loop runs until its
+context is cancelled, and `ze-test peer` maps SIGTERM to that cancel. The runner
+sends that SIGTERM at teardown, after the last step and before the barrier that
+collects peer output. The peer exits with status 0 and its capture is complete, so
+a `.ci` author needs no teardown directive and must not add one.
+
+A **check-mode** peer is never signaled. It exits by itself when its expectations
+are met, and the runner reads its verdict from the capture a signal would truncate.
+
+Before 2026-08-10 no code signaled a scaffolding peer, so the drain barrier waited
+out its full 10s grace on every `--mode sink` or `--mode echo` test. That cost was
+not only latency: `test/plugin/event-predicate-wait.ci` failed at its 15s budget
+with `TYPE: timeout` while the daemon itself completed correctly.
+<!-- source: internal/test/runner/runner_exec_util.go -- terminateScaffoldPeers, drainPeers -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated teardown, terminateScaffoldPeers call -->
+<!-- source: internal/test/cli/cmd_peer.go -- cmdPeer, SIGTERM mapped to the peer's context cancel -->
+<!-- test: internal/test/runner/peer_teardown_test.go TestTerminateScaffoldPeersReapsSinkPeer, TestTerminateScaffoldPeersLeavesCheckPeer -->
+
 ## Migration from Old Format
 
 Old format (deprecated):

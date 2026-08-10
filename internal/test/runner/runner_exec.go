@@ -1147,6 +1147,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		terminateGracefully(p)
 	}
 
+	// A scaffolding peer never ends itself, so it is signaled here and reaped by
+	// the barrier below, which would otherwise burn its whole grace on a process
+	// whose only exit is a signal (see terminateScaffoldPeers).
+	//
+	// After the daemon teardown above, never before the arms: the daemon is still
+	// exchanging with these peers while an arm runs (event-predicate-wait.ci needs
+	// its echo peer to reflect an UPDATE back before `ze` exits), so an earlier
+	// signal would cut the exchange the test measures.
+	terminateScaffoldPeers(peerOutputs)
+
 	// Barrier: every peer's output must be complete before anything reads it. Only
 	// the default arm above waits peers; the await=stderr and exit-code arms wait
 	// the daemon alone, and ~290 .ci files pair a check peer with expect=exit.

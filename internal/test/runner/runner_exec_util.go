@@ -522,6 +522,44 @@ func drainPeers(peers []peerOutput, grace time.Duration) {
 	}
 }
 
+// terminateScaffoldPeers sends SIGTERM to every peer that cannot end itself, so
+// the drainPeers barrier below reaps it at once instead of waiting out its grace.
+//
+// A sink/echo/inject peer is scaffolding: it accepts whatever arrives and loops
+// until it is signaled (peer_contract.go hasCheckPeer). Its producer says the same
+// thing -- the accept loop of (*Peer).Run in internal/test/peer/peer.go
+// `continue`s for every non-check mode, and its only exit is ctx.Done(), which
+// returns Result{Success: true}. ze-test peer maps SIGTERM to that cancel
+// (internal/test/cli/cmd_peer.go), so teardown IS such a peer's normal exit.
+//
+// Without this, the peer is still running when drainPeers starts and the whole
+// grace elapses: the exit-code and await=stderr arms of runOrchestrated wait the
+// daemon alone, so nothing else ever waits or signals a scaffolding peer. That
+// cost every --mode sink or --mode echo test in test/plugin/ a flat peerDrainGrace.
+//
+// It ONLY signals. Reaping stays with drainPeers, whose select on a timer is the
+// only BOUNDED wait on a peer; waiting here (terminateGracefully ends in a bare
+// cmd.Wait()) would put an unbounded wait on the runner's own goroutine for
+// exactly the peers this function signals, which is the bound the change exists
+// to keep. A peer the default arm already waited needs no exclusion either:
+// Signal on a reaped os.Process returns ErrProcessDone and does nothing.
+//
+// A check-mode peer is left alone. It exits by itself once its expectations are
+// met, so signaling one would cut its exchange short and lose the success line
+// its verdict is read from (peer_contract.go failedCheckPeers).
+func terminateScaffoldPeers(peers []peerOutput) {
+	for i := range peers {
+		// proc is nil for a peer that was never started as a background process,
+		// and for one a cmd=stop step already cleared (runner_exec.go), which is
+		// why drainPeers checks it too. It is never non-nil with a nil Process:
+		// runOrchestrated assigns it only after Start returned no error.
+		if peers[i].checkMode || peers[i].proc == nil {
+			continue
+		}
+		_ = peers[i].proc.Process.Signal(syscall.SIGTERM)
+	}
+}
+
 // combined returns this ONE peer's stdout followed by its stderr.
 //
 // Deliberately per-peer. rec.PeerOutput joins every peer's output, which is fine

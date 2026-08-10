@@ -26,9 +26,15 @@ func startSleeper(t *testing.T) *exec.Cmd {
 	return proc
 }
 
-// withinDeadline runs fn and fails the test if it does not return within d,
-// catching a stop/teardown path that hangs instead of reaping.
-func withinDeadline(t *testing.T, d time.Duration, what string, fn func()) {
+// teardownTestDeadline bounds every stop/teardown call these tests make. The
+// paths under test reap a process, so they return in milliseconds; the deadline
+// only has to be short enough to report a hang rather than sit in it.
+const teardownTestDeadline = 5 * time.Second
+
+// withinDeadline runs fn and fails the test if it does not return within
+// teardownTestDeadline, catching a stop/teardown path that hangs instead of
+// reaping.
+func withinDeadline(t *testing.T, what string, fn func()) {
 	t.Helper()
 	done := make(chan struct{})
 	go func() {
@@ -37,8 +43,8 @@ func withinDeadline(t *testing.T, d time.Duration, what string, fn func()) {
 	}()
 	select {
 	case <-done:
-	case <-time.After(d):
-		t.Fatalf("%s did not complete within %s (hang)", what, d)
+	case <-time.After(teardownTestDeadline):
+		t.Fatalf("%s did not complete within %s (hang)", what, teardownTestDeadline)
 	}
 }
 
@@ -55,7 +61,7 @@ func TestStopBackgroundKillsNamedProcess(t *testing.T) {
 	cmd := RunCommand{Mode: modeStop, Seq: 2, Name: "responder", Signal: signalKill}
 	var err error
 	var stopped *exec.Cmd
-	withinDeadline(t, 5*time.Second, "stopNamedBackground(kill)", func() {
+	withinDeadline(t, "stopNamedBackground(kill)", func() {
 		stopped, bgProcs, err = stopNamedBackground(cmd, bgProcs, namedBg)
 	})
 	if err != nil {
@@ -90,7 +96,7 @@ func TestStopBackgroundTermSignal(t *testing.T) {
 
 	cmd := RunCommand{Mode: modeStop, Seq: 3, Name: "daemon", Signal: signalTerm}
 	var err error
-	withinDeadline(t, 5*time.Second, "stopNamedBackground(term)", func() {
+	withinDeadline(t, "stopNamedBackground(term)", func() {
 		_, bgProcs, err = stopNamedBackground(cmd, bgProcs, namedBg)
 	})
 	if err != nil {
@@ -153,7 +159,7 @@ func TestTeardownToleratesStoppedProcess(t *testing.T) {
 
 	// terminateGracefully is what the end-of-test teardown calls on daemons; it
 	// must return promptly on an already-reaped process (its Wait returns fast).
-	withinDeadline(t, 5*time.Second, "terminateGracefully on stopped process", func() {
+	withinDeadline(t, "terminateGracefully on stopped process", func() {
 		terminateGracefully(proc)
 	})
 }
